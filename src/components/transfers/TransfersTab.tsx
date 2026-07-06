@@ -188,6 +188,12 @@ export default function TransfersTab({
   // filter output before pagination so sorted rows stay stable across pages.
   const [ovrSortDir, setOvrSortDir] = useState<"none" | "desc" | "asc">("none");
   const [marketPage, setMarketPage] = useState(1);
+  const cycleOvrSort = () => {
+    setOvrSortDir((current) =>
+      current === "none" ? "desc" : current === "desc" ? "asc" : "none",
+    );
+    setMarketPage(1);
+  };
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
     null,
   );
@@ -780,10 +786,12 @@ export default function TransfersTab({
       return filtered;
     }
 
-    const sorted = [...filtered].sort(
-      (left, right) => getPlayerOvr(left) - getPlayerOvr(right),
+    // Direction encoded in the comparator (rather than sort().reverse()) so
+    // tied players keep the same relative order in both asc and desc.
+    const factor = ovrSortDir === "desc" ? -1 : 1;
+    return [...filtered].sort(
+      (left, right) => factor * (getPlayerOvr(left) - getPlayerOvr(right)),
     );
-    return ovrSortDir === "desc" ? sorted.reverse() : sorted;
   }, [
     affordableOnly,
     availabilityFilter,
@@ -1339,7 +1347,6 @@ export default function TransfersTab({
                       {t("common.wage")}
                     </th>
                     <th
-                      role="columnheader"
                       aria-sort={
                         ovrSortDir === "desc"
                           ? "descending"
@@ -1347,18 +1354,14 @@ export default function TransfersTab({
                             ? "ascending"
                             : "none"
                       }
-                      className={`py-3 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${ovrSortDir !== "none" ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={() => {
-                        // Cycle: none → desc → asc → none. Reset paging on any change so
-                        // the user always lands on the first page of the new order.
-                        setOvrSortDir((current) =>
-                          current === "none"
-                            ? "desc"
-                            : current === "desc"
-                              ? "asc"
-                              : "none",
-                        );
-                        setMarketPage(1);
+                      tabIndex={0}
+                      className={`py-3 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 transition-colors ${ovrSortDir !== "none" ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={cycleOvrSort}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          cycleOvrSort();
+                        }
                       }}
                     >
                       <div className="flex items-center gap-1">
