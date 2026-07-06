@@ -834,6 +834,7 @@ export default function PlayerProfile({
 
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
+          player={player}
           isOwnClub={isManagerSquadProfile}
           isGk={primaryPosition === "Goalkeeper"}
           title={t("playerProfile.attributes")}
