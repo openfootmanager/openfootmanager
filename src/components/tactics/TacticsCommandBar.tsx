@@ -17,6 +17,7 @@ import {
   useState,
   type JSX,
 } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { Badge, Button, Card, Select } from "../ui";
@@ -55,8 +56,8 @@ const PLAY_STYLES = [
   { id: "HighPress", icon: <Flag className="h-3.5 w-3.5" /> },
 ] as const;
 
-function summarizeTactic(entry: TacticsLibraryEntry): string {
-  return `${entry.formation} - ${entry.playStyle}`;
+function summarizeTactic(entry: TacticsLibraryEntry, t: TFunction): string {
+  return `${entry.formation} - ${t(`common.playStyles.${entry.playStyle}`, entry.playStyle)}`;
 }
 
 export default function TacticsCommandBar({
@@ -202,7 +203,7 @@ export default function TacticsCommandBar({
                     {activeTactic.name}
                   </div>
                   <div className="mt-1 truncate text-[11px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                    {summarizeTactic(activeTactic)}
+                    {summarizeTactic(activeTactic, t)}
                   </div>
                 </div>
                 <div className="shrink-0 rounded-full bg-primary-500/10 px-2 py-1 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
@@ -264,7 +265,7 @@ export default function TacticsCommandBar({
                                   </div>
                                 </div>
                                 <span className="shrink-0 text-[11px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                                  {summarizeTactic(entry)}
+                                  {summarizeTactic(entry, t)}
                                 </span>
                               </div>
                             </button>
@@ -305,7 +306,7 @@ export default function TacticsCommandBar({
                                 </div>
                               </div>
                               <span className="shrink-0 text-[11px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                                {summarizeTactic(entry)}
+                                {summarizeTactic(entry, t)}
                               </span>
                             </div>
                           </button>

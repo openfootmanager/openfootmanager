@@ -40,27 +40,9 @@ export const POSITIONS: Position[] = [
   "Striker",
 ];
 
-// Tailwind background class per position, used for the position badge in the
-// players list and the preview card. Shared so the two never drift apart.
-export const POSITION_COLOR: Record<Position, string> = {
-  Goalkeeper: "bg-amber-500",
-  Defender: "bg-blue-600",
-  CenterBack: "bg-blue-600",
-  RightBack: "bg-blue-600",
-  LeftBack: "bg-blue-600",
-  RightWingBack: "bg-blue-500",
-  LeftWingBack: "bg-blue-500",
-  Midfielder: "bg-green-600",
-  DefensiveMidfielder: "bg-green-700",
-  CentralMidfielder: "bg-green-600",
-  AttackingMidfielder: "bg-green-500",
-  RightMidfielder: "bg-green-600",
-  LeftMidfielder: "bg-green-600",
-  RightWinger: "bg-red-500",
-  LeftWinger: "bg-red-500",
-  Forward: "bg-red-600",
-  Striker: "bg-red-600",
-};
+// Position badge colours live in src/lib/positionColors.ts, shared with the
+// tactics pitch; re-exported here for the players list and the preview card.
+export { POSITION_COLOR } from "../../../lib/positionColors";
 
 // Player attribute groups shown both as editable sliders (PlayerForm) and as
 // read-only bars (PlayerPreviewCard). Single source so the form and its preview

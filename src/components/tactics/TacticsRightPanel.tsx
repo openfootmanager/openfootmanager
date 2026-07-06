@@ -87,7 +87,7 @@ export default function TacticsRightPanel({
             type="button"
             onClick={() => { setRolesOpen((o) => !o); }}
             aria-expanded={rolesOpen}
-            className="flex items-center gap-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            className="flex items-center gap-1.5 text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
             <ChevronDown
               className={`h-3 w-3 transition-transform duration-150 ${rolesOpen ? "" : "-rotate-90"}`}
@@ -168,7 +168,7 @@ export default function TacticsRightPanel({
             type="button"
             onClick={() => { setBlueprintOpen((o) => !o); }}
             aria-expanded={blueprintOpen}
-            className="flex items-center gap-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            className="flex items-center gap-1.5 text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
             <ChevronDown
               className={`h-3 w-3 transition-transform duration-150 ${blueprintOpen ? "" : "-rotate-90"}`}

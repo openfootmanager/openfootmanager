@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { getPlayerOvr } from "../../lib/helpers";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
-import { Badge, Card, JerseyIcon, PlayerAvatar, Select } from "../ui";
+import { Badge, Card, PitchToken, Select } from "../ui";
 import {
   isPlayerExactForSlot,
   isPlayerOutOfPosition,
@@ -83,32 +83,6 @@ function getFitTone(player: PlayerData | null, slotPosition: string): FitTone {
   return "adapted";
 }
 
-function getFitRingClass(fitTone: FitTone): string {
-  switch (fitTone) {
-    case "exact": return "ring-2 ring-success-400";
-    case "adapted": return "ring-2 ring-accent-400";
-    case "out": return "ring-2 ring-red-400";
-    default: return "ring-1 ring-white/25";
-  }
-}
-
-function getConditionFillClassName(condition: number): string {
-  if (condition >= 90) {
-    return "bg-success-400";
-  }
-
-  if (condition >= 75) {
-    return "bg-primary-300";
-  }
-
-  if (condition >= 60) {
-    return "bg-accent-300";
-  }
-
-  return "bg-red-400";
-}
-
-
 function getRoleMarkers(
   matchRoles: TeamMatchRolesData | undefined,
   playerId: string,
@@ -131,7 +105,7 @@ function getRoleMarkers(
     markers.push({
       key: "vice_captain",
       shortLabel: "VC",
-      toneClassName: "border-white/60 bg-white/40 text-white",
+      toneClassName: "border-white/60 bg-gray-800/85 text-white",
     });
   }
 
@@ -184,7 +158,7 @@ function getPitchMarkerClassName(options: {
   const isHovered = hoveredSlot === slot.index;
 
   const base =
-    "absolute z-20 flex w-[5.5rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center gap-0.5 rounded-2xl px-1 py-1 text-center transition-all active:cursor-grabbing";
+    "absolute z-20 flex w-[6rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center gap-0.5 rounded-2xl px-1 py-1 text-center transition-all active:cursor-grabbing";
 
   if (isDragged) {
     return `${base} opacity-60`;
@@ -361,8 +335,8 @@ export default function TacticsPitch({
       </div>
 
       <div className="p-5 sm:p-6 lg:p-7">
-        <div className="relative mx-auto w-full max-w-[32rem] overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner">
-          <div className="aspect-[8/10] min-h-[31rem] w-full">
+        <div className="relative mx-auto w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner">
+          <div className="aspect-[8/10] min-h-[35rem] w-full">
             <svg
               viewBox="0 0 100 140"
               preserveAspectRatio="none"
@@ -484,16 +458,6 @@ export default function TacticsPitch({
                   {player ? (
                     (() => {
                       const roleMarkers = getRoleMarkers(matchRoles, player.id);
-                      const fitBarClassName = getConditionFillClassName(
-                        Math.min(
-                          player.condition,
-                          fitTone === "out"
-                            ? 56
-                            : fitTone === "adapted"
-                              ? 74
-                              : 100,
-                        ),
-                      );
 
                       return (
                         <ContextMenu
@@ -547,109 +511,71 @@ export default function TacticsPitch({
                               slot,
                             })}
                           >
-                            {/* Avatar with overlaid badges */}
-                            <div className="relative">
-                              {/* Top-left: role markers stacking */}
-                              {roleMarkers.length > 0 && (
-                                <div className="absolute -left-1.5 -top-1.5 z-10 flex flex-col gap-0.5">
-                                  {roleMarkers.slice(0, 3).map((marker) => (
-                                    <span
-                                      key={`${player.id}-${marker.key}`}
-                                      className={`rounded-full border px-1 py-0 text-[7px] font-heading font-bold leading-4 ${marker.toneClassName}`}
-                                    >
-                                      {marker.shortLabel}
-                                    </span>
-                                  ))}
+                            <PitchToken
+                              name={getPitchDisplayName(player)}
+                              positionAbbr={translatePositionAbbreviation(t, slot.position)}
+                              position={slot.position}
+                              ovr={getPlayerOvr(player)}
+                              condition={player.condition}
+                              fitTone={fitTone}
+                              avatar={player}
+                              markers={roleMarkers}
+                              jersey={
+                                teamSecondaryColor
+                                  ? {
+                                      primaryColor: teamPrimaryColor ?? "#1a3a6b",
+                                      secondaryColor: teamSecondaryColor,
+                                      pattern: teamKitPattern ?? "Solid",
+                                      number: player.jersey_number,
+                                    }
+                                  : undefined
+                              }
+                              jerseyNumber={player.jersey_number}
+                            >
+                              {/* Role combobox */}
+                              {onRoleChange && (
+                                <div
+                                  draggable={false}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  className="w-full"
+                                >
+                                  <Select
+                                    selectSize="sm"
+                                    variant="ghost"
+                                    fullWidth
+                                    value={playerRoles?.[player.id] ?? "Standard"}
+                                    onChange={(e) => {
+                                      onRoleChange(player.id, e.target.value as PlayerRole);
+                                    }}
+                                  >
+                                    {getRoleOptions(
+                                      // Roles follow the deployed slot, which is
+                                      // what the backend validates against —
+                                      // natural-position roles for an
+                                      // out-of-position player would be
+                                      // rejected and silently revert (#272).
+                                      slot.position,
+                                      playerRoles?.[player.id] ?? "Standard",
+                                    ).map((role) => (
+                                      <option key={role} value={role}>
+                                        {t(`tactics.playerRoles.${role}`, role)}
+                                      </option>
+                                    ))}
+                                  </Select>
                                 </div>
                               )}
-                              {/* Top-right: position badge */}
-                              <div className="absolute -right-1.5 -top-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[7px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
-                                  {translatePositionAbbreviation(t, slot.position)}
-                                </span>
-                              </div>
-                              {/* Profile picture with fit ring */}
-                              <PlayerAvatar
-                                player={player}
-                                className={`h-11 w-11 overflow-hidden rounded-full ${getFitRingClass(fitTone)}`}
-                              />
-                              {/* Bottom-right: OVR */}
-                              <div className="absolute -bottom-1 -right-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[8px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
-                                  {getPlayerOvr(player)}
-                                </span>
-                              </div>
-                            </div>
-                            {/* Jersey with number */}
-                            {teamSecondaryColor ? (
-                              <JerseyIcon
-                                size="sm"
-                                primaryColor={teamPrimaryColor ?? "#1a3a6b"}
-                                secondaryColor={teamSecondaryColor}
-                                pattern={teamKitPattern ?? "Solid"}
-                                number={player.jersey_number}
-                              />
-                            ) : player.jersey_number != null ? (
-                              <span className="text-[10px] font-heading font-bold text-white/80">
-                                #{player.jersey_number}
-                              </span>
-                            ) : null}
-                            {/* Player name */}
-                            <div className="max-w-full truncate text-[9px] font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
-                              {getPitchDisplayName(player)}
-                            </div>
-                            {/* Role combobox */}
-                            {onRoleChange && (
-                              <div
-                                draggable={false}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                                className="w-full"
-                              >
-                                <Select
-                                  selectSize="2xs"
-                                  variant="ghost"
-                                  fullWidth
-                                  value={playerRoles?.[player.id] ?? "Standard"}
-                                  onChange={(e) => {
-                                    onRoleChange(player.id, e.target.value as PlayerRole);
-                                  }}
-                                >
-                                  {getRoleOptions(
-                                    // Roles follow the deployed slot, which is
-                                    // what the backend validates against —
-                                    // natural-position roles for an
-                                    // out-of-position player would be
-                                    // rejected and silently revert (#272).
-                                    slot.position,
-                                    playerRoles?.[player.id] ?? "Standard",
-                                  ).map((role) => (
-                                    <option key={role} value={role}>
-                                      {t(`tactics.playerRoles.${role}`, role)}
-                                    </option>
-                                  ))}
-                                </Select>
-                              </div>
-                            )}
-                            {/* Condition bar */}
-                            <div className="w-full">
-                              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                                <div
-                                  className={`h-full rounded-full ${fitBarClassName}`}
-                                  style={{ width: `${Math.max(20, player.condition)}%` }}
-                                />
-                              </div>
-                            </div>
+                            </PitchToken>
                           </div>
                         </ContextMenu>
                       );
                     })()
                   ) : (
-                    <div className="absolute z-20 flex w-[4.2rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/28 bg-black/12 text-[9px] font-heading font-bold uppercase tracking-[0.18em] text-white/70">
+                    <div className="absolute z-20 flex w-[4.5rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/28 bg-black/12 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-white/70">
                         {translatePositionAbbreviation(t, slot.position)}
                       </div>
-                      <div className="mt-1 max-w-full text-[8px] font-heading font-bold uppercase tracking-[0.16em] text-white/45">
+                      <div className="mt-1 max-w-full text-[9px] font-heading font-bold uppercase tracking-[0.16em] text-white/45">
                         {t("squad.dropPlayerHere")}
                       </div>
                     </div>

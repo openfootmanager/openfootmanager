@@ -8,10 +8,16 @@ import PreMatchLineup, { parseFormationNeeds, POSITION_KEY_STATS, condColor, sta
 import { getSetPieceStats } from "./SetPieceSelector";
 import { FormationPitch } from "./FormationPitch";
 import { makeTeamFallback } from "./helpers";
-import { normalisePosition, translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import {
+  isPlayerExactForSlot,
+  isPlayerOutOfPosition,
+  normalisePosition,
+  translatePositionAbbreviation,
+} from "../squad/SquadTab.helpers";
 import { PhaseBlueprintPanel } from "../tactics/PhaseBlueprintPanel";
-import { setTacticsPhase } from "../../services/squadService";
-import type { TacticsPhaseSettings } from "../../store/types";
+import { setPlayerRole, setTacticsPhase } from "../../services/squadService";
+import { getRoleOptions } from "../../lib/playerRoles";
+import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import {
   ChevronRight,
@@ -58,6 +64,27 @@ export default function PreMatchSetup({
     });
   };
 
+  // Player roles, editable from the pitch like on the tactics board; optimistic
+  // local state persisted fire-and-forget, same pattern as the phase blueprint.
+  const [playerRoles, setPlayerRoles] = useState<Record<string, PlayerRole>>(() => {
+    const uid =
+      userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
+    return gameState.teams.find((tm) => tm.id === uid)?.player_roles ?? {};
+  });
+
+  const handlePlayerRoleChange = (playerId: string, role: PlayerRole) => {
+    const previous = playerRoles[playerId] ?? "Standard";
+    setPlayerRoles((prev) => ({ ...prev, [playerId]: role }));
+    void setPlayerRole(playerId, role).catch((err: unknown) => {
+      console.error("Failed to set player role:", err);
+      // Roll back the optimistic value so the UI doesn't show a role that was
+      // never persisted — unless the user has already picked something newer.
+      setPlayerRoles((prev) =>
+        prev[playerId] === role ? { ...prev, [playerId]: previous } : prev,
+      );
+    });
+  };
+
   const homeTeam = snapshot.home_team;
   const awayTeam = snapshot.away_team;
   const userTeam = userSide === "Home" ? homeTeam : awayTeam;
@@ -76,6 +103,11 @@ export default function PreMatchSetup({
   const userSecondary = userFullTeam?.colors?.secondary ?? "#1a3a6b";
   const userPattern = userFullTeam?.kit_pattern ?? "Solid";
 
+  const oppFullTeam = userSide === "Home" ? awayFullTeam : homeFullTeam;
+  const oppPrimary = oppFullTeam?.colors?.primary ?? "#6366f1";
+  const oppSecondary = oppFullTeam?.colors?.secondary ?? "#1a3a6b";
+  const oppPattern = oppFullTeam?.kit_pattern ?? "Solid";
+
   // Index the full squad so pitch tokens can be enriched with face/jersey/natural
   // position that the lightweight match snapshot player doesn't carry.
   const storeById = useMemo(
@@ -83,23 +115,42 @@ export default function PreMatchSetup({
     [gameState.players],
   );
 
+  const jerseyNumberById = useMemo(
+    () => new Map(gameState.players.map((p) => [p.id, p.jersey_number])),
+    [gameState.players],
+  );
+
   // Rich token for the user's command pitch (avatar, kit, OVR, fit ring).
-  const renderUserToken = (player: EnginePlayerData, isSelected: boolean) => {
+  const renderUserToken = (
+    player: EnginePlayerData,
+    isSelected: boolean,
+    slotPosition?: string,
+  ) => {
     const sp = storeById.get(player.id);
+    // With a granular slot (slot-aligned pitch), grade fit exactly like the
+    // tactics board; otherwise fall back to the coarse group comparison.
     const fit: PitchFitTone = !sp
       ? "exact"
-      : normalisePosition(sp.natural_position || sp.position) === player.position
-        ? "exact"
-        : "out";
+      : slotPosition
+        ? isPlayerExactForSlot(sp, slotPosition)
+          ? "exact"
+          : isPlayerOutOfPosition(sp, slotPosition)
+            ? "out"
+            : "adapted"
+        : normalisePosition(sp.natural_position || sp.position) === player.position
+          ? "exact"
+          : "out";
+    const displayPosition = slotPosition ?? player.position;
     return (
       <div
-        className={`w-16 rounded-xl px-1 py-1 ${
+        className={`flex w-24 flex-col items-center gap-0.5 rounded-xl px-1 py-1 ${
           isSelected ? "bg-accent-500/25 ring-2 ring-accent-300/70" : ""
         }`}
       >
         <PitchToken
           name={(sp?.match_name || player.name).toUpperCase()}
-          positionAbbr={translatePositionAbbreviation(t, player.position)}
+          positionAbbr={translatePositionAbbreviation(t, displayPosition)}
+          position={displayPosition}
           ovr={player.ovr}
           condition={player.condition}
           fitTone={fit}
@@ -112,6 +163,62 @@ export default function PreMatchSetup({
             primaryColor: userPrimary,
             secondaryColor: userSecondary,
             pattern: userPattern,
+            number: sp?.jersey_number,
+          }}
+        >
+          <div
+            draggable={false}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="w-full"
+          >
+            <Select
+              selectSize="sm"
+              variant="ghost"
+              fullWidth
+              value={playerRoles[player.id] ?? "Standard"}
+              onChange={(e) => {
+                handlePlayerRoleChange(player.id, e.target.value as PlayerRole);
+              }}
+            >
+              {getRoleOptions(
+                displayPosition,
+                playerRoles[player.id] ?? "Standard",
+              ).map((role) => (
+                <option key={role} value={role}>
+                  {t(`tactics.playerRoles.${role}`, role)}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </PitchToken>
+      </div>
+    );
+  };
+
+  // Basic token for the opponent's scouting pitch: avatar, kit, and OVR only —
+  // no fit ring or role furniture, which is the user's-side detail.
+  const renderOppToken = (player: EnginePlayerData, slotPosition?: string) => {
+    const sp = storeById.get(player.id);
+    const displayPosition = slotPosition ?? player.position;
+    return (
+      <div className="flex w-24 flex-col items-center gap-0.5 rounded-xl px-1 py-1">
+        <PitchToken
+          name={(sp?.match_name || player.name).toUpperCase()}
+          positionAbbr={translatePositionAbbreviation(t, displayPosition)}
+          position={displayPosition}
+          ovr={player.ovr}
+          condition={player.condition}
+          avatar={
+            sp
+              ? { full_name: sp.full_name, match_name: sp.match_name, media: sp.media }
+              : { full_name: player.name, match_name: player.name }
+          }
+          jersey={{
+            primaryColor: oppPrimary,
+            secondaryColor: oppSecondary,
+            pattern: oppPattern,
             number: sp?.jersey_number,
           }}
         />
@@ -277,10 +384,6 @@ export default function PreMatchSetup({
     oppTeam.players.some((p) => p.position === pos),
   );
 
-  // Header shows Home left / Away right; this decides which side gets the
-  // editable formation & play-style selects (the user's side).
-  const leftIsUser = userSide === "Home";
-
   const renderSetPieces = () => (
     <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800 p-4 shadow-sm transition-colors duration-300">
       <div className="flex items-center justify-between mb-2.5">
@@ -325,7 +428,7 @@ export default function PreMatchSetup({
   // YOUR TEAM tab: fixed 3-panel (subs+fit / pitch / set-pieces). The page never
   // scrolls — each panel scrolls internally.
   const renderTeamView = () => (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[260px_1fr_320px]">
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[300px_1fr_320px]">
       {/* Left: formation fit + auto-select + substitutes */}
       <div className="min-h-0 overflow-y-auto">
         <PreMatchLineup
@@ -338,6 +441,41 @@ export default function PreMatchSetup({
           onSelectStarter={setSelectedStarterId}
           onSwap={handleSwap}
           onAutoSelect={handleAutoSelect}
+          jerseyNumberById={jerseyNumberById}
+          formationControls={
+            <div className="flex gap-2">
+              <Select
+                value={
+                  FORMATIONS.includes(userTeam.formation)
+                    ? userTeam.formation
+                    : FORMATIONS[0]
+                }
+                onChange={(e) => handleFormationChange(e.target.value)}
+                selectSize="sm"
+                fullWidth
+                aria-label={t("tactics.formation")}
+              >
+                {FORMATIONS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                value={userTeam.play_style}
+                onChange={(e) => handlePlayStyleChange(e.target.value)}
+                selectSize="sm"
+                fullWidth
+                aria-label={t("tactics.playStyle")}
+              >
+                {PLAY_STYLES.map((style) => (
+                  <option key={style} value={style}>
+                    {t(`common.playStyles.${style}`, style)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          }
           showStartingList={false}
         />
       </div>
@@ -351,7 +489,9 @@ export default function PreMatchSetup({
           onPlayerClick={(id) =>
             setSelectedStarterId(id === selectedStarterId ? null : id)
           }
-          renderToken={(p, { isSelected }) => renderUserToken(p, isSelected)}
+          renderToken={(p, { isSelected, slotPosition }) =>
+            renderUserToken(p, isSelected, slotPosition)
+          }
           className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
         />
       </div>
@@ -391,6 +531,7 @@ export default function PreMatchSetup({
           <FormationPitch
             formation={oppTeam.formation}
             players={oppTeam.players}
+            renderToken={(p, { slotPosition }) => renderOppToken(p, slotPosition)}
             className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
           />
         </div>
@@ -512,43 +653,10 @@ export default function PreMatchSetup({
               <p className="font-heading font-bold text-lg text-gray-900 dark:text-white truncate">
                 {homeTeam.name}
               </p>
-              {leftIsUser ? (
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Select
-                    value={
-                      FORMATIONS.includes(userTeam.formation)
-                        ? userTeam.formation
-                        : FORMATIONS[0]
-                    }
-                    onChange={(e) => handleFormationChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.formation")}
-                  >
-                    {FORMATIONS.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={userTeam.play_style}
-                    onChange={(e) => handlePlayStyleChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.playStyle")}
-                  >
-                    {PLAY_STYLES.map((style) => (
-                      <option key={style} value={style}>
-                        {t(`common.playStyles.${style}`, style)}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {homeTeam.formation} ·{" "}
-                  {t(`common.playStyles.${homeTeam.play_style}`, homeTeam.play_style)}
-                </p>
-              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {homeTeam.formation} ·{" "}
+                {t(`common.playStyles.${homeTeam.play_style}`, homeTeam.play_style)}
+              </p>
             </div>
           </div>
 
@@ -587,43 +695,10 @@ export default function PreMatchSetup({
               <p className="font-heading font-bold text-lg text-gray-900 dark:text-white truncate">
                 {awayTeam.name}
               </p>
-              {!leftIsUser ? (
-                <div className="flex items-center gap-2 mt-1.5 justify-end">
-                  <Select
-                    value={
-                      FORMATIONS.includes(userTeam.formation)
-                        ? userTeam.formation
-                        : FORMATIONS[0]
-                    }
-                    onChange={(e) => handleFormationChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.formation")}
-                  >
-                    {FORMATIONS.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={userTeam.play_style}
-                    onChange={(e) => handlePlayStyleChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.playStyle")}
-                  >
-                    {PLAY_STYLES.map((style) => (
-                      <option key={style} value={style}>
-                        {t(`common.playStyles.${style}`, style)}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {awayTeam.formation} ·{" "}
-                  {t(`common.playStyles.${awayTeam.play_style}`, awayTeam.play_style)}
-                </p>
-              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {awayTeam.formation} ·{" "}
+                {t(`common.playStyles.${awayTeam.play_style}`, awayTeam.play_style)}
+              </p>
             </div>
           </div>
 

@@ -29,7 +29,7 @@ export default function JerseyIcon({
   const shirtPath =
     "M30,10 L10,30 L22,35 L22,90 L78,90 L78,35 L90,30 L70,10 L58,20 Q50,26 42,20 Z";
 
-  const textSize = size === "lg" ? 28 : size === "md" ? 20 : 13;
+  const textSize = size === "lg" ? 40 : size === "md" ? 35 : 25;
   const textY = size === "lg" ? 70 : size === "md" ? 68 : 68;
 
   const usesPattern = pattern === "Stripes" || pattern === "Hoops";
@@ -75,6 +75,23 @@ export default function JerseyIcon({
       {pattern === "Diagonal" && (
         <polygon points="20,10 80,10 60,90 0,90" fill={secondaryColor} clipPath={`url(#${id}-clip)`} />
       )}
+
+      {/* Outline: white line over a soft dark rim so the shirt stays visible
+          when the kit colour blends into the background (e.g. green on pitch) */}
+      <path
+        d={shirtPath}
+        fill="none"
+        stroke="rgba(0,0,0,0.35)"
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <path
+        d={shirtPath}
+        fill="none"
+        stroke="rgba(255,255,255,0.9)"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
 
       {/* Jersey number */}
       {number != null && (
