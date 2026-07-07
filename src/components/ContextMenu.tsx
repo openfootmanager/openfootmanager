@@ -38,16 +38,21 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
     const menuRef = useRef<HTMLDivElement>(null);
     const instanceId = useRef(Math.random().toString(36));
     const triggerRef = useRef<HTMLElement | null>(null);
+    const onOpenChangeRef = useRef(onOpenChange);
+
+    useEffect(() => {
+      onOpenChangeRef.current = onOpenChange;
+    }, [onOpenChange]);
 
     const setOpen = useCallback((next: boolean) => {
       // Notify only on real transitions so consumers wiring aria-expanded on
       // their trigger don't get spurious "closed" pings when closeFromOther
       // fires while we're already closed.
       setVisible((prev) => {
-        if (prev !== next) onOpenChange?.(next);
+        if (prev !== next) onOpenChangeRef.current?.(next);
         return next;
       });
-    }, [onOpenChange]);
+    }, []);
 
     const closeAndRestoreFocus = useCallback(() => {
       setOpen(false);
