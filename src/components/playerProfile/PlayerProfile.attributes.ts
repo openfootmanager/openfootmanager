@@ -82,12 +82,20 @@ function createAttributeGroup(
     };
 }
 
+// Shared with PlayerProfile.tsx / the radar chart so attribute grouping and
+// radar keys agree on who is a goalkeeper. Prefers natural_position (same as
+// primaryPosition in PlayerProfile) so temporary re-deployments don't hide GK
+// attributes from a natural keeper's card.
+export function isGoalkeeper(player: PlayerData): boolean {
+    return (player.natural_position || player.position) === "Goalkeeper";
+}
+
 function isGroupApplicable(
     group: AttributeGroupKey,
     player: PlayerData,
 ): boolean {
     if (group === "goalkeeper") {
-        return player.position === "Goalkeeper";
+        return isGoalkeeper(player);
     }
     return true;
 }

@@ -31,7 +31,7 @@ import {
   type PlayerAdvancedStatsSummary,
 } from "./PlayerProfile.helpers";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
-import { buildPlayerAttributeGroups } from "./PlayerProfile.attributes";
+import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
@@ -836,7 +836,7 @@ export default function PlayerProfile({
           attrGroups={attrGroups}
           player={player}
           isOwnClub={isManagerSquadProfile}
-          isGk={primaryPosition === "Goalkeeper"}
+          isGk={isGoalkeeper(player)}
           title={t("playerProfile.attributes")}
           averageLabel={t("common.average")}
           hiddenTitle={t("playerProfile.attributesHidden")}
