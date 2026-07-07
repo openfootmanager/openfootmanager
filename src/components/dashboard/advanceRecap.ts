@@ -81,6 +81,10 @@ export function buildAdvanceRecap(
   matches: AdvanceMatchResultData[],
 ): AdvanceRecap {
   const advancedTo = toDatePart(game.clock?.current_date);
+  // Callers pass the pre-advance clock, which can be a full ISO timestamp;
+  // normalise it to the same YYYY-MM-DD granularity as articleDay so the
+  // window check compares like-for-like (see recap test #321).
+  const sinceDay = toDatePart(sinceDate);
   const userTeamId = game.manager?.team_id ?? null;
 
   const teamName = new Map((game.teams ?? []).map((team) => [team.id, team.name]));
@@ -107,7 +111,7 @@ export function buildAdvanceRecap(
   // opens next month) don't resurface in every day's digest until they arrive.
   const inRecapWindow = (date: string): boolean => {
     const day = articleDay(date);
-    return day >= sinceDate && day <= advancedTo;
+    return day >= sinceDay && day <= advancedTo;
   };
 
   const userCompetition = getUserCompetition(game);

@@ -327,4 +327,101 @@ describe("advanceRecap", function (): void {
     expect(recap.transfers).toEqual([]);
     expect(recap.hasEvents).toBe(false);
   });
+
+  it("surfaces news, inbox, and transfers on the day their date is reached", function (): void {
+    // Positive counterpart to the regression above: same fixture shape, but
+    // this time the clock has advanced to the event day, so each channel
+    // should populate exactly once and hasEvents should flip to true.
+    const eventDay = "2026-11-14";
+    const game = createGame({
+      clock: {
+        current_date: `${eventDay}T00:00:00Z`,
+        start_date: "2026-07-01T00:00:00Z",
+      },
+      news: [
+        {
+          id: "wc-kickoff",
+          headline: "World Cup 2026 kicks off",
+          body: "",
+          date: eventDay,
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+        },
+      ],
+      messages: [
+        {
+          id: "future-brief",
+          subject: "Board briefing",
+          body: "",
+          sender: "",
+          sender_role: "",
+          date: eventDay,
+          read: false,
+          category: "Board",
+          priority: "High",
+          actions: [],
+        },
+      ],
+      competitions: [
+        {
+          id: "comp-1",
+          name: "Premier League",
+          season: 1,
+          participant_ids: ["team-1", "team-2"],
+          fixtures: [],
+          standings: [],
+          transfer_log: [
+            {
+              date: eventDay,
+              from_team_id: "team-1",
+              to_team_id: "team-2",
+              player_id: "player-1",
+              fee: 1,
+            },
+          ],
+        },
+      ],
+      league: null,
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, eventDay, []);
+
+    expect(recap.news).toHaveLength(1);
+    expect(recap.inbox).toHaveLength(1);
+    expect(recap.transfers).toHaveLength(1);
+    expect(recap.hasEvents).toBe(true);
+  });
+
+  it("normalises ISO-timestamp sinceDate against calendar-day entries", function (): void {
+    // Guard against a regression where sinceDate arrives as a full ISO string
+    // (e.g. "2026-11-14T09:15:00Z") and the recap-window check ends up
+    // comparing timestamp-vs-date lexicographically. Entries dated the same
+    // calendar day must still be included.
+    const eventDay = "2026-11-14";
+    const game = createGame({
+      clock: {
+        current_date: `${eventDay}T23:59:00Z`,
+        start_date: "2026-07-01T00:00:00Z",
+      },
+      news: [
+        {
+          id: "same-day",
+          headline: "Same-day news",
+          body: "",
+          date: eventDay,
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+        },
+      ],
+      league: null,
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, `${eventDay}T09:15:00Z`, []);
+
+    expect(recap.news).toHaveLength(1);
+  });
 });
