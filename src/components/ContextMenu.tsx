@@ -40,9 +40,19 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
     const triggerRef = useRef<HTMLElement | null>(null);
 
     const setOpen = useCallback((next: boolean) => {
-      setVisible(next);
-      onOpenChange?.(next);
+      // Notify only on real transitions so consumers wiring aria-expanded on
+      // their trigger don't get spurious "closed" pings when closeFromOther
+      // fires while we're already closed.
+      setVisible((prev) => {
+        if (prev !== next) onOpenChange?.(next);
+        return next;
+      });
     }, [onOpenChange]);
+
+    const closeAndRestoreFocus = useCallback(() => {
+      setOpen(false);
+      triggerRef.current?.focus();
+    }, [setOpen]);
 
     const openAt = useCallback((x: number, y: number) => {
       window.dispatchEvent(
@@ -78,18 +88,23 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
       const close = () => setOpen(false);
       const closeOnEscape = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
-        setOpen(false);
-        triggerRef.current?.focus();
+        closeAndRestoreFocus();
       };
       window.addEventListener("click", close);
       window.addEventListener("scroll", close, true);
       window.addEventListener("keydown", closeOnEscape);
+      // Move keyboard focus into the menu so arrow-key navigation / Enter
+      // selection is available without tabbing through the rest of the page.
+      const firstItem = menuRef.current?.querySelector<HTMLButtonElement>(
+        'button[role="menuitem"]:not([disabled])',
+      );
+      firstItem?.focus();
       return () => {
         window.removeEventListener("click", close);
         window.removeEventListener("scroll", close, true);
         window.removeEventListener("keydown", closeOnEscape);
       };
-    }, [visible, setOpen]);
+    }, [visible, setOpen, closeAndRestoreFocus]);
 
     const trigger = isValidElement(children) ? (
       cloneElement(children, {
@@ -137,7 +152,7 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
                     role="menuitem"
                     onClick={() => {
                       item.onClick?.();
-                      setOpen(false);
+                      closeAndRestoreFocus();
                     }}
                     disabled={item.disabled}
                     className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
