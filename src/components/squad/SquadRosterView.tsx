@@ -141,10 +141,9 @@ export default function SquadRosterView({
   const formation = team.formation || "4-4-2";
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
-  const startingXiIds = buildStartingXIIds(
-    available,
-    team.starting_xi_ids || [],
-    formation,
+  const startingXiIds = useMemo(
+    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation),
+    [available, team.starting_xi_ids, formation],
   );
   const pitchSlotRows = buildPitchSlotRows(
     buildPitchRows(formation),
