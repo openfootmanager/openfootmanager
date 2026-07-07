@@ -97,11 +97,29 @@ export const config: WebdriverIO.Config = {
                 XDG_DATA_HOME: sessionDataDir ?? process.env.XDG_DATA_HOME,
             },
         });
+        // Without an error listener a missing tauri-driver on PATH crashes
+        // the runner with an uncaught ENOENT. Surface a hint instead so the
+        // README's install step is discoverable.
+        tauriDriver.on("error", (err) => {
+            console.error(
+                `[e2e] failed to spawn tauri-driver: ${err.message}\n` +
+                    `      Install it and ensure it is on PATH — see tests/e2e/README.md.`,
+            );
+        });
     },
 
-    afterSession() {
-        tauriDriver?.kill();
+    async afterSession() {
+        const proc = tauriDriver;
         tauriDriver = null;
+        if (!proc || proc.exitCode !== null) return;
+        // Wait for the driver to fully exit before returning — otherwise
+        // the WebDriver port (4444) can still be bound when the next
+        // session tries to spawn, and the runner sees a stale-connection
+        // error instead of a clean restart.
+        await new Promise<void>((resolve) => {
+            proc.once("exit", () => resolve());
+            proc.kill();
+        });
     },
 
     onComplete() {
