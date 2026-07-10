@@ -92,6 +92,8 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
+import PersonalTermsModal from "./PersonalTermsModal";
+import { useTransferPersonalTermsFlow } from "./useTransferPersonalTermsFlow";
 import FreeAgentContractModal, {
   FreeAgentContractForm,
 } from "./FreeAgentContractModal";
@@ -580,6 +582,13 @@ export default function TransfersTab({
     }
   };
 
+  // Bridge: the bid flow (declared first) hands a fee-agreed offer to the
+  // personal-terms flow (declared below) via this ref, so we can chain the two
+  // modals without reordering the hooks.
+  const openPersonalTermsRef = useRef<
+    ((player: PlayerData, offerId: string, buyerTeamId: string) => void) | null
+  >(null);
+
   const {
     bidTarget,
     bidAmount,
@@ -599,6 +608,8 @@ export default function TransfersTab({
   } = useTransferBidFlow({
     gameState,
     onGameUpdate,
+    onFeeAgreed: (player, offerId, buyerTeamId) =>
+      openPersonalTermsRef.current?.(player, offerId, buyerTeamId),
   });
   const scouts = gameState.staff.filter(
     (staffMember) =>
@@ -846,6 +857,29 @@ export default function TransfersTab({
     gameState,
     onGameUpdate,
   });
+
+  const {
+    personalTermsTarget,
+    wageOffer: personalTermsWage,
+    setWageOffer: setPersonalTermsWage,
+    contractYears: personalTermsYears,
+    setContractYears: setPersonalTermsYears,
+    personalTermsRound,
+    personalTermsFeedback,
+    personalTermsSuggestedWage,
+    personalTermsSuggestedYears,
+    personalTermsLoading,
+    personalTermsError,
+    personalTermsTerminal,
+    submitDisabled: personalTermsSubmitDisabled,
+    openPersonalTermsNegotiation,
+    closePersonalTermsNegotiation,
+    submitPersonalTerms,
+  } = useTransferPersonalTermsFlow({
+    gameState,
+    onGameUpdate,
+  });
+  openPersonalTermsRef.current = openPersonalTermsNegotiation;
 
   const getDealKinds = (player: PlayerData): DealKind[] => {
     const kinds: DealKind[] = [];
@@ -1595,6 +1629,31 @@ export default function TransfersTab({
                                             </button>
                                           </div>
                                         )}
+                                      {offer.status ===
+                                        "PersonalTermsPending" &&
+                                        offer.from_team_id === userTeamId && (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              openPersonalTermsNegotiation(
+                                                player,
+                                                offer.id,
+                                                userTeamId,
+                                              );
+                                            }}
+                                            aria-label={t(
+                                              "transfers.personalTermsCta",
+                                            )}
+                                            className="flex items-center gap-1 px-2 py-1 rounded bg-primary-500/20 hover:bg-primary-500/30 text-primary-600 dark:text-primary-300 text-xs font-heading font-bold uppercase tracking-wider ml-1"
+                                            title={t(
+                                              "transfers.personalTermsCta",
+                                            )}
+                                          >
+                                            <Gavel className="w-3 h-3" />{" "}
+                                            {t("transfers.personalTermsCta")}
+                                          </button>
+                                        )}
                                     </div>
                                   ))}
                                   {loanOffersForThisPlayer.map((offer) => {
@@ -2002,6 +2061,26 @@ export default function TransfersTab({
           submitDisabled={contractSubmitDisabled}
           onSubmit={submitFreeAgentContract}
           onClose={closeFreeAgentContract}
+        />
+      )}
+      {personalTermsTarget && (
+        <PersonalTermsModal
+          player={personalTermsTarget}
+          teams={gameState.teams}
+          wage={personalTermsWage}
+          onWageChange={setPersonalTermsWage}
+          contractYears={personalTermsYears}
+          onContractYearsChange={setPersonalTermsYears}
+          round={personalTermsRound}
+          suggestedWage={personalTermsSuggestedWage}
+          suggestedYears={personalTermsSuggestedYears}
+          feedback={personalTermsFeedback}
+          error={personalTermsError}
+          submitting={personalTermsLoading}
+          submitDisabled={personalTermsSubmitDisabled}
+          terminal={personalTermsTerminal}
+          onSubmit={submitPersonalTerms}
+          onClose={closePersonalTermsNegotiation}
         />
       )}
       {loanTarget && !dealWorkspaceTarget && (

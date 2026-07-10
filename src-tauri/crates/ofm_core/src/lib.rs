@@ -6,6 +6,7 @@ pub mod board_objectives;
 pub mod catchup;
 pub mod clock;
 pub mod club;
+pub mod contract_negotiation;
 pub mod contract_wage_policy;
 pub mod contracts;
 pub mod currency;

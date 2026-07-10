@@ -252,7 +252,7 @@ pub enum PlayerPromiseKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub enum RenewalSessionStatus {
+pub enum ContractTalksStatus {
     #[default]
     Idle,
     Open,
@@ -285,7 +285,7 @@ pub enum ContractExitIntent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct ContractRenewalState {
-    pub status: RenewalSessionStatus,
+    pub status: ContractTalksStatus,
     pub manager_blocked_until: Option<String>,
     pub last_attempt_date: Option<String>,
     pub last_assistant_attempt_date: Option<String>,
@@ -297,7 +297,7 @@ pub struct ContractRenewalState {
 impl Default for ContractRenewalState {
     fn default() -> Self {
         Self {
-            status: RenewalSessionStatus::Idle,
+            status: ContractTalksStatus::Idle,
             manager_blocked_until: None,
             last_attempt_date: None,
             last_assistant_attempt_date: None,
@@ -438,6 +438,8 @@ pub struct TransferOffer {
     pub fee: u64,
     pub wage_offered: u32,
     #[serde(default)]
+    pub contract_years_offered: Option<u32>,
+    #[serde(default)]
     pub last_manager_fee: Option<u64>,
     #[serde(default = "default_transfer_offer_round")]
     pub negotiation_round: u8,
@@ -449,15 +451,30 @@ pub struct TransferOffer {
     pub date: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_date: Option<String>,
+    /// Club-to-player (personal terms) negotiation state, active once the fee is
+    /// agreed and the offer moves to `PersonalTermsPending`. `wage_offered` /
+    /// `contract_years_offered` hold the agreed terms once accepted.
+    #[serde(default)]
+    pub personal_terms_status: ContractTalksStatus,
+    #[serde(default)]
+    pub personal_terms_round: u8,
+    #[serde(default)]
+    pub suggested_wage: Option<u32>,
+    #[serde(default)]
+    pub suggested_contract_years: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub personal_terms_blocked_until: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TransferOfferStatus {
     Pending,
+    PersonalTermsPending,
     PendingRegistration,
     Accepted,
     Rejected,
     Withdrawn,
+    PersonalTermsFailed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

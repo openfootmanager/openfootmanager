@@ -329,6 +329,8 @@ export function getTransferOfferStatusLabel(
   switch (status) {
     case "Pending":
       return t("transfers.offerStatusPending");
+    case "PersonalTermsPending":
+      return t("transfers.offerStatusPersonalTermsPending");
     case "PendingRegistration":
       return t("transfers.offerStatusPendingRegistration");
     case "Accepted":
@@ -337,6 +339,8 @@ export function getTransferOfferStatusLabel(
       return t("transfers.offerStatusRejected");
     case "Withdrawn":
       return t("transfers.offerStatusWithdrawn");
+    case "PersonalTermsFailed":
+      return t("transfers.offerStatusPersonalTermsFailed");
     default:
       return status;
   }
@@ -348,6 +352,8 @@ export function getTransferOfferBadgeVariant(
   switch (status) {
     case "Pending":
       return "accent" as const;
+    case "PersonalTermsPending":
+      return "accent" as const;
     case "PendingRegistration":
       return "accent" as const;
     case "Accepted":
@@ -355,6 +361,7 @@ export function getTransferOfferBadgeVariant(
     case "Withdrawn":
       return "neutral" as const;
     case "Rejected":
+    case "PersonalTermsFailed":
     default:
       return "danger" as const;
   }

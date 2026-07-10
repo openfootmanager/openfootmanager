@@ -2,7 +2,7 @@ use crate::game::Game;
 use chrono::Days;
 use domain::player::{
     ContractExitIntent, ContractRenewalState, Player, PlayerPromise, PlayerPromiseKind,
-    RecentTreatmentMemory, RenewalSessionOutcome, RenewalSessionStatus,
+    RecentTreatmentMemory, RenewalSessionOutcome, ContractTalksStatus,
 };
 use rand::RngExt;
 use serde::Serialize;
@@ -612,12 +612,12 @@ pub fn apply_player_response(
 
             match option_id {
                 "reassure" => {
-                    renewal_state.status = RenewalSessionStatus::Open;
+                    renewal_state.status = ContractTalksStatus::Open;
                     renewal_state.manager_blocked_until = None;
                     renewal_state.last_outcome = Some(RenewalSessionOutcome::Stalled);
                 }
                 "noncommittal" => {
-                    renewal_state.status = RenewalSessionStatus::Stalled;
+                    renewal_state.status = ContractTalksStatus::Stalled;
                     renewal_state.last_outcome = Some(RenewalSessionOutcome::Stalled);
                 }
                 "no_renewal" => {
@@ -627,7 +627,7 @@ pub fn apply_player_response(
                         .date_naive()
                         .checked_add_days(Days::new(60))
                         .map(|date| date.format("%Y-%m-%d").to_string());
-                    renewal_state.status = RenewalSessionStatus::Blocked;
+                    renewal_state.status = ContractTalksStatus::Blocked;
                     renewal_state.manager_blocked_until = blocked_until;
                     renewal_state.last_outcome = Some(RenewalSessionOutcome::BlockedByManager);
                     renewal_state.exit_intent = Some(ContractExitIntent::LetExpire {

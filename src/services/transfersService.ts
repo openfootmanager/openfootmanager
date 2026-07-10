@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../store/gameStore";
+import type { TransferOfferData } from "../store/types";
 
 export interface TransferNegotiationFeedbackData {
   mood: "calm" | "firm" | "tense" | "positive" | "guarded";
@@ -90,6 +91,38 @@ export async function respondToOffer(
     offerId,
     accept,
   });
+}
+
+export interface TransferPersonalTermsResponseData {
+  success: boolean;
+  status: TransferOfferData["status"];
+  wage_offered: number | null;
+  contract_years: number | null;
+  suggested_wage: number | null;
+  suggested_contract_years: number | null;
+  personal_terms_round: number;
+  error: string | null;
+  feedback: TransferNegotiationFeedbackData | null;
+  game: GameStateData;
+}
+
+export async function negotiateTransferPersonalTerms(
+  playerId: string,
+  offerId: string,
+  buyerTeamId: string,
+  offeredWage: number,
+  offeredYears: number,
+): Promise<TransferPersonalTermsResponseData> {
+  return invoke<TransferPersonalTermsResponseData>(
+    "negotiate_transfer_personal_terms",
+    {
+      playerId,
+      offerId,
+      buyerTeamId,
+      offeredWage,
+      offeredYears,
+    },
+  );
 }
 
 export async function respondToLoanOffer(

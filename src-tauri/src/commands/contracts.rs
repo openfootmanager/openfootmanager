@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use domain::negotiation::NegotiationFeedback;
-use domain::player::RenewalSessionStatus;
+use domain::player::ContractTalksStatus;
 use ofm_core::contracts::{
     ContractTerminationPreview, ContractTerminationResult, DelegatedRenewalOptions,
     DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection, RenewalOffer,
@@ -72,13 +72,13 @@ pub struct ContractTerminationCommandResponse {
     pub squad_safety: SquadSafetyReport,
 }
 
-fn serialize_session_status(status: RenewalSessionStatus) -> String {
+fn serialize_session_status(status: ContractTalksStatus) -> String {
     match status {
-        RenewalSessionStatus::Idle => "idle",
-        RenewalSessionStatus::Open => "open",
-        RenewalSessionStatus::Agreed => "agreed",
-        RenewalSessionStatus::Blocked => "blocked",
-        RenewalSessionStatus::Stalled => "stalled",
+        ContractTalksStatus::Idle => "idle",
+        ContractTalksStatus::Open => "open",
+        ContractTalksStatus::Agreed => "agreed",
+        ContractTalksStatus::Blocked => "blocked",
+        ContractTalksStatus::Stalled => "stalled",
     }
     .to_string()
 }
@@ -386,7 +386,7 @@ mod tests {
     use db::save_manager::SaveManager;
     use domain::manager::Manager;
     use domain::player::{
-        Player, PlayerAttributes, PlayerMovementKind, Position, RenewalSessionStatus,
+        Player, PlayerAttributes, PlayerMovementKind, Position, ContractTalksStatus,
     };
     use domain::season::TransferWindowStatus;
     use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -821,23 +821,23 @@ mod tests {
     #[test]
     fn serialize_session_status_uses_frontend_casing() {
         assert_eq!(
-            super::serialize_session_status(RenewalSessionStatus::Idle),
+            super::serialize_session_status(ContractTalksStatus::Idle),
             "idle"
         );
         assert_eq!(
-            super::serialize_session_status(RenewalSessionStatus::Open),
+            super::serialize_session_status(ContractTalksStatus::Open),
             "open"
         );
         assert_eq!(
-            super::serialize_session_status(RenewalSessionStatus::Agreed),
+            super::serialize_session_status(ContractTalksStatus::Agreed),
             "agreed"
         );
         assert_eq!(
-            super::serialize_session_status(RenewalSessionStatus::Blocked),
+            super::serialize_session_status(ContractTalksStatus::Blocked),
             "blocked"
         );
         assert_eq!(
-            super::serialize_session_status(RenewalSessionStatus::Stalled),
+            super::serialize_session_status(ContractTalksStatus::Stalled),
             "stalled"
         );
     }

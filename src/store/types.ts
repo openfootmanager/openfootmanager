@@ -203,7 +203,7 @@ export interface ContractExitIntentData {
 }
 
 export interface ContractRenewalStateData {
-  // Backend `RenewalSessionStatus` (domain/player.rs) uses serde default enum
+  // Backend `ContractTalksStatus` (domain/player.rs) uses serde default enum
   // representation — PascalCase variant names on the wire. Do not confuse with
   // the lowercase `session_status` in command responses, which goes through a
   // dedicated `serialize_session_status()` helper on the Rust side.
@@ -291,22 +291,39 @@ export interface PlayerData {
   jersey_number?: number | null;
 }
 
+export type ContractTalksStatus =
+  | "Idle"
+  | "Open"
+  | "Agreed"
+  | "Blocked"
+  | "Stalled";
+
 export interface TransferOfferData {
   id: string;
   from_team_id: string;
   fee: number;
   wage_offered: number;
+  contract_years_offered?: number | null;
   last_manager_fee: number | null;
   negotiation_round: number;
   suggested_counter_fee: number | null;
   status:
     | "Pending"
+    | "PersonalTermsPending"
     | "PendingRegistration"
     | "Accepted"
     | "Rejected"
-    | "Withdrawn";
+    | "Withdrawn"
+    | "PersonalTermsFailed";
   date: string;
   registration_date?: string | null;
+  // Club-to-player (personal terms) negotiation state, active once the fee is
+  // agreed and the offer is `PersonalTermsPending`.
+  personal_terms_status?: ContractTalksStatus;
+  personal_terms_round?: number;
+  suggested_wage?: number | null;
+  suggested_contract_years?: number | null;
+  personal_terms_blocked_until?: string | null;
 }
 
 export interface LoanOfferData {

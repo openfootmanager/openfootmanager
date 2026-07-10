@@ -1,5 +1,5 @@
 use domain::negotiation::NegotiationFeedback;
-use domain::player::{LoanOfferStatus, Position};
+use domain::player::{LoanOfferStatus, Position, TransferOfferStatus};
 use log::info;
 use std::sync::Arc;
 use tauri::State;
@@ -264,6 +264,89 @@ pub fn respond_to_offer_internal(
     })
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TransferPersonalTermsCommandResponse {
+    pub success: bool,
+    pub status: TransferOfferStatus,
+    pub wage_offered: Option<u32>,
+    pub contract_years: Option<u32>,
+    pub suggested_wage: Option<u32>,
+    pub suggested_contract_years: Option<u32>,
+    pub personal_terms_round: u8,
+    pub error: Option<String>,
+    pub feedback: Option<NegotiationFeedback>,
+    pub game: Game,
+}
+
+#[tauri::command]
+pub fn negotiate_transfer_personal_terms(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+    offer_id: String,
+    buyer_team_id: String,
+    offered_wage: u32,
+    offered_years: u32,
+) -> Result<TransferPersonalTermsCommandResponse, String> {
+    negotiate_transfer_personal_terms_internal(
+        &state,
+        &player_id,
+        &offer_id,
+        &buyer_team_id,
+        offered_wage,
+        offered_years,
+    )
+}
+
+pub fn negotiate_transfer_personal_terms_internal(
+    state: &StateManager,
+    player_id: &str,
+    offer_id: &str,
+    buyer_team_id: &str,
+    offered_wage: u32,
+    offered_years: u32,
+) -> Result<TransferPersonalTermsCommandResponse, String> {
+    info!(
+        "[cmd] negotiate_transfer_personal_terms: player_id={}, offer_id={}, wage={}, years={}",
+        player_id, offer_id, offered_wage, offered_years
+    );
+    let game = state.get_game(|g| g.clone()).ok_or("be.error.noActiveGame".to_string())?;
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("be.error.noTeamAssigned")?;
+
+    // Only the buying team (user) can negotiate personal terms
+    if user_team_id != buyer_team_id {
+        return Err("be.error.transfers.notBuyingTeam".to_string());
+    }
+
+    let mut game = game;
+    let outcome = ofm_core::transfers::negotiate_transfer_personal_terms_command(
+        &mut game,
+        player_id,
+        offer_id,
+        buyer_team_id,
+        offered_wage,
+        offered_years,
+    )?;
+
+    state.set_game(game.clone());
+
+    Ok(TransferPersonalTermsCommandResponse {
+        success: outcome.success,
+        status: outcome.status,
+        wage_offered: outcome.wage_offered,
+        contract_years: outcome.contract_years,
+        suggested_wage: outcome.suggested_wage,
+        suggested_contract_years: outcome.suggested_contract_years,
+        personal_terms_round: outcome.personal_terms_round,
+        error: outcome.error,
+        feedback: outcome.feedback,
+        game,
+    })
+}
+
 #[tauri::command]
 pub fn respond_to_loan_offer(
     state: State<'_, Arc<StateManager>>,
@@ -501,14 +584,15 @@ mod tests {
     use super::{
         counter_loan_offer_internal, counter_offer_internal, exercise_loan_buy_option_internal,
         make_loan_offer_internal, make_transfer_bid_internal,
+        negotiate_transfer_personal_terms_internal,
         preview_transfer_bid_financial_impact_internal, respond_to_loan_offer_internal,
         respond_to_offer_internal, toggle_loan_list_internal, toggle_transfer_list_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
     use domain::player::{
-        ActiveLoan, LoanOffer, LoanOfferStatus, Player, PlayerAttributes, Position, TransferOffer,
-        TransferOfferStatus,
+        ActiveLoan, ContractTalksStatus, LoanOffer, LoanOfferStatus, Player, PlayerAttributes,
+        Position, TransferOffer, TransferOfferStatus,
     };
     use domain::season::TransferWindowStatus;
     use domain::team::Team;
@@ -553,6 +637,7 @@ mod tests {
         );
         team.finance = 5_000_000;
         team.transfer_budget = 2_000_000;
+        team.wage_budget = 2_000_000;
         team.manager_id = Some("manager-1".to_string());
         team
     }
@@ -569,6 +654,7 @@ mod tests {
         );
         team.finance = 6_000_000;
         team.transfer_budget = 3_000_000;
+        team.wage_budget = 2_000_000;
         team
     }
 
@@ -590,12 +676,18 @@ mod tests {
             from_team_id: "team-2".to_string(),
             fee: 900_000,
             wage_offered: 0,
+            contract_years_offered: None,
             last_manager_fee: None,
             negotiation_round: 1,
             suggested_counter_fee: None,
             status: TransferOfferStatus::Pending,
             date: "2026-08-01".to_string(),
             registration_date: None,
+            personal_terms_status: ContractTalksStatus::Idle,
+            personal_terms_round: 0,
+            suggested_wage: None,
+            suggested_contract_years: None,
+            personal_terms_blocked_until: None,
         });
         player
     }
@@ -694,18 +786,32 @@ mod tests {
     }
 
     #[test]
-    fn make_transfer_bid_internal_returns_payload_and_updates_state() {
+    fn make_transfer_bid_internal_agrees_fee_and_opens_personal_terms() {
         let state = StateManager::new();
         state.set_game(make_bid_game());
 
+        // Fee is agreed, but the user (buyer) has not signed the player yet —
+        // the offer waits in personal terms, driven from the UI.
         let response = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
-        assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
+        assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-2"));
         assert_eq!(
             response.game.players[0].transfer_offers[0].status,
-            TransferOfferStatus::Accepted
+            TransferOfferStatus::PersonalTermsPending
         );
+
+        // Completing personal terms with agreeable wage/length signs the player.
+        let offer_id = response.game.players[0].transfer_offers[0].id.clone();
+        let terms = negotiate_transfer_personal_terms_internal(
+            &state, "player-2", &offer_id, "team-1", 12_000, 3,
+        )
+        .expect("personal terms response");
+
+        assert!(terms.success);
+        assert_eq!(terms.status, TransferOfferStatus::Accepted);
+        assert_eq!(terms.game.players[0].team_id.as_deref(), Some("team-1"));
+        assert_eq!(terms.game.players[0].wage, 12_000);
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert_eq!(
@@ -720,6 +826,50 @@ mod tests {
     }
 
     #[test]
+    fn negotiate_personal_terms_internal_counters_low_wage_then_signs() {
+        let state = StateManager::new();
+        state.set_game(make_bid_game());
+
+        let bid = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("bid");
+        let offer_id = bid.game.players[0].transfer_offers[0].id.clone();
+
+        // A wage below the player's expectation (but not insulting) keeps talks
+        // alive with a player counter.
+        let counter = negotiate_transfer_personal_terms_internal(
+            &state, "player-2", &offer_id, "team-1", 5_000, 3,
+        )
+        .expect("counter response");
+        assert!(!counter.success);
+        assert_eq!(counter.status, TransferOfferStatus::PersonalTermsPending);
+        let suggested = counter.suggested_wage.expect("player should counter a wage");
+        assert!(counter.personal_terms_round >= 2);
+
+        // Meeting the counter signs the player.
+        let agreed = negotiate_transfer_personal_terms_internal(
+            &state, "player-2", &offer_id, "team-1", suggested, 3,
+        )
+        .expect("agreement response");
+        assert!(agreed.success);
+        assert_eq!(agreed.status, TransferOfferStatus::Accepted);
+        assert_eq!(agreed.game.players[0].team_id.as_deref(), Some("team-1"));
+    }
+
+    #[test]
+    fn negotiate_personal_terms_internal_rejects_non_buying_team() {
+        let state = StateManager::new();
+        state.set_game(make_bid_game());
+
+        let bid = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("bid");
+        let offer_id = bid.game.players[0].transfer_offers[0].id.clone();
+
+        // team-2 is not the user's club, so it cannot drive personal terms.
+        let error =
+            negotiate_transfer_personal_terms_internal(&state, "player-2", &offer_id, "team-2", 12_000, 3)
+                .expect_err("only the buying team may negotiate personal terms");
+        assert_eq!(error, "be.error.transfers.notBuyingTeam");
+    }
+
+    #[test]
     fn make_transfer_bid_internal_preserves_scheduled_registration_date() {
         let state = StateManager::new();
         let mut game = make_bid_game();
@@ -728,17 +878,33 @@ mod tests {
         game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
         state.set_game(game);
 
-        let response = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("response");
-
-        assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
-        assert_eq!(response.registration_date.as_deref(), Some("2027-01-01"));
-        assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-2"));
+        // Out of window: the fee is agreed and personal terms open; the deal is
+        // not scheduled until the user settles terms.
+        let bid = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("response");
+        assert_eq!(bid.decision, TransferNegotiationDecision::Accepted);
         assert_eq!(
-            response.game.players[0].transfer_offers[0].status,
-            TransferOfferStatus::PendingRegistration
+            bid.game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::PersonalTermsPending
         );
+        let offer_id = bid.game.players[0].transfer_offers[0].id.clone();
+
+        // Meeting the player's counter agrees terms; because the window is closed
+        // this parks the move for registration, preserving the scheduled date.
+        let counter = negotiate_transfer_personal_terms_internal(
+            &state, "player-2", &offer_id, "team-1", 5_000, 3,
+        )
+        .expect("counter response");
+        let suggested = counter.suggested_wage.expect("player should counter a wage");
+
+        let agreed = negotiate_transfer_personal_terms_internal(
+            &state, "player-2", &offer_id, "team-1", suggested, 3,
+        )
+        .expect("agreement response");
+        assert!(agreed.success);
+        assert_eq!(agreed.status, TransferOfferStatus::PendingRegistration);
+        assert_eq!(agreed.game.players[0].team_id.as_deref(), Some("team-2"));
         assert_eq!(
-            response.game.players[0].transfer_offers[0]
+            agreed.game.players[0].transfer_offers[0]
                 .registration_date
                 .as_deref(),
             Some("2027-01-01")
@@ -843,7 +1009,14 @@ mod tests {
 
         assert_eq!(second.decision, TransferNegotiationDecision::Accepted);
         assert_eq!(second.feedback.round, 2);
-        assert_eq!(second.game.players[0].team_id.as_deref(), Some("team-1"));
+        // Fee agreed → the player signs once personal terms are settled.
+        let offer_id = second.game.players[0].transfer_offers[0].id.clone();
+        let terms = negotiate_transfer_personal_terms_internal(
+            &state, "player-2", &offer_id, "team-1", 12_000, 3,
+        )
+        .expect("personal terms response");
+        assert!(terms.success);
+        assert_eq!(terms.game.players[0].team_id.as_deref(), Some("team-1"));
     }
 
     #[test]

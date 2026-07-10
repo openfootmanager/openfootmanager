@@ -1,14 +1,18 @@
+use crate::contract_negotiation::{
+    calculate_contract_end_date, expected_contract_years, expected_wage, reference_player_wage,
+};
 use crate::contract_wage_policy::{
     renewal_wage_policy_error_message, wage_policy_allows_projection,
 };
+use crate::contracts::{evaluate_contract_terms, RenewalDecision};
 use crate::finances::calc_annual_wages;
 use crate::game::Game;
 use chrono::{Datelike, Duration, NaiveDate};
 use domain::league::CompletedTransfer;
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};
 use domain::player::{
-    ActiveLoan, LoanOfferStatus, PlayerMovementEntry, PlayerMovementKind, Position,
-    TransferOfferStatus,
+    ActiveLoan, ContractTalksStatus, LoanOfferStatus, PlayerMovementEntry, PlayerMovementKind,
+    Position, TransferOfferStatus,
 };
 use domain::season::TransferWindowStatus;
 use serde::{Deserialize, Serialize};
@@ -197,6 +201,24 @@ pub struct TransferNegotiationOutcome {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_date: Option<String>,
     pub feedback: NegotiationFeedback,
+}
+
+/// Outcome of a single personal-terms negotiation round for a transfer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TransferPersonalTermsOutcome {
+    pub success: bool,
+    /// The offer's `TransferOfferStatus` after this round (PersonalTermsPending
+    /// while talks continue, Accepted / PendingRegistration once agreed,
+    /// PersonalTermsFailed on breakdown).
+    pub status: TransferOfferStatus,
+    pub wage_offered: Option<u32>,
+    pub contract_years: Option<u32>,
+    /// Player's counter proposal when talks continue.
+    pub suggested_wage: Option<u32>,
+    pub suggested_contract_years: Option<u32>,
+    pub personal_terms_round: u8,
+    pub error: Option<String>,
+    pub feedback: Option<NegotiationFeedback>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -592,6 +614,24 @@ fn offer_is_stale(current_date: NaiveDate, offer: &domain::player::TransferOffer
     (current_date - offer_date).num_days() >= TRANSFER_NEGOTIATION_STALE_DAYS
 }
 
+/// Personal-terms talks that sit idle past the stale window break down, exactly
+/// as fee talks do — mirroring `offer_is_stale`. `offer.date` is refreshed each
+/// round, so this measures inactivity in the terms phase.
+fn personal_terms_offer_is_stale(
+    current_date: NaiveDate,
+    offer: &domain::player::TransferOffer,
+) -> bool {
+    if offer.status != TransferOfferStatus::PersonalTermsPending {
+        return false;
+    }
+
+    let Ok(offer_date) = NaiveDate::parse_from_str(&offer.date, "%Y-%m-%d") else {
+        return false;
+    };
+
+    (current_date - offer_date).num_days() >= TRANSFER_NEGOTIATION_STALE_DAYS
+}
+
 fn loan_offer_is_stale(current_date: NaiveDate, offer: &domain::player::LoanOffer) -> bool {
     if offer.status != LoanOfferStatus::Pending {
         return false;
@@ -612,6 +652,9 @@ fn expire_stale_transfer_offers(game: &mut Game) {
             if offer_is_stale(current_date, offer) {
                 offer.status = TransferOfferStatus::Withdrawn;
                 offer.suggested_counter_fee = None;
+            } else if personal_terms_offer_is_stale(current_date, offer) {
+                offer.status = TransferOfferStatus::PersonalTermsFailed;
+                offer.personal_terms_status = ContractTalksStatus::Stalled;
             }
         }
     }
@@ -651,6 +694,460 @@ fn finalize_successful_transfer_offer(
     }
 
     Ok(())
+}
+
+/// Move a fee-agreed offer into the personal-terms phase (club-to-player talks).
+fn begin_personal_terms(offer: &mut domain::player::TransferOffer, agreed_fee: u64, today: &str) {
+    offer.fee = agreed_fee;
+    offer.status = TransferOfferStatus::PersonalTermsPending;
+    offer.personal_terms_status = ContractTalksStatus::Open;
+    offer.personal_terms_round = 1;
+    offer.suggested_counter_fee = None;
+    offer.suggested_wage = None;
+    offer.suggested_contract_years = None;
+    offer.personal_terms_blocked_until = None;
+    offer.registration_date = None;
+    offer.date = today.to_string();
+}
+
+/// Execute a fully-agreed transfer using the terms stored on the offer, then
+/// withdraw any competing offers and mark the offer `Accepted`.
+fn complete_transfer(
+    game: &mut Game,
+    player_id: &str,
+    offer_id: &str,
+    to_team_id: &str,
+    from_team_id: &str,
+    fee: u64,
+) -> Result<(), String> {
+    let (wage, years) = game
+        .players
+        .iter()
+        .find(|p| p.id == player_id)
+        .and_then(|p| p.transfer_offers.iter().find(|o| o.id == offer_id))
+        .map(|o| (o.wage_offered, o.contract_years_offered))
+        .ok_or("be.error.playerNotFound")?;
+
+    execute_transfer(
+        game,
+        player_id,
+        to_team_id,
+        from_team_id,
+        fee,
+        (wage > 0).then_some(wage),
+        years,
+    )?;
+    finalize_successful_transfer_offer(game, player_id, offer_id)?;
+
+    if let Some(offer) = game
+        .players
+        .iter_mut()
+        .find(|p| p.id == player_id)
+        .and_then(|p| p.transfer_offers.iter_mut().find(|o| o.id == offer_id))
+    {
+        offer.status = TransferOfferStatus::Accepted;
+        offer.personal_terms_status = ContractTalksStatus::Agreed;
+    }
+
+    Ok(())
+}
+
+/// AI-side personal-terms resolution: the buying club offers the player's
+/// expected wage/length and the deal completes (in-window) or is parked for
+/// registration (out-of-window) when the player accepts and the wage is
+/// affordable, otherwise the talks break down (`PersonalTermsFailed`). Used for
+/// user-sells / AI-buys and any out-of-window deferred deal.
+///
+/// Returns `Ok(true)` when terms were agreed.
+fn auto_resolve_personal_terms(
+    game: &mut Game,
+    player_id: &str,
+    offer_id: &str,
+    buyer_team_id: &str,
+    from_team_id: &str,
+    fee: u64,
+    register_immediately: bool,
+    registration_date_string: Option<String>,
+) -> Result<bool, String> {
+    let current_date = game.clock.current_date.date_naive();
+    let player_index = game
+        .players
+        .iter()
+        .position(|p| p.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+    let buyer_team = game
+        .teams
+        .iter()
+        .find(|t| t.id == buyer_team_id)
+        .cloned()
+        .ok_or("be.error.teamNotFound")?;
+
+    let (offered_wage, offered_years, reference_wage) = {
+        let player = &game.players[player_index];
+        (
+            expected_wage(player, &buyer_team, current_date),
+            expected_contract_years(player, current_date),
+            reference_player_wage(player),
+        )
+    };
+
+    let outcome = evaluate_contract_terms(
+        &game.players[player_index],
+        &buyer_team,
+        current_date,
+        offered_wage,
+        offered_years,
+        reference_wage,
+    );
+
+    let affordable = {
+        let current_wage_bill = calc_annual_wages(game, buyer_team_id);
+        let projected_wage_bill = current_wage_bill.saturating_add(i64::from(offered_wage) * 52);
+        wage_policy_allows_projection(&buyer_team, current_wage_bill, projected_wage_bill)
+    };
+
+    if outcome.decision == RenewalDecision::Accepted && affordable {
+        if let Some(offer) = game.players[player_index]
+            .transfer_offers
+            .iter_mut()
+            .find(|o| o.id == offer_id)
+        {
+            offer.wage_offered = offered_wage;
+            offer.contract_years_offered = Some(offered_years);
+            offer.personal_terms_status = ContractTalksStatus::Agreed;
+            offer.suggested_wage = None;
+            offer.suggested_contract_years = None;
+            offer.personal_terms_blocked_until = None;
+        }
+
+        if register_immediately {
+            complete_transfer(game, player_id, offer_id, buyer_team_id, from_team_id, fee)?;
+        } else {
+            reserve_player_for_pending_transfer(game, player_id, offer_id)?;
+            if let Some(offer) = game
+                .players
+                .iter_mut()
+                .find(|p| p.id == player_id)
+                .and_then(|p| p.transfer_offers.iter_mut().find(|o| o.id == offer_id))
+            {
+                offer.status = TransferOfferStatus::PendingRegistration;
+                offer.registration_date = registration_date_string;
+            }
+        }
+
+        Ok(true)
+    } else {
+        if let Some(offer) = game.players[player_index]
+            .transfer_offers
+            .iter_mut()
+            .find(|o| o.id == offer_id)
+        {
+            offer.status = TransferOfferStatus::PersonalTermsFailed;
+            offer.personal_terms_status = ContractTalksStatus::Stalled;
+            offer.registration_date = None;
+        }
+
+        Ok(false)
+    }
+}
+
+fn personal_terms_metrics(round: u8) -> (u8, u8) {
+    let tension = (30_i16 + i16::from(round.saturating_sub(1)) * 12).clamp(20, 88) as u8;
+    let patience = (86_i16 - i16::from(round.saturating_sub(1)) * 16).clamp(20, 86) as u8;
+    (tension, patience)
+}
+
+fn personal_terms_outcome(
+    success: bool,
+    status: TransferOfferStatus,
+    wage_offered: Option<u32>,
+    contract_years: Option<u32>,
+    suggested_wage: Option<u32>,
+    suggested_contract_years: Option<u32>,
+    personal_terms_round: u8,
+    error: Option<String>,
+    feedback: NegotiationFeedback,
+) -> TransferPersonalTermsOutcome {
+    TransferPersonalTermsOutcome {
+        success,
+        status,
+        wage_offered,
+        contract_years,
+        suggested_wage,
+        suggested_contract_years,
+        personal_terms_round,
+        error,
+        feedback: Some(feedback),
+    }
+}
+
+/// Multi-round, user-driven personal-terms negotiation for a transfer the user
+/// is buying. The offer must already be in `PersonalTermsPending` (the fee is
+/// agreed). Each call submits the user's wage/length proposal; the player
+/// accepts (completing or parking the transfer), counters (talks stay live), or
+/// is insulted (a cooldown is set but the deal is not dead).
+pub fn negotiate_transfer_personal_terms_command(
+    game: &mut Game,
+    player_id: &str,
+    offer_id: &str,
+    buyer_team_id: &str,
+    offered_wage: u32,
+    offered_years: u32,
+) -> Result<TransferPersonalTermsOutcome, String> {
+    let current_date = game.clock.current_date.date_naive();
+
+    let player_index = game
+        .players
+        .iter()
+        .position(|p| p.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+    let buyer_team = game
+        .teams
+        .iter()
+        .find(|t| t.id == buyer_team_id)
+        .cloned()
+        .ok_or("be.error.teamNotFound")?;
+
+    let from_team_id = game.players[player_index]
+        .team_id
+        .clone()
+        .ok_or(ERR_PLAYER_HAS_NO_TEAM)?;
+
+    let offer = game.players[player_index]
+        .transfer_offers
+        .iter()
+        .find(|o| o.id == offer_id)
+        .ok_or(ERR_OFFER_NOT_PENDING)?;
+
+    if offer.status != TransferOfferStatus::PersonalTermsPending {
+        return Err(ERR_OFFER_NOT_PENDING.into());
+    }
+
+    let fee = offer.fee;
+    let round = offer.personal_terms_round.max(1);
+
+    // Respect an active insult cooldown — the player won't re-engage yet.
+    if let Some(blocked_until) = offer.personal_terms_blocked_until.as_deref() {
+        let still_blocked = NaiveDate::parse_from_str(blocked_until, "%Y-%m-%d")
+            .map(|date| date >= current_date)
+            .unwrap_or(true);
+        if still_blocked {
+            let (tension, patience) = personal_terms_metrics(round);
+            let feedback = build_transfer_feedback(
+                "transfers.personalTermsFeedbackCooldownHeadline",
+                "transfers.personalTermsFeedbackCooldownDetail",
+                NegotiationMood::Guarded,
+                tension,
+                patience,
+                round,
+                &[("date", blocked_until.to_string())],
+            );
+            return Ok(personal_terms_outcome(
+                false,
+                TransferOfferStatus::PersonalTermsPending,
+                None,
+                None,
+                None,
+                None,
+                round,
+                Some("be.error.transfers.personalTermsCooldown".to_string()),
+                feedback,
+            ));
+        }
+    }
+
+    let reference_wage = reference_player_wage(&game.players[player_index]);
+    let core = evaluate_contract_terms(
+        &game.players[player_index],
+        &buyer_team,
+        current_date,
+        offered_wage,
+        offered_years,
+        reference_wage,
+    );
+
+    // --- Accepted -----------------------------------------------------------
+    if core.decision == RenewalDecision::Accepted {
+        // The user's own club must still be able to carry the wage.
+        let affordable = {
+            let current_wage_bill = calc_annual_wages(game, buyer_team_id);
+            let projected_wage_bill =
+                current_wage_bill.saturating_add(i64::from(offered_wage) * 52);
+            wage_policy_allows_projection(&buyer_team, current_wage_bill, projected_wage_bill)
+        };
+
+        if !affordable {
+            let (tension, patience) = personal_terms_metrics(round);
+            let feedback = build_transfer_feedback(
+                "transfers.personalTermsFeedbackBudgetExceededHeadline",
+                "transfers.personalTermsFeedbackBudgetExceededDetail",
+                NegotiationMood::Tense,
+                tension,
+                patience,
+                round,
+                &[],
+            );
+            return Ok(personal_terms_outcome(
+                false,
+                TransferOfferStatus::PersonalTermsPending,
+                None,
+                None,
+                None,
+                None,
+                round,
+                Some("be.error.transfers.wageBudgetExceeded".to_string()),
+                feedback,
+            ));
+        }
+
+        if let Some(offer) = game.players[player_index]
+            .transfer_offers
+            .iter_mut()
+            .find(|o| o.id == offer_id)
+        {
+            offer.wage_offered = offered_wage;
+            offer.contract_years_offered = Some(offered_years);
+            offer.personal_terms_status = ContractTalksStatus::Agreed;
+            offer.suggested_wage = None;
+            offer.suggested_contract_years = None;
+            offer.personal_terms_blocked_until = None;
+        }
+
+        let registration_date = transfer_registration_date(game)?;
+        let register_immediately = registration_date == current_date;
+        let registration_date_string = registration_date.format("%Y-%m-%d").to_string();
+        let today = current_date.format("%Y-%m-%d").to_string();
+
+        let final_status = if register_immediately {
+            complete_transfer(game, player_id, offer_id, buyer_team_id, &from_team_id, fee)?;
+            let player_name = game
+                .players
+                .iter()
+                .find(|p| p.id == player_id)
+                .map(|p| p.full_name.clone())
+                .unwrap_or_default();
+            game.messages
+                .push(crate::messages::transfer_complete_message(
+                    &player_name,
+                    fee,
+                    &today,
+                ));
+            TransferOfferStatus::Accepted
+        } else {
+            reserve_player_for_pending_transfer(game, player_id, offer_id)?;
+            if let Some(offer) = game
+                .players
+                .iter_mut()
+                .find(|p| p.id == player_id)
+                .and_then(|p| p.transfer_offers.iter_mut().find(|o| o.id == offer_id))
+            {
+                offer.status = TransferOfferStatus::PendingRegistration;
+                offer.registration_date = Some(registration_date_string.clone());
+            }
+            TransferOfferStatus::PendingRegistration
+        };
+
+        let (tension, patience) = personal_terms_metrics(round);
+        let feedback = build_transfer_feedback(
+            "transfers.personalTermsFeedbackAcceptedHeadline",
+            "transfers.personalTermsFeedbackAcceptedDetail",
+            NegotiationMood::Positive,
+            tension.saturating_sub(10),
+            patience.saturating_add(6).min(92),
+            round,
+            &[
+                ("wage", offered_wage.to_string()),
+                ("years", offered_years.to_string()),
+            ],
+        );
+
+        return Ok(personal_terms_outcome(
+            true,
+            final_status,
+            Some(offered_wage),
+            Some(offered_years),
+            None,
+            None,
+            round,
+            None,
+            feedback,
+        ));
+    }
+
+    // --- Insulting offer → cooldown, but the deal survives -------------------
+    if core.status == ContractTalksStatus::Blocked {
+        if let Some(offer) = game.players[player_index]
+            .transfer_offers
+            .iter_mut()
+            .find(|o| o.id == offer_id)
+        {
+            offer.personal_terms_status = ContractTalksStatus::Blocked;
+            offer.personal_terms_blocked_until = core.blocked_until.clone();
+        }
+
+        let (tension, patience) = personal_terms_metrics(round);
+        let feedback = build_transfer_feedback(
+            "transfers.personalTermsFeedbackInsultHeadline",
+            "transfers.personalTermsFeedbackInsultDetail",
+            NegotiationMood::Guarded,
+            tension.saturating_add(12).min(92),
+            patience.saturating_sub(14),
+            round,
+            &[("expected", core.suggested_wage.to_string())],
+        );
+        return Ok(personal_terms_outcome(
+            false,
+            TransferOfferStatus::PersonalTermsPending,
+            None,
+            None,
+            None,
+            None,
+            round,
+            Some("be.error.transfers.personalTermsInsulting".to_string()),
+            feedback,
+        ));
+    }
+
+    // --- Counter / stall → talks stay live with a player proposal ------------
+    let next_round = round.saturating_add(1);
+    if let Some(offer) = game.players[player_index]
+        .transfer_offers
+        .iter_mut()
+        .find(|o| o.id == offer_id)
+    {
+        offer.personal_terms_status = ContractTalksStatus::Open;
+        offer.personal_terms_round = next_round;
+        offer.suggested_wage = Some(core.suggested_wage);
+        offer.suggested_contract_years = Some(core.suggested_years);
+        offer.personal_terms_blocked_until = None;
+        offer.date = current_date.format("%Y-%m-%d").to_string();
+    }
+
+    let (tension, patience) = personal_terms_metrics(next_round);
+    let feedback = build_transfer_feedback(
+        "transfers.personalTermsFeedbackCounterHeadline",
+        "transfers.personalTermsFeedbackCounterDetail",
+        NegotiationMood::Firm,
+        tension,
+        patience,
+        next_round,
+        &[
+            ("wage", core.suggested_wage.to_string()),
+            ("years", core.suggested_years.to_string()),
+        ],
+    );
+
+    Ok(personal_terms_outcome(
+        false,
+        TransferOfferStatus::PersonalTermsPending,
+        None,
+        None,
+        Some(core.suggested_wage),
+        Some(core.suggested_years),
+        next_round,
+        None,
+        feedback,
+    ))
 }
 
 fn expire_stale_loan_offers(game: &mut Game) {
@@ -760,12 +1257,18 @@ fn upsert_transfer_offer(
         from_team_id: from_team_id.to_string(),
         fee,
         wage_offered: 0,
+        contract_years_offered: None,
         last_manager_fee,
         negotiation_round,
         suggested_counter_fee,
         status,
         date: date.to_string(),
         registration_date,
+        personal_terms_status: ContractTalksStatus::Idle,
+        personal_terms_round: 0,
+        suggested_wage: None,
+        suggested_contract_years: None,
+        personal_terms_blocked_until: None,
     });
     offer_id
 }
@@ -1043,6 +1546,8 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             &buyer_id,
             &candidate.owner_team_id,
             candidate.fee,
+            None,
+            None,
         )
         .is_ok()
         {
@@ -1077,12 +1582,18 @@ fn create_incoming_user_offer(
             from_team_id: buyer_id.to_string(),
             fee: candidate.fee,
             wage_offered: 0,
+            contract_years_offered: None,
             last_manager_fee: None,
             negotiation_round: 1,
             suggested_counter_fee: None,
             status: TransferOfferStatus::Pending,
             date: today.to_string(),
             registration_date: None,
+            personal_terms_status: ContractTalksStatus::Idle,
+            personal_terms_round: 0,
+            suggested_wage: None,
+            suggested_contract_years: None,
+            personal_terms_blocked_until: None,
         });
 
         // Distinct clubs currently holding a live bid — the figure the digest
@@ -1580,9 +2091,10 @@ pub fn make_transfer_bid(
     expire_stale_transfer_offers(game);
 
     let current_date = game.clock.current_date.date_naive();
-    let registration_date = transfer_registration_date(game)?;
-    let register_immediately = registration_date == current_date;
-    let registration_date_string = registration_date.format("%Y-%m-%d").to_string();
+    // Guard: the window must be open (or have a future open date). The user
+    // negotiates personal terms either way; the follow-up command decides
+    // execute-vs-park based on the window at agreement time.
+    transfer_registration_date(game)?;
 
     let user_team_id = game
         .manager
@@ -1666,66 +2178,44 @@ pub fn make_transfer_bid(
     let (tension, patience) = transfer_negotiation_metrics(round, stalled, respected_signal);
 
     if fee >= adjusted_threshold {
-        let status = if register_immediately {
-            TransferOfferStatus::Accepted
-        } else {
-            TransferOfferStatus::PendingRegistration
-        };
-        let registration_date = (!register_immediately).then_some(registration_date_string.clone());
-        let offer_id = if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-            upsert_transfer_offer(
+        // Fee agreed → move into the personal-terms (club-to-player) phase.
+        // The user is buying: the fee is agreed, so move into the personal-terms
+        // (club-to-player) phase. Terms are negotiated from the UI via
+        // `negotiate_transfer_personal_terms_command`, which executes the move
+        // when the window is open or parks it as `PendingRegistration` when it is
+        // closed. Same flow either way — deferred deals are NOT auto-resolved.
+        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
+            let offer_id = upsert_transfer_offer(
                 p,
                 &user_team_id,
                 fee,
-                status,
+                TransferOfferStatus::PersonalTermsPending,
                 &date,
                 Some(fee),
                 round,
                 None,
-                registration_date,
-            )
+                None,
+            );
+            if let Some(offer) = p.transfer_offers.iter_mut().find(|o| o.id == offer_id) {
+                begin_personal_terms(offer, fee, &date);
+            }
         } else {
             return Err("be.error.playerNotFound".into());
-        };
-
-        if register_immediately {
-            execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
-            finalize_successful_transfer_offer(game, player_id, &offer_id)?;
-
-            let player_name = game
-                .players
-                .iter()
-                .find(|p| p.id == player_id)
-                .map(|p| p.full_name.clone())
-                .unwrap_or_default();
-
-            let msg = crate::messages::transfer_complete_message(&player_name, fee, &date);
-            game.messages.push(msg);
-        } else {
-            reserve_player_for_pending_transfer(game, player_id, &offer_id)?;
         }
 
         return Ok(transfer_outcome(
             TransferNegotiationDecision::Accepted,
             None,
             true,
-            (!register_immediately).then_some(registration_date_string.clone()),
+            None,
             build_transfer_feedback(
-                if register_immediately {
-                    "transfers.transferFeedbackAcceptedHeadline"
-                } else {
-                    "transfers.transferFeedbackScheduledHeadline"
-                },
-                if register_immediately {
-                    "transfers.transferFeedbackAcceptedDetail"
-                } else {
-                    "transfers.transferFeedbackScheduledDetail"
-                },
+                "transfers.transferFeedbackFeeAgreedHeadline",
+                "transfers.transferFeedbackFeeAgreedDetail",
                 NegotiationMood::Positive,
                 tension.saturating_sub(8),
                 patience.saturating_add(6).min(90),
                 round,
-                &[("fee", fee.to_string()), ("date", registration_date_string)],
+                &[("fee", fee.to_string())],
             ),
         ));
     }
@@ -1863,39 +2353,43 @@ pub fn respond_to_offer(
         .ok_or("be.error.teamNotFound")?;
     let openness_score = player_move_openness_score(current_date, player, owner_team, buyer_team);
 
-    // Update offer status
-    if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id)
-        && let Some(o) = p.transfer_offers.iter_mut().find(|o| o.id == offer_id)
-    {
-        o.status = if accept {
-            if register_immediately {
-                TransferOfferStatus::Accepted
-            } else {
-                TransferOfferStatus::PendingRegistration
-            }
-        } else {
-            TransferOfferStatus::Rejected
-        };
-        o.registration_date = if accept && !register_immediately {
-            Some(registration_date_string.clone())
-        } else {
-            None
-        };
-    }
+    let today = current_date.format("%Y-%m-%d").to_string();
 
     if accept {
-        if register_immediately {
-            execute_transfer(game, player_id, &from_team_id, &user_team_id, fee)?;
-            finalize_successful_transfer_offer(game, player_id, offer_id)?;
-        } else {
-            reserve_player_for_pending_transfer(game, player_id, offer_id)?;
+        // Fee agreed → enter personal terms, then auto-resolve (the AI club is
+        // the buyer, so it offers the player's expected wage on their behalf).
+        if let Some(offer) = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == player_id)
+            .and_then(|p| p.transfer_offers.iter_mut().find(|o| o.id == offer_id))
+        {
+            begin_personal_terms(offer, fee, &today);
         }
-    } else if let Some(player) = game
-        .players
-        .iter_mut()
-        .find(|player| player.id == player_id)
-    {
-        apply_blocked_move_consequences(player, openness_score);
+
+        auto_resolve_personal_terms(
+            game,
+            player_id,
+            offer_id,
+            &from_team_id,
+            &user_team_id,
+            fee,
+            register_immediately,
+            (!register_immediately).then_some(registration_date_string.clone()),
+        )?;
+    } else {
+        if let Some(offer) = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == player_id)
+            .and_then(|p| p.transfer_offers.iter_mut().find(|o| o.id == offer_id))
+        {
+            offer.status = TransferOfferStatus::Rejected;
+            offer.registration_date = None;
+        }
+        if let Some(player) = game.players.iter_mut().find(|player| player.id == player_id) {
+            apply_blocked_move_consequences(player, openness_score);
+        }
     }
 
     Ok(())
@@ -2289,20 +2783,11 @@ pub fn counter_offer(
             .find(|offer| offer.id == offer_id)
     {
         if accepted {
-            offer.fee = requested_fee;
-            offer.status = if register_immediately {
-                TransferOfferStatus::Accepted
-            } else {
-                TransferOfferStatus::PendingRegistration
-            };
+            // Fee agreed → move into the personal-terms phase; the AI buyer's
+            // terms are auto-resolved just below.
             offer.last_manager_fee = Some(requested_fee);
             offer.negotiation_round = round;
-            offer.suggested_counter_fee = None;
-            offer.registration_date = if register_immediately {
-                None
-            } else {
-                Some(registration_date_string.clone())
-            };
+            begin_personal_terms(offer, requested_fee, &date);
         } else if requested_fee > counter_window {
             offer.status = TransferOfferStatus::Rejected;
             offer.last_manager_fee = Some(requested_fee);
@@ -2314,18 +2799,36 @@ pub fn counter_offer(
     }
 
     if accepted {
-        if register_immediately {
-            execute_transfer(
-                game,
-                player_id,
-                &buyer_team_id,
-                &user_team_id,
-                requested_fee,
-            )?;
-            finalize_successful_transfer_offer(game, player_id, offer_id)?;
-        } else {
-            reserve_player_for_pending_transfer(game, player_id, offer_id)?;
+        // The AI club is the buyer, so its personal terms are auto-resolved.
+        let agreed = auto_resolve_personal_terms(
+            game,
+            player_id,
+            offer_id,
+            &buyer_team_id,
+            &user_team_id,
+            requested_fee,
+            register_immediately,
+            (!register_immediately).then_some(registration_date_string.clone()),
+        )?;
+
+        if !agreed {
+            return Ok(transfer_outcome(
+                TransferNegotiationDecision::Rejected,
+                None,
+                true,
+                None,
+                build_transfer_feedback(
+                    "transfers.personalTermsFeedbackAutoFailedHeadline",
+                    "transfers.personalTermsFeedbackAutoFailedDetail",
+                    NegotiationMood::Guarded,
+                    tension.saturating_add(10).min(92),
+                    patience.saturating_sub(14),
+                    round,
+                    &[("fee", requested_fee.to_string())],
+                ),
+            ));
         }
+
         return Ok(transfer_outcome(
             TransferNegotiationDecision::Accepted,
             None,
@@ -2606,7 +3109,8 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
     let current_date = game.clock.current_date.date_naive();
     let today = current_date.format("%Y-%m-%d").to_string();
     let user_team_id = game.manager.team_id.clone();
-    type DueTransferRegistration = (String, String, String, u64);
+    // (player_id, offer_id, buyer_team_id, fee, agreed_wage, agreed_years)
+    type DueTransferRegistration = (String, String, String, u64, u32, Option<u32>);
 
     let due_registrations: Vec<DueTransferRegistration> = game
         .players
@@ -2629,12 +3133,14 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                     offer.id.clone(),
                     offer.from_team_id.clone(),
                     offer.fee,
+                    offer.wage_offered,
+                    offer.contract_years_offered,
                 ))
             })
         })
         .collect();
 
-    for (player_id, offer_id, buyer_team_id, fee) in due_registrations {
+    for (player_id, offer_id, buyer_team_id, fee, agreed_wage, agreed_years) in due_registrations {
         let player_snapshot = game
             .players
             .iter()
@@ -2656,7 +3162,19 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
 
         let executed = if agreement_is_valid {
             if let Some(from_team_id) = from_team_id.as_deref() {
-                if execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee).is_ok() {
+                // Apply the personal terms agreed up front (wage + contract
+                // length), not the player's stale pre-transfer wage.
+                if execute_transfer(
+                    game,
+                    &player_id,
+                    &buyer_team_id,
+                    from_team_id,
+                    fee,
+                    (agreed_wage > 0).then_some(agreed_wage),
+                    agreed_years,
+                )
+                .is_ok()
+                {
                     finalize_successful_transfer_offer(game, &player_id, &offer_id).is_ok()
                 } else {
                     false
@@ -3350,13 +3868,15 @@ pub fn process_loan_returns(game: &mut Game) {
     }
 }
 
-/// Transfer a player between teams, adjusting finances.
+/// Transfer a player between teams, adjusting finances and contract terms.
 fn execute_transfer(
     game: &mut Game,
     player_id: &str,
     to_team_id: &str,
     from_team_id: &str,
     fee: u64,
+    wage_offered: Option<u32>,
+    contract_years: Option<u32>,
 ) -> Result<(), String> {
     let player_snapshot = game
         .players
@@ -3382,6 +3902,7 @@ fn execute_transfer(
         .map(|team| team.name.clone())
         .unwrap_or_else(|| to_team_id.to_string());
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let current_date = game.clock.current_date.date_naive();
     let departing_starter_ids: Vec<String> = game
         .teams
         .iter()
@@ -3408,6 +3929,17 @@ fn execute_transfer(
         p.jersey_number = resolved_jersey_number;
         p.transfer_listed = false;
         p.loan_listed = false;
+
+        // Apply new contract terms if provided (from personal terms negotiation)
+        if let Some(wage) = wage_offered {
+            p.wage = wage;
+        }
+        if let Some(years) = contract_years {
+            if let Some(new_end_date) = calculate_contract_end_date(current_date, years) {
+                p.contract_end = Some(new_end_date.format("%Y-%m-%d").to_string());
+            }
+        }
+
         p.movement_history.push(PlayerMovementEntry {
             date: today.clone(),
             kind: PlayerMovementKind::PermanentTransfer,

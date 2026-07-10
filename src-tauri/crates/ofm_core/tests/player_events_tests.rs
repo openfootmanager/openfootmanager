@@ -6,7 +6,7 @@ use domain::manager::Manager;
 use domain::message::{ActionOption, ActionType, MessageAction, MessageContext};
 use domain::player::{
     Player, PlayerAttributes, PlayerIssue, PlayerIssueCategory, PlayerMoraleCore, PlayerPromise,
-    PlayerPromiseKind, Position, RenewalSessionOutcome, RenewalSessionStatus,
+    PlayerPromiseKind, Position, RenewalSessionOutcome, ContractTalksStatus,
 };
 use domain::team::Team;
 use ofm_core::clock::GameClock;
@@ -1275,7 +1275,7 @@ fn contract_reassure_marks_player_open_to_renewal() {
         .renewal_state
         .as_ref()
         .expect("renewal state should exist");
-    assert_eq!(renewal_state.status, RenewalSessionStatus::Open);
+    assert_eq!(renewal_state.status, ContractTalksStatus::Open);
     assert_eq!(
         renewal_state.last_outcome,
         Some(RenewalSessionOutcome::Stalled)
@@ -1360,7 +1360,7 @@ fn contract_no_renewal_blocks_future_renewal_talks() {
         .renewal_state
         .as_ref()
         .expect("renewal state should exist");
-    assert_eq!(renewal_state.status, RenewalSessionStatus::Blocked);
+    assert_eq!(renewal_state.status, ContractTalksStatus::Blocked);
     assert_eq!(
         renewal_state.last_outcome,
         Some(RenewalSessionOutcome::BlockedByManager)

@@ -1217,7 +1217,7 @@ describe("PlayerProfile contract surfaces", () => {
 
   // Regression for #193 / follow-up on PR #245.
   //
-  // Backend `RenewalSessionStatus::Blocked` serializes as `"Blocked"` (PascalCase)
+  // Backend `ContractTalksStatus::Blocked` serializes as `"Blocked"` (PascalCase)
   // — serde's default enum representation. The PR #245 fix compared against a
   // lowercase `"blocked"` literal, so the guard was always false and the block
   // was never restored on modal reopen. Existing fixtures used lowercase too,

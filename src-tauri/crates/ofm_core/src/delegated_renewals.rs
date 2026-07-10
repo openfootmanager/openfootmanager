@@ -1,8 +1,9 @@
+use crate::contract_negotiation::{expected_contract_years, expected_wage, round_up_to_nearest_thousand};
 use crate::contract_wage_policy::renewal_wage_policy_allows;
 use crate::contracts::{
     ContractWarningStage, DelegatedRenewalCase, DelegatedRenewalOptions, DelegatedRenewalReport,
-    DelegatedRenewalResultStatus, contract_warning_stage, expected_contract_years, expected_wage,
-    has_active_manager_block, has_let_expire_intent, round_up_to_nearest_thousand,
+    DelegatedRenewalResultStatus, contract_warning_stage, has_active_manager_block,
+    has_let_expire_intent,
 };
 use crate::game::Game;
 use chrono::{Months, NaiveDate};
@@ -10,7 +11,7 @@ use domain::message::{
     DelegatedRenewalCaseData as DelegatedRenewalCaseMessageData, DelegatedRenewalReportData,
     InboxMessage, MessageCategory, MessageContext, MessagePriority,
 };
-use domain::player::{ContractRenewalState, Player, RenewalSessionOutcome, RenewalSessionStatus};
+use domain::player::{ContractRenewalState, Player, RenewalSessionOutcome, ContractTalksStatus};
 use domain::staff::StaffRole;
 use std::collections::{HashMap, HashSet};
 
@@ -137,7 +138,7 @@ pub fn delegate_renewals(
                 .morale_core
                 .renewal_state
                 .get_or_insert_with(ContractRenewalState::default);
-            state.status = RenewalSessionStatus::Stalled;
+            state.status = ContractTalksStatus::Stalled;
             state.last_assistant_attempt_date = Some(today.clone());
             state.last_outcome = Some(RenewalSessionOutcome::Stalled);
             state.conversation_round = 0;
@@ -161,7 +162,7 @@ pub fn delegate_renewals(
                     .morale_core
                     .renewal_state
                     .get_or_insert_with(ContractRenewalState::default);
-                state.status = RenewalSessionStatus::Stalled;
+                state.status = ContractTalksStatus::Stalled;
                 state.last_assistant_attempt_date = Some(today.clone());
                 state.last_outcome = Some(RenewalSessionOutcome::Stalled);
                 state.conversation_round = 0;
@@ -179,7 +180,7 @@ pub fn delegate_renewals(
                 .morale_core
                 .renewal_state
                 .get_or_insert_with(ContractRenewalState::default);
-            state.status = RenewalSessionStatus::Agreed;
+            state.status = ContractTalksStatus::Agreed;
             state.manager_blocked_until = None;
             state.last_assistant_attempt_date = Some(today.clone());
             state.last_outcome = Some(RenewalSessionOutcome::AcceptedByAssistant);
@@ -210,7 +211,7 @@ pub fn delegate_renewals(
                 .morale_core
                 .renewal_state
                 .get_or_insert_with(ContractRenewalState::default);
-            state.status = RenewalSessionStatus::Open;
+            state.status = ContractTalksStatus::Open;
             state.last_assistant_attempt_date = Some(today.clone());
             state.last_outcome = Some(RenewalSessionOutcome::Stalled);
             state.conversation_round = 0;
@@ -226,7 +227,7 @@ pub fn delegate_renewals(
             .morale_core
             .renewal_state
             .get_or_insert_with(ContractRenewalState::default);
-        state.status = RenewalSessionStatus::Stalled;
+        state.status = ContractTalksStatus::Stalled;
         state.last_assistant_attempt_date = Some(today.clone());
         state.last_outcome = Some(RenewalSessionOutcome::RejectedByPlayer);
         state.conversation_round = 0;

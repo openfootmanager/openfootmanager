@@ -495,7 +495,7 @@ mod tests {
     use domain::message::{InboxMessage, MessagePriority};
     use domain::player::{
         ContractExitIntent, ContractRenewalState, Injury, Player, PlayerAttributes, Position,
-        RenewalSessionStatus,
+        ContractTalksStatus,
     };
     use domain::stats::StatsState;
     use domain::team::Team;
@@ -758,7 +758,7 @@ mod tests {
             .unwrap();
         player.contract_end = Some("2025-08-01".to_string());
         player.morale_core.renewal_state = Some(ContractRenewalState {
-            status: RenewalSessionStatus::Blocked,
+            status: ContractTalksStatus::Blocked,
             manager_blocked_until: None,
             last_attempt_date: Some("2025-06-15".to_string()),
             last_assistant_attempt_date: None,
@@ -1129,7 +1129,7 @@ mod tests {
         first_key_player.attributes.shooting = 94;
         first_key_player.attributes.dribbling = 90;
         first_key_player.morale_core.renewal_state = Some(ContractRenewalState {
-            status: RenewalSessionStatus::Blocked,
+            status: ContractTalksStatus::Blocked,
             manager_blocked_until: None,
             last_attempt_date: Some("2025-06-15".to_string()),
             last_assistant_attempt_date: None,
@@ -1152,7 +1152,7 @@ mod tests {
         second_key_player.attributes.shooting = 91;
         second_key_player.attributes.dribbling = 89;
         second_key_player.morale_core.renewal_state = Some(ContractRenewalState {
-            status: RenewalSessionStatus::Blocked,
+            status: ContractTalksStatus::Blocked,
             manager_blocked_until: None,
             last_attempt_date: Some("2025-06-15".to_string()),
             last_assistant_attempt_date: None,

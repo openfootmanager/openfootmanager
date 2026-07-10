@@ -23,6 +23,16 @@ import {
 interface UseTransferBidFlowArgs {
     gameState: GameStateData;
     onGameUpdate?: (game: GameStateData) => void;
+    /**
+     * Called when a bid agrees the fee and the offer enters the personal-terms
+     * phase, so the UI can immediately launch the club-to-player negotiation
+     * instead of leaving a dangling `PersonalTermsPending` offer.
+     */
+    onFeeAgreed?: (
+        player: PlayerData,
+        offerId: string,
+        buyerTeamId: string,
+    ) => void;
 }
 
 interface UseTransferBidFlowResult {
@@ -46,6 +56,7 @@ interface UseTransferBidFlowResult {
 export function useTransferBidFlow({
     gameState,
     onGameUpdate,
+    onFeeAgreed,
 }: UseTransferBidFlowArgs): UseTransferBidFlowResult {
     const userTeamId = gameState.manager.team_id;
     const myTeam = gameState.teams.find(
@@ -144,6 +155,26 @@ export function useTransferBidFlow({
 
             if (response.suggested_fee !== null) {
                 setBidAmount(formatTransferFeeInput(response.suggested_fee));
+            }
+
+            // Fee agreed → the offer is now in personal terms. Hand straight over
+            // to the club-to-player negotiation so the user never has to hunt for
+            // it, and close this bid dialog.
+            if (response.decision === "accepted" && userTeamId) {
+                const target = bidTarget;
+                const feeAgreedOffer = response.game.players
+                    .find((player) => player.id === target.id)
+                    ?.transfer_offers.find(
+                        (offer) =>
+                            offer.from_team_id === userTeamId &&
+                            offer.status === "PersonalTermsPending",
+                    );
+
+                if (feeAgreedOffer && onFeeAgreed) {
+                    closeBidNegotiation();
+                    onFeeAgreed(target, feeAgreedOffer.id, userTeamId);
+                    return;
+                }
             }
         } catch (error: any) {
             setBidResult(error?.toString() || "error");

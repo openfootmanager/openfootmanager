@@ -4,8 +4,8 @@ use domain::manager::Manager;
 use domain::message::MessageCategory;
 use domain::news::{NewsArticle, NewsCategory};
 use domain::player::{
-    ActiveLoan, LoanOffer, LoanOfferStatus, Player, PlayerAttributes, PlayerIssueCategory,
-    PlayerMovementKind, Position, TransferOffer, TransferOfferStatus,
+    ActiveLoan, ContractTalksStatus, LoanOffer, LoanOfferStatus, Player, PlayerAttributes,
+    PlayerIssueCategory, PlayerMovementKind, Position, TransferOffer, TransferOfferStatus,
 };
 use domain::season::TransferWindowStatus;
 use domain::team::Team;
@@ -15,10 +15,21 @@ use ofm_core::game::Game;
 use ofm_core::transfers::{
     LoanOfferDecision, TransferNegotiationDecision, counter_loan_offer, counter_offer,
     evaluate_transfer_market, exercise_loan_buy_option, generate_incoming_transfer_offers,
-    make_loan_offer, make_transfer_bid, process_loan_development_reports, process_loan_returns,
-    process_pending_loan_registrations, process_pending_transfer_registrations,
-    respond_to_loan_offer, respond_to_offer, seed_opening_ai_loan_market,
+    make_loan_offer, make_transfer_bid, negotiate_transfer_personal_terms_command,
+    process_loan_development_reports, process_loan_returns, process_pending_loan_registrations,
+    process_pending_transfer_registrations, respond_to_loan_offer, respond_to_offer,
+    seed_opening_ai_loan_market,
 };
+
+/// Test helper: find the id of the (single) transfer offer on a player.
+fn only_offer_id(game: &Game, player_id: &str) -> String {
+    game.players
+        .iter()
+        .find(|player| player.id == player_id)
+        .and_then(|player| player.transfer_offers.first())
+        .map(|offer| offer.id.clone())
+        .expect("player should have a transfer offer")
+}
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -57,6 +68,7 @@ fn make_player(id: &str) -> Player {
     player.team_id = Some("team-2".to_string());
     player.contract_end = Some("2028-06-30".to_string());
     player.market_value = 1_000_000;
+    player.wage = 5000; // Set a reasonable base wage
     player.morale = 70;
     player
 }
@@ -73,12 +85,18 @@ fn make_pending_incoming_offer(id: &str, fee: u64) -> TransferOffer {
         from_team_id: "team-2".to_string(),
         fee,
         wage_offered: 0,
+        contract_years_offered: None,
         last_manager_fee: None,
         negotiation_round: 1,
         suggested_counter_fee: None,
         status: TransferOfferStatus::Pending,
         date: "2026-08-01".to_string(),
         registration_date: None,
+        personal_terms_status: ContractTalksStatus::Idle,
+        personal_terms_round: 0,
+        suggested_wage: None,
+        suggested_contract_years: None,
+        personal_terms_blocked_until: None,
     }
 }
 
@@ -135,6 +153,7 @@ fn make_seller_team(starting_xi_ids: Vec<String>) -> Team {
         28_000,
     );
     team.starting_xi_ids = starting_xi_ids;
+    team.wage_budget = 2_000_000;
     team
 }
 
@@ -326,10 +345,24 @@ fn accepted_closed_window_transfer_bid_is_registered_when_the_window_opens() {
     game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
 
     let result = make_transfer_bid(&mut game, "player-bid-closed", 2_000_000)
-        .expect("accepted closed-window bid should schedule registration");
-
+        .expect("fee agreed on a closed-window bid opens personal terms");
     assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
-    assert_eq!(result.registration_date.as_deref(), Some("2027-01-01"));
+
+    // The user agrees personal terms; the closed window parks the deal for
+    // registration rather than executing now.
+    let offer_id = only_offer_id(&game, "player-bid-closed");
+    let terms = negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-bid-closed",
+        &offer_id,
+        "team-1",
+        20_000,
+        4,
+    )
+    .expect("terms agreed should schedule registration");
+    assert!(terms.success);
+    assert_eq!(terms.status, TransferOfferStatus::PendingRegistration);
+
     let scheduled_player = game
         .players
         .iter()
@@ -457,7 +490,27 @@ fn scheduled_transfer_preserves_market_state_when_registration_fails() {
     game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
 
     make_transfer_bid(&mut game, "player-scheduled-transfer-fails", 2_000_000)
-        .expect("accepted closed-window bid should schedule registration");
+        .expect("closed-window bid should agree the fee and open personal terms");
+    let scheduled_offer_id = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-transfer-fails")
+        .unwrap()
+        .transfer_offers
+        .iter()
+        .find(|offer| offer.from_team_id == "team-1")
+        .unwrap()
+        .id
+        .clone();
+    negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-scheduled-transfer-fails",
+        &scheduled_offer_id,
+        "team-1",
+        20_000,
+        4,
+    )
+    .expect("terms agreed should schedule registration");
 
     let scheduled_player = game
         .players
@@ -548,7 +601,27 @@ fn scheduled_transfer_withdraws_competing_offers_after_registration_succeeds() {
     game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
 
     make_transfer_bid(&mut game, "player-scheduled-transfer-succeeds", 2_000_000)
-        .expect("accepted closed-window bid should schedule registration");
+        .expect("closed-window bid should agree the fee and open personal terms");
+    let scheduled_offer_id = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-transfer-succeeds")
+        .unwrap()
+        .transfer_offers
+        .iter()
+        .find(|offer| offer.from_team_id == "team-1")
+        .unwrap()
+        .id
+        .clone();
+    negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-scheduled-transfer-succeeds",
+        &scheduled_offer_id,
+        "team-1",
+        20_000,
+        4,
+    )
+    .expect("terms agreed should schedule registration");
 
     game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
     game.season_context.transfer_window.status = TransferWindowStatus::Open;
@@ -1800,6 +1873,10 @@ fn expiring_contract_lowers_resistance_to_sale() {
         .expect("bid should be evaluated");
 
     assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+    // Fee agreed → settle personal terms to complete the move.
+    let offer_id = only_offer_id(&game, "player-expiring");
+    negotiate_transfer_personal_terms_command(&mut game, "player-expiring", &offer_id, "team-1", 20_000, 3)
+        .expect("personal terms should be agreed");
     assert_eq!(
         game.players
             .iter()
@@ -1875,6 +1952,10 @@ fn repeated_bid_advances_transfer_negotiation_round() {
         TransferNegotiationDecision::Accepted
     );
     assert_eq!(second_result.feedback.round, 2);
+    // Fee agreed → settle personal terms to complete the move.
+    let offer_id = only_offer_id(&game, "player-repeat-bid");
+    negotiate_transfer_personal_terms_command(&mut game, "player-repeat-bid", &offer_id, "team-1", 20_000, 3)
+        .expect("personal terms should be agreed");
     assert_eq!(
         game.players
             .iter()
@@ -1894,12 +1975,18 @@ fn stale_outgoing_transfer_negotiation_is_withdrawn_before_new_bid() {
         from_team_id: "team-1".to_string(),
         fee: 900_000,
         wage_offered: 0,
+        contract_years_offered: None,
         last_manager_fee: Some(900_000),
         negotiation_round: 2,
         suggested_counter_fee: Some(1_150_000),
         status: TransferOfferStatus::Pending,
         date: "2026-07-15".to_string(),
         registration_date: None,
+        personal_terms_status: ContractTalksStatus::Idle,
+        personal_terms_round: 0,
+        suggested_wage: None,
+        suggested_contract_years: None,
+        personal_terms_blocked_until: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2064,12 +2151,18 @@ fn does_not_duplicate_pending_incoming_offer_from_same_club() {
         from_team_id: "team-2".to_string(),
         fee: 900_000,
         wage_offered: 0,
+        contract_years_offered: None,
         last_manager_fee: None,
         negotiation_round: 1,
         suggested_counter_fee: None,
         status: TransferOfferStatus::Pending,
         date: "2026-08-01".to_string(),
         registration_date: None,
+        personal_terms_status: ContractTalksStatus::Idle,
+        personal_terms_round: 0,
+        suggested_wage: None,
+        suggested_contract_years: None,
+        personal_terms_blocked_until: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2617,6 +2710,18 @@ fn accepted_major_transfer_generates_news_article() {
         .expect("major transfer bid should succeed");
 
     assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+    // Fee agreed; the news breaks once personal terms are settled and the
+    // transfer actually executes.
+    let offer_id = only_offer_id(&game, "player-news-major");
+    negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-news-major",
+        &offer_id,
+        "team-1",
+        20_000,
+        3,
+    )
+    .expect("personal terms should be agreed");
     let article = game
         .news
         .iter()
@@ -2707,8 +2812,11 @@ fn transfer_succeeds_when_incoming_player_jersey_collides_with_buyer_squad() {
         .expect("bid for an affordable player should be accepted");
     assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
 
-    // If the bid is registered immediately, the transfer is already complete;
-    // otherwise process the scheduled registration to finalize the move.
+    // Fee agreed → settle personal terms to complete the signing, then process
+    // any scheduled registration for good measure.
+    let offer_id = only_offer_id(&game, "incoming-six");
+    negotiate_transfer_personal_terms_command(&mut game, "incoming-six", &offer_id, "team-1", 20_000, 3)
+        .expect("personal terms should be agreed");
     process_pending_transfer_registrations(&mut game);
 
     let existing_after = game
@@ -2758,10 +2866,20 @@ fn executed_transfer_debits_the_buying_team_transfer_budget() {
     // First bid returns a counter — engine picks a suggestion around 950k.
     make_transfer_bid(&mut game, "player-budget-debit", 900_000)
         .expect("first bid should return a counter");
-    // Accepting the suggestion executes the transfer.
+    // Accepting the suggestion agrees the fee; personal terms then execute the move.
     let result = make_transfer_bid(&mut game, "player-budget-debit", 950_000)
         .expect("second bid should be accepted");
     assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+    let offer_id = only_offer_id(&game, "player-budget-debit");
+    negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-budget-debit",
+        &offer_id,
+        "team-1",
+        20_000,
+        3,
+    )
+    .expect("personal terms should be agreed");
 
     // Both `finance` and `transfer_budget` must drop by the executed fee.
     // Regression guard for the pre-fix bug where `transfer_budget` gated
@@ -2770,4 +2888,301 @@ fn executed_transfer_debits_the_buying_team_transfer_budget() {
     let buyer = game.teams.iter().find(|t| t.id == "team-1").unwrap();
     assert_eq!(buyer.finance, starting_finance - 950_000);
     assert_eq!(buyer.transfer_budget, starting_budget - 950_000);
+}
+
+#[test]
+fn fee_agreement_opens_personal_terms_without_moving_the_player() {
+    let player = make_player("player-terms-open");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let buyer_finance_before = game.teams[0].finance;
+    let seller_finance_before = game.teams[1].finance;
+
+    let result = make_transfer_bid(&mut game, "player-terms-open", 2_000_000)
+        .expect("affordable bid should agree the fee");
+    assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-terms-open")
+        .unwrap();
+    // Fee agreed, but the player has NOT moved and no money has changed hands.
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::PersonalTermsPending
+    );
+    assert_eq!(game.teams[0].finance, buyer_finance_before);
+    assert_eq!(game.teams[1].finance, seller_finance_before);
+}
+
+#[test]
+fn user_personal_terms_counter_then_agreement_signs_player() {
+    let player = make_player("player-terms-multi");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    make_transfer_bid(&mut game, "player-terms-multi", 2_000_000).expect("fee agreed");
+    let offer_id = only_offer_id(&game, "player-terms-multi");
+
+    // A wage below the player's expectation (but not insulting) draws a counter.
+    let counter = negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-terms-multi",
+        &offer_id,
+        "team-1",
+        5_000,
+        3,
+    )
+    .expect("low wage should be countered");
+    assert!(!counter.success);
+    assert_eq!(counter.status, TransferOfferStatus::PersonalTermsPending);
+    let suggested = counter.suggested_wage.expect("player counters with a wage");
+    assert!(counter.personal_terms_round >= 2);
+
+    // Meeting the counter completes the signing.
+    let agreed = negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-terms-multi",
+        &offer_id,
+        "team-1",
+        suggested,
+        3,
+    )
+    .expect("matching the counter should be accepted");
+    assert!(agreed.success);
+    assert_eq!(agreed.status, TransferOfferStatus::Accepted);
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-terms-multi")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(player.wage, suggested);
+    assert!(player.contract_end.is_some());
+}
+
+#[test]
+fn insulting_personal_terms_offer_sets_cooldown_then_stale_talks_fail() {
+    let player = make_player("player-terms-insult");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    make_transfer_bid(&mut game, "player-terms-insult", 2_000_000).expect("fee agreed");
+    let offer_id = only_offer_id(&game, "player-terms-insult");
+
+    let insult = negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-terms-insult",
+        &offer_id,
+        "team-1",
+        1_000,
+        3,
+    )
+    .expect("insulting wage handled without killing the deal");
+    assert!(!insult.success);
+    assert_eq!(insult.status, TransferOfferStatus::PersonalTermsPending);
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-terms-insult")
+        .unwrap();
+    assert!(player.transfer_offers[0].personal_terms_blocked_until.is_some());
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+
+    // Idle past the stale window → talks break down, player stays put.
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 1, 12, 0, 0).unwrap();
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-terms-insult")
+        .unwrap();
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::PersonalTermsFailed
+    );
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+}
+
+#[test]
+fn user_sale_auto_resolves_personal_terms_with_expected_wage() {
+    let mut player = make_user_player("player-sale-auto");
+    player.wage = 5_000;
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-sale-auto", 1_500_000));
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+
+    respond_to_offer(&mut game, "player-sale-auto", "offer-sale-auto", true)
+        .expect("accepting a fee auto-resolves personal terms for the AI buyer");
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-sale-auto")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::Accepted
+    );
+    // The buyer applies the negotiated (expected) wage, above the old 5k.
+    assert!(player.wage > 5_000);
+    assert!(player.contract_end.is_some());
+}
+
+#[test]
+fn ai_buyer_that_cannot_afford_wages_fails_personal_terms() {
+    let mut player = make_user_player("player-sale-poor-buyer");
+    player.wage = 5_000;
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-sale-poor", 1_500_000));
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    // The buying club has almost no wage headroom, so terms break down even
+    // though the fee was agreed.
+    game.teams[1].wage_budget = 1_000;
+
+    respond_to_offer(&mut game, "player-sale-poor-buyer", "offer-sale-poor", true)
+        .expect("responding to the offer should not error");
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-sale-poor-buyer")
+        .unwrap();
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::PersonalTermsFailed
+    );
+    assert_eq!(
+        player.team_id.as_deref(),
+        Some("team-1"),
+        "the player must not move when personal terms fail"
+    );
+    assert_eq!(player.wage, 5_000, "the wage must be unchanged");
+}
+
+#[test]
+fn user_sale_breaks_down_when_buyer_cannot_afford_wage() {
+    let mut player = make_user_player("player-sale-poor");
+    player.wage = 5_000;
+    player.market_value = 1_000_000;
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-sale-poor", 1_500_000));
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    // The buyer can pay the fee but has effectively no wage headroom.
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    game.teams[1].wage_budget = 1;
+
+    respond_to_offer(&mut game, "player-sale-poor", "offer-sale-poor", true)
+        .expect("call succeeds even when personal terms break down");
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-sale-poor")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::PersonalTermsFailed
+    );
+}
+
+#[test]
+fn deferred_transfer_registers_with_negotiated_wage_not_old_wage() {
+    let mut player = make_player("player-deferred-wage");
+    player.wage = 5_000;
+    player.market_value = 1_000_000;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    // Fee agreed out of window → personal terms open (NOT auto-resolved). Same
+    // flow as an in-window bid; only execution is deferred to registration.
+    let result = make_transfer_bid(&mut game, "player-deferred-wage", 2_000_000)
+        .expect("closed-window bid should agree the fee and open personal terms");
+    assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+    let offer_id = only_offer_id(&game, "player-deferred-wage");
+    {
+        let pending = game
+            .players
+            .iter()
+            .find(|p| p.id == "player-deferred-wage")
+            .unwrap();
+        assert_eq!(
+            pending.transfer_offers[0].status,
+            TransferOfferStatus::PersonalTermsPending
+        );
+        assert_eq!(
+            pending.team_id.as_deref(),
+            Some("team-2"),
+            "player must not move before terms are agreed"
+        );
+    }
+
+    // The user negotiates terms as usual; because the window is closed, agreement
+    // parks the deal for registration rather than executing immediately.
+    let agreed = negotiate_transfer_personal_terms_command(
+        &mut game,
+        "player-deferred-wage",
+        &offer_id,
+        "team-1",
+        20_000,
+        4,
+    )
+    .expect("generous terms should be accepted");
+    assert!(agreed.success);
+    assert_eq!(agreed.status, TransferOfferStatus::PendingRegistration);
+
+    let scheduled = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-deferred-wage")
+        .unwrap();
+    assert_eq!(
+        scheduled.transfer_offers[0].status,
+        TransferOfferStatus::PendingRegistration
+    );
+    let agreed_wage = scheduled.transfer_offers[0].wage_offered;
+    assert_eq!(
+        agreed_wage, 20_000,
+        "personal terms should be settled up front"
+    );
+    assert!(scheduled.transfer_offers[0].contract_years_offered.is_some());
+    assert_eq!(
+        scheduled.team_id.as_deref(),
+        Some("team-2"),
+        "player stays put until the window opens"
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let registered = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-deferred-wage")
+        .unwrap();
+    assert_eq!(registered.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        registered.transfer_offers[0].status,
+        TransferOfferStatus::Accepted
+    );
+    assert_eq!(
+        registered.wage, agreed_wage,
+        "registration must apply the agreed wage, not the stale pre-transfer wage"
+    );
 }

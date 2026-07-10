@@ -255,6 +255,7 @@ pub fn run() {
             preview_transfer_bid_financial_impact,
             respond_to_offer,
             respond_to_loan_offer,
+            negotiate_transfer_personal_terms,
             counter_loan_offer,
             counter_offer,
             send_scout,

@@ -1,3 +1,7 @@
+use crate::contract_negotiation::{
+    contract_days_remaining, expected_contract_years, expected_wage, is_insulting_wage_offer,
+    minimum_acceptable_wage, reference_player_wage, remaining_contract_days, MAX_CONTRACT_YEARS,
+};
 use crate::contract_wage_policy::{
     project_contract_offer_financial_impact,
     project_renewal_financial_impact as project_renewal_financial_impact_service,
@@ -6,12 +10,12 @@ use crate::contract_wage_policy::{
 use crate::delegated_renewals::delegate_renewals as delegate_renewals_service;
 use crate::game::Game;
 use crate::squad_safety::{SquadSafetyReport, project_user_team_release_safety};
-use chrono::{Datelike, Days, Months, NaiveDate};
+use chrono::{Days, Months, NaiveDate};
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};
 use domain::player::{
     ContractExitIntent, ContractRenewalState, Player, PlayerMovementEntry, PlayerMovementKind,
-    RenewalSessionOutcome, RenewalSessionStatus,
+    RenewalSessionOutcome, ContractTalksStatus,
 };
 use domain::team::{FinancialTransaction, FinancialTransactionKind, Team};
 use serde::{Deserialize, Serialize};
@@ -19,9 +23,6 @@ use std::collections::HashMap;
 
 const RENEWAL_SESSION_STALE_DAYS: i64 = 14;
 const INSULTING_RENEWAL_BLOCK_DAYS: u64 = 30;
-const MAX_CONTRACT_YEARS: u32 = 5;
-const MARKET_VALUE_TO_WAGE_RATIO: u64 = 200;
-const MINIMUM_DEFAULT_WAGE: u64 = 500;
 const ERR_NO_TEAM_ASSIGNED: &str = "be.error.noTeamAssigned";
 const ERR_MANAGED_TEAM_NOT_FOUND: &str = "be.error.managedTeamNotFound";
 const ERR_PLAYER_NOT_FOUND: &str = "be.error.playerNotFound";
@@ -80,10 +81,21 @@ pub struct RenewalOutcome {
     pub decision: RenewalDecision,
     pub suggested_wage: Option<u32>,
     pub suggested_years: Option<u32>,
-    pub session_status: RenewalSessionStatus,
+    pub session_status: ContractTalksStatus,
     pub is_terminal: bool,
     pub cooled_off: bool,
     pub feedback: Option<NegotiationFeedback>,
+}
+
+/// Result of a single club-to-player negotiation round, shared by contract
+/// renewals, free-agent signings and transfer personal terms.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ContractTermsOutcome {
+    pub decision: RenewalDecision,
+    pub status: ContractTalksStatus,
+    pub suggested_wage: u32,
+    pub suggested_years: u32,
+    pub blocked_until: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -160,7 +172,7 @@ fn renewal_outcome(
     decision: RenewalDecision,
     suggested_wage: Option<u32>,
     suggested_years: Option<u32>,
-    session_status: RenewalSessionStatus,
+    session_status: ContractTalksStatus,
     is_terminal: bool,
     cooled_off: bool,
     feedback: Option<NegotiationFeedback>,
@@ -218,6 +230,53 @@ pub fn project_free_agent_contract_impact(
     ))
 }
 
+/// Shared club-to-player round evaluation used by contract renewals, free-agent
+/// signings and transfer personal terms. `baseline_wage` anchors the
+/// minimum-acceptable and insulting-offer checks: the player's current wage for
+/// renewals, `reference_player_wage` for free-agent/transfer signings.
+pub fn evaluate_contract_terms(
+    player: &Player,
+    signing_club: &Team,
+    current_date: NaiveDate,
+    offered_wage: u32,
+    offered_years: u32,
+    baseline_wage: u32,
+) -> ContractTermsOutcome {
+    let expected_wage = expected_wage(player, signing_club, current_date);
+    let expected_years = expected_contract_years(player, current_date);
+    let minimum_wage = minimum_acceptable_wage(baseline_wage);
+
+    let terms = |decision, status, blocked_until| ContractTermsOutcome {
+        decision,
+        status,
+        suggested_wage: expected_wage,
+        suggested_years: expected_years,
+        blocked_until,
+    };
+
+    if offered_years == 0 || offered_years > MAX_CONTRACT_YEARS {
+        return terms(RenewalDecision::Rejected, ContractTalksStatus::Stalled, None);
+    }
+
+    if is_insulting_wage_offer(baseline_wage, expected_wage, offered_wage) {
+        return terms(
+            RenewalDecision::Rejected,
+            ContractTalksStatus::Blocked,
+            renewal_blocked_until(current_date),
+        );
+    }
+
+    if offered_wage < minimum_wage {
+        return terms(RenewalDecision::Rejected, ContractTalksStatus::Stalled, None);
+    }
+
+    if offered_wage >= expected_wage && offered_years >= expected_years {
+        return terms(RenewalDecision::Accepted, ContractTalksStatus::Agreed, None);
+    }
+
+    terms(RenewalDecision::CounterOffer, ContractTalksStatus::Open, None)
+}
+
 pub fn evaluate_renewal_offer(
     player: &Player,
     team: &Team,
@@ -226,109 +285,40 @@ pub fn evaluate_renewal_offer(
 ) -> RenewalOutcome {
     let round = next_renewal_round(player, None);
     let expected_wage = expected_wage(player, team, current_date);
-    let expected_years = expected_contract_years(player, current_date);
-    let minimum_wage = minimum_acceptable_wage(player.wage);
+    let core = evaluate_contract_terms(
+        player,
+        team,
+        current_date,
+        offer.weekly_wage,
+        offer.contract_years,
+        player.wage,
+    );
 
-    if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
-        let feedback = build_renewal_feedback(
-            player,
-            current_date,
-            RenewalDecision::Rejected,
-            RenewalSessionStatus::Stalled,
-            round,
-            expected_wage,
-            false,
-        );
-        return renewal_outcome(
-            RenewalDecision::Rejected,
-            None,
-            None,
-            RenewalSessionStatus::Stalled,
-            false,
-            false,
-            Some(feedback),
-        );
-    }
-
-    if is_insulting_wage_offer(player.wage, expected_wage, offer.weekly_wage) {
-        let feedback = build_renewal_feedback(
-            player,
-            current_date,
-            RenewalDecision::Rejected,
-            RenewalSessionStatus::Blocked,
-            round,
-            expected_wage,
-            false,
-        );
-        return renewal_outcome(
-            RenewalDecision::Rejected,
-            None,
-            None,
-            RenewalSessionStatus::Blocked,
-            true,
-            false,
-            Some(feedback),
-        );
-    }
-
-    if offer.weekly_wage < minimum_wage {
-        let feedback = build_renewal_feedback(
-            player,
-            current_date,
-            RenewalDecision::Rejected,
-            RenewalSessionStatus::Stalled,
-            round,
-            expected_wage,
-            false,
-        );
-        return renewal_outcome(
-            RenewalDecision::Rejected,
-            None,
-            None,
-            RenewalSessionStatus::Stalled,
-            false,
-            false,
-            Some(feedback),
-        );
-    }
-
-    if offer.weekly_wage >= expected_wage && offer.contract_years >= expected_years {
-        let feedback = build_renewal_feedback(
-            player,
-            current_date,
-            RenewalDecision::Accepted,
-            RenewalSessionStatus::Agreed,
-            round,
-            expected_wage,
-            false,
-        );
-        return renewal_outcome(
-            RenewalDecision::Accepted,
-            None,
-            None,
-            RenewalSessionStatus::Agreed,
-            true,
-            false,
-            Some(feedback),
-        );
-    }
-
+    let is_terminal = matches!(
+        core.status,
+        ContractTalksStatus::Agreed | ContractTalksStatus::Blocked
+    );
+    let (suggested_wage, suggested_years) = if core.decision == RenewalDecision::CounterOffer {
+        (Some(core.suggested_wage), Some(core.suggested_years))
+    } else {
+        (None, None)
+    };
     let feedback = build_renewal_feedback(
         player,
         current_date,
-        RenewalDecision::CounterOffer,
-        RenewalSessionStatus::Open,
+        core.decision.clone(),
+        core.status.clone(),
         round,
         expected_wage,
         false,
     );
 
     renewal_outcome(
-        RenewalDecision::CounterOffer,
-        Some(expected_wage),
-        Some(expected_years),
-        RenewalSessionStatus::Open,
-        false,
+        core.decision,
+        suggested_wage,
+        suggested_years,
+        core.status,
+        is_terminal,
         false,
         Some(feedback),
     )
@@ -370,14 +360,14 @@ pub fn propose_renewal(
             RenewalDecision::Rejected,
             None,
             None,
-            RenewalSessionStatus::Stalled,
+            ContractTalksStatus::Stalled,
             false,
             false,
             Some(build_renewal_feedback(
                 &game.players[player_index],
                 current_date,
                 RenewalDecision::Rejected,
-                RenewalSessionStatus::Stalled,
+                ContractTalksStatus::Stalled,
                 round,
                 expected_wage,
                 false,
@@ -395,14 +385,14 @@ pub fn propose_renewal(
             RenewalDecision::Rejected,
             None,
             None,
-            RenewalSessionStatus::Blocked,
+            ContractTalksStatus::Blocked,
             true,
             cooled_off,
             Some(build_renewal_feedback(
                 &game.players[player_index],
                 current_date,
                 RenewalDecision::Rejected,
-                RenewalSessionStatus::Blocked,
+                ContractTalksStatus::Blocked,
                 round,
                 0,
                 false,
@@ -414,21 +404,21 @@ pub fn propose_renewal(
         .morale_core
         .renewal_state
         .as_ref()
-        && state.status == RenewalSessionStatus::Agreed
+        && state.status == ContractTalksStatus::Agreed
         && state.last_attempt_date.as_deref() == Some(today.as_str())
     {
         return Ok(renewal_outcome(
             RenewalDecision::Rejected,
             None,
             None,
-            RenewalSessionStatus::Agreed,
+            ContractTalksStatus::Agreed,
             true,
             cooled_off,
             Some(build_renewal_feedback(
                 &game.players[player_index],
                 current_date,
                 RenewalDecision::Accepted,
-                RenewalSessionStatus::Agreed,
+                ContractTalksStatus::Agreed,
                 round,
                 game.players[player_index].wage,
                 false,
@@ -440,7 +430,7 @@ pub fn propose_renewal(
     let mut outcome =
         evaluate_renewal_offer(&game.players[player_index], &team, current_date, &offer);
     outcome.cooled_off = cooled_off;
-    let relationship_blocked = outcome.session_status != RenewalSessionStatus::Blocked
+    let relationship_blocked = outcome.session_status != ContractTalksStatus::Blocked
         && should_manual_renewal_fail_on_relationship(
             &game.players[player_index],
             expected_wage,
@@ -452,14 +442,14 @@ pub fn propose_renewal(
             RenewalDecision::Rejected,
             None,
             None,
-            RenewalSessionStatus::Stalled,
+            ContractTalksStatus::Stalled,
             false,
             cooled_off,
             Some(build_renewal_feedback(
                 &game.players[player_index],
                 current_date,
                 RenewalDecision::Rejected,
-                RenewalSessionStatus::Stalled,
+                ContractTalksStatus::Stalled,
                 round,
                 expected_wage,
                 true,
@@ -488,7 +478,7 @@ pub fn propose_renewal(
             .morale_core
             .renewal_state
             .get_or_insert_with(ContractRenewalState::default);
-        state.status = RenewalSessionStatus::Agreed;
+        state.status = ContractTalksStatus::Agreed;
         state.manager_blocked_until = None;
         state.last_attempt_date = Some(today);
         state.last_outcome = Some(RenewalSessionOutcome::AcceptedByManager);
@@ -498,14 +488,14 @@ pub fn propose_renewal(
             RenewalDecision::Accepted,
             None,
             None,
-            RenewalSessionStatus::Agreed,
+            ContractTalksStatus::Agreed,
             true,
             cooled_off,
             Some(build_renewal_feedback(
                 player,
                 current_date,
                 RenewalDecision::Accepted,
-                RenewalSessionStatus::Agreed,
+                ContractTalksStatus::Agreed,
                 round,
                 expected_wage,
                 false,
@@ -524,7 +514,7 @@ pub fn propose_renewal(
     match outcome.decision {
         RenewalDecision::Rejected => {
             state.status = outcome.session_status.clone();
-            if outcome.session_status == RenewalSessionStatus::Blocked {
+            if outcome.session_status == ContractTalksStatus::Blocked {
                 state.manager_blocked_until = renewal_blocked_until(current_date);
                 state.last_outcome = Some(RenewalSessionOutcome::BlockedByManager);
             } else {
@@ -533,7 +523,7 @@ pub fn propose_renewal(
             }
         }
         RenewalDecision::CounterOffer => {
-            state.status = RenewalSessionStatus::Open;
+            state.status = ContractTalksStatus::Open;
             state.manager_blocked_until = None;
             state.last_outcome = Some(RenewalSessionOutcome::Stalled);
         }
@@ -597,14 +587,14 @@ pub fn offer_free_agent_contract(
             RenewalDecision::Rejected,
             None,
             None,
-            RenewalSessionStatus::Stalled,
+            ContractTalksStatus::Stalled,
             false,
             cooled_off,
             Some(build_renewal_feedback(
                 &game.players[player_index],
                 current_date,
                 RenewalDecision::Rejected,
-                RenewalSessionStatus::Stalled,
+                ContractTalksStatus::Stalled,
                 round,
                 expected_wage,
                 false,
@@ -621,7 +611,7 @@ pub fn offer_free_agent_contract(
             .get_or_insert_with(ContractRenewalState::default);
         state.last_attempt_date = Some(today.clone());
         state.conversation_round = round;
-        state.status = RenewalSessionStatus::Blocked;
+        state.status = ContractTalksStatus::Blocked;
         state.manager_blocked_until = blocked_until;
         state.last_outcome = Some(RenewalSessionOutcome::BlockedByManager);
 
@@ -629,14 +619,14 @@ pub fn offer_free_agent_contract(
             RenewalDecision::Rejected,
             None,
             None,
-            RenewalSessionStatus::Blocked,
+            ContractTalksStatus::Blocked,
             true,
             cooled_off,
             Some(build_renewal_feedback(
                 player,
                 current_date,
                 RenewalDecision::Rejected,
-                RenewalSessionStatus::Blocked,
+                ContractTalksStatus::Blocked,
                 round,
                 expected_wage,
                 false,
@@ -649,14 +639,14 @@ pub fn offer_free_agent_contract(
             RenewalDecision::Rejected,
             None,
             None,
-            RenewalSessionStatus::Stalled,
+            ContractTalksStatus::Stalled,
             false,
             cooled_off,
             Some(build_renewal_feedback(
                 &game.players[player_index],
                 current_date,
                 RenewalDecision::Rejected,
-                RenewalSessionStatus::Stalled,
+                ContractTalksStatus::Stalled,
                 round,
                 expected_wage,
                 false,
@@ -720,14 +710,14 @@ pub fn offer_free_agent_contract(
             RenewalDecision::Accepted,
             None,
             None,
-            RenewalSessionStatus::Agreed,
+            ContractTalksStatus::Agreed,
             true,
             cooled_off,
             Some(build_renewal_feedback(
                 player,
                 current_date,
                 RenewalDecision::Accepted,
-                RenewalSessionStatus::Agreed,
+                ContractTalksStatus::Agreed,
                 round,
                 expected_wage,
                 false,
@@ -742,7 +732,7 @@ pub fn offer_free_agent_contract(
         .get_or_insert_with(ContractRenewalState::default);
     state.last_attempt_date = Some(today);
     state.conversation_round = round;
-    state.status = RenewalSessionStatus::Open;
+    state.status = ContractTalksStatus::Open;
     state.manager_blocked_until = None;
     state.last_outcome = Some(RenewalSessionOutcome::Stalled);
 
@@ -750,14 +740,14 @@ pub fn offer_free_agent_contract(
         RenewalDecision::CounterOffer,
         Some(expected_wage),
         Some(expected_years),
-        RenewalSessionStatus::Open,
+        ContractTalksStatus::Open,
         false,
         cooled_off,
         Some(build_renewal_feedback(
             player,
             current_date,
             RenewalDecision::CounterOffer,
-            RenewalSessionStatus::Open,
+            ContractTalksStatus::Open,
             round,
             expected_wage,
             false,
@@ -789,7 +779,7 @@ pub fn set_contract_exit_intent(
         .morale_core
         .renewal_state
         .get_or_insert_with(ContractRenewalState::default);
-    state.status = RenewalSessionStatus::Blocked;
+    state.status = ContractTalksStatus::Blocked;
     state.manager_blocked_until = None;
     state.last_attempt_date = Some(today.clone());
     state.last_outcome = Some(RenewalSessionOutcome::BlockedByManager);
@@ -815,8 +805,8 @@ pub fn clear_contract_exit_intent(game: &mut Game, player_id: &str) -> Result<()
 
     state.exit_intent = None;
 
-    if had_exit_intent && state.status == RenewalSessionStatus::Blocked {
-        state.status = RenewalSessionStatus::Idle;
+    if had_exit_intent && state.status == ContractTalksStatus::Blocked {
+        state.status = ContractTalksStatus::Idle;
         state.manager_blocked_until = None;
         state.last_outcome = None;
         state.conversation_round = 0;
@@ -1023,88 +1013,6 @@ fn backend_text_with_param(key: &str, param_name: &str, param_value: &str) -> St
     message
 }
 
-pub(crate) fn expected_wage(player: &Player, team: &Team, current_date: NaiveDate) -> u32 {
-    let mut wage = reference_player_wage(player) as f32;
-    let age = player_age_on(current_date, &player.date_of_birth);
-    let remaining_days = remaining_contract_days(player, current_date);
-
-    if age <= 27 {
-        wage *= 1.05;
-    } else if age >= 32 {
-        wage *= 0.95;
-    }
-
-    if player.morale <= 50 {
-        wage *= 1.10;
-    }
-
-    wage *= importance_wage_multiplier(player);
-
-    if team.reputation < 40 {
-        wage *= 1.05;
-    }
-
-    if remaining_days <= 180 {
-        wage *= 1.10;
-    } else if remaining_days <= 365 {
-        wage *= 1.05;
-    }
-
-    let rounded = round_up_to_nearest_thousand(wage.ceil() as u32);
-    rounded.max(reference_player_wage(player))
-}
-
-fn reference_player_wage(player: &Player) -> u32 {
-    if player.wage > 0 {
-        return player.wage;
-    }
-
-    let derived_wage = (player.market_value / MARKET_VALUE_TO_WAGE_RATIO).max(MINIMUM_DEFAULT_WAGE);
-
-    round_up_to_nearest_thousand(derived_wage.min(u32::MAX as u64) as u32)
-}
-
-fn importance_wage_multiplier(player: &Player) -> f32 {
-    if player.market_value >= 2_000_000 {
-        return 1.18;
-    }
-
-    if player.market_value >= 750_000 {
-        return 1.10;
-    }
-
-    if player.market_value <= 150_000 {
-        return 0.95;
-    }
-
-    1.0
-}
-
-pub(crate) fn expected_contract_years(player: &Player, current_date: NaiveDate) -> u32 {
-    let age = player_age_on(current_date, &player.date_of_birth);
-
-    if age <= 28 {
-        return 3;
-    }
-
-    if age <= 32 {
-        return 2;
-    }
-
-    1
-}
-
-fn minimum_acceptable_wage(current_wage: u32) -> u32 {
-    ((current_wage as f32) * 0.85).floor() as u32
-}
-
-fn is_insulting_wage_offer(reference_wage: u32, expected_wage: u32, offered_wage: u32) -> bool {
-    let anchor_wage = reference_wage.max(expected_wage);
-    let insulting_floor = ((anchor_wage as f32) * 0.65).floor() as u32;
-
-    offered_wage < insulting_floor
-}
-
 fn renewal_blocked_until(current_date: NaiveDate) -> Option<String> {
     current_date
         .checked_add_days(Days::new(INSULTING_RENEWAL_BLOCK_DAYS))
@@ -1132,7 +1040,7 @@ fn cool_stale_renewal_session(player: &mut Player, current_date: NaiveDate) -> b
 
     if matches!(
         state.status,
-        RenewalSessionStatus::Blocked | RenewalSessionStatus::Agreed | RenewalSessionStatus::Idle
+        ContractTalksStatus::Blocked | ContractTalksStatus::Agreed | ContractTalksStatus::Idle
     ) {
         return false;
     }
@@ -1149,7 +1057,7 @@ fn cool_stale_renewal_session(player: &mut Player, current_date: NaiveDate) -> b
         return false;
     }
 
-    state.status = RenewalSessionStatus::Idle;
+    state.status = ContractTalksStatus::Idle;
     state.last_outcome = None;
     state.conversation_round = 0;
     true
@@ -1159,7 +1067,7 @@ fn build_renewal_feedback(
     player: &Player,
     current_date: NaiveDate,
     decision: RenewalDecision,
-    session_status: RenewalSessionStatus,
+    session_status: ContractTalksStatus,
     round: u8,
     expected_wage: u32,
     relationship_blocked: bool,
@@ -1201,7 +1109,7 @@ fn build_renewal_feedback(
     let patience = (100_i32 - i32::from(round.saturating_sub(1)) * 18 - i32::from(tension) / 3)
         .clamp(18, 92) as u8;
 
-    let (mood, headline_key, detail_key) = if session_status == RenewalSessionStatus::Blocked {
+    let (mood, headline_key, detail_key) = if session_status == ContractTalksStatus::Blocked {
         (
             NegotiationMood::Guarded,
             "playerProfile.renewalFeedbackBlockedHeadline",
@@ -1272,7 +1180,7 @@ pub(crate) fn has_active_manager_block(player: &Player, current_date: NaiveDate)
         return false;
     };
 
-    if state.status != RenewalSessionStatus::Blocked {
+    if state.status != ContractTalksStatus::Blocked {
         return false;
     }
 
@@ -1283,38 +1191,6 @@ pub(crate) fn has_active_manager_block(player: &Player, current_date: NaiveDate)
     NaiveDate::parse_from_str(blocked_until, "%Y-%m-%d")
         .map(|blocked_until| blocked_until >= current_date)
         .unwrap_or(true)
-}
-
-fn player_age_on(current_date: NaiveDate, date_of_birth: &str) -> i32 {
-    let Ok(dob) = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d") else {
-        return 30;
-    };
-
-    let mut age = current_date.year() - dob.year();
-    if current_date.ordinal() < dob.ordinal() {
-        age -= 1;
-    }
-    age
-}
-
-fn remaining_contract_days(player: &Player, current_date: NaiveDate) -> i64 {
-    contract_days_remaining(player.contract_end.as_deref(), current_date)
-        .unwrap_or(0)
-        .max(0)
-}
-
-pub(crate) fn round_up_to_nearest_thousand(value: u32) -> u32 {
-    if value == 0 {
-        return 0;
-    }
-
-    value.div_ceil(1000) * 1000
-}
-
-fn contract_days_remaining(contract_end: Option<&str>, current_date: NaiveDate) -> Option<i64> {
-    let contract_end = contract_end?;
-    let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").ok()?;
-    Some((contract_end_date - current_date).num_days())
 }
 
 fn remove_player_from_team_references(team: &mut Team, player_id: &str) {

@@ -2,7 +2,7 @@ use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{
     ActiveLoan, ContractExitIntent, ContractRenewalState, Player, PlayerAttributes, Position,
-    RenewalSessionStatus,
+    ContractTalksStatus,
 };
 use domain::season::TransferWindowStatus;
 use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -206,7 +206,7 @@ fn let_expire_intent_persists_and_can_be_cleared() {
     let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
     assert!(has_let_expire_intent(player));
     let state = player.morale_core.renewal_state.as_ref().unwrap();
-    assert_eq!(state.status, RenewalSessionStatus::Blocked);
+    assert_eq!(state.status, ContractTalksStatus::Blocked);
     assert!(matches!(
         state.exit_intent,
         Some(ContractExitIntent::LetExpire { .. })
@@ -218,7 +218,7 @@ fn let_expire_intent_persists_and_can_be_cleared() {
     assert!(!has_let_expire_intent(player));
     assert_eq!(
         player.morale_core.renewal_state.as_ref().unwrap().status,
-        RenewalSessionStatus::Idle
+        ContractTalksStatus::Idle
     );
 }
 
@@ -421,7 +421,7 @@ fn insulting_offer_blocks_further_renewal_talks_temporarily() {
     .expect("renewal should return a decision");
 
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
-    assert_eq!(outcome.session_status, RenewalSessionStatus::Blocked);
+    assert_eq!(outcome.session_status, ContractTalksStatus::Blocked);
     assert!(outcome.is_terminal);
 
     let renewal_state = game.players[0]
@@ -429,7 +429,7 @@ fn insulting_offer_blocks_further_renewal_talks_temporarily() {
         .renewal_state
         .as_ref()
         .expect("renewal state should be stored");
-    assert_eq!(renewal_state.status, RenewalSessionStatus::Blocked);
+    assert_eq!(renewal_state.status, ContractTalksStatus::Blocked);
     assert_eq!(
         renewal_state.last_outcome,
         Some(domain::player::RenewalSessionOutcome::BlockedByManager)
@@ -477,7 +477,7 @@ fn renewal_offer_rejects_contracts_longer_than_five_years() {
     .expect("renewal should return a rejection");
 
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
-    assert_eq!(outcome.session_status, RenewalSessionStatus::Stalled);
+    assert_eq!(outcome.session_status, ContractTalksStatus::Stalled);
     assert!(!outcome.is_terminal);
     assert_eq!(game.players[0].contract_end.as_deref(), Some("2026-10-15"));
 }
@@ -614,7 +614,7 @@ fn free_agent_offer_rejects_lowball_terms() {
     .expect("free-agent offer should resolve");
 
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
-    assert_eq!(outcome.session_status, RenewalSessionStatus::Blocked);
+    assert_eq!(outcome.session_status, ContractTalksStatus::Blocked);
     assert!(outcome.is_terminal);
     assert_eq!(game.players[0].team_id, None);
     assert_eq!(game.players[0].wage, 0);
@@ -623,7 +623,7 @@ fn free_agent_offer_rejects_lowball_terms() {
         .renewal_state
         .as_ref()
         .expect("free agent should remember the lowball");
-    assert_eq!(renewal_state.status, RenewalSessionStatus::Blocked);
+    assert_eq!(renewal_state.status, ContractTalksStatus::Blocked);
     assert_eq!(
         renewal_state.manager_blocked_until.as_deref(),
         Some("2026-08-31")
@@ -784,7 +784,7 @@ fn low_manager_trust_player_can_refuse_manual_renewal_even_at_fair_terms() {
 fn manager_block_prevents_manual_renewal_until_it_expires() {
     let mut game = make_game();
     game.players[0].morale_core.renewal_state = Some(ContractRenewalState {
-        status: RenewalSessionStatus::Blocked,
+        status: ContractTalksStatus::Blocked,
         manager_blocked_until: Some("2026-09-01".to_string()),
         last_attempt_date: None,
         last_assistant_attempt_date: None,
@@ -804,7 +804,7 @@ fn manager_block_prevents_manual_renewal_until_it_expires() {
     .expect("renewal should produce an outcome");
 
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
-    assert_eq!(outcome.session_status, RenewalSessionStatus::Blocked);
+    assert_eq!(outcome.session_status, ContractTalksStatus::Blocked);
     assert!(outcome.is_terminal);
 }
 
@@ -812,7 +812,7 @@ fn manager_block_prevents_manual_renewal_until_it_expires() {
 fn stale_manual_renewal_talks_cool_off_and_restart_from_round_one() {
     let mut game = make_game();
     game.players[0].morale_core.renewal_state = Some(ContractRenewalState {
-        status: RenewalSessionStatus::Open,
+        status: ContractTalksStatus::Open,
         manager_blocked_until: None,
         last_attempt_date: Some("2026-08-10".to_string()),
         last_assistant_attempt_date: None,
