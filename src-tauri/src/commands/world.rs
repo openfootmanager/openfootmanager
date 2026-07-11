@@ -398,6 +398,30 @@ pub fn check_package_stack(
     Ok(conflicts)
 }
 
+/// A selectable football nation, mirrored from the backend `NATION_CATALOG`.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct NationInfo {
+    pub code: String,
+    pub name: String,
+    pub region: String,
+}
+
+/// Every nation the game recognises (World Cup pool + wider FIFA membership).
+/// This is the single source of truth for which nationalities are selectable in
+/// the world editor / manager creation, so the frontend never offers a nation
+/// the importer would reject (see #270). Codes match the frontend's ISO +
+/// football-identity handling.
+#[tauri::command]
+pub fn get_nations() -> Vec<NationInfo> {
+    ofm_core::nations::all_nations()
+        .map(|nation| NationInfo {
+            code: nation.code.to_string(),
+            name: nation.name.to_string(),
+            region: nation.region_id.to_string(),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

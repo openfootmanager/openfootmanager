@@ -217,8 +217,22 @@ export function allCountries(locale = "en"): { code: string; name: string }[] {
 /**
  * Get selectable nationalities for football-facing UI.
  * This excludes legacy GB while surfacing the UK football nations explicitly.
+ *
+ * When `allowedCodes` is given (the backend `NATION_CATALOG`, the single source
+ * of truth for what the importer accepts — see #270), the list is restricted to
+ * those codes so the UI never offers a nationality that would fail import. When
+ * omitted, every ISO nationality is offered (graceful fallback).
  */
-export function allNationalities(locale = "en"): { code: string; name: string }[] {
+export function allNationalities(
+  locale = "en",
+  allowedCodes?: readonly string[] | null,
+): { code: string; name: string }[] {
+  const allow =
+    allowedCodes && allowedCodes.length > 0
+      ? new Set(allowedCodes.map((code) => code.toUpperCase()))
+      : null;
+  const isAllowed = (code: string): boolean => !allow || allow.has(code.toUpperCase());
+
   const footballCodes = new Set(
     Object.values(FOOTBALL_IDENTITIES)
       .filter((identity) => identity.selectable)
@@ -226,11 +240,11 @@ export function allNationalities(locale = "en"): { code: string; name: string }[
   );
 
   const isoNationalities = allCountries(locale)
-    .filter(({ code }) => code !== "GB" && !footballCodes.has(code))
+    .filter(({ code }) => code !== "GB" && !footballCodes.has(code) && isAllowed(code))
     .map(({ code }) => ({ code, name: countryName(code, locale) }));
 
   const footballNationalities = Object.values(FOOTBALL_IDENTITIES)
-    .filter((identity) => identity.selectable)
+    .filter((identity) => identity.selectable && isAllowed(identity.code))
     .map((identity) => ({
       code: identity.code,
       name: countryName(identity.code, locale),

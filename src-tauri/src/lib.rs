@@ -189,6 +189,7 @@ pub fn run() {
             list_installed_packages,
             uninstall_package,
             check_package_stack,
+            get_nations,
             start_new_game,
             validate_competition_definitions,
             validate_world_package,

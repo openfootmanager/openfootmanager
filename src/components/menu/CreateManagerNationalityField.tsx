@@ -34,8 +34,14 @@ async function loadCountryResources(): Promise<CountryResources> {
     countryResourcesPromise ??= Promise.all([
         import("../../lib/countries"),
         import("../ui/CountryFlag"),
-    ]).then(([countriesModule, flagModule]) => ({
-        allNationalities: countriesModule.allNationalities,
+        // The backend catalog is the source of truth for selectable
+        // nationalities (#270). If it can't be fetched, fall back to full ISO.
+        import("../../services/nationsService")
+            .then((m) => m.getNationCodes())
+            .catch(() => null),
+    ]).then(([countriesModule, flagModule, nationCodes]) => ({
+        allNationalities: (locale?: string) =>
+            countriesModule.allNationalities(locale, nationCodes),
         countryName: countriesModule.countryName,
         CountryFlag: flagModule.CountryFlag,
     }));
