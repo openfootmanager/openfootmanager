@@ -420,6 +420,7 @@
     "promoteToSeniorSquad": "Promuovi in prima squadra"
   },
   "common": {
+    "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
     "noResults": "Nessun risultato trovato.",

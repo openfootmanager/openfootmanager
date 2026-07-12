@@ -26,6 +26,12 @@ interface PlayerDealWorkspaceProps {
   transferWindowSummary: string;
   loanNoticeDetail: string | null;
   selectedKind: DealKind;
+  /**
+   * Live wage being offered in the active deal (same units as `player.wage`),
+   * or null when the route has no wage offer. Shown alongside the player's
+   * current wage so the two never read as one contradictory figure (#305).
+   */
+  offeredWage?: number | null;
   onSelectKind: (kind: DealKind) => void;
   onClose: () => void;
   renderDealPanel: (kind: DealKind) => ReactNode;
@@ -86,6 +92,7 @@ export default function PlayerDealWorkspace({
   transferWindowSummary,
   loanNoticeDetail,
   selectedKind,
+  offeredWage,
   onSelectKind,
   onClose,
   renderDealPanel,
@@ -241,9 +248,16 @@ export default function PlayerDealWorkspace({
                       <span className="font-heading text-sm font-bold uppercase tracking-wider">
                         {option.title}
                       </span>
+                      {/* Subtitle describes the route action, not availability, so a
+                          selected route never reads as a confirmed deal (#305). */}
                       <span className="mt-1 block text-xs text-gray-500 dark:text-gray-300">
-                        {option.disabledReason ?? option.detail}
+                        {option.disabledReason ?? option.description}
                       </span>
+                      {!disabled ? (
+                        <span className="mt-1 block text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-400">
+                          {option.detail}
+                        </span>
+                      ) : null}
                     </span>
                   </span>
                 </button>
@@ -286,12 +300,20 @@ export default function PlayerDealWorkspace({
                   </p>
                 </div>
                 <div>
-                  <p className={factLabelClass()}>{t("common.wage")}</p>
+                  <p className={factLabelClass()}>{t("common.currentWage")}</p>
                   <p className={`${factValueClass()} tabular-nums`}>
                     {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
                   </p>
                 </div>
               </div>
+              {offeredWage != null && offeredWage > 0 ? (
+                <div className="mt-3 border-t border-gray-100 pt-3 dark:border-navy-700">
+                  <p className={factLabelClass()}>{t("playerProfile.renewalWage")}</p>
+                  <p className={`${factValueClass()} tabular-nums`}>
+                    {formatAnnualAmount(formatVal(offeredWage), annualSuffix)}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             {myTeam ? (

@@ -401,6 +401,7 @@
     "potLimited": "有限"
   },
   "common": {
+    "currentWage": "当前工资",
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",
     "noResults": "未找到结果。",

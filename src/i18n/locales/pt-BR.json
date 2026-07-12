@@ -401,6 +401,7 @@
     "promoteToSeniorSquad": "Promover ao elenco principal"
   },
   "common": {
+    "currentWage": "Salário atual",
     "loading": "Carregando...",
     "loadingGameState": "Carregando estado do jogo...",
     "noResults": "Nenhum resultado encontrado.",

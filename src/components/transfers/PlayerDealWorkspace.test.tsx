@@ -13,6 +13,8 @@ vi.mock("react-i18next", () => ({
       if (key === "common.ovr") return "OVR";
       if (key === "common.value") return "Value";
       if (key === "common.wage") return "Wage";
+      if (key === "common.currentWage") return "Current Wage";
+      if (key === "playerProfile.renewalWage") return "Offered Wage";
       if (key === "finances.transferBudget") return "Transfer Budget";
       if (key === "finances.wageBudget") return "Wage Budget";
       if (key === "transfers.dealType") return "Deal Type";
@@ -161,5 +163,54 @@ describe("PlayerDealWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("separates current wage from the offered wage so a free agent's €0 does not contradict the offer (#305)", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ team_id: null, wage: 0 })}
+        teams={[createTeam()]}
+        myTeam={createTeam()}
+        annualSuffix="/yr"
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="contract"
+        offeredWage={9000}
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    // Both labels render as distinct rows — no lone ambiguous "Wage".
+    expect(screen.getByText("Current Wage")).toBeInTheDocument();
+    expect(screen.getByText("Offered Wage")).toBeInTheDocument();
+    expect(screen.queryByText("Wage")).not.toBeInTheDocument();
+  });
+
+  it("labels the selected route with its action, not availability copy (#305)", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer()}
+        teams={[
+          createTeam(),
+          createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
+        ]}
+        myTeam={createTeam()}
+        annualSuffix="/yr"
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="transfer"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    // Subtitle describes the route; availability is only secondary metadata.
+    expect(screen.getByText("Open a transfer negotiation.")).toBeInTheDocument();
+    expect(screen.getByText("Available for transfer.")).toBeInTheDocument();
   });
 });

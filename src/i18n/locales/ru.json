@@ -401,6 +401,7 @@
     "potLimited": "Ограниченный"
   },
   "common": {
+    "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
     "noResults": "Ничего не найдено.",

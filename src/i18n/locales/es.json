@@ -433,6 +433,7 @@
     "promoteToSeniorSquad": "Ascender al primer equipo"
   },
   "common": {
+    "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
     "noResults": "No se encontraron resultados.",
