@@ -3739,6 +3739,10 @@
     "winRate": "Porcentaje de victorias"
   },
   "worldEditor": {
+    "playerCareerHistory": "Historial de carrera",
+    "playerAlternatePositions": "Posiciones alternativas",
+    "addCareerEntry": "Añadir etapa",
+    "selectTeam": "Seleccionar equipo…",
     "title": "Editor de Mundos",
     "newPackage": "Nuevo Mundo",
     "openPackageFile": "Abrir archivo .ofm",

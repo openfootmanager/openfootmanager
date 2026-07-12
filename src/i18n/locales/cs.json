@@ -3704,6 +3704,10 @@
     "winRate": "Úspěšnost"
   },
   "worldEditor": {
+    "playerCareerHistory": "Kariérní historie",
+    "playerAlternatePositions": "Alternativní pozice",
+    "addCareerEntry": "Přidat angažmá",
+    "selectTeam": "Vybrat tým…",
     "title": "Editor světa",
     "newPackage": "Nový svět",
     "openPackageFile": "Otevřít soubor .ofm",

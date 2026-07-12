@@ -3707,6 +3707,10 @@
     "winRate": "Taxa de vitórias"
   },
   "worldEditor": {
+    "playerCareerHistory": "Histórico de carreira",
+    "playerAlternatePositions": "Posições alternativas",
+    "addCareerEntry": "Adicionar passagem",
+    "selectTeam": "Selecionar equipa…",
     "title": "Editor de Mundo",
     "newPackage": "Novo Mundo",
     "openPackageFile": "Abrir ficheiro .ofm",

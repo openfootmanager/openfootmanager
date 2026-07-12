@@ -3704,6 +3704,10 @@
     "winRate": "胜率"
   },
   "worldEditor": {
+    "playerCareerHistory": "职业生涯",
+    "playerAlternatePositions": "备选位置",
+    "addCareerEntry": "添加经历",
+    "selectTeam": "选择球队…",
     "title": "世界编辑器",
     "newPackage": "新建世界",
     "openPackageFile": "打开 .ofm 文件",

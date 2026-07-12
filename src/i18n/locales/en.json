@@ -3703,6 +3703,10 @@
     "winRate": "Win rate"
   },
   "worldEditor": {
+    "playerCareerHistory": "Career History",
+    "playerAlternatePositions": "Alternate Positions",
+    "addCareerEntry": "Add spell",
+    "selectTeam": "Select team…",
     "title": "World Editor",
     "newPackage": "New World",
     "openPackageFile": "Open .ofm File",

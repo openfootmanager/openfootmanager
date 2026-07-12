@@ -81,6 +81,50 @@ pub struct PlayerDef {
     /// If true, the player belongs to the club's youth / academy squad rather than the first team.
     #[serde(default, skip_serializing_if = "is_false")]
     pub youth: bool,
+    /// Contract expiry ("YYYY-MM-DD"). Generated from age when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_end: Option<String>,
+    /// Weekly-or-annual wage in the engine's money units. Derived from value when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wage: Option<u32>,
+    /// Market value in the engine's money units. Derived from ability/age when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<u64>,
+    /// Match sharpness 0–100. Randomised in a realistic band when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<u8>,
+    /// Morale 0–100. Randomised in a realistic band when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub morale: Option<u8>,
+    /// Weak-foot skill 1–5. Inferred when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weak_foot: Option<u8>,
+    /// Secondary positions the player can cover. Inferred when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternate_positions: Vec<Position>,
+    /// Prior-club appearance record. Each entry's `teamId` must reference a team
+    /// defined in the package (validated in `validate_references`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub career: Vec<CareerDef>,
+}
+
+/// One prior-club spell in a player's authored career history. Mirrors
+/// [`domain::player::CareerEntry`]; `team_id` references a [`TeamDef`] id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CareerDef {
+    #[serde(default)]
+    pub season: u32,
+    #[serde(default)]
+    pub team_id: String,
+    #[serde(default)]
+    pub team_name: String,
+    #[serde(default)]
+    pub appearances: u32,
+    #[serde(default)]
+    pub goals: u32,
+    #[serde(default)]
+    pub assists: u32,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -628,6 +672,16 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                     .with("entity", &player.id)
                     .with("country", &player.nationality),
             );
+        }
+        // Career-history clubs must reference a team defined in the package.
+        for entry in &player.career {
+            if !entry.team_id.is_empty() && !team_ids.contains(entry.team_id.as_str()) {
+                errors.push(
+                    PackageError::new(UNKNOWN_TEAM, "")
+                        .with("entity", &player.id)
+                        .with("team", &entry.team_id),
+                );
+            }
         }
     }
 

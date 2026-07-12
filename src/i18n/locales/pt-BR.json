@@ -3707,6 +3707,10 @@
     "winRate": "Aproveitamento"
   },
   "worldEditor": {
+    "playerCareerHistory": "Histórico de carreira",
+    "playerAlternatePositions": "Posições alternativas",
+    "addCareerEntry": "Adicionar passagem",
+    "selectTeam": "Selecionar time…",
     "title": "Editor de Mundo",
     "newPackage": "Novo Mundo",
     "openPackageFile": "Abrir arquivo .ofm",

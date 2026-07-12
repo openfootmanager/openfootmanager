@@ -3703,6 +3703,10 @@
     "winRate": "Процент побед"
   },
   "worldEditor": {
+    "playerCareerHistory": "История карьеры",
+    "playerAlternatePositions": "Дополнительные позиции",
+    "addCareerEntry": "Добавить период",
+    "selectTeam": "Выбрать клуб…",
     "title": "Редактор мира",
     "newPackage": "Новый мир",
     "openPackageFile": "Открыть файл .ofm",

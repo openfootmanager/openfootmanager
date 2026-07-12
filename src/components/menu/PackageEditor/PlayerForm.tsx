@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Plus, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
@@ -9,9 +9,10 @@ import { EntityFormShell } from "./shared";
 import { DatePicker } from "../../ui/DatePicker";
 import { Checkbox } from "../../ui/Checkbox";
 import { CountryCombobox } from "../../ui/CountryCombobox";
+import { TeamCombobox } from "../../ui/TeamCombobox";
 import { Select } from "../../ui/Select";
 import { POSITIONS, PLAYER_ATTR_GROUPS, emptyAttributes, toSlug, type PlayerAttrKey } from "./helpers";
-import type { Footedness, PlayerDef, TeamDef } from "./types";
+import type { CareerEntryDef, Footedness, PlayerDef, Position, TeamDef } from "./types";
 
 const FOOT_OPTIONS: Footedness[] = ["Right", "Left", "Both"];
 import { PlayerPreviewCard } from "./PlayerPreviewCard";
@@ -91,6 +92,38 @@ export function PlayerForm({
   const attrs = editing.attributes ?? emptyAttributes();
   const teamsWithIds = teams?.filter((t) => t.id) ?? [];
   const positionLabels = Object.fromEntries(POSITIONS.map((p) => [p, t(`common.positions.${p}`)])) as Record<string, string>;
+
+  const altPositions = editing.alternatePositions ?? [];
+  const career = editing.career ?? [];
+
+  // Optional integer field: empty clears it (engine generates/infers on import).
+  function parseOptInt(raw: string, min: number, max: number): number | null {
+    if (raw === "") return null;
+    const n = parseInt(raw, 10);
+    return Number.isNaN(n) ? null : Math.min(max, Math.max(min, n));
+  }
+
+  function toggleAltPosition(pos: Position) {
+    updateField(
+      "alternatePositions",
+      altPositions.includes(pos)
+        ? altPositions.filter((p) => p !== pos)
+        : [...altPositions, pos],
+    );
+  }
+
+  function addCareerRow() {
+    updateField("career", [
+      ...career,
+      { season: new Date().getFullYear(), teamId: "", teamName: "", appearances: 0, goals: 0, assists: 0 },
+    ]);
+  }
+  function updateCareerRow(index: number, patch: Partial<CareerEntryDef>) {
+    updateField("career", career.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+  function removeCareerRow(index: number) {
+    updateField("career", career.filter((_, i) => i !== index));
+  }
 
   return (
     <div className="flex gap-6 items-start">
@@ -276,6 +309,130 @@ export function PlayerForm({
           ))}
         </div>
       )}
+
+      {/* Contract & status — all optional; blank means the engine fills it in. */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>{t("common.contract")}</label>
+          <DatePicker
+            value={editing.contractEnd ?? ""}
+            onChange={(v) => updateField("contractEnd", v || null)}
+          />
+        </div>
+        <LabeledInput
+          label={t("common.wage")}
+          type="number"
+          value={editing.wage?.toString() ?? ""}
+          onChange={(v) => updateField("wage", v === "" ? null : Math.max(0, parseInt(v, 10) || 0))}
+        />
+        <LabeledInput
+          label={t("common.value")}
+          type="number"
+          value={editing.value?.toString() ?? ""}
+          onChange={(v) => updateField("value", v === "" ? null : Math.max(0, parseInt(v, 10) || 0))}
+        />
+        <LabeledInput
+          label={t("common.weakFoot")}
+          type="number"
+          value={editing.weakFoot?.toString() ?? ""}
+          onChange={(v) => updateField("weakFoot", parseOptInt(v, 1, 5))}
+        />
+        <LabeledInput
+          label={t("common.condition")}
+          type="number"
+          value={editing.condition?.toString() ?? ""}
+          onChange={(v) => updateField("condition", parseOptInt(v, 0, 100))}
+        />
+        <LabeledInput
+          label={t("common.morale")}
+          type="number"
+          value={editing.morale?.toString() ?? ""}
+          onChange={(v) => updateField("morale", parseOptInt(v, 0, 100))}
+        />
+      </div>
+
+      {/* Alternate positions */}
+      <div className="flex flex-col gap-1">
+        <label className={labelClass}>{t("worldEditor.playerAlternatePositions")}</label>
+        <div className="flex flex-wrap gap-1.5">
+          {POSITIONS.map((pos) => {
+            const active = altPositions.includes(pos as Position);
+            return (
+              <button
+                key={pos}
+                type="button"
+                onClick={() => toggleAltPosition(pos as Position)}
+                className={`px-2 py-1 rounded-md text-xs border transition ${active ? "bg-primary-500 border-primary-500 text-white" : "border-gray-200 dark:border-navy-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600"}`}
+              >
+                {positionLabels[pos]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Career history */}
+      <div className="flex flex-col gap-2">
+        <label className={labelClass}>{t("worldEditor.playerCareerHistory")}</label>
+        {career.map((row, i) => (
+          <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-gray-200 dark:border-navy-600 p-2">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <TeamCombobox
+                  value={row.teamId}
+                  teams={teamsWithIds}
+                  placeholder={t("worldEditor.selectTeam")}
+                  onChange={(id) => {
+                    const team = teamsWithIds.find((tm) => tm.id === id);
+                    updateCareerRow(i, { teamId: id, teamName: team?.name || id });
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeCareerRow(i)}
+                aria-label={t("menu.delete")}
+                className="p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <LabeledInput
+                label={t("playerProfile.season")}
+                type="number"
+                value={row.season?.toString() ?? ""}
+                onChange={(v) => updateCareerRow(i, { season: parseInt(v, 10) || 0 })}
+              />
+              <LabeledInput
+                label={t("playerProfile.apps")}
+                type="number"
+                value={row.appearances?.toString() ?? ""}
+                onChange={(v) => updateCareerRow(i, { appearances: Math.max(0, parseInt(v, 10) || 0) })}
+              />
+              <LabeledInput
+                label={t("playerProfile.goals")}
+                type="number"
+                value={row.goals?.toString() ?? ""}
+                onChange={(v) => updateCareerRow(i, { goals: Math.max(0, parseInt(v, 10) || 0) })}
+              />
+              <LabeledInput
+                label={t("playerProfile.assists")}
+                type="number"
+                value={row.assists?.toString() ?? ""}
+                onChange={(v) => updateCareerRow(i, { assists: Math.max(0, parseInt(v, 10) || 0) })}
+              />
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addCareerRow}
+          className="self-start flex items-center gap-1 px-2 py-1 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
+        >
+          <Plus className="w-3.5 h-3.5" /> {t("worldEditor.addCareerEntry")}
+        </button>
+      </div>
     </EntityFormShell>
     </div>
     <div className="w-64 flex-shrink-0 sticky top-0">

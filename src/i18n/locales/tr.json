@@ -3703,6 +3703,10 @@
     "winRate": "Galibiyet oranı"
   },
   "worldEditor": {
+    "playerCareerHistory": "Kariyer geçmişi",
+    "playerAlternatePositions": "Alternatif pozisyonlar",
+    "addCareerEntry": "Dönem ekle",
+    "selectTeam": "Takım seç…",
     "title": "Dünya Editörü",
     "newPackage": "Yeni Dünya",
     "openPackageFile": ".ofm dosyası aç",

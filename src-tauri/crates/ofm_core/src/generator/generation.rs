@@ -714,18 +714,39 @@ pub(super) fn generate_player_from_def(
         def.position.clone(),
         attributes,
     );
+    // Authored values win; otherwise fall back to the generated/random ones.
     player.team_id = Some(team_id.to_string());
-    player.market_value = market_value;
-    player.wage = wage;
-    player.contract_end = Some(contract_end);
-    player.condition = rng.random_range(75..100);
-    player.morale = rng.random_range(40..76);
+    player.market_value = def.value.unwrap_or(market_value);
+    player.wage = def.wage.unwrap_or(wage);
+    player.contract_end = Some(def.contract_end.clone().unwrap_or(contract_end));
+    player.condition = def.condition.unwrap_or_else(|| rng.random_range(75..100));
+    player.morale = def.morale.unwrap_or_else(|| rng.random_range(40..76));
     if let Some(ref foot_str) = def.footedness {
         player.footedness = match foot_str.as_str() {
             "Left" => domain::player::Footedness::Left,
             "Both" => domain::player::Footedness::Both,
             _ => domain::player::Footedness::Right,
         };
+    }
+    if let Some(weak_foot) = def.weak_foot {
+        player.weak_foot = weak_foot;
+    }
+    if !def.alternate_positions.is_empty() {
+        player.alternate_positions = def.alternate_positions.clone();
+    }
+    if !def.career.is_empty() {
+        player.career = def
+            .career
+            .iter()
+            .map(|entry| domain::player::CareerEntry {
+                season: entry.season,
+                team_id: entry.team_id.clone(),
+                team_name: entry.team_name.clone(),
+                appearances: entry.appearances,
+                goals: entry.goals,
+                assists: entry.assists,
+            })
+            .collect();
     }
     if def.youth {
         player.squad_role = domain::player::SquadRole::Youth;
@@ -770,4 +791,83 @@ pub(super) fn generate_random_unemployed_manager(
     mgr.satisfaction = 50;
     mgr.fan_approval = 50;
     mgr
+}
+
+#[cfg(test)]
+mod player_def_override_tests {
+    use super::*;
+    use crate::generator::package::{CareerDef, PlayerDef};
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+
+    fn authored_def() -> PlayerDef {
+        PlayerDef {
+            id: "p1".into(),
+            name: "Test Player".into(),
+            first_name: "Test".into(),
+            last_name: "Player".into(),
+            club: "team-x".into(),
+            nationality: "ENG".into(),
+            position: Position::Striker,
+            date_of_birth: Some("1998-05-01".into()),
+            age: None,
+            overall: Some(80),
+            attributes: None,
+            photo: None,
+            footedness: Some("Left".into()),
+            youth: false,
+            contract_end: Some("2030-06-30".into()),
+            wage: Some(12_345),
+            value: Some(9_000_000),
+            condition: Some(64),
+            morale: Some(51),
+            weak_foot: Some(4),
+            alternate_positions: vec![Position::AttackingMidfielder],
+            career: vec![CareerDef {
+                season: 2019,
+                team_id: "old-club".into(),
+                team_name: "Old Club".into(),
+                appearances: 30,
+                goals: 10,
+                assists: 5,
+            }],
+        }
+    }
+
+    #[test]
+    fn authored_values_win_over_generation() {
+        let names = super::super::definitions::default_names_definition();
+        let mut rng = StdRng::seed_from_u64(7);
+        let player = generate_player_from_def(&authored_def(), "team-x", &names, &mut rng);
+
+        assert_eq!(player.wage, 12_345);
+        assert_eq!(player.market_value, 9_000_000);
+        assert_eq!(player.contract_end.as_deref(), Some("2030-06-30"));
+        assert_eq!(player.condition, 64);
+        assert_eq!(player.morale, 51);
+        assert_eq!(player.weak_foot, 4);
+        assert_eq!(player.alternate_positions, vec![Position::AttackingMidfielder]);
+        assert_eq!(player.career.len(), 1);
+        assert_eq!(player.career[0].team_id, "old-club");
+        assert_eq!(player.career[0].goals, 10);
+    }
+
+    #[test]
+    fn omitted_values_fall_back_to_generation() {
+        let mut def = authored_def();
+        def.wage = None;
+        def.value = None;
+        def.contract_end = None;
+        def.condition = None;
+        def.morale = None;
+
+        let names = super::super::definitions::default_names_definition();
+        let mut rng = StdRng::seed_from_u64(7);
+        let player = generate_player_from_def(&def, "team-x", &names, &mut rng);
+
+        assert!(player.market_value > 0);
+        assert!(player.wage >= 500);
+        assert!(player.contract_end.is_some());
+        assert!((75..100).contains(&player.condition));
+    }
 }
