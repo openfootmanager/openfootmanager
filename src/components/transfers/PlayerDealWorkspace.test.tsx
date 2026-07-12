@@ -213,4 +213,32 @@ describe("PlayerDealWorkspace", () => {
     expect(screen.getByText("Open a transfer negotiation.")).toBeInTheDocument();
     expect(screen.getByText("Available for transfer.")).toBeInTheDocument();
   });
+
+  it("shows the reason (not the description or metadata) for a disabled route (#305)", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ transfer_listed: false, loan_listed: true })}
+        teams={[
+          createTeam(),
+          createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
+        ]}
+        myTeam={createTeam()}
+        annualSuffix="/yr"
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="loan"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    // The disabled (and unselected) transfer route shows its disabledReason as the
+    // subtitle — not the route description, and with no availability metadata line.
+    expect(screen.getByText("Not available for transfer.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Open a transfer negotiation."),
+    ).not.toBeInTheDocument();
+  });
 });
