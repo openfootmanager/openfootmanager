@@ -55,6 +55,13 @@ export function FreeAgentContractForm({
   const { t } = useTranslation();
   const titleId = `free-agent-contract-title-${player.id}`;
 
+  // Cash runway is a week count, or null/undefined when cash-flow is positive
+  // (no finite runway → "stable"). Shared by the before/after readouts.
+  const formatRunway = (weeks: number | null | undefined): string =>
+    weeks === null || weeks === undefined
+      ? t("finances.runwayStable")
+      : t("finances.runwayWeeks", { count: weeks });
+
   return (
     <>
         <h3
@@ -145,20 +152,8 @@ export function FreeAgentContractForm({
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionRunway", {
-                before:
-                  projection.current_cash_runway_weeks === null ||
-                  projection.current_cash_runway_weeks === undefined
-                    ? t("finances.runwayStable")
-                    : t("finances.runwayWeeks", {
-                        count: projection.current_cash_runway_weeks,
-                      }),
-                after:
-                  projection.projected_cash_runway_weeks === null ||
-                  projection.projected_cash_runway_weeks === undefined
-                    ? t("finances.runwayStable")
-                    : t("finances.runwayWeeks", {
-                        count: projection.projected_cash_runway_weeks,
-                      }),
+                before: formatRunway(projection.current_cash_runway_weeks),
+                after: formatRunway(projection.projected_cash_runway_weeks),
               })}
             </p>
             {!projection.policy_allows ? (

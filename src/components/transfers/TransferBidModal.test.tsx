@@ -9,6 +9,7 @@ import type {
 import type {
   TransferBidProjectionData,
 } from "../../services/transfersService";
+import { formatExactMoney } from "../../lib/helpers";
 import TransferBidModal from "./TransferBidModal";
 
 vi.mock("react-i18next", () => ({
@@ -240,10 +241,21 @@ describe("TransferBidModal", () => {
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Bid countered")).toBeInTheDocument();
     expect(screen.getByText(/Transfer budget/)).toBeInTheDocument();
-    // Wage impact now shows the weekly before → after breakdown, not just a % (#300).
-    expect(screen.getByText(/Weekly wage bill/)).toBeInTheDocument();
-    expect(screen.getByText(/Weekly wage budget/)).toBeInTheDocument();
-    expect(screen.getByText(/Incoming wage/)).toBeInTheDocument();
+    // Wage impact now shows the weekly before → after breakdown with exact money
+    // (not just a % and not abbreviated) (#300). Expected values are computed with
+    // the same formatter the component uses, so the assertion stays locale-robust
+    // while still catching abbreviation / interpolation / wrong-value regressions.
+    expect(
+      screen.getByText(
+        `Weekly wage bill ${formatExactMoney(1000)} -> ${formatExactMoney(2000)}`,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(`Incoming wage ${formatExactMoney(1000)}`),
+    ).toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions through props", () => {
