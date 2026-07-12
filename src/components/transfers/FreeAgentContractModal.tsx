@@ -5,7 +5,12 @@ import type { FreeAgentContractProjection } from "../../services/freeAgentServic
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import NegotiationFeedbackPanel from "../NegotiationFeedbackPanel";
 import { Badge } from "../ui";
-import { formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import {
+  formatExactMoney,
+  formatVal,
+  getTeamName,
+  positionBadgeVariant,
+} from "../../lib/helpers";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
 const MAX_CONTRACT_YEARS = 5;
@@ -120,8 +125,8 @@ export function FreeAgentContractForm({
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionWageBill", {
-                before: formatVal(projection.current_weekly_wage_spend),
-                after: formatVal(projection.projected_weekly_wage_spend),
+                before: formatExactMoney(projection.current_weekly_wage_spend),
+                after: formatExactMoney(projection.projected_weekly_wage_spend),
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -140,8 +145,20 @@ export function FreeAgentContractForm({
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionRunway", {
-                before: projection.current_cash_runway_weeks ?? "∞",
-                after: projection.projected_cash_runway_weeks ?? "∞",
+                before:
+                  projection.current_cash_runway_weeks === null ||
+                  projection.current_cash_runway_weeks === undefined
+                    ? t("finances.runwayStable")
+                    : t("finances.runwayWeeks", {
+                        count: projection.current_cash_runway_weeks,
+                      }),
+                after:
+                  projection.projected_cash_runway_weeks === null ||
+                  projection.projected_cash_runway_weeks === undefined
+                    ? t("finances.runwayStable")
+                    : t("finances.runwayWeeks", {
+                        count: projection.projected_cash_runway_weeks,
+                      }),
               })}
             </p>
             {!projection.policy_allows ? (
