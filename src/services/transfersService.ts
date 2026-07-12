@@ -30,6 +30,10 @@ export interface TransferBidProjectionData {
     annual_wage_bill_before: number;
     annual_wage_bill_after: number;
     annual_wage_budget: number;
+    current_weekly_wage_spend: number;
+    projected_weekly_wage_spend: number;
+    weekly_wage_budget: number;
+    incoming_player_weekly_wage: number;
     projected_wage_budget_usage_pct: number;
     exceeds_transfer_budget: boolean;
     exceeds_finance: boolean;

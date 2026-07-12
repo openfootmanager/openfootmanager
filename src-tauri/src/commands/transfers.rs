@@ -1131,6 +1131,20 @@ mod tests {
         // Window is open in the fixture — the debit fires today, no deferred
         // registration date to surface.
         assert!(response.projection.pending_registration_date.is_none());
+        // Weekly wage figures are the annual ones divided by 52 (#300).
+        assert_eq!(
+            response.projection.current_weekly_wage_spend,
+            response.projection.annual_wage_bill_before / 52
+        );
+        assert_eq!(
+            response.projection.projected_weekly_wage_spend,
+            response.projection.annual_wage_bill_after / 52
+        );
+        assert_eq!(
+            response.projection.weekly_wage_budget,
+            response.projection.annual_wage_budget / 52
+        );
+        assert!(response.projection.incoming_player_weekly_wage >= 0);
     }
 
     #[test]

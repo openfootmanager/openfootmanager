@@ -208,6 +208,12 @@ pub struct TransferBidFinancialProjection {
     pub annual_wage_bill_before: i64,
     pub annual_wage_bill_after: i64,
     pub annual_wage_budget: i64,
+    /// Weekly wage figures (annual / 52), so the UI can show the same before →
+    /// after breakdown the renewal projection uses instead of a lone usage %.
+    pub current_weekly_wage_spend: i64,
+    pub projected_weekly_wage_spend: i64,
+    pub weekly_wage_budget: i64,
+    pub incoming_player_weekly_wage: i64,
     pub projected_wage_budget_usage_pct: i64,
     pub exceeds_transfer_budget: bool,
     pub exceeds_finance: bool,
@@ -1295,6 +1301,10 @@ pub fn project_transfer_bid_financial_impact(
         annual_wage_bill_before,
         annual_wage_bill_after,
         annual_wage_budget: team.wage_budget,
+        current_weekly_wage_spend: annual_wage_bill_before / 52,
+        projected_weekly_wage_spend: annual_wage_bill_after / 52,
+        weekly_wage_budget: team.wage_budget / 52,
+        incoming_player_weekly_wage: player.wage as i64 / 52,
         projected_wage_budget_usage_pct,
         exceeds_transfer_budget: transfer_budget_after < 0,
         exceeds_finance: finance_after < 0,

@@ -160,6 +160,22 @@ export function TransferBidForm({
             )}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-300">
+            {t("transfers.bidImpactWageBill", {
+              before: formatExactMoney(bidProjection.current_weekly_wage_spend),
+              after: formatExactMoney(bidProjection.projected_weekly_wage_spend),
+            })}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            {t("transfers.bidImpactWeeklyWageBudget", {
+              budget: formatExactMoney(bidProjection.weekly_wage_budget),
+            })}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            {t("transfers.bidImpactIncomingWage", {
+              wage: formatExactMoney(bidProjection.incoming_player_weekly_wage),
+            })}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
             {t("transfers.bidImpactWagePressure", {
               percent: bidProjection.projected_wage_budget_usage_pct,
             })}

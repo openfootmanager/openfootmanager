@@ -28,6 +28,15 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.bidImpactWagePressure") {
         return `Projected wage budget usage ${params?.percent}%`;
       }
+      if (key === "transfers.bidImpactWageBill") {
+        return `Weekly wage bill ${params?.before} -> ${params?.after}`;
+      }
+      if (key === "transfers.bidImpactWeeklyWageBudget") {
+        return `Weekly wage budget ${params?.budget}`;
+      }
+      if (key === "transfers.bidImpactIncomingWage") {
+        return `Incoming wage ${params?.wage}`;
+      }
       if (key === "transfers.bidImpactOverTransferBudget") {
         return "This bid exceeds your transfer budget";
       }
@@ -182,6 +191,10 @@ function createProjection(
     annual_wage_bill_before: 1000,
     annual_wage_bill_after: 2000,
     annual_wage_budget: 50000,
+    current_weekly_wage_spend: 1000,
+    projected_weekly_wage_spend: 2000,
+    weekly_wage_budget: 5000,
+    incoming_player_weekly_wage: 1000,
     projected_wage_budget_usage_pct: 4,
     exceeds_transfer_budget: false,
     exceeds_finance: false,
@@ -227,6 +240,10 @@ describe("TransferBidModal", () => {
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Bid countered")).toBeInTheDocument();
     expect(screen.getByText(/Transfer budget/)).toBeInTheDocument();
+    // Wage impact now shows the weekly before → after breakdown, not just a % (#300).
+    expect(screen.getByText(/Weekly wage bill/)).toBeInTheDocument();
+    expect(screen.getByText(/Weekly wage budget/)).toBeInTheDocument();
+    expect(screen.getByText(/Incoming wage/)).toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions through props", () => {
