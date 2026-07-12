@@ -343,6 +343,40 @@ describe("TransfersTab.model", () => {
     );
   });
 
+  it("hides loan-listed players with a pending loan registration from the loan market", () => {
+    // Symmetric to the transfer case: a pending-registration loan offer takes the
+    // player off the loan market (guards the loan_offers branch of the helper).
+    const loanBought = createPlayer({
+      id: "loan-bought",
+      team_id: "team-2",
+      loan_listed: true,
+      loan_offers: [
+        {
+          id: "loan-offer-1",
+          from_team_id: "team-1",
+          parent_team_id: "team-2",
+          start_date: "2026-08-01",
+          end_date: "2027-01-01",
+          wage_contribution_pct: 75,
+          status: "PendingRegistration",
+          date: "2026-08-01",
+        },
+      ],
+    });
+    const loanAvailable = createPlayer({
+      id: "loan-available",
+      team_id: "team-2",
+      loan_listed: true,
+    });
+    const gameState = createGameState([loanBought, loanAvailable]);
+
+    const collections = deriveTransferCollections(gameState, "team-1");
+
+    expect(collections.loanPlayers.map((player) => player.id)).toEqual([
+      "loan-available",
+    ]);
+  });
+
   it("filters by position and search text", () => {
     const players = [
       createPlayer({
