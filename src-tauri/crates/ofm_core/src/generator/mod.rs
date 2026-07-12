@@ -529,7 +529,7 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
     team.reputation = rng.random_range(rep_range[0]..rep_range[1]);
     team.wage_budget = (team.finance as f64 * 0.06) as i64;
     team.transfer_budget = (team.finance as f64 * 0.15) as i64;
-    team.founded_year = rng.random_range(1880..1960);
+    team.founded_year = tdef.founded_year.unwrap_or(rng.random_range(1880..1960));
     team.colors = TeamColors {
         primary: tdef.colors.primary.clone(),
         secondary: tdef.colors.secondary.clone(),

@@ -104,6 +104,7 @@ Each team has the following fields:
 | **Team ID** | Stable slug used to reference this team in players and competitions. Auto-generated from the name if left empty. Example: `fc-northshire`. |
 | **Team Name** | Full display name. Example: `FC Northshire`. |
 | **Short Name** | 2–5 character abbreviation for standings tables. Example: `NSH`. |
+| **Founded Year** | Optional year the team was founded. Example: `2005`. |
 | **City** | City the team is based in. |
 | **Country** | Football country code. Must match a built-in code or a country defined in your package. |
 | **Play Style** | Team's tactical tendency. One of: `Balanced`, `Attacking`, `Defensive`, `Counter`, `Pressing`. |

@@ -139,6 +139,13 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
         )}
 
         <LabeledInput
+          label={t("worldEditor.teamFoundedYear")}
+          type="number"
+          value={editingTeam.foundedYear?.toString() ?? ""}
+          onChange={(v) => updateField("foundedYear", v ? parseInt(v, 10) : null)}
+          placeholder="e.g. 1892"
+        />
+        <LabeledInput
           label={t("worldEditor.teamCity")}
           value={editingTeam.city}
           onChange={(v) => updateField("city", v)}

@@ -117,6 +117,7 @@ export function emptyTeam(): TeamDef {
     financeRange: null,
     logo: null,
     kitPattern: null,
+    foundedYear: null,
   };
 }
 
