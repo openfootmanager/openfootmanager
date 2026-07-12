@@ -398,7 +398,8 @@ pub fn check_package_stack(
     Ok(conflicts)
 }
 
-/// A selectable football nation, mirrored from the backend `NATION_CATALOG`.
+/// A selectable football nation, mirrored from the backend's combined nation
+/// catalog (`all_nations()` — World Cup pool + wider FIFA membership).
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct NationInfo {
     pub code: String,

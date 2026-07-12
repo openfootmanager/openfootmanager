@@ -218,10 +218,10 @@ export function allCountries(locale = "en"): { code: string; name: string }[] {
  * Get selectable nationalities for football-facing UI.
  * This excludes legacy GB while surfacing the UK football nations explicitly.
  *
- * When `allowedCodes` is given (the backend `NATION_CATALOG`, the single source
- * of truth for what the importer accepts — see #270), the list is restricted to
- * those codes so the UI never offers a nationality that would fail import. When
- * omitted, every ISO nationality is offered (graceful fallback).
+ * When `allowedCodes` is given (the backend's combined nation catalog, the
+ * single source of truth for what the importer accepts — see #270), the list is
+ * restricted to those codes so the UI never offers a nationality that would fail
+ * import. When omitted, every ISO nationality is offered (graceful fallback).
  */
 export function allNationalities(
   locale = "en",

@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /**
- * A selectable football nation, mirrored from the backend `NATION_CATALOG`.
- * This catalog is the single source of truth for which nationalities are
- * selectable and importable (see #270), so the UI reads it rather than offering
- * every ISO country.
+ * A selectable football nation, mirrored from the backend's combined nation
+ * catalog (`all_nations()` — World Cup pool + wider FIFA membership). That
+ * catalog is the single source of truth for which nationalities are selectable
+ * and importable (see #270), so the UI reads it rather than offering every ISO
+ * country.
  */
 export interface NationInfo {
   code: string;
