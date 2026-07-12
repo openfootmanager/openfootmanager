@@ -60,6 +60,24 @@ export function getMyListedPlayers(
   ]);
 }
 
+/**
+ * True when a player is committed to a move that is agreed and only awaiting
+ * registration (a `PendingRegistration` transfer or loan offer). Such a player
+ * is off the market — no club, including the one that agreed the deal, can open
+ * a new bid — so they are hidden from the approachable lists and the bid flow
+ * refuses further offers.
+ */
+export function playerHasPendingRegistration(player: PlayerData): boolean {
+  return (
+    (player.transfer_offers ?? []).some(
+      (offer) => offer.status === "PendingRegistration",
+    ) ||
+    (player.loan_offers ?? []).some(
+      (offer) => offer.status === "PendingRegistration",
+    )
+  );
+}
+
 export function deriveTransferCollections(
   gameState: GameStateData,
   userTeamId: string | null,
@@ -76,14 +94,20 @@ export function deriveTransferCollections(
   );
   const marketPlayers = gameState.players.filter(
     (player) =>
-      player.transfer_listed && player.team_id !== userTeamId && !player.active_loan,
+      player.transfer_listed &&
+      player.team_id !== userTeamId &&
+      !player.active_loan &&
+      !playerHasPendingRegistration(player),
   );
   const freeAgentPlayers = gameState.players.filter(
     (player) => player.team_id === null && !player.retired,
   );
   const loanPlayers = gameState.players.filter(
     (player) =>
-      player.loan_listed && player.team_id !== userTeamId && !player.active_loan,
+      player.loan_listed &&
+      player.team_id !== userTeamId &&
+      !player.active_loan &&
+      !playerHasPendingRegistration(player),
   );
 
   return {

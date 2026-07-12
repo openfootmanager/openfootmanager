@@ -22,6 +22,7 @@ import NegotiationFeedbackPanel, {
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
+import { playerHasPendingRegistration } from "./TransfersTab.model";
 
 export interface TransferBidFormProps {
   bidTarget: PlayerData;
@@ -68,6 +69,10 @@ export function TransferBidForm({
 }: TransferBidFormProps) {
   const { t } = useTranslation();
   const titleId = `transfer-bid-modal-title-${bidTarget.id}`;
+  // A player with an agreed deal awaiting registration is off the market — the
+  // engine refuses a new bid. Surface it here so reaching this form from a
+  // profile / squad / scouting action explains itself instead of dead-ending.
+  const pendingRegistration = playerHasPendingRegistration(bidTarget);
 
   return (
     <>
@@ -108,6 +113,15 @@ export function TransferBidForm({
             </p>
             {blockingDetail ? <p className="mt-1">{blockingDetail}</p> : null}
           </div>
+        </div>
+      ) : null}
+      {pendingRegistration ? (
+        <div
+          role="alert"
+          className="mb-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="text-xs">{t("transfers.bidBlockedPendingRegistration")}</p>
         </div>
       ) : null}
       {hasExistingOffer ? (
@@ -218,7 +232,7 @@ export function TransferBidForm({
         <button
           type="button"
           onClick={onSubmit}
-          disabled={bidSubmitDisabled}
+          disabled={bidSubmitDisabled || pendingRegistration}
           className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
         >
           {bidLoading ? t("transfers.submitting") : t("transfers.submitBid")}

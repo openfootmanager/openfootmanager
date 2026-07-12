@@ -303,6 +303,46 @@ describe("TransfersTab.model", () => {
     ).toEqual(["dual-listed"]);
   });
 
+  it("hides transfer-listed players with a pending registration from the market", () => {
+    // A transfer-listed player whose move is already agreed and awaiting
+    // registration is off the market — no one can bid again (#305 follow-up).
+    const boughtPlayer = createPlayer({
+      id: "bought",
+      team_id: "team-2",
+      transfer_listed: true,
+      transfer_offers: [
+        {
+          id: "offer-1",
+          from_team_id: "team-1",
+          fee: 900000,
+          wage_offered: 0,
+          last_manager_fee: 900000,
+          negotiation_round: 1,
+          suggested_counter_fee: null,
+          status: "PendingRegistration",
+          date: "2026-06-01",
+          registration_date: "2027-01-02",
+        },
+      ],
+    });
+    const stillAvailable = createPlayer({
+      id: "available",
+      team_id: "team-2",
+      transfer_listed: true,
+    });
+    const gameState = createGameState([boughtPlayer, stillAvailable]);
+
+    const collections = deriveTransferCollections(gameState, "team-1");
+
+    expect(collections.marketPlayers.map((player) => player.id)).toEqual([
+      "available",
+    ]);
+    // It still surfaces under "offers" so the manager can track the agreed deal.
+    expect(collections.playersWithOffers.map((player) => player.id)).toContain(
+      "bought",
+    );
+  });
+
   it("filters by position and search text", () => {
     const players = [
       createPlayer({

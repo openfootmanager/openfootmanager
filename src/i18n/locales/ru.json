@@ -1258,6 +1258,7 @@
     "bidImpactWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Недельный бюджет зарплат {{budget}}",
     "bidImpactIncomingWage": "Зарплата игрока {{wage}} / неделя",
+    "bidBlockedPendingRegistration": "Этот игрок уже согласовал переход и ожидает регистрации.",
     "centre": "Трансферный центр",
     "transferWindow": "Трансферное окно — {{team}}",
     "myTransferList": "Мой трансферный список",
