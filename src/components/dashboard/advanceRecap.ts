@@ -130,7 +130,8 @@ export function buildAdvanceRecap(
  * [sinceDate, clock) and a single digest day is [day, nextDay(day)): exclusive
  * above, leaving items dated on the landing day to the advance that will
  * actually play that day. An empty untilDate (defensive, no clock) means no
- * upper bound.
+ * upper bound. Both bounds are day-normalized so a caller handing in a full
+ * rfc3339 timestamp still gets correct comparisons.
  */
 export function buildRecapWindow(
   game: GameStateData,
@@ -138,10 +139,11 @@ export function buildRecapWindow(
   untilDate: string,
   matches: AdvanceMatchResultData[],
 ): AdvanceRecap {
-  const advancedTo = untilDate;
+  const advancedTo = toDatePart(untilDate);
+  const sinceDay = toDatePart(sinceDate);
   const inWindow = (date: string): boolean => {
     const day = toDatePart(date);
-    return day >= sinceDate && (!advancedTo || day < advancedTo);
+    return day >= sinceDay && (!advancedTo || day < advancedTo);
   };
   const userTeamId = game.manager?.team_id ?? null;
 
@@ -267,16 +269,19 @@ export function buildDigestEntries(
   sinceDate: string,
   results: AdvanceMatchResultData[],
 ): DigestEntry[] {
+  // Day-normalized so a full rfc3339 timestamp still splits per day instead
+  // of falling through to the catch-all.
+  const sinceDay = toDatePart(sinceDate);
   const advancedTo = toDatePart(game.clock?.current_date);
   if (
-    !DAY_PATTERN.test(sinceDate) ||
+    !DAY_PATTERN.test(sinceDay) ||
     !DAY_PATTERN.test(advancedTo) ||
-    sinceDate >= advancedTo
+    sinceDay >= advancedTo
   ) {
-    const recap = buildAdvanceRecap(game, sinceDate, results);
-    const date = DAY_PATTERN.test(sinceDate) ? sinceDate : advancedTo;
+    const recap = buildAdvanceRecap(game, sinceDay, results);
+    const date = DAY_PATTERN.test(sinceDay) ? sinceDay : advancedTo;
     if (!DAY_PATTERN.test(date)) {
-      return recap.hasEvents ? [{ date: sinceDate, recap }] : [];
+      return recap.hasEvents ? [{ date: sinceDay, recap }] : [];
     }
     return [{ date, recap }];
   }
@@ -291,7 +296,7 @@ export function buildDigestEntries(
 
   const entries: DigestEntry[] = [];
   for (
-    let day = sinceDate;
+    let day = sinceDay;
     day < advancedTo && entries.length < MAX_ENTRY_DAYS;
     day = nextDay(day)
   ) {

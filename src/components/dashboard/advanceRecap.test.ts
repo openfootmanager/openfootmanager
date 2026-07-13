@@ -401,18 +401,6 @@ describe("advanceRecap", function (): void {
     expect(recap.transfers.map((transfer) => transfer.fee)).toEqual([500_000]);
   });
 
-  it("still includes same-window items when the clock is missing", function (): void {
-    // A defensive path: with no clock the window has no upper bound, so
-    // behavior falls back to the old `>= sinceDate` filter.
-    const game = createGame({
-      clock: null,
-      news: [kickoffArticle("2026-06-11")],
-    } as unknown as Partial<GameStateData>);
-
-    const recap = buildAdvanceRecap(game, "2026-01-01", []);
-    expect(recap.news).toHaveLength(1);
-  });
-
   it("accepts a full timestamp as sinceDate, not just a bare day", function (): void {
     // Defence-in-depth: current callers pass YYYY-MM-DD, but the lower bound
     // is day-normalized so an rfc3339 timestamp compares correctly too
@@ -434,6 +422,18 @@ describe("advanceRecap", function (): void {
 
     const recap = buildAdvanceRecap(game, "2026-07-01T00:00:00Z", []);
     expect(recap.news.map((article) => article.id)).toEqual(["same-day-editorial"]);
+  });
+
+  it("still includes same-window items when the clock is missing", function (): void {
+    // A defensive path: with no clock the window has no upper bound, so
+    // behavior falls back to the old `>= sinceDate` filter.
+    const game = createGame({
+      clock: null,
+      news: [kickoffArticle("2026-06-11")],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-01-01", []);
+    expect(recap.news).toHaveLength(1);
   });
 });
 
@@ -483,6 +483,15 @@ describe("buildDigestEntries", function (): void {
     expect(entries[2].recap.matches).toHaveLength(1);
     // Per-day windows match the streaming loop: advancedTo is the next day.
     expect(entries[1].recap.advancedTo).toBe("2026-07-03");
+  });
+
+  it("splits per day even when sinceDate arrives as a full timestamp", function (): void {
+    const game = createGame({
+      clock: { current_date: "2026-07-03T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
+    });
+    const entries = buildDigestEntries(game, "2026-07-01T00:00:00Z", [matchOnDay]);
+    expect(entries.map((entry) => entry.date)).toEqual(["2026-07-01", "2026-07-02"]);
+    expect(entries[0].recap.matches).toHaveLength(1);
   });
 
   it("includes quiet days so the feed mirrors the streaming digest", function (): void {
