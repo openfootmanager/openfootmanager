@@ -1882,6 +1882,9 @@ export default function TransfersTab({
           transferWindowSummary={transferWindowSummary}
           loanNoticeDetail={loanWindowNoticeDetail}
           selectedKind={dealWorkspaceKind}
+          offeredWage={
+            dealWorkspaceKind === "contract" ? Number(contractWage) : null
+          }
           onSelectKind={(kind) =>
             selectDealWorkspaceKind(dealWorkspaceTarget, kind)
           }

@@ -401,6 +401,7 @@
     "potLimited": "Omezený"
   },
   "common": {
+    "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
     "noResults": "Výsledky nenalezeny.",

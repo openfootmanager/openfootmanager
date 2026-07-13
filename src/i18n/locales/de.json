@@ -401,6 +401,7 @@
     "promoteToSeniorSquad": "In den Profikader befördern"
   },
   "common": {
+    "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
     "noResults": "Keine Ergebnisse gefunden.",

@@ -401,6 +401,7 @@
     "potLimited": "Sınırlı"
   },
   "common": {
+    "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
     "noResults": "Sonuç bulunamadı.",

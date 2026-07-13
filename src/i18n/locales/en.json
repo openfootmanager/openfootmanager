@@ -401,6 +401,7 @@
     "potLimited": "Limited"
   },
   "common": {
+    "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
     "noResults": "No results found.",
