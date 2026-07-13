@@ -86,6 +86,12 @@ export function useAdvanceTime(
     }
   }, [settingsLoaded, defaultMatchMode]);
 
+  // Synced post-commit: writing the ref during render could capture entries
+  // from a render React discarded.
+  useEffect(() => {
+    digestEntriesRef.current = digestEntries;
+  }, [digestEntries]);
+
   function resetTransientUi(options?: {
     showContinueMenu?: boolean;
     showMatchConfirm?: boolean;
@@ -254,8 +260,6 @@ export function useAdvanceTime(
       setIsAdvancing(false);
     }
   };
-
-  digestEntriesRef.current = digestEntries;
 
   const doSkipToMatchDay = (options?: { append?: boolean }) => {
     resumeAfterBlockerRef.current = () =>
