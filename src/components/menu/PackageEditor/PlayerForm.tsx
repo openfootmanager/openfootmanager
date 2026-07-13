@@ -235,7 +235,17 @@ export function PlayerForm({
           value={editing.position}
           options={POSITIONS}
           optionLabels={positionLabels}
-          onChange={(v) => updateField("position", v as PlayerDef["position"])}
+          onChange={(v) => {
+            const next = v as Position;
+            updateField("position", next);
+            // A position can't be both primary and alternate.
+            if (altPositions.includes(next)) {
+              updateField(
+                "alternatePositions",
+                altPositions.filter((p) => p !== next),
+              );
+            }
+          }}
         />
         <LabeledSelect
           label={t("worldEditor.playerFoot")}
@@ -313,7 +323,18 @@ export function PlayerForm({
       {/* Contract & status — all optional; blank means the engine fills it in. */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("common.contract")}</label>
+          <div className="flex items-center justify-between">
+            <label className={labelClass}>{t("common.contract")}</label>
+            {editing.contractEnd ? (
+              <button
+                type="button"
+                onClick={() => updateField("contractEnd", null)}
+                className="text-[10px] font-heading font-bold uppercase tracking-wide text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+              >
+                {t("common.clear")}
+              </button>
+            ) : null}
+          </div>
           <DatePicker
             value={editing.contractEnd ?? ""}
             onChange={(v) => updateField("contractEnd", v || null)}
@@ -355,12 +376,13 @@ export function PlayerForm({
       <div className="flex flex-col gap-1">
         <label className={labelClass}>{t("worldEditor.playerAlternatePositions")}</label>
         <div className="flex flex-wrap gap-1.5">
-          {POSITIONS.map((pos) => {
+          {POSITIONS.filter((pos) => pos !== editing.position).map((pos) => {
             const active = altPositions.includes(pos as Position);
             return (
               <button
                 key={pos}
                 type="button"
+                aria-pressed={active}
                 onClick={() => toggleAltPosition(pos as Position)}
                 className={`px-2 py-1 rounded-md text-xs border transition ${active ? "bg-primary-500 border-primary-500 text-white" : "border-gray-200 dark:border-navy-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600"}`}
               >

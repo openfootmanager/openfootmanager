@@ -860,6 +860,9 @@ mod player_def_override_tests {
         def.contract_end = None;
         def.condition = None;
         def.morale = None;
+        def.weak_foot = None;
+        def.alternate_positions = Vec::new();
+        def.career = Vec::new();
 
         let names = super::super::definitions::default_names_definition();
         let mut rng = StdRng::seed_from_u64(7);
@@ -869,5 +872,11 @@ mod player_def_override_tests {
         assert!(player.wage >= 500);
         assert!(player.contract_end.is_some());
         assert!((75..100).contains(&player.condition));
+        assert!((40..76).contains(&player.morale));
+        // Omitted weak_foot falls back to the model default (within 1–5); career
+        // stays empty (generate_player_from_def doesn't fabricate history, and
+        // alternate-position inference happens later in upgrade_player_identity).
+        assert!((1..=5).contains(&player.weak_foot));
+        assert!(player.career.is_empty());
     }
 }

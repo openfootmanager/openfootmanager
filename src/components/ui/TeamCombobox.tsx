@@ -82,6 +82,7 @@ export function TeamCombobox({ value, teams, onChange, label, placeholder }: Tea
               type="text"
               autoFocus
               placeholder={t("worldEditor.searchTeams")}
+              aria-label={t("worldEditor.searchTeams")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-primary-500 dark:border-navy-600 dark:bg-navy-800 dark:text-white dark:placeholder:text-gray-500"

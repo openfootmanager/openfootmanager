@@ -284,6 +284,7 @@ const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
 const UNKNOWN_REGION: &str = "be.error.package.unknownRegion";
 const REVERSED_RANGE: &str = "be.error.package.reversedRange";
 const OUT_OF_RANGE: &str = "be.error.package.outOfRange";
+const PLAYER_FIELD_OUT_OF_RANGE: &str = "be.error.package.playerFieldOutOfRange";
 
 /// Maximum team reputation. Reputation is a `u32`, so it cannot go below 0.
 const MAX_REPUTATION: u32 = 1000;
@@ -672,6 +673,21 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                     .with("entity", &player.id)
                     .with("country", &player.nationality),
             );
+        }
+        // Optional status fields must stay within their documented ranges.
+        let field_out_of_range = |field: &str| {
+            PackageError::new(PLAYER_FIELD_OUT_OF_RANGE, "")
+                .with("entity", &player.id)
+                .with("field", field)
+        };
+        if player.condition.is_some_and(|value| value > 100) {
+            errors.push(field_out_of_range("condition"));
+        }
+        if player.morale.is_some_and(|value| value > 100) {
+            errors.push(field_out_of_range("morale"));
+        }
+        if player.weak_foot.is_some_and(|value| !(1..=5).contains(&value)) {
+            errors.push(field_out_of_range("weakFoot"));
         }
         // Career-history clubs must reference a team defined in the package.
         for entry in &player.career {
@@ -2288,6 +2304,19 @@ colors:
         assert!(
             errors.iter().any(|e| e.code == OUT_OF_RANGE),
             "negative finance must produce an OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn player_weak_foot_out_of_range_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\nweakFoot: 0\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == PLAYER_FIELD_OUT_OF_RANGE),
+            "weakFoot outside 1–5 must produce a PLAYER_FIELD_OUT_OF_RANGE error: {errors:?}"
         );
         std::fs::remove_dir_all(&dir).ok();
     }

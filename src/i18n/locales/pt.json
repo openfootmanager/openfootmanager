@@ -2603,6 +2603,7 @@
         "unknownRegion": "\"{{field}}\" refere uma região desconhecida \"{{id}}\".",
         "reversedRange": "A equipa \"{{team}}\" tem um {{field}} invertido (mín > máx).",
         "outOfRange": "A equipa \"{{team}}\" tem valores de {{field}} fora do intervalo (reputação 0–1000, finanças ≥ 0).",
+        "playerFieldOutOfRange": "O jogador \"{{entity}}\" tem um valor de {{field}} fora do intervalo.",
         "unsupportedFormatVersion": "Este pacote foi criado com uma versão mais recente do jogo (formato {{version}}; esta versão suporta {{supported}}). Atualize o jogo para o abrir."
       },
       "competitionDef": {

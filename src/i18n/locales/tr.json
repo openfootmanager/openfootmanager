@@ -2616,6 +2616,7 @@
         "unknownRegion": "\"{{field}}\", bilinmeyen \"{{id}}\" bölgesine atıfta bulunuyor.",
         "reversedRange": "\"{{team}}\" takımının {{field}} aralığı ters (min > maks).",
         "outOfRange": "\"{{team}}\" takımının {{field}} değerleri aralık dışında (itibar 0–1000, finans ≥ 0).",
+        "playerFieldOutOfRange": "\"{{entity}}\" oyuncusunun {{field}} değeri aralık dışında.",
         "unsupportedFormatVersion": "Bu paket oyunun daha yeni bir sürümüyle oluşturuldu (biçim {{version}}; bu sürüm {{supported}} destekliyor). Açmak için oyunu güncelleyin."
       },
       "conflict": {

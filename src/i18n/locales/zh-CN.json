@@ -2603,6 +2603,7 @@
         "unknownRegion": "\"{{field}}\" 引用了未知的区域 \"{{id}}\"。",
         "reversedRange": "球队 \"{{team}}\" 的 {{field}} 范围颠倒（最小值 > 最大值）。",
         "outOfRange": "球队 \"{{team}}\" 的 {{field}} 值超出范围（声望 0–1000，财务 ≥ 0）。",
+        "playerFieldOutOfRange": "球员\"{{entity}}\"的{{field}}值超出范围。",
         "unsupportedFormatVersion": "此扩展包由更新版本的游戏创建（格式 {{version}}，本版本支持 {{supported}}）。请更新游戏后再打开。"
       },
       "competitionDef": {
