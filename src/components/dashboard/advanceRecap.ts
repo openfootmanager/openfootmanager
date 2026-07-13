@@ -38,6 +38,13 @@ export interface AdvanceRecap {
   inbox: RecapHeadline[];
   /** True when anything happened during the advance (drives the empty state). */
   hasEvents: boolean;
+  /**
+   * Attention signals computed before the MAX_PER_SECTION truncation above,
+   * so a busy day can't push a user-relevant transfer or headline out of
+   * detectAttentionEvents.
+   */
+  userTransferInWindow: boolean;
+  userNewsInWindow: boolean;
 }
 
 /** One day of the digest feed: the day simulated and what it produced. */
@@ -158,8 +165,10 @@ export function buildRecapWindow(
   });
 
   const userCompetition = getUserCompetition(game);
-  const transfers: RecapTransfer[] = (userCompetition?.transfer_log ?? [])
-    .filter((entry) => inWindow(entry.date))
+  const windowTransfers = (userCompetition?.transfer_log ?? []).filter((entry) =>
+    inWindow(entry.date),
+  );
+  const transfers: RecapTransfer[] = windowTransfers
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((entry) => ({
@@ -172,12 +181,10 @@ export function buildRecapWindow(
       date: entry.date,
     }));
 
-  const news: RecapHeadline[] = (game.news ?? [])
-    .filter(
-      (article) =>
-        inWindow(article.date) &&
-        !isRoutineRecapNews(article),
-    )
+  const windowNews = (game.news ?? []).filter(
+    (article) => inWindow(article.date) && !isRoutineRecapNews(article),
+  );
+  const news: RecapHeadline[] = windowNews
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((article) => ({
@@ -207,7 +214,36 @@ export function buildRecapWindow(
     news.length > 0 ||
     inbox.length > 0;
 
-  return { advancedTo, matches: recapMatches, transfers, news, inbox, hasEvents };
+  const userTransferInWindow =
+    userTeamId !== null &&
+    windowTransfers.some(
+      (entry) =>
+        entry.from_team_id === userTeamId || entry.to_team_id === userTeamId,
+    );
+
+  const squadIds = new Set(
+    (game.players ?? [])
+      .filter((player) => player.team_id === userTeamId)
+      .map((player) => player.id),
+  );
+  const userNewsInWindow =
+    userTeamId !== null &&
+    windowNews.some(
+      (article) =>
+        article.team_ids.includes(userTeamId) ||
+        article.player_ids.some((id) => squadIds.has(id)),
+    );
+
+  return {
+    advancedTo,
+    matches: recapMatches,
+    transfers,
+    news,
+    inbox,
+    hasEvents,
+    userTransferInWindow,
+    userNewsInWindow,
+  };
 }
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -220,8 +256,11 @@ const MAX_ENTRY_DAYS = 90;
  * Split a batch multi-day advance (Skip to Match Day, plain Continue) into the
  * same per-day entries the streaming digest loop produces, so every advance
  * flow renders through the one digest feed. Day i covers [day, nextDay(day))
- * with that day's match results; days outside [sinceDate, clock) fall back to
- * a single catch-all entry rather than being dropped.
+ * with that day's match results. When no day window can be derived (missing
+ * or invalid clock, sinceDate not before it) the advance still renders as a
+ * single catch-all entry — dated on whichever bound is a valid day — so a
+ * successful advance never presents as an empty feed; only when neither bound
+ * is displayable does an uneventful recap produce no entry.
  */
 export function buildDigestEntries(
   game: GameStateData,
@@ -235,7 +274,19 @@ export function buildDigestEntries(
     sinceDate >= advancedTo
   ) {
     const recap = buildAdvanceRecap(game, sinceDate, results);
-    return recap.hasEvents ? [{ date: sinceDate, recap }] : [];
+    const date = DAY_PATTERN.test(sinceDate) ? sinceDate : advancedTo;
+    if (!DAY_PATTERN.test(date)) {
+      return recap.hasEvents ? [{ date: sinceDate, recap }] : [];
+    }
+    return [{ date, recap }];
+  }
+
+  const resultsByDay = new Map<string, AdvanceMatchResultData[]>();
+  for (const match of results) {
+    const day = toDatePart(match.date);
+    const bucket = resultsByDay.get(day);
+    if (bucket) bucket.push(match);
+    else resultsByDay.set(day, [match]);
   }
 
   const entries: DigestEntry[] = [];
@@ -244,11 +295,9 @@ export function buildDigestEntries(
     day < advancedTo && entries.length < MAX_ENTRY_DAYS;
     day = nextDay(day)
   ) {
-    const until = nextDay(day);
-    const dayMatches = results.filter((match) => toDatePart(match.date) === day);
     entries.push({
       date: day,
-      recap: buildRecapWindow(game, day, until, dayMatches),
+      recap: buildRecapWindow(game, day, nextDay(day), resultsByDay.get(day) ?? []),
     });
   }
   return entries;
@@ -260,7 +309,9 @@ export function buildDigestEntries(
  * are the notable outcomes of a day that did run: a high-priority inbox item,
  * a transfer in/out of the user's club, key news tagging the club or its
  * players, and landing on a transfer-window open or deadline day (mirrors the
- * backend's continue_reached_attention_event).
+ * backend's continue_reached_attention_event). The transfer/news signals come
+ * from the recap's pre-truncation flags, so they fire even when the item was
+ * pushed out of the displayed section by MAX_PER_SECTION.
  */
 export function detectAttentionEvents(
   game: GameStateData,
@@ -269,30 +320,8 @@ export function detectAttentionEvents(
   const events: AttentionEventKind[] = [];
 
   if (recap.inbox.length > 0) events.push("highPriorityInbox");
-  if (recap.transfers.some((transfer) => transfer.involvesUser)) {
-    events.push("userTransfer");
-  }
-
-  const userTeamId = game.manager?.team_id ?? null;
-  if (userTeamId && recap.news.length > 0) {
-    const squadIds = new Set(
-      (game.players ?? [])
-        .filter((player) => player.team_id === userTeamId)
-        .map((player) => player.id),
-    );
-    const articleById = new Map(
-      (game.news ?? []).map((article) => [article.id, article]),
-    );
-    const tagsUser = recap.news.some((headline) => {
-      const article = articleById.get(headline.id);
-      if (!article) return false;
-      return (
-        article.team_ids.includes(userTeamId) ||
-        article.player_ids.some((id) => squadIds.has(id))
-      );
-    });
-    if (tagsUser) events.push("userNews");
-  }
+  if (recap.userTransferInWindow) events.push("userTransfer");
+  if (recap.userNewsInWindow) events.push("userNews");
 
   const window = resolveSeasonContext(game).transfer_window;
   const landedOn = recap.advancedTo;

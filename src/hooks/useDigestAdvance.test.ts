@@ -186,6 +186,8 @@ describe("useDigestAdvance", () => {
         news: [],
         inbox: [],
         hasEvents: false,
+        userTransferInWindow: false,
+        userNewsInWindow: false,
       },
     };
 

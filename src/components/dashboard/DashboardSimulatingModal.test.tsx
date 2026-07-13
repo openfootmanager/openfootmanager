@@ -29,6 +29,8 @@ function recapWith(overrides: Partial<AdvanceRecap> = {}): AdvanceRecap {
     news: [],
     inbox: [],
     hasEvents: true,
+    userTransferInWindow: false,
+    userNewsInWindow: false,
     ...overrides,
   };
 }
@@ -70,6 +72,37 @@ describe("DashboardSimulatingModal penalty shootouts", () => {
     );
 
     expect(screen.queryByText(/Penalties:/)).not.toBeInTheDocument();
+  });
+});
+
+describe("DashboardSimulatingModal batch resume", () => {
+  it("presents a crunching batch behind a kept feed as in-progress without Close or Stop", () => {
+    render(
+      <DashboardSimulatingModal
+        digestEntries={[entryWith([match()])]}
+        isBatchAdvancing
+        onStop={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("dashboard.digestAdvancing")).toBeInTheDocument();
+    expect(screen.queryByText("dashboard.digestDone")).not.toBeInTheDocument();
+    expect(screen.queryByText("common.close")).not.toBeInTheDocument();
+    // Only the streaming loop is stoppable; a batch backend call is not.
+    expect(screen.queryByText("dashboard.digestStop")).not.toBeInTheDocument();
+  });
+
+  it("returns to the done state with Close once the batch lands", () => {
+    render(
+      <DashboardSimulatingModal
+        digestEntries={[entryWith([match()])]}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("dashboard.digestDone")).toBeInTheDocument();
+    expect(screen.getByText("common.close")).toBeInTheDocument();
   });
 });
 

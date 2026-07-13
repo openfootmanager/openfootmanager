@@ -496,8 +496,22 @@ describe("buildDigestEntries", function (): void {
 
   it("falls back to a single catch-all entry when no day window can be derived", function (): void {
     const game = createGame({ clock: null } as unknown as Partial<GameStateData>);
-    expect(buildDigestEntries(game, "2026-07-01", [])).toEqual([]);
+
+    // Even a quiet advance renders one entry rather than an empty feed.
+    const quiet = buildDigestEntries(game, "2026-07-01", []);
+    expect(quiet).toHaveLength(1);
+    expect(quiet[0].date).toBe("2026-07-01");
+    expect(quiet[0].recap.hasEvents).toBe(false);
+
     expect(buildDigestEntries(game, "2026-07-01", [matchOnDay])).toHaveLength(1);
+
+    // Invalid sinceDate: the entry is dated on the post-advance clock day.
+    const clockOnly = buildDigestEntries(createGame(), "", []);
+    expect(clockOnly).toHaveLength(1);
+    expect(clockOnly[0].date).toBe("2026-07-02");
+
+    // Neither bound displayable and nothing happened: no entry.
+    expect(buildDigestEntries(game, "", [])).toEqual([]);
   });
 });
 
@@ -585,6 +599,65 @@ describe("detectAttentionEvents", function (): void {
       news: [article("rival-news", ["team-2"], [])],
     } as unknown as Partial<GameStateData>);
     expect(detectAttentionEvents(rivalGame, recapFor(rivalGame))).toEqual([]);
+  });
+
+  it("detects a user transfer pushed out of the displayed section by truncation", function (): void {
+    // Nine same-day transfers: the user's carries the lexicographically
+    // smallest date, so the newest-first sort + MAX_PER_SECTION slice drops
+    // it from the displayed list — detection must still fire.
+    const transferAt = (from: string, date: string) => ({
+      date,
+      from_team_id: from,
+      to_team_id: "team-3",
+      player_id: "player-1",
+      fee: 1_000_000,
+    });
+    const game = createGame({
+      league: {
+        id: "league-1",
+        name: "League",
+        season: 1,
+        fixtures: [],
+        standings: [],
+        transfer_log: [
+          ...Array.from({ length: 8 }, () =>
+            transferAt("team-2", "2026-07-01T12:00:00Z"),
+          ),
+          transferAt("team-1", "2026-07-01"),
+        ],
+      },
+    } as unknown as Partial<GameStateData>);
+
+    const recap = recapFor(game);
+    expect(recap.transfers).toHaveLength(8);
+    expect(recap.transfers.some((transfer) => transfer.involvesUser)).toBe(false);
+    expect(detectAttentionEvents(game, recap)).toEqual(["userTransfer"]);
+  });
+
+  it("detects user news pushed out of the displayed section by truncation", function (): void {
+    const article = (id: string, teamIds: string[], date: string) => ({
+      id,
+      headline: "",
+      body: "",
+      date,
+      category: "Editorial",
+      team_ids: teamIds,
+      player_ids: [],
+      read: false,
+    });
+    const game = createGame({
+      news: [
+        ...Array.from({ length: 8 }, (_, index) =>
+          article(`rival-${index}`, ["team-2"], "2026-07-01T12:00:00Z"),
+        ),
+        article("club-news", ["team-1"], "2026-07-01"),
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = recapFor(game);
+    expect(recap.news).toHaveLength(8);
+    expect(recap.news.map((headline) => headline.id)).not.toContain("club-news");
+    expect(detectAttentionEvents(game, recap)).toEqual(["userNews"]);
   });
 
   it("stops when landing on a transfer-window open or deadline day", function (): void {
