@@ -18,9 +18,10 @@ import { browser, $, expect } from "@wdio/globals";
 // With the bug present, `hasExistingOffer` stays false and the hint
 // never renders even though talks *are* now live.
 //
-// Fixture: baseline.json. Target: Aneurin Morgan (mv €540,800). Bid
-// €500K = 0.5 — comfortably below any accept threshold, comfortably
-// above any hard-reject floor → produces a counter-offer (Pending).
+// Fixture: baseline.json. Target: Aneurin Morgan (mv €540,800) at
+// Atlético Córdoba, where his acceptance threshold is ~€487K. Bid
+// €450K = 0.45 — below that threshold but above the counter floor
+// (~€428K) → produces a counter-offer (Pending).
 describe("Stale bid modal — e2e", () => {
     it("shows the resume-negotiation hint after a counter-offer response", async function () {
         this.timeout(120_000);
@@ -34,8 +35,10 @@ describe("Stale bid modal — e2e", () => {
         const search = await $('input[placeholder="Search by name..."]');
         await search.waitForExist({ timeout: 10_000 });
         await search.setValue("Aneurin Morgan");
-        await browser.pause(300);
 
+        // No fixed debounce sleep — waitForClickable below gates on the
+        // filtered Bid button becoming actionable, which only happens once
+        // the search has settled.
         const bidButton = await $("button=Bid");
         await bidButton.waitForClickable({ timeout: 10_000 });
         await bidButton.click();
@@ -50,24 +53,26 @@ describe("Stale bid modal — e2e", () => {
 
         // Bid in the counter-offer zone: high enough that the engine
         // doesn't reject outright, low enough that it doesn't accept.
-        // 0.5 (€500K) against a €540K market value hits the counter
-        // window for this fixture.
+        // 0.45 (€450K) sits between Aneurin's ~€428K counter floor and
+        // his ~€487K accept threshold at Atlético Córdoba, so it hits the
+        // counter window for this fixture.
         const amountInput = await $("#bid-amount");
         await amountInput.waitForExist({ timeout: 10_000 });
-        await amountInput.setValue("0.5");
+        await amountInput.setValue("0.45");
 
         const submit = await $("button=Submit Bid");
         await submit.waitForClickable({ timeout: 10_000 });
         await submit.click();
-
-        // Give the response and the store update time to propagate.
-        await browser.pause(1500);
 
         // A Pending offer now exists on the player. If the hook is
         // reading from a live source, `hasExistingOffer` is true and
         // the hint is visible. If `bidTarget` is a stale snapshot,
         // the hint stays hidden despite talks being live — the bug
         // this guard exists to catch.
+        //
+        // No fixed sleep for the response/store update: waitForDisplayed
+        // polls until the hint renders (or times out), so it absorbs
+        // however long the bid round-trip and re-render actually take.
         const postHint = await $(
             '//*[contains(text(), "Talks are still live with this club")]',
         );

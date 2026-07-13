@@ -14,9 +14,16 @@ let tauriDriver: ChildProcess | null = null;
 // via app_data_dir(), so no engine change is required for isolation.
 let sessionDataDir: string | null = null;
 
+// The Cargo debug binary is `openfootmanager` on Linux and
+// `openfootmanager.exe` on Windows; tauri-driver launches whatever we point
+// it at, so the default has to match the host or the win32 spawn fails.
 const APP_BINARY =
     process.env.TAURI_APP_BINARY ??
-    path.resolve("./src-tauri/target/debug/openfootmanager");
+    path.resolve(
+        `./src-tauri/target/debug/openfootmanager${
+            process.platform === "win32" ? ".exe" : ""
+        }`,
+    );
 
 // CLI args passed to the app binary via tauri-driver. Uses the MCP
 // auto-start hook (`--mcp-auto-start world_path,team_id`) to bypass the
