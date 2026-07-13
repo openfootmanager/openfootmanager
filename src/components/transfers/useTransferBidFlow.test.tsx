@@ -279,4 +279,40 @@ describe("useTransferBidFlow", function (): void {
         await new Promise((resolve) => setTimeout(resolve, 2100));
         expect(screen.getByLabelText("bid-result")).toHaveTextContent("accepted");
     });
+
+    it("pre-fills a counter-offer suggestion in millions, not raw euros", async function (): Promise<void> {
+        // Regression for #300: `suggested_fee` is raw euros, but this input is
+        // millions-denominated. If it isn't converted, "650000" in a millions
+        // input becomes a €650 billion resubmit (1,000,000× too large).
+        const target = createPlayer();
+        const gameState = createGameState([target]);
+        mockedMakeTransferBid.mockResolvedValue({
+            decision: "counter_offer",
+            suggested_fee: 650000,
+            is_terminal: false,
+            feedback: {
+                mood: "firm",
+                headline_key: "transfers.transferFeedbackCounterHeadline",
+                detail_key: "transfers.transferFeedbackCounterDetail",
+                tension: 40,
+                patience: 60,
+                round: 1,
+                params: { fee: "650000" },
+            },
+            game: gameState,
+        });
+
+        render(<HookHarness gameState={gameState} target={target} />);
+
+        fireEvent.click(screen.getByRole("button", { name: "Open" }));
+        fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+        await waitFor(function (): void {
+            expect(screen.getByLabelText("bid-result")).toHaveTextContent(
+                "counter_offer",
+            );
+        });
+
+        expect(screen.getByLabelText("Bid amount")).toHaveValue("0.65");
+    });
 });

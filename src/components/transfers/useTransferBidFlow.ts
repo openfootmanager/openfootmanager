@@ -15,7 +15,6 @@ import {
 } from "../../services/transfersService";
 import {
     buildResumedBidFeedback,
-    formatTransferFeeInput,
     getOutgoingNegotiationOffer,
     normalizeTransferNegotiationFeedback,
 } from "./TransfersTab.helpers";
@@ -142,8 +141,11 @@ export function useTransferBidFlow({
             setBidFeedback(normalizeTransferNegotiationFeedback(response.feedback));
             onGameUpdate?.(response.game);
 
+            // `suggested_fee` is in raw euros, but this input is denominated in
+            // millions (see `bidFee` above and `openBidNegotiation`). Convert
+            // before pre-filling, or the next submit sends 1,000,000× the value.
             if (response.suggested_fee !== null) {
-                setBidAmount(formatTransferFeeInput(response.suggested_fee));
+                setBidAmount((response.suggested_fee / 1_000_000).toFixed(2));
             }
         } catch (error: any) {
             setBidResult(error?.toString() || "error");
