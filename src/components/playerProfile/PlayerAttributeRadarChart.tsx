@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   Radar,
   RadarChart,
@@ -8,10 +9,14 @@ import {
 } from "recharts";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
-import type { PlayerAttributeGroup } from "./PlayerProfile.attributes";
+import type { PlayerData } from "../../store/gameStore";
+import {
+  getPlayerAttributeEntry,
+  type PlayerAttributeKey,
+} from "./PlayerProfile.attributes";
 
 interface PlayerAttributeRadarChartProps {
-  attrGroups: PlayerAttributeGroup[];
+  player: PlayerData;
   isGk: boolean;
 }
 
@@ -21,56 +26,50 @@ interface RadarEntry {
   fullMark: number;
 }
 
-function pickOutfieldAttrs(groups: PlayerAttributeGroup[]): RadarEntry[] {
-  // Build by picking from groups[0]=physical, groups[1]=technical, groups[2]=mental
-  const physGroup = groups[0]?.attrs ?? [];
-  const techGroup = groups[1]?.attrs ?? [];
-  const mentGroup = groups[2]?.attrs ?? [];
+// Fixed radar picks per player type — kept as attribute keys, not positional
+// indices, so reordering the profile's attribute groups can't silently change
+// what the radar shows.
+const OUTFIELD_RADAR_KEYS: readonly PlayerAttributeKey[] = [
+  "pace",
+  "shooting",
+  "passing",
+  "dribbling",
+  "tackling",
+  "vision",
+  "teamwork",
+  "stamina",
+];
 
-  const selected = [
-    physGroup[0], // pace
-    techGroup[1], // shooting
-    techGroup[0], // passing
-    techGroup[3], // dribbling
-    techGroup[2], // tackling
-    mentGroup[1], // vision
-    mentGroup[5], // teamwork
-    physGroup[1], // stamina
-  ].filter(Boolean) as { name: string; value: number }[];
+const GK_RADAR_KEYS: readonly PlayerAttributeKey[] = [
+  "handling",
+  "reflexes",
+  "aerial",
+  "composure",
+  "vision",
+  "teamwork",
+  "stamina",
+  "strength",
+];
 
-  return selected.map((a) => ({ attr: a.name, value: a.value, fullMark: 100 }));
-}
-
-function pickGkAttrs(groups: PlayerAttributeGroup[]): RadarEntry[] {
-  const gkGroup = groups.find((_, i) => i === 3)?.attrs ?? groups[groups.length - 1]?.attrs ?? [];
-  const mentGroup = groups[2]?.attrs ?? [];
-  const physGroup = groups[0]?.attrs ?? [];
-
-  const selected = [
-    gkGroup[0], // handling
-    gkGroup[1], // reflexes
-    gkGroup[2], // aerial
-    mentGroup[3], // composure
-    mentGroup[1], // vision
-    mentGroup[5], // teamwork
-    physGroup[1], // stamina
-    physGroup[2], // strength
-  ].filter(Boolean) as { name: string; value: number }[];
-
-  return selected.map((a) => ({ attr: a.name, value: a.value, fullMark: 100 }));
+function buildRadarData(
+  player: PlayerData,
+  keys: readonly PlayerAttributeKey[],
+  translate: (key: string) => string,
+): RadarEntry[] {
+  return keys.map((key) => {
+    const entry = getPlayerAttributeEntry(player, key, translate);
+    return { attr: entry.name, value: entry.value, fullMark: 100 };
+  });
 }
 
 export function PlayerAttributeRadarChart({
-  attrGroups,
+  player,
   isGk,
 }: PlayerAttributeRadarChartProps) {
+  const { t } = useTranslation();
   const theme = useChartTheme();
 
-  if (attrGroups.length === 0) {
-    return <ChartContainer isEmpty height={240} />;
-  }
-
-  const data = isGk ? pickGkAttrs(attrGroups) : pickOutfieldAttrs(attrGroups);
+  const data = buildRadarData(player, isGk ? GK_RADAR_KEYS : OUTFIELD_RADAR_KEYS, t);
 
   if (data.length === 0) {
     return <ChartContainer isEmpty height={240} />;

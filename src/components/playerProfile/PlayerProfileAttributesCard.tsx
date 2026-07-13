@@ -3,6 +3,7 @@ import { Shield } from "lucide-react";
 import { getAttributeColorClass } from "./PlayerProfile.helpers";
 import { getAttributeColors } from "../../lib/playerAttributeDisplay";
 import type { PlayerAttributeGroup } from "./PlayerProfile.attributes";
+import type { PlayerData } from "../../store/gameStore";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import { PlayerAttributeRadarChart } from "./PlayerAttributeRadarChart";
 import PlayerProfileStatCard from "./PlayerProfileStatCard";
@@ -19,6 +20,7 @@ function placeholderWidth(name: string): number {
 
 interface PlayerProfileAttributesCardProps {
     attrGroups: PlayerAttributeGroup[];
+    player: PlayerData;
     isOwnClub: boolean;
     isGk?: boolean;
     title: string;
@@ -31,6 +33,7 @@ interface PlayerProfileAttributesCardProps {
 
 export default function PlayerProfileAttributesCard({
     attrGroups,
+    player,
     isOwnClub,
     isGk = false,
     title,
@@ -72,7 +75,7 @@ export default function PlayerProfileAttributesCard({
             </CardHeader>
             <CardBody>
                 {isOwnClub && view === "radar" ? (
-                    <PlayerAttributeRadarChart attrGroups={attrGroups} isGk={isGk} />
+                    <PlayerAttributeRadarChart player={player} isGk={isGk} />
                 ) : isOwnClub ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
                         {attrGroups.map((group) => (
