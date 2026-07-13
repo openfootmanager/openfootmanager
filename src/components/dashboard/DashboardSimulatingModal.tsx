@@ -26,6 +26,12 @@ interface DashboardSimulatingModalProps {
   // Digest-mode props (optional — omit for a plain single-advance spinner)
   digestEntries?: DigestEntry[];
   isDigestRunning?: boolean;
+  /**
+   * A batch advance is crunching behind a feed that stays on screen (resume
+   * after a mid-advance blocker): present as in-progress, but without the
+   * Stop button — only the streaming loop can be aborted.
+   */
+  isBatchAdvancing?: boolean;
   isDigestAborting?: boolean;
   stopReason?: DigestStopReason | null;
   onStop?: () => void;
@@ -229,6 +235,7 @@ function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
 export default function DashboardSimulatingModal({
   digestEntries,
   isDigestRunning,
+  isBatchAdvancing,
   isDigestAborting,
   stopReason,
   onStop,
@@ -244,6 +251,7 @@ export default function DashboardSimulatingModal({
     isDigestRunning === true ||
     stopReason != null;
   const isRunning = isDigestRunning ?? false;
+  const isInProgress = isRunning || (isBatchAdvancing ?? false);
 
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -275,14 +283,14 @@ export default function DashboardSimulatingModal({
         {/* Header */}
         <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-navy-700 shrink-0">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-500/15 dark:text-primary-300">
-            {isRunning ? (
+            {isInProgress ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <CheckCircle2 className="h-5 w-5" />
             )}
           </div>
           <h3 className="flex-1 text-base font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-            {isRunning
+            {isInProgress
               ? t("dashboard.digestAdvancing")
               : t("dashboard.digestDone")}
           </h3>
@@ -305,7 +313,7 @@ export default function DashboardSimulatingModal({
 
         {/* Scrollable event feed */}
         <div className="flex-1 overflow-y-auto py-3 space-y-3 min-h-0">
-          {digestEntries && digestEntries.length === 0 && !isRunning && !stopReason && (
+          {digestEntries && digestEntries.length === 0 && !isInProgress && !stopReason && (
             <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-4">
               {t("dashboard.digestEmpty")}
             </p>
@@ -315,7 +323,7 @@ export default function DashboardSimulatingModal({
             <DigestDayRow key={entry.date} entry={entry} />
           ))}
 
-          {isRunning && (
+          {isInProgress && (
             <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 py-1">
               <Loader2 className="h-3 w-3 animate-spin" />
               {t("dashboard.digestSimulating")}
@@ -326,7 +334,7 @@ export default function DashboardSimulatingModal({
         </div>
 
         {/* Close button when digest finished with no specific stop reason (natural end or user-aborted) */}
-        {!isRunning && !stopReason && digestEntries && digestEntries.length > 0 && (
+        {!isInProgress && !stopReason && digestEntries && digestEntries.length > 0 && (
           <div className="border-t border-gray-200 dark:border-navy-700 pt-4 shrink-0">
             <button
               type="button"

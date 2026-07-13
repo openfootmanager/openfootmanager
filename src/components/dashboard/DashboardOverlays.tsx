@@ -79,6 +79,7 @@ export default function DashboardOverlays({
           // switches to the digest once the processed days land.
           digestEntries={isDigestVisible ? digestEntries : undefined}
           isDigestRunning={isDigestRunning}
+          isBatchAdvancing={isAdvancing}
           isDigestAborting={isDigestAborting}
           stopReason={digestStopReason}
           onStop={onDigestStop}
