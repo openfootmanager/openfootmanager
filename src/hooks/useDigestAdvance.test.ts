@@ -16,10 +16,15 @@ vi.mock("../components/dashboard/advanceRecap", () => ({
     inbox: [],
     hasEvents: false,
   }),
+  detectAttentionEvents: vi.fn().mockReturnValue([]),
 }));
 
 const { advanceOneDay } = await import("../services/advanceTimeService");
+const { detectAttentionEvents } = await import(
+  "../components/dashboard/advanceRecap"
+);
 const mockedAdvanceOneDay = vi.mocked(advanceOneDay);
+const mockedDetectAttentionEvents = vi.mocked(detectAttentionEvents);
 
 function makeAdvancedResponse(date: string): OneDayResponse {
   return {
@@ -111,6 +116,89 @@ describe("useDigestAdvance", () => {
 
     expect(onFired).toHaveBeenCalledOnce();
     expect(result.current.stopReason).toEqual({ kind: "fired" });
+  });
+
+  it("stops with an event reason when a day produces an attention event", async () => {
+    mockedAdvanceOneDay
+      .mockResolvedValueOnce(makeAdvancedResponse("2026-09-01"))
+      .mockResolvedValueOnce(makeAdvancedResponse("2026-09-02"));
+    mockedDetectAttentionEvents
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(["userTransfer"]);
+
+    const { result } = renderHook(() =>
+      useDigestAdvance(setGameState, onFired),
+    );
+
+    await act(async () => {
+      await result.current.startDigest();
+    });
+
+    // The loop stops after the eventful day: no third advance call.
+    expect(mockedAdvanceOneDay).toHaveBeenCalledTimes(2);
+    expect(result.current.entries).toHaveLength(2);
+    expect(result.current.stopReason).toEqual({
+      kind: "event",
+      events: ["userTransfer"],
+    });
+    expect(result.current.isRunning).toBe(false);
+  });
+
+  it("resuming after an event stop keeps the accumulated feed", async () => {
+    mockedAdvanceOneDay.mockResolvedValueOnce(makeAdvancedResponse("2026-09-01"));
+    mockedDetectAttentionEvents.mockReturnValueOnce(["highPriorityInbox"]);
+
+    const { result } = renderHook(() =>
+      useDigestAdvance(setGameState, onFired),
+    );
+
+    await act(async () => {
+      await result.current.startDigest();
+    });
+    expect(result.current.entries).toHaveLength(1);
+
+    mockedAdvanceOneDay
+      .mockResolvedValueOnce(makeAdvancedResponse("2026-09-02"))
+      .mockResolvedValueOnce({ action: "match_day", date: "2026-09-03", results: [] });
+
+    await act(async () => {
+      await result.current.startDigest({ resume: true });
+    });
+
+    expect(result.current.entries.map((entry) => entry.date)).toEqual([
+      "2026-09-01",
+      "2026-09-02",
+    ]);
+    expect(result.current.stopReason).toEqual({ kind: "match_day" });
+  });
+
+  it("showStaticDigest presents a finished batch advance in the feed", () => {
+    const { result } = renderHook(() =>
+      useDigestAdvance(setGameState, onFired),
+    );
+
+    const entry = {
+      date: "2026-09-01",
+      recap: {
+        advancedTo: "2026-09-02",
+        matches: [],
+        transfers: [],
+        news: [],
+        inbox: [],
+        hasEvents: false,
+        userTransferInWindow: false,
+        userNewsInWindow: false,
+      },
+    };
+
+    act(() => {
+      result.current.showStaticDigest([entry], { kind: "match_day" });
+    });
+
+    expect(result.current.entries).toEqual([entry]);
+    expect(result.current.stopReason).toEqual({ kind: "match_day" });
+    expect(result.current.isRunning).toBe(false);
+    expect(result.current.isVisible).toBe(true);
   });
 
   it("dismissDigest resets all state", async () => {

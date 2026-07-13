@@ -3,17 +3,21 @@ import { useState, useRef } from "react";
 import type { GameStateData } from "../store/gameStore";
 import type { BlockerData } from "../services/advanceTimeService";
 import { advanceOneDay } from "../services/advanceTimeService";
-import { buildAdvanceRecap } from "../components/dashboard/advanceRecap";
-import type { AdvanceRecap } from "../components/dashboard/advanceRecap";
+import {
+  buildAdvanceRecap,
+  detectAttentionEvents,
+} from "../components/dashboard/advanceRecap";
+import type {
+  AttentionEventKind,
+  DigestEntry,
+} from "../components/dashboard/advanceRecap";
 
-export interface DigestEntry {
-  date: string;
-  recap: AdvanceRecap;
-}
+export type { DigestEntry } from "../components/dashboard/advanceRecap";
 
 export type DigestStopReason =
   | { kind: "match_day" }
   | { kind: "blocked"; blockers: BlockerData[] }
+  | { kind: "event"; events: AttentionEventKind[] }
   | { kind: "fired" }
   | { kind: "stopped" }
   | { kind: "error" };
@@ -32,13 +36,15 @@ export function useDigestAdvance(
   const abortRef = useRef(false);
   const inFlightRef = useRef(false);
 
-  const startDigest = async () => {
+  const startDigest = async (options?: { resume?: boolean }) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     abortRef.current = false;
     setIsRunning(true);
     setIsAborting(false);
-    setEntries([]);
+    // Resuming (e.g. after an attention-event pause) keeps the feed so the
+    // digest reads as one continuous run.
+    if (!options?.resume) setEntries([]);
     setStopReason(null);
 
     let daysProcessed = 0;
@@ -81,6 +87,11 @@ export function useDigestAdvance(
           const recap = buildAdvanceRecap(game, result.date, result.results ?? []);
           setEntries((prev) => [...prev, { date: result.date, recap }]);
           daysProcessed++;
+          const events = detectAttentionEvents(game, recap);
+          if (events.length > 0) {
+            setStopReason({ kind: "event", events });
+            return;
+          }
         }
       }
     } catch (err) {
@@ -91,6 +102,18 @@ export function useDigestAdvance(
       setIsRunning(false);
       setIsAborting(false);
     }
+  };
+
+  // Present an already-completed batch advance (Skip to Match Day, plain
+  // Continue) in the same digest feed the streaming loop fills, so every
+  // advance flow shares one UI.
+  const showStaticDigest = (
+    staticEntries: DigestEntry[],
+    reason: DigestStopReason | null,
+  ) => {
+    if (inFlightRef.current) return;
+    setEntries(staticEntries);
+    setStopReason(reason);
   };
 
   const abortDigest = () => {
@@ -112,6 +135,7 @@ export function useDigestAdvance(
     stopReason,
     isVisible,
     startDigest,
+    showStaticDigest,
     abortDigest,
     dismissDigest,
   };

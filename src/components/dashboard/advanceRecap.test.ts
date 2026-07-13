@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { GameStateData } from "../../store/gameStore";
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
-import { buildAdvanceRecap, toDatePart } from "./advanceRecap";
+import {
+  buildAdvanceRecap,
+  buildDigestEntries,
+  detectAttentionEvents,
+  nextDay,
+  toDatePart,
+} from "./advanceRecap";
 
 function createGame(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
@@ -395,18 +401,6 @@ describe("advanceRecap", function (): void {
     expect(recap.transfers.map((transfer) => transfer.fee)).toEqual([500_000]);
   });
 
-  it("still includes same-window items when the clock is missing", function (): void {
-    // A defensive path: with no clock the window has no upper bound, so
-    // behavior falls back to the old `>= sinceDate` filter.
-    const game = createGame({
-      clock: null,
-      news: [kickoffArticle("2026-06-11")],
-    } as unknown as Partial<GameStateData>);
-
-    const recap = buildAdvanceRecap(game, "2026-01-01", []);
-    expect(recap.news).toHaveLength(1);
-  });
-
   it("accepts a full timestamp as sinceDate, not just a bare day", function (): void {
     // Defence-in-depth: current callers pass YYYY-MM-DD, but the lower bound
     // is day-normalized so an rfc3339 timestamp compares correctly too
@@ -428,5 +422,284 @@ describe("advanceRecap", function (): void {
 
     const recap = buildAdvanceRecap(game, "2026-07-01T00:00:00Z", []);
     expect(recap.news.map((article) => article.id)).toEqual(["same-day-editorial"]);
+  });
+
+  it("still includes same-window items when the clock is missing", function (): void {
+    // A defensive path: with no clock the window has no upper bound, so
+    // behavior falls back to the old `>= sinceDate` filter.
+    const game = createGame({
+      clock: null,
+      news: [kickoffArticle("2026-06-11")],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-01-01", []);
+    expect(recap.news).toHaveLength(1);
+  });
+});
+
+describe("nextDay", function (): void {
+  it("advances a day, crossing month and year boundaries", function (): void {
+    expect(nextDay("2026-07-01")).toBe("2026-07-02");
+    expect(nextDay("2026-06-30")).toBe("2026-07-01");
+    expect(nextDay("2026-12-31")).toBe("2027-01-01");
+  });
+});
+
+describe("buildDigestEntries", function (): void {
+  it("splits a batch advance into per-day entries scoped to each day", function (): void {
+    // Three processed days (clock landed on Jul 4). Each item must appear in
+    // exactly the entry of the day it is dated on.
+    const game = createGame({
+      clock: { current_date: "2026-07-04T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
+      news: [
+        {
+          id: "day-2-injury",
+          headline: "Star out injured",
+          body: "",
+          date: "2026-07-02",
+          category: "InjuryNews",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+    const results: AdvanceMatchResultData[] = [
+      matchOnDay,
+      { ...matchOnDay, date: "2026-07-03", home_team: "Other FC", involves_user: false },
+    ];
+
+    const entries = buildDigestEntries(game, "2026-07-01", results);
+
+    expect(entries.map((entry) => entry.date)).toEqual([
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-03",
+    ]);
+    expect(entries[0].recap.matches).toHaveLength(1);
+    expect(entries[0].recap.news).toEqual([]);
+    expect(entries[1].recap.matches).toEqual([]);
+    expect(entries[1].recap.news.map((article) => article.id)).toEqual(["day-2-injury"]);
+    expect(entries[2].recap.matches).toHaveLength(1);
+    // Per-day windows match the streaming loop: advancedTo is the next day.
+    expect(entries[1].recap.advancedTo).toBe("2026-07-03");
+  });
+
+  it("splits per day even when sinceDate arrives as a full timestamp", function (): void {
+    const game = createGame({
+      clock: { current_date: "2026-07-03T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
+    });
+    const entries = buildDigestEntries(game, "2026-07-01T00:00:00Z", [matchOnDay]);
+    expect(entries.map((entry) => entry.date)).toEqual(["2026-07-01", "2026-07-02"]);
+    expect(entries[0].recap.matches).toHaveLength(1);
+  });
+
+  it("includes quiet days so the feed mirrors the streaming digest", function (): void {
+    const game = createGame({
+      clock: { current_date: "2026-07-03T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
+    });
+    const entries = buildDigestEntries(game, "2026-07-01", []);
+    expect(entries).toHaveLength(2);
+    expect(entries.every((entry) => !entry.recap.hasEvents)).toBe(true);
+  });
+
+  it("falls back to a single catch-all entry when no day window can be derived", function (): void {
+    const game = createGame({ clock: null } as unknown as Partial<GameStateData>);
+
+    // Even a quiet advance renders one entry rather than an empty feed.
+    const quiet = buildDigestEntries(game, "2026-07-01", []);
+    expect(quiet).toHaveLength(1);
+    expect(quiet[0].date).toBe("2026-07-01");
+    expect(quiet[0].recap.hasEvents).toBe(false);
+
+    expect(buildDigestEntries(game, "2026-07-01", [matchOnDay])).toHaveLength(1);
+
+    // Invalid sinceDate: the entry is dated on the post-advance clock day.
+    const clockOnly = buildDigestEntries(createGame(), "", []);
+    expect(clockOnly).toHaveLength(1);
+    expect(clockOnly[0].date).toBe("2026-07-02");
+
+    // Neither bound displayable and nothing happened: no entry.
+    expect(buildDigestEntries(game, "", [])).toEqual([]);
+  });
+});
+
+describe("detectAttentionEvents", function (): void {
+  function recapFor(game: GameStateData, sinceDate = "2026-07-01") {
+    return buildAdvanceRecap(game, sinceDate, []);
+  }
+
+  it("reports nothing on a quiet day", function (): void {
+    const game = createGame();
+    expect(detectAttentionEvents(game, recapFor(game))).toEqual([]);
+  });
+
+  it("stops on a new high-priority inbox item", function (): void {
+    const game = createGame({
+      messages: [
+        {
+          id: "offer",
+          subject: "Bid received",
+          body: "",
+          sender: "",
+          sender_role: "",
+          date: "2026-07-01",
+          read: false,
+          category: "Transfer",
+          priority: "High",
+          actions: [],
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+    expect(detectAttentionEvents(game, recapFor(game))).toEqual(["highPriorityInbox"]);
+  });
+
+  it("stops on a transfer involving the user's club, not on others", function (): void {
+    const transfer = (from: string, to: string) => ({
+      date: "2026-07-01",
+      from_team_id: from,
+      to_team_id: to,
+      player_id: "player-1",
+      fee: 1_000_000,
+    });
+    const withLog = (log: unknown[]) =>
+      createGame({
+        league: {
+          id: "league-1",
+          name: "League",
+          season: 1,
+          fixtures: [],
+          standings: [],
+          transfer_log: log,
+        },
+      } as unknown as Partial<GameStateData>);
+
+    const userGame = withLog([transfer("team-1", "team-2")]);
+    expect(detectAttentionEvents(userGame, recapFor(userGame))).toEqual(["userTransfer"]);
+
+    const otherGame = withLog([transfer("team-2", "team-3")]);
+    expect(detectAttentionEvents(otherGame, recapFor(otherGame))).toEqual([]);
+  });
+
+  it("stops on key news tagging the user's club or squad players", function (): void {
+    const article = (id: string, teamIds: string[], playerIds: string[]) => ({
+      id,
+      headline: "",
+      body: "",
+      date: "2026-07-01",
+      category: "Editorial",
+      team_ids: teamIds,
+      player_ids: playerIds,
+      read: false,
+    });
+
+    const clubGame = createGame({
+      news: [article("club-news", ["team-1"], [])],
+    } as unknown as Partial<GameStateData>);
+    expect(detectAttentionEvents(clubGame, recapFor(clubGame))).toEqual(["userNews"]);
+
+    const squadGame = createGame({
+      players: [{ id: "player-1", full_name: "John Star", team_id: "team-1" }],
+      news: [article("player-news", [], ["player-1"])],
+    } as unknown as Partial<GameStateData>);
+    expect(detectAttentionEvents(squadGame, recapFor(squadGame))).toEqual(["userNews"]);
+
+    const rivalGame = createGame({
+      news: [article("rival-news", ["team-2"], [])],
+    } as unknown as Partial<GameStateData>);
+    expect(detectAttentionEvents(rivalGame, recapFor(rivalGame))).toEqual([]);
+  });
+
+  it("detects a user transfer pushed out of the displayed section by truncation", function (): void {
+    // Nine same-day transfers: the user's carries the lexicographically
+    // smallest date, so the newest-first sort + MAX_PER_SECTION slice drops
+    // it from the displayed list — detection must still fire.
+    const transferAt = (from: string, date: string) => ({
+      date,
+      from_team_id: from,
+      to_team_id: "team-3",
+      player_id: "player-1",
+      fee: 1_000_000,
+    });
+    const game = createGame({
+      league: {
+        id: "league-1",
+        name: "League",
+        season: 1,
+        fixtures: [],
+        standings: [],
+        transfer_log: [
+          ...Array.from({ length: 8 }, () =>
+            transferAt("team-2", "2026-07-01T12:00:00Z"),
+          ),
+          transferAt("team-1", "2026-07-01"),
+        ],
+      },
+    } as unknown as Partial<GameStateData>);
+
+    const recap = recapFor(game);
+    expect(recap.transfers).toHaveLength(8);
+    expect(recap.transfers.some((transfer) => transfer.involvesUser)).toBe(false);
+    expect(detectAttentionEvents(game, recap)).toEqual(["userTransfer"]);
+  });
+
+  it("detects user news pushed out of the displayed section by truncation", function (): void {
+    const article = (id: string, teamIds: string[], date: string) => ({
+      id,
+      headline: "",
+      body: "",
+      date,
+      category: "Editorial",
+      team_ids: teamIds,
+      player_ids: [],
+      read: false,
+    });
+    const game = createGame({
+      news: [
+        ...Array.from({ length: 8 }, (_, index) =>
+          article(`rival-${index}`, ["team-2"], "2026-07-01T12:00:00Z"),
+        ),
+        article("club-news", ["team-1"], "2026-07-01"),
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = recapFor(game);
+    expect(recap.news).toHaveLength(8);
+    expect(recap.news.map((headline) => headline.id)).not.toContain("club-news");
+    expect(detectAttentionEvents(game, recap)).toEqual(["userNews"]);
+  });
+
+  it("stops when landing on a transfer-window open or deadline day", function (): void {
+    const withWindow = (window: Record<string, unknown>) =>
+      createGame({
+        season_context: {
+          phase: "InSeason",
+          season_start: null,
+          season_end: null,
+          days_until_season_start: null,
+          transfer_window: {
+            status: "Closed",
+            opens_on: null,
+            closes_on: null,
+            days_until_opens: null,
+            days_remaining: null,
+            ...window,
+          },
+        },
+      } as unknown as Partial<GameStateData>);
+
+    // The recap window lands on 2026-07-02 (the fixture clock).
+    const opensToday = withWindow({ opens_on: "2026-07-02" });
+    expect(detectAttentionEvents(opensToday, recapFor(opensToday))).toEqual([
+      "transferWindow",
+    ]);
+
+    const deadline = withWindow({ status: "DeadlineDay" });
+    expect(detectAttentionEvents(deadline, recapFor(deadline))).toEqual([
+      "transferWindow",
+    ]);
+
+    const midWindow = withWindow({ status: "Open", closes_on: "2026-08-31" });
+    expect(detectAttentionEvents(midWindow, recapFor(midWindow))).toEqual([]);
   });
 });

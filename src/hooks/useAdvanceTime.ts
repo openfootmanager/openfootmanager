@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { GameStateData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
@@ -10,9 +10,8 @@ import {
   type SkipToMatchDayResponse,
 } from "../services/advanceTimeService";
 import {
-  buildAdvanceRecap,
+  buildDigestEntries,
   toDatePart,
-  type AdvanceRecap,
 } from "../components/dashboard/advanceRecap";
 import { useDigestAdvance } from "./useDigestAdvance";
 import type { DigestEntry, DigestStopReason } from "./useDigestAdvance";
@@ -29,20 +28,21 @@ export interface AdvanceTimeState {
   setMatchMode: (v: MatchModeType) => void;
   blockerModal: BlockerModal | null;
   setBlockerModal: (v: BlockerModal | null) => void;
-  recapResults: AdvanceRecap | null;
-  setRecapResults: (v: AdvanceRecap | null) => void;
   handleContinue: (mode?: string) => Promise<void>;
   handleConfirmMatch: () => void;
   handleSkipToMatchDay: () => Promise<void>;
-  // Digest feed state (populated when continueToNextEvent is true)
+  // Digest feed state — every advance flow presents through this feed.
   digestEntries: DigestEntry[];
   digestStopReason: DigestStopReason | null;
   isDigestVisible: boolean;
   isDigestRunning: boolean;
   isDigestAborting: boolean;
-  startDigest: () => Promise<void>;
   abortDigest: () => void;
   dismissDigest: () => void;
+  /** Resume the streaming digest after an attention-event pause. */
+  resumeDigest: () => void;
+  /** Re-run the flow that hit a mid-advance blocker ("Continue Anyway"). */
+  resumeAfterBlocker: () => void;
 }
 
 export function useAdvanceTime(
@@ -60,7 +60,17 @@ export function useAdvanceTime(
   const [showMatchConfirm, setShowMatchConfirm] = useState(false);
   const [matchMode, setMatchMode] = useState<MatchModeType>("live");
   const [blockerModal, setBlockerModal] = useState<BlockerModal | null>(null);
-  const [recapResults, setRecapResults] = useState<AdvanceRecap | null>(null);
+  // How to carry on when the digest stops on a mid-advance blocker — depends
+  // on which flow (streaming Continue vs batch Skip) hit it.
+  const resumeAfterBlockerRef = useRef<() => void>(() => {});
+  // Snapshot of the current feed for appends after a blocked batch resume;
+  // a ref because runMultiDayAdvance closes over a stale `digestEntries`.
+  const digestEntriesRef = useRef<DigestEntry[]>([]);
+  // Re-entrancy guard for the backend advances (mirrors useDigestAdvance's
+  // inFlightRef). A ref, not `isAdvancing`: a double-click on "Continue
+  // Anyway" lands before the state commit re-renders, so both clicks would
+  // read the stale false and fire two concurrent backend calls.
+  const advanceInFlightRef = useRef(false);
 
   const {
     isRunning: isDigestRunning,
@@ -69,6 +79,7 @@ export function useAdvanceTime(
     stopReason: digestStopReason,
     isVisible: isDigestVisible,
     startDigest,
+    showStaticDigest,
     abortDigest,
     dismissDigest,
   } = useDigestAdvance(setGameState, () => setShowFiredModal(true));
@@ -80,6 +91,12 @@ export function useAdvanceTime(
     }
   }, [settingsLoaded, defaultMatchMode]);
 
+  // Synced post-commit: writing the ref during render could capture entries
+  // from a render React discarded.
+  useEffect(() => {
+    digestEntriesRef.current = digestEntries;
+  }, [digestEntries]);
+
   function resetTransientUi(options?: {
     showContinueMenu?: boolean;
     showMatchConfirm?: boolean;
@@ -90,7 +107,15 @@ export function useAdvanceTime(
     setBlockerModal(options?.blockerModal ?? null);
   }
 
+  const runStreamingDigest = (options?: { resume?: boolean }) => {
+    resumeAfterBlockerRef.current = () =>
+      void startDigest({ resume: true });
+    void startDigest(options);
+  };
+
   const doAdvance = async (effectiveMode: string) => {
+    if (advanceInFlightRef.current) return;
+    advanceInFlightRef.current = true;
     console.info("[useAdvanceTime] doAdvance:start", {
       effectiveMode,
       hasMatchToday,
@@ -98,7 +123,9 @@ export function useAdvanceTime(
     });
     setIsAdvancing(true);
     resetTransientUi();
-    // Clock date before advancing — the cursor for "what happened" in the recap.
+    // Any lingering feed belongs to a previous advance.
+    dismissDigest();
+    // Clock date before advancing — the cursor for "what happened" in the digest.
     const sinceDate = toDatePart(
       useGameStore.getState().gameState?.clock?.current_date,
     );
@@ -125,14 +152,16 @@ export function useAdvanceTime(
       } else if (result.action === "advanced" && result.game) {
         const game = result.game as GameStateData;
         setGameState(game);
-        setRecapResults(
-          buildAdvanceRecap(game, sinceDate, result.results ?? []),
+        showStaticDigest(
+          buildDigestEntries(game, sinceDate, result.results ?? []),
+          null,
         );
       }
     } catch (err) {
       console.error("Failed to advance time:", err);
     } finally {
       console.info("[useAdvanceTime] doAdvance:complete", { effectiveMode });
+      advanceInFlightRef.current = false;
       setIsAdvancing(false);
     }
   };
@@ -157,10 +186,10 @@ export function useAdvanceTime(
       return;
     }
     if (isAdvancing) return;
-    // With the opt-in setting, Continue runs the day-by-day digest loop instead
-    // of the silent batch advance (unless there's a match today, handled above).
+    // With the opt-in setting, Continue runs the day-by-day digest loop (which
+    // pauses on attention events) instead of the single-day advance.
     const runContinue = continueToNextEvent
-      ? () => void startDigest()
+      ? () => runStreamingDigest()
       : () => doAdvance(resolvedMode);
     const blockers = await checkBlockingActions("handleContinue");
     if (blockers.length > 0) {
@@ -180,21 +209,34 @@ export function useAdvanceTime(
     console.info("[useAdvanceTime] handleSkipToMatchDay:start");
     const blockers = await checkBlockingActions("handleSkipToMatchDay");
     if (blockers.length > 0) {
-      setBlockerModal({ blockers, pendingAction: doSkipToMatchDay });
+      setBlockerModal({ blockers, pendingAction: () => doSkipToMatchDay() });
       return;
     }
     doSkipToMatchDay();
   };
 
-  // Shared driver for the multi-day advances (Skip to Match Day and the opt-in
-  // smart Continue): both roll forward several days and end on a fired / blocked
-  // / arrived outcome, feeding the day-by-day recap.
+  // Shared driver for the batch multi-day advances: roll forward in one
+  // backend call, then present the processed days through the same digest
+  // feed the streaming loop fills. `append` keeps the existing feed when the
+  // run is a continuation after a mid-advance blocker.
   const runMultiDayAdvance = async (
     run: () => Promise<SkipToMatchDayResponse>,
     label: string,
+    options?: { append?: boolean },
   ) => {
+    // Guards the direct resumeAfterBlocker path too, which skips the
+    // isAdvancing check in handleSkipToMatchDay.
+    if (advanceInFlightRef.current) return;
+    advanceInFlightRef.current = true;
     setIsAdvancing(true);
     resetTransientUi();
+    // Drop the stop footer while the batch crunches: a resumed run keeps its
+    // feed (the new days append to it), a fresh run starts from the spinner.
+    if (options?.append) {
+      showStaticDigest(digestEntriesRef.current, null);
+    } else {
+      dismissDigest();
+    }
     const sinceDate = toDatePart(
       useGameStore.getState().gameState?.clock?.current_date,
     );
@@ -206,28 +248,37 @@ export function useAdvanceTime(
         blockerCount: result.blockers?.length ?? 0,
         hasGame: !!result.game,
       });
-      if (result.action === "fired") {
-        if (result.game) setGameState(result.game as GameStateData);
-        setShowFiredModal(true);
-        return;
-      }
       const game = result.game as GameStateData | undefined;
       if (game) setGameState(game);
-      if (result.action === "blocked" && result.blockers && result.blockers.length > 0) {
-        setBlockerModal({ blockers: result.blockers });
-      } else if (game) {
-        setRecapResults(buildAdvanceRecap(game, sinceDate, result.results ?? []));
+      if (!game) return;
+
+      const entries = buildDigestEntries(game, sinceDate, result.results ?? []);
+      const merged = options?.append ? [...digestEntriesRef.current, ...entries] : entries;
+      let stopReason: DigestStopReason | null = null;
+      if (result.action === "fired") {
+        stopReason = { kind: "fired" };
+        setShowFiredModal(true);
+      } else if (result.action === "blocked") {
+        stopReason = { kind: "blocked", blockers: result.blockers ?? [] };
+      } else {
+        // "arrived": the skip landed on the user's match day.
+        stopReason = { kind: "match_day" };
       }
+      showStaticDigest(merged, stopReason);
     } catch (err) {
       console.error(`Failed to ${label}:`, err);
     } finally {
       console.info(`[useAdvanceTime] ${label}:complete`);
+      advanceInFlightRef.current = false;
       setIsAdvancing(false);
     }
   };
 
-  const doSkipToMatchDay = () =>
-    runMultiDayAdvance(skipToMatchDay, "doSkipToMatchDay");
+  const doSkipToMatchDay = (options?: { append?: boolean }) => {
+    resumeAfterBlockerRef.current = () =>
+      void doSkipToMatchDay({ append: true });
+    return runMultiDayAdvance(skipToMatchDay, "doSkipToMatchDay", options);
+  };
 
   return {
     isAdvancing,
@@ -235,7 +286,6 @@ export function useAdvanceTime(
     showMatchConfirm, setShowMatchConfirm,
     matchMode, setMatchMode,
     blockerModal, setBlockerModal,
-    recapResults, setRecapResults,
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,
@@ -244,8 +294,9 @@ export function useAdvanceTime(
     isDigestVisible,
     isDigestRunning,
     isDigestAborting,
-    startDigest,
     abortDigest,
     dismissDigest,
+    resumeDigest: () => runStreamingDigest({ resume: true }),
+    resumeAfterBlocker: () => resumeAfterBlockerRef.current(),
   };
 }

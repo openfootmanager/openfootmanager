@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import {
   AlertTriangle,
   ArrowRightLeft,
+  Bell,
   Calendar,
   CheckCircle2,
   Loader2,
@@ -13,8 +14,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { DigestEntry, DigestStopReason } from "../../hooks/useDigestAdvance";
-import type { RecapMatch } from "./advanceRecap";
+import type { DigestStopReason } from "../../hooks/useDigestAdvance";
+import type { AttentionEventKind, DigestEntry, RecapMatch } from "./advanceRecap";
 import { getCategoryIcon } from "../inbox/inboxHelpers";
 import { formatVal } from "../../lib/valueFormatting";
 import { resolveBackendText } from "../../utils/backendI18n";
@@ -25,13 +26,28 @@ interface DashboardSimulatingModalProps {
   // Digest-mode props (optional — omit for a plain single-advance spinner)
   digestEntries?: DigestEntry[];
   isDigestRunning?: boolean;
+  /**
+   * A batch advance is crunching behind a feed that stays on screen (resume
+   * after a mid-advance blocker): present as in-progress, but without the
+   * Stop button — only the streaming loop can be aborted.
+   */
+  isBatchAdvancing?: boolean;
   isDigestAborting?: boolean;
   stopReason?: DigestStopReason | null;
   onStop?: () => void;
   onDismiss?: () => void;
   onNavigate?: (tab: string) => void;
   onContinueAfterBlocker?: () => void;
+  /** Resume the advance after an attention-event pause. */
+  onResume?: () => void;
 }
+
+const EVENT_LABEL_KEYS: Record<AttentionEventKind, string> = {
+  highPriorityInbox: "dashboard.digestEventInbox",
+  userTransfer: "dashboard.digestEventUserTransfer",
+  userNews: "dashboard.digestEventUserNews",
+  transferWindow: "dashboard.digestEventTransferWindow",
+};
 
 function ResultBadge({ result }: { result: RecapMatch["userResult"] }): JSX.Element | null {
   const { t } = useTranslation();
@@ -54,6 +70,7 @@ function ResultBadge({ result }: { result: RecapMatch["userResult"] }): JSX.Elem
 }
 
 function MatchCard({ match, idx }: { match: RecapMatch; idx: number }): JSX.Element {
+  const { t } = useTranslation();
   return (
     <div
       className="digest-event-item flex items-center gap-2.5 rounded-lg px-3 py-2 bg-primary-50/60 dark:bg-primary-900/10"
@@ -65,6 +82,14 @@ function MatchCard({ match, idx }: { match: RecapMatch; idx: number }): JSX.Elem
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
           {match.home_team} {match.home_goals}–{match.away_goals} {match.away_team}
+          {match.home_penalties != null && match.away_penalties != null && (
+            <span className="ml-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+              {t("match.shootout.shootoutScore", {
+                h: match.home_penalties,
+                a: match.away_penalties,
+              })}
+            </span>
+          )}
         </p>
         <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{match.competition}</p>
       </div>
@@ -210,12 +235,14 @@ function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
 export default function DashboardSimulatingModal({
   digestEntries,
   isDigestRunning,
+  isBatchAdvancing,
   isDigestAborting,
   stopReason,
   onStop,
   onDismiss,
   onNavigate,
   onContinueAfterBlocker,
+  onResume,
 }: DashboardSimulatingModalProps): JSX.Element {
   const { t } = useTranslation();
   const listEndRef = useRef<HTMLDivElement>(null);
@@ -224,6 +251,7 @@ export default function DashboardSimulatingModal({
     isDigestRunning === true ||
     stopReason != null;
   const isRunning = isDigestRunning ?? false;
+  const isInProgress = isRunning || (isBatchAdvancing ?? false);
 
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -255,14 +283,14 @@ export default function DashboardSimulatingModal({
         {/* Header */}
         <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-navy-700 shrink-0">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-500/15 dark:text-primary-300">
-            {isRunning ? (
+            {isInProgress ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <CheckCircle2 className="h-5 w-5" />
             )}
           </div>
           <h3 className="flex-1 text-base font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-            {isRunning
+            {isInProgress
               ? t("dashboard.digestAdvancing")
               : t("dashboard.digestDone")}
           </h3>
@@ -285,7 +313,7 @@ export default function DashboardSimulatingModal({
 
         {/* Scrollable event feed */}
         <div className="flex-1 overflow-y-auto py-3 space-y-3 min-h-0">
-          {digestEntries && digestEntries.length === 0 && !isRunning && !stopReason && (
+          {digestEntries && digestEntries.length === 0 && !isInProgress && !stopReason && (
             <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-4">
               {t("dashboard.digestEmpty")}
             </p>
@@ -295,7 +323,7 @@ export default function DashboardSimulatingModal({
             <DigestDayRow key={entry.date} entry={entry} />
           ))}
 
-          {isRunning && (
+          {isInProgress && (
             <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 py-1">
               <Loader2 className="h-3 w-3 animate-spin" />
               {t("dashboard.digestSimulating")}
@@ -306,7 +334,7 @@ export default function DashboardSimulatingModal({
         </div>
 
         {/* Close button when digest finished with no specific stop reason (natural end or user-aborted) */}
-        {!isRunning && !stopReason && digestEntries && digestEntries.length > 0 && (
+        {!isInProgress && !stopReason && digestEntries && digestEntries.length > 0 && (
           <div className="border-t border-gray-200 dark:border-navy-700 pt-4 shrink-0">
             <button
               type="button"
@@ -339,6 +367,47 @@ export default function DashboardSimulatingModal({
                 >
                   {t("dashboard.digestReturnHome")}
                 </button>
+              </div>
+            )}
+
+            {stopReason.kind === "event" && (
+              <div className="bg-sky-50 rounded-lg px-4 py-3 dark:bg-sky-900/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                  <span className="text-sm font-semibold text-sky-800 dark:text-sky-300">
+                    {t("dashboard.digestEventStop")}
+                  </span>
+                </div>
+                <p className="text-xs text-sky-700 dark:text-sky-400 mb-2">
+                  {t("dashboard.digestEventStopDesc")}
+                </p>
+                <ul className="mb-3 flex flex-col gap-1">
+                  {stopReason.events.map((event) => (
+                    <li
+                      key={event}
+                      className="flex items-center gap-1.5 text-xs font-medium text-sky-800 dark:text-sky-300"
+                    >
+                      <Square className="h-1.5 w-1.5 shrink-0 fill-current" />
+                      {t(EVENT_LABEL_KEYS[event])}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={onResume}
+                    className="w-full rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-700"
+                  >
+                    {t("dashboard.digestContinue")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDismiss}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
+                  >
+                    {t("dashboard.digestClose")}
+                  </button>
+                </div>
               </div>
             )}
 

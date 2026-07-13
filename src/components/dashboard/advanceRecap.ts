@@ -1,6 +1,7 @@
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import type { GameStateData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
+import { resolveSeasonContext } from "../../lib/seasonContext";
 
 /** Match result enriched with the user's outcome (win/draw/loss) when they were involved. */
 export interface RecapMatch extends AdvanceMatchResultData {
@@ -37,7 +38,30 @@ export interface AdvanceRecap {
   inbox: RecapHeadline[];
   /** True when anything happened during the advance (drives the empty state). */
   hasEvents: boolean;
+  /**
+   * Attention signals computed before the MAX_PER_SECTION truncation above,
+   * so a busy day can't push a user-relevant transfer or headline out of
+   * detectAttentionEvents.
+   */
+  userTransferInWindow: boolean;
+  userNewsInWindow: boolean;
 }
+
+/** One day of the digest feed: the day simulated and what it produced. */
+export interface DigestEntry {
+  date: string;
+  recap: AdvanceRecap;
+}
+
+/**
+ * Something the "Continue skips to next event" advance should pause on, beyond
+ * match days and blockers (which stop the loop before the day is processed).
+ */
+export type AttentionEventKind =
+  | "highPriorityInbox"
+  | "userTransfer"
+  | "userNews"
+  | "transferWindow";
 
 const MAX_PER_SECTION = 8;
 
@@ -68,6 +92,13 @@ function isRoutineRecapNews(article: GameStateData["news"][number]): boolean {
   );
 }
 
+/** Day after a YYYY-MM-DD day, UTC-safe. */
+export function nextDay(day: string): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 /**
  * Assemble the post-advance recap from the new game state and the clock date
  * captured *before* the advance. Match results come from the backend (already
@@ -79,19 +110,36 @@ export function buildAdvanceRecap(
   sinceDate: string,
   matches: AdvanceMatchResultData[],
 ): AdvanceRecap {
-  const advancedTo = toDatePart(game.clock?.current_date);
-  // Some news is dated at the event it announces (e.g. the World Cup kickoff
-  // article created months ahead at a season rollover; the news feed hides
-  // those until their day via utils/newsVisibility). Without an upper bound
-  // such future-dated items match `date >= sinceDate` on every subsequent
-  // advance and repeat in every digest day until their date arrives — so the
-  // recap only surfaces items dated inside the window actually simulated.
-  // The backend dates a day's events on the day it processes and then moves
-  // the clock, so the processed window is [sinceDate, advancedTo): exclusive
-  // above, leaving items dated on the landing day to the advance that will
-  // actually play that day. No clock (defensive) means no upper bound.
-  // Both bounds are day-normalized so a caller handing in a full rfc3339
-  // timestamp still gets correct `>=` comparisons.
+  return buildRecapWindow(
+    game,
+    sinceDate,
+    toDatePart(game.clock?.current_date),
+    matches,
+  );
+}
+
+/**
+ * Recap of the half-open day window [sinceDate, untilDate). Some news is dated
+ * at the event it announces (e.g. the World Cup kickoff article created months
+ * ahead at a season rollover; the news feed hides those until their day via
+ * utils/newsVisibility). Without an upper bound such future-dated items match
+ * `date >= sinceDate` on every subsequent advance and repeat in every digest
+ * day until their date arrives — so the recap only surfaces items dated inside
+ * the window actually simulated. The backend dates a day's events on the day
+ * it processes and then moves the clock, so a whole advance is
+ * [sinceDate, clock) and a single digest day is [day, nextDay(day)): exclusive
+ * above, leaving items dated on the landing day to the advance that will
+ * actually play that day. An empty untilDate (defensive, no clock) means no
+ * upper bound. Both bounds are day-normalized so a caller handing in a full
+ * rfc3339 timestamp still gets correct comparisons.
+ */
+export function buildRecapWindow(
+  game: GameStateData,
+  sinceDate: string,
+  untilDate: string,
+  matches: AdvanceMatchResultData[],
+): AdvanceRecap {
+  const advancedTo = toDatePart(untilDate);
   const sinceDay = toDatePart(sinceDate);
   const inWindow = (date: string): boolean => {
     const day = toDatePart(date);
@@ -119,8 +167,10 @@ export function buildAdvanceRecap(
   });
 
   const userCompetition = getUserCompetition(game);
-  const transfers: RecapTransfer[] = (userCompetition?.transfer_log ?? [])
-    .filter((entry) => inWindow(entry.date))
+  const windowTransfers = (userCompetition?.transfer_log ?? []).filter((entry) =>
+    inWindow(entry.date),
+  );
+  const transfers: RecapTransfer[] = windowTransfers
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((entry) => ({
@@ -133,12 +183,10 @@ export function buildAdvanceRecap(
       date: entry.date,
     }));
 
-  const news: RecapHeadline[] = (game.news ?? [])
-    .filter(
-      (article) =>
-        inWindow(article.date) &&
-        !isRoutineRecapNews(article),
-    )
+  const windowNews = (game.news ?? []).filter(
+    (article) => inWindow(article.date) && !isRoutineRecapNews(article),
+  );
+  const news: RecapHeadline[] = windowNews
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((article) => ({
@@ -168,5 +216,128 @@ export function buildAdvanceRecap(
     news.length > 0 ||
     inbox.length > 0;
 
-  return { advancedTo, matches: recapMatches, transfers, news, inbox, hasEvents };
+  const userTransferInWindow =
+    userTeamId !== null &&
+    windowTransfers.some(
+      (entry) =>
+        entry.from_team_id === userTeamId || entry.to_team_id === userTeamId,
+    );
+
+  const squadIds = new Set(
+    (game.players ?? [])
+      .filter((player) => player.team_id === userTeamId)
+      .map((player) => player.id),
+  );
+  const userNewsInWindow =
+    userTeamId !== null &&
+    windowNews.some(
+      (article) =>
+        article.team_ids.includes(userTeamId) ||
+        article.player_ids.some((id) => squadIds.has(id)),
+    );
+
+  return {
+    advancedTo,
+    matches: recapMatches,
+    transfers,
+    news,
+    inbox,
+    hasEvents,
+    userTransferInWindow,
+    userNewsInWindow,
+  };
+}
+
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+// Hard cap on synthesized digest days: the backend multi-day advances stop
+// after 60 processed days, so anything past that means bad input dates.
+const MAX_ENTRY_DAYS = 90;
+
+/**
+ * Split a batch multi-day advance (Skip to Match Day, plain Continue) into the
+ * same per-day entries the streaming digest loop produces, so every advance
+ * flow renders through the one digest feed. Day i covers [day, nextDay(day))
+ * with that day's match results. When no day window can be derived (missing
+ * or invalid clock, sinceDate not before it) the advance still renders as a
+ * single catch-all entry — dated on whichever bound is a valid day — so a
+ * successful advance never presents as an empty feed; only when neither bound
+ * is displayable does an uneventful recap produce no entry.
+ */
+export function buildDigestEntries(
+  game: GameStateData,
+  sinceDate: string,
+  results: AdvanceMatchResultData[],
+): DigestEntry[] {
+  // Day-normalized so a full rfc3339 timestamp still splits per day instead
+  // of falling through to the catch-all.
+  const sinceDay = toDatePart(sinceDate);
+  const advancedTo = toDatePart(game.clock?.current_date);
+  if (
+    !DAY_PATTERN.test(sinceDay) ||
+    !DAY_PATTERN.test(advancedTo) ||
+    sinceDay >= advancedTo
+  ) {
+    const recap = buildAdvanceRecap(game, sinceDay, results);
+    const date = DAY_PATTERN.test(sinceDay) ? sinceDay : advancedTo;
+    if (!DAY_PATTERN.test(date)) {
+      return recap.hasEvents ? [{ date: sinceDay, recap }] : [];
+    }
+    return [{ date, recap }];
+  }
+
+  const resultsByDay = new Map<string, AdvanceMatchResultData[]>();
+  for (const match of results) {
+    const day = toDatePart(match.date);
+    const bucket = resultsByDay.get(day);
+    if (bucket) bucket.push(match);
+    else resultsByDay.set(day, [match]);
+  }
+
+  const entries: DigestEntry[] = [];
+  for (
+    let day = sinceDay;
+    day < advancedTo && entries.length < MAX_ENTRY_DAYS;
+    day = nextDay(day)
+  ) {
+    entries.push({
+      date: day,
+      recap: buildRecapWindow(game, day, nextDay(day), resultsByDay.get(day) ?? []),
+    });
+  }
+  return entries;
+}
+
+/**
+ * What in a just-simulated day should pause the "Continue to next event"
+ * advance. Match days and blockers stop the loop before the day runs; these
+ * are the notable outcomes of a day that did run: a high-priority inbox item,
+ * a transfer in/out of the user's club, key news tagging the club or its
+ * players, and landing on a transfer-window open or deadline day (mirrors the
+ * backend's continue_reached_attention_event). The transfer/news signals come
+ * from the recap's pre-truncation flags, so they fire even when the item was
+ * pushed out of the displayed section by MAX_PER_SECTION.
+ */
+export function detectAttentionEvents(
+  game: GameStateData,
+  recap: AdvanceRecap,
+): AttentionEventKind[] {
+  const events: AttentionEventKind[] = [];
+
+  if (recap.inbox.length > 0) events.push("highPriorityInbox");
+  if (recap.userTransferInWindow) events.push("userTransfer");
+  if (recap.userNewsInWindow) events.push("userNews");
+
+  const window = resolveSeasonContext(game).transfer_window;
+  const landedOn = recap.advancedTo;
+  if (
+    landedOn &&
+    (window.status === "DeadlineDay" ||
+      toDatePart(window.opens_on) === landedOn ||
+      toDatePart(window.closes_on) === landedOn)
+  ) {
+    events.push("transferWindow");
+  }
+
+  return events;
 }
