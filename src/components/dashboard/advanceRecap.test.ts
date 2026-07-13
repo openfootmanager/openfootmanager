@@ -406,4 +406,27 @@ describe("advanceRecap", function (): void {
     const recap = buildAdvanceRecap(game, "2026-01-01", []);
     expect(recap.news).toHaveLength(1);
   });
+
+  it("accepts a full timestamp as sinceDate, not just a bare day", function (): void {
+    // Defence-in-depth: current callers pass YYYY-MM-DD, but the lower bound
+    // is day-normalized so an rfc3339 timestamp compares correctly too
+    // ("2026-07-01T00:00:00Z" > "2026-07-01" would wrongly exclude same-day items).
+    const game = createGame({
+      news: [
+        {
+          id: "same-day-editorial",
+          headline: "Local story",
+          body: "",
+          date: "2026-07-01",
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01T00:00:00Z", []);
+    expect(recap.news.map((article) => article.id)).toEqual(["same-day-editorial"]);
+  });
 });

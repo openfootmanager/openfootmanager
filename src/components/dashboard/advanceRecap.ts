@@ -90,9 +90,12 @@ export function buildAdvanceRecap(
   // the clock, so the processed window is [sinceDate, advancedTo): exclusive
   // above, leaving items dated on the landing day to the advance that will
   // actually play that day. No clock (defensive) means no upper bound.
+  // Both bounds are day-normalized so a caller handing in a full rfc3339
+  // timestamp still gets correct `>=` comparisons.
+  const sinceDay = toDatePart(sinceDate);
   const inWindow = (date: string): boolean => {
     const day = toDatePart(date);
-    return day >= sinceDate && (!advancedTo || day < advancedTo);
+    return day >= sinceDay && (!advancedTo || day < advancedTo);
   };
   const userTeamId = game.manager?.team_id ?? null;
 
