@@ -66,6 +66,11 @@ export function useAdvanceTime(
   // Snapshot of the current feed for appends after a blocked batch resume;
   // a ref because runMultiDayAdvance closes over a stale `digestEntries`.
   const digestEntriesRef = useRef<DigestEntry[]>([]);
+  // Re-entrancy guard for the backend advances (mirrors useDigestAdvance's
+  // inFlightRef). A ref, not `isAdvancing`: a double-click on "Continue
+  // Anyway" lands before the state commit re-renders, so both clicks would
+  // read the stale false and fire two concurrent backend calls.
+  const advanceInFlightRef = useRef(false);
 
   const {
     isRunning: isDigestRunning,
@@ -109,6 +114,8 @@ export function useAdvanceTime(
   };
 
   const doAdvance = async (effectiveMode: string) => {
+    if (advanceInFlightRef.current) return;
+    advanceInFlightRef.current = true;
     console.info("[useAdvanceTime] doAdvance:start", {
       effectiveMode,
       hasMatchToday,
@@ -154,6 +161,7 @@ export function useAdvanceTime(
       console.error("Failed to advance time:", err);
     } finally {
       console.info("[useAdvanceTime] doAdvance:complete", { effectiveMode });
+      advanceInFlightRef.current = false;
       setIsAdvancing(false);
     }
   };
@@ -216,6 +224,10 @@ export function useAdvanceTime(
     label: string,
     options?: { append?: boolean },
   ) => {
+    // Guards the direct resumeAfterBlocker path too, which skips the
+    // isAdvancing check in handleSkipToMatchDay.
+    if (advanceInFlightRef.current) return;
+    advanceInFlightRef.current = true;
     setIsAdvancing(true);
     resetTransientUi();
     // Drop the stop footer while the batch crunches: a resumed run keeps its
@@ -257,6 +269,7 @@ export function useAdvanceTime(
       console.error(`Failed to ${label}:`, err);
     } finally {
       console.info(`[useAdvanceTime] ${label}:complete`);
+      advanceInFlightRef.current = false;
       setIsAdvancing(false);
     }
   };

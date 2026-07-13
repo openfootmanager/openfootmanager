@@ -183,4 +183,34 @@ describe("useAdvanceTime", function (): void {
 
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
   });
+
+  it("fires a single backend skip when Skip is double-clicked", async function (): Promise<void> {
+    // Regression: the re-entrancy guard is a ref, not `isAdvancing` — two
+    // rapid clicks both read the stale pre-commit state, so without the ref
+    // two concurrent skip_to_match_day calls raced to setGameState.
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "check_blocking_actions") return [];
+      if (command === "skip_to_match_day") {
+        return {
+          action: "arrived",
+          days_skipped: 3,
+          results: [],
+          game: { clock: { current_date: "2026-07-05T00:00:00Z" } },
+        };
+      }
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    render(<HookHarness hasMatchToday={false} defaultMatchMode="live" />);
+
+    const skip = screen.getByRole("button", { name: "Skip" });
+    fireEvent.click(skip);
+    fireEvent.click(skip);
+
+    await waitFor(function (): void {
+      expect(
+        mockedInvoke.mock.calls.filter(([command]) => command === "skip_to_match_day"),
+      ).toHaveLength(1);
+    });
+  });
 });
