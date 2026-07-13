@@ -34,6 +34,10 @@ npm run tauri -- build --debug --no-bundle --features mcp
 Override the binary location with
 `TAURI_APP_BINARY=/path/to/binary npm run test:e2e`.
 
+Alternatively, `nix-shell shell.nix` provides `tauri-driver`,
+`WebKitWebDriver`, `xvfb-run`, and the GStreamer plugins already wired up
+— the same environment the nightly CI job uses.
+
 ## Running
 
 ```
@@ -43,6 +47,27 @@ npm run test:e2e
 Each session runs in a temp `XDG_DATA_HOME` (created in `onPrepare`,
 deleted in `onComplete`), so tests never touch your real save directory
 at `~/.local/share/com.sturdyrobot.openfootmanager/`.
+
+### Headless
+
+To run without a real display (as CI does), wrap the suite in a virtual
+X server:
+
+```
+xvfb-run -a npm run test:e2e
+```
+
+`xvfb-run` is on `PATH` inside `nix-shell shell.nix`, or install it via
+your distro (Debian/Ubuntu: `xvfb`).
+
+## Continuous integration
+
+The suite runs **nightly**, not per-PR — see
+`.github/workflows/e2e-nightly.yml`. The debug Tauri build plus a
+headless WebKitGTK WebView is too slow to gate every commit, so it runs
+on a schedule (02:30 UTC) and on manual `workflow_dispatch`. The job
+builds with `--features mcp` and runs under `xvfb-run`, installing
+`webkit2gtk-driver` and pinning `tauri-driver` to match `shell.nix`.
 
 ## Writing specs
 

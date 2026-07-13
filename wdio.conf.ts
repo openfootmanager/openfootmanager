@@ -1,7 +1,12 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { browser } from "@wdio/globals";
+
+// Failed-test screenshots land here; the nightly CI job uploads this dir
+// as an artifact so failures can be triaged without a local repro.
+const SCREENSHOT_DIR = path.resolve("./tests/e2e/screenshots");
 
 // tauri-driver bridges the WebDriver protocol to the Tauri WebView on Linux
 // (WebKitGTK) and Windows (WebView2). Must be on PATH — see
@@ -91,6 +96,7 @@ export const config: WebdriverIO.Config = {
         sessionDataDir = mkdtempSync(path.join(tmpdir(), "ofm-e2e-"));
         process.env.XDG_DATA_HOME = sessionDataDir;
         console.log(`[e2e] XDG_DATA_HOME=${sessionDataDir}`);
+        mkdirSync(SCREENSHOT_DIR, { recursive: true });
     },
 
     beforeSession() {
@@ -113,6 +119,21 @@ export const config: WebdriverIO.Config = {
                     `      Install it and ensure it is on PATH — see tests/e2e/README.md.`,
             );
         });
+    },
+
+    async afterTest(test, _context, { passed }) {
+        if (passed) return;
+        // Capture the WebView on failure. Names are derived from the test
+        // title so the artifact maps back to the failing spec.
+        const safe = test.title.replace(/[^\w-]+/g, "_").slice(0, 80);
+        try {
+            await browser.saveScreenshot(
+                path.join(SCREENSHOT_DIR, `${safe}.png`),
+            );
+        } catch {
+            // A screenshot can fail if the session already died; don't let
+            // that mask the original test failure.
+        }
     },
 
     async afterSession() {

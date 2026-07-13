@@ -47,3 +47,6 @@ test-world.json
 # trigger the file watcher and restart the app)
 /src-tauri/data/*.ofm
 /src-tauri/databases/*.ofm
+
+# e2e failure screenshots (uploaded as CI artifacts, not committed)
+tests/e2e/screenshots/

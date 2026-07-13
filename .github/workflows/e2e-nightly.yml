@@ -11,6 +11,7 @@ on:
   schedule:
     # 02:30 UTC every day.
     - cron: "30 2 * * *"
+  # Manual trigger from the Actions UI / `gh workflow run` on any branch.
   workflow_dispatch:
 
 # A newer nightly (or a manual re-run) supersedes an in-flight one.
@@ -21,10 +22,17 @@ concurrency:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    # Test-only job — it reads the repo and runs; it never writes back.
+    permissions:
+      contents: read
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # No pushes from this job, so don't leave the token in .git/config.
+          persist-credentials: false
 
       - name: Install Linux build + e2e dependencies
         run: |
@@ -73,4 +81,14 @@ jobs:
         run: npx tauri build --debug --no-bundle --ci --features mcp
 
       - name: Run e2e suite
-        run: xvfb-run -a npm run test:e2e
+        # 24-bit screen: xvfb-run's default 8-bit depth breaks WebKit rendering.
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" npm run test:e2e
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: tests/e2e/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
