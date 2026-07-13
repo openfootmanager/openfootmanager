@@ -254,7 +254,7 @@ describe("ScheduleTab", () => {
     });
 
     fireEvent.contextMenu(screen.getByTestId("schedule-fixture-fix-1"));
-    fireEvent.click(screen.getByRole("button", { name: /View team: Beta FC/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /View team: Beta FC/i }));
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });
 

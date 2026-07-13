@@ -344,10 +344,10 @@ describe("SquadTab", () => {
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Renew Contract" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Renew Contract" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Renew Contract" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("gk1", {
       openRenewal: true,
@@ -365,7 +365,7 @@ describe("SquadTab", () => {
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
 
-    fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Let Expire" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_contract_exit_intent", {
@@ -376,7 +376,7 @@ describe("SquadTab", () => {
     });
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Terminate Now" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Terminate Now" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("gk1", {
       openTermination: true,
@@ -398,7 +398,7 @@ describe("SquadTab", () => {
     const playerRow = screen.getByText("Player gk1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Add to Loan List" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Add to Loan List" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("toggle_loan_list", {
@@ -435,7 +435,7 @@ describe("SquadTab", () => {
     const playerRow = screen.getByText("Player gk1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Reopen Talks" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reopen Talks" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("clear_contract_exit_intent", {
@@ -465,7 +465,7 @@ describe("SquadTab", () => {
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
     fireEvent.click(
-      screen.getByRole("button", { name: "Delegate to youth academy" }),
+      screen.getByRole("menuitem", { name: "Delegate to youth academy" }),
     );
 
     await waitFor(() => {
@@ -505,7 +505,7 @@ describe("SquadTab", () => {
     const benchRow = screen.getByText("Player d5").closest("tr");
     expect(benchRow).not.toBeNull();
     fireEvent.contextMenu(benchRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "squad.makeStarter" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "squad.makeStarter" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {

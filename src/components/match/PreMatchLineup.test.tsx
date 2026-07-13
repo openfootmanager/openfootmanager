@@ -276,7 +276,7 @@ describe("PreMatchLineup component", () => {
 
     fireEvent.contextMenu(screen.getByTestId("pre-match-starter-m1"));
     fireEvent.click(
-      within(screen.getByRole("menu")).getByRole("button", {
+      within(screen.getByRole("menu")).getByRole("menuitem", {
         name: "Select for swap",
       }),
     );
@@ -303,7 +303,7 @@ describe("PreMatchLineup component", () => {
 
     fireEvent.contextMenu(screen.getByTestId("pre-match-starter-m1"));
     fireEvent.click(
-      within(screen.getByRole("menu")).getByRole("button", {
+      within(screen.getByRole("menu")).getByRole("menuitem", {
         name: "match.cancel",
       }),
     );
@@ -331,7 +331,7 @@ describe("PreMatchLineup component", () => {
 
     fireEvent.contextMenu(screen.getByTestId("pre-match-bench-b1"));
     fireEvent.click(
-      within(screen.getByRole("menu")).getByRole("button", {
+      within(screen.getByRole("menu")).getByRole("menuitem", {
         name: "Swap with selected starter",
       }),
     );

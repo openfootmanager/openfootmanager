@@ -203,7 +203,7 @@ describe("ScoutingAssignmentsList", () => {
     );
 
     fireEvent.contextMenu(screen.getByTestId("scouting-assignment-assignment-1"));
-    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });

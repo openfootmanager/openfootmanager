@@ -955,7 +955,7 @@ describe("TacticsTab", () => {
     const benchRow = screen.getByTestId("bench-player-d5");
     fireEvent.contextMenu(benchRow);
     fireEvent.click(
-      screen.getByRole("button", { name: "tactics.promoteToLineup" }),
+      screen.getByRole("menuitem", { name: "tactics.promoteToLineup" }),
     );
 
     await waitFor(() => {
@@ -988,7 +988,7 @@ describe("TacticsTab", () => {
 
     fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(
-      screen.getByRole("button", { name: "tactics.moveToBench" }),
+      screen.getByRole("menuitem", { name: "tactics.moveToBench" }),
     );
 
     await waitFor(() => {
@@ -1021,7 +1021,7 @@ describe("TacticsTab", () => {
 
     fireEvent.contextMenu(screen.getByTestId("xi-player-d1"));
     fireEvent.click(
-      screen.getByRole("button", { name: "tactics.makeCaptain" }),
+      screen.getByRole("menuitem", { name: "tactics.makeCaptain" }),
     );
 
     await waitFor(() => {
@@ -1044,7 +1044,7 @@ describe("TacticsTab", () => {
 
     fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(
-      screen.getByRole("button", { name: "tactics.makeCaptain" }),
+      screen.getByRole("menuitem", { name: "tactics.makeCaptain" }),
     );
 
     await waitFor(() => {

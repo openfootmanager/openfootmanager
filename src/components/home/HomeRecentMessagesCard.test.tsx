@@ -76,7 +76,7 @@ describe("HomeRecentMessagesCard", () => {
     );
 
     fireEvent.contextMenu(screen.getByText("Welcome"));
-    fireEvent.click(screen.getByRole("button", { name: "Open message" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open message" }));
 
     expect(onNavigate).toHaveBeenCalledWith("Inbox", { messageId: "message-1" });
   });

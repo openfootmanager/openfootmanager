@@ -69,6 +69,7 @@ export default function PlayerProfileActionsMenu({
     const { t } = useTranslation();
     const menuRef = useRef<ContextMenuHandle>(null);
     const [mutationPending, setMutationPending] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
 
     // No management action applies to a retired player, regardless of
     // which club last held their contract.
@@ -221,14 +222,18 @@ export default function PlayerProfileActionsMenu({
     }
 
     return (
-        <ContextMenu ref={menuRef} items={items}>
+        <ContextMenu ref={menuRef} items={items} onOpenChange={setMenuOpen}>
             <Button
                 size="sm"
                 variant="outline"
                 onClick={(event) => {
+                    event.stopPropagation();
                     const rect = event.currentTarget.getBoundingClientRect();
                     menuRef.current?.open(rect.left, rect.bottom + 4);
                 }}
+                aria-label={t("common.playerActions", { name: player.match_name })}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
             >
                 {t("common.actions")}
                 <ChevronDown className="w-4 h-4 ml-1" />

@@ -746,7 +746,7 @@ describe("TransfersTab", function (): void {
       expect(playerRow).not.toBeNull();
 
       fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-      fireEvent.click(screen.getByRole("button", { name: "Scout" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Scout" }));
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
@@ -1599,7 +1599,7 @@ describe("TransfersTab", function (): void {
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
     fireEvent.click(
-      screen.getByRole("button", { name: "Remove from transfer list" }),
+      screen.getByRole("menuitem", { name: "Remove from transfer list" }),
     );
 
     await waitFor(function (): void {
@@ -1635,7 +1635,7 @@ describe("TransfersTab", function (): void {
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Add to loan list" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Add to loan list" }));
 
     await waitFor(function (): void {
       expect(screen.getByRole("alert")).toHaveTextContent(

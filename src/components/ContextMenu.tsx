@@ -28,24 +28,47 @@ export interface ContextMenuHandle {
 interface ContextMenuProps {
   items: ContextMenuItem[];
   children: React.ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
-  function ContextMenu({ items, children }, ref) {
+  function ContextMenu({ items, children, onOpenChange }, ref) {
     const [visible, setVisible] = useState(false);
     const [pos, setPos] = useState({ x: 0, y: 0 });
     const menuRef = useRef<HTMLDivElement>(null);
     const instanceId = useRef(Math.random().toString(36));
+    const triggerRef = useRef<HTMLElement | null>(null);
+    const onOpenChangeRef = useRef(onOpenChange);
+
+    useEffect(() => {
+      onOpenChangeRef.current = onOpenChange;
+    }, [onOpenChange]);
+
+    const setOpen = useCallback((next: boolean) => {
+      // Notify only on real transitions so consumers wiring aria-expanded on
+      // their trigger don't get spurious "closed" pings when closeFromOther
+      // fires while we're already closed.
+      setVisible((prev) => {
+        if (prev !== next) onOpenChangeRef.current?.(next);
+        return next;
+      });
+    }, []);
+
+    const closeAndRestoreFocus = useCallback(() => {
+      setOpen(false);
+      triggerRef.current?.focus();
+    }, [setOpen]);
 
     const openAt = useCallback((x: number, y: number) => {
       window.dispatchEvent(
         new CustomEvent("close-context-menus", { detail: instanceId.current }),
       );
+      triggerRef.current = document.activeElement as HTMLElement | null;
       const clampedX = Math.min(x, window.innerWidth - 200);
       const clampedY = Math.min(y, window.innerHeight - 300);
       setPos({ x: clampedX, y: clampedY });
-      setVisible(true);
-    }, []);
+      setOpen(true);
+    }, [setOpen]);
 
     useImperativeHandle(ref, () => ({ open: openAt }), [openAt]);
 
@@ -58,23 +81,35 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
     useEffect(() => {
       const closeFromOther = (e: Event) => {
         const detail = (e as CustomEvent).detail;
-        if (detail !== instanceId.current) setVisible(false);
+        if (detail !== instanceId.current) setOpen(false);
       };
       window.addEventListener("close-context-menus", closeFromOther);
       return () =>
         window.removeEventListener("close-context-menus", closeFromOther);
-    }, []);
+    }, [setOpen]);
 
     useEffect(() => {
       if (!visible) return;
-      const close = () => setVisible(false);
+      const close = () => setOpen(false);
+      const closeOnEscape = (e: KeyboardEvent) => {
+        if (e.key !== "Escape") return;
+        closeAndRestoreFocus();
+      };
       window.addEventListener("click", close);
       window.addEventListener("scroll", close, true);
+      window.addEventListener("keydown", closeOnEscape);
+      // Move keyboard focus into the menu so arrow-key navigation / Enter
+      // selection is available without tabbing through the rest of the page.
+      const firstItem = menuRef.current?.querySelector<HTMLButtonElement>(
+        'button[role="menuitem"]:not([disabled])',
+      );
+      firstItem?.focus();
       return () => {
         window.removeEventListener("click", close);
         window.removeEventListener("scroll", close, true);
+        window.removeEventListener("keydown", closeOnEscape);
       };
-    }, [visible]);
+    }, [visible, setOpen, closeAndRestoreFocus]);
 
     const trigger = isValidElement(children) ? (
       cloneElement(children, {
@@ -119,9 +154,10 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
                 ) : (
                   <button
                     key={i}
+                    role="menuitem"
                     onClick={() => {
                       item.onClick?.();
-                      setVisible(false);
+                      closeAndRestoreFocus();
                     }}
                     disabled={item.disabled}
                     className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${

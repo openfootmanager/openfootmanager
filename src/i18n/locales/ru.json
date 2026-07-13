@@ -450,6 +450,7 @@
     "viewTeam": "Открыть команду",
     "player": "Игрок",
     "actions": "Действия",
+    "playerActions": "Действия игрока {{name}}",
     "position": "Позиция",
     "nationality": "Национальность",
     "contract": "Контракт",

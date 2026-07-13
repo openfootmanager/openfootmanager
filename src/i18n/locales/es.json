@@ -482,6 +482,7 @@
     "viewTeam": "Ver equipo",
     "player": "Jugador",
     "actions": "Acciones",
+    "playerActions": "Acciones para {{name}}",
     "position": "Posición",
     "nationality": "Nacionalidad",
     "contract": "Contrato",

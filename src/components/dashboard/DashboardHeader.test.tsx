@@ -144,7 +144,7 @@ describe("DashboardHeader", () => {
         );
 
         fireEvent.contextMenu(screen.getByTestId("dashboard-search-player-player-1"));
-        fireEvent.click(screen.getByRole("button", { name: "View team" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
         expect(onSelectSearchTeam).toHaveBeenCalledWith("team-1");
         expect(onSelectSearchPlayer).not.toHaveBeenCalled();

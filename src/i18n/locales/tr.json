@@ -454,6 +454,7 @@
     "viewTeam": "Takımı görüntüle",
     "player": "Oyuncu",
     "actions": "İşlemler",
+    "playerActions": "{{name}} için oyuncu işlemleri",
     "position": "Pozisyon",
     "nationality": "Uyruk",
     "contract": "Sözleşme",
