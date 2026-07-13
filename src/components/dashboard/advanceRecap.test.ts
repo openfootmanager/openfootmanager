@@ -145,10 +145,12 @@ describe("advanceRecap", function (): void {
     const game = createGame({
       news: [
         {
-          id: "loan-news-player-1-team-2-team-1-2026-07-02",
+          id: "loan-news-player-1-team-2-team-1-2026-07-01",
           headline: "",
           body: "",
-          date: "2026-07-02",
+          // Dated on the processed day: the backend stamps a day's events
+          // before the clock moves on to 2026-07-02.
+          date: "2026-07-01",
           category: "TransferRumour",
           team_ids: ["team-1", "team-2"],
           player_ids: ["player-1"],
@@ -166,7 +168,7 @@ describe("advanceRecap", function (): void {
           id: "ordinary-rumour",
           headline: "Rumour mill",
           body: "",
-          date: "2026-07-02",
+          date: "2026-07-01",
           category: "TransferRumour",
           team_ids: ["team-2"],
           player_ids: ["player-1"],
@@ -178,7 +180,7 @@ describe("advanceRecap", function (): void {
     const recap = buildAdvanceRecap(game, "2026-07-01", []);
 
     expect(recap.news.map((article) => article.id)).toEqual([
-      "loan-news-player-1-team-2-team-1-2026-07-02",
+      "loan-news-player-1-team-2-team-1-2026-07-01",
     ]);
     expect(recap.news[0]).toMatchObject({
       textKey: "be.news.loanMove.headline",
@@ -265,5 +267,166 @@ describe("advanceRecap", function (): void {
     const recap = buildAdvanceRecap(createGame(), "2026-07-01", [matchOnDay]);
     expect(recap.matches).toHaveLength(1);
     expect(recap.hasEvents).toBe(true);
+  });
+
+  // Regression: the World Cup kickoff article is dated at the tournament's
+  // kickoff, months after the rollover that creates it. Without an upper bound
+  // on the recap window it matched `date >= sinceDate` on every advance and
+  // repeated in every digest day until June.
+  function kickoffArticle(date: string) {
+    return {
+      id: "world_cup_kickoff_2026",
+      headline: "",
+      body: "",
+      date,
+      category: "Editorial",
+      team_ids: [],
+      player_ids: [],
+      read: false,
+      headline_key: "be.news.worldCupKickoff.headline",
+      i18n_params: { year: "2026", nations: "48" },
+    };
+  }
+
+  it("keeps future-dated news out of days before the event", function (): void {
+    // Advancing Jan 1 → Jan 2 with the kickoff article dated June 11. A
+    // same-day article proves the window is the non-empty [Jan 1, Jan 2) and
+    // only the future-dated item is excluded.
+    const game = createGame({
+      clock: { current_date: "2026-01-02T00:00:00Z", start_date: "2026-01-01T00:00:00Z" },
+      news: [
+        kickoffArticle("2026-06-11"),
+        {
+          id: "same-day-editorial",
+          headline: "Local story",
+          body: "",
+          date: "2026-01-01",
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-01-01", []);
+    expect(recap.news.map((article) => article.id)).toEqual(["same-day-editorial"]);
+  });
+
+  it("surfaces future-dated news exactly on the day it is dated", function (): void {
+    // The digest builds each entry with sinceDate == the day just processed
+    // and the clock already moved to the next day, so the window is
+    // [sinceDate, clock): the article appears in the June 11 entry only.
+    const entryFor = (processedDay: string, clockAfter: string) =>
+      buildAdvanceRecap(
+        createGame({
+          clock: {
+            current_date: `${clockAfter}T00:00:00Z`,
+            start_date: "2026-01-01T00:00:00Z",
+          },
+          news: [kickoffArticle("2026-06-11")],
+        } as unknown as Partial<GameStateData>),
+        processedDay,
+        [],
+      );
+
+    const dayBefore = entryFor("2026-06-10", "2026-06-11");
+    expect(dayBefore.news).toEqual([]);
+
+    const onTheDay = entryFor("2026-06-11", "2026-06-12");
+    expect(onTheDay.news).toHaveLength(1);
+    expect(onTheDay.news[0].textKey).toBe("be.news.worldCupKickoff.headline");
+
+    const dayAfter = entryFor("2026-06-12", "2026-06-13");
+    expect(dayAfter.news).toEqual([]);
+  });
+
+  it("keeps future-dated inbox messages and transfers out of earlier days", function (): void {
+    const game = createGame({
+      clock: { current_date: "2026-01-02T00:00:00Z", start_date: "2026-01-01T00:00:00Z" },
+      messages: [
+        {
+          id: "future-msg",
+          subject: "Scheduled briefing",
+          body: "",
+          date: "2026-06-11",
+          read: false,
+          priority: "High",
+          category: "LeagueInfo",
+        },
+        {
+          id: "same-day-msg",
+          subject: "Board note",
+          body: "",
+          date: "2026-01-01",
+          read: false,
+          priority: "High",
+          category: "LeagueInfo",
+        },
+      ],
+      league: {
+        id: "league-1",
+        name: "League",
+        season: 1,
+        participant_ids: ["team-1", "team-2"],
+        fixtures: [],
+        standings: [],
+        transfer_log: [
+          {
+            date: "2026-06-11",
+            from_team_id: "team-2",
+            to_team_id: "team-3",
+            player_id: "player-1",
+            fee: 1_000_000,
+          },
+          {
+            date: "2026-01-01",
+            from_team_id: "team-2",
+            to_team_id: "team-3",
+            player_id: "player-1",
+            fee: 500_000,
+          },
+        ],
+      },
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-01-01", []);
+    expect(recap.inbox.map((item) => item.id)).toEqual(["same-day-msg"]);
+    expect(recap.transfers.map((transfer) => transfer.fee)).toEqual([500_000]);
+  });
+
+  it("still includes same-window items when the clock is missing", function (): void {
+    // A defensive path: with no clock the window has no upper bound, so
+    // behavior falls back to the old `>= sinceDate` filter.
+    const game = createGame({
+      clock: null,
+      news: [kickoffArticle("2026-06-11")],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-01-01", []);
+    expect(recap.news).toHaveLength(1);
+  });
+
+  it("accepts a full timestamp as sinceDate, not just a bare day", function (): void {
+    // Defence-in-depth: current callers pass YYYY-MM-DD, but the lower bound
+    // is day-normalized so an rfc3339 timestamp compares correctly too
+    // ("2026-07-01T00:00:00Z" > "2026-07-01" would wrongly exclude same-day items).
+    const game = createGame({
+      news: [
+        {
+          id: "same-day-editorial",
+          headline: "Local story",
+          body: "",
+          date: "2026-07-01",
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01T00:00:00Z", []);
+    expect(recap.news.map((article) => article.id)).toEqual(["same-day-editorial"]);
   });
 });

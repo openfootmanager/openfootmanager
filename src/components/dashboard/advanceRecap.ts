@@ -80,6 +80,23 @@ export function buildAdvanceRecap(
   matches: AdvanceMatchResultData[],
 ): AdvanceRecap {
   const advancedTo = toDatePart(game.clock?.current_date);
+  // Some news is dated at the event it announces (e.g. the World Cup kickoff
+  // article created months ahead at a season rollover; the news feed hides
+  // those until their day via utils/newsVisibility). Without an upper bound
+  // such future-dated items match `date >= sinceDate` on every subsequent
+  // advance and repeat in every digest day until their date arrives — so the
+  // recap only surfaces items dated inside the window actually simulated.
+  // The backend dates a day's events on the day it processes and then moves
+  // the clock, so the processed window is [sinceDate, advancedTo): exclusive
+  // above, leaving items dated on the landing day to the advance that will
+  // actually play that day. No clock (defensive) means no upper bound.
+  // Both bounds are day-normalized so a caller handing in a full rfc3339
+  // timestamp still gets correct `>=` comparisons.
+  const sinceDay = toDatePart(sinceDate);
+  const inWindow = (date: string): boolean => {
+    const day = toDatePart(date);
+    return day >= sinceDay && (!advancedTo || day < advancedTo);
+  };
   const userTeamId = game.manager?.team_id ?? null;
 
   const teamName = new Map((game.teams ?? []).map((team) => [team.id, team.name]));
@@ -103,7 +120,7 @@ export function buildAdvanceRecap(
 
   const userCompetition = getUserCompetition(game);
   const transfers: RecapTransfer[] = (userCompetition?.transfer_log ?? [])
-    .filter((entry) => entry.date >= sinceDate)
+    .filter((entry) => inWindow(entry.date))
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((entry) => ({
@@ -119,7 +136,7 @@ export function buildAdvanceRecap(
   const news: RecapHeadline[] = (game.news ?? [])
     .filter(
       (article) =>
-        article.date >= sinceDate &&
+        inWindow(article.date) &&
         !isRoutineRecapNews(article),
     )
     .sort((left, right) => right.date.localeCompare(left.date))
@@ -133,7 +150,7 @@ export function buildAdvanceRecap(
     }));
 
   const inbox: RecapHeadline[] = (game.messages ?? [])
-    .filter((message) => message.date >= sinceDate && message.priority === "High")
+    .filter((message) => inWindow(message.date) && message.priority === "High")
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((message) => ({
