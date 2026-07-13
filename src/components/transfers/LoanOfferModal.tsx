@@ -2,7 +2,12 @@ import { BadgeEuro, CalendarClock, CalendarDays, Percent } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
-import { formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import {
+  formatExactMoney,
+  formatVal,
+  getTeamName,
+  positionBadgeVariant,
+} from "../../lib/helpers";
 import { formatDate } from "../../lib/dateFormatting";
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -223,7 +228,7 @@ export function LoanOfferForm({
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
           {t("transfers.loanWageSummary", {
             percent: wageContributionPct,
-            wage: formatVal(Math.round((loanTarget.wage * wageContributionPct) / 100)),
+            wage: formatExactMoney(Math.round((loanTarget.wage * wageContributionPct) / 100)),
           })}
         </p>
 
@@ -265,7 +270,7 @@ export function LoanOfferForm({
         {buyOptionEnabled && Number(buyOptionFee) > 0 ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
             {t("transfers.loanBuyOptionSummary", {
-              fee: formatVal(Number(buyOptionFee)),
+              fee: formatExactMoney(Number(buyOptionFee)),
             })}
           </p>
         ) : null}
@@ -295,7 +300,7 @@ export function LoanOfferForm({
             {suggestedTerms.buyOptionFee ? (
               <p className="mt-1">
                 {t("transfers.loanCounterSuggestedBuyOption", {
-                  fee: formatVal(suggestedTerms.buyOptionFee),
+                  fee: formatExactMoney(suggestedTerms.buyOptionFee),
                 })}
               </p>
             ) : null}

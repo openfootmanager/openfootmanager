@@ -23,6 +23,8 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalProjectionRunway") {
         return `Cash runway ${params?.before} -> ${params?.after}`;
       }
+      if (key === "finances.runwayWeeks") return `${params?.count} weeks`;
+      if (key === "finances.runwayStable") return "Stable";
       if (key === "playerProfile.renewalBudgetWarning") return "Budget warning";
       if (key === "playerProfile.renewalConversationTitle") return "Negotiation pulse";
       if (key === "playerProfile.renewalRound") return `Round ${params?.count}`;
@@ -185,6 +187,10 @@ describe("FreeAgentContractModal", () => {
     expect(screen.getByText("Projected financial impact")).toBeInTheDocument();
     expect(screen.getByText("Offer accepted")).toBeInTheDocument();
     expect(screen.getByLabelText("Contract Length")).toHaveAttribute("max", "5");
+    // Cash runway now carries a unit instead of a bare number (#300).
+    expect(
+      screen.getByText("Cash runway 42 weeks -> 31 weeks"),
+    ).toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions", () => {

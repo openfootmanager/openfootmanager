@@ -7,6 +7,7 @@ import type {
   TransferOfferData,
 } from "../../store/gameStore";
 import {
+  formatExactMoney,
   formatVal,
   getTeamName,
   positionBadgeVariant,
@@ -140,8 +141,8 @@ export function TransferBidForm({
                 ? "transfers.bidImpactTransferBudgetDeferred"
                 : "transfers.bidImpactTransferBudget",
               {
-                before: formatVal(bidProjection.transfer_budget_before),
-                after: formatVal(bidProjection.transfer_budget_after),
+                before: formatExactMoney(bidProjection.transfer_budget_before),
+                after: formatExactMoney(bidProjection.transfer_budget_after),
                 date: bidProjection.pending_registration_date ?? "",
               },
             )}
@@ -152,11 +153,27 @@ export function TransferBidForm({
                 ? "transfers.bidImpactBalanceDeferred"
                 : "transfers.bidImpactBalance",
               {
-                before: formatVal(bidProjection.finance_before),
-                after: formatVal(bidProjection.finance_after),
+                before: formatExactMoney(bidProjection.finance_before),
+                after: formatExactMoney(bidProjection.finance_after),
                 date: bidProjection.pending_registration_date ?? "",
               },
             )}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            {t("transfers.bidImpactWageBill", {
+              before: formatExactMoney(bidProjection.current_weekly_wage_spend),
+              after: formatExactMoney(bidProjection.projected_weekly_wage_spend),
+            })}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            {t("transfers.bidImpactWeeklyWageBudget", {
+              budget: formatExactMoney(bidProjection.weekly_wage_budget),
+            })}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            {t("transfers.bidImpactIncomingWage", {
+              wage: formatExactMoney(bidProjection.incoming_player_weekly_wage),
+            })}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-300">
             {t("transfers.bidImpactWagePressure", {

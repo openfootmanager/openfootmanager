@@ -1256,6 +1256,9 @@
     }
   },
   "transfers": {
+    "bidImpactWageBill": "Wöchentliche Gehaltssumme {{before}} → {{after}}",
+    "bidImpactWeeklyWageBudget": "Wöchentliches Gehaltsbudget {{budget}}",
+    "bidImpactIncomingWage": "Gehalt des Spielers {{wage}} / Woche",
     "centre": "Transferzentrum",
     "transferWindow": "{{team}} — Transferfenster",
     "myTransferList": "Meine Transferliste",

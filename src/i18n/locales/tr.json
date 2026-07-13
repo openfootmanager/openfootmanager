@@ -1256,6 +1256,9 @@
     }
   },
   "transfers": {
+    "bidImpactWageBill": "Haftalık maaş gideri {{before}} → {{after}}",
+    "bidImpactWeeklyWageBudget": "Haftalık maaş bütçesi {{budget}}",
+    "bidImpactIncomingWage": "Oyuncu maaşı {{wage}} / hafta",
     "centre": "Transfer Merkezi",
     "transferWindow": "{{team}} — Transfer Dönemi",
     "myTransferList": "Transfer Listem",

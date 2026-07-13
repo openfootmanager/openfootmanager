@@ -636,6 +636,7 @@ mod tests {
         player.team_id = Some("team-2".to_string());
         player.contract_end = Some("2028-06-30".to_string());
         player.market_value = 1_000_000;
+        player.wage = 52_000;
         player.morale = 35;
         player.stats.appearances = 1;
         player
@@ -1131,6 +1132,21 @@ mod tests {
         // Window is open in the fixture — the debit fires today, no deferred
         // registration date to surface.
         assert!(response.projection.pending_registration_date.is_none());
+        // Weekly wage figures are the annual ones divided by 52 (#300).
+        assert_eq!(
+            response.projection.current_weekly_wage_spend,
+            response.projection.annual_wage_bill_before / 52
+        );
+        assert_eq!(
+            response.projection.projected_weekly_wage_spend,
+            response.projection.annual_wage_bill_after / 52
+        );
+        assert_eq!(
+            response.projection.weekly_wage_budget,
+            response.projection.annual_wage_budget / 52
+        );
+        // Target's annual wage is 52_000 → exactly 1_000/week.
+        assert_eq!(response.projection.incoming_player_weekly_wage, 1_000);
     }
 
     #[test]

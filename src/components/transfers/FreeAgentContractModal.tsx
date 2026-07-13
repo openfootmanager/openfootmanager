@@ -5,7 +5,12 @@ import type { FreeAgentContractProjection } from "../../services/freeAgentServic
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import NegotiationFeedbackPanel from "../NegotiationFeedbackPanel";
 import { Badge } from "../ui";
-import { formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import {
+  formatExactMoney,
+  formatVal,
+  getTeamName,
+  positionBadgeVariant,
+} from "../../lib/helpers";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
 const MAX_CONTRACT_YEARS = 5;
@@ -49,6 +54,13 @@ export function FreeAgentContractForm({
 }: FreeAgentContractFormProps) {
   const { t } = useTranslation();
   const titleId = `free-agent-contract-title-${player.id}`;
+
+  // Cash runway is a week count, or null/undefined when cash-flow is positive
+  // (no finite runway → "stable"). Shared by the before/after readouts.
+  const formatRunway = (weeks: number | null | undefined): string =>
+    weeks === null || weeks === undefined
+      ? t("finances.runwayStable")
+      : t("finances.runwayWeeks", { count: weeks });
 
   return (
     <>
@@ -120,8 +132,8 @@ export function FreeAgentContractForm({
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionWageBill", {
-                before: formatVal(projection.current_weekly_wage_spend),
-                after: formatVal(projection.projected_weekly_wage_spend),
+                before: formatExactMoney(projection.current_weekly_wage_spend),
+                after: formatExactMoney(projection.projected_weekly_wage_spend),
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -140,8 +152,8 @@ export function FreeAgentContractForm({
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionRunway", {
-                before: projection.current_cash_runway_weeks ?? "∞",
-                after: projection.projected_cash_runway_weeks ?? "∞",
+                before: formatRunway(projection.current_cash_runway_weeks),
+                after: formatRunway(projection.projected_cash_runway_weeks),
               })}
             </p>
             {!projection.policy_allows ? (

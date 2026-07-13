@@ -1256,6 +1256,9 @@
     }
   },
   "transfers": {
+    "bidImpactWageBill": "Týdenní mzdové náklady {{before}} → {{after}}",
+    "bidImpactWeeklyWageBudget": "Týdenní mzdový rozpočet {{budget}}",
+    "bidImpactIncomingWage": "Mzda hráče {{wage}} / týden",
     "centre": "Přestupové centrum",
     "transferWindow": "{{team}} — Přestupové okno",
     "myTransferList": "Moje přestupová listina",
