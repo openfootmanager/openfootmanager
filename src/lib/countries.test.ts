@@ -157,6 +157,25 @@ describe("allNationalities", () => {
     expect(codes).toContain("IE");
     expect(codes).not.toContain("GB");
   });
+
+  it("restricts the list to the allow-list when one is given (#270)", () => {
+    // Simulates the backend NATION_CATALOG being the source of truth: only
+    // catalog codes are offered, so no selectable nationality can fail import.
+    const list = allNationalities("en", ["ENG", "BR", "AM", "GW"]);
+    const codes = list.map((country) => country.code);
+
+    expect(codes.sort()).toEqual(["AM", "BR", "ENG", "GW"]);
+    // A valid ISO country outside the allow-list must not appear.
+    expect(codes).not.toContain("FR");
+  });
+
+  it("falls back to the full ISO list when the allow-list is empty or absent", () => {
+    const withEmpty = allNationalities("en", []).map((country) => country.code);
+    const withNull = allNationalities("en", null).map((country) => country.code);
+
+    expect(withEmpty).toContain("FR");
+    expect(withNull).toContain("FR");
+  });
 });
 
 // ---------------------------------------------------------------------------

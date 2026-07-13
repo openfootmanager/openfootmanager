@@ -28,9 +28,41 @@ fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::
 fn load_world_data_from_package(dir: &str) -> Result<ofm_core::generator::WorldData, String> {
     let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(dir));
     if !errors.is_empty() {
-        return Err("be.error.package.invalid".to_string());
+        return Err(first_package_error_message(&errors));
     }
     ofm_core::generator::build_world_from_package(&package)
+}
+
+/// Surface the first concrete validation error (e.g. *which* country is unknown)
+/// rather than a generic "invalid package", so a failed import is diagnosable.
+/// Uses the `key?param=value` convention `resolveBackendError` understands (see
+/// `src/utils/backendI18n.ts`); the `country` param is localised frontend-side.
+fn first_package_error_message(errors: &[ofm_core::generator::PackageError]) -> String {
+    let Some(first) = errors.first() else {
+        return "be.error.package.invalid".to_string();
+    };
+    if first.params.is_empty() {
+        return first.code.clone();
+    }
+    let query = first
+        .params
+        .iter()
+        .map(|(key, value)| format!("{}={}", encode_error_param(key), encode_error_param(value)))
+        .collect::<Vec<_>>()
+        .join("&");
+    format!("{}?{}", first.code, query)
+}
+
+/// Minimal percent-encoding for error-message query params so the frontend's
+/// `URLSearchParams` parse stays intact for ids/names with reserved characters.
+fn encode_error_param(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+            _ => c.to_string().bytes().map(|b| format!("%{b:02X}")).collect(),
+        })
+        .collect()
 }
 
 pub(crate) fn map_save_manager_lock_error<T>(
@@ -237,7 +269,7 @@ fn load_world_data_from_package_ids(
         let path = packages_dir.join(format!("{id}.ofm"));
         let (pkg, errors) = ofm_core::generator::load_world_package_from_ofm(&path);
         if !errors.is_empty() {
-            return Err("be.error.package.invalid".to_string());
+            return Err(first_package_error_message(&errors));
         }
         let version = pkg
             .meta
@@ -254,7 +286,7 @@ fn load_world_data_from_package_ids(
     }
     let (merged, errors) = ofm_core::generator::merge_world_packages(loaded);
     if !errors.is_empty() {
-        return Err("be.error.package.invalid".to_string());
+        return Err(first_package_error_message(&errors));
     }
     let world = ofm_core::generator::build_world_from_package(&merged)?;
     if world.teams.is_empty() {
