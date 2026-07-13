@@ -96,7 +96,7 @@ Defines a football club.
 | `reputationRange` | [integer, integer] or null | no | `null` | `[min, max]` reputation (0–1000). The game draws a random value in this range at world generation. Higher = more prestigious. |
 | `financeRange` | [integer, integer] or null | no | `null` | `[min, max]` budget in euros. The game draws a random value in this range at world generation. |
 | `logo` | string or null | no | `null` | Relative path to the team's logo image inside the package. Example: `"assets/logos/manchester-city.png"`. |
-| `foundedYear` | integer or null | no | `null` | Year the team was founded. Example: `2005`. |
+| `foundedYear` | integer or null | no | `null` | Year the team was founded. If omitted or `null`, the game draws a random year between 1880 and 1959 at world generation. Example: `2005`. |
 
 **Example:**
 ```json
