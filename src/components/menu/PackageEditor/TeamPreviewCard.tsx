@@ -72,7 +72,7 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
                 {team.shortName}
               </p>
             )}
-            {team.foundedYear && (
+            {team.foundedYear != null && (
               <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5">
                 {t("teams.est")} {team.foundedYear}
               </p>
