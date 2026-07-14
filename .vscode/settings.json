@@ -8,6 +8,5 @@
     "**/*.rpa": true,
     "**/*.rpymc": true,
     "**/cache/": true
-  },
-  "markdown.validate.enabled": true
+  }
 }
