@@ -2322,6 +2322,45 @@ colors:
     }
 
     #[test]
+    fn player_condition_out_of_range_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\ncondition: 101\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == PLAYER_FIELD_OUT_OF_RANGE),
+            "condition above 100 must produce a PLAYER_FIELD_OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn player_morale_out_of_range_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\nmorale: 150\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == PLAYER_FIELD_OUT_OF_RANGE),
+            "morale above 100 must produce a PLAYER_FIELD_OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn player_career_with_unknown_team_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\ncareer:\n  - season: 2019\n    teamId: ghost-club\n    teamName: Ghost Club\n    appearances: 10\n    goals: 2\n    assists: 1\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == UNKNOWN_TEAM),
+            "a career entry referencing an undefined team must produce an UNKNOWN_TEAM error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn in_bounds_ranges_are_accepted() {
         let (_, errors, dir) = package_from_files(&[(
             "a.yaml",
