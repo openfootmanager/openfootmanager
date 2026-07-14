@@ -1,6 +1,6 @@
 name: "🐛 Reporte de Bug (Español)"
 description: "Reporta un bug o crash en español"
-labels: ["bug", "beta"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:

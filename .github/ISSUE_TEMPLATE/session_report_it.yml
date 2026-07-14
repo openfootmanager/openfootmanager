@@ -1,6 +1,6 @@
 name: "🎮 Resoconto di Sessione (Italiano)"
 description: "Condividi un riepilogo della tua sessione di gioco in italiano"
-labels: ["session-report", "beta"]
+labels: ["session-report"]
 body:
   - type: markdown
     attributes:

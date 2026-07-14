@@ -1,6 +1,6 @@
 name: "\U0001F4AC Feedback / Suggestion (English)"
 description: "Share feedback or suggest improvements in English"
-labels: ["feedback", "beta"]
+labels: ["feedback"]
 body:
   - type: markdown
     attributes:
