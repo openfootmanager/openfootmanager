@@ -375,6 +375,10 @@ describe("TransfersTab.model", () => {
     expect(collections.loanPlayers.map((player) => player.id)).toEqual([
       "loan-available",
     ]);
+    // It still surfaces under "offers" so the manager can track the agreed loan.
+    expect(collections.playersWithOffers.map((player) => player.id)).toContain(
+      "loan-bought",
+    );
   });
 
   it("filters by position and search text", () => {
