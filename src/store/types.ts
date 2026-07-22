@@ -3,7 +3,12 @@ export interface TeamColors {
   secondary: string;
 }
 
-export type KitPattern = "Solid" | "Stripes" | "Hoops" | "HalfAndHalf" | "Diagonal";
+export type KitPattern =
+  | "Solid"
+  | "Stripes"
+  | "Hoops"
+  | "HalfAndHalf"
+  | "Diagonal";
 
 export interface FacilitiesData {
   training: number;
@@ -370,10 +375,10 @@ export interface MessageAction {
   id: string;
   label: string;
   action_type:
-  | "Acknowledge"
-  | "Dismiss"
-  | { NavigateTo: { route: string } }
-  | { ChooseOption: { options: MessageActionOption[] } };
+    | "Acknowledge"
+    | "Dismiss"
+    | { NavigateTo: { route: string } }
+    | { ChooseOption: { options: MessageActionOption[] } };
   resolved: boolean;
   label_key?: string;
 }
@@ -515,14 +520,14 @@ export interface FixtureData {
   home_team_id: string;
   away_team_id: string;
   competition:
-  | "League"
-  | "Cup"
-  | "ContinentalClub"
-  | "InternationalClub"
-  | "InternationalNation"
-  | "Friendly"
-  | "FriendlyCup"
-  | "PreseasonTournament";
+    | "League"
+    | "Cup"
+    | "ContinentalClub"
+    | "InternationalClub"
+    | "InternationalNation"
+    | "Friendly"
+    | "FriendlyCup"
+    | "PreseasonTournament";
   status: "Scheduled" | "InProgress" | "Completed";
   result: null | {
     home_goals: number;

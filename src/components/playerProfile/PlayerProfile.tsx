@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { formatExactMoney, getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
+import {
+  formatExactMoney,
+  getContractRiskLevel,
+  getPlayerOvr,
+} from "../../lib/helpers";
 import { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -31,7 +35,10 @@ import {
   type PlayerAdvancedStatsSummary,
 } from "./PlayerProfile.helpers";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
-import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
+import {
+  buildPlayerAttributeGroups,
+  isGoalkeeper,
+} from "./PlayerProfile.attributes";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
@@ -97,9 +104,8 @@ export default function PlayerProfile({
   );
   const weakFootValue = player.weak_foot ?? 2;
 
-  const [scoutStatus, setScoutStatus] = useState<PlayerProfileScoutStatus>(
-    "idle",
-  );
+  const [scoutStatus, setScoutStatus] =
+    useState<PlayerProfileScoutStatus>("idle");
   const [scoutError, setScoutError] = useState<string | null>(null);
   const [showRenewalModal, setShowRenewalModal] = useState(false);
   const [renewalWage, setRenewalWage] = useState("");
@@ -119,39 +125,47 @@ export default function PlayerProfile({
   const [renewalCooledOff, setRenewalCooledOff] = useState(false);
   const [renewalFeedback, setRenewalFeedback] =
     useState<NegotiationFeedbackData | null>(null);
-  const [renewalProjection, setRenewalProjection] =
-    useState<RenewalProjectionData["projection"] | null>(null);
-  const [contractActionSubmitting, setContractActionSubmitting] = useState(false);
-  const [contractActionError, setContractActionError] = useState<string | null>(null);
+  const [renewalProjection, setRenewalProjection] = useState<
+    RenewalProjectionData["projection"] | null
+  >(null);
+  const [contractActionSubmitting, setContractActionSubmitting] =
+    useState(false);
+  const [contractActionError, setContractActionError] = useState<string | null>(
+    null,
+  );
   const [terminationPreview, setTerminationPreview] =
     useState<ContractTerminationPreviewData | null>(null);
   const [showTerminationModal, setShowTerminationModal] = useState(false);
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);
-  const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>([]);
+  const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>(
+    [],
+  );
   const [hasConsumedInitialRenewalIntent, setHasConsumedInitialRenewalIntent] =
     useState(false);
-  const [hasConsumedInitialTerminationIntent, setHasConsumedInitialTerminationIntent] =
-    useState(false);
+  const [
+    hasConsumedInitialTerminationIntent,
+    setHasConsumedInitialTerminationIntent,
+  ] = useState(false);
   const ovr = getPlayerOvr(player);
   const age = getPlayerAge(player.date_of_birth);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
-  const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
+  const currentTacticalRole: PlayerRole =
+    playerTeam?.player_roles?.[player.id] ?? "Standard";
   // Offer roles for the deployed slot when the player is in the starting XI —
   // the backend validates set_player_role against it, so natural-position
   // roles would be rejected for an out-of-position starter (issue #272).
   const roleValidationPosition =
     (playerTeam && getDeployedPosition(playerTeam, player.id)) ||
     primaryPosition;
-  const tacticalRoleOptions = getRoleOptions(roleValidationPosition, currentTacticalRole);
-  const teamName = getPlayerTeamName(
-    gameState.teams,
-    player.team_id,
-    {
-      freeAgent: t("common.freeAgent"),
-      unknown: t("common.unknown"),
-    },
+  const tacticalRoleOptions = getRoleOptions(
+    roleValidationPosition,
+    currentTacticalRole,
   );
+  const teamName = getPlayerTeamName(gameState.teams, player.team_id, {
+    freeAgent: t("common.freeAgent"),
+    unknown: t("common.unknown"),
+  });
   const contractRiskLevel = getContractRiskLevel(
     player.contract_end,
     gameState.clock.current_date,
@@ -199,7 +213,10 @@ export default function PlayerProfile({
     scoutStatus,
   });
   const attrGroups = buildPlayerAttributeGroups(player, t);
-  const fallbackAdvancedStats = buildPlayerAdvancedStats(player, gameState.players);
+  const fallbackAdvancedStats = buildPlayerAdvancedStats(
+    player,
+    gameState.players,
+  );
   const advancedStats = advancedStatsOverride ?? fallbackAdvancedStats;
   const hasLetExpireIntent =
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
@@ -220,8 +237,9 @@ export default function PlayerProfile({
     isManagerOwnedProfile || isOwnClub || isManagerLoanClub;
   const hasAssistantManager = managerTeamId
     ? gameState.staff.some(
-      (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
-    )
+        (staff) =>
+          staff.team_id === managerTeamId && staff.role === "AssistantManager",
+      )
     : false;
 
   const {
@@ -387,12 +405,17 @@ export default function PlayerProfile({
           },
         );
 
-        if (!cancelled && !areAdvancedStatsEqual(result, fallbackAdvancedStats)) {
+        if (
+          !cancelled &&
+          !areAdvancedStatsEqual(result, fallbackAdvancedStats)
+        ) {
           setAdvancedStatsOverride(result);
         }
       } catch {
         if (!cancelled) {
-          setAdvancedStatsOverride((current) => (current === null ? current : null));
+          setAdvancedStatsOverride((current) =>
+            current === null ? current : null,
+          );
         }
       }
     };
@@ -437,7 +460,8 @@ export default function PlayerProfile({
             if (
               current.length === result.length &&
               current.every(
-                (entry, index) => entry.fixture_id === result[index]?.fixture_id,
+                (entry, index) =>
+                  entry.fixture_id === result[index]?.fixture_id,
               )
             ) {
               return current;
@@ -448,9 +472,7 @@ export default function PlayerProfile({
         }
       } catch {
         if (!cancelled) {
-          setRecentMatches((current) =>
-            current.length === 0 ? current : [],
-          );
+          setRecentMatches((current) => (current.length === 0 ? current : []));
         }
       }
     };
@@ -725,13 +747,13 @@ export default function PlayerProfile({
 
       <PlayerProfileHeroCard
         player={player}
-            ovr={ovr}
+        ovr={ovr}
         primaryPosition={primaryPosition}
         age={age}
         teamName={teamName}
         footednessLabel={footednessLabel}
         weakFootValue={weakFootValue}
-            annualSuffix={annualSuffix}
+        annualSuffix={annualSuffix}
         language={i18n.language}
         isOwnClub={isManagerSquadProfile || !onGameUpdate}
         scoutAvailability={scoutAvailability}
@@ -788,7 +810,9 @@ export default function PlayerProfile({
           <Select
             selectSize="sm"
             value={currentTacticalRole}
-            onChange={(e) => { void handleTacticalRoleChange(e.target.value as PlayerRole); }}
+            onChange={(e) => {
+              void handleTacticalRoleChange(e.target.value as PlayerRole);
+            }}
             aria-label={t("tactics.playerRoleLabel")}
           >
             {tacticalRoleOptions.map((role) => (
@@ -808,9 +832,9 @@ export default function PlayerProfile({
           currentDate={gameState.clock.current_date}
           condition={player.condition}
           morale={player.morale}
-              marketValue={player.market_value}
-              wage={player.wage}
-              annualSuffix={annualSuffix}
+          marketValue={player.market_value}
+          wage={player.wage}
+          annualSuffix={annualSuffix}
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}

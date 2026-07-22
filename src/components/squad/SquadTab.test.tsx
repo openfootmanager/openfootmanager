@@ -245,7 +245,7 @@ describe("SquadTab", () => {
     renderSquadTab(makeGameState());
 
     expect(screen.getByText("squad.title")).toBeInTheDocument();
-    expect(screen.getByText("Player d5")).toBeInTheDocument();
+    expect(screen.getByText("Bench DEF")).toBeInTheDocument();
     expect(screen.queryByText("What this changes")).not.toBeInTheDocument();
     expect(screen.queryByTestId("bench-player-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
@@ -289,7 +289,7 @@ describe("SquadTab", () => {
     const gameState = makeGameState();
     gameState.players = [
       makePlayer("low", "Forward", {
-        full_name: "Low OVR",
+        match_name: "Low OVR",
         attributes: {
           ...makePlayer("base-low", "Forward").attributes,
           pace: 30,
@@ -299,7 +299,7 @@ describe("SquadTab", () => {
         },
       }),
       makePlayer("high", "Forward", {
-        full_name: "High OVR",
+        match_name: "High OVR",
         attributes: {
           ...makePlayer("base-high", "Forward").attributes,
           pace: 90,
@@ -340,7 +340,7 @@ describe("SquadTab", () => {
 
     expect(screen.getByText("Critical")).toBeInTheDocument();
 
-    const playerRow = screen.getByText("Player gk1").closest("tr");
+    const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
 
@@ -362,7 +362,7 @@ describe("SquadTab", () => {
     renderSquadTab(gameState, { onGameUpdate, onSelectPlayer });
     mockedInvoke.mockResolvedValue({ game: gameState });
 
-    const playerRow = screen.getByText("Player gk1").closest("tr");
+    const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
 
@@ -396,7 +396,7 @@ describe("SquadTab", () => {
     renderSquadTab(gameState, { onGameUpdate });
     mockedInvoke.mockResolvedValue(updatedGameState);
 
-    const playerRow = screen.getByText("Player gk1").closest("tr");
+    const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
     fireEvent.click(screen.getByRole("menuitem", { name: "Add to Loan List" }));
@@ -407,7 +407,7 @@ describe("SquadTab", () => {
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
       expect(
-        screen.getByText("Player gk1").closest("tr"),
+        screen.getByText("GK1").closest("tr"),
       ).toHaveTextContent("Loan");
     });
   });
@@ -433,7 +433,7 @@ describe("SquadTab", () => {
     renderSquadTab(gameState);
     mockedInvoke.mockResolvedValue({ game: gameState });
 
-    const playerRow = screen.getByText("Player gk1").closest("tr");
+    const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
     fireEvent.click(screen.getByRole("menuitem", { name: "Reopen Talks" }));
@@ -462,7 +462,7 @@ describe("SquadTab", () => {
     renderSquadTab(gameState, { onGameUpdate });
     mockedInvoke.mockResolvedValue(updatedGameState);
 
-    const playerRow = screen.getByText("Player gk1").closest("tr");
+    const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
     fireEvent.click(
@@ -503,7 +503,7 @@ describe("SquadTab", () => {
     renderSquadTab(gameState, { onGameUpdate });
     mockedInvoke.mockResolvedValue(updatedGameState);
 
-    const benchRow = screen.getByText("Player d5").closest("tr");
+    const benchRow = screen.getByText("Bench DEF").closest("tr");
     expect(benchRow).not.toBeNull();
     fireEvent.contextMenu(benchRow as HTMLTableRowElement);
     fireEvent.click(screen.getByRole("menuitem", { name: "squad.makeStarter" }));
