@@ -27,7 +27,11 @@ jobs:
       release_name: ${{ steps.release_settings.outputs.release_name }}
       release_body: ${{ steps.release_settings.outputs.release_body }}
     steps:
+      # Read-only job: reads tauri.conf.json and calls gh api via GH_TOKEN, never
+      # touches git, so the checkout credentials are not needed.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Resolve nightly release metadata
         id: release_settings
@@ -157,9 +161,13 @@ jobs:
     if: ${{ !cancelled() && needs.prepare-nightly.result == 'success' && needs.publish-tauri-nightly.result != 'skipped' }}
     runs-on: ubuntu-latest
     permissions:
+      # contents:write to force-move the rolling tag and edit the release below;
+      # actions:write to dispatch nightly-release-manifest.yml.
       contents: write
       actions: write
     steps:
+      # persist-credentials stays on (the default): the git push below relies on
+      # the credential helper this step configures.
       - uses: actions/checkout@v4
 
       - name: Move rolling tag and refresh release metadata
