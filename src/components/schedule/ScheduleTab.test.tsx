@@ -37,6 +37,7 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.season") return `Season ${(params as Record<string, number>)?.number}`;
       if (key === "schedule.matchday")
         return `Matchday ${(params as Record<string, number>)?.number}`;
+      if (key === "season.friendly") return "Friendly";
       if (key === "common.team") return "Team";
       if (key === "common.viewTeam") return "View team";
       if (key === "common.played") return "P";
@@ -223,6 +224,27 @@ describe("ScheduleTab", () => {
     await waitFor(() => {
       expect(screen.getByText("Next match")).toBeInTheDocument();
     });
+  });
+
+  it("labels a friendly group as 'Friendly' instead of the league name", async () => {
+    const slice = makeSlice({
+      upcoming_groups: [
+        makeGroup({
+          key: "g-friendly",
+          competition: "Friendly",
+          matchday: 0,
+          fixtures: [{ id: "fix-friendly", matchday: 0, date: "2026-09-05", home_team_id: "team-1", home_team_name: "Alpha FC", away_team_id: "team-2", away_team_name: "Beta FC", competition: "Friendly", competition_id: "friendly-1", status: "Scheduled", result: null }],
+        }),
+      ],
+    });
+    mockedInvoke.mockResolvedValue(slice);
+
+    render(<ScheduleTab gameState={makeGameState(true)} onSelectTeam={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Friendly/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
   });
 
   it("fixtures view shows all fixture rows from the slice", async () => {

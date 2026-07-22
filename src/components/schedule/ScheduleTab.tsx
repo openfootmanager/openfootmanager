@@ -446,6 +446,9 @@ function groupLabel(
   if (group.competition === "PreseasonTournament") {
     return `${competitionName} – ${t("season.preseasonTournament", "Pre-season")} – ${formatMatchDate(group.date)}`;
   }
+  if (group.competition === "Friendly") {
+    return `${t("season.friendly", "Friendly")} – ${formatMatchDate(group.date)}`;
+  }
   return `${competitionName} – ${formatMatchDate(group.date)}`;
 }
 
