@@ -680,6 +680,8 @@
     "coverageNeedsAttention": "{{count}} 个角色组需要补强",
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
+    "formationFit": "阵型适配",
+    "startingXi": "首发阵容",
     "styleFit": "风格适配",
     "starter": "首发",
     "benchOption": "替补",

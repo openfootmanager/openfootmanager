@@ -17,6 +17,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import { TraitList } from "../TraitBadge";
 import {
   calcAge,
   getPlayerOvr,
@@ -54,6 +55,7 @@ import {
   getSquadTacticalFit,
   isPlayerOutOfPosition,
   normalisePosition,
+  positionSortRank,
   translatePositionAbbreviation,
 } from "./SquadTab.helpers";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
@@ -139,10 +141,9 @@ export default function SquadRosterView({
   const formation = team.formation || "4-4-2";
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
-  const startingXiIds = buildStartingXIIds(
-    available,
-    team.starting_xi_ids || [],
-    formation,
+  const startingXiIds = useMemo(
+    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation),
+    [available, team.starting_xi_ids, formation],
   );
   const pitchSlotRows = buildPitchSlotRows(
     buildPitchRows(formation),
@@ -150,7 +151,7 @@ export default function SquadRosterView({
     playersById,
   );
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
-  const xiIds = new Set(startingXiIds);
+  const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
     () => buildRoleCoverageSummary(available, startingXiIds, formation),
     [available, startingXiIds, formation],
@@ -186,9 +187,12 @@ export default function SquadRosterView({
       return;
     }
 
+    // Sensible starting direction per column: OVR, condition, morale default
+    // to desc (higher first); everything else defaults to asc.
+    const descByDefault: SquadListSortKey[] = ["ovr", "condition", "morale"];
     updateSortState({
       sortKey: key,
-      sortDir: key === "ovr" ? "desc" : "asc",
+      sortDir: descByDefault.includes(key) ? "desc" : "asc",
     });
   };
 
@@ -257,34 +261,63 @@ export default function SquadRosterView({
 
   const filteredRoster = useMemo(() => {
     const list = roster.filter((player) => matchesFilters(player));
+
+    // Fit-tier rank: lower is a better fit. Non-XI players sort as -1 so
+    // they cluster together separately from XI-tiered rows.
+    const fitRank = (player: PlayerData): number => {
+      if (!xiIds.has(player.id)) return -1;
+      const fit = getTacticalFit(player);
+      return fit === "natural" ? 0 : fit === "adapted" ? 1 : 2;
+    };
+
+    // Style-fit rank: lower is a better style match.
+    const styleRank = (player: PlayerData): number => {
+      const style = getPlayStyleFit(
+        player,
+        activePlayStyle,
+        getCurrentPosition(player, xiActivePosition),
+      );
+      return style === "strong" ? 0 : style === "good" ? 1 : 2;
+    };
+
+    // Contract-remaining rank for sorting: sooner-expiring first when asc.
+    // Missing contract_end sorts last.
+    const contractRank = (player: PlayerData): string => player.contract_end ?? "9999-99-99";
+
     const sorted = [...list].sort((a, b) => {
-      const getPos = (player: PlayerData) =>
-        normalisePosition(getCurrentPosition(player, xiActivePosition));
-
       switch (sortKey) {
-        case "pos": {
-          const aOvr = getPlayerOvr(a);
-          const bOvr = getPlayerOvr(b);
-
-          return (
-            (posOrder[getPos(a)] || 99) - (posOrder[getPos(b)] || 99) ||
-            bOvr - aOvr
-          );
-        }
+        case "jersey":
+          return (a.jersey_number ?? 999) - (b.jersey_number ?? 999);
         case "name":
           return a.full_name.localeCompare(b.full_name);
+        case "pos": {
+          // XI-first, then football-canonical natural_position order, then
+          // OVR desc. This is the default landing view: starters cluster on
+          // top, sorted by where they play; strongest at each slot rises.
+          const aXi = xiIds.has(a.id) ? 0 : 1;
+          const bXi = xiIds.has(b.id) ? 0 : 1;
+          if (aXi !== bXi) return aXi - bXi;
+
+          const aRank = positionSortRank(a.natural_position || a.position);
+          const bRank = positionSortRank(b.natural_position || b.position);
+          if (aRank !== bRank) return aRank - bRank;
+
+          return getPlayerOvr(b) - getPlayerOvr(a);
+        }
+        case "fit":
+          return fitRank(a) - fitRank(b);
+        case "style":
+          return styleRank(a) - styleRank(b);
         case "age":
           return calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
         case "condition":
           return a.condition - b.condition;
         case "morale":
           return a.morale - b.morale;
-        case "ovr": {
-          const aOvr = getPlayerOvr(a);
-          const bOvr = getPlayerOvr(b);
-
-          return aOvr - bOvr;
-        }
+        case "ovr":
+          return getPlayerOvr(a) - getPlayerOvr(b);
+        case "contract":
+          return contractRank(a).localeCompare(contractRank(b));
         default:
           return 0;
       }
@@ -292,6 +325,7 @@ export default function SquadRosterView({
 
     return sortDir === "desc" ? sorted.reverse() : sorted;
   }, [
+    activePlayStyle,
     formation,
     playerSearch,
     positionFilter,
@@ -303,6 +337,7 @@ export default function SquadRosterView({
     statusFilter,
     t,
     xiActivePosition,
+    xiIds,
   ]);
 
   const hasActiveFilters =
@@ -372,8 +407,7 @@ export default function SquadRosterView({
   };
 
   const renderPreferredPositionMeta = (player: PlayerData) => (
-    <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 flex-wrap">
-      <CountryFlag code={player.nationality} className="text-sm leading-none" />
+    <div className="flex items-center gap-1.5 flex-wrap">
       {getPreferredPositions(player).map((position, index) => (
         <Badge
           key={`${player.id}-${position}`}
@@ -385,32 +419,6 @@ export default function SquadRosterView({
       ))}
     </div>
   );
-
-  const renderRoleAndStyleMeta = (player: PlayerData) => {
-    const bestRole = getBestRoleForFormation(player, formation);
-    const currentPos = getCurrentPosition(player, xiActivePosition);
-    const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
-
-    return (
-      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-        <span className="font-medium">
-          {t("squad.bestRole")}: {translatePositionAbbreviation(t, bestRole)}
-        </span>
-        <Badge
-          variant={
-            styleFit === "strong"
-              ? "success"
-              : styleFit === "good"
-                ? "accent"
-                : "danger"
-          }
-          size="sm"
-        >
-          {t(`squad.styleFitValues.${styleFit}`)}
-        </Badge>
-      </div>
-    );
-  };
 
   const SortHeader = ({ col, label }: { col: SquadListSortKey; label: string }) => (
     <th
@@ -605,24 +613,22 @@ export default function SquadRosterView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  #
-                </th>
-                <SortHeader col="pos" label={t("squad.pos")} />
+                <SortHeader col="jersey" label="#" />
                 <SortHeader col="name" label={t("common.name")} />
+                <SortHeader col="pos" label={t("squad.pos")} />
+                <SortHeader col="fit" label={t("squad.formationFit")} />
+                <SortHeader col="style" label={t("squad.styleFit")} />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("squad.tacticalFit")}
+                  {t("squad.traits")}
                 </th>
                 <SortHeader col="age" label={t("common.age")} />
                 <SortHeader col="condition" label={t("common.condition")} />
                 <SortHeader col="morale" label={t("common.morale")} />
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("common.contract")}
-                </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("common.actions")}
-                </th>
                 <SortHeader col="ovr" label={t("common.ovr")} />
+                <SortHeader col="contract" label={t("common.contract")} />
+                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">
+                  <span className="sr-only">{t("common.actions")}</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
@@ -633,6 +639,11 @@ export default function SquadRosterView({
                 const age = calcAge(player.date_of_birth);
                 const wrongPos = inXI && isOutOfPosition(player);
                 const tacticalFit = getTacticalFit(player);
+                const styleFit = getPlayStyleFit(
+                  player,
+                  activePlayStyle,
+                  currentPos,
+                );
                 const contractRiskLevel = getContractRiskLevel(
                   player.contract_end,
                   clockDate,
@@ -792,19 +803,66 @@ export default function SquadRosterView({
                   >
                     <tr
                       onClick={() => onSelectPlayer(player.id)}
-                      className={`hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors group cursor-pointer ${rowBorderClass}`}
+                      title={inXI ? t("squad.startingXi") : undefined}
+                      className={`hover:bg-primary-500/5 dark:hover:bg-navy-700 transition-colors group cursor-pointer ${inXI ? "border-l-4 border-l-primary-500" : rowBorderClass}`}
                     >
                       <td className="py-2.5 px-4 tabular-nums text-sm font-medium text-gray-600 dark:text-gray-400">
                         {player.jersey_number ?? "—"}
                       </td>
+                      {/* Name: avatar + injury dot + name + country flag */}
+                      <td className="py-2.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <PlayerAvatar player={player} />
+                          <div className="min-w-0 flex items-center gap-1.5">
+                            {injuryDotClass && (
+                              <span
+                                className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${injuryDotClass}`}
+                                title={
+                                  player.injury
+                                    ? resolveInjuryName(player.injury.name, t)
+                                    : undefined
+                                }
+                              />
+                            )}
+                            <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">
+                              {player.full_name}
+                            </span>
+                            <CountryFlag
+                              code={player.nationality}
+                              className="text-sm leading-none shrink-0"
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      {/* Position badges: natural + alternates */}
+                      <td className="py-2.5 px-4">
+                        {renderPreferredPositionMeta(player)}
+                      </td>
+                      {/* Formation fit: colored badge for XI (green/amber/red),
+                          neutral badge showing best-role for non-XI. */}
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-1.5">
-                          <Badge
-                            variant={positionBadgeVariant(currentPos)}
-                            size="sm"
-                          >
-                            {translatePositionAbbreviation(t, currentPos)}
-                          </Badge>
+                          {inXI ? (
+                            <Badge
+                              variant={
+                                tacticalFit === "natural"
+                                  ? "success"
+                                  : tacticalFit === "adapted"
+                                    ? "accent"
+                                    : "danger"
+                              }
+                              size="sm"
+                            >
+                              {translatePositionAbbreviation(t, currentPos)}
+                            </Badge>
+                          ) : (
+                            <Badge variant="neutral" size="sm">
+                              {translatePositionAbbreviation(
+                                t,
+                                getBestRoleForFormation(player, formation),
+                              )}
+                            </Badge>
+                          )}
                           {wrongPos ? (
                             <span
                               className="text-amber-500"
@@ -815,64 +873,24 @@ export default function SquadRosterView({
                           ) : null}
                         </div>
                       </td>
+                      {/* Style fit */}
                       <td className="py-2.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <PlayerAvatar player={player} />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                              {injuryDotClass && (
-                                <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${injuryDotClass}`} />
-                              )}
-                              {player.full_name}
-                            </div>
-                            {renderPreferredPositionMeta(player)}
-                            {renderRoleAndStyleMeta(player)}
-                            {player.transfer_listed || player.loan_listed ? (
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                {player.transfer_listed ? (
-                                  <Badge variant="accent" size="sm">
-                                    {t("transfers.transfer")}
-                                  </Badge>
-                                ) : null}
-                                {player.loan_listed ? (
-                                  <Badge variant="primary" size="sm">
-                                    {t("transfers.loan")}
-                                  </Badge>
-                                ) : null}
-                              </div>
-                            ) : null}
-                            {player.injury ? (
-                              <InjuryBadge injury={player.injury} />
-                            ) : null}
-                          </div>
-                        </div>
+                        <Badge
+                          variant={
+                            styleFit === "strong"
+                              ? "success"
+                              : styleFit === "good"
+                                ? "accent"
+                                : "danger"
+                          }
+                          size="sm"
+                        >
+                          {t(`squad.styleFitValues.${styleFit}`)}
+                        </Badge>
                       </td>
+                      {/* Traits — all of them, wraps as needed */}
                       <td className="py-2.5 px-4">
-                        {inXI ? (
-                          <div className="space-y-0.5 text-xs">
-                            <div>
-                              <span
-                                className={
-                                  tacticalFit === "out"
-                                    ? "font-medium text-red-500 dark:text-red-400"
-                                    : tacticalFit === "adapted"
-                                      ? "font-medium text-amber-500 dark:text-amber-400"
-                                      : "font-medium text-emerald-600 dark:text-emerald-400"
-                                }
-                              >
-                                {t("squad.slotLabel")}: {translatePositionAbbreviation(t, currentPos)}
-                              </span>
-                            </div>
-                            <div className="text-gray-500 dark:text-gray-400">
-                              {t("squad.hasLabel")}: {getPreferredPositions(player).map((p) => translatePositionAbbreviation(t, p)).join(", ")}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            <span className="font-medium">{t("squad.bestRole")}:</span>{" "}
-                            {translatePositionAbbreviation(t, getBestRoleForFormation(player, formation))}
-                          </div>
-                        )}
+                        <TraitList traits={player.traits || []} size="xs" />
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                         {age}
@@ -888,6 +906,20 @@ export default function SquadRosterView({
                       <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
                         {player.morale}
                       </td>
+                      {/* OVR (moved next to identity block) */}
+                      <td className="py-2.5 px-4">
+                        <span
+                          className={`font-heading font-bold text-sm ${ovr >= 80
+                            ? "text-primary-500"
+                            : ovr >= 55
+                              ? "text-accent-600 dark:text-accent-400"
+                              : "text-gray-500 dark:text-gray-400"
+                            }`}
+                        >
+                          {ovr}
+                        </span>
+                      </td>
+                      {/* Contract: years + risk + expires_on + market pills */}
                       <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400">
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5">
@@ -903,9 +935,27 @@ export default function SquadRosterView({
                               ? t("finances.contractExpiresOn", { date: player.contract_end })
                               : "—"}
                           </div>
+                          {(player.transfer_listed || player.loan_listed || player.injury) ? (
+                            <div className="flex flex-wrap gap-1">
+                              {player.transfer_listed ? (
+                                <Badge variant="accent" size="sm">
+                                  {t("transfers.transfer")}
+                                </Badge>
+                              ) : null}
+                              {player.loan_listed ? (
+                                <Badge variant="primary" size="sm">
+                                  {t("transfers.loan")}
+                                </Badge>
+                              ) : null}
+                              {player.injury ? (
+                                <InjuryBadge injury={player.injury} />
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       </td>
-                      <td className="py-2.5 px-4" onClick={(e) => e.stopPropagation()}>
+                      {/* Actions (last column) */}
+                      <td className="py-2.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -923,18 +973,6 @@ export default function SquadRosterView({
                             <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-400" />
                           )}
                         </button>
-                      </td>
-                      <td className="py-2.5 px-4 text-right">
-                        <span
-                          className={`font-heading font-bold text-sm ${ovr >= 80
-                            ? "text-primary-500"
-                            : ovr >= 55
-                              ? "text-accent-600 dark:text-accent-400"
-                              : "text-gray-500 dark:text-gray-400"
-                            }`}
-                        >
-                          {ovr}
-                        </span>
                       </td>
                     </tr>
                   </ContextMenu>

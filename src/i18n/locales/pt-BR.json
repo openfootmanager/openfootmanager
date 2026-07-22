@@ -680,6 +680,8 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
+    "formationFit": "Encaixe na formação",
+    "startingXi": "Onze inicial",
     "styleFit": "Encaixe com o estilo",
     "starter": "Titular",
     "benchOption": "Banco",

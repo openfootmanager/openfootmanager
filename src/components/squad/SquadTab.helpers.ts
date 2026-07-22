@@ -133,6 +133,41 @@ const POSITION_CODES: Record<string, string> = {
   Striker: "ST",
 };
 
+/**
+ * Canonical football-order rank for sorting rosters by natural_position.
+ * Order: GK → back line (CB → FB → WB) → midfield (DM → CM → AM → wide) → forwards (wingers → ST).
+ *
+ * Legacy coarse buckets sort at the *start* of their group (rank +0.5) so
+ * unmigrated players stay adjacent to their granular teammates instead of
+ * scattering to the end.
+ */
+const POSITION_SORT_ORDER: Record<string, number> = {
+  Goalkeeper: 10,
+  Defender: 20,
+  CenterBack: 21,
+  LeftBack: 22,
+  RightBack: 23,
+  LeftWingBack: 24,
+  RightWingBack: 25,
+  Midfielder: 30,
+  DefensiveMidfielder: 31,
+  CentralMidfielder: 32,
+  AttackingMidfielder: 33,
+  LeftMidfielder: 34,
+  RightMidfielder: 35,
+  Forward: 40,
+  LeftWinger: 41,
+  RightWinger: 42,
+  Striker: 43,
+};
+
+/**
+ * Rank a position for canonical sort ordering. Unknown values sort to the end.
+ */
+export function positionSortRank(position: string): number {
+  return POSITION_SORT_ORDER[canonicalPosition(position)] ?? 999;
+}
+
 const GROUP_ROLE_PREFERENCES: Record<string, string[]> = {
   Goalkeeper: ["Goalkeeper"],
   Defender: ["CenterBack", "LeftBack", "RightBack", "LeftWingBack", "RightWingBack"],

@@ -699,6 +699,8 @@
     "coverageNeedsAttention": "{{count}} gruppi di ruoli hanno bisogno di copertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Panchina {{bench}}",
     "bestRole": "Ruolo migliore",
+    "formationFit": "Adattamento al modulo",
+    "startingXi": "Undici titolare",
     "styleFit": "Adattamento allo stile",
     "starter": "Titolare",
     "benchOption": "Panchina",

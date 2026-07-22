@@ -680,6 +680,8 @@
     "coverageNeedsAttention": "{{count}} groupes de rôles ont besoin de couverture",
     "coverageBadge": "XI {{starters}}/{{required}} · Banc {{bench}}",
     "bestRole": "Meilleur rôle",
+    "formationFit": "Compatibilité avec la formation",
+    "startingXi": "Onze de départ",
     "styleFit": "Compatibilité de style",
     "starter": "Titulaire",
     "benchOption": "Banc",

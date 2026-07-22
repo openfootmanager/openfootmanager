@@ -250,11 +250,12 @@ describe("SquadTab", () => {
     expect(screen.queryByTestId("bench-player-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
     expect(screen.queryByText("squad.planStatus")).not.toBeInTheDocument();
-    expect(screen.getByText("squad.tacticalFit")).toBeInTheDocument();
+    expect(screen.getByText("squad.formationFit")).toBeInTheDocument();
+    expect(screen.getByText("squad.styleFit")).toBeInTheDocument();
+    expect(screen.getByText("squad.traits")).toBeInTheDocument();
     expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/squad.bestRole/).length).toBeGreaterThan(0);
     expect(
       screen.getAllByText(/squad.styleFitValues./).length,
     ).toBeGreaterThan(0);

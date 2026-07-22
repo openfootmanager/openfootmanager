@@ -712,6 +712,8 @@
     "coverageNeedsAttention": "{{count}} grupos de roles necesitan cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banquillo {{bench}}",
     "bestRole": "Mejor rol",
+    "formationFit": "Encaje en la formación",
+    "startingXi": "Once titular",
     "styleFit": "Encaje con el estilo",
     "starter": "Titular",
     "benchOption": "Banquillo",

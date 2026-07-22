@@ -655,6 +655,8 @@
     "coverageNeedsAttention": "{{count}} rol grubunda takviye gerekli",
     "coverageBadge": "İlk 11 {{starters}}/{{required}} · Yedek {{bench}}",
     "bestRole": "En iyi rol",
+    "formationFit": "Dizilişe uyum",
+    "startingXi": "İlk 11",
     "styleFit": "Stil uyumu",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
