@@ -60,6 +60,9 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Bakes the channel into the bundled frontend; the in-app version then
+          # reads "v0.4.0" with no channel suffix.
+          OFM_CHANNEL: stable
           # Apple code-signing certificate (.p12 as base64) and identity.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -72,5 +75,7 @@ jobs:
           releaseName: "Openfoot Manager v__VERSION__"
           releaseBody: "Download the installer for your platform below. For feedback and bug reports, please refer to the [Beta Testing Guide](https://github.com/openfootmanager/openfootmanager/blob/v__VERSION__/docs/BETA_TESTING_GUIDE.md)."
           releaseDraft: false
-          prerelease: true
+          # Stable releases must not be prereleases, or GitHub has no release to
+          # badge as "Latest" and the page falls back to tag-name ordering.
+          prerelease: false
           args: ${{ matrix.args }}

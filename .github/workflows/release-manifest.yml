@@ -13,6 +13,9 @@ on:
 
 jobs:
   publish-release-metadata:
+    # Nightlies are handled by nightly-release-manifest.yml; without this guard
+    # every nightly publish is processed twice, once into the stable manifest.
+    if: ${{ github.event_name == 'workflow_dispatch' || !startsWith(github.event.release.tag_name, 'nightly') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
