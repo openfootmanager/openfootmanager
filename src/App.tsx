@@ -1,7 +1,9 @@
 import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { isTauri } from "@tauri-apps/api/core";
 import { useSettingsStore } from "./store/settingsStore";
 import i18n, { changeAppLanguage } from "./i18n";
+import { formatAppVersion } from "./lib/appVersion";
 import "./App.css";
 
 const MainMenu = lazy(() => import("./pages/MainMenu"));
@@ -33,6 +35,23 @@ function App() {
   useEffect(() => {
     if (!loaded) loadSettings();
   }, [loaded, loadSettings]);
+
+  // The static title in tauri.conf.json cannot carry the channel/commit, so the
+  // real one is applied here from the build-time version constants.
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        await getCurrentWindow().setTitle(
+          `Openfoot Manager ${formatAppVersion()}`,
+        );
+      } catch (error) {
+        console.error("Failed to set window title:", error);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     const size = SCALE_MAP[settings.ui_scale] || "16px";

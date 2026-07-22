@@ -6,6 +6,7 @@ import { useSettingsStore, AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
+import { formatAppVersion } from "../lib/appVersion";
 import {
   ArrowLeft,
   Monitor,
@@ -419,7 +420,7 @@ export default function Settings() {
                 {t("app.name")}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                {t("app.version")}
+                {formatAppVersion()}
               </p>
             </div>
             <span className="text-[10px] font-heading uppercase tracking-widest text-gray-400 dark:text-gray-600">

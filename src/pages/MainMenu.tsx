@@ -18,6 +18,7 @@ import type {
 } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
+import { formatAppVersion } from "../lib/appVersion";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import {
@@ -908,7 +909,7 @@ export default function MainMenu() {
 
       {/* Version */}
       <div className="absolute bottom-4 right-4 text-gray-400 dark:text-gray-600 text-xs font-heading uppercase tracking-widest transition-colors">
-        {t("app.version")}
+        {formatAppVersion()}
       </div>
     </div>
   );

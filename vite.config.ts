@@ -1,9 +1,69 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+
+// ── Build-time version constants ──
+// The base semver lives in src-tauri/tauri.conf.json and only changes when a
+// release stream branches (odd minor = unstable, even minor = stable). Channel,
+// commit and build date are injected here so nothing has to be committed per build.
+
+function readBaseVersion(): string {
+  const configPath = fileURLToPath(
+    new URL("./src-tauri/tauri.conf.json", import.meta.url),
+  );
+  const config = JSON.parse(readFileSync(configPath, "utf8")) as {
+    version?: string;
+  };
+
+  return config.version ?? "0.0.0";
+}
+
+function readCommitSha(): string {
+  // @ts-expect-error process is a nodejs global
+  const ciSha: string | undefined = process.env.GITHUB_SHA;
+
+  if (ciSha) {
+    return ciSha.slice(0, 7);
+  }
+
+  try {
+    return execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+// Odd minor versions are the unstable stream, even minors are stable releases.
+function defaultChannel(version: string): string {
+  const minor = Number.parseInt(version.split(".")[1] ?? "", 10);
+
+  if (!Number.isFinite(minor)) {
+    return "dev";
+  }
+
+  return minor % 2 === 1 ? "nightly" : "stable";
+}
+
+function resolveChannel(version: string, isBuild: boolean): string {
+  // @ts-expect-error process is a nodejs global
+  const explicit: string | undefined = process.env.OFM_CHANNEL;
+
+  if (explicit) {
+    return explicit;
+  }
+
+  return isBuild ? defaultChannel(version) : "dev";
+}
 
 function normalizeModuleId(id: string): string {
   return id.replaceAll("\\", "/");
@@ -74,8 +134,20 @@ function manualChunks(id: string): string | undefined {
 }
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ command }) => ({
   plugins: [react(), tailwindcss()],
+  define: (() => {
+    const version = readBaseVersion();
+
+    return {
+      __APP_VERSION__: JSON.stringify(version),
+      __APP_CHANNEL__: JSON.stringify(
+        resolveChannel(version, command === "build"),
+      ),
+      __APP_COMMIT__: JSON.stringify(readCommitSha()),
+      __APP_BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    };
+  })(),
   test: {
     environment: "jsdom",
     globals: true,

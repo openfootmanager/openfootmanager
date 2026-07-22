@@ -2,7 +2,6 @@
   "global": [
     "app.name",
     "app.publisher",
-    "app.version",
     "date.day",
     "match.pen",
     "squad.jerseyNumber",
