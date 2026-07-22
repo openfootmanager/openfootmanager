@@ -435,6 +435,54 @@ fn accepted_closed_window_incoming_transfer_is_registered_when_the_window_opens(
             && entry.to_team_id.as_deref() == Some("team-2")
             && entry.fee == Some(1_400_000)
     }));
+
+    let seller = game.teams.iter().find(|team| team.id == "team-1").unwrap();
+    assert_eq!(seller.finance, 6_400_000);
+    assert_eq!(seller.transfer_budget, 3_400_000);
+    let buyer = game.teams.iter().find(|team| team.id == "team-2").unwrap();
+    assert_eq!(buyer.finance, 1_600_000);
+    assert_eq!(buyer.transfer_budget, 1_600_000);
+}
+
+#[test]
+fn accepted_incoming_transfer_credits_selling_team_transfer_budget() {
+    let fee = 1_568_520;
+    let starting_finance = 5_000_000;
+    let starting_budget = 116_000;
+    let buyer_starting_finance = 8_000_000;
+    let buyer_starting_budget = 3_000_000;
+
+    let mut player = make_user_player("player-sale-budget-credit");
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-sale-budget-credit", fee));
+    let mut game = make_game_with_player(player, vec![], starting_finance, starting_budget);
+    game.teams[1].finance = buyer_starting_finance;
+    game.teams[1].transfer_budget = buyer_starting_budget;
+
+    respond_to_offer(
+        &mut game,
+        "player-sale-budget-credit",
+        "offer-sale-budget-credit",
+        true,
+    )
+    .expect("accepted incoming transfer should execute immediately while the window is open");
+
+    let seller = game.teams.iter().find(|team| team.id == "team-1").unwrap();
+    assert_eq!(seller.finance, starting_finance + fee as i64);
+    assert_eq!(seller.transfer_budget, starting_budget + fee as i64);
+
+    let buyer = game.teams.iter().find(|team| team.id == "team-2").unwrap();
+    assert_eq!(buyer.finance, buyer_starting_finance - fee as i64);
+    assert_eq!(buyer.transfer_budget, buyer_starting_budget - fee as i64);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-sale-budget-credit")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(player.transfer_offers[0].status, TransferOfferStatus::Accepted);
 }
 
 #[test]

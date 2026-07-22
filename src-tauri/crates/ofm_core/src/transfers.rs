@@ -3455,9 +3455,11 @@ fn execute_transfer(
         }
     }
 
-    // Credit selling team
+    // Credit selling team. Sales replenish the current-season transfer envelope;
+    // end-of-season still recalculates next season's budget from finance.
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == from_team_id) {
         t.finance += fee as i64;
+        t.transfer_budget += fee as i64;
         // Remove from starting XI
         if let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id) {
             t.starting_xi_ids.remove(pos);
