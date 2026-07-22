@@ -150,6 +150,11 @@ jobs:
   # pipeline is dispatched explicitly here.
   finalize-nightly:
     needs: [prepare-nightly, publish-tauri-nightly]
+    # `fail-fast: false` means one platform can fail while the others upload new
+    # assets. Finalizing anyway keeps the release name and, more importantly, the
+    # published checksums consistent with the assets that *did* land — skipping
+    # would leave nightly-checksums.txt describing files that no longer exist.
+    if: ${{ !cancelled() && needs.prepare-nightly.result == 'success' && needs.publish-tauri-nightly.result != 'skipped' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -158,6 +163,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Move rolling tag and refresh release metadata
+        id: finalize
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare-nightly.outputs.tag }}
@@ -165,6 +171,16 @@ jobs:
           RELEASE_BODY: ${{ needs.prepare-nightly.outputs.release_body }}
         run: |
           set -euo pipefail
+
+          # Nothing to finalize if every platform failed and the release was
+          # never created.
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "No $RELEASE_TAG release exists — every build must have failed."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "released=true" >> "$GITHUB_OUTPUT"
 
           git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
           git push -f origin "refs/tags/$RELEASE_TAG"
@@ -176,6 +192,7 @@ jobs:
             --prerelease
 
       - name: Dispatch nightly metadata workflow
+        if: ${{ steps.finalize.outputs.released == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare-nightly.outputs.tag }}
