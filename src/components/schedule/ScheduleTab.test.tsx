@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { FixtureData, GameStateData, TeamData } from "../../store/gameStore";
 import type { MatchdayGroup, ScheduleSlice } from "../../services/scheduleService";
+import { formatMatchDate } from "../../lib/dateFormatting";
 import ScheduleTab from "./ScheduleTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -242,7 +243,9 @@ describe("ScheduleTab", () => {
     render(<ScheduleTab gameState={makeGameState(true)} onSelectTeam={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Friendly/)).toBeInTheDocument();
+      expect(
+        screen.getByText(`Friendly – ${formatMatchDate("2026-09-05")}`),
+      ).toBeInTheDocument();
     });
     expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
   });
