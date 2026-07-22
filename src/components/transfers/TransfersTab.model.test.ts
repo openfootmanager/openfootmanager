@@ -303,6 +303,84 @@ describe("TransfersTab.model", () => {
     ).toEqual(["dual-listed"]);
   });
 
+  it("hides transfer-listed players with a pending registration from the market", () => {
+    // A transfer-listed player whose move is already agreed and awaiting
+    // registration is off the market — no one can bid again (#305 follow-up).
+    const boughtPlayer = createPlayer({
+      id: "bought",
+      team_id: "team-2",
+      transfer_listed: true,
+      transfer_offers: [
+        {
+          id: "offer-1",
+          from_team_id: "team-1",
+          fee: 900000,
+          wage_offered: 0,
+          last_manager_fee: 900000,
+          negotiation_round: 1,
+          suggested_counter_fee: null,
+          status: "PendingRegistration",
+          date: "2026-06-01",
+          registration_date: "2027-01-02",
+        },
+      ],
+    });
+    const stillAvailable = createPlayer({
+      id: "available",
+      team_id: "team-2",
+      transfer_listed: true,
+    });
+    const gameState = createGameState([boughtPlayer, stillAvailable]);
+
+    const collections = deriveTransferCollections(gameState, "team-1");
+
+    expect(collections.marketPlayers.map((player) => player.id)).toEqual([
+      "available",
+    ]);
+    // It still surfaces under "offers" so the manager can track the agreed deal.
+    expect(collections.playersWithOffers.map((player) => player.id)).toContain(
+      "bought",
+    );
+  });
+
+  it("hides loan-listed players with a pending loan registration from the loan market", () => {
+    // Symmetric to the transfer case: a pending-registration loan offer takes the
+    // player off the loan market (guards the loan_offers branch of the helper).
+    const loanBought = createPlayer({
+      id: "loan-bought",
+      team_id: "team-2",
+      loan_listed: true,
+      loan_offers: [
+        {
+          id: "loan-offer-1",
+          from_team_id: "team-1",
+          parent_team_id: "team-2",
+          start_date: "2026-08-01",
+          end_date: "2027-01-01",
+          wage_contribution_pct: 75,
+          status: "PendingRegistration",
+          date: "2026-08-01",
+        },
+      ],
+    });
+    const loanAvailable = createPlayer({
+      id: "loan-available",
+      team_id: "team-2",
+      loan_listed: true,
+    });
+    const gameState = createGameState([loanBought, loanAvailable]);
+
+    const collections = deriveTransferCollections(gameState, "team-1");
+
+    expect(collections.loanPlayers.map((player) => player.id)).toEqual([
+      "loan-available",
+    ]);
+    // It still surfaces under "offers" so the manager can track the agreed loan.
+    expect(collections.playersWithOffers.map((player) => player.id)).toContain(
+      "loan-bought",
+    );
+  });
+
   it("filters by position and search text", () => {
     const players = [
       createPlayer({

@@ -1258,6 +1258,7 @@
     "bidImpactWageBill": "每周工资总额 {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "每周工资预算 {{budget}}",
     "bidImpactIncomingWage": "球员周薪 {{wage}}",
+    "bidBlockedPendingRegistration": "该球员已达成转会协议，正在等待注册。",
     "centre": "转会中心",
     "transferWindow": "{{team}} — 转会窗口",
     "myTransferList": "我的转会名单",

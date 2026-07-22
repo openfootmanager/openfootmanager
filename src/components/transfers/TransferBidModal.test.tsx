@@ -57,6 +57,9 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.submitBid") return "Submit Bid";
       if (key === "transfers.submitting") return "Submitting";
       if (key === "transfers.close") return "Close";
+      if (key === "transfers.bidBlockedPendingRegistration") {
+        return "Already agreed — awaiting registration";
+      }
       return key;
     },
   }),
@@ -298,5 +301,82 @@ describe("TransferBidModal", () => {
     expect(submitButton).toHaveAttribute("type", "button");
     expect(closeButton).toHaveAttribute("type", "button");
     expect(submitButton).not.toBeDisabled();
+  });
+
+  it("blocks and explains when the player already has a pending registration", () => {
+    // Reachable from a profile / squad / scouting action even though the market
+    // list hides such players. The form must self-block regardless of what the
+    // parent passes for bidSubmitDisabled.
+    const target = createPlayer({
+      transfer_offers: [createOffer({ status: "PendingRegistration" })],
+    });
+
+    render(
+      <TransferBidModal
+        bidTarget={target}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="1.0"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1000000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        bidResult={null}
+        bidLoading={false}
+        bidSubmitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Already agreed — awaiting registration"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit Bid" })).toBeDisabled();
+  });
+
+  it("also blocks when the pending registration is a loan offer", () => {
+    const target = createPlayer({
+      transfer_offers: [],
+      loan_offers: [
+        {
+          id: "loan-offer-1",
+          from_team_id: "team-1",
+          parent_team_id: "team-2",
+          start_date: "2026-08-01",
+          end_date: "2027-01-01",
+          wage_contribution_pct: 75,
+          status: "PendingRegistration",
+          date: "2026-08-01",
+        },
+      ],
+    });
+
+    render(
+      <TransferBidModal
+        bidTarget={target}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="1.0"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1000000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        bidResult={null}
+        bidLoading={false}
+        bidSubmitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Already agreed — awaiting registration"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit Bid" })).toBeDisabled();
   });
 });

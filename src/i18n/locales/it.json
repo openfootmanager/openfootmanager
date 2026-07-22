@@ -1277,6 +1277,7 @@
     "bidImpactWageBill": "Monte ingaggi settimanale {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Budget ingaggi settimanale {{budget}}",
     "bidImpactIncomingWage": "Ingaggio del giocatore {{wage}} / settimana",
+    "bidBlockedPendingRegistration": "Questo giocatore ha già concordato un trasferimento ed è in attesa di registrazione.",
     "centre": "Centro trasferimenti",
     "transferWindow": "{{team}} — Finestra di mercato",
     "myTransferList": "La mia lista trasferimenti",
