@@ -825,7 +825,7 @@ export default function SquadRosterView({
                               />
                             )}
                             <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">
-                              {player.full_name}
+                              {player.match_name}
                             </span>
                             <CountryFlag
                               code={player.nationality}

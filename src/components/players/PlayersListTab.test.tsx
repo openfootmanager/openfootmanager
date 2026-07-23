@@ -369,20 +369,20 @@ describe("PlayersListTab", () => {
       />,
     );
 
-    await screen.findByText("Alex Keeper");
-    expect(screen.getByText("John Smith")).toBeInTheDocument();
+    await screen.findByText("A. Keeper");
+    expect(screen.getByText("J. Smith")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("Search players"), {
       target: { value: "keeper" },
     });
 
     await waitFor(() => {
-      expect(screen.queryByText("John Smith")).not.toBeInTheDocument();
+      expect(screen.queryByText("J. Smith")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("Alex Keeper")).toBeInTheDocument();
+    expect(screen.getByText("A. Keeper")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Goalkeeper" }));
-    fireEvent.click(await screen.findByText("Alex Keeper"));
+    fireEvent.click(await screen.findByText("A. Keeper"));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-2");
   });
@@ -401,7 +401,7 @@ describe("PlayersListTab", () => {
       />,
     );
 
-    await screen.findByText("Alex Keeper");
+    await screen.findByText("A. Keeper");
     fireEvent.click(screen.getAllByRole("button", { name: "Beta FC" })[0]);
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
@@ -451,7 +451,7 @@ describe("PlayersListTab", () => {
       />,
     );
 
-    const playerRow = (await screen.findByText("Alex Keeper")).closest("tr");
+    const playerRow = (await screen.findByText("A. Keeper")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -493,7 +493,7 @@ describe("PlayersListTab", () => {
         />,
       );
 
-      const playerRow = (await screen.findByText("Alex Keeper")).closest("tr");
+      const playerRow = (await screen.findByText("A. Keeper")).closest("tr");
       expect(playerRow).not.toBeNull();
 
       fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -556,7 +556,7 @@ describe("PlayersListTab", () => {
       />,
     );
 
-    const playerRow = (await screen.findByText("Alex Keeper")).closest("tr");
+    const playerRow = (await screen.findByText("A. Keeper")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -616,7 +616,7 @@ describe("PlayersListTab", () => {
       />,
     );
 
-    const playerRow = (await screen.findByText("Retired Free Agent")).closest("tr");
+    const playerRow = (await screen.findByText("R. Agent")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
