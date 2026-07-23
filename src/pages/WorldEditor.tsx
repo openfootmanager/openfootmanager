@@ -333,7 +333,7 @@ export default function WorldEditor() {
     }
   }
 
-  async function handleOpenPackage() {
+  async function handleOpenPackageFile() {
     let selected: string | string[] | null;
     try {
       selected = await open({
@@ -347,19 +347,17 @@ export default function WorldEditor() {
     } catch {
       return;
     }
-    if (typeof selected === "string") {
-      await openFromPath(selected);
-      return;
-    }
-    let dirFallback: string | string[] | null;
+    if (typeof selected === "string") await openFromPath(selected);
+  }
+
+  async function handleOpenPackageFolder() {
+    let selected: string | string[] | null;
     try {
-      dirFallback = await open({ directory: true, multiple: false });
+      selected = await open({ directory: true, multiple: false });
     } catch {
       return;
     }
-    if (typeof dirFallback === "string") {
-      await openFromPath(dirFallback);
-    }
+    if (typeof selected === "string") await openFromPath(selected);
   }
 
   async function handleValidate() {
@@ -528,7 +526,8 @@ export default function WorldEditor() {
         errorMsg={errorMsg}
         recentProjects={recentProjects}
         onNewPackage={(m, sample) => { void handleNewPackage(m, sample); }}
-        onOpenPackage={() => { void handleOpenPackage(); }}
+        onOpenPackageFile={() => { void handleOpenPackageFile(); }}
+        onOpenPackageFolder={() => { void handleOpenPackageFolder(); }}
         onOpenRecent={(path) => { void openFromPath(path); }}
       />
     );

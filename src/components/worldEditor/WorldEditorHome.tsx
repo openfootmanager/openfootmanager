@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Package,
   FolderOpen,
+  Folder,
   Loader2,
   Zap,
   Clock,
@@ -42,7 +43,8 @@ interface WorldEditorHomeProps {
   errorMsg: string | null;
   recentProjects: RecentProject[];
   onNewPackage: (meta: WorldMetaDef, sample: SamplePackage | null) => void;
-  onOpenPackage: () => void;
+  onOpenPackageFile: () => void;
+  onOpenPackageFolder: () => void;
   onOpenRecent: (path: string) => void;
 }
 
@@ -51,7 +53,8 @@ export function WorldEditorHome({
   errorMsg,
   recentProjects,
   onNewPackage,
-  onOpenPackage,
+  onOpenPackageFile,
+  onOpenPackageFolder,
   onOpenRecent,
 }: WorldEditorHomeProps) {
   const { t } = useTranslation();
@@ -267,17 +270,33 @@ export function WorldEditorHome({
             </button>
 
             <button
-              onClick={onOpenPackage}
+              onClick={onOpenPackageFile}
               disabled={isBusy}
               className="flex items-center gap-4 w-full p-5 bg-white dark:bg-navy-800 hover:bg-gray-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-2xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <FolderOpen className="w-7 h-7 text-accent-500 dark:text-accent-400 flex-shrink-0" />
               <div className="text-left">
                 <p className="font-heading font-bold text-lg uppercase tracking-wide">
-                  {t("worldEditor.openPackage")}
+                  {t("worldEditor.openPackageFile")}
                 </p>
                 <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
-                  {t("worldEditor.openPackageDesc")}
+                  {t("worldEditor.openPackageFileDesc")}
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={onOpenPackageFolder}
+              disabled={isBusy}
+              className="flex items-center gap-4 w-full p-5 bg-white dark:bg-navy-800 hover:bg-gray-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-2xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Folder className="w-7 h-7 text-accent-500 dark:text-accent-400 flex-shrink-0" />
+              <div className="text-left">
+                <p className="font-heading font-bold text-lg uppercase tracking-wide">
+                  {t("worldEditor.openPackageFolder")}
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
+                  {t("worldEditor.openPackageFolderDesc")}
                 </p>
               </div>
             </button>
