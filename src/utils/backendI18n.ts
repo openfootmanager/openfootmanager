@@ -268,6 +268,30 @@ type RoundupResultParam = {
   awayGoals?: string | number;
 };
 
+// Shared by normalizePreseasonDigestParams and normalizeRoundupParams — both parse
+// the same resultsData shape but emit a different i18n key per article type.
+function resolveResultsData(data: string, resolveKey: string): string | null {
+  try {
+    const results = JSON.parse(data) as RoundupResultParam[];
+    return results
+      .map((result) =>
+        resolve(
+          resolveKey,
+          `  ${result.home} ${result.home_goals ?? result.homeGoals ?? ''} - ${result.away_goals ?? result.awayGoals ?? ''} ${result.away}`,
+          {
+            home: result.home,
+            homeGoals: String(result.home_goals ?? result.homeGoals ?? ''),
+            away: result.away,
+            awayGoals: String(result.away_goals ?? result.awayGoals ?? ''),
+          },
+        ),
+      )
+      .join('\n');
+  } catch {
+    return null;
+  }
+}
+
 function normalizePreseasonDigestParams(
   article: NewsArticle,
   params?: Record<string, string>,
@@ -308,25 +332,9 @@ function normalizePreseasonDigestParams(
   };
 
   if (params.resultsData) {
-    try {
-      const results = JSON.parse(params.resultsData) as RoundupResultParam[];
-      normalized.results = results
-        .map((result) =>
-          resolve(
-            'be.news.preseasonDigest.resultLine',
-            `  ${result.home} ${result.home_goals ?? result.homeGoals ?? ''} - ${result.away_goals ?? result.awayGoals ?? ''} ${result.away}`,
-            {
-              home: result.home,
-              homeGoals: String(result.home_goals ?? result.homeGoals ?? ''),
-              away: result.away,
-              awayGoals: String(result.away_goals ?? result.awayGoals ?? ''),
-            },
-          ),
-        )
-        .join('\n');
-    } catch {
-      return params;
-    }
+    const resolved = resolveResultsData(params.resultsData, 'be.news.preseasonDigest.resultLine');
+    if (resolved === null) return params;
+    normalized.results = resolved;
   }
 
   if (params.unbeatenTeamsData) {
@@ -371,25 +379,9 @@ function normalizeRoundupParams(
   const normalized = { ...params };
 
   if (params.resultsData) {
-    try {
-      const results = JSON.parse(params.resultsData) as RoundupResultParam[];
-      normalized.results = results
-        .map((result) =>
-          resolve(
-            'be.news.roundup.resultLine',
-            `  ${result.home} ${result.home_goals ?? result.homeGoals ?? ''} - ${result.away_goals ?? result.awayGoals ?? ''} ${result.away}`,
-            {
-              home: result.home,
-              homeGoals: String(result.home_goals ?? result.homeGoals ?? ''),
-              away: result.away,
-              awayGoals: String(result.away_goals ?? result.awayGoals ?? ''),
-            },
-          ),
-        )
-        .join('\n');
-    } catch {
-      return params;
-    }
+    const resolved = resolveResultsData(params.resultsData, 'be.news.roundup.resultLine');
+    if (resolved === null) return params;
+    normalized.results = resolved;
   }
 
   normalized.biggestWinnerLine = params.biggestWinner?.trim()
@@ -636,23 +628,27 @@ function resolveActionOption(
 /**
  * Resolve all translatable fields on a news article, returning a copy with resolved strings.
  */
+type ArticleParamNormalizer = (
+  article: NewsArticle,
+  params?: Record<string, string>,
+) => Record<string, string> | undefined;
+
+// Each normalizer reads only from the original i18n_params keys — none consumes
+// output written by another normalizer — so array order is currently inconsequential.
+const ARTICLE_PARAM_NORMALIZERS: ArticleParamNormalizer[] = [
+  normalizePreseasonDigestParams,
+  normalizeRoundupParams,
+  normalizeStandingsParams,
+  normalizeMatchReportParams,
+  normalizePressConferenceParams,
+  normalizeTransferRoundupParams,
+];
+
 export function resolveNewsArticle(article: NewsArticle): NewsArticle {
   const p = resolveParamValues(
-    normalizeTransferRoundupParams(
-      article,
-      normalizePressConferenceParams(
-        article,
-        normalizeMatchReportParams(
-          article,
-          normalizeStandingsParams(
-            article,
-            normalizeRoundupParams(
-              article,
-              normalizePreseasonDigestParams(article, normalizeNewsParams(article)),
-            ),
-          ),
-        ),
-      ),
+    ARTICLE_PARAM_NORMALIZERS.reduce<Record<string, string> | undefined>(
+      (acc, fn) => fn(article, acc),
+      normalizeNewsParams(article),
     ),
   );
   return {

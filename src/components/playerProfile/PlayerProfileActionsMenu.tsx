@@ -3,7 +3,7 @@ import { ChevronDown, Repeat, RotateCcw, TimerOff, Trash2, Users } from "lucide-
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
-import type { ContractRiskLevel } from "../../lib/helpers";
+import type { ContractRiskLevel } from "../../lib/contractUtils";
 import ContextMenu, { type ContextMenuHandle, type ContextMenuItem } from "../ContextMenu";
 import {
     buildDelegateToYouthAcademyMenuItem,
