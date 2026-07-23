@@ -80,6 +80,17 @@ CI runs this exact command and fails on any warning. Fix them rather than adding
 `#[allow]` is genuinely right (a Tauri command that legitimately takes many parameters, say), put
 a comment above it explaining why.
 
+**Match CI's toolchain.** CI pins the version named in `.github/workflows/build-check.yml`
+(`dtolnay/rust-toolchain@…`). Clippy gains lints between releases, so a newer local Rust reports
+findings CI doesn't have — and an older one misses findings CI *will* catch. If your results
+disagree with CI, run `cargo +<pinned-version> clippy …` before chasing anything.
+
+Touched MCP code? CI lints it separately, because the feature isn't on by default:
+
+```bash
+cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+```
+
 ## 7. Formatting
 
 ```bash
