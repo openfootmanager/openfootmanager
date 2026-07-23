@@ -3,10 +3,13 @@ import { useTranslation } from "react-i18next";
 import { CheckCircle2, Info, XCircle, Globe, ImagePlus, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
+import { InlineHelp, LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
 import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-import { PACKAGE_TYPES } from "./helpers";
-import type { WorldMetaDef } from "./types";
+import { COMPETITION_SCOPES, PACKAGE_TYPES, mergeFallbackLeague } from "./helpers";
+import type { CompetitionScope, FallbackLeagueConfig, WorldMetaDef } from "./types";
+
+// Sentinel for "leave it to the engine" in the optional fallback-league selects.
+const ENGINE_DEFAULT = "";
 
 const SPDX_LICENSES = [
   { id: "CC0-1.0",      name: "CC0 1.0 Public Domain" },
@@ -130,6 +133,33 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
 
   const licenseDetails = LICENSE_DETAILS[meta.license];
 
+  // The engine synthesises a single-division league when a package ships teams
+  // but no competitions; these fields override its name/legs/scope. Any field
+  // left blank falls back to the engine default, and clearing them all drops the
+  // config entirely rather than writing an empty object into the manifest.
+  const fallbackLeague = meta.fallbackLeague ?? {};
+  const setFallbackLeague = (patch: Partial<FallbackLeagueConfig>) =>
+    set({ fallbackLeague: mergeFallbackLeague(meta.fallbackLeague, patch) });
+
+  // Mirrors `build_world_data_from_package`: any package with teams and no
+  // competitions gets the fallback. A single-team package qualifies too — the
+  // thin-package fill tops it up with procedural opponents first.
+  const fallbackLeagueInUse = !!counts && counts.teams >= 1 && counts.competitions === 0;
+
+  const fallbackScopeLabels: Record<string, string> = {
+    [ENGINE_DEFAULT]: t("worldEditor.fallbackLeagueDefault"),
+    Domestic: t("teamSelect.scopes.Domestic"),
+    Regional: t("teamSelect.scopes.Regional"),
+    Continental: t("teamSelect.scopes.Continental"),
+    International: t("teamSelect.scopes.International"),
+  };
+
+  const fallbackLegsLabels: Record<string, string> = {
+    [ENGINE_DEFAULT]: t("worldEditor.fallbackLeagueDefault"),
+    "1": t("worldEditor.legsSingle"),
+    "2": t("worldEditor.legsDouble"),
+  };
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
       {/* Left: form fields */}
@@ -242,6 +272,44 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
           onChange={(v) => set({ gameMinVersion: v })}
           placeholder="0.3.0"
         />
+
+        <div className="mt-2 flex flex-col gap-3 rounded-xl border border-gray-200 dark:border-navy-600 p-3">
+          <div className="flex items-center gap-1.5">
+            <p className={labelClass}>{t("worldEditor.fallbackLeague")}</p>
+            <InlineHelp text={t("worldEditor.help.fallbackLeague")} />
+          </div>
+          {fallbackLeagueInUse && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {t("worldEditor.fallbackLeagueInUse")}
+            </p>
+          )}
+          <LabeledInput
+            label={t("worldEditor.competitionName")}
+            value={fallbackLeague.name ?? ""}
+            onChange={(v) => setFallbackLeague({ name: v || null })}
+            placeholder={t("worldEditor.fallbackLeagueDefault")}
+          />
+          <LabeledSelect
+            label={t("worldEditor.fallbackLeagueLegs")}
+            value={fallbackLeague.legs ? String(fallbackLeague.legs) : ENGINE_DEFAULT}
+            options={[ENGINE_DEFAULT, "1", "2"]}
+            optionLabels={fallbackLegsLabels}
+            onChange={(v) =>
+              setFallbackLeague({ legs: v === ENGINE_DEFAULT ? null : Number(v) })
+            }
+          />
+          <LabeledSelect
+            label={t("worldEditor.competitionScope")}
+            value={fallbackLeague.scope ?? ENGINE_DEFAULT}
+            options={[ENGINE_DEFAULT, ...COMPETITION_SCOPES]}
+            optionLabels={fallbackScopeLabels}
+            onChange={(v) =>
+              setFallbackLeague({
+                scope: v === ENGINE_DEFAULT ? null : (v as CompetitionScope),
+              })
+            }
+          />
+        </div>
       </div>
 
       {/* Right: preview card + license card */}

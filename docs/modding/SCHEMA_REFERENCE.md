@@ -64,6 +64,8 @@ When a `database` package defines teams but no competitions, the engine synthesi
 
 If you define your own competitions, this object is ignored.
 
+You do not have to write this by hand — the World Editor exposes all three fields in its **Metadata** section (see [Metadata Section](PACKAGE_EDITOR.md#metadata-section)).
+
 **Minimal valid example:**
 ```json
 {

@@ -9,6 +9,7 @@ import {
   emptyPlayer,
   emptyTeam,
   makeRange,
+  mergeFallbackLeague,
   parsePoolText,
   parseRangeBound,
 } from "./helpers";
@@ -276,5 +277,38 @@ describe("emptyCompetition", () => {
 
   it("returns a new object on each call", () => {
     expect(emptyCompetition()).not.toBe(emptyCompetition());
+  });
+});
+
+describe("mergeFallbackLeague", () => {
+  it("creates a config from the first override set", () => {
+    expect(mergeFallbackLeague(null, { name: "Premier Division" })).toEqual({
+      name: "Premier Division",
+    });
+  });
+
+  it("keeps previously set overrides when patching another field", () => {
+    const withName = mergeFallbackLeague(null, { name: "Premier Division" });
+    expect(mergeFallbackLeague(withName, { legs: 1 })).toEqual({
+      name: "Premier Division",
+      legs: 1,
+    });
+  });
+
+  it("collapses to null once every override is cleared", () => {
+    const config = mergeFallbackLeague({ name: "Premier Division" }, { legs: 2 });
+    const nameCleared = mergeFallbackLeague(config, { name: null });
+    expect(nameCleared).toEqual({ name: null, legs: 2 });
+    expect(mergeFallbackLeague(nameCleared, { legs: null })).toBeNull();
+  });
+
+  it("treats an all-blank patch as no config rather than an empty object", () => {
+    expect(mergeFallbackLeague(null, { name: "", legs: null, scope: null })).toBeNull();
+  });
+
+  it("keeps a scope-only config", () => {
+    expect(mergeFallbackLeague(null, { scope: "Continental" })).toEqual({
+      scope: "Continental",
+    });
   });
 });

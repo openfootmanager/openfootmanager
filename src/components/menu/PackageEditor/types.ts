@@ -36,15 +36,15 @@ export interface WorldMetaDef {
   defaultActiveRegions: string[];
   defaultActiveCompetitions: string[];
   logo: string | null;
-  // Optional overrides for the league auto-generated when a database package has
-  // teams but no competitions. No editor UI yet; preserved across load/save.
+  // Optional overrides for the league auto-generated when a package has teams
+  // but no competitions. Edited from the Metadata section.
   fallbackLeague?: FallbackLeagueConfig | null;
 }
 
 export interface FallbackLeagueConfig {
   name?: string | null;
   legs?: number | null;
-  scope?: "Domestic" | "Regional" | "Continental" | "International" | null;
+  scope?: CompetitionScope | null;
 }
 
 export interface PackageIssue {

@@ -5,6 +5,7 @@ import type {
   CompetitionType,
   ConfederationDef,
   CountryDef,
+  FallbackLeagueConfig,
   NamesDefinition,
   ParticipantSpec,
   PlayerAttributesDef,
@@ -245,4 +246,19 @@ export function buildParticipantSpec(
     return { explicit: parsePoolText(explicitText) };
   }
   return { selector };
+}
+
+/**
+ * Apply a patch to the optional fallback-league config, collapsing back to
+ * `null` once every field is blank. Each field is an override of an engine
+ * default, so a config with nothing set carries no meaning — dropping it keeps
+ * an empty object out of the package manifest.
+ */
+export function mergeFallbackLeague(
+  current: FallbackLeagueConfig | null | undefined,
+  patch: Partial<FallbackLeagueConfig>,
+): FallbackLeagueConfig | null {
+  const next: FallbackLeagueConfig = { ...(current ?? {}), ...patch };
+  const isEmpty = !next.name && !next.legs && !next.scope;
+  return isEmpty ? null : next;
 }
