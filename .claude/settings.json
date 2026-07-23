@@ -8,19 +8,7 @@
       "Bash(git log:*)",
       "Bash(git show:*)",
       "Bash(git branch:*)",
-      "Bash(git blame:*)",
-      "Bash(npm test)",
-      "Bash(npm run build)",
-      "Bash(npm run lint)",
-      "Bash(npm run audit:i18n)",
-      "Bash(npx vitest run:*)",
-      "Bash(npx tsc --noEmit)",
-      "Bash(npx biome check:*)",
-      "Bash(npx biome lint:*)",
-      "Bash(cargo test:*)",
-      "Bash(cargo check:*)",
-      "Bash(cargo clippy:*)",
-      "Bash(cargo fmt:*)"
+      "Bash(git blame:*)"
     ]
   }
 }

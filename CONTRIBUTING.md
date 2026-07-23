@@ -199,4 +199,6 @@ AI coding agents are welcome here, and the repository is set up so they start wi
 
 **The bar is the same.** An AI-assisted PR is held to exactly the standards above: tests that would have failed before the change, all 11 locales, clean `cargo clippy`, and a description that explains *why*. "The agent wrote it" is not a review comment we can act on.
 
+**A note on `.claude/settings.json`.** The shared settings pre-approve only read-only `git` inspection commands. Build and test commands are deliberately left prompting, even though approving them would be more convenient: `npm test`, `cargo test`, and `cargo clippy` all execute code from the working tree — test files, `vite.config.ts`, `build.rs`, proc macros. On a fork-and-pull project you will sometimes check out someone else's branch to review it, and a checked-in allowlist would run their code without asking you first. If you want those commands approved on your own machine, put them in `.claude/settings.local.json`, which is gitignored.
+
 **Please disclose it.** The pull request template has a checkbox. This is a GPLv3 project, and knowing how a contribution was produced matters for licensing and for review. Read your own diff before you open the PR — you are the author, and you are vouching for it.
