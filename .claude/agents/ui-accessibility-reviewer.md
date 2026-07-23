@@ -41,8 +41,12 @@ disabled states.
 ### Design-language consistency
 - Hex literals in components (`#10b981`) or arbitrary values (`bg-[#10b981]`, `text-[13px]`).
   Everything comes from tokens.
-- Colour classes outside the token families — raw Tailwind palette (`bg-green-500`, `bg-slate-800`)
-  where a project token exists.
+- Colour classes outside the token families — raw Tailwind palette (`bg-green-500`, `bg-slate-800`,
+  `focus:border-blue-500`) where a project token exists.
+- One legitimate exception: a **third-party brand colour** used to make an external service
+  recognisable, e.g. the Discord hex in `src/pages/MainMenu.tsx`. Brand colours are not ours to
+  re-map to `primary-*`. Don't flag these; do flag a brand hex used for anything other than that
+  brand's own control.
 - Headings not using `font-heading`, or breaking the established uppercase/tracking treatment.
 - Ad-hoc components duplicating something already exported from `src/components/ui/index.ts`
   (`Card`, `Button`, `Badge`, `ProgressBar`, `Select`, `Checkbox`, `DatePicker`, `PlayerAvatar`,
@@ -59,8 +63,11 @@ disabled states.
   the ring renders against the wrong background.
 
 ### Keyboard and focus
-- `focus:outline-none` without a replacing `focus:ring-*`. Removing focus visibility is a bug, not
-  a style choice.
+- `focus:outline-none` with **nothing visible put back**. Removing focus visibility is a bug, not a
+  style choice. A `focus:ring-*` **or** a `focus-visible:ring-*` counts as a replacement — the
+  `focus-visible:` variant is preferred for elements that are also mouse-clickable, and flagging it
+  is a false positive. A colour or border change alone (`focus:border-blue-500`) is *not* enough:
+  it fails for users who cannot distinguish the colours, and it is often only ~1px of signal.
 - `<div onClick>` or `<span onClick>` where a `<button>` belongs — not focusable, not activatable
   by keyboard, not announced as interactive.
 - Custom dropdowns, tabs, and menus without arrow-key handling or the right `role`/`aria-*`.
