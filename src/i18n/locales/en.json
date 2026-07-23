@@ -710,6 +710,7 @@
     "duplicateTactic": "Duplicate",
     "saveAsTactic": "Save as tactic",
     "updateTactic": "Update tactic",
+    "tacticSaved": "Saved",
     "tacticName": "Tactic name",
     "identitySummary": "Identity summary",
     "synced": "Synced",

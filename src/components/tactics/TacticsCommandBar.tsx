@@ -1,4 +1,5 @@
 import {
+  Check,
   Copy,
   Crosshair,
   Flag,
@@ -47,6 +48,8 @@ interface TacticsCommandBarProps {
   tacticLibrary: TacticsLibraryEntry[];
 }
 
+const SAVE_CUE_DURATION_MS = 2000;
+
 const PLAY_STYLES = [
   { id: "Balanced", icon: <Target className="h-3.5 w-3.5" /> },
   { id: "Attacking", icon: <Zap className="h-3.5 w-3.5" /> },
@@ -76,7 +79,9 @@ export default function TacticsCommandBar({
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [showSavedCue, setShowSavedCue] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const savedCueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filteredLibrary = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -107,6 +112,10 @@ export default function TacticsCommandBar({
     activeTactic.type === "custom"
       ? t("tactics.updateTactic")
       : t("tactics.saveAsTactic");
+  // Saving a synced custom tactic is a silent no-op — nothing has changed to
+  // persist. Presets stay enabled even when isDirty is false because saving
+  // there always creates a new custom tactic, which is an observable action.
+  const isSaveDisabled = activeTactic.type === "custom" && !isDirty;
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -118,6 +127,27 @@ export default function TacticsCommandBar({
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (savedCueTimeoutRef.current) {
+        clearTimeout(savedCueTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function handleSaveClick(): void {
+    onSave();
+    setShowSavedCue(true);
+
+    if (savedCueTimeoutRef.current) {
+      clearTimeout(savedCueTimeoutRef.current);
+    }
+
+    savedCueTimeoutRef.current = setTimeout(() => {
+      setShowSavedCue(false);
+    }, SAVE_CUE_DURATION_MS);
+  }
 
   return (
     <Card className="overflow-visible">
@@ -169,10 +199,12 @@ export default function TacticsCommandBar({
                 type="button"
                 variant="accent"
                 size="sm"
-                icon={<Save />}
-                onClick={onSave}
+                icon={showSavedCue && !isDirty ? <Check /> : <Save />}
+                onClick={handleSaveClick}
+                disabled={isSaveDisabled}
+                className="min-w-[9.5rem]"
               >
-                {saveLabel}
+                {showSavedCue && !isDirty ? t("tactics.tacticSaved") : saveLabel}
               </Button>
             </div>
           </div>

@@ -758,6 +758,7 @@
     "duplicateTactic": "Дублировать",
     "saveAsTactic": "Сохранить как тактику",
     "updateTactic": "Обновить тактику",
+    "tacticSaved": "Сохранено",
     "tacticName": "Название тактики",
     "identitySummary": "Сводка идентичности",
     "synced": "Синхронизировано",
