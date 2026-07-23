@@ -304,9 +304,9 @@ export default function WorldEditor() {
     }
   }
 
-  async function openFromPath(path: string) {
+  async function openFromPath(path: string, mode: "file" | "folder") {
     let dir: string;
-    if (path.endsWith(".ofm")) {
+    if (mode === "file") {
       setIsBusy(true);
       try {
         dir = await invoke<string>("extract_ofm_for_editing", { ofmPath: path });
@@ -333,7 +333,7 @@ export default function WorldEditor() {
     }
   }
 
-  async function handleOpenPackage() {
+  async function handleOpenPackageFile() {
     let selected: string | string[] | null;
     try {
       selected = await open({
@@ -347,19 +347,22 @@ export default function WorldEditor() {
     } catch {
       return;
     }
-    if (typeof selected === "string") {
-      await openFromPath(selected);
+    if (typeof selected !== "string") return;
+    if (!selected.toLowerCase().endsWith(".ofm")) {
+      flashError(t("worldEditor.openPackageFileInvalid"));
       return;
     }
-    let dirFallback: string | string[] | null;
+    await openFromPath(selected, "file");
+  }
+
+  async function handleOpenPackageFolder() {
+    let selected: string | string[] | null;
     try {
-      dirFallback = await open({ directory: true, multiple: false });
+      selected = await open({ directory: true, multiple: false });
     } catch {
       return;
     }
-    if (typeof dirFallback === "string") {
-      await openFromPath(dirFallback);
-    }
+    if (typeof selected === "string") await openFromPath(selected, "folder");
   }
 
   async function handleValidate() {
@@ -528,8 +531,9 @@ export default function WorldEditor() {
         errorMsg={errorMsg}
         recentProjects={recentProjects}
         onNewPackage={(m, sample) => { void handleNewPackage(m, sample); }}
-        onOpenPackage={() => { void handleOpenPackage(); }}
-        onOpenRecent={(path) => { void openFromPath(path); }}
+        onOpenPackageFile={() => { void handleOpenPackageFile(); }}
+        onOpenPackageFolder={() => { void handleOpenPackageFolder(); }}
+        onOpenRecent={(path) => { void openFromPath(path, "folder"); }}
       />
     );
   }
