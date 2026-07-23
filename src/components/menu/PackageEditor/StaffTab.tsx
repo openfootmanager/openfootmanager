@@ -24,11 +24,12 @@ interface StaffTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
 
-export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, selectedIndex, onSelect }: StaffTabProps) {
+export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: StaffTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -88,6 +89,8 @@ export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, selectedIndex,
             }
             onEdit={() => onEdit(i)}
             onDelete={() => onDelete(i)}
+            onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+            duplicateLabel={t("worldEditor.duplicateEntity")}
             editLabel={t("worldEditor.editStaff")}
             deleteLabel={t("worldEditor.deleteStaff")}
             isSelected={selectedIndex === i}

@@ -3735,6 +3735,7 @@
     "fallbackLeagueInUse": "Este pacote não define competições, então esta liga será gerada para os seus times.",
     "legsSingle": "Turno único (todos contra todos)",
     "legsDouble": "Turno e returno (casa e fora)",
+    "duplicateEntity": "Duplicar",
     "baseYear": "Ano Base",
     "typeDatabase": "Banco de Dados",
     "typePatch": "Patch",

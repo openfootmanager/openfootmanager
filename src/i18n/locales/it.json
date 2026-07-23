@@ -3735,6 +3735,7 @@
     "fallbackLeagueInUse": "Questo pacchetto non definisce competizioni, quindi verrà generato questo campionato per le sue squadre.",
     "legsSingle": "Girone unico",
     "legsDouble": "Andata e ritorno",
+    "duplicateEntity": "Duplica",
     "baseYear": "Anno Base",
     "typeDatabase": "Banca Dati",
     "typePatch": "Patch",

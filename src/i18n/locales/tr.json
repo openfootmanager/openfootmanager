@@ -3731,6 +3731,7 @@
     "fallbackLeagueInUse": "Bu paket hiçbir turnuva tanımlamıyor, bu yüzden takımları için bu lig oluşturulacak.",
     "legsSingle": "Tek devreli",
     "legsDouble": "Çift devreli (iç saha ve deplasman)",
+    "duplicateEntity": "Çoğalt",
     "baseYear": "Temel Yıl",
     "typeDatabase": "Veritabanı",
     "typePatch": "Yama",

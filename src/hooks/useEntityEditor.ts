@@ -1,5 +1,21 @@
 import { useState } from "react";
 
+/**
+ * Pick an unused id for a copy of `baseId`, counting up from `-2`.
+ *
+ * An existing numeric suffix is stripped first so duplicating a duplicate gives
+ * `team-3` rather than chaining into `team-2-2`. An empty id is left empty —
+ * those are auto-generated from the entity name on save.
+ */
+export function uniqueEntityId(baseId: string, taken: Set<string>): string {
+  if (!baseId) return "";
+  const stem = baseId.replace(/-\d+$/, "") || baseId;
+  for (let n = 2; ; n += 1) {
+    const candidate = `${stem}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
 export function useEntityEditor<T extends { id: string }>(options: {
   items: T[];
   setItems: (items: T[]) => void;
@@ -10,9 +26,16 @@ export function useEntityEditor<T extends { id: string }>(options: {
   onOpen: () => void;
   onClose: () => void;
   setIsBusy: (busy: boolean) => void;
+  /**
+   * Build the copy made by `handleDuplicate`, given the source entity and an
+   * id that is already unique. Defaults to a deep copy carrying the new id;
+   * override to also disambiguate a display name.
+   */
+  cloneItem?: (item: T, id: string) => T;
 }) {
   const { items, setItems, empty, captureHistory, saveItems, autoSave, onOpen, onClose, setIsBusy } =
     options;
+  const cloneItem = options.cloneItem ?? ((item: T, id: string) => ({ ...structuredClone(item), id }));
 
   const [editing, setEditing] = useState<T>(empty);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -59,6 +82,28 @@ export function useEntityEditor<T extends { id: string }>(options: {
     }
   }
 
+  /**
+   * Insert a copy of `items[index]` directly after it and open the copy for
+   * editing. Landing next to the original keeps a long list navigable, and
+   * opening it means the user can immediately give the copy a real name — the
+   * generated id is unique but rarely what they want to keep.
+   */
+  function handleDuplicate(index: number) {
+    const source = items[index];
+    if (!source) return;
+    captureHistory();
+    const taken = new Set(items.map((item) => item.id));
+    const clone = cloneItem(source, uniqueEntityId(source.id, taken));
+    const updated = [...items.slice(0, index + 1), clone, ...items.slice(index + 1)];
+    setItems(updated);
+    if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
+    setEditing({ ...clone });
+    setEditingIndex(index + 1);
+    setEditingId(clone.id);
+    setRevision((r) => r + 1);
+    onOpen();
+  }
+
   function syncEditing(newItems: T[]) {
     // editingIndex === null means a brand-new, unsaved record (no id to track);
     // there is nothing in the restored snapshot to reconcile against.
@@ -103,5 +148,5 @@ export function useEntityEditor<T extends { id: string }>(options: {
     }
   }
 
-  return { editing, editingIndex, revision, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleSave, syncEditing };
+  return { editing, editingIndex, revision, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleDuplicate, handleSave, syncEditing };
 }

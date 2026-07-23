@@ -12,6 +12,7 @@ interface TeamsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
@@ -38,7 +39,7 @@ function TeamBadge({ team, projectDir }: { team: TeamDef; projectDir?: string })
   );
 }
 
-export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, selectedIndex, onSelect }: TeamsTabProps) {
+export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: TeamsTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -82,6 +83,8 @@ export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, selectedI
           badge={<TeamBadge team={team} projectDir={projectDir} />}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editTeam")}
           deleteLabel={t("worldEditor.deleteTeam")}
           isSelected={selectedIndex === i}

@@ -3735,6 +3735,7 @@
     "fallbackLeagueInUse": "Ce paquet ne définit aucune compétition ; cette ligue sera donc générée pour ses équipes.",
     "legsSingle": "Aller simple",
     "legsDouble": "Aller-retour",
+    "duplicateEntity": "Dupliquer",
     "baseYear": "Année de Base",
     "typeDatabase": "Base de Données",
     "typePatch": "Patch",

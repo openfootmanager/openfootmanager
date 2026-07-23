@@ -7,11 +7,12 @@ interface CountriesTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
 
-export function CountriesTab({ countries, onAdd, onEdit, onDelete, selectedIndex, onSelect }: CountriesTabProps) {
+export function CountriesTab({ countries, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: CountriesTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -29,6 +30,8 @@ export function CountriesTab({ countries, onAdd, onEdit, onDelete, selectedIndex
             .join(" · ")}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editCountry")}
           deleteLabel={t("worldEditor.deleteCountry")}
           isSelected={selectedIndex === i}

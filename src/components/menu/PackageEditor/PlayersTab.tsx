@@ -47,13 +47,14 @@ interface PlayersTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
   projectDir?: string;
   youthOnly?: boolean;
 }
 
-export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIndex, onSelect, projectDir, youthOnly }: PlayersTabProps) {
+export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect, projectDir, youthOnly }: PlayersTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -113,6 +114,8 @@ export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIn
           }
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editPlayer")}
           deleteLabel={t("worldEditor.deletePlayer")}
           isSelected={selectedIndex === i}

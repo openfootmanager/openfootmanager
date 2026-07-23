@@ -3731,6 +3731,7 @@
     "fallbackLeagueInUse": "This package defines no competitions, so this league will be generated for its teams.",
     "legsSingle": "Single round-robin",
     "legsDouble": "Double round-robin",
+    "duplicateEntity": "Duplicate",
     "baseYear": "Base Year",
     "typeDatabase": "Database",
     "typePatch": "Patch",

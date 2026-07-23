@@ -9,6 +9,7 @@ interface CompetitionsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
@@ -34,7 +35,7 @@ function CompetitionBadge({ comp, projectDir }: { comp: CompetitionDef; projectD
   );
 }
 
-export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDelete, selectedIndex, onSelect }: CompetitionsTabProps) {
+export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: CompetitionsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -52,6 +53,8 @@ export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDel
           badge={<CompetitionBadge comp={comp} projectDir={projectDir} />}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editCompetition")}
           deleteLabel={t("worldEditor.deleteCompetition")}
           isSelected={selectedIndex === i}

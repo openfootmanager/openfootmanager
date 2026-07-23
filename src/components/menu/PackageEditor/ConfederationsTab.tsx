@@ -7,11 +7,12 @@ interface ConfederationsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
 
-export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, selectedIndex, onSelect }: ConfederationsTabProps) {
+export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: ConfederationsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -27,6 +28,8 @@ export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, sel
           subtitle={conf.name ? conf.id : undefined}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editConfederation")}
           deleteLabel={t("worldEditor.deleteConfederation")}
           isSelected={selectedIndex === i}
