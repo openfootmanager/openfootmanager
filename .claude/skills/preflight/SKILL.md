@@ -76,9 +76,10 @@ cargo build --manifest-path src-tauri/Cargo.toml --features mcp
 cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
 ```
 
-CI runs this exact command and fails on any warning. Fix them rather than adding `#[allow]`; if an
-`#[allow]` is genuinely right (a Tauri command that legitimately takes many parameters, say), put
-a comment above it explaining why.
+Clippy must be clean before a PR (`CONTRIBUTING.md` has always asked for this; check
+`.github/workflows/build-check.yml` for whether CI enforces it yet). Fix warnings rather than
+adding `#[allow]`; if an `#[allow]` is genuinely right — a Tauri command whose long argument list
+*is* the IPC signature, say — put a comment above it explaining why.
 
 **Match CI's toolchain.** CI pins the version named in `.github/workflows/build-check.yml`
 (`dtolnay/rust-toolchain@…`). Clippy gains lints between releases, so a newer local Rust reports

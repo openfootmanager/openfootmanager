@@ -112,6 +112,8 @@ cargo test --workspace
 
 If your change affects both layers, run both test suites.
 
+One trap worth knowing: Tauri command tests live in the `openfootmanager_lib` **lib** target. Use `cargo test --lib` to run them — `cargo test --bin` matches zero tests and exits successfully, which looks like a pass but checks nothing.
+
 ### Versioning and release streams
 
 We follow the odd/even convention used by projects like GNOME and PCSX2:
@@ -154,3 +156,40 @@ The channel is set by CI via the `OFM_CHANNEL` environment variable; locally it 
 - The `*-release-manifest` workflows generate the download manifest consumed by the website.
   Because upserting a release does not re-fire `release: published`, the nightly build
   dispatches `nightly-release-manifest.yml` explicitly when it finishes.
+
+### Translations
+
+OpenFoot Manager ships in **11 locales**. Any string a player can read must exist in all of them, not only English — a PR that adds an English-only string fails CI (`src/i18n/localeCoverage.test.ts`).
+
+The locale list lives in `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`, and the files are in `src/i18n/locales/`. On the Rust side, never emit English prose for the player: emit a translation key (like `be.error.noTeamAssigned`) and add that key to every locale file.
+
+## Contributing with AI agents
+
+AI coding agents are welcome here, and the repository is set up so they start with the project's actual conventions instead of guessing.
+
+**Read these first** (your agent will pick them up automatically):
+
+- [`CLAUDE.md`](CLAUDE.md) — commands, the project's six non-negotiable rules, and an index into `docs/`
+- [`AGENTS.md`](AGENTS.md) — the same rules, for tools that don't read `CLAUDE.md`
+- `src/CLAUDE.md` and `src-tauri/CLAUDE.md` — frontend and backend specifics, loaded when working in those trees
+
+**Claude Code users** also get project skills and review agents in `.claude/`:
+
+| Skill | Use it when |
+|-------|-------------|
+| `/add-ui-string` | Adding or changing any text a player can see |
+| `/new-ui-surface` | Building a new component, panel, tab, or screen |
+| `/add-domain-field` | Adding a field that must survive save/load |
+| `/add-tauri-command` | Exposing new backend behaviour to the frontend |
+| `/add-mcp-tool` | Adding a tool for AI agents that play the game |
+| `/preflight` | Before opening a PR — the full local check sequence |
+
+| Review agent | What it checks |
+|--------------|----------------|
+| `ofm-architecture-reviewer` | Crate boundaries, layering, save compatibility, SOLID |
+| `i18n-auditor` | Untranslated strings, missing locales, translation quality |
+| `ui-accessibility-reviewer` | Design tokens, theme parity, focus, keyboard, labelling |
+
+**The bar is the same.** An AI-assisted PR is held to exactly the standards above: tests that would have failed before the change, all 11 locales, clean `cargo clippy`, and a description that explains *why*. "The agent wrote it" is not a review comment we can act on.
+
+**Please disclose it.** The pull request template has a checkbox. This is a GPLv3 project, and knowing how a contribution was produced matters for licensing and for review. Read your own diff before you open the PR — you are the author, and you are vouching for it.
