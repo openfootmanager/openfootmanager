@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-import { EntityListShell, EntityRow } from "./shared";
+import { EntityListShell, EntityRow, ExportCsvButton } from "./shared";
 import type { TeamDef } from "./types";
 import { entityRowKey } from "./helpers";
 
@@ -14,6 +14,7 @@ interface TeamsTabProps {
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
   onDuplicate?: (index: number) => void;
+  onExportCsv?: () => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
@@ -40,7 +41,7 @@ function TeamBadge({ team, projectDir }: { team: TeamDef; projectDir?: string })
   );
 }
 
-export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: TeamsTabProps) {
+export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplicate, onExportCsv, selectedIndex, onSelect }: TeamsTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -62,16 +63,19 @@ export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplica
       isEmpty={teams.length === 0}
       searchSlot={
         teams.length > 0 && (
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label={t("worldEditor.searchTeams")}
-              placeholder={t("worldEditor.searchTeams")}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label={t("worldEditor.searchTeams")}
+                placeholder={t("worldEditor.searchTeams")}
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
+              />
+            </div>
+            {onExportCsv && <ExportCsvButton onClick={onExportCsv} />}
           </div>
         )
       }

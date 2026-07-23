@@ -2575,6 +2575,7 @@
         "playerNotOnBench": "O jogador não está no banco",
         "playerNotInStartingXi": "O jogador não está no time titular"
       },
+      "csv": { "writeFailed": "Falha ao gravar o arquivo CSV." },
       "worldReadFileFailed": "Falha ao ler o arquivo do banco de dados do mundo.",
       "package": {
         "invalid": "Este pacote de mundo é inválido e não pôde ser carregado.",
@@ -3736,6 +3737,8 @@
     "legsSingle": "Turno único (todos contra todos)",
     "legsDouble": "Turno e returno (casa e fora)",
     "duplicateEntity": "Duplicar",
+    "exportCsv": "Exportar CSV",
+    "exportCsvSuccess": "Arquivo CSV gravado.",
     "baseYear": "Ano Base",
     "typeDatabase": "Banco de Dados",
     "typePatch": "Patch",

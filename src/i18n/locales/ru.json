@@ -2588,6 +2588,7 @@
         "playerNotOnBench": "Игрок не на скамейке запасных",
         "playerNotInStartingXi": "Игрок не в стартовом составе"
       },
+      "csv": { "writeFailed": "Не удалось записать CSV-файл." },
       "worldReadFileFailed": "Не удалось прочитать файл мировой базы данных.",
       "package": {
         "invalid": "Этот пакет мира недействителен и не может быть загружен.",
@@ -3732,6 +3733,8 @@
     "legsSingle": "В один круг",
     "legsDouble": "В два круга (дома и в гостях)",
     "duplicateEntity": "Дублировать",
+    "exportCsv": "Экспорт в CSV",
+    "exportCsvSuccess": "CSV-файл записан.",
     "baseYear": "Базовый год",
     "typeDatabase": "База данных",
     "typePatch": "Патч",

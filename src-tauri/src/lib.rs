@@ -304,6 +304,8 @@ pub fn run() {
             build_ofm,
             extract_ofm_for_editing,
             copy_package_asset,
+            export_teams_csv,
+            export_players_csv,
             read_file_as_data_url
         ])
         .run(tauri::generate_context!());

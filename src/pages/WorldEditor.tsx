@@ -378,6 +378,38 @@ export default function WorldEditor() {
     }
   }
 
+  /**
+   * Write one entity type out as CSV for bulk editing in a spreadsheet.
+   * Exports the in-memory list rather than what's on disk, so what the editor
+   * currently shows is what lands in the file even with auto-save off.
+   */
+  async function exportCsv(command: string, payload: Record<string, unknown>, defaultName: string) {
+    let outPath: string | null;
+    try {
+      outPath = await save({
+        filters: [{ name: "CSV", extensions: ["csv"] }],
+        defaultPath: defaultName,
+      });
+    } catch {
+      return;
+    }
+    if (typeof outPath !== "string") return;
+    setIsBusy(true);
+    try {
+      await invoke(command, { ...payload, output: outPath });
+      flashSuccess(t("worldEditor.exportCsvSuccess"));
+    } catch (err) {
+      flashError(resolveBackendError(err));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  const handleExportTeamsCsv = () =>
+    void exportCsv("export_teams_csv", { teams }, `${meta.id || "package"}-teams.csv`);
+  const handleExportPlayersCsv = () =>
+    void exportCsv("export_players_csv", { players }, `${meta.id || "package"}-players.csv`);
+
   async function handleBuild() {
     const defaultName = `${meta.id || "package"}.ofm`;
     let outPath: string | null;
@@ -563,6 +595,8 @@ export default function WorldEditor() {
         countryEditor={countryEditor}
         compEditor={compEditor}
         namesEditor={{ editingPoolKey, handleAddPool, handleSelectPool, handleDeletePool }}
+        onExportTeamsCsv={handleExportTeamsCsv}
+        onExportPlayersCsv={handleExportPlayersCsv}
       />
     );
 

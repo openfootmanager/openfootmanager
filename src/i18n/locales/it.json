@@ -2575,6 +2575,7 @@
         "playerNotOnBench": "Il giocatore non è in panchina",
         "playerNotInStartingXi": "Il giocatore non è nell'undici titolare"
       },
+      "csv": { "writeFailed": "Impossibile scrivere il file CSV." },
       "worldReadFileFailed": "Impossibile leggere il file del database del mondo.",
       "package": {
         "invalid": "Questo pacchetto mondo non è valido e non può essere caricato.",
@@ -3736,6 +3737,8 @@
     "legsSingle": "Girone unico",
     "legsDouble": "Andata e ritorno",
     "duplicateEntity": "Duplica",
+    "exportCsv": "Esporta CSV",
+    "exportCsvSuccess": "File CSV scritto.",
     "baseYear": "Anno Base",
     "typeDatabase": "Banca Dati",
     "typePatch": "Patch",

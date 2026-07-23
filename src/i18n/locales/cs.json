@@ -2589,6 +2589,7 @@
         "playerNotOnBench": "Hráč není na lavički",
         "playerNotInStartingXi": "Hráč není v základní sestavě"
       },
+      "csv": { "writeFailed": "Nepodařilo se zapsat soubor CSV." },
       "worldReadFileFailed": "Nepodařilo se načíst databázový soubor světa.",
       "package": {
         "invalid": "Tento balíček světa je neplatný a nepodařilo se ho načíst.",
@@ -3733,6 +3734,8 @@
     "legsSingle": "Jednokolově",
     "legsDouble": "Dvoukolově (doma a venku)",
     "duplicateEntity": "Duplikovat",
+    "exportCsv": "Exportovat CSV",
+    "exportCsvSuccess": "Soubor CSV byl zapsán.",
     "baseYear": "Základní rok",
     "typeDatabase": "Databáze",
     "typePatch": "Opravný balíček (Patch)",

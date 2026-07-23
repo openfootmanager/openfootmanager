@@ -2575,6 +2575,7 @@
         "playerNotOnBench": "Spieler ist nicht auf der Bank",
         "playerNotInStartingXi": "Spieler ist nicht in der Startelf"
       },
+      "csv": { "writeFailed": "Die CSV-Datei konnte nicht geschrieben werden." },
       "worldReadFileFailed": "Die Weltdatenbankdatei konnte nicht gelesen werden.",
       "package": {
         "invalid": "Dieses Welt-Paket ist ungültig und konnte nicht geladen werden.",
@@ -3736,6 +3737,8 @@
     "legsSingle": "Einfachrunde",
     "legsDouble": "Hin- und Rückrunde",
     "duplicateEntity": "Duplizieren",
+    "exportCsv": "CSV exportieren",
+    "exportCsvSuccess": "CSV-Datei geschrieben.",
     "baseYear": "Basisjahr",
     "typeDatabase": "Datenbank",
     "typePatch": "Patch",

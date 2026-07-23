@@ -44,6 +44,8 @@ interface WorldEditorListContentProps {
   confEditor: ListEditorAPI;
   countryEditor: ListEditorAPI;
   compEditor: ListEditorAPI;
+  onExportTeamsCsv?: () => void;
+  onExportPlayersCsv?: () => void;
   namesEditor: {
     editingPoolKey: string;
     handleAddPool: () => void;
@@ -71,6 +73,8 @@ export function WorldEditorListContent({
   countryEditor,
   compEditor,
   namesEditor,
+  onExportTeamsCsv,
+  onExportPlayersCsv,
 }: WorldEditorListContentProps) {
   return (
     <EntityListPanel>
@@ -82,6 +86,7 @@ export function WorldEditorListContent({
           onEdit={teamEditor.handleSelect}
           onDelete={teamEditor.handleDelete}
           onDuplicate={teamEditor.handleDuplicate}
+          onExportCsv={onExportTeamsCsv}
           selectedIndex={formPanel === "team" ? teamEditor.editingIndex : null}
           onSelect={teamEditor.handleSelect}
         />
@@ -95,6 +100,7 @@ export function WorldEditorListContent({
           onEdit={playerEditor.handleSelect}
           onDelete={playerEditor.handleDelete}
           onDuplicate={playerEditor.handleDuplicate}
+          onExportCsv={onExportPlayersCsv}
           selectedIndex={formPanel === "player" ? playerEditor.editingIndex : null}
           onSelect={playerEditor.handleSelect}
           projectDir={projectDir}

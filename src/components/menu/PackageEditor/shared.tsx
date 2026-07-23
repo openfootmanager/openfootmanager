@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Copy, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
+import { Plus, Copy, Download, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
@@ -41,6 +41,25 @@ export function EntityListShell({
 
       <div className="flex flex-col gap-2">{children}</div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ExportCsvButton
+// ---------------------------------------------------------------------------
+
+/** Sits beside a list's search box and writes that entity type out as CSV. */
+export function ExportCsvButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={onClick}
+      title={t("worldEditor.exportCsv")}
+      aria-label={t("worldEditor.exportCsv")}
+      className="flex items-center justify-center p-1.5 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-400 dark:text-gray-500 hover:text-primary-500 dark:hover:text-primary-400 hover:border-primary-400 dark:hover:border-primary-500 transition-colors flex-shrink-0"
+    >
+      <Download className="w-3.5 h-3.5" />
+    </button>
   );
 }
 

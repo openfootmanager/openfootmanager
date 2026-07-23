@@ -234,6 +234,24 @@ For a complete field reference including berths, season timing, and all selector
 
 ---
 
+## Exporting to CSV
+
+The Teams and Players sections each have an **Export CSV** button beside their search box. It writes every entity of that type — not just the ones matching the current search — to a `.csv` file you choose.
+
+Use it to bulk-edit in a spreadsheet, to diff two versions of a package, or as a plain-text backup.
+
+**Column rules:**
+
+- **The header row is the contract.** There is no version number. Columns are identified by name, so their order does not matter.
+- **An empty cell means "omitted", never zero or empty string.** It is how a package says *let the engine decide* — the same meaning a blank field has in the editor's forms.
+- **Ranges become two columns.** A team's reputation range exports as `reputationMin` and `reputationMax`, so you can sort and filter on them.
+- **Players export whichever ability form is set.** A player carries either a single `overall` or an explicit 19-attribute block; a player with only `overall` leaves the attribute columns blank. Where both are present the attribute block is what the engine uses.
+- **Youth and first-team players share one file**, told apart by the `youth` column (blank for a first-team player).
+
+Team names, cities, and stadium names are free text, so values containing commas or quotes are quoted properly — a club called `Preston North End, Lancashire` round-trips intact.
+
+---
+
 ## Save, Validate, and Build
 
 These actions appear at the bottom of the edit view:
