@@ -111,3 +111,46 @@ cargo test --workspace
 ```
 
 If your change affects both layers, run both test suites.
+
+### Versioning and release streams
+
+We follow the odd/even convention used by projects like GNOME and PCSX2:
+
+- **Odd minor versions (`0.3.x`)** are the *unstable* stream. They live on `develop` and are
+  published as nightlies.
+- **Even minor versions (`0.4.x`)** are *stable* releases, cut from the `release` branch.
+
+So a user on `0.3.x` knows they are on an unstable build just from the number.
+
+The base version lives in three files that must stay in sync:
+
+- `src-tauri/tauri.conf.json` (the source of truth the build reads)
+- `src-tauri/Cargo.toml`
+- `package.json`
+
+**Do not bump these per build.** They only change when a release stream branches
+(`0.3` → `0.4`). Everything that varies build to build — the channel, the commit hash, the
+build date — is injected by `vite.config.ts` as `__APP_VERSION__`, `__APP_CHANNEL__`,
+`__APP_COMMIT__` and `__APP_BUILD_DATE__`, and formatted by `formatAppVersion()` in
+`src/lib/appVersion.ts`:
+
+| build | shown in the UI and window title |
+| --- | --- |
+| stable | `v0.4.0` |
+| nightly | `v0.3.0-nightly · f164fcd` |
+| local | `v0.3.0-dev · f164fcd` |
+
+The channel is set by CI via the `OFM_CHANNEL` environment variable; locally it defaults to
+`dev`. It is deliberately not translated — it is part of a semver identifier, not prose.
+
+### Release workflows
+
+- `publish-nightly` runs on every push to `develop` and upserts a single **rolling** `nightly`
+  release: one entry that is replaced in place, so the releases page never fills with
+  indistinguishable builds. It is never deleted up front, so a failed build leaves the last
+  good nightly intact.
+- `publish` runs on pushes to `release` and creates `v__VERSION__` as a non-prerelease, which
+  is what gives the releases page its "Latest" badge.
+- The `*-release-manifest` workflows generate the download manifest consumed by the website.
+  Because upserting a release does not re-fire `release: published`, the nightly build
+  dispatches `nightly-release-manifest.yml` explicitly when it finishes.

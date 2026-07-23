@@ -11,8 +11,77 @@ on:
     branches:
       - develop
 
+# Every build shares the one rolling `nightly` tag, so runs must not overlap.
+concurrency:
+  group: nightly-release
+  cancel-in-progress: true
+
 jobs:
+  prepare-nightly:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.release_settings.outputs.tag }}
+      display_version: ${{ steps.release_settings.outputs.display_version }}
+      release_name: ${{ steps.release_settings.outputs.release_name }}
+      release_body: ${{ steps.release_settings.outputs.release_body }}
+    steps:
+      # Read-only job: reads tauri.conf.json and calls gh api via GH_TOKEN, never
+      # touches git, so the checkout credentials are not needed.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Resolve nightly release metadata
+        id: release_settings
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          # Fixed rolling tag: exactly one nightly release ever exists, so the
+          # releases page stays legible regardless of how GitHub sorts it.
+          tag="${INPUT_RELEASE_TAG:-nightly}"
+          nightly_date="$(date -u +%F)"
+          compact_date="$(date -u +%Y%m%d)"
+          short_sha="${GITHUB_SHA::7}"
+          base_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          display_version="${base_version}-nightly.${compact_date}+${short_sha}"
+
+          # The date/sha live in the release name because a rolling tag's
+          # published_at never advances.
+          release_name="Openfoot Manager Nightly ${display_version}"
+
+          compare_line=""
+          last_stable="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          if [ -n "$last_stable" ]; then
+            compare_line="Changes since \`${last_stable}\`: https://github.com/${GITHUB_REPOSITORY}/compare/${last_stable}...${GITHUB_SHA}"
+          fi
+
+          {
+            echo "tag=$tag"
+            echo "display_version=$display_version"
+            echo "release_name=$release_name"
+            echo "release_body<<EOF"
+            echo "Rolling nightly build from \`develop\` — **unstable**, expect breakage."
+            echo ""
+            echo "- Version: \`${display_version}\`"
+            echo "- Commit: \`${short_sha}\`"
+            echo "- Built: ${nightly_date} (UTC)"
+            if [ -n "$compare_line" ]; then
+              echo ""
+              echo "$compare_line"
+            fi
+            echo ""
+            echo "This tag is replaced on every push to \`develop\`; the assets below always reflect the newest build."
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
   publish-tauri-nightly:
+    needs: prepare-nightly
     environment: ${{ vars.RELEASE_ENVIRONMENT || 'release' }}
     permissions:
       contents: write
@@ -33,26 +102,6 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: Resolve nightly tag
-        id: release_settings
-        shell: bash
-        env:
-          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          set -euo pipefail
-
-          nightly_date="$(date -u +%F)"
-          short_sha="${GITHUB_SHA::7}"
-          tag="${INPUT_RELEASE_TAG:-nightly-develop-${nightly_date}-${short_sha}}"
-
-          {
-            echo "tag=$tag"
-            echo "release_name=Openfoot Manager Nightly"
-            echo "release_body<<EOF"
-            echo "Automated nightly build from develop (${nightly_date}, ${short_sha})."
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v4
 
       - name: install dependencies (ubuntu only)
@@ -83,15 +132,81 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Bakes the channel into the bundled frontend so the in-app version
+          # reads "v0.3.0-nightly · <sha>" instead of looking like a stable build.
+          OFM_CHANNEL: nightly
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
-          tagName: ${{ steps.release_settings.outputs.tag }}
-          releaseName: ${{ steps.release_settings.outputs.release_name }}
-          releaseBody: ${{ steps.release_settings.outputs.release_body }}
+          tagName: ${{ needs.prepare-nightly.outputs.tag }}
+          releaseName: ${{ needs.prepare-nightly.outputs.release_name }}
+          releaseBody: ${{ needs.prepare-nightly.outputs.release_body }}
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
+
+  # The `nightly` release is upserted, never deleted: a failed build must not
+  # destroy the last known-good nightly. The cost is that re-uploading assets to
+  # an existing release does not re-fire `release: published`, so the metadata
+  # pipeline is dispatched explicitly here.
+  finalize-nightly:
+    needs: [prepare-nightly, publish-tauri-nightly]
+    # `fail-fast: false` means one platform can fail while the others upload new
+    # assets. Finalizing anyway keeps the release name and, more importantly, the
+    # published checksums consistent with the assets that *did* land — skipping
+    # would leave nightly-checksums.txt describing files that no longer exist.
+    if: ${{ !cancelled() && needs.prepare-nightly.result == 'success' && needs.publish-tauri-nightly.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    permissions:
+      # contents:write to force-move the rolling tag and edit the release below;
+      # actions:write to dispatch nightly-release-manifest.yml.
+      contents: write
+      actions: write
+    steps:
+      # persist-credentials stays on (the default): the git push below relies on
+      # the credential helper this step configures.
+      - uses: actions/checkout@v4
+
+      - name: Move rolling tag and refresh release metadata
+        id: finalize
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare-nightly.outputs.tag }}
+          RELEASE_NAME: ${{ needs.prepare-nightly.outputs.release_name }}
+          RELEASE_BODY: ${{ needs.prepare-nightly.outputs.release_body }}
+        run: |
+          set -euo pipefail
+
+          # Nothing to finalize if every platform failed and the release was
+          # never created.
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "No $RELEASE_TAG release exists — every build must have failed."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "released=true" >> "$GITHUB_OUTPUT"
+
+          git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$RELEASE_TAG"
+
+          gh release edit "$RELEASE_TAG" \
+            --title "$RELEASE_NAME" \
+            --notes "$RELEASE_BODY" \
+            --target "$GITHUB_SHA" \
+            --prerelease
+
+      - name: Dispatch nightly metadata workflow
+        if: ${{ steps.finalize.outputs.released == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare-nightly.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare-nightly.outputs.display_version }}
+        run: |
+          set -euo pipefail
+          gh workflow run nightly-release-manifest.yml \
+            -f release_tag="$RELEASE_TAG" \
+            -f release_version="$RELEASE_VERSION"

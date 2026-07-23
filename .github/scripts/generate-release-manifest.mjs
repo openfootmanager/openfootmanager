@@ -329,7 +329,9 @@ async function buildManifest() {
     product: 'Openfoot Manager',
     repository,
     tag,
-    version: tag.startsWith('v') ? tag.slice(1) : tag,
+    // Rolling tags (e.g. `nightly`) carry no version, so the workflow supplies one.
+    version: process.env.RELEASE_VERSION || (tag.startsWith('v') ? tag.slice(1) : tag),
+    commit: release.target_commitish ?? '',
     prerelease: Boolean(release.prerelease),
     publishedAt: release.published_at ?? release.created_at ?? new Date().toISOString(),
     releaseName: release.name ?? tag,

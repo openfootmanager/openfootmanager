@@ -10,6 +10,10 @@ on:
         description: Nightly release tag to process
         required: true
         type: string
+      release_version:
+        description: Display version to publish in the manifest (defaults to a computed nightly version)
+        required: false
+        type: string
 
 concurrency:
   group: nightly-release-metadata
@@ -17,7 +21,7 @@ concurrency:
 
 jobs:
   publish-nightly-release-metadata:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.target_commitish == 'develop' || startsWith(github.event.release.tag_name, 'nightly-') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.target_commitish == 'develop' || startsWith(github.event.release.tag_name, 'nightly') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -44,8 +48,26 @@ jobs:
             exit 1
           fi
 
+      # The rolling tag is literally "nightly", so the manifest version cannot be
+      # derived from it — consumers (the website) need a real semver.
+      - name: Resolve nightly display version
+        id: nightly_version
+        env:
+          INPUT_RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+
+          version="${INPUT_RELEASE_VERSION:-}"
+          if [ -z "$version" ]; then
+            base_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+            version="${base_version}-nightly.$(date -u +%Y%m%d)+${GITHUB_SHA::7}"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Generate nightly release manifest
         env:
+          RELEASE_VERSION: ${{ steps.nightly_version.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}

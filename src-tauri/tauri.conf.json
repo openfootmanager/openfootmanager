@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Openfoot Manager v0.3.0-beta",
+        "title": "Openfoot Manager",
         "width": 1280,
         "height": 800,
         "minWidth": 960,
