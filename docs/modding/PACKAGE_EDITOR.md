@@ -56,6 +56,18 @@ Fill in the package's top-level fields:
 | **Package Type** | `database` for a full world, `patch` for partial updates, `assets` for art-only packages. |
 | **Min Game Version** | Minimum OFM version required to use this package. Use `0.3.0` if unsure. Leave empty for no requirement. |
 
+**Fallback League**
+
+If your package ships teams but no competitions, the engine generates a single-division league containing every team so the world is still playable. This group shapes that league:
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Display name for the generated league. Leave blank for the localized "Default League". |
+| **Legs** | How many times each pair meets — single or double round-robin. Blank uses the engine default (double). |
+| **Scope** | Domestic, Regional, Continental, or International. Blank uses the engine default (Domestic). |
+
+Every field is optional, and clearing them all removes the override entirely. A note appears above the fields when the package is actually in this state (teams defined, no competitions). Once you define your own competitions these settings are ignored.
+
 ---
 
 ### Confederations Section
