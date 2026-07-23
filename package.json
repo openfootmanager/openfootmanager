@@ -8,6 +8,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write",
+    "format:check": "biome format",
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri"
@@ -31,6 +34,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.5",
     "@tailwindcss/vite": "^4.2.2",
     "@tauri-apps/cli": "^2",
     "@testing-library/jest-dom": "^6.9.1",
