@@ -101,7 +101,8 @@ jobs:
       # `--lib`, not `--workspace`: the mcp tests live only in the root
       # openfootmanager_lib target. Building the whole workspace's test binaries
       # under a second feature set shares no cached artifacts with the step
-      # above and took 80 minutes of CI time for these nine tests.
+      # above and took 80 minutes of CI time for these nine tests; scoped to
+      # `--lib` it measures ~5 minutes.
       - name: Run backend tests (mcp feature)
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib --features mcp
 
