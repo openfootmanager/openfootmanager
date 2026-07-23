@@ -621,6 +621,13 @@ fn group_index(group: &Position) -> Option<usize> {
 /// the least valuable backfill first — seniors before youth-aged prospects, so a
 /// squad that still needs backfill keeps the players
 /// [`seed_opening_youth_academy`] draws its opening academy from.
+///
+/// Note the deliberate consequence for a club whose authored squad is already
+/// full and entirely senior: no backfill survives, so
+/// [`seed_opening_youth_academy`] finds no youth-aged players and the club opens
+/// without an academy. That is the authored squad winning, which is what #349
+/// asks for — packages seed an academy by authoring `youth: true` players (the
+/// world editor's Youth section) rather than by having one generated for them.
 fn trim_backfill_players(players: &mut Vec<Player>, placed: &[bool], authored_count: usize) {
     let target = authored_count.max(SQUAD_SLOTS);
     if players.len() <= target {
