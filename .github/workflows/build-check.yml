@@ -75,6 +75,8 @@ jobs:
 
       - name: Install Rust 1.95.0
         uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: clippy
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -86,3 +88,31 @@ jobs:
 
       - name: Check backend compilation
         run: cargo check --manifest-path src-tauri/Cargo.toml --workspace
+
+      # Clippy is a hard gate: any warning fails the build. Run the same command
+      # locally before pushing (or use the /preflight skill).
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+
+      # The MCP server sits behind a Cargo feature, so the step above never
+      # compiles it. Without this, ~90 tools' worth of code is unlinted.
+      - name: Clippy (mcp feature)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+
+# ── Gates deliberately NOT enabled yet ───────────────────────────────────────
+#
+# `cargo fmt --check`  — reports ~630 diffs across 82 files today. The repo has
+#     never had a formatting gate, so enabling one requires a standalone
+#     `cargo fmt --all` sweep first; doing it here would bury every real change
+#     and conflict with every open branch.
+#
+# `biome lint`  — a first run reports ~480 findings plus a large formatter diff.
+#     Same reasoning: the sweep is its own piece of work.
+#
+# `npm run audit:i18n`  — a heuristic reporter that always exits 0, so it cannot
+#     gate anything. Locale coverage is already enforced by
+#     src/i18n/localeCoverage.test.ts and frontendKeyCoverage.test.ts, which run
+#     as part of `npm test` in the frontend job above.
+#
+# `tsc --noEmit`  — redundant: `npm run build` is `tsc && vite build`, so type
+#     errors already fail the frontend job.
