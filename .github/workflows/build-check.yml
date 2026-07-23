@@ -6,6 +6,12 @@ on:
       - develop
   workflow_dispatch:
 
+# Every job here only reads the repo — checkout, build, test, lint. Nothing
+# publishes a release or comments on the PR, so the token needs nothing more.
+# The release workflows set `contents: write` on the jobs that actually need it.
+permissions:
+  contents: read
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
@@ -86,6 +92,14 @@ jobs:
       - name: Run backend tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --workspace
 
+      # `mod mcp_server` is behind a Cargo feature, so the step above never
+      # compiles it — nine tests under src/mcp_server/ (167 vs 176 in the lib
+      # target) have never run on CI. Same blind spot the clippy pair below
+      # closes, and the same class of trap as `cargo test --bin` matching zero
+      # tests. Costs about 35s.
+      - name: Run backend tests (mcp feature)
+        run: cargo test --manifest-path src-tauri/Cargo.toml --workspace --features mcp
+
       - name: Check backend compilation
         run: cargo check --manifest-path src-tauri/Cargo.toml --workspace
 
@@ -116,3 +130,8 @@ jobs:
 #
 # `tsc --noEmit`  — redundant: `npm run build` is `tsc && vite build`, so type
 #     errors already fail the frontend job.
+#
+# `--features save-snapshots`  — a third feature-gated path (forwards to
+#     `db/save-snapshots`) that is still neither linted nor tested here. It is a
+#     dev-only debugging aid rather than shipped behaviour, so it is lower value
+#     than the `mcp` pair above — but it is a real gap, not an oversight.
