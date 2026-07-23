@@ -365,7 +365,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
             })
             .map(|player| (player.id.clone(), player.ovr))
             .collect();
-        squad.sort_by(|a, b| b.1.cmp(&a.1));
+        squad.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         let squad_player_ids: Vec<String> =
             squad.into_iter().take(23).map(|(id, _)| id).collect();
 

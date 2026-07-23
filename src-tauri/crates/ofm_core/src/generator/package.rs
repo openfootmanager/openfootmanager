@@ -435,20 +435,18 @@ pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>)
             .unwrap_or_default();
         if let Some(locale) = translation_locale_from_filename(file_name) {
             let canonical = locale.to_ascii_lowercase();
-            if package.extra_translations.contains_key(&canonical) {
-                errors.push(PackageError::new(READ_FAILED, &file));
-            } else {
+            if let std::collections::hash_map::Entry::Vacant(e) = package.extra_translations.entry(canonical) {
                 match std::fs::read_to_string(path) {
                     Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
                         Ok(serde_json::Value::Object(map)) => {
-                            package
-                                .extra_translations
-                                .insert(canonical, serde_json::Value::Object(map));
+                            e.insert(serde_json::Value::Object(map));
                         }
                         Ok(_) | Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
                     },
                     Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
                 }
+            } else {
+                errors.push(PackageError::new(READ_FAILED, &file));
             }
             continue;
         }
@@ -624,28 +622,26 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         .as_ref()
         .map(|m| m.package_type == "patch")
         .unwrap_or(false);
-    if !is_patch {
-        if let Some(meta) = &package.meta {
-            let comp_ids: HashSet<&str> = package.competitions.iter().map(|c| c.id.as_str()).collect();
-            for id in &meta.default_active_competitions {
-                if !id.is_empty() && !comp_ids.contains(id.as_str()) {
-                    errors.push(
-                        PackageError::new(UNKNOWN_COMPETITION, "")
-                            .with("id", id)
-                            .with("field", "defaultActiveCompetitions"),
-                    );
-                }
+    if !is_patch && let Some(meta) = &package.meta {
+        let comp_ids: HashSet<&str> = package.competitions.iter().map(|c| c.id.as_str()).collect();
+        for id in &meta.default_active_competitions {
+            if !id.is_empty() && !comp_ids.contains(id.as_str()) {
+                errors.push(
+                    PackageError::new(UNKNOWN_COMPETITION, "")
+                        .with("id", id)
+                        .with("field", "defaultActiveCompetitions"),
+                );
             }
-            // Each defaultActiveRegions id must be a known region: a confederation
-            // defined in this package or a built-in region (e.g. `europe`).
-            for id in &meta.default_active_regions {
-                if !id.is_empty() && !known_confederation(id) {
-                    errors.push(
-                        PackageError::new(UNKNOWN_REGION, "")
-                            .with("id", id)
-                            .with("field", "defaultActiveRegions"),
-                    );
-                }
+        }
+        // Each defaultActiveRegions id must be a known region: a confederation
+        // defined in this package or a built-in region (e.g. `europe`).
+        for id in &meta.default_active_regions {
+            if !id.is_empty() && !known_confederation(id) {
+                errors.push(
+                    PackageError::new(UNKNOWN_REGION, "")
+                        .with("id", id)
+                        .with("field", "defaultActiveRegions"),
+                );
             }
         }
     }
@@ -793,19 +789,19 @@ pub fn validate_package_stack(packages: &[&WorldPackage]) -> Vec<StackConflict> 
     // Check duplicate package ids.
     let mut pkg_ids_seen: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
     for (i, pkg) in packages.iter().enumerate() {
-        if let Some(meta) = &pkg.meta {
-            if !meta.id.is_empty() {
-                if let Some(&prev) = pkg_ids_seen.get(meta.id.as_str()) {
-                    conflicts.push(StackConflict {
-                        severity: ConflictSeverity::Error,
-                        code: "be.error.conflict.duplicatePackageId".to_string(),
-                        entity_kind: "package".to_string(),
-                        entity_id: meta.id.clone(),
-                        packages: vec![format!("#{}", prev + 1), format!("#{}", i + 1)],
-                    });
-                } else {
-                    pkg_ids_seen.insert(meta.id.as_str(), i);
-                }
+        if let Some(meta) = &pkg.meta
+            && !meta.id.is_empty()
+        {
+            if let Some(&prev) = pkg_ids_seen.get(meta.id.as_str()) {
+                conflicts.push(StackConflict {
+                    severity: ConflictSeverity::Error,
+                    code: "be.error.conflict.duplicatePackageId".to_string(),
+                    entity_kind: "package".to_string(),
+                    entity_id: meta.id.clone(),
+                    packages: vec![format!("#{}", prev + 1), format!("#{}", i + 1)],
+                });
+            } else {
+                pkg_ids_seen.insert(meta.id.as_str(), i);
             }
         }
     }
@@ -914,7 +910,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let mut names_description = String::new();
     let mut saw_names = false;
 
-    for package in databases.into_iter().chain(patches.into_iter()) {
+    for package in databases.into_iter().chain(patches) {
         if let Some(meta) = package.meta {
             // Union the list fields; scalar fields take the last non-empty value.
             for id in &meta.default_active_competitions {
@@ -1104,7 +1100,7 @@ pub fn extract_archive_safely(
             continue;
         }
         if entry.is_symlink() {
-            errors.push(PackageError::new(SYMLINK_ERROR, &entry.name().to_string()));
+            errors.push(PackageError::new(SYMLINK_ERROR, entry.name()));
             continue;
         }
         let entry_name = entry.name().to_string();
@@ -1112,11 +1108,11 @@ pub fn extract_archive_safely(
             errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
             continue;
         };
-        if let Some(parent) = dest.parent() {
-            if std::fs::create_dir_all(parent).is_err() {
-                errors.push(PackageError::new(READ_FAILED, &entry_name));
-                continue;
-            }
+        if let Some(parent) = dest.parent()
+            && std::fs::create_dir_all(parent).is_err()
+        {
+            errors.push(PackageError::new(READ_FAILED, &entry_name));
+            continue;
         }
         // Read in 64 KB chunks and count actual decompressed bytes.
         // entry.size() comes from the zip central-directory header, which an

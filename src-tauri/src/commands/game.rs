@@ -479,7 +479,7 @@ fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
     players_by_nation
         .into_iter()
         .map(|(nation, mut players)| {
-            players.sort_by(|left, right| right.ovr.cmp(&left.ovr));
+            players.sort_by_key(|player| std::cmp::Reverse(player.ovr));
             let nation_label = ofm_core::nations::nation_display_name(&nation);
             let mut national_team = NationalTeam::new(
                 format!("nt-{}", nation.to_lowercase()),

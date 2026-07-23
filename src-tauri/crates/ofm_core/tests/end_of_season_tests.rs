@@ -1007,7 +1007,7 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
     assert!(
         game.competitions
             .iter()
-            .any(|c| ofm_core::world_cup::is_world_cup_playoff(c)),
+            .any(ofm_core::world_cup::is_world_cup_playoff),
         "the finished groups stage the June playoff"
     );
 

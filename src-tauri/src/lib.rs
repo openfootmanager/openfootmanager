@@ -148,10 +148,10 @@ pub fn run() {
                             }
                             Err(e) => {
                                 log::error!("[mcp] Bootstrap failed: {}", e);
-                                return Err(Box::new(std::io::Error::new(
-                                    std::io::ErrorKind::Other,
-                                    format!("MCP auto-start failed: {}", e),
-                                ))
+                                return Err(Box::new(std::io::Error::other(format!(
+                                    "MCP auto-start failed: {}",
+                                    e
+                                )))
                                     as Box<dyn std::error::Error + Send + Sync>);
                             }
                         }

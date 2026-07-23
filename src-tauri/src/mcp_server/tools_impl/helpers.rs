@@ -60,7 +60,7 @@ pub(crate) fn age_from_dob(dob: &str, game: &ofm_core::game::Game) -> String {
         Err(_) => return "?".to_string(),
     };
     let ref_date = game.clock.current_date.date_naive();
-    let mut age = i32::from(ref_date.year()) - i32::from(dob_date.year());
+    let mut age = ref_date.year() - dob_date.year();
     if (ref_date.month(), ref_date.day()) < (dob_date.month(), dob_date.day()) {
         age -= 1;
     }

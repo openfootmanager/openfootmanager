@@ -11,6 +11,10 @@ use super::snap_player;
 /// `fouling_side` is the side that committed the foul.
 /// `tactics_mod` is a pre-computed multiplier from the fouling team's pressing/marking settings.
 /// Returns `true` if a foul was committed.
+// Foul resolution genuinely depends on all of these: who fouled whom, where, when,
+// with which side's tactics, and the RNG. Grouping them into a struct would only
+// move the argument list to the call site.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn maybe_foul<R: Rng>(
     ctx: &mut MatchContext,
     minute: u8,

@@ -411,7 +411,7 @@ fn send_job_offer(game: &mut Game, opportunity: &JobOpportunity, _rng: &mut impl
 pub fn get_available_jobs(game: &Game) -> Vec<JobOpportunity> {
     let mut jobs = find_eligible_clubs(game);
 
-    jobs.sort_by(|a, b| b.reputation.cmp(&a.reputation));
+    jobs.sort_by_key(|job| std::cmp::Reverse(job.reputation));
     jobs.truncate(4);
     jobs
 }

@@ -282,14 +282,16 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<String, String> {
         let home_name = game.teams.iter().find(|t| t.id == f.home_team_id).map(|t| t.name.clone()).unwrap_or_default();
         let away_name = game.teams.iter().find(|t| t.id == f.away_team_id).map(|t| t.name.clone()).unwrap_or_default();
 
+        let matchup = format!("{home_name} vs {away_name}");
+
         let entry = if f.status == domain::league::FixtureStatus::Completed {
             if let Some(ref result) = f.result {
-                format!("| {} | {} - {} | {} | MD{} |", f.date, result.home_goals, result.away_goals, format!("{} vs {}", home_name, away_name), f.matchday)
+                format!("| {} | {} - {} | {} | MD{} |", f.date, result.home_goals, result.away_goals, matchup, f.matchday)
             } else {
-                format!("| {} | - | {} | MD{} |", f.date, format!("{} vs {}", home_name, away_name), f.matchday)
+                format!("| {} | - | {} | MD{} |", f.date, matchup, f.matchday)
             }
         } else {
-            format!("| {} | - | {} | MD{} |", f.date, format!("{} vs {}", home_name, away_name), f.matchday)
+            format!("| {} | - | {} | MD{} |", f.date, matchup, f.matchday)
         };
 
         if f.date >= today && f.status != domain::league::FixtureStatus::Completed {
@@ -315,7 +317,7 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<String, String> {
         output.push_str("\n### Recent Results (last 5)\n\n| Date | Score | Match | MD |\n|------|-------|-------|----|\n");
         for row in recent {
             output.push_str(row);
-            output.push_str("\n");
+            output.push('\n');
         }
     }
 
@@ -504,48 +506,6 @@ fn render_recent_news(news: &[domain::news::NewsArticle], today: &str) -> String
         output.push_str(&format!("| {} | {} | {} |\n", i + 1, n.headline, n.date));
     }
     output
-}
-
-#[cfg(test)]
-mod info_news_tests {
-    use super::render_recent_news;
-    use domain::news::{NewsArticle, NewsCategory};
-
-    fn article(id: &str, date: &str) -> NewsArticle {
-        NewsArticle::new(
-            id.to_string(),
-            format!("{id} headline"),
-            "Body".to_string(),
-            "Source".to_string(),
-            date.to_string(),
-            NewsCategory::Editorial,
-        )
-    }
-
-    #[test]
-    fn recent_news_hides_future_dated_articles() {
-        let news = vec![
-            article("today", "2026-02-15"),
-            article("kickoff", "2026-06-03"),
-        ];
-
-        let rendered = render_recent_news(&news, "2026-02-15");
-
-        assert!(rendered.contains("today headline"));
-        assert!(
-            !rendered.contains("kickoff headline"),
-            "a future-dated article must not show in the MCP news tool"
-        );
-    }
-
-    #[test]
-    fn recent_news_shows_same_day_rfc3339_articles() {
-        let news = vec![article("digest", "2026-02-15T08:00:00+00:00")];
-
-        let rendered = render_recent_news(&news, "2026-02-15");
-
-        assert!(rendered.contains("digest headline"));
-    }
 }
 
 // ─── info_match_preview ─────────────────────────────────────────────────────
@@ -807,11 +767,12 @@ pub fn info_team_match_history(ctx: Arc<McpContext>, team_id: String, limit: Opt
     let mut output = format!("## Match History: {} ({} matches)\n\n| # | Date | Opponent | Score |\n|---|------|----------|-------|\n", team_name, response.len());
     for (i, entry) in response.iter().enumerate() {
         output.push_str(&format!(
-            "| {} | {} | {} | {} |\n",
+            "| {} | {} | {} | {}-{} |\n",
             i + 1,
             entry.date,
             entry.opponent_name,
-            format!("{}-{}", entry.goals_for, entry.goals_against),
+            entry.goals_for,
+            entry.goals_against,
         ));
     }
 
@@ -861,6 +822,48 @@ pub fn info_finance_snapshot(ctx: Arc<McpContext>, team_id: Option<String>) -> R
         snap.runway_status,
         snap.overall_status,
     ))
+}
+
+#[cfg(test)]
+mod info_news_tests {
+    use super::render_recent_news;
+    use domain::news::{NewsArticle, NewsCategory};
+
+    fn article(id: &str, date: &str) -> NewsArticle {
+        NewsArticle::new(
+            id.to_string(),
+            format!("{id} headline"),
+            "Body".to_string(),
+            "Source".to_string(),
+            date.to_string(),
+            NewsCategory::Editorial,
+        )
+    }
+
+    #[test]
+    fn recent_news_hides_future_dated_articles() {
+        let news = vec![
+            article("today", "2026-02-15"),
+            article("kickoff", "2026-06-03"),
+        ];
+
+        let rendered = render_recent_news(&news, "2026-02-15");
+
+        assert!(rendered.contains("today headline"));
+        assert!(
+            !rendered.contains("kickoff headline"),
+            "a future-dated article must not show in the MCP news tool"
+        );
+    }
+
+    #[test]
+    fn recent_news_shows_same_day_rfc3339_articles() {
+        let news = vec![article("digest", "2026-02-15T08:00:00+00:00")];
+
+        let rendered = render_recent_news(&news, "2026-02-15");
+
+        assert!(rendered.contains("digest headline"));
+    }
 }
 
 // ─── club_request_board_support ─────────────────────────────────────────────

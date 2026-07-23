@@ -952,7 +952,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
     }
     // Highest appeal first; a stable sort preserves the original ordering among
     // equally appealing targets, so selection is unchanged.
-    shortlist.sort_by(|a, b| b.score.cmp(&a.score));
+    shortlist.sort_by_key(|candidate| std::cmp::Reverse(candidate.score));
 
     for buyer_id in buyer_ids {
         let Some(buyer_team) = game.teams.iter().find(|team| team.id == buyer_id).cloned() else {

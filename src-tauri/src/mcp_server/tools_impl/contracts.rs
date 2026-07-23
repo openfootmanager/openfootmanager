@@ -141,7 +141,7 @@ pub fn contract_preview_termination(ctx: Arc<McpContext>, player_id: String) -> 
     )
     .map_err(|e| translate_error(&e))?;
 
-    Ok(format!("## Termination Preview\n\n**Cost**: (see projection details)\nThis is a preview — no contract was terminated."))
+    Ok("## Termination Preview\n\n**Cost**: (see projection details)\nThis is a preview — no contract was terminated.".to_string())
 }
 
 // ─── contract_terminate ─────────────────────────────────────────────────────

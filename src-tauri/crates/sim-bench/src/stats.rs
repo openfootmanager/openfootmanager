@@ -287,7 +287,7 @@ impl BenchStats {
     /// Top N scorelines sorted by frequency descending.
     pub fn top_scorelines(&self, n: usize) -> Vec<((u8, u8), u32)> {
         let mut list: Vec<_> = self.scorelines.iter().map(|(&k, &v)| (k, v)).collect();
-        list.sort_by(|a, b| b.1.cmp(&a.1));
+        list.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         list.truncate(n);
         list
     }

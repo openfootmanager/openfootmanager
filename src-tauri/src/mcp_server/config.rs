@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn parse_mcp_config_with_port() {
         let config =
-            parse_mcp_config_from_iter(&["--mcp-port", "3001"]).unwrap().expect("config");
+            parse_mcp_config_from_iter(["--mcp-port", "3001"]).unwrap().expect("config");
         assert_eq!(config.port, 3001);
         assert_eq!(config.mode, McpMode::Sandbox);
         assert!(config.disabled_tools.is_empty());
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn parse_mcp_config_competition_mode() {
-        let config = parse_mcp_config_from_iter(&[
+        let config = parse_mcp_config_from_iter([
             "--mcp-port",
             "3001",
             "--mcp-mode",
@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn parse_mcp_config_all_args() {
-        let config = parse_mcp_config_from_iter(&[
+        let config = parse_mcp_config_from_iter([
             "--mcp-port",
             "3001",
             "--mcp-mode",
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn competition_mode_without_auto_start_returns_err() {
-        let result = parse_mcp_config_from_iter(&[
+        let result = parse_mcp_config_from_iter([
             "--mcp-port",
             "3001",
             "--mcp-mode",
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn invalid_mcp_mode_returns_err() {
-        let result = parse_mcp_config_from_iter(&[
+        let result = parse_mcp_config_from_iter([
             "--mcp-port",
             "3001",
             "--mcp-mode",
