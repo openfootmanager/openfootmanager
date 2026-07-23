@@ -83,6 +83,7 @@ export default function TeamSelectionGrid({
                   return (
                     <button
                       key={team.id}
+                      type="button"
                       onClick={() => onSelectTeam(team.id)}
                       className={`rounded-xl text-left transition-all duration-200 ${
                         isSelected

@@ -57,6 +57,7 @@ export default function TeamSelection() {
       <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 shadow-sm dark:border-navy-700 dark:bg-navy-800">
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={() => navigate("/")}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-navy-700 dark:hover:text-gray-200"
           >
@@ -75,6 +76,7 @@ export default function TeamSelection() {
           <ThemeToggle />
           {selectedTeam && (
             <button
+              type="button"
               onClick={handleConfirm}
               disabled={isConfirming}
               className={`flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-2.5 font-heading text-sm font-bold uppercase tracking-wider text-white shadow-md transition-all hover:from-primary-600 hover:to-primary-700 hover:shadow-lg hover:shadow-primary-500/20 ${
