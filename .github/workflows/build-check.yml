@@ -96,9 +96,14 @@ jobs:
       # compiles it — nine tests under src/mcp_server/ (167 vs 176 in the lib
       # target) have never run on CI. Same blind spot the clippy pair below
       # closes, and the same class of trap as `cargo test --bin` matching zero
-      # tests. Costs about 35s.
+      # tests.
+      #
+      # `--lib`, not `--workspace`: the mcp tests live only in the root
+      # openfootmanager_lib target. Building the whole workspace's test binaries
+      # under a second feature set shares no cached artifacts with the step
+      # above and took 80 minutes of CI time for these nine tests.
       - name: Run backend tests (mcp feature)
-        run: cargo test --manifest-path src-tauri/Cargo.toml --workspace --features mcp
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib --features mcp
 
       - name: Check backend compilation
         run: cargo check --manifest-path src-tauri/Cargo.toml --workspace
