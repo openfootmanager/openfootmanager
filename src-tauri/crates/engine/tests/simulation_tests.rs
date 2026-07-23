@@ -1050,7 +1050,7 @@ fn penalties_occur_at_realistic_rate() {
 
     let avg = total_penalties as f64 / games as f64;
     assert!(
-        avg >= 0.15 && avg <= 0.70,
+        (0.15..=0.70).contains(&avg),
         "Expected penalties/game in [0.15, 0.70], got {avg:.3}"
     );
 }

@@ -35,12 +35,8 @@ pub fn inbox_get_messages(ctx: Arc<McpContext>, category: Option<String>, unread
     for m in messages.iter().take(20) {
         let read_marker = if m.read { "✓" } else { "●" };
         output.push_str(&format!(
-            "| {} | {} | {} | {} | {} |\n",
-            m.id,
-            m.subject,
-            format!("{:?}", m.category),
-            read_marker,
-            m.date,
+            "| {} | {} | {:?} | {} | {} |\n",
+            m.id, m.subject, m.category, read_marker, m.date,
         ));
     }
     if messages.len() > 20 {

@@ -139,10 +139,9 @@ fn select_starting_xi<'a>(
         if let Some(player) = saved_xi_ids
             .get(slot_index)
             .and_then(|id| players_by_id.get(id.as_str()))
+            && used_ids.insert(player.id.clone())
         {
-            if used_ids.insert(player.id.clone()) {
-                *chosen_slot = Some(*player);
-            }
+            *chosen_slot = Some(*player);
         }
     }
 
@@ -230,10 +229,10 @@ fn team_management_quality(game: &Game, team: Option<&domain::team::Team>) -> f6
         return management_quality(500);
     };
 
-    if let Some(manager_id) = &team.manager_id {
-        if let Some(manager) = game.managers.iter().find(|m| &m.id == manager_id) {
-            return management_quality_from_rating(manager.rating());
-        }
+    if let Some(manager_id) = &team.manager_id
+        && let Some(manager) = game.managers.iter().find(|m| &m.id == manager_id)
+    {
+        return management_quality_from_rating(manager.rating());
     }
 
     management_quality(team.reputation)

@@ -709,6 +709,10 @@ pub fn set_player_role_internal(
     })
 }
 
+// One `Option<String>` per tactical dial: this is the IPC signature the UI sends,
+// and each dial is independently optional. Bundling them into a struct would move
+// the same field count behind a serde type without making any call site simpler.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn set_tactics_phase(
     state: State<'_, Arc<StateManager>>,

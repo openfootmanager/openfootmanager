@@ -1,6 +1,6 @@
-/// Formatting utilities for converting game data into agent-readable text.
-///
-/// Phase 2 starts with minimal structured text; Phase 5 upgrades to rich markdown.
+//! Formatting utilities for converting game data into agent-readable text.
+//!
+//! Phase 2 starts with minimal structured text; Phase 5 upgrades to rich markdown.
 
 /// Translate a backend error key (e.g. "be.error.noActiveGameSession") into
 /// a human-readable message that helps agents self-correct.

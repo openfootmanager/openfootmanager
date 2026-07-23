@@ -132,7 +132,7 @@ impl WorldHistoryArchive {
         }
 
         self.season_awards
-            .sort_by(|left, right| right.season.cmp(&left.season));
+            .sort_by_key(|entry| std::cmp::Reverse(entry.season));
     }
 
     pub fn record_world_cup_champion(&mut self, record: WorldCupChampionRecord) {
@@ -147,7 +147,7 @@ impl WorldHistoryArchive {
         }
 
         self.world_cup_champions
-            .sort_by(|left, right| right.year.cmp(&left.year));
+            .sort_by_key(|entry| std::cmp::Reverse(entry.year));
     }
 
     /// Current ranking points for a nation, if it has been ranked.
@@ -226,8 +226,7 @@ impl WorldHistoryArchive {
         } else {
             self.world_cup_hosts.push(record);
         }
-        self.world_cup_hosts
-            .sort_by(|left, right| left.year.cmp(&right.year));
+        self.world_cup_hosts.sort_by_key(|left| left.year);
     }
 
     /// The confirmed host nation code for a World Cup year, if any.

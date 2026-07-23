@@ -185,8 +185,7 @@ fn upsert_team_history(game: &mut Game, season: u32, standings: &[StandingEntry]
             team.history.push(record);
         } else {
             team.history.push(record);
-            team.history
-                .sort_by(|left, right| left.season.cmp(&right.season));
+            team.history.sort_by_key(|left| left.season);
         }
     }
 }
@@ -421,9 +420,7 @@ fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry
             player.career.push(entry);
         } else {
             player.career.push(entry);
-            player
-                .career
-                .sort_by(|left, right| left.season.cmp(&right.season));
+            player.career.sort_by_key(|left| left.season);
         }
     }
 }

@@ -130,7 +130,7 @@ pub fn build_round_robin_fixtures_with(
 /// Fixtures are sorted by `(matchday, id)` before reassignment so the result is
 /// deterministic regardless of insertion order.
 pub fn spread_fixture_dates(
-    fixtures: &mut Vec<Fixture>,
+    fixtures: &mut [Fixture],
     start_date: DateTime<Utc>,
     max_per_day: usize,
 ) {
@@ -154,7 +154,7 @@ pub fn spread_fixture_dates(
                 .format("%Y-%m-%d")
                 .to_string();
         }
-        let days_used = ((count + max_per_day - 1) / max_per_day) as i64;
+        let days_used = count.div_ceil(max_per_day) as i64;
         cursor_day += days_used + 1;
         i = j;
     }
@@ -943,9 +943,11 @@ mod tests {
         league.region_id = Some("south-america".to_string());
         league.scope = CompetitionScope::Domestic;
 
-        let mut cup = League::default();
-        cup.kind = CompetitionType::Cup;
-        cup.scope = CompetitionScope::Regional;
+        let mut cup = League {
+            kind: CompetitionType::Cup,
+            scope: CompetitionScope::Regional,
+            ..Default::default()
+        };
         cup.fixtures.push(Fixture {
             id: Uuid::new_v4().to_string(),
             competition_id: "regional-cup".to_string(),

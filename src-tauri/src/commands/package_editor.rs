@@ -152,7 +152,18 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     })
 }
 
-/// Persist in-memory edits: atomically overwrites all package entity files.
+/// Persist in-memory edits, overwriting every package entity file.
+///
+/// Each file is written atomically — `write_json_atomic` writes a `.tmp` sibling
+/// and renames over the target — so no single file can be left half-written.
+/// The *set* of files is **not** transactional: this walks the entity types in
+/// sequence with `?`, so a failure partway through leaves the earlier files
+/// updated and the later ones stale. Recovering from that means saving again
+/// from the still-intact in-memory project.
+// One parameter per entity type, matching the `.ofm` package layout — the editor
+// sends every collection in one call, so the argument count tracks the entity
+// count by design.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn save_package_project(
     dir: String,
@@ -583,7 +594,7 @@ pub fn copy_package_asset(
 
     let dest_name = format!("{}.{}", entity_id, ext);
     let dest = assets_dir.join(&dest_name);
-    std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    std::fs::copy(src, &dest).map_err(|e| e.to_string())?;
 
     Ok(format!("assets/images/{}", dest_name))
 }

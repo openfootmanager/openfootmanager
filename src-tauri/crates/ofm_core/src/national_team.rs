@@ -201,7 +201,7 @@ fn match_day_xi(squad_player_ids: &[String], players: &[Player]) -> Vec<String> 
         .iter()
         .filter_map(|pid| players.iter().find(|p| &p.id == pid).map(|p| (p.id.clone(), p.ovr)))
         .collect();
-    rated.sort_by(|left, right| right.1.cmp(&left.1));
+    rated.sort_by_key(|entry| std::cmp::Reverse(entry.1));
     rated
         .into_iter()
         .take(MATCH_SQUAD_SIZE)

@@ -116,7 +116,7 @@ impl LiveMatchState {
             .iter()
             .filter(|p| !self.sent_off.contains(&p.id))
             .collect();
-        candidates.sort_by(|a, b| b.shooting.cmp(&a.shooting));
+        candidates.sort_by_key(|p| std::cmp::Reverse(p.shooting));
         if let Some(p) = candidates.first() {
             PlayerSnap::from(p)
         } else {

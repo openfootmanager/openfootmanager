@@ -436,7 +436,7 @@ mod tests {
         assert_eq!(report.player_stats["h1"].goals, 1);
         assert_eq!(report.player_stats["a1"].goals, 1);
         assert!(
-            report.player_stats.get("h2").map_or(true, |p| p.goals == 0),
+            report.player_stats.get("h2").is_none_or(|p| p.goals == 0),
             "shootout-only kicker must not be credited a goal"
         );
         // In-match penalties still count.

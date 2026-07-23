@@ -404,6 +404,9 @@ impl LiveMatchState {
     // Foul / card / penalty
     // -----------------------------------------------------------------------
 
+    // Mirrors `engine::fouls::maybe_foul` — foul resolution needs the full context
+    // (who, whom, where, when, tactics, RNG), so the argument count is inherent.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn maybe_foul<R: Rng>(
         &mut self,
         minute: u8,

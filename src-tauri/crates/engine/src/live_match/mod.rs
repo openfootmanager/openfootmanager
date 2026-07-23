@@ -361,10 +361,10 @@ impl LiveMatchState {
                 role,
             } => {
                 let team = self.team_mut(side);
-                if let Some(p) = team.players.iter_mut().find(|p| p.id == player_id) {
-                    if is_role_valid_for_position(role, p.position) {
-                        p.role = role;
-                    }
+                if let Some(p) = team.players.iter_mut().find(|p| p.id == player_id)
+                    && is_role_valid_for_position(role, p.position)
+                {
+                    p.role = role;
                 }
                 Ok(())
             }

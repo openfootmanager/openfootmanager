@@ -6,6 +6,12 @@ on:
       - develop
   workflow_dispatch:
 
+# Every job here only reads the repo — checkout, build, test, lint. Nothing
+# publishes a release or comments on the PR, so the token needs nothing more.
+# The release workflows set `contents: write` on the jobs that actually need it.
+permissions:
+  contents: read
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
@@ -75,6 +81,8 @@ jobs:
 
       - name: Install Rust 1.95.0
         uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: clippy
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -84,5 +92,52 @@ jobs:
       - name: Run backend tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --workspace
 
+      # `mod mcp_server` is behind a Cargo feature, so the step above never
+      # compiles it — nine tests under src/mcp_server/ (167 vs 176 in the lib
+      # target) have never run on CI. Same blind spot the clippy pair below
+      # closes, and the same class of trap as `cargo test --bin` matching zero
+      # tests.
+      #
+      # `--lib`, not `--workspace`: the mcp tests live only in the root
+      # openfootmanager_lib target. Building the whole workspace's test binaries
+      # under a second feature set shares no cached artifacts with the step
+      # above and took 80 minutes of CI time for these nine tests; scoped to
+      # `--lib` it measures ~5 minutes.
+      - name: Run backend tests (mcp feature)
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib --features mcp
+
       - name: Check backend compilation
         run: cargo check --manifest-path src-tauri/Cargo.toml --workspace
+
+      # Clippy is a hard gate: any warning fails the build. Run the same command
+      # locally before pushing (or use the /preflight skill).
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+
+      # The MCP server sits behind a Cargo feature, so the step above never
+      # compiles it. Without this, ~90 tools' worth of code is unlinted.
+      - name: Clippy (mcp feature)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+
+# ── Gates deliberately NOT enabled yet ───────────────────────────────────────
+#
+# `cargo fmt --check`  — reports ~630 diffs across 82 files today. The repo has
+#     never had a formatting gate, so enabling one requires a standalone
+#     `cargo fmt --all` sweep first; doing it here would bury every real change
+#     and conflict with every open branch.
+#
+# `biome lint`  — a first run reports ~480 findings plus a large formatter diff.
+#     Same reasoning: the sweep is its own piece of work.
+#
+# `npm run audit:i18n`  — a heuristic reporter that always exits 0, so it cannot
+#     gate anything. Locale coverage is already enforced by
+#     src/i18n/localeCoverage.test.ts and frontendKeyCoverage.test.ts, which run
+#     as part of `npm test` in the frontend job above.
+#
+# `tsc --noEmit`  — redundant: `npm run build` is `tsc && vite build`, so type
+#     errors already fail the frontend job.
+#
+# `--features save-snapshots`  — a third feature-gated path (forwards to
+#     `db/save-snapshots`) that is still neither linted nor tested here. It is a
+#     dev-only debugging aid rather than shipped behaviour, so it is lower value
+#     than the `mcp` pair above — but it is a real gap, not an oversight.
