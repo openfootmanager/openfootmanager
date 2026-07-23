@@ -1,6 +1,6 @@
 name: "\U0001F3AE Session Report (English)"
 description: "Share a summary of your play session in English"
-labels: ["session-report", "beta"]
+labels: ["session-report"]
 body:
   - type: markdown
     attributes:

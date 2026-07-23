@@ -1,6 +1,6 @@
 name: "💬 Feedback / Sugerencia (Español)"
 description: "Comparte feedback o sugerencias en español"
-labels: ["feedback", "beta"]
+labels: ["feedback"]
 body:
   - type: markdown
     attributes:

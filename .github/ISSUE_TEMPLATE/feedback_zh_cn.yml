@@ -1,6 +1,6 @@
 name: "💬 反馈 / 建议（简体中文）"
 description: "用简体中文分享反馈或改进建议"
-labels: ["feedback", "beta"]
+labels: ["feedback"]
 body:
   - type: markdown
     attributes:

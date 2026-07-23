@@ -1,6 +1,6 @@
 name: "🐛 Bug melden (Deutsch)"
 description: "Melde einen Bug oder Absturz auf Deutsch"
-labels: ["bug", "beta"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:

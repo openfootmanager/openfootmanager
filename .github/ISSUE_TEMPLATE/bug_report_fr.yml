@@ -1,6 +1,6 @@
 name: "🐛 Rapport de Bug (Français)"
 description: "Signaler un bug ou un crash en français"
-labels: ["bug", "beta"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
