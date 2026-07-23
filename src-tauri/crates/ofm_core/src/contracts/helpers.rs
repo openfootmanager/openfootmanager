@@ -9,12 +9,12 @@ pub(crate) fn owned_player<'a>(game: &'a Game, player_id: &str) -> Result<&'a Pl
         .manager
         .team_id
         .as_deref()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
     let player = game
         .players
         .iter()
         .find(|candidate| candidate.id == player_id)
-        .ok_or("be.error.playerNotFound".to_string())?;
+        .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
     if contract_owner_team_id(player) != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
@@ -28,12 +28,12 @@ pub(crate) fn owned_player_index(game: &Game, player_id: &str) -> Result<usize, 
         .manager
         .team_id
         .as_deref()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
     let player_index = game
         .players
         .iter()
         .position(|candidate| candidate.id == player_id)
-        .ok_or("be.error.playerNotFound".to_string())?;
+        .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
     if contract_owner_team_id(&game.players[player_index]) != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());

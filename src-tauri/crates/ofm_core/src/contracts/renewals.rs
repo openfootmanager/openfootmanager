@@ -159,20 +159,20 @@ pub fn propose_renewal(
         .manager
         .team_id
         .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
 
     let team = game
         .teams
         .iter()
         .find(|candidate| candidate.id == manager_team_id)
-        .ok_or("be.error.managedTeamNotFound".to_string())?
+        .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?
         .clone();
 
     let player_index = game
         .players
         .iter()
         .position(|candidate| candidate.id == player_id)
-        .ok_or("be.error.playerNotFound".to_string())?;
+        .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
     if contract_owner_team_id(&game.players[player_index]) != Some(team.id.as_str()) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
