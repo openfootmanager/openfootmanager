@@ -3825,6 +3825,7 @@
     "newPackageDesc": "Создать новый мир с нуля",
     "openPackageFileDesc": "Открыть существующий файл пакета .ofm",
     "openPackageFolderDesc": "Открыть существующую папку проекта мира",
+    "openPackageFileInvalid": "Выберите допустимый файл пакета .ofm",
     "noItemSelected": "Выберите элемент из списка или нажмите Добавить",
     "issuesBadge": "{{count}} проблем(а)",
     "issuesTitle": "Ошибки валидации",

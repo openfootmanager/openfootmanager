@@ -3825,6 +3825,7 @@
     "newPackageDesc": "Sıfırdan yeni bir dünya başlatın",
     "openPackageFileDesc": "Mevcut bir .ofm paket dosyasını açın",
     "openPackageFolderDesc": "Mevcut bir dünya proje klasörünü açın",
+    "openPackageFileInvalid": "Lütfen geçerli bir .ofm paket dosyası seçin",
     "noItemSelected": "Listeden bir öğe seçin veya oluşturmak için Ekle'ye tıklayın",
     "issuesBadge": "{{count}} sorun",
     "issuesTitle": "Doğrulama Sorunları",

@@ -3826,6 +3826,7 @@
     "newPackageDesc": "从零开始创建新世界",
     "openPackageFileDesc": "打开现有 .ofm 包文件",
     "openPackageFolderDesc": "打开现有世界项目文件夹",
+    "openPackageFileInvalid": "请选择有效的 .ofm 包文件",
     "noItemSelected": "从列表中选择一项，或点击添加以创建",
     "issuesBadge": "{{count}} 个问题",
     "issuesTitle": "验证问题",

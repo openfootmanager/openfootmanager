@@ -3829,6 +3829,7 @@
     "newPackageDesc": "Créer un nouveau monde de zéro",
     "openPackageFileDesc": "Ouvrir un fichier de package .ofm existant",
     "openPackageFolderDesc": "Ouvrir un dossier de projet monde existant",
+    "openPackageFileInvalid": "Veuillez sélectionner un fichier de package .ofm valide",
     "noItemSelected": "Sélectionnez un élément dans la liste ou cliquez sur Ajouter",
     "issuesBadge": "{{count}} problème(s)",
     "issuesTitle": "Problèmes de validation",

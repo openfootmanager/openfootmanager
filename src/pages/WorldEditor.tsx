@@ -304,9 +304,9 @@ export default function WorldEditor() {
     }
   }
 
-  async function openFromPath(path: string) {
+  async function openFromPath(path: string, mode: "file" | "folder") {
     let dir: string;
-    if (path.endsWith(".ofm")) {
+    if (mode === "file") {
       setIsBusy(true);
       try {
         dir = await invoke<string>("extract_ofm_for_editing", { ofmPath: path });
@@ -347,7 +347,12 @@ export default function WorldEditor() {
     } catch {
       return;
     }
-    if (typeof selected === "string") await openFromPath(selected);
+    if (typeof selected !== "string") return;
+    if (!selected.toLowerCase().endsWith(".ofm")) {
+      flashError(t("worldEditor.openPackageFileInvalid"));
+      return;
+    }
+    await openFromPath(selected, "file");
   }
 
   async function handleOpenPackageFolder() {
@@ -357,7 +362,7 @@ export default function WorldEditor() {
     } catch {
       return;
     }
-    if (typeof selected === "string") await openFromPath(selected);
+    if (typeof selected === "string") await openFromPath(selected, "folder");
   }
 
   async function handleValidate() {
@@ -528,7 +533,7 @@ export default function WorldEditor() {
         onNewPackage={(m, sample) => { void handleNewPackage(m, sample); }}
         onOpenPackageFile={() => { void handleOpenPackageFile(); }}
         onOpenPackageFolder={() => { void handleOpenPackageFolder(); }}
-        onOpenRecent={(path) => { void openFromPath(path); }}
+        onOpenRecent={(path) => { void openFromPath(path, "folder"); }}
       />
     );
   }

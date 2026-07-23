@@ -3826,6 +3826,7 @@
     "newPackageDesc": "Zahájit tvorbu nového světa od nuly",
     "openPackageFileDesc": "Otevřít existující soubor balíčku .ofm",
     "openPackageFolderDesc": "Otevřít existující složku projektu světa",
+    "openPackageFileInvalid": "Vyberte platný soubor balíčku .ofm",
     "noItemSelected": "Vyberte položku ze seznamu, nebo klikněte na Přidat pro vytvoření nové",
     "issuesBadge": "{{count}} problémů",
     "issuesTitle": "Problémy s validací",
