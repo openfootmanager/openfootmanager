@@ -146,6 +146,22 @@ pub(super) fn play_style_from_str(s: &str) -> PlayStyle {
     }
 }
 
+/// Number of slots in a generated squad. The slot layout is `GK 0-1`, `DEF 2-8`,
+/// `MID 9-15`, `FWD 16-21` — see [`generate_random_player_from_def`]. This is the
+/// single source of truth for squad size; anything that walks or wraps slots
+/// should use it rather than repeating the literal.
+pub(super) const SQUAD_SLOTS: usize = 22;
+
+/// Minimum number of players per position group a finished squad must keep, in
+/// `[GK, DEF, MID, FWD]` order. Trimming generated players off an authored squad
+/// must never take a group below these — a club with no goalkeeper is unplayable.
+pub(super) const MIN_PLAYERS_PER_GROUP: [(Position, usize); 4] = [
+    (Position::Goalkeeper, 2),
+    (Position::Defender, 4),
+    (Position::Midfielder, 4),
+    (Position::Forward, 2),
+];
+
 /// Squad slots reserved as youth-aged, one per position group in
 /// `[GK, DEF, MID, FWD]` order. Scouted youth recruits target these slots so they
 /// generate at a consistent academy age, and senior generation must avoid them.

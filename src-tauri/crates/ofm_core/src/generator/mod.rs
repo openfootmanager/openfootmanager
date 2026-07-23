@@ -225,7 +225,7 @@ pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Pl
     let names_def = default_names_definition();
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
-    let slot = senior_slot(squad_slot % 22);
+    let slot = senior_slot(squad_slot % SQUAD_SLOTS);
     let mut player =
         generate_random_player_from_def("national-pool", slot, &nationality, &names_def, &mut rng);
     player.team_id = None;
@@ -556,8 +556,8 @@ fn build_club(
     let mut team = build_team(tdef, rng);
     let team_id = team.id.clone();
 
-    let mut team_players = Vec::with_capacity(22);
-    for slot in 0..22 {
+    let mut team_players = Vec::with_capacity(SQUAD_SLOTS);
+    for slot in 0..SQUAD_SLOTS {
         let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
         let mut player =
             generate_random_player_from_def(&team_id, slot, &nationality, names_def, rng);
@@ -590,9 +590,104 @@ fn build_club(
     (team, team_players, team_staff)
 }
 
+/// Position-group floor for a finished squad, or 0 for a group with no floor.
+fn group_floor(group: &Position) -> usize {
+    MIN_PLAYERS_PER_GROUP
+        .iter()
+        .find(|(position, _)| position == group)
+        .map(|(_, floor)| *floor)
+        .unwrap_or(0)
+}
+
+/// Index of a position group within [`MIN_PLAYERS_PER_GROUP`].
+fn group_index(group: &Position) -> Option<usize> {
+    MIN_PLAYERS_PER_GROUP
+        .iter()
+        .position(|(position, _)| position == group)
+}
+
+/// Drop generated backfill players — the ones no authored player displaced —
+/// until the squad is down to `target`, so a club that already defines a full
+/// squad opens with exactly the players its author wrote instead of being padded
+/// out to the generated squad size (#349).
+///
+/// Never drops an authored player, and never takes a position group below its
+/// [`MIN_PLAYERS_PER_GROUP`] floor: an author who writes 28 outfield players and
+/// no goalkeeper still gets goalkeepers rather than an unplayable club. When
+/// every remaining backfill player is holding up a floor the squad simply stays
+/// above `target`.
+///
+/// Removal order is the group furthest above its floor first, and within a group
+/// the least valuable backfill first — seniors before youth-aged prospects, so a
+/// squad that still needs backfill keeps the players
+/// [`seed_opening_youth_academy`] draws its opening academy from.
+///
+/// Note the deliberate consequence for a club whose authored squad is already
+/// full and entirely senior: no backfill survives, so
+/// [`seed_opening_youth_academy`] finds no youth-aged players and the club opens
+/// without an academy. That is the authored squad winning, which is what #349
+/// asks for — packages seed an academy by authoring `youth: true` players (the
+/// world editor's Youth section) rather than by having one generated for them.
+fn trim_backfill_players(players: &mut Vec<Player>, placed: &[bool], authored_count: usize) {
+    let target = authored_count.max(SQUAD_SLOTS);
+    if players.len() <= target {
+        return;
+    }
+
+    let removable: Vec<usize> = (0..players.len())
+        .filter(|index| !placed.get(*index).copied().unwrap_or(false))
+        .collect();
+
+    let mut doomed = vec![false; players.len()];
+    let mut to_drop = players.len() - target;
+
+    while to_drop > 0 {
+        // Recount survivors each pass so the floors are honoured as we go.
+        let mut counts = [0usize; MIN_PLAYERS_PER_GROUP.len()];
+        for (index, player) in players.iter().enumerate() {
+            if !doomed[index]
+                && let Some(group) = group_index(&player.position.to_group_position())
+            {
+                counts[group] += 1;
+            }
+        }
+
+        let pick = removable
+            .iter()
+            .copied()
+            .filter(|index| !doomed[*index])
+            .filter_map(|index| {
+                let group = players[index].position.to_group_position();
+                let surviving = group_index(&group).map(|slot| counts[slot]).unwrap_or(0);
+                let surplus = surviving.checked_sub(group_floor(&group))?;
+                (surplus > 0).then_some((index, surplus))
+            })
+            .max_by_key(|(index, surplus)| {
+                (
+                    *surplus,
+                    !is_opening_youth_candidate(&players[*index]),
+                    std::cmp::Reverse(players[*index].ovr),
+                )
+            });
+
+        let Some((index, _)) = pick else {
+            // Every remaining backfill player is propping up a group floor.
+            break;
+        };
+
+        doomed[index] = true;
+        to_drop -= 1;
+    }
+
+    let mut survives = doomed.into_iter().map(|dropped| !dropped);
+    players.retain(|_| survives.next().unwrap_or(true));
+}
+
 /// Build a club for a world package: start from a generated squad, then swap
 /// each hand-authored player in over a generated one of the same position (so
-/// squad balance is kept), appending if the position is already full.
+/// squad balance is kept), appending if the position is already full. Generated
+/// players left over are then trimmed back by [`trim_backfill_players`] — the
+/// generated squad is a backfill, not a floor to pad the authored squad on top of.
 fn build_package_club(
     tdef: &TeamDef,
     authored: &[&package::PlayerDef],
@@ -625,6 +720,8 @@ fn build_package_club(
             }
         }
     }
+
+    trim_backfill_players(&mut players, &placed, authored.len());
 
     // Authored wages may differ from the players they replaced, so re-normalise
     // the opening wage budget to the final squad.
@@ -1051,6 +1148,138 @@ mod tests {
     use domain::manager::Manager;
     use domain::player::{Position, SquadRole};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    // -- authored squad backfill trimming (#349) ----------------------------
+
+    fn test_team_def() -> TeamDef {
+        serde_json::from_value(serde_json::json!({
+            "id": "fc-test",
+            "name": "FC Test",
+            "shortName": "TST",
+            "city": "Testville",
+            "country": "ENG",
+            "colors": { "primary": "#ff0000", "secondary": "#ffffff" }
+        }))
+        .expect("team def should deserialize")
+    }
+
+    /// A senior authored player at `position`, tagged so tests can tell authored
+    /// players apart from generated backfill via `match_name`.
+    fn authored_player(index: usize, position: Position) -> package::PlayerDef {
+        let mut def: package::PlayerDef =
+            serde_json::from_str("{}").expect("PlayerDef should default");
+        def.id = format!("authored-{index}");
+        def.first_name = "Test".to_string();
+        def.last_name = format!("Authored{index}");
+        def.club = "fc-test".to_string();
+        def.nationality = "ENG".to_string();
+        def.position = position;
+        def.date_of_birth = Some("1998-01-01".to_string());
+        def.overall = Some(70);
+        def
+    }
+
+    /// An authored squad with the given per-group counts, all senior.
+    fn authored_squad(gk: usize, def: usize, mid: usize, fwd: usize) -> Vec<package::PlayerDef> {
+        let groups = [
+            (Position::Goalkeeper, gk),
+            (Position::Defender, def),
+            (Position::Midfielder, mid),
+            (Position::Forward, fwd),
+        ];
+        let mut squad = Vec::new();
+        for (position, count) in groups {
+            for _ in 0..count {
+                squad.push(authored_player(squad.len(), position.clone()));
+            }
+        }
+        squad
+    }
+
+    fn build_test_package_club(authored: &[package::PlayerDef]) -> Vec<Player> {
+        let tdef = test_team_def();
+        let names_def = default_names_definition();
+        let country_codes = sorted_country_codes(&names_def);
+        let mut rng = StdRng::seed_from_u64(42);
+        let refs: Vec<&package::PlayerDef> = authored.iter().collect();
+        let (_team, players, _staff) =
+            build_package_club(&tdef, &refs, &country_codes, &names_def, &mut rng);
+        players
+    }
+
+    fn count_group(players: &[Player], group: Position) -> usize {
+        players
+            .iter()
+            .filter(|player| player.position.to_group_position() == group)
+            .count()
+    }
+
+    fn count_authored(players: &[Player]) -> usize {
+        players
+            .iter()
+            .filter(|player| player.match_name.starts_with("Authored"))
+            .count()
+    }
+
+    #[test]
+    fn authored_full_squad_is_not_padded_with_generated_players() {
+        // #349: a package defining a complete 28-man squad opened with 32 players
+        // because generated players the authored squad never displaced survived.
+        // The generated squad is a backfill, so those leftovers are trimmed.
+        let authored = authored_squad(2, 4, 11, 11);
+        let players = build_test_package_club(&authored);
+
+        assert_eq!(players.len(), 28, "authored squad should not be padded");
+        assert_eq!(count_authored(&players), 28, "every authored player kept");
+    }
+
+    #[test]
+    fn small_authored_squad_is_still_topped_up() {
+        // The flip side: a package that only names a handful of players still
+        // gets a full, playable squad generated around them.
+        let authored = authored_squad(1, 2, 1, 1);
+        let players = build_test_package_club(&authored);
+
+        assert_eq!(players.len(), SQUAD_SLOTS);
+        assert_eq!(count_authored(&players), 5);
+    }
+
+    #[test]
+    fn trim_never_leaves_an_authored_squad_without_goalkeepers() {
+        // 28 authored outfield players and no keeper: trimming to the authored
+        // count would open an unplayable club, so the goalkeeper floor wins and
+        // the squad stays above target.
+        let authored = authored_squad(0, 8, 10, 10);
+        let players = build_test_package_club(&authored);
+
+        assert_eq!(count_authored(&players), 28, "every authored player kept");
+        assert_eq!(
+            count_group(&players, Position::Goalkeeper),
+            group_floor(&Position::Goalkeeper),
+            "generated keepers backfill the missing group"
+        );
+        assert_eq!(players.len(), 30);
+    }
+
+    #[test]
+    fn trim_keeps_the_opening_youth_academy_intact() {
+        // Trimming prefers dropping senior backfill over youth-aged prospects, so
+        // a club whose authored squad is all seniors still opens with an academy.
+        let authored = authored_squad(10, 0, 0, 0);
+        let players = build_test_package_club(&authored);
+
+        assert_eq!(players.len(), SQUAD_SLOTS);
+        assert_eq!(
+            players
+                .iter()
+                .filter(|player| player.squad_role == SquadRole::Youth)
+                .count(),
+            OPENING_YOUTH_ACADEMY_SIZE,
+            "youth-aged backfill should survive the trim"
+        );
+    }
 
     #[test]
     fn fallback_competition_uses_defaults_when_unconfigured() {
