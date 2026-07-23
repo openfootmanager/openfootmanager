@@ -141,8 +141,10 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
   const setFallbackLeague = (patch: Partial<FallbackLeagueConfig>) =>
     set({ fallbackLeague: mergeFallbackLeague(meta.fallbackLeague, patch) });
 
-  // Mirrors the backend condition in `build_world_data_from_package`.
-  const fallbackLeagueInUse = !!counts && counts.teams >= 2 && counts.competitions === 0;
+  // Mirrors `build_world_data_from_package`: any package with teams and no
+  // competitions gets the fallback. A single-team package qualifies too — the
+  // thin-package fill tops it up with procedural opponents first.
+  const fallbackLeagueInUse = !!counts && counts.teams >= 1 && counts.competitions === 0;
 
   const fallbackScopeLabels: Record<string, string> = {
     [ENGINE_DEFAULT]: t("worldEditor.fallbackLeagueDefault"),
