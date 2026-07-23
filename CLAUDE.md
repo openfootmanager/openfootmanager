@@ -42,7 +42,9 @@ repository root.
 
 ### Two gotchas worth memorising
 
-- **Tauri command tests live in the `openfootmanager_lib` lib target.** Use `cargo test --lib`.
+- **Tauri command tests live in the `openfootmanager_lib` lib target.** Use
+  `cargo test --manifest-path src-tauri/Cargo.toml --lib` (or plain `cargo test --lib` from
+  inside `src-tauri/` — there is no manifest at the repository root).
   `cargo test --bin` matches **zero** tests — the `[lib] name` is deliberately suffixed
   (`src-tauri/Cargo.toml`), so the binary target contains almost nothing.
 - **`npm run audit:i18n` never fails.** It is a heuristic reporter that prints candidates and

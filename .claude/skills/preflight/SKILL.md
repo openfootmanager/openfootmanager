@@ -2,7 +2,7 @@
 name: preflight
 description: Run the full local verification gauntlet before opening a pull request — type check, frontend tests, build, backend tests, clippy, and the i18n audit — in cheapest-first order, and confirm the PR hygiene items (branch, conventional commit, linked issue, AI disclosure).
 when_to_use: Before opening or updating a pull request, before asking for review, or any time you want to know whether the change is actually ready.
-allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npx vitest run*), Bash(npm run build), Bash(npm run lint), Bash(npm run audit:i18n), Bash(npx tsc --noEmit), Bash(cargo test*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
+allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npx vitest run*), Bash(npm run build), Bash(npm run lint), Bash(npm run audit:i18n), Bash(npx tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
 ---
 
 # Preflight

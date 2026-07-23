@@ -48,8 +48,15 @@ Open `src-tauri/crates/db/src/repositories/team_repo.rs` and edit **all five**:
    inserting in the middle shifts every index after it, and nothing will tell you if you miss one.
 5. **Both `SELECT` column lists** — `load_all_teams` *and* `load_team`. Two separate strings that
    must stay in sync. For a column added by a migration, wrap it as
-   `COALESCE(youth_budget, 0)` so rows written before the migration read back as the default —
-   the existing JSON columns (`media_json`, `player_roles_json`, …) show the pattern.
+   `COALESCE(youth_budget, <default>)` so rows written before the migration read back as the
+   default — the existing JSON columns (`media_json`, `player_roles_json`, …) show the pattern.
+
+   **`<default>` must be the same value your serde default produces.** These are two independent
+   fallbacks for the same field: serde covers a save loaded from JSON, `COALESCE` covers a row
+   written before the migration. If step 1 used `#[serde(default = "default_youth_budget")]`
+   returning `500_000`, then `COALESCE(youth_budget, 0)` makes the same save load differently
+   depending on which path it came through. Either match the two, or give the column a non-null
+   SQL `DEFAULT` in the migration and drop the `COALESCE`.
 
 Other repositories in that directory (`player_repo.rs`, `staff_repo.rs`, `competition_repo.rs`, …)
 follow the same five-site shape.

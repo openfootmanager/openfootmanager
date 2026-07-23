@@ -8,7 +8,7 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
 
 ## 1. Crate boundaries — the rule that matters most
 
-```
+```text
         Tauri commands (src/commands/, src/application/, src/mcp_server/)
                               │
                           ofm_core            game logic, state, turn processing

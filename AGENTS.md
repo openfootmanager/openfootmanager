@@ -17,8 +17,8 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets
 cargo fmt --manifest-path src-tauri/Cargo.toml --all
 ```
 
-Tauri command tests live in the `openfootmanager_lib` lib target — use `cargo test --lib`.
-`cargo test --bin` matches zero tests.
+Tauri command tests live in the `openfootmanager_lib` lib target — use
+`cargo test --manifest-path src-tauri/Cargo.toml --lib`. `cargo test --bin` matches zero tests.
 
 ## The six rules
 

@@ -3,7 +3,7 @@ name: add-mcp-tool
 description: Add a tool to the MCP server that lets AI agents play OpenFoot Manager. Follows the six-step checklist in tools.rs — route registration, catalog entry, implementation in the right tools_impl module, game-state-changed emission, competition-mode gating, and the docs/MCP_SERVER.md tables.
 when_to_use: Adding or changing an MCP tool, exposing an existing Tauri command to agents, or when a tool exists but help_find_tool cannot see it.
 argument-hint: "[tool name and what it does]"
-allowed-tools: Read, Edit, Write, Grep, Glob, Bash(cargo build --features mcp*), Bash(cargo test*), Bash(cargo clippy*)
+allowed-tools: Read, Edit, Write, Grep, Glob, Bash(cargo build*), Bash(cargo test*), Bash(cargo clippy*)
 ---
 
 # Adding an MCP tool

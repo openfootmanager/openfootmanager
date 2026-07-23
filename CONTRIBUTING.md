@@ -159,7 +159,14 @@ The channel is set by CI via the `OFM_CHANNEL` environment variable; locally it 
 
 ### Translations
 
-OpenFoot Manager ships in **11 locales**. Any string a player can read must exist in all of them, not only English — a PR that adds an English-only string fails CI (`src/i18n/localeCoverage.test.ts`).
+OpenFoot Manager ships in **11 locales**. Any string a player can read must exist in all of them, not only English.
+
+Two tests enforce this, and it is worth knowing precisely what each one catches, because between them they leave a gap:
+
+- `src/i18n/localeCoverage.test.ts` — every locale file has every key `en.json` has, and no locale simply copies the English text. Add a key to `en.json` and stop, and CI fails here.
+- `src/i18n/frontendKeyCoverage.test.ts` — every literal `t("…")` key used in `src/` exists in `en.json`, so a typo'd key fails too.
+
+Neither catches English text hardcoded straight into a component, because it never becomes a key at all. `npm run audit:i18n` scans for those, but it is a heuristic reporter and **always exits 0** — read its output, don't rely on its exit code.
 
 The locale list lives in `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`, and the files are in `src/i18n/locales/`. On the Rust side, never emit English prose for the player: emit a translation key (like `be.error.noTeamAssigned`) and add that key to every locale file.
 
