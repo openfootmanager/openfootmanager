@@ -108,6 +108,19 @@ fn optional<T: ToString>(value: &Option<T>) -> String {
     value.as_ref().map(ToString::to_string).unwrap_or_default()
 }
 
+/// Render an enum the way serde writes it into the package JSON, so the column
+/// holds exactly the token a reader will deserialize.
+///
+/// `format!("{value:?}")` produces the same string today, but only because no
+/// variant carries a `#[serde(rename)]`. Going through serde means adding one
+/// later can't silently desynchronise the CSV from the JSON.
+fn serde_token<T: serde::Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|json| json.as_str().map(str::to_string))
+        .unwrap_or_default()
+}
+
 fn team_row(team: &TeamDef) -> Vec<String> {
     // A range is written as two columns so it can be sorted and filtered in a
     // spreadsheet; absent ranges leave both blank rather than inventing bounds.
@@ -147,7 +160,7 @@ fn player_row(player: &PlayerDef) -> Vec<String> {
         player.name.clone(),
         player.club.clone(),
         player.nationality.clone(),
-        format!("{:?}", player.position),
+        serde_token(&player.position),
         optional(&player.date_of_birth),
         optional(&player.age),
         optional(&player.footedness),
@@ -295,6 +308,30 @@ mod tests {
 
         let youth = player_def(serde_json::json!({ "id": "p2", "club": "fc-test", "youth": true }));
         assert_eq!(player_row(&youth)[10], "true");
+    }
+
+    #[test]
+    fn position_is_written_the_way_serde_reads_it() {
+        // An importer deserializes this column with serde, so the exported token
+        // must be serde's spelling rather than the Debug one that merely
+        // coincides with it while no variant is renamed.
+        use domain::player::Position;
+
+        for position in [
+            Position::Goalkeeper,
+            Position::CentralMidfielder,
+            Position::Striker,
+        ] {
+            let expected = serde_json::to_value(&position)
+                .expect("position serializes")
+                .as_str()
+                .expect("position is a string")
+                .to_string();
+            let player = player_def(serde_json::json!({
+                "id": "p1", "club": "fc-test", "position": expected
+            }));
+            assert_eq!(player_row(&player)[6], expected);
+        }
     }
 
     #[test]
