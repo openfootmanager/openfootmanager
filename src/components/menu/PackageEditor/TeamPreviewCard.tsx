@@ -65,11 +65,19 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
           <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
             {team.name || <span className="text-gray-400 italic">New Team</span>}
           </p>
-          {team.shortName && (
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5">
-              {team.shortName}
-            </p>
-          )}
+          
+          <div className="flex items-center justify-between text-[11px]">
+            {team.shortName && (
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5">
+                {team.shortName}
+              </p>
+            )}
+            {team.foundedYear != null && (
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5">
+                {t("teams.est")} {team.foundedYear}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Colors + Jersey */}

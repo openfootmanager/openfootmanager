@@ -20,6 +20,7 @@ export interface TeamDef {
   financeRange: [number, number] | null;
   logo: string | null;
   kitPattern: KitPattern | null;
+  foundedYear: number | null;
 }
 
 export interface WorldMetaDef {

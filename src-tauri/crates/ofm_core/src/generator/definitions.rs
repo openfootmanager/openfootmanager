@@ -66,6 +66,9 @@ pub struct TeamDef {
     /// Kit jersey pattern (Solid, Stripes, Hoops, HalfAndHalf, Diagonal).
     #[serde(default, alias = "kit_pattern")]
     pub kit_pattern: Option<String>,
+    /// Year the team was founded. If not provided, will be randomly generated.
+    #[serde(default)]
+    pub founded_year: Option<u32>,
 }
 
 fn default_play_style() -> String {
@@ -142,6 +145,7 @@ pub(super) fn default_teams_definition() -> TeamsDefinition {
                 finance_range: Some([500_000, 10_000_000]),
                 logo: None,
                 kit_pattern: None,
+                founded_year: None,
             })
             .collect(),
     }
