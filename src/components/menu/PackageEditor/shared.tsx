@@ -53,6 +53,7 @@ export function ExportCsvButton({ onClick }: { onClick: () => void }) {
   const { t } = useTranslation();
   return (
     <button
+      type="button"
       onClick={onClick}
       title={t("worldEditor.exportCsv")}
       aria-label={t("worldEditor.exportCsv")}

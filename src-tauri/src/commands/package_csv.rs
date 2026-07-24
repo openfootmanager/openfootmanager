@@ -342,13 +342,15 @@ mod tests {
         let path = dir.path().join("teams.csv");
         let output = path.to_string_lossy().to_string();
 
-        let teams = vec![team_def(base_team("Preston North End, Lancashire"))];
+        // Both escaping cases in one name: a comma (which would shift columns)
+        // and a double quote (which the writer must double, not drop).
+        let teams = vec![team_def(base_team(r#"Preston "North End", Lancashire"#))];
         export_teams_csv(teams, output.clone()).expect("export should succeed");
 
         let mut reader = csv::Reader::from_path(&path).expect("written file should parse");
         assert_eq!(reader.headers().expect("headers"), TEAM_HEADERS);
         let record = reader.records().next().expect("one row").expect("valid row");
-        assert_eq!(&record[1], "Preston North End, Lancashire");
+        assert_eq!(&record[1], r#"Preston "North End", Lancashire"#);
         assert_eq!(&record[2], "TST", "the comma must not shift later columns");
     }
 }
