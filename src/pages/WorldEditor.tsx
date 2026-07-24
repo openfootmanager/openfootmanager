@@ -669,7 +669,7 @@ export default function WorldEditor() {
             setIsDirty(true);
             if (autoSave) void persist({ meta: m }).catch(() => {});
           }}
-          onSaveMetadata={() => { pushHistory(currentSnapshot()); void persist({ meta }).catch(() => {}); }}
+          onSaveMetadata={() => { void persist({ meta }).catch(() => {}); }}
           onAssetError={(err) => flashError(resolveBackendError(err))}
           counts={{
             teams: teams.length,

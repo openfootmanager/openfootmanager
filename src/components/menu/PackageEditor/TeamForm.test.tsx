@@ -43,6 +43,7 @@ function renderTeam(overrides: Partial<TeamDef>) {
       onBack={() => {}}
       onSave={() => {}}
       updateField={() => {}}
+      onAssetError={() => {}}
     />,
   );
 }
