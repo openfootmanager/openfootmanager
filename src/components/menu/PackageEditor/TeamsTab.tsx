@@ -5,6 +5,7 @@ import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { EntityListShell, EntityRow } from "./shared";
 import type { TeamDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 interface TeamsTabProps {
   teams: TeamDef[];
@@ -12,6 +13,7 @@ interface TeamsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
@@ -38,7 +40,7 @@ function TeamBadge({ team, projectDir }: { team: TeamDef; projectDir?: string })
   );
 }
 
-export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, selectedIndex, onSelect }: TeamsTabProps) {
+export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: TeamsTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -76,12 +78,14 @@ export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, selectedI
     >
       {filtered.map(({ team, i }) => (
         <EntityRow
-          key={team.id}
+          key={entityRowKey(team.id, i)}
           title={team.name}
           subtitle={[team.city, team.country].filter(Boolean).join(" · ")}
           badge={<TeamBadge team={team} projectDir={projectDir} />}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editTeam")}
           deleteLabel={t("worldEditor.deleteTeam")}
           isSelected={selectedIndex === i}

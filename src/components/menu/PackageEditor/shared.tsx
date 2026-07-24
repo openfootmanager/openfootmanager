@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
+import { Plus, Copy, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
@@ -54,8 +54,11 @@ interface EntityRowProps {
   badge?: React.ReactNode;
   onEdit: () => void;
   onDelete: () => void;
+  /** Omit to hide the duplicate action for entity types that don't support it. */
+  onDuplicate?: () => void;
   editLabel: string;
   deleteLabel: string;
+  duplicateLabel?: string;
   isSelected?: boolean;
   onClick?: () => void;
 }
@@ -66,8 +69,10 @@ export function EntityRow({
   badge,
   onEdit,
   onDelete,
+  onDuplicate,
   editLabel,
   deleteLabel,
+  duplicateLabel,
   isSelected,
   onClick,
 }: EntityRowProps) {
@@ -134,6 +139,16 @@ export function EntityRow({
           >
             <Edit2 className="w-4 h-4" />
           </button>
+          {onDuplicate && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+              className="text-gray-400 hover:text-primary-500 transition-colors flex-shrink-0"
+              title={duplicateLabel}
+              aria-label={duplicateLabel}
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={handleDeleteClick}
             className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"

@@ -3732,6 +3732,7 @@
     "fallbackLeagueInUse": "此包未定义任何赛事，因此将为其球队生成该联赛。",
     "legsSingle": "单循环",
     "legsDouble": "双循环（主客场）",
+    "duplicateEntity": "复制",
     "baseYear": "基础年份",
     "typeDatabase": "数据库",
     "typePatch": "补丁",

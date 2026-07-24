@@ -305,4 +305,100 @@ describe("useEntityEditor", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("handleDuplicate", () => {
+    const items: Item[] = [
+      { id: "alpha", name: "Alpha" },
+      { id: "beta", name: "Beta" },
+    ];
+
+    it("inserts the copy directly after its source", () => {
+      const { hook, setItems } = makeHook({ items });
+      act(() => { hook.result.current.handleDuplicate(0); });
+      expect(setItems).toHaveBeenCalledWith([
+        { id: "alpha", name: "Alpha" },
+        { id: "alpha-2", name: "Alpha" },
+        { id: "beta", name: "Beta" },
+      ]);
+    });
+
+    it("opens the copy so it can be renamed straight away", () => {
+      const { hook, onOpen } = makeHook({ items });
+      act(() => { hook.result.current.handleDuplicate(0); });
+      expect(hook.result.current.editing).toEqual({ id: "alpha-2", name: "Alpha" });
+      expect(hook.result.current.editingIndex).toBe(1);
+      expect(onOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it("captures history so the copy can be undone", () => {
+      const { hook, captureHistory } = makeHook({ items });
+      act(() => { hook.result.current.handleDuplicate(1); });
+      expect(captureHistory).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips an id already in use instead of colliding", () => {
+      const taken: Item[] = [
+        { id: "alpha", name: "Alpha" },
+        { id: "alpha-2", name: "Copy" },
+      ];
+      const { hook, setItems } = makeHook({ items: taken });
+      act(() => { hook.result.current.handleDuplicate(0); });
+      expect(setItems.mock.calls[0][0][1].id).toBe("alpha-3");
+    });
+
+    it("counts up from the stem rather than chaining suffixes", () => {
+      const { hook, setItems } = makeHook({ items: [{ id: "alpha-2", name: "Alpha" }] });
+      act(() => { hook.result.current.handleDuplicate(0); });
+      expect(setItems.mock.calls[0][0][1].id).toBe("alpha-3");
+    });
+
+    it("mints a distinct id when the source id is blank", () => {
+      // A blank id normally means "derive from the name on save", but a copy
+      // needs an id of its own: two blank-id siblings are indistinguishable to
+      // syncEditing's findIndex, so an undo would re-bind the form to the
+      // original. The copy gets a real id and the source stays blank.
+      const { hook, setItems } = makeHook({ items: [{ id: "", name: "Alpha" }] });
+      act(() => { hook.result.current.handleDuplicate(0); });
+      const [source, copy] = setItems.mock.calls[0][0];
+      expect(source.id).toBe("");
+      expect(copy.id).toBe("copy-2");
+      expect(hook.result.current.editingIndex).toBe(1);
+    });
+
+    it("deep-copies so editing the copy can't mutate the source", () => {
+      type Nested = { id: string; colors: { primary: string } };
+      const source: Nested[] = [{ id: "a", colors: { primary: "#fff" } }];
+      const setItems = vi.fn();
+      const hook = renderHook(() =>
+        useEntityEditor<Nested>({
+          items: source,
+          setItems,
+          empty: () => ({ id: "", colors: { primary: "" } }),
+          captureHistory: vi.fn(),
+          saveItems: vi.fn().mockResolvedValue(undefined),
+          autoSave: false,
+          onOpen: vi.fn(),
+          onClose: vi.fn(),
+          setIsBusy: vi.fn(),
+        }),
+      );
+      act(() => { hook.result.current.handleDuplicate(0); });
+      const copy = setItems.mock.calls[0][0][1] as Nested;
+      copy.colors.primary = "#000";
+      expect(source[0].colors.primary).toBe("#fff");
+    });
+
+    it("saves immediately when auto-save is on", () => {
+      const { hook, saveItems } = makeHook({ items, autoSave: true });
+      act(() => { hook.result.current.handleDuplicate(0); });
+      expect(saveItems).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores an out-of-range index", () => {
+      const { hook, setItems, captureHistory } = makeHook({ items });
+      act(() => { hook.result.current.handleDuplicate(99); });
+      expect(setItems).not.toHaveBeenCalled();
+      expect(captureHistory).not.toHaveBeenCalled();
+    });
+  });
 });

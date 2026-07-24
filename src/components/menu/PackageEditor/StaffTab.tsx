@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { EntityListShell, EntityRow } from "./shared";
 import type { StaffDef, TeamDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 const ROLE_COLOR: Record<string, string> = {
   AssistantManager: "bg-purple-600",
@@ -24,11 +25,12 @@ interface StaffTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
 
-export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, selectedIndex, onSelect }: StaffTabProps) {
+export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: StaffTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -75,7 +77,7 @@ export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, selectedIndex,
         const clubName = s.club ? (teams?.find((t) => t.id === s.club)?.name ?? s.club) : null;
         return (
           <EntityRow
-            key={s.id}
+            key={entityRowKey(s.id, i)}
             title={name}
             subtitle={[
               t(`worldEditor.staffRole.${s.role}`, { defaultValue: s.role }),
@@ -88,6 +90,8 @@ export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, selectedIndex,
             }
             onEdit={() => onEdit(i)}
             onDelete={() => onDelete(i)}
+            onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+            duplicateLabel={t("worldEditor.duplicateEntity")}
             editLabel={t("worldEditor.editStaff")}
             deleteLabel={t("worldEditor.deleteStaff")}
             isSelected={selectedIndex === i}

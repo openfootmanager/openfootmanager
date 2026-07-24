@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-import { POSITION_COLOR } from "./helpers";
+import { POSITION_COLOR, entityRowKey } from "./helpers";
 import { EntityListShell, EntityRow } from "./shared";
 import type { PlayerDef, Position, TeamDef } from "./types";
 
@@ -47,13 +47,14 @@ interface PlayersTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
   projectDir?: string;
   youthOnly?: boolean;
 }
 
-export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIndex, onSelect, projectDir, youthOnly }: PlayersTabProps) {
+export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect, projectDir, youthOnly }: PlayersTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -98,7 +99,7 @@ export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIn
     >
       {filtered.map(({ player, i }) => (
         <EntityRow
-          key={i}
+          key={entityRowKey(player.id, i)}
           title={player.name || `${player.firstName} ${player.lastName}`.trim() || player.id}
           subtitle={[
             t(`common.positions.${player.position}`),
@@ -113,6 +114,8 @@ export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIn
           }
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editPlayer")}
           deleteLabel={t("worldEditor.deletePlayer")}
           isSelected={selectedIndex === i}

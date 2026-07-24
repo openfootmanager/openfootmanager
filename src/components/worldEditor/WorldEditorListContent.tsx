@@ -23,6 +23,7 @@ type ListEditorAPI = {
   handleAdd: () => void;
   handleSelect: (i: number) => void;
   handleDelete: (i: number) => void;
+  handleDuplicate: (i: number) => void;
 };
 
 interface WorldEditorListContentProps {
@@ -80,6 +81,7 @@ export function WorldEditorListContent({
           onAdd={teamEditor.handleAdd}
           onEdit={teamEditor.handleSelect}
           onDelete={teamEditor.handleDelete}
+          onDuplicate={teamEditor.handleDuplicate}
           selectedIndex={formPanel === "team" ? teamEditor.editingIndex : null}
           onSelect={teamEditor.handleSelect}
         />
@@ -92,6 +94,7 @@ export function WorldEditorListContent({
           onAdd={playerEditor.handleAdd}
           onEdit={playerEditor.handleSelect}
           onDelete={playerEditor.handleDelete}
+          onDuplicate={playerEditor.handleDuplicate}
           selectedIndex={formPanel === "player" ? playerEditor.editingIndex : null}
           onSelect={playerEditor.handleSelect}
           projectDir={projectDir}
@@ -105,6 +108,7 @@ export function WorldEditorListContent({
           onAdd={youthEditor.handleAdd}
           onEdit={youthEditor.handleSelect}
           onDelete={youthEditor.handleDelete}
+          onDuplicate={youthEditor.handleDuplicate}
           selectedIndex={formPanel === "player" ? youthEditor.editingIndex : null}
           onSelect={youthEditor.handleSelect}
           projectDir={projectDir}
@@ -117,6 +121,7 @@ export function WorldEditorListContent({
           onAdd={staffEditor.handleAdd}
           onEdit={staffEditor.handleSelect}
           onDelete={staffEditor.handleDelete}
+          onDuplicate={staffEditor.handleDuplicate}
           selectedIndex={formPanel === "staff" ? staffEditor.editingIndex : null}
           onSelect={staffEditor.handleSelect}
         />
@@ -127,6 +132,7 @@ export function WorldEditorListContent({
           onAdd={confEditor.handleAdd}
           onEdit={confEditor.handleSelect}
           onDelete={confEditor.handleDelete}
+          onDuplicate={confEditor.handleDuplicate}
           selectedIndex={formPanel === "confederation" ? confEditor.editingIndex : null}
           onSelect={confEditor.handleSelect}
         />
@@ -137,6 +143,7 @@ export function WorldEditorListContent({
           onAdd={countryEditor.handleAdd}
           onEdit={countryEditor.handleSelect}
           onDelete={countryEditor.handleDelete}
+          onDuplicate={countryEditor.handleDuplicate}
           selectedIndex={formPanel === "country" ? countryEditor.editingIndex : null}
           onSelect={countryEditor.handleSelect}
         />
@@ -158,6 +165,7 @@ export function WorldEditorListContent({
           onAdd={compEditor.handleAdd}
           onEdit={compEditor.handleSelect}
           onDelete={compEditor.handleDelete}
+          onDuplicate={compEditor.handleDuplicate}
           selectedIndex={formPanel === "competition" ? compEditor.editingIndex : null}
           onSelect={compEditor.handleSelect}
         />

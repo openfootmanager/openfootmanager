@@ -3732,6 +3732,7 @@
     "fallbackLeagueInUse": "Tento balíček nedefinuje žádné soutěže, proto bude pro jeho týmy vygenerována tato liga.",
     "legsSingle": "Jednokolově",
     "legsDouble": "Dvoukolově (doma a venku)",
+    "duplicateEntity": "Duplikovat",
     "baseYear": "Základní rok",
     "typeDatabase": "Databáze",
     "typePatch": "Opravný balíček (Patch)",

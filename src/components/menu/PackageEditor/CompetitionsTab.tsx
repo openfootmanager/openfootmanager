@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { EntityListShell, EntityRow } from "./shared";
 import type { CompetitionDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 interface CompetitionsTabProps {
   competitions: CompetitionDef[];
@@ -9,6 +10,7 @@ interface CompetitionsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate?: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
 }
@@ -34,7 +36,7 @@ function CompetitionBadge({ comp, projectDir }: { comp: CompetitionDef; projectD
   );
 }
 
-export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDelete, selectedIndex, onSelect }: CompetitionsTabProps) {
+export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: CompetitionsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -45,13 +47,15 @@ export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDel
     >
       {competitions.map((comp, i) => (
         <EntityRow
-          key={comp.id}
+          key={entityRowKey(comp.id, i)}
           title={comp.name || comp.id}
           subtitle={[t(`teamSelect.kinds.${comp.type}`), t(`teamSelect.scopes.${comp.scope}`)]
             .join(" · ")}
           badge={<CompetitionBadge comp={comp} projectDir={projectDir} />}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
+          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+          duplicateLabel={t("worldEditor.duplicateEntity")}
           editLabel={t("worldEditor.editCompetition")}
           deleteLabel={t("worldEditor.deleteCompetition")}
           isSelected={selectedIndex === i}
