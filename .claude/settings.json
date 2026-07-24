@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git blame:*)",
+      "Bash(git branch)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch --list)",
+      "Bash(git branch --list:*)",
+      "Bash(git branch -a)",
+      "Bash(git branch --all)",
+      "Bash(git branch -r)",
+      "Bash(git branch --remotes)",
+      "Bash(git branch -v)",
+      "Bash(git branch -vv)",
+      "Bash(git branch --merged)",
+      "Bash(git branch --merged:*)",
+      "Bash(git branch --contains:*)"
+    ]
+  }
+}

@@ -30,8 +30,11 @@ dist-ssr
 Cargo.lock
 coverage/
 
-# Claude local settings
+# Claude local settings and scratch worktrees
+# (.claude/settings.json, skills/, and agents/ ARE tracked — they are shared
+# contributor tooling. Only per-user and per-session artefacts are ignored.)
 .claude/settings.local.json
+.claude/worktrees/
 
 # Local Vitest reporter output
 vitest-*.json
