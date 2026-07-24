@@ -23,7 +23,7 @@ export function CountriesTab({ countries, onAdd, onEdit, onDelete, onDuplicate, 
     >
       {countries.map((country, i) => (
         <EntityRow
-          key={i}
+          key={country.id}
           title={country.name || country.id}
           subtitle={[country.name ? country.id : undefined, country.confederation]
             .filter(Boolean)

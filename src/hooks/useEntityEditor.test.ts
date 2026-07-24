@@ -352,10 +352,17 @@ describe("useEntityEditor", () => {
       expect(setItems.mock.calls[0][0][1].id).toBe("alpha-3");
     });
 
-    it("leaves an auto-generated (empty) id empty", () => {
+    it("mints a distinct id when the source id is blank", () => {
+      // A blank id normally means "derive from the name on save", but a copy
+      // needs an id of its own: two blank-id siblings are indistinguishable to
+      // syncEditing's findIndex, so an undo would re-bind the form to the
+      // original. The copy gets a real id and the source stays blank.
       const { hook, setItems } = makeHook({ items: [{ id: "", name: "Alpha" }] });
       act(() => { hook.result.current.handleDuplicate(0); });
-      expect(setItems.mock.calls[0][0][1].id).toBe("");
+      const [source, copy] = setItems.mock.calls[0][0];
+      expect(source.id).toBe("");
+      expect(copy.id).toBe("copy-2");
+      expect(hook.result.current.editingIndex).toBe(1);
     });
 
     it("deep-copies so editing the copy can't mutate the source", () => {

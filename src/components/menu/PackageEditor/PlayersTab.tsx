@@ -99,7 +99,7 @@ export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, onDuplicat
     >
       {filtered.map(({ player, i }) => (
         <EntityRow
-          key={i}
+          key={player.id}
           title={player.name || `${player.firstName} ${player.lastName}`.trim() || player.id}
           subtitle={[
             t(`common.positions.${player.position}`),

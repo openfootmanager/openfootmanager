@@ -93,7 +93,11 @@ export function useEntityEditor<T extends { id: string }>(options: {
     if (!source) return;
     captureHistory();
     const taken = new Set(items.map((item) => item.id));
-    const clone = cloneItem(source, uniqueEntityId(source.id, taken));
+    // A copy needs an id distinct from its source so syncEditing can re-locate
+    // it by identity after an undo/redo. When the source id is blank (a not-yet-
+    // named entity) fall back to a generic stem rather than minting a second
+    // blank id that findIndex can't tell apart from the original.
+    const clone = cloneItem(source, uniqueEntityId(source.id || "copy", taken));
     const updated = [...items.slice(0, index + 1), clone, ...items.slice(index + 1)];
     setItems(updated);
     if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
