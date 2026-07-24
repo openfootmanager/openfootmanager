@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { EntityListShell, EntityRow } from "./shared";
 import type { CountryDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 interface CountriesTabProps {
   countries: CountryDef[];
@@ -23,7 +24,7 @@ export function CountriesTab({ countries, onAdd, onEdit, onDelete, onDuplicate, 
     >
       {countries.map((country, i) => (
         <EntityRow
-          key={country.id}
+          key={entityRowKey(country.id, i)}
           title={country.name || country.id}
           subtitle={[country.name ? country.id : undefined, country.confederation]
             .filter(Boolean)

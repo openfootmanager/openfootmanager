@@ -199,6 +199,24 @@ export function toSlug(name: string): string {
     .slice(0, 64);
 }
 
+/**
+ * React key for an entity row in the editor's lists.
+ *
+ * The id is the right identity when there is one: it survives an insert or a
+ * delete that shifts every index, so `EntityRow`'s delete-confirmation state
+ * stays on the row that owns it. But an id is blank until the entity is named,
+ * and a package can arrive with several already blank — `id` is `#[serde(default)]`
+ * on the Rust side, and repairing such a package is exactly what the editor is
+ * for. Two blank ids would collapse into one key and let that row state attach
+ * to the wrong entity.
+ *
+ * Blank ids therefore fall back to the index, prefixed with a `#` that `toSlug`
+ * can never emit, so a generated id cannot collide with a fallback key.
+ */
+export function entityRowKey(id: string, index: number): string {
+  return id || `#row-${index}`;
+}
+
 export function emptyNamesDefinition(): NamesDefinition {
   return { version: 1, description: "", pools: {} };
 }

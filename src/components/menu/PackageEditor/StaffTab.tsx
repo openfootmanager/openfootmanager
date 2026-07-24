@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { EntityListShell, EntityRow } from "./shared";
 import type { StaffDef, TeamDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 const ROLE_COLOR: Record<string, string> = {
   AssistantManager: "bg-purple-600",
@@ -76,7 +77,7 @@ export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, s
         const clubName = s.club ? (teams?.find((t) => t.id === s.club)?.name ?? s.club) : null;
         return (
           <EntityRow
-            key={s.id}
+            key={entityRowKey(s.id, i)}
             title={name}
             subtitle={[
               t(`worldEditor.staffRole.${s.role}`, { defaultValue: s.role }),

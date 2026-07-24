@@ -5,6 +5,7 @@ import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { EntityListShell, EntityRow } from "./shared";
 import type { TeamDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 interface TeamsTabProps {
   teams: TeamDef[];
@@ -77,7 +78,7 @@ export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplica
     >
       {filtered.map(({ team, i }) => (
         <EntityRow
-          key={team.id}
+          key={entityRowKey(team.id, i)}
           title={team.name}
           subtitle={[team.city, team.country].filter(Boolean).join(" · ")}
           badge={<TeamBadge team={team} projectDir={projectDir} />}

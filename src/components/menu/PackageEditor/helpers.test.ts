@@ -8,10 +8,12 @@ import {
   emptyNamesDefinition,
   emptyPlayer,
   emptyTeam,
+  entityRowKey,
   makeRange,
   mergeFallbackLeague,
   parsePoolText,
   parseRangeBound,
+  toSlug,
 } from "./helpers";
 import type { SelectorSpec } from "./types";
 
@@ -310,5 +312,31 @@ describe("mergeFallbackLeague", () => {
     expect(mergeFallbackLeague(null, { scope: "Continental" })).toEqual({
       scope: "Continental",
     });
+  });
+});
+
+describe("entityRowKey", () => {
+  it("uses the id when there is one", () => {
+    expect(entityRowKey("fc-test", 3)).toBe("fc-test");
+  });
+
+  it("keeps the key stable when the row moves", () => {
+    // The point of keying by id: an insert above shifts every index, and the
+    // row's delete-confirmation state must stay with the row that owns it.
+    expect(entityRowKey("fc-test", 0)).toBe(entityRowKey("fc-test", 7));
+  });
+
+  it("gives entities without an id distinct keys", () => {
+    // A package can arrive with several ids blank, and repairing one is exactly
+    // what the editor is for; identical keys would let one row's state show on
+    // another.
+    expect(entityRowKey("", 0)).not.toBe(entityRowKey("", 1));
+  });
+
+  it("cannot collide with a generated id", () => {
+    // toSlug strips everything outside [a-z0-9-], so no auto-generated id can
+    // begin with the fallback's "#".
+    expect(entityRowKey("", 0).startsWith("#")).toBe(true);
+    expect(toSlug("#row-0")).not.toContain("#");
   });
 });

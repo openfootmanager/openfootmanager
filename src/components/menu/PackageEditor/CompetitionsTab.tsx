@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { EntityListShell, EntityRow } from "./shared";
 import type { CompetitionDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 interface CompetitionsTabProps {
   competitions: CompetitionDef[];
@@ -46,7 +47,7 @@ export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDel
     >
       {competitions.map((comp, i) => (
         <EntityRow
-          key={comp.id}
+          key={entityRowKey(comp.id, i)}
           title={comp.name || comp.id}
           subtitle={[t(`teamSelect.kinds.${comp.type}`), t(`teamSelect.scopes.${comp.scope}`)]
             .join(" · ")}

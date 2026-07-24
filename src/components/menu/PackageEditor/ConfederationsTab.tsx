@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { EntityListShell, EntityRow } from "./shared";
 import type { ConfederationDef } from "./types";
+import { entityRowKey } from "./helpers";
 
 interface ConfederationsTabProps {
   confederations: ConfederationDef[];
@@ -23,7 +24,7 @@ export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, onD
     >
       {confederations.map((conf, i) => (
         <EntityRow
-          key={conf.id}
+          key={entityRowKey(conf.id, i)}
           title={conf.name || conf.id}
           subtitle={conf.name ? conf.id : undefined}
           onEdit={() => onEdit(i)}
