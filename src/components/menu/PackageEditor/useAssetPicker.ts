@@ -40,9 +40,12 @@ export function useAssetPicker(options: UseAssetPickerOptions) {
 
   async function pick() {
     if (!projectDir) return;
-    const selected = await open({ multiple: false, filters: IMAGE_FILTERS });
-    if (!selected || Array.isArray(selected)) return;
+    // The dialog is inside the try too: callers invoke this as `void pick()`,
+    // so a rejection from `open()` would otherwise escape as an unhandled
+    // rejection instead of reaching the required `onError`.
     try {
+      const selected = await open({ multiple: false, filters: IMAGE_FILTERS });
+      if (!selected || Array.isArray(selected)) return;
       const copied = await invoke<string>("copy_package_asset", {
         dir: projectDir,
         entityId: entityId(),

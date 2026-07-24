@@ -73,6 +73,18 @@ describe("useAssetPicker", () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
+  it("reports a dialog failure through onError, not as an unhandled rejection", async () => {
+    // Callers invoke this as `void pick()`, so an open() rejection that escaped
+    // the try/catch would never reach onError.
+    mockedOpen.mockRejectedValue(new Error("dialog crashed"));
+    const { hook, commit, onError } = setup();
+
+    await act(async () => { await hook.result.current.pick(); });
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(commit).not.toHaveBeenCalled();
+  });
+
   it("does nothing when the dialog is cancelled", async () => {
     mockedOpen.mockResolvedValue(null);
     const { hook, commit, onError } = setup();

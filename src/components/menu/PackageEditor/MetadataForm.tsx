@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Info, XCircle, Globe, ImagePlus, X } from "lucide-react";
 import { InlineHelp, LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
@@ -90,11 +90,17 @@ interface MetadataFormProps {
 export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, projectDir }: MetadataFormProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
+  // The logo commit fires after an async copy, and this form applies its other
+  // field edits by replacing the whole `meta`. Read the latest `meta` from a ref
+  // at commit time so an edit made while the copy was in flight isn't clobbered
+  // by a stale render snapshot.
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
   const { dataUrl: logoDataUrl, pick: pickLogo, clear: clearLogo } = useAssetPicker({
     relPath: meta.logo,
     projectDir,
-    entityId: () => meta.id || "package-logo",
-    commit: (relPath) => (onCommit ?? onChange)({ ...meta, logo: relPath }),
+    entityId: () => metaRef.current.id || "package-logo",
+    commit: (relPath) => (onCommit ?? onChange)({ ...metaRef.current, logo: relPath }),
     onError: onAssetError,
   });
 
