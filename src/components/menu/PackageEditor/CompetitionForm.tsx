@@ -28,6 +28,13 @@ interface CompetitionFormProps {
   onBack: () => void;
   onSave: () => void;
   updateField: <K extends keyof CompetitionDef>(key: K, value: CompetitionDef[K]) => void;
+  /**
+   * Writes through to the saved record instead of only the form buffer. The
+   * logo pick already copied the image into the package, so the path must not
+   * depend on the user remembering to press Save.
+   */
+  commitField?: <K extends keyof CompetitionDef>(key: K, value: CompetitionDef[K]) => void;
+  onAssetError?: (err: unknown) => void;
 }
 
 function emptySelector(): SelectorSpec {
@@ -52,11 +59,15 @@ export function CompetitionForm({
   onBack,
   onSave,
   updateField,
+  commitField,
+  onAssetError,
 }: CompetitionFormProps) {
   const { t } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
   const [logoRefresh, setLogoRefresh] = useState(0);
   const logoDataUrl = useAssetDataUrl(editing.logo, projectDir, logoRefresh);
+
+  const setLogo = (relPath: string | null) => (commitField ?? updateField)("logo", relPath);
 
   async function handlePickLogo() {
     if (!projectDir) return;
@@ -73,8 +84,10 @@ export function CompetitionForm({
       });
       evictAssetDataUrl(projectDir, relPath);
       setLogoRefresh((k) => k + 1); // refresh even if the path is unchanged
-      updateField("logo", relPath);
-    } catch { /* ignore */ }
+      setLogo(relPath);
+    } catch (err) {
+      onAssetError?.(err);
+    }
   }
 
   const [participantMode, setParticipantMode] = useState<"explicit" | "selector">(
@@ -547,7 +560,7 @@ export function CompetitionForm({
               {editing.logo && (
                 <button
                   type="button"
-                  onClick={() => { updateField("logo", null); }}
+                  onClick={() => { setLogo(null); }}
                   className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                 >
                   <X className="w-3.5 h-3.5" />

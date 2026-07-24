@@ -40,6 +40,7 @@ type EditorAPI<T> = {
   revision: number;
   handleSave: () => Promise<void>;
   updateField: <K extends keyof T>(key: K, value: T[K]) => void;
+  commitField: <K extends keyof T>(key: K, value: T[K]) => void;
 };
 
 interface WorldEditorFormPanelProps {
@@ -49,7 +50,10 @@ interface WorldEditorFormPanelProps {
   // Metadata
   meta: WorldMetaDef;
   onMetaChange: (m: WorldMetaDef) => void;
+  onMetaCommit: (m: WorldMetaDef) => void;
   onSaveMetadata: () => void;
+  /** Reports a failed asset copy/read so the picker can't fail silently. */
+  onAssetError: (err: unknown) => void;
   counts: {
     teams: number;
     players: number;
@@ -88,7 +92,9 @@ export function WorldEditorFormPanel({
   projectDir,
   meta,
   onMetaChange,
+  onMetaCommit,
   onSaveMetadata,
+  onAssetError,
   counts,
   issues,
   teamEditor,
@@ -119,6 +125,8 @@ export function WorldEditorFormPanel({
         <MetadataForm
           meta={meta}
           onChange={(m) => onMetaChange(m)}
+          onCommit={(m) => onMetaCommit(m)}
+          onAssetError={onAssetError}
           counts={counts}
           projectDir={projectDir || undefined}
         />
@@ -163,6 +171,8 @@ export function WorldEditorFormPanel({
           onBack={onBack}
           onSave={() => { void teamEditor.handleSave(); }}
           updateField={teamEditor.updateField}
+          commitField={teamEditor.commitField}
+          onAssetError={onAssetError}
         />
       </div>
     );
@@ -218,6 +228,8 @@ export function WorldEditorFormPanel({
           onBack={onBack}
           onSave={() => { void editor.handleSave(); }}
           updateField={editor.updateField}
+          commitField={editor.commitField}
+          onAssetError={onAssetError}
         />
       </div>
     );
@@ -271,6 +283,8 @@ export function WorldEditorFormPanel({
           onBack={onBack}
           onSave={() => { void compEditor.handleSave(); }}
           updateField={compEditor.updateField}
+          commitField={compEditor.commitField}
+          onAssetError={onAssetError}
         />
       </div>
     );

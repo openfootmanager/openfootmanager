@@ -32,8 +32,9 @@ export function useEntityEditor<T extends { id: string }>(options: {
    * override to also disambiguate a display name.
    */
   cloneItem?: (item: T, id: string) => T;
+  onDirty?: () => void;
 }) {
-  const { items, setItems, empty, captureHistory, saveItems, autoSave, onOpen, onClose, setIsBusy } =
+  const { items, setItems, empty, captureHistory, saveItems, autoSave, onOpen, onClose, setIsBusy, onDirty } =
     options;
   const cloneItem = options.cloneItem ?? ((item: T, id: string) => ({ ...structuredClone(item), id }));
 
@@ -52,6 +53,26 @@ export function useEntityEditor<T extends { id: string }>(options: {
 
   function updateField<K extends keyof T>(key: K, value: T[K]) {
     setEditing((prev) => ({ ...prev, [key]: value }));
+  }
+
+  /**
+   * Like `updateField`, but also writes the value straight into the record so it
+   * survives switching to another entity without pressing Save.
+   *
+   * Used for fields whose edit already has a side effect outside the form — an
+   * asset pick copies the image into the package before this runs, so the
+   * preview updating while the path stays unpersisted reads as a lost edit.
+   * A brand-new record (`editingIndex === null`) has no row to write into yet,
+   * so it keeps the buffer-until-Save behaviour.
+   */
+  function commitField<K extends keyof T>(key: K, value: T[K]) {
+    setEditing((prev) => ({ ...prev, [key]: value }));
+    if (editingIndex === null) return;
+    captureHistory();
+    const updated = items.map((item, i) => (i === editingIndex ? { ...item, [key]: value } : item));
+    setItems(updated);
+    onDirty?.();
+    if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
   }
 
   function handleSelect(index: number) {
@@ -152,5 +173,5 @@ export function useEntityEditor<T extends { id: string }>(options: {
     }
   }
 
-  return { editing, editingIndex, revision, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleDuplicate, handleSave, syncEditing };
+  return { editing, editingIndex, revision, setEditing, updateField, commitField, handleSelect, handleAdd, handleDelete, handleDuplicate, handleSave, syncEditing };
 }

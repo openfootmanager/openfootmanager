@@ -25,6 +25,13 @@ interface PlayerFormProps {
   onBack: () => void;
   onSave: () => void;
   updateField: <K extends keyof PlayerDef>(key: K, value: PlayerDef[K]) => void;
+  /**
+   * Writes through to the saved record instead of only the form buffer. The
+   * photo pick already copied the image into the package, so the path must not
+   * depend on the user remembering to press Save.
+   */
+  commitField?: <K extends keyof PlayerDef>(key: K, value: PlayerDef[K]) => void;
+  onAssetError?: (err: unknown) => void;
 }
 
 export function PlayerForm({
@@ -36,12 +43,16 @@ export function PlayerForm({
   onBack,
   onSave,
   updateField,
+  commitField,
+  onAssetError,
 }: PlayerFormProps) {
   const { t } = useTranslation();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
   const [photoRefresh, setPhotoRefresh] = useState(0);
   const photoDataUrl = useAssetDataUrl(editing.photo, projectDir, photoRefresh);
+
+  const setPhoto = (relPath: string | null) => (commitField ?? updateField)("photo", relPath);
 
   async function handlePickPhoto() {
     if (!projectDir) return;
@@ -60,8 +71,10 @@ export function PlayerForm({
       // pointing at the freshly written file.
       evictAssetDataUrl(projectDir, relPath);
       setPhotoRefresh((k) => k + 1); // refresh even if the path is unchanged
-      updateField("photo", relPath);
-    } catch { /* ignore */ }
+      setPhoto(relPath);
+    } catch (err) {
+      onAssetError?.(err);
+    }
   }
 
   const inputClass =
@@ -152,7 +165,7 @@ export function PlayerForm({
               {editing.photo && (
                 <button
                   type="button"
-                  onClick={() => { updateField("photo", null); }}
+                  onClick={() => { setPhoto(null); }}
                   className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                 >
                   <X className="w-3.5 h-3.5" />

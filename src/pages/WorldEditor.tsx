@@ -462,6 +462,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("team"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const confEditor = useEntityEditor({
@@ -474,6 +475,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("confederation"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const countryEditor = useEntityEditor({
@@ -486,6 +488,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("country"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const playerEditor = useEntityEditor({
@@ -498,6 +501,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("player"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const youthEditor = useEntityEditor({
@@ -510,6 +514,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("youth"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const staffEditor = useEntityEditor({
@@ -522,6 +527,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("staff"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const compEditor = useEntityEditor({
@@ -534,6 +540,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("competition"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   // ---------------------------------------------------------------------------
@@ -656,7 +663,14 @@ export default function WorldEditor() {
           projectDir={projectDir}
           meta={meta}
           onMetaChange={(m) => { setMeta(m); setIsDirty(true); }}
+          onMetaCommit={(m) => {
+            pushHistory(currentSnapshot());
+            setMeta(m);
+            setIsDirty(true);
+            if (autoSave) void persist({ meta: m }).catch(() => {});
+          }}
           onSaveMetadata={() => { pushHistory(currentSnapshot()); void persist({ meta }).catch(() => {}); }}
+          onAssetError={(err) => flashError(resolveBackendError(err))}
           counts={{
             teams: teams.length,
             players: players.length,

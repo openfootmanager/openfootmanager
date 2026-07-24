@@ -78,13 +78,22 @@ interface EntityCounts {
 interface MetadataFormProps {
   meta: WorldMetaDef;
   onChange: (m: WorldMetaDef) => void;
+  /**
+   * Like `onChange`, but also persists. Used for the logo, whose image is
+   * copied into the package before the path is set — leaving that path pending
+   * a Save press is what makes a picked logo look like it vanished.
+   */
+  onCommit?: (m: WorldMetaDef) => void;
+  onAssetError?: (err: unknown) => void;
   counts?: EntityCounts;
   projectDir?: string;
 }
 
-export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFormProps) {
+export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, projectDir }: MetadataFormProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
+  const setLogo = (relPath: string | null) =>
+    (onCommit ?? onChange)({ ...meta, logo: relPath });
   const [logoRefresh, setLogoRefresh] = useState(0);
   const logoDataUrl = useAssetDataUrl(meta.logo, projectDir, logoRefresh);
 
@@ -103,8 +112,10 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
       });
       evictAssetDataUrl(projectDir, relPath);
       setLogoRefresh((k) => k + 1); // refresh even if the path is unchanged
-      set({ logo: relPath });
-    } catch { /* ignore */ }
+      setLogo(relPath);
+    } catch (err) {
+      onAssetError?.(err);
+    }
   }
 
   const isKnownLicense = SPDX_LICENSES.some(
@@ -226,7 +237,7 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
                 {meta.logo && (
                   <button
                     type="button"
-                    onClick={() => { set({ logo: null }); }}
+                    onClick={() => { setLogo(null); }}
                     className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                   >
                     <X className="w-3.5 h-3.5" />
