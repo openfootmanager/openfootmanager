@@ -53,6 +53,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       financeRange: [800000, 3000000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1987,
     },
     {
       id: "westbrook-united",
@@ -67,6 +68,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       financeRange: [600000, 2500000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1996,
     },
     {
       id: "eastgate-city",
@@ -81,6 +83,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       financeRange: [500000, 2000000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1991,
     },
     {
       id: "southfield-rovers",
@@ -95,6 +98,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       financeRange: [400000, 1500000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1996,
     },
   ],
   players: [] as PlayerDef[],
@@ -149,6 +153,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       financeRange: [2000000, 8000000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1978,
     },
     {
       id: "puerto-fc",
@@ -163,6 +168,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       financeRange: [1500000, 6000000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1995,
     },
     {
       id: "real-camino",
@@ -177,6 +183,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       financeRange: [800000, 3500000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1988,
     },
     {
       id: "atletico-sur",
@@ -191,6 +198,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       financeRange: [700000, 2500000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1976,
     },
   ],
   players: [] as PlayerDef[],
@@ -250,6 +258,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       financeRange: [1000000, 4000000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1994,
     },
     {
       id: "copa-verde",
@@ -264,6 +273,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       financeRange: [900000, 3500000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1989,
     },
     {
       id: "la-celeste-fc",
@@ -278,6 +288,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       financeRange: [700000, 2500000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1976,
     },
     {
       id: "la-roja-fc",
@@ -292,6 +303,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       financeRange: [600000, 2000000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1985,
     },
   ],
   players: [] as PlayerDef[],
@@ -349,6 +361,7 @@ export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
       financeRange: [900000, 3500000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1991,
     },
     {
       id: "rival-rovers",
@@ -363,6 +376,7 @@ export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
       financeRange: [700000, 2800000],
       logo: null,
       kitPattern: null,
+      foundedYear: 1988,
     },
   ],
   players: [
