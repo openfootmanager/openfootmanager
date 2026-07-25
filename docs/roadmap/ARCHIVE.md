@@ -159,6 +159,7 @@ Following this release should come major improvements to the game's core gamepla
 
 		LATE DRAMA! In the 89th minute, Palmeiras find the equalizer and the stadium erupts.
 		```
+
 - [ ] ~Dev QA: Use AI agents to automate QA (avoid regressions, test new features, test UX)~ (Deferred to 0.3.1-beta)
 - [x] World Editor: let users create their own worlds easily with a World Editor and a CLI tool.
     - [x] ofm packages: make installable packages in `.ofm` formats
