@@ -13,7 +13,7 @@
 
 **A free and open source football management simulation game**
 
-[Features](#features) • [Screenshots](#screenshots) • [Installation](#installation--development) • [Contributing](#contributing) • [License](#license)
+[Vision](VISION.md) • [Roadmap](https://github.com/openfootmanager/openfootmanager/issues/11) • [Features](#features) • [Screenshots](#screenshots) • [Installation](#installation--development) • [Contributing](#contributing) • [License](#license)
 
 Join the community on Discord: https://discord.gg/2CXaesaukT
 
@@ -21,7 +21,9 @@ Join the community on Discord: https://discord.gg/2CXaesaukT
 
 ---
 
-**Openfoot Manager** is a free and open source football/soccer manager game, licensed under the [GPLv3](LICENSE.md), inspired by the famous franchise Football Manager&trade;.
+**Openfoot Manager** is a free and open source football/soccer manager game, licensed under the [GPLv3](LICENSE.md), inspired by the management genre that Football Manager&trade;, Championship Manager and Bygfoot built.
+
+It is **not a clone of any of them**. There is no licensed database, no online requirement, and no monetization — instead the world is data you author and share, and the depth is a dial you set. Read [VISION.md](VISION.md) for what that means and where the project is going.
 
 ## FEATURES
 
@@ -84,6 +86,8 @@ npm run tauri dev
 ## CONTRIBUTING
 
 Contributions are welcome. For full guidelines, read [CONTRIBUTING](CONTRIBUTING.md).
+
+Start with [VISION.md](VISION.md) to understand what the project is for, then the [roadmap index](https://github.com/openfootmanager/openfootmanager/issues/11) to see what is being worked on and what you can pick up.
 
 If you want to discuss ideas, share feedback, or follow development more casually, join the Discord server: https://discord.gg/2CXaesaukT
 
