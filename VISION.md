@@ -112,7 +112,7 @@ Openfoot Manager uses an odd/even release convention:
 * **Odd** minor versions (`0.3.x`, `0.5.x`) are the unstable development stream published as nightlies.
 * **Even** minor versions (`0.4.x`, `0.6.x`) are stable releases.
 
-You can always tell which you are running just by looking at the version number. The mechanics behind this (branches, channels, and our stable release checklist) live in [CONTRIBUTING.md](https://www.google.com/search?q=CONTRIBUTING.md).
+You can always tell which you are running just by looking at the version number. The mechanics behind this (branches, channels, and our stable release checklist) live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## How an Idea Becomes Work
 
@@ -126,4 +126,4 @@ Ideas are never rejected for being too ambitious. They are only turned down if t
 
 Writing code is just one way to help, and honestly, it's not always the most needed one. Translating strings, reporting bugs, sharing your `.ofm` world packages, writing documentation, or simply telling people the game exists all move this project forward.
 
-Check out [CONTRIBUTING.md](https://www.google.com/search?q=CONTRIBUTING.md) for the specifics, and come say hello on [Discord](https://discord.gg/2CXaesaukT). We’re glad you’re here.
+Check out [CONTRIBUTING.md](CONTRIBUTING.md) for the specifics, and come say hello on [Discord](https://discord.gg/2CXaesaukT). We’re glad you’re here.
