@@ -605,7 +605,8 @@
     "center": "中路",
     "right": "右侧",
     "competition": "赛事",
-    "confirmDelete": "确认删除"
+    "confirmDelete": "确认删除",
+    "more": "更多"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -2494,7 +2495,8 @@
     "yourResult": "你的成绩",
     "continue": "继续",
     "notableUpset": "重大爆冷",
-    "pts": "分"
+    "pts": "分",
+    "controls": "控制"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",

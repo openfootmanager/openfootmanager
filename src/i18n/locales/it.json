@@ -624,7 +624,8 @@
     "center": "Centro",
     "right": "Destra",
     "competition": "Competizione",
-    "confirmDelete": "Conferma eliminazione"
+    "confirmDelete": "Conferma eliminazione",
+    "more": "Altro"
   },
   "teamSelection": {
     "title": "Scegli il tuo club",
@@ -2513,7 +2514,8 @@
     "yourResult": "Il tuo risultato",
     "continue": "Continua",
     "notableUpset": "Sorpresa del turno",
-    "pts": "pts."
+    "pts": "pts.",
+    "controls": "Controlli"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",

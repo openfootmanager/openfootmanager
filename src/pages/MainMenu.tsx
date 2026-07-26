@@ -20,6 +20,7 @@ import type { ManagerProfile } from "../components/menu/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import { formatAppVersion } from "../lib/appVersion";
 import { resolveBackendError } from "../utils/backendI18n";
+import { isAndroid } from "../utils/platform";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import {
   FolderOpen,
@@ -690,14 +691,16 @@ export default function MainMenu() {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
       }
-      await getCurrentWindow().destroy();
+      if (!isAndroid()) {
+        await getCurrentWindow().destroy();
+      }
     } catch (error) {
       console.error("Failed to exit app:", error);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-navy-900 transition-colors duration-500 relative overflow-x-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-navy-900 transition-colors duration-500 relative overflow-x-hidden pt-safe pb-safe">
       {/* Background gradient accents */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary-500/10 dark:bg-primary-500/5 rounded-full blur-3xl" />
@@ -777,19 +780,22 @@ export default function MainMenu() {
                 <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-70 group-hover:translate-x-0.5 transition-all text-gray-400" />
               </button>
 
-              <button
-                onClick={() => {
-                  void handleExitApp();
-                }}
-                className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-red-200 dark:hover:border-red-500/30 shadow-sm"
-              >
-                <div className="flex items-center gap-3">
-                  <Power className="w-6 h-6 text-red-500 dark:text-red-400" />
-                  <span className="font-heading font-bold text-lg uppercase tracking-wide">
-                    {t("menu.exitGame")}
-                  </span>
-                </div>
-              </button>
+              {/* Quit is desktop-only: Android apps are closed by the OS. */}
+              {!isAndroid() && (
+                <button
+                  onClick={() => {
+                    void handleExitApp();
+                  }}
+                  className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-red-200 dark:hover:border-red-500/30 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <Power className="w-6 h-6 text-red-500 dark:text-red-400" />
+                    <span className="font-heading font-bold text-lg uppercase tracking-wide">
+                      {t("menu.exitGame")}
+                    </span>
+                  </div>
+                </button>
+              )}
             </div>
           )}
 

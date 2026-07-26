@@ -605,7 +605,8 @@
     "listView": "Seznam",
     "radarView": "Radar",
     "competition": "Soutěž",
-    "confirmDelete": "Potvrdit smazání"
+    "confirmDelete": "Potvrdit smazání",
+    "more": "Více"
   },
   "teamSelection": {
     "title": "Vyberte si klub",
@@ -2495,7 +2496,8 @@
     "yourResult": "Váš výsledek",
     "continue": "Pokračovat",
     "notableUpset": "Velké překvapení",
-    "pts": "b."
+    "pts": "b.",
+    "controls": "Ovládání"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",

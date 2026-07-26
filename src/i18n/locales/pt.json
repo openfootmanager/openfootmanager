@@ -605,7 +605,8 @@
     "center": "Centro",
     "right": "Direita",
     "competition": "Competição",
-    "confirmDelete": "Confirmar eliminação"
+    "confirmDelete": "Confirmar eliminação",
+    "more": "Mais"
   },
   "teamSelection": {
     "title": "Escolhe o Teu Clube",
@@ -2494,7 +2495,8 @@
     "yourResult": "O teu resultado",
     "continue": "Continuar",
     "notableUpset": "Grande surpresa",
-    "pts": "pts"
+    "pts": "pts",
+    "controls": "Controlos"
   },
   "endOfSeason": {
     "seasonComplete": "Época Completa",

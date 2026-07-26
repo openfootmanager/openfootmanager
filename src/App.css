@@ -77,6 +77,15 @@
     font-family: var(--font-heading);
   }
 
+  /* Safe-area insets for edge-to-edge mobile WebViews (0 on desktop) */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
   }

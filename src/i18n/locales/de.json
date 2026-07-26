@@ -605,7 +605,8 @@
     "center": "Zentrum",
     "right": "Rechts",
     "competition": "Wettbewerb",
-    "confirmDelete": "Löschen bestätigen"
+    "confirmDelete": "Löschen bestätigen",
+    "more": "Mehr"
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
@@ -2494,7 +2495,8 @@
     "yourResult": "Dein Ergebnis",
     "continue": "Weiter",
     "notableUpset": "Überraschungsergebnis",
-    "pts": "Pkt."
+    "pts": "Pkt.",
+    "controls": "Steuerung"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",

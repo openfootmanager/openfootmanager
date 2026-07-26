@@ -121,7 +121,8 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
                 lostLabel={t('manager.losses')}
               />
             </div>
-            <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
                   <th className="py-3 px-5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{t('manager.club')}</th>
@@ -176,6 +177,7 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
                 })}
               </tbody>
             </table>
+            </div>
           </CardBody>
         </Card>
       )}

@@ -504,7 +504,8 @@ export default function PostMatchScreen({
                   </div>
                   {talkResults.length > 0 && (
                     <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-navy-700">
-                      <table className="w-full text-xs">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
                         <thead>
                           <tr className="bg-gray-50 dark:bg-navy-700/50">
                             <th className="text-left px-3 py-2 font-heading uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -561,6 +562,7 @@ export default function PostMatchScreen({
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
                 </div>

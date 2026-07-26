@@ -605,7 +605,8 @@
     "listView": "Liste",
     "radarView": "Radar",
     "competition": "Turnuva",
-    "confirmDelete": "Silmeyi onayla"
+    "confirmDelete": "Silmeyi onayla",
+    "more": "Daha fazla"
   },
   "teamSelection": {
     "title": "Kulübünü Seç",
@@ -2494,7 +2495,8 @@
     "yourResult": "Sizin Sonucunuz",
     "continue": "Devam Et",
     "notableUpset": "Dikkat Çeken Sürpriz",
-    "pts": "P"
+    "pts": "P",
+    "controls": "Kontroller"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",

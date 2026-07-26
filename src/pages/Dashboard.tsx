@@ -14,6 +14,7 @@ import DashboardHeader, {
 import DashboardOverlays from "../components/dashboard/DashboardOverlays";
 import FiredModal from "../components/dashboard/FiredModal";
 import DashboardSidebar from "../components/dashboard/DashboardSidebar";
+import DashboardBottomNav from "../components/dashboard/DashboardBottomNav";
 import DashboardWorkspaceContent from "../components/dashboard/DashboardWorkspaceContent";
 import {
   createDashboardProfileNavigationState,
@@ -52,6 +53,7 @@ import {
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../store/settingsStore";
+import { isAndroid } from "../utils/platform";
 import {
   getBackgroundPortraitPrewarmKey,
   queueBackgroundPortraitPrewarm,
@@ -311,6 +313,8 @@ export default function Dashboard(): JSX.Element {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const isClosingRef = useRef(false);
   useEffect(() => {
+    // Android has no window close request flow; the OS manages the lifecycle.
+    if (isAndroid()) return;
     const appWindow = getCurrentWindow();
     const unlisten = appWindow.onCloseRequested(async (event) => {
       if (isClosingRef.current) return;
@@ -335,7 +339,9 @@ export default function Dashboard(): JSX.Element {
         console.error("Auto-save on close failed:", err);
       }
     }
-    await getCurrentWindow().destroy();
+    if (!isAndroid()) {
+      await getCurrentWindow().destroy();
+    }
   };
 
   const MODE_META: Record<MatchModeType, DashboardMatchModeMeta> = {
@@ -588,6 +594,20 @@ export default function Dashboard(): JSX.Element {
           onSelectTeam={selectTeam}
           onGameUpdate={setGameState}
           isUnemployed={isUnemployed ?? false}
+        />
+
+        <DashboardBottomNav
+          activeTab={profileNavigation.activeTab}
+          isUnemployed={isUnemployed ?? false}
+          onNavigateSettings={handleNavigateSettings}
+          onExitClick={() => {
+            if (!isExitingToMenu) {
+              setShowExitConfirm(true);
+            }
+          }}
+          onNavClick={handleNavClick}
+          todayHasMatch={hasMatchToday}
+          unreadMessagesCount={unreadMessagesCount}
         />
       </main>
     </div>

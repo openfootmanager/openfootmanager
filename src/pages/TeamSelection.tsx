@@ -54,7 +54,7 @@ export default function TeamSelection() {
 
   return (
     <div className="min-h-screen bg-gray-100 transition-colors duration-300 dark:bg-navy-900">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 shadow-sm dark:border-navy-700 dark:bg-navy-800">
+      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 pt-safe shadow-sm dark:border-navy-700 dark:bg-navy-800">
         <div className="flex items-center gap-4">
           <button
             type="button"

@@ -149,17 +149,21 @@ function renderContinueButtonContent(
   matchModeMeta: DashboardMatchModeMeta,
 ): ReactNode {
   if (seasonComplete) {
-    return <span>{t("endOfSeason.seasonComplete")}</span>;
+    return (
+      <span className="hidden sm:inline">{t("endOfSeason.seasonComplete")}</span>
+    );
   }
 
   if (isAdvancing) {
-    return <span>{t("dashboard.simulating")}</span>;
+    return (
+      <span className="hidden sm:inline">{t("dashboard.simulating")}</span>
+    );
   }
 
   return (
     <>
       {matchModeMeta.icon}
-      <span>
+      <span className="hidden sm:inline">
         {hasMatchToday ? matchModeMeta.label : t("dashboard.continue")}
       </span>
     </>
@@ -341,7 +345,7 @@ export default function DashboardHeader({
   }
 
   return (
-    <header className="z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm transition-colors duration-300 dark:border-navy-700 dark:bg-navy-800">
+    <header className="z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-gray-200 bg-white px-3 py-3 pt-safe shadow-sm transition-colors duration-300 dark:border-navy-700 dark:bg-navy-800 md:px-6">
       <div className="flex items-center gap-3">
         {hasProfileHistory && (
           <button
@@ -363,8 +367,8 @@ export default function DashboardHeader({
         </div>
       </div>
 
-      <div className="relative mx-auto flex-1 px-10">
-        <Search className="absolute left-13 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+      <div className="relative mx-auto order-last w-full flex-none px-0 sm:order-none sm:w-auto sm:flex-1 sm:px-10">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500 sm:left-13" />
         <input
           type="text"
           placeholder={t("dashboard.searchPlaceholder")}
@@ -397,7 +401,9 @@ export default function DashboardHeader({
           title={t("dashboard.saveGame")}
         >
           {renderSaveButtonIcon(isSaving)}
-          {getSaveButtonLabel(t, saveFlash, isSaving)}
+          <span className="hidden sm:inline">
+            {getSaveButtonLabel(t, saveFlash, isSaving)}
+          </span>
         </button>
         {isUnemployed ? (
           <button
@@ -405,7 +411,7 @@ export default function DashboardHeader({
             disabled={isAdvancing}
             className="bg-linear-to-r from-gray-600 to-gray-700 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white shadow-md transition-all hover:cursor-pointer hover:brightness-110 hover:shadow-lg disabled:cursor-wait disabled:opacity-70"
           >
-            <span>{isAdvancing ? t("dashboard.simulating") : t("dashboard.continue")}</span>
+            <span className="hidden sm:inline">{isAdvancing ? t("dashboard.simulating") : t("dashboard.continue")}</span>
             <ChevronRight className={`h-4 w-4 ${isAdvancing ? "animate-pulse" : ""}`} />
           </button>
         ) : (

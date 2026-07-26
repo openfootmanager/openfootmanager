@@ -605,7 +605,8 @@
     "center": "Центр",
     "right": "Правый",
     "competition": "Соревнование",
-    "confirmDelete": "Подтвердить удаление"
+    "confirmDelete": "Подтвердить удаление",
+    "more": "Ещё"
   },
   "teamSelection": {
     "title": "Выберите клуб",
@@ -2494,7 +2495,8 @@
     "yourResult": "Ваш результат",
     "continue": "Продолжить",
     "notableUpset": "Неожиданный результат",
-    "pts": "очк."
+    "pts": "очк.",
+    "controls": "Управление"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",

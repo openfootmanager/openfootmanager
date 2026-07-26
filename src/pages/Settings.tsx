@@ -131,7 +131,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-navy-900 transition-colors duration-300">
       {/* Header */}
-      <header className="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 shadow-sm">
+      <header className="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 shadow-sm pt-safe">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button

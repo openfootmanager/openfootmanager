@@ -431,7 +431,8 @@ export default function YouthAcademyTab({
               </p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
                   <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -606,6 +607,7 @@ export default function YouthAcademyTab({
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </CardBody>
       </Card>

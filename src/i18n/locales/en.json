@@ -605,7 +605,8 @@
     "listView": "List",
     "radarView": "Radar",
     "competition": "Competition",
-    "confirmDelete": "Confirm delete"
+    "confirmDelete": "Confirm delete",
+    "more": "More"
   },
   "teamSelection": {
     "title": "Choose Your Club",
@@ -2494,7 +2495,8 @@
     "yourResult": "Your Result",
     "continue": "Continue",
     "notableUpset": "Notable Upset",
-    "pts": "pts"
+    "pts": "pts",
+    "controls": "Controls"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",

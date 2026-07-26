@@ -20,7 +20,8 @@ export default function PlayerProfileCareerHistoryCard({
             <CardHeader>{t("playerProfile.careerHistory")}</CardHeader>
             <CardBody>
                 {career.length > 0 ? (
-                    <table className="w-full table-fixed text-xs">
+                    <div className="overflow-x-auto">
+                        <table className="w-full table-fixed text-xs">
                         <thead>
                             <tr className="border-b border-gray-200 dark:border-navy-500 text-gray-400 dark:text-gray-500 font-heading font-bold uppercase tracking-wider">
                                 <th className="pb-2 pr-4 text-left font-bold">{t("common.team")}</th>
@@ -55,6 +56,7 @@ export default function PlayerProfileCareerHistoryCard({
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 ) : (
                     <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">
                         {t("playerProfile.noCareer")}
