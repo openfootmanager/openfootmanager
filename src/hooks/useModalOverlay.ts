@@ -77,6 +77,9 @@ export function useModalOverlay<
 
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
+        // An inner overlay/control already consumed this Escape (e.g. a
+        // Select dropdown closing itself) — don't close the overlay too.
+        if (event.defaultPrevented) return;
         event.preventDefault();
         onCloseRef.current();
         return;

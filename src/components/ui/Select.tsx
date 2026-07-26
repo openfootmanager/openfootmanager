@@ -291,7 +291,13 @@ export function Select({
     }
 
     if (event.key === "Escape") {
-      setIsOpen(false);
+      // Only consume Escape when the dropdown is actually open, so enclosing
+      // overlays (bottom sheet, drawer) still close when it is not.
+      if (isOpen) {
+        event.preventDefault();
+        setIsOpen(false);
+      }
+      return;
     }
   };
 

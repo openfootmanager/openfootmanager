@@ -102,6 +102,43 @@ describe("useModalOverlay", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("ignores Escape already consumed by an inner control", () => {
+    // Simulates a nested overlay (e.g. an open Select dropdown) that handles
+    // Escape itself: the keydown preventDefaults before bubbling to document.
+    function NestedConsumerHarness() {
+      const [isOpen, setIsOpen] = useState(true);
+      const { dialogRef, triggerRef } = useModalOverlay({
+        isOpen,
+        onClose: () => setIsOpen(false),
+      });
+
+      return (
+        <div>
+          <button ref={triggerRef}>Open</button>
+          {isOpen && (
+            <div ref={dialogRef} role="dialog" aria-modal="true">
+              <button
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") event.preventDefault();
+                }}
+              >
+                Inner
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    render(<NestedConsumerHarness />);
+
+    const inner = screen.getByText("Inner");
+    inner.focus();
+    fireEvent.keyDown(inner, { key: "Escape" });
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
   it("restores focus to the trigger element on close", () => {
     render(<Harness />);
 
