@@ -6,6 +6,7 @@ import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS, FORMATIONS
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
 import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useModalOverlay } from "../../hooks/useModalOverlay";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
@@ -48,6 +49,11 @@ export default function MatchLive({
   const [isRunning, setIsRunning] = useState(true);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
+  const { dialogRef: controlsDialogRef, triggerRef: controlsTriggerRef } =
+    useModalOverlay<HTMLElement>({
+      isOpen: controlsOpen,
+      onClose: () => setControlsOpen(false),
+    });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventFeedRef = useRef<HTMLDivElement>(null);
   // Track phases we've already signaled to avoid double-firing
@@ -378,6 +384,7 @@ export default function MatchLive({
               <span className="text-sm font-heading text-gray-500 dark:text-gray-400 tabular-nums w-8">{snapshot.current_minute}'</span>
               <button
                 type="button"
+                ref={controlsTriggerRef}
                 data-testid="match-controls-open"
                 aria-label={t('match.controls')}
                 onClick={() => setControlsOpen(true)}
@@ -445,14 +452,20 @@ export default function MatchLive({
       </div>
 
       {controlsOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-label={t('match.controls')}>
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label={t('common.close')}
             onClick={() => setControlsOpen(false)}
             className="absolute inset-0 bg-black/50"
           />
-          <aside className="absolute right-0 top-0 flex h-full w-72 flex-col border-l border-gray-200 bg-white pt-safe pb-safe dark:border-navy-700 dark:bg-navy-800">
+          <aside
+            ref={controlsDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('match.controls')}
+            className="absolute right-0 top-0 flex h-full w-72 flex-col border-l border-gray-200 bg-white pt-safe pb-safe dark:border-navy-700 dark:bg-navy-800"
+          >
             <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-navy-700">
               <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">{t('match.controls')}</h3>
               <button

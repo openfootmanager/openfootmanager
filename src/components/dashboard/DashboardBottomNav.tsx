@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { JSX, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useModalOverlay } from "../../hooks/useModalOverlay";
 import {
   Building2,
   Calendar as CalendarIcon,
@@ -55,6 +56,10 @@ export default function DashboardBottomNav({
 }: DashboardBottomNavProps): JSX.Element {
   const { t } = useTranslation();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const { dialogRef, triggerRef } = useModalOverlay({
+    isOpen: isMoreOpen,
+    onClose: () => setIsMoreOpen(false),
+  });
 
   // Mirrors the item definitions/icons/i18n keys of DashboardSidebar.
   const primaryItems: BottomNavItem[] = [
@@ -157,6 +162,7 @@ export default function DashboardBottomNav({
         ))}
         <button
           type="button"
+          ref={triggerRef}
           data-testid="bottom-nav-more"
           aria-label={t("common.more")}
           aria-expanded={isMoreOpen}
@@ -174,18 +180,20 @@ export default function DashboardBottomNav({
       </div>
 
       {isMoreOpen && (
-        <div
-          role="dialog"
-          aria-label={t("common.more")}
-          className="fixed inset-0 z-50 flex flex-col justify-end"
-        >
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <button
             type="button"
             aria-label={t("common.close")}
             onClick={() => setIsMoreOpen(false)}
             className="absolute inset-0 bg-black/50"
           />
-          <div className="relative max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-navy-700 bg-navy-800 p-4 pb-safe">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("common.more")}
+            className="relative max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-navy-700 bg-navy-800 p-4 pb-safe"
+          >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-white">
                 {t("common.more")}
