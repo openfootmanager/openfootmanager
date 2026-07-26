@@ -21,7 +21,7 @@ export default function PlayerProfileCareerHistoryCard({
             <CardBody>
                 {career.length > 0 ? (
                     <div className="overflow-x-auto">
-                        <table className="w-full table-fixed text-xs">
+                        <table className="w-full min-w-md table-fixed text-xs">
                         <thead>
                             <tr className="border-b border-gray-200 dark:border-navy-500 text-gray-400 dark:text-gray-500 font-heading font-bold uppercase tracking-wider">
                                 <th className="pb-2 pr-4 text-left font-bold">{t("common.team")}</th>
