@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { isAndroid } from "./platform";
 
-const originalUserAgent = navigator.userAgent;
+const originalUserAgentDescriptor = Object.getOwnPropertyDescriptor(
+  window.navigator,
+  "userAgent",
+);
 
 function setUserAgent(userAgent: string): void {
   Object.defineProperty(window.navigator, "userAgent", {
@@ -12,7 +15,17 @@ function setUserAgent(userAgent: string): void {
 }
 
 afterEach(() => {
-  setUserAgent(originalUserAgent);
+  if (originalUserAgentDescriptor) {
+    Object.defineProperty(
+      window.navigator,
+      "userAgent",
+      originalUserAgentDescriptor,
+    );
+  } else {
+    // userAgent was inherited (e.g. Navigator.prototype); dropping the own
+    // property restores the original descriptor instead of leaking ours.
+    delete (window.navigator as { userAgent?: string }).userAgent;
+  }
 });
 
 describe("isAndroid", () => {
