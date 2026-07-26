@@ -57,6 +57,11 @@ export default function MatchLive({
       isOpen: controlsOpen,
       onClose: () => setControlsOpen(false),
     });
+  // Crossing into the desktop layout unmounts the drawer; close it so the
+  // overlay hook releases its scroll lock / focus trap / Escape handler.
+  useEffect(() => {
+    if (isDesktopControls) setControlsOpen(false);
+  }, [isDesktopControls]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventFeedRef = useRef<HTMLDivElement>(null);
   // Track phases we've already signaled to avoid double-firing

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import MatchLive from "./MatchLive";
@@ -23,6 +23,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 let desktopControlsMatches = false;
+let mediaQueryChangeListeners: Array<(event: MediaQueryListEvent) => void> = [];
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,
@@ -32,11 +33,21 @@ Object.defineProperty(window, "matchMedia", {
     onchange: null,
     addListener: vi.fn(),
     removeListener: vi.fn(),
-    addEventListener: vi.fn(),
+    addEventListener: vi.fn(
+      (_event: string, cb: (event: MediaQueryListEvent) => void) => {
+        mediaQueryChangeListeners.push(cb);
+      },
+    ),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
 });
+
+function setDesktopControls(matches: boolean): void {
+  desktopControlsMatches = matches;
+  const event = { matches } as MediaQueryListEvent;
+  for (const cb of mediaQueryChangeListeners) cb(event);
+}
 
 function makeSnapshot(): MatchSnapshot {
   return {
@@ -113,6 +124,7 @@ function renderMatchLive() {
 
 beforeEach(() => {
   desktopControlsMatches = false;
+  mediaQueryChangeListeners = [];
 });
 
 describe("MatchLive controls panel mounting", () => {
@@ -153,5 +165,18 @@ describe("MatchLive controls panel mounting", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByTestId("match-controls-open")).toHaveFocus();
+  });
+
+  it("closes the drawer and releases the scroll lock when crossing into the desktop layout", () => {
+    renderMatchLive();
+
+    fireEvent.click(screen.getByTestId("match-controls-open"));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(document.body.style.overflow).toBe("hidden");
+
+    act(() => setDesktopControls(true));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.body.style.overflow).toBe("");
   });
 });
