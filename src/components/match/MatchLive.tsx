@@ -7,6 +7,7 @@ import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./
 import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useModalOverlay } from "../../hooks/useModalOverlay";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
@@ -49,6 +50,8 @@ export default function MatchLive({
   const [isRunning, setIsRunning] = useState(true);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
+  // Single-mount the controls panel: static aside at lg+, slide-over drawer below.
+  const isDesktopControls = useMediaQuery("(min-width: 1024px)");
   const { dialogRef: controlsDialogRef, triggerRef: controlsTriggerRef } =
     useModalOverlay<HTMLElement>({
       isOpen: controlsOpen,
@@ -382,16 +385,18 @@ export default function MatchLive({
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               <span className="text-sm font-heading text-gray-500 dark:text-gray-400 tabular-nums w-8">{snapshot.current_minute}'</span>
-              <button
-                type="button"
-                ref={controlsTriggerRef}
-                data-testid="match-controls-open"
-                aria-label={t('match.controls')}
-                onClick={() => setControlsOpen(true)}
-                className="lg:hidden rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-navy-700"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-              </button>
+              {!isDesktopControls && (
+                <button
+                  type="button"
+                  ref={controlsTriggerRef}
+                  data-testid="match-controls-open"
+                  aria-label={t('match.controls')}
+                  onClick={() => setControlsOpen(true)}
+                  className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-navy-700"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -445,14 +450,16 @@ export default function MatchLive({
           </div>
         </div>
 
-        {/* Right Panel: Controls (static on desktop, slide-over drawer below lg) */}
-        <aside className="hidden lg:flex w-72 bg-white dark:bg-navy-800 border-l border-gray-200 dark:border-navy-700 flex-col transition-colors duration-300">
-          {controlsPanelContent}
-        </aside>
+        {/* Right Panel: Controls (static aside at lg+, slide-over drawer below) */}
+        {isDesktopControls && (
+          <aside className="w-72 bg-white dark:bg-navy-800 border-l border-gray-200 dark:border-navy-700 flex flex-col transition-colors duration-300">
+            {controlsPanelContent}
+          </aside>
+        )}
       </div>
 
-      {controlsOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+      {!isDesktopControls && controlsOpen && (
+        <div className="fixed inset-0 z-50">
           <button
             type="button"
             aria-label={t('common.close')}
