@@ -2103,13 +2103,17 @@ colors:
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
         let world = crate::generator::build_world_data_from_package(&package, None);
 
+        // `baseYear: 5` resolves to the clamped floor, so every player must be
+        // born at or before it. A loose range here would let a regression that
+        // ignores the clamp slip through.
+        let floor = crate::generator::MIN_OPENING_YEAR as i32;
         for player in &world.players {
             let birth_year: i32 = player.date_of_birth[0..4]
                 .parse()
                 .unwrap_or_else(|_| panic!("unparseable dob {}", player.date_of_birth));
             assert!(
-                (1000..3000).contains(&birth_year),
-                "{} was born in {birth_year}",
+                birth_year <= floor && birth_year > floor - 100,
+                "{} was born in {birth_year}, outside the clamped era floor {floor}",
                 player.full_name,
             );
         }
