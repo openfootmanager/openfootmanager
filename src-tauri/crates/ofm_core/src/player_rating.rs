@@ -1,4 +1,4 @@
-use domain::player::{Footedness, Player, PlayerTrait, Position};
+use domain::player::{Footedness, Player, PlayerAttributes, PlayerTrait, Position};
 use rand::RngExt;
 
 const WONDERKID_MAX_AGE: u32 = 20;
@@ -131,9 +131,23 @@ pub fn natural_ovr(player: &Player) -> f64 {
 }
 
 pub fn ovr_for_position(player: &Player, position: &Position) -> f64 {
+    ovr_from_attributes(&player.attributes, position)
+}
+
+/// Position-weighted rating for a bare attribute block.
+///
+/// The same maths as [`ovr_for_position`], reachable before a [`Player`] has
+/// been assembled — world generation needs it to size market value and wage,
+/// which previously used a flat average of eleven outfield attributes. That
+/// average excluded `handling`, `reflexes` and `aerial` entirely, so keepers
+/// were priced as if their actual craft did not exist.
+///
+/// `position` may be a legacy bucket (`Defender`/`Midfielder`/`Forward`); it is
+/// canonicalised before scoring.
+pub fn ovr_from_attributes(attributes: &PlayerAttributes, position: &Position) -> f64 {
     let canonical = canonical_position(position);
-    let base = weighted_score(player, &canonical);
-    let penalty = critical_penalty(player, &canonical);
+    let base = weighted_score(attributes, &canonical);
+    let penalty = critical_penalty(attributes, &canonical);
     (base - penalty).clamp(1.0, 99.0)
 }
 
@@ -290,8 +304,7 @@ fn footedness_penalty(player: &Player, slot_position: &Position) -> f64 {
     }
 }
 
-fn weighted_score(player: &Player, position: &Position) -> f64 {
-    let attrs = &player.attributes;
+fn weighted_score(attrs: &PlayerAttributes, position: &Position) -> f64 {
     match position {
         Position::Goalkeeper => weighted_average(&[
             (attrs.handling, 28),
@@ -395,8 +408,7 @@ fn weighted_score(player: &Player, position: &Position) -> f64 {
     }
 }
 
-fn critical_penalty(player: &Player, position: &Position) -> f64 {
-    let attrs = &player.attributes;
+fn critical_penalty(attrs: &PlayerAttributes, position: &Position) -> f64 {
     let critical_min = match position {
         Position::Goalkeeper => attrs.handling.min(attrs.reflexes).min(attrs.positioning),
         Position::RightBack | Position::LeftBack => {
@@ -457,7 +469,75 @@ fn slot_side(position: &Position) -> Option<Side> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use domain::player::PlayerAttributes;
+
+    /// A specialist keeper: elite at keeping, poor at everything an outfielder
+    /// does. The flat attribute average buries him; the weighted OVR does not.
+    fn make_specialist_keeper() -> Player {
+        let mut player = make_player(Position::Goalkeeper);
+        player.natural_position = Position::Goalkeeper;
+        let a = &mut player.attributes;
+        a.handling = 87;
+        a.reflexes = 90;
+        a.aerial = 83;
+        a.positioning = 88;
+        a.decisions = 84;
+        a.composure = 88;
+        a.strength = 74;
+        // Irrelevant to keeping, and low — exactly what a flat average punishes.
+        a.shooting = 20;
+        a.tackling = 30;
+        a.dribbling = 30;
+        a.defending = 55;
+        a.pace = 58;
+        a.passing = 58;
+        a.stamina = 70;
+        a.vision = 68;
+        player
+    }
+
+    #[test]
+    fn ovr_from_attributes_matches_the_player_level_rating() {
+        let keeper = make_specialist_keeper();
+
+        let direct = ovr_from_attributes(&keeper.attributes, &Position::Goalkeeper);
+
+        assert_eq!(
+            direct.round() as u8,
+            natural_ovr(&keeper).round() as u8,
+            "the attribute-level entry point must agree with the player-level one",
+        );
+    }
+
+    #[test]
+    fn ovr_from_attributes_resolves_legacy_position_buckets() {
+        let keeper = make_specialist_keeper();
+
+        // `Defender`/`Midfielder`/`Forward` are legacy buckets that
+        // `weighted_score` cannot score directly; they must be canonicalised.
+        for bucket in [Position::Defender, Position::Midfielder, Position::Forward] {
+            let score = ovr_from_attributes(&keeper.attributes, &bucket);
+            assert!(
+                (1.0..=99.0).contains(&score),
+                "{bucket:?} must resolve to a canonical position, got {score}",
+            );
+        }
+    }
+
+    #[test]
+    fn keeper_rating_ignores_outfield_attributes() {
+        // The bug this guards: market value and wage were sized from a flat
+        // average of eleven outfield attributes that excluded handling,
+        // reflexes and aerial entirely, so an elite keeper priced like a
+        // journeyman. The rating must not collapse when outfield attributes do.
+        let keeper = make_specialist_keeper();
+
+        let rating = ovr_from_attributes(&keeper.attributes, &Position::Goalkeeper);
+
+        assert!(
+            rating >= 80.0,
+            "an elite keeper must rate as elite, got {rating}",
+        );
+    }
 
     fn make_player(position: Position) -> Player {
         Player::new(

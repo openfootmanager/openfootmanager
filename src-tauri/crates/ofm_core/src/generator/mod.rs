@@ -1236,6 +1236,93 @@ mod tests {
     }
 
     #[test]
+    fn authored_overall_round_trips_to_the_same_position_weighted_rating() {
+        // A package author who writes `overall: 86` must get a player the game
+        // rates ~86 in their position. `attributes_for_overall` shapes the
+        // spread and `ovr_from_attributes` scores it; the two have to agree, or
+        // every authored squad drifts off the rating its author intended.
+        use rand::SeedableRng;
+
+        let positions = [
+            Position::Goalkeeper,
+            Position::CenterBack,
+            Position::RightBack,
+            Position::DefensiveMidfielder,
+            Position::CentralMidfielder,
+            Position::AttackingMidfielder,
+            Position::RightWinger,
+            Position::Striker,
+        ];
+
+        for position in &positions {
+            for target in [55u8, 70, 86] {
+                let runs = 200u64;
+                let mut sum = 0f64;
+                for seed in 0..runs {
+                    let mut rng = StdRng::seed_from_u64(seed);
+                    let attrs = generation::attributes_for_overall(target, position, &mut rng);
+                    sum += crate::player_rating::ovr_from_attributes(&attrs, position);
+                }
+                let mean = sum / runs as f64;
+                let drift = (mean - target as f64).abs();
+                assert!(
+                    drift <= 3.0,
+                    "{position:?} authored at {target} averages {mean:.1} (drift {drift:.1})",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn specialist_keeper_is_valued_on_keeping_not_on_outfield_attributes() {
+        // Market value and wage used to be sized from a flat average of eleven
+        // outfield attributes that excluded handling, reflexes and aerial
+        // entirely. An elite keeper therefore priced like a journeyman: in the
+        // 1962 world that surfaced this, an 86-rated Gilmar was valued below
+        // every outfielder in the squad, including a 78-rated full-back.
+        let mut keeper = authored_player(0, Position::Goalkeeper);
+        keeper.date_of_birth = Some("1994-01-01".to_string());
+        keeper.overall = None;
+        keeper.attributes = Some(domain::player::PlayerAttributes {
+            pace: 58, stamina: 70, strength: 74, agility: 84,
+            passing: 58, shooting: 20, tackling: 30, dribbling: 30,
+            defending: 55, positioning: 88, vision: 68, decisions: 84,
+            composure: 88, aggression: 45, teamwork: 78, leadership: 84,
+            handling: 87, reflexes: 90, aerial: 83,
+        });
+
+        // A striker of comparable standing, same age.
+        let mut striker = authored_player(1, Position::Striker);
+        striker.date_of_birth = Some("1994-01-01".to_string());
+        striker.overall = Some(86);
+
+        let players = build_test_package_club(&[keeper, striker]);
+        let keeper = players
+            .iter()
+            .find(|p| p.match_name == "Authored0")
+            .expect("keeper should be in the squad");
+        let striker = players
+            .iter()
+            .find(|p| p.match_name == "Authored1")
+            .expect("striker should be in the squad");
+
+        assert!(
+            keeper.ovr >= 80,
+            "the keeper should rate as elite, got {}",
+            keeper.ovr,
+        );
+        assert!(
+            keeper.market_value * 2 >= striker.market_value,
+            "an elite keeper ({} ovr, {}) must not be valued a fraction of a \
+             comparable striker ({} ovr, {})",
+            keeper.ovr,
+            keeper.market_value,
+            striker.ovr,
+            striker.market_value,
+        );
+    }
+
+    #[test]
     fn small_authored_squad_is_still_topped_up() {
         // The flip side: a package that only names a handful of players still
         // gets a full, playable squad generated around them.

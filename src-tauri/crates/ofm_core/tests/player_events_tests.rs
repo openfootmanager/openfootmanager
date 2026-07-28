@@ -305,6 +305,9 @@ fn bench_complaint_after_5_missed_matches() {
     // Make p_fwd0 have low morale (< 50), 0 appearances, decent OVR
     let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
     player.morale = 40;
+    // A real player always carries a refreshed position-weighted rating; this
+    // fixture builds one directly, so set the "decent OVR" the gate expects.
+    player.ovr = 70;
     // stats.appearances defaults to 0, so app_ratio = 0/5 = 0.0 < 0.3
 
     // Now probabilistic (10% daily chance), run multiple iterations
