@@ -38,12 +38,6 @@ export function reputationBandKey(value: number): ReputationBandKey {
   return band?.key ?? "amateur";
 }
 
-/** Where a value sits across the scale, as a 0–100 percentage. */
-export function reputationScalePercent(value: number): number {
-  const clamped = Math.min(REPUTATION_MAX, Math.max(REPUTATION_MIN, value));
-  return (clamped / REPUTATION_MAX) * 100;
-}
-
 /**
  * The transfer budget a club will open with, given its finance.
  * Mirrors `team.transfer_budget = (finance as f64 * 0.15) as i64` in world
