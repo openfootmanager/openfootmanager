@@ -230,7 +230,7 @@ pub(super) fn generate_random_player_from_def(
     } else {
         rng.random_range(17..36)
     };
-    let birth_year = opening_year - age;
+    let birth_year = opening_year.saturating_sub(age);
     let birth_month = rng.random_range(1..13);
     let birth_day = rng.random_range(1..29);
     let dob = format!("{:04}-{:02}-{:02}", birth_year, birth_month, birth_day);
@@ -403,7 +403,7 @@ pub(super) fn generate_random_staff_from_def(
 ) -> Staff {
     let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
     let age = rng.random_range(30..60);
-    let birth_year = opening_year - age;
+    let birth_year = opening_year.saturating_sub(age);
     let dob = format!(
         "{:04}-{:02}-{:02}",
         birth_year,
@@ -460,7 +460,7 @@ pub(super) fn generate_random_staff_unattached_from_def(
 ) -> Staff {
     let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
     let age = rng.random_range(28..55);
-    let birth_year = opening_year - age;
+    let birth_year = opening_year.saturating_sub(age);
     let dob = format!(
         "{:04}-{:02}-{:02}",
         birth_year,
@@ -516,11 +516,11 @@ pub(super) fn generate_staff_from_authored_def(
 
     let current_year: u32 = opening_year;
     let birth_year = if let Some(dob) = &def.date_of_birth {
-        dob.split('-').next().and_then(|y| y.parse::<u32>().ok()).unwrap_or(current_year - 40)
+        dob.split('-').next().and_then(|y| y.parse::<u32>().ok()).unwrap_or(current_year.saturating_sub(40))
     } else if let Some(age) = def.age {
         current_year.saturating_sub(age)
     } else {
-        current_year - rng.random_range(30..55)
+        current_year.saturating_sub(rng.random_range(30..55))
     };
     let dob = def.date_of_birth.clone()
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
@@ -649,11 +649,11 @@ fn resolve_birth_year(
     if let Some(dob) = &def.date_of_birth {
         dob.get(0..4)
             .and_then(|year| year.parse::<u32>().ok())
-            .unwrap_or(opening_year - 24)
+            .unwrap_or(opening_year.saturating_sub(24))
     } else if let Some(age) = def.age {
         opening_year.saturating_sub(age)
     } else {
-        opening_year - rng.random_range(18..34)
+        opening_year.saturating_sub(rng.random_range(18..34))
     }
 }
 

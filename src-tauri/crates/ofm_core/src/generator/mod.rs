@@ -101,6 +101,13 @@ fn normalize_opening_contracts(players: &mut [Player]) {
 /// from the package manifest's `baseYear`. Generation used to hard code a
 /// literal year in place of this, which silently aged every historical
 /// package's squads by decades and drifted out of date on its own.
+/// Earliest year a world may open in.
+///
+/// `baseYear` is author-supplied with no lower bound, and birth years are
+/// derived by subtracting an age from the opening year, so an absurdly small
+/// value underflows. Mirrors the career floor in `commands/game.rs`.
+pub const MIN_OPENING_YEAR: u32 = 1900;
+
 pub fn default_opening_year() -> u32 {
     use chrono::Datelike;
     // Clamped only so the cast cannot wrap: a negative system year is absurd,
@@ -978,7 +985,8 @@ pub fn build_world_data_from_package(
                 .and_then(|meta| meta.base_year)
                 .and_then(|year| u32::try_from(year).ok())
         })
-        .unwrap_or_else(default_opening_year);
+        .unwrap_or_else(default_opening_year)
+        .max(MIN_OPENING_YEAR);
     let mut rng = rand::rng();
     let names_def = {
         let mut merged = default_names_definition();

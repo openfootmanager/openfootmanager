@@ -2091,6 +2091,32 @@ colors:
     }
 
     #[test]
+    fn an_absurdly_early_base_year_cannot_underflow_birth_years() {
+        // `baseYear` is author-supplied with no lower bound, and every birth
+        // year is `opening_year - age`. A tiny value therefore underflows a
+        // u32 — a panic in debug, a birth year near 4 billion in release —
+        // so a mistyped manifest could take the game down.
+        let dir = temp_package();
+        write_era_package(&dir, 5);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        for player in &world.players {
+            let birth_year: i32 = player.date_of_birth[0..4]
+                .parse()
+                .unwrap_or_else(|_| panic!("unparseable dob {}", player.date_of_birth));
+            assert!(
+                (1000..3000).contains(&birth_year),
+                "{} was born in {birth_year}",
+                player.full_name,
+            );
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn career_start_year_overrides_the_packages_declared_base_year() {
         // Installing a 1962 database but starting a 1985 career must age squads
         // against 1985 — the clock is what the player actually experiences.
