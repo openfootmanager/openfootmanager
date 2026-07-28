@@ -1552,7 +1552,10 @@ mod tests {
         assert!(errors.is_empty(), "package should load: {errors:?}");
         qualify_package_asset_paths(&mut package, "badge-pkg");
 
-        let world = crate::generator::build_world_from_package(&package).expect("world builds");
+        // No opening year: this asserts badge resolution, not era ageing, so let
+        // the package's own `baseYear` (absent here) pick the default.
+        let world =
+            crate::generator::build_world_from_package(&package, None).expect("world builds");
         let logo = world
             .teams
             .iter()
@@ -2041,6 +2044,75 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// A minimal one-country package declaring `base_year`, for era assertions.
+    fn write_era_package(dir: &std::path::Path, base_year: u32) {
+        write(
+            dir,
+            "world.yaml",
+            &format!("schema: world\nname: Era World\nbaseYear: {base_year}\n"),
+        );
+        write(dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
+        write(
+            dir,
+            "country.yaml",
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        );
+        write(
+            dir,
+            "teams.yaml",
+            "schema: team\nitems:\n  - { id: zed-fc, name: Zed FC, city: Zedtown, country: ZZ, colors: { primary: \"#000\", secondary: \"#fff\" } }\n",
+        );
+    }
+
+    fn earliest_birth_year(world: &crate::generator::WorldData) -> i32 {
+        world
+            .players
+            .iter()
+            .filter_map(|player| player.date_of_birth.get(0..4))
+            .filter_map(|year| year.parse::<i32>().ok())
+            .max()
+            .expect("world should have players with parseable birth years")
+    }
+
+    #[test]
+    fn package_base_year_ages_squads_when_no_career_year_is_given() {
+        let dir = temp_package();
+        write_era_package(&dir, 1962);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        assert!(
+            earliest_birth_year(&world) < 1962,
+            "a package declaring baseYear 1962 must not generate players born after it",
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn career_start_year_overrides_the_packages_declared_base_year() {
+        // Installing a 1962 database but starting a 1985 career must age squads
+        // against 1985 — the clock is what the player actually experiences.
+        let dir = temp_package();
+        write_era_package(&dir, 1962);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, Some(1985));
+
+        let newest = earliest_birth_year(&world);
+        assert!(
+            newest < 1985,
+            "players must not be born after the career start year, got {newest}",
+        );
+        assert!(
+            newest > 1962,
+            "squads should be aged against the 1985 career, not the 1962 manifest (got {newest})",
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn builds_a_playable_world_from_a_package() {
         let dir = temp_package();
@@ -2065,7 +2137,7 @@ colors:
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
 
-        let world = crate::generator::build_world_data_from_package(&package);
+        let world = crate::generator::build_world_data_from_package(&package, None);
         assert_eq!(world.name, "Zed World");
         let team_ids: Vec<&str> = world.teams.iter().map(|t| t.id.as_str()).collect();
         assert_eq!(team_ids, vec!["zed-fc", "zed-utd"], "stable authored ids are kept");
@@ -2111,7 +2183,7 @@ colors:
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "{errors:?}");
 
-        let world = crate::generator::build_world_data_from_package(&package);
+        let world = crate::generator::build_world_data_from_package(&package, None);
 
         let star = world
             .players
@@ -2369,7 +2441,7 @@ colors:
             ("d.yaml", "schema: team\nid: team-d\nname: Team D\ncity: City D\ncountry: ES\ncolors: { primary: \"#555\", secondary: \"#fff\" }\n"),
         ]);
         assert!(errors.is_empty());
-        let world = crate::generator::build_world_data_from_package(&pkg);
+        let world = crate::generator::build_world_data_from_package(&pkg, None);
         assert_eq!(world.teams.len(), 4);
         // Fallback league must be generated.
         let defs = world.competition_definitions.as_ref()
@@ -2393,7 +2465,7 @@ colors:
         // totalling 8 teams, and a fallback league covering all of them.
         let (pkg, errors, dir) = package_from_files(&[("a.yaml", TEAM_A)]);
         assert!(errors.is_empty());
-        let world = crate::generator::build_world_data_from_package(&pkg);
+        let world = crate::generator::build_world_data_from_package(&pkg, None);
         assert_eq!(world.teams.len(), 8, "should fill to THIN_PACKAGE_MIN_TEAMS");
         assert!(
             world.competition_definitions.is_some(),
@@ -2579,7 +2651,7 @@ colors:
         let dir = temp_package();
         write(&dir, "world.yaml", "schema: world\nid: empty\nname: Empty World\n");
         let (pkg, _) = load_world_package(&dir);
-        let world = crate::generator::build_world_data_from_package(&pkg);
+        let world = crate::generator::build_world_data_from_package(&pkg, None);
         // The world builds but has no teams; game.rs rejects this as noDatabasePackage.
         assert!(world.teams.is_empty(), "OK: correctly produces 0 teams");
         std::fs::remove_dir_all(&dir).ok();

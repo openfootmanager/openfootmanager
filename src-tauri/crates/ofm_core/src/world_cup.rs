@@ -341,12 +341,19 @@ fn draw_world_cup_groups(
 /// Top up thin national pools with generated free agents and (re)build the
 /// national-team squads for every nation in the field.
 fn prepare_national_squads(game: &mut Game, field: &[String]) {
+    use chrono::Datelike;
+
+    let current_year = game.clock.current_date.year() as u32;
     let pools = national_pools(game);
     for code in field {
         let have = pools.get(code).map(|ovrs| ovrs.len()).unwrap_or(0);
         for slot in have..TOPPED_UP_POOL {
             game.players
-                .push(crate::generator::generate_national_team_player(code, slot));
+                .push(crate::generator::generate_national_team_player(
+                    code,
+                    slot,
+                    current_year,
+                ));
         }
     }
 
