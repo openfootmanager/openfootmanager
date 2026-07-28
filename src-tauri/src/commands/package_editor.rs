@@ -261,6 +261,33 @@ mod tests {
     }
 
     #[test]
+    fn a_freshly_scaffolded_empty_project_still_opens() {
+        // `ofm-cli new` and the editor's own "new project" both produce a
+        // manifest plus empty `items` lists. That is legitimately empty, not
+        // unreadable — refusing it would break creating a package from scratch.
+        let dir = temp_project(
+            "fresh-scaffold",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"fresh","name":"Fresh"}"#,
+                ),
+                ("teams/teams.json", r#"{"schema":"team","items":[]}"#),
+                ("players/players.json", r#"{"schema":"player","items":[]}"#),
+            ],
+        );
+
+        let Ok(data) = read_package_project(dir.to_string_lossy().to_string()) else {
+            panic!("a newly scaffolded project must open");
+        };
+
+        assert_eq!(data.meta.id, "fresh");
+        assert!(data.teams.is_empty());
+        assert!(data.issues.is_empty(), "an empty scaffold has no issues");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn opening_a_package_from_a_newer_format_reports_the_version() {
         // The user-visible symptom was an editor with nothing in it. Opening
         // must fail with the actual reason instead, because a blank project
