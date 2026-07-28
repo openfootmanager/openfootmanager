@@ -37,7 +37,7 @@ fn load_world_data_from_package(dir: &str) -> Result<ofm_core::generator::WorldD
 /// rather than a generic "invalid package", so a failed import is diagnosable.
 /// Uses the `key?param=value` convention `resolveBackendError` understands (see
 /// `src/utils/backendI18n.ts`); the `country` param is localised frontend-side.
-fn first_package_error_message(errors: &[ofm_core::generator::PackageError]) -> String {
+pub(crate) fn first_package_error_message(errors: &[ofm_core::generator::PackageError]) -> String {
     let Some(first) = errors.first() else {
         return "be.error.package.invalid".to_string();
     };

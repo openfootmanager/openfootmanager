@@ -130,6 +130,19 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     let path = Path::new(&dir);
     let (pkg, errors) = load_world_package(path);
 
+    // A package that resolved to nothing must not open as a blank project.
+    // Every field would read empty, Save would write that emptiness back over
+    // the source, and Build would produce an empty archive — so an unreadable
+    // package silently becomes a destroyed one. Refuse, and say why: the first
+    // load error is the actual reason (an unsupported format version, an
+    // unknown schema), which is far more useful than "nothing here".
+    if !errors.is_empty() && ofm_core::generator::is_unreadable(&pkg) {
+        // Carries the error's params too, in the `key?param=value` form
+        // `resolveBackendError` understands, so the message can name the
+        // offending version or schema rather than leaving blanks.
+        return Err(crate::commands::game::first_package_error_message(&errors));
+    }
+
     let issues = errors
         .into_iter()
         .map(|e| PackageIssue {
@@ -233,6 +246,93 @@ mod tests {
         PlayerDef, SelectorKind, SelectorSpec, StaffDef, TeamColorsDef, TeamDef, WorldMetaDef,
     };
     use std::collections::HashMap;
+
+    fn temp_project(tag: &str, files: &[(&str, &str)]) -> std::path::PathBuf {
+        // No uuid dependency in this crate; the caller-supplied tag keeps
+        // concurrent tests from sharing a directory.
+        let dir = std::env::temp_dir().join(format!("ofm-editor-open-{tag}"));
+        std::fs::remove_dir_all(&dir).ok();
+        for (name, body) in files {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, body).unwrap();
+        }
+        dir
+    }
+
+    #[test]
+    fn opening_a_package_from_a_newer_format_reports_the_version() {
+        // The user-visible symptom was an editor with nothing in it. Opening
+        // must fail with the actual reason instead, because a blank project
+        // that Save writes back is how an unreadable package becomes a
+        // destroyed one.
+        let dir = temp_project(
+            "future-format",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"future","name":"Future","formatVersion":99}"#,
+            )],
+        );
+
+        let result = read_package_project(dir.to_string_lossy().to_string());
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.package.unsupportedFormatVersion?version=99&supported=1"),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn opening_a_package_of_entirely_unknown_schemas_is_refused() {
+        let dir = temp_project(
+            "unknown-schema",
+            &[(
+                "stuff.json",
+                r#"{"schema":"quantum-club","id":"x","name":"X"}"#,
+            )],
+        );
+
+        let result = read_package_project(dir.to_string_lossy().to_string());
+
+        assert_eq!(
+            result.err().as_deref(),
+            Some("be.error.package.unknownSchema?schema=quantum-club"),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_partly_broken_package_still_opens_for_repair() {
+        // Repairing a broken package is exactly what the editor is for, so a
+        // package that yields *some* content must keep opening, issues and all.
+        let dir = temp_project(
+            "partly-broken",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"partly","name":"Partly"}"#,
+                ),
+                (
+                    "teams.json",
+                    r##"{"schema":"team","items":[{"id":"zed-fc","name":"Zed FC","city":"Zedtown",
+                    "country":"ZZ","colors":{"primary":"#000","secondary":"#fff"}}]}"##,
+                ),
+                ("broken.json", r#"{"schema":"nonsense","id":"n"}"#),
+            ],
+        );
+
+        let Ok(data) = read_package_project(dir.to_string_lossy().to_string()) else {
+            panic!("a package with usable content must still open");
+        };
+
+        assert_eq!(data.teams.len(), 1, "the readable club should survive");
+        assert!(
+            !data.issues.is_empty(),
+            "the unreadable file should still be reported as an issue",
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     fn test_meta() -> WorldMetaDef {
         WorldMetaDef {

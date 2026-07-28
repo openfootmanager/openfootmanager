@@ -2614,7 +2614,8 @@
         "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
         "unknownRegion": "\"{{field}}\" references unknown region \"{{id}}\".",
         "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max).",
-        "outOfRange": "Team \"{{team}}\" has out-of-range {{field}} values (reputation 0–1000, finance ≥ 0)."
+        "outOfRange": "Team \"{{team}}\" has out-of-range {{field}} values (reputation 0–1000, finance ≥ 0).",
+        "unsupportedFormatVersion": "This package was made with a newer version of the game (format {{version}}; this build supports {{supported}}). Update the game to open it."
       },
       "conflict": {
         "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
