@@ -203,6 +203,34 @@ describe("StaffTab", () => {
     expect(within(card).getByText("62 OVR")).toBeInTheDocument();
   });
 
+  it("averages both judging attributes for a scout", async () => {
+    // The scout branch weights judgingAbility and judgingPotential equally;
+    // divergent values catch either key being dropped or mis-weighted, which
+    // an equal pair would hide.
+    const scout = createStaff({
+      id: "staff-scout",
+      first_name: "Sam",
+      last_name: "Scout",
+      role: "Scout",
+      attributes: {
+        coaching: 20,
+        judgingAbility: 80,
+        judgingPotential: 60,
+        physiotherapy: 10,
+      },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([scout]);
+      return createGameState([scout]);
+    });
+
+    render(<StaffTab gameState={createGameState([scout])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+
+    const card = await screen.findByTestId("staff-card-staff-scout");
+    // (80 + 60) / 2 = 70 — coaching and physiotherapy must not count.
+    expect(within(card).getByText("70 OVR")).toBeInTheDocument();
+  });
+
   it("switches to available staff and filters by role and search", async () => {
     const staff = [
       createStaff(),
