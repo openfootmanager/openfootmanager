@@ -1118,6 +1118,73 @@ pub fn extract_archive_safely(
     ofm_path: &Path,
     dest_dir: &Path,
 ) -> Result<Vec<PackageError>, String> {
+    extract_archive_entries(ofm_path, dest_dir, |_| true)
+}
+
+/// Extract only the package's `assets/` tree.
+///
+/// Asset files are carried into the archive by `pack` but are never read by the
+/// loader, so nothing ever put them anywhere the app could serve them — an
+/// authored club badge reached the frontend as a path into a temp directory
+/// that had already been deleted. Extracting them to a stable directory is what
+/// makes package artwork renderable.
+pub fn extract_package_assets(
+    ofm_path: &Path,
+    dest_dir: &Path,
+) -> Result<Vec<PackageError>, String> {
+    extract_archive_entries(ofm_path, dest_dir, is_package_asset_entry)
+}
+
+/// Whether an archive entry belongs to the package's asset tree.
+pub(crate) fn is_package_asset_entry(entry_name: &str) -> bool {
+    let normalised = entry_name.replace('\\', "/");
+    normalised.starts_with(ASSET_DIR_PREFIX)
+}
+
+/// Directory inside a package that holds artwork, as established by the World
+/// Editor's `copy_package_asset`.
+pub const ASSET_DIR_PREFIX: &str = "assets/";
+
+/// Rewrite a package's asset references so they carry the package they came
+/// from: `assets/images/santos.png` becomes `brazil-1962/assets/images/santos.png`.
+///
+/// Must run **before** packages are merged into one world, because merging
+/// collapses the manifests and the origin of each club's artwork would be lost.
+/// The result is a stable, relative key the frontend resolves against the
+/// extracted asset root — relative rather than absolute so a save stays portable
+/// between machines.
+pub fn qualify_package_asset_paths(package: &mut WorldPackage, package_id: &str) {
+    if package_id.is_empty() {
+        return;
+    }
+    let qualify = |path: &mut Option<String>| {
+        if let Some(value) = path.as_mut()
+            && !value.trim().is_empty()
+            && !value.starts_with(&format!("{package_id}/"))
+        {
+            *value = format!("{package_id}/{value}");
+        }
+    };
+
+    for team in &mut package.teams {
+        qualify(&mut team.logo);
+    }
+    for player in &mut package.players {
+        qualify(&mut player.photo);
+    }
+    if let Some(meta) = package.meta.as_mut() {
+        qualify(&mut meta.logo);
+    }
+}
+
+/// Shared, hardened extraction. `keep` selects which entries are written; every
+/// entry is still checked for symlinks, zip-slip and decompressed size first, so
+/// a filtered extraction is no less safe than a full one.
+fn extract_archive_entries(
+    ofm_path: &Path,
+    dest_dir: &Path,
+    keep: impl Fn(&str) -> bool,
+) -> Result<Vec<PackageError>, String> {
     use std::io::Read;
 
     let file = std::fs::File::open(ofm_path).map_err(|_| READ_FAILED.to_string())?;
@@ -1144,6 +1211,9 @@ pub fn extract_archive_safely(
         let entry_name = entry.name().to_string();
         let Some(dest) = safe_entry_path(dest_dir, &entry_name) else {
             errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
+            continue;
+        };
+        if !keep(&entry_name) {
             continue;
         };
         if let Some(parent) = dest.parent()
@@ -1414,6 +1484,147 @@ mod tests {
         package.teams.push(team);
 
         assert!(!is_unreadable(&package));
+    }
+
+    #[test]
+    fn a_packaged_badge_resolves_to_a_file_on_disk() {
+        // The whole point of this feature, asserted end to end. Before it, this
+        // exact check was false: the badge was packed, the path survived to
+        // `media.logo`, and it pointed into a temp directory the loader had
+        // already deleted. Unit-testing extraction and qualification separately
+        // would not have caught that, because each half worked.
+        let archive = build_zip(&[
+            (
+                "package.json",
+                br##"{"schema":"world","id":"badge-pkg","name":"Badge Pkg"}"##,
+            ),
+            (
+                "teams/teams.json",
+                br##"{"schema":"team","items":[{"id":"santos","name":"Santos","city":"Santos",
+                     "country":"BR","colors":{"primary":"#fff","secondary":"#000"},
+                     "logo":"assets/images/santos.png"}]}"##,
+            ),
+            ("assets/images/santos.png", b"PNGBYTES"),
+        ]);
+
+        let asset_root = std::env::temp_dir().join(format!("ofm-chain-{}", uuid::Uuid::new_v4()));
+        let package_assets = asset_root.join("badge-pkg");
+        extract_package_assets(&archive, &package_assets).expect("assets extract");
+
+        let (mut package, errors) = load_world_package_from_ofm(&archive);
+        assert!(errors.is_empty(), "package should load: {errors:?}");
+        qualify_package_asset_paths(&mut package, "badge-pkg");
+
+        let world = crate::generator::build_world_from_package(&package).expect("world builds");
+        let logo = world
+            .teams
+            .iter()
+            .find(|team| team.id == "santos")
+            .and_then(|team| team.media.logo.clone())
+            .expect("the authored badge should reach the team");
+
+        assert_eq!(logo, "badge-pkg/assets/images/santos.png");
+        let on_disk = asset_root.join(&logo);
+        assert!(
+            on_disk.exists(),
+            "the path the frontend resolves must point at a real file, got {}",
+            on_disk.display(),
+        );
+        assert_eq!(std::fs::read(&on_disk).unwrap(), b"PNGBYTES");
+
+        std::fs::remove_dir_all(&asset_root).ok();
+        std::fs::remove_file(&archive).ok();
+    }
+
+    #[test]
+    fn extract_package_assets_writes_only_the_asset_tree() {
+        // Package artwork is carried into the archive but never landed anywhere
+        // the app could serve it, so every club fell back to a generated crest.
+        let archive = build_zip(&[
+            ("teams/teams.json", b"[]"),
+            ("assets/images/santos.png", b"PNGDATA"),
+            ("assets/nested/deep/badge.svg", b"<svg/>"),
+        ]);
+        let dest = std::env::temp_dir().join(format!("ofm-assets-{}", uuid::Uuid::new_v4()));
+
+        let errors = extract_package_assets(&archive, &dest).expect("extraction should run");
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(
+            std::fs::read(dest.join("assets/images/santos.png")).unwrap(),
+            b"PNGDATA",
+        );
+        assert!(dest.join("assets/nested/deep/badge.svg").exists());
+        assert!(
+            !dest.join("teams/teams.json").exists(),
+            "data files do not belong in the asset directory",
+        );
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    #[test]
+    fn extract_package_assets_still_rejects_zip_slip() {
+        // Filtering must not weaken the hardening: the traversal check runs
+        // before the filter, so a crafted asset path is still refused.
+        let archive = build_zip(&[
+            ("assets/images/ok.png", b"PNG"),
+            ("../assets/escape.png", b"pwned"),
+        ]);
+        let dest = std::env::temp_dir().join(format!("ofm-assets-{}", uuid::Uuid::new_v4()));
+
+        let errors = extract_package_assets(&archive, &dest).expect("extraction should run");
+
+        assert!(
+            errors.iter().any(|e| e.code == ZIPSLIP_ERROR),
+            "traversal entry should be reported, got {errors:?}",
+        );
+        assert!(!dest.parent().unwrap().join("assets/escape.png").exists());
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    #[test]
+    fn qualifying_asset_paths_records_the_owning_package() {
+        // Merging collapses manifests, so the package a club's badge came from
+        // has to be baked into the path before the merge happens.
+        let mut package = WorldPackage::default();
+        let mut team: super::super::definitions::TeamDef =
+            serde_json::from_value(serde_json::json!({
+                "id": "santos", "name": "Santos", "city": "Santos", "country": "BR",
+                "colors": { "primary": "#fff", "secondary": "#000" },
+                "logo": "assets/images/santos.png"
+            }))
+            .expect("team def");
+        team.logo = Some("assets/images/santos.png".to_string());
+        package.teams.push(team);
+
+        qualify_package_asset_paths(&mut package, "brazil-1962");
+
+        assert_eq!(
+            package.teams[0].logo.as_deref(),
+            Some("brazil-1962/assets/images/santos.png"),
+        );
+    }
+
+    #[test]
+    fn qualifying_asset_paths_is_idempotent() {
+        // A world can be rebuilt from an already-qualified package; prefixing
+        // twice would produce a path that resolves to nothing.
+        let mut package = WorldPackage::default();
+        let mut team: super::super::definitions::TeamDef =
+            serde_json::from_value(serde_json::json!({
+                "id": "santos", "name": "Santos", "city": "Santos", "country": "BR",
+                "colors": { "primary": "#fff", "secondary": "#000" }
+            }))
+            .expect("team def");
+        team.logo = Some("brazil-1962/assets/images/santos.png".to_string());
+        package.teams.push(team);
+
+        qualify_package_asset_paths(&mut package, "brazil-1962");
+
+        assert_eq!(
+            package.teams[0].logo.as_deref(),
+            Some("brazil-1962/assets/images/santos.png"),
+        );
     }
 
     #[test]

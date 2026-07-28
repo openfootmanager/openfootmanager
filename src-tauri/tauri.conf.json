@@ -25,7 +25,8 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APPDATA/generated-player-portraits/**"
+          "$APPDATA/generated-player-portraits/**",
+          "$APPDATA/package-assets/**"
         ]
       }
     }

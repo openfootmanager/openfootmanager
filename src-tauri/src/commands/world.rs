@@ -164,6 +164,20 @@ pub fn write_temp_database(app_handle: tauri::AppHandle, json: String) -> Result
     write_database_json_to_dir(&db_dir, &json)
 }
 
+/// Where a package's extracted artwork lives.
+///
+/// Kept beside the installed archives rather than inside `packages/` so a
+/// directory listing of installed `.ofm` files stays a list of files. Allowed by
+/// the asset protocol scope in `tauri.conf.json`, which is what lets the webview
+/// load these files at all.
+pub fn package_assets_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    Ok(app_data_dir.join("package-assets"))
+}
+
 fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let app_data_dir = app_handle
         .path()

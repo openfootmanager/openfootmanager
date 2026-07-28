@@ -715,6 +715,14 @@ pub(super) fn generate_player_from_def(
         attributes,
     );
     player.team_id = Some(team_id.to_string());
+    // An authored photo is write-only metadata unless it is copied onto the
+    // domain player: `PlayerAvatar` renders `media.face`, and the procedural
+    // portrait generator stands down whenever it is set.
+    player.media.face = def
+        .photo
+        .as_ref()
+        .map(|photo| photo.trim().to_string())
+        .filter(|photo| !photo.is_empty());
     player.market_value = market_value;
     player.wage = wage;
     player.contract_end = Some(contract_end);

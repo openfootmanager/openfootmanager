@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { resolveLocalMediaPath } from "../../lib/mediaAssets";
+import { usePackageAssetSrc } from "../../hooks/usePackageAssetSrc";
 import AssetImage from "./AssetImage";
 import GeneratedCrest from "./GeneratedCrest";
 
@@ -32,11 +32,12 @@ export function TeamLogo({
   style,
 }: TeamLogoProps) {
   const { t } = useTranslation();
+  const logoSrc = usePackageAssetSrc(team.media?.logo);
 
   return (
     <div className={className} style={style}>
       <AssetImage
-        src={resolveLocalMediaPath(team.media?.logo)}
+        src={logoSrc}
         alt={t("common.teamLogoAlt", { team: team.name })}
         className={imageClassName}
         fallback={
