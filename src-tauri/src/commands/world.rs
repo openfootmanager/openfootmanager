@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use chrono::Datelike;
-use log::info;
+use log::{info, warn};
 use tauri::Manager as TauriManager;
 use tauri::State;
 
@@ -357,7 +357,24 @@ pub fn uninstall_package(
         std::fs::remove_file(&dest)
             .map_err(|_| "be.error.package.installFailed".to_string())?;
     }
+    // The archive is not the only thing on disk: its artwork was extracted
+    // alongside it at world load. Leaving that behind would accumulate an
+    // orphaned directory per package the user ever installed.
+    if let Ok(assets_root) = package_assets_dir(&app_handle) {
+        remove_package_assets(&assets_root, &id);
+    }
     Ok(())
+}
+
+/// Delete a package's extracted artwork. Best effort: a package with no assets
+/// has no directory, and a failure here must not block the uninstall itself.
+fn remove_package_assets(assets_root: &std::path::Path, id: &str) {
+    let dir = assets_root.join(id);
+    if dir.exists() {
+        if let Err(err) = std::fs::remove_dir_all(&dir) {
+            warn!("[assets] could not remove {}: {err}", dir.display());
+        }
+    }
 }
 
 /// Serialisable conflict info returned to the frontend.
@@ -728,6 +745,42 @@ mod tests {
         let result = write_database_json_to_dir(&blocked_path, "{}");
 
         assert_eq!(result.unwrap_err(), "be.error.worldWriteDatabaseFailed");
+    }
+
+    #[test]
+    fn removing_package_assets_deletes_only_that_package() {
+        // Uninstalling has to take the extracted artwork with it, or every
+        // package a user ever installed leaves a directory behind.
+        let root = std::env::temp_dir().join("ofm-assets-uninstall-test");
+        std::fs::remove_dir_all(&root).ok();
+        for id in ["going", "staying"] {
+            let dir = root.join(id).join("assets/images");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("badge.png"), b"PNG").unwrap();
+        }
+
+        super::remove_package_assets(&root, "going");
+
+        assert!(
+            !root.join("going").exists(),
+            "the package's assets should be gone"
+        );
+        assert!(
+            root.join("staying/assets/images/badge.png").exists(),
+            "another package's assets must be untouched",
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn removing_package_assets_tolerates_a_package_with_none() {
+        let root = std::env::temp_dir().join("ofm-assets-uninstall-none");
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).unwrap();
+
+        super::remove_package_assets(&root, "never-had-assets");
+
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
