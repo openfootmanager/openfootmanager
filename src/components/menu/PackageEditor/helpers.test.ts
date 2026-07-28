@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+
+import en from "../../../i18n/locales/en.json";
 import {
+  PLAY_STYLES,
   buildParticipantSpec,
   emptyCompetition,
   emptyConfederation,
@@ -338,5 +341,25 @@ describe("entityRowKey", () => {
     // begin with the fallback's "#".
     expect(entityRowKey("", 0).startsWith("#")).toBe(true);
     expect(toSlug("#row-0")).not.toContain("#");
+  });
+});
+
+describe("PLAY_STYLES", () => {
+  it("offers exactly the styles the engine accepts", () => {
+    // `play_style_from_str` in the generator matches these names and falls back
+    // to Balanced for anything else, silently. The editor previously offered
+    // "Pressing", which is not a variant, so picking it produced a Balanced
+    // club with no warning — and Possession and HighPress were unreachable.
+    expect([...PLAY_STYLES].sort()).toEqual(
+      ["Attacking", "Balanced", "Counter", "Defensive", "HighPress", "Possession"],
+    );
+  });
+
+  it("has a translation key for every style it offers", () => {
+    // LabeledSelect renders raw option values unless given labels; every style
+    // must resolve through playStyles.* so the dropdown is not raw enum names.
+    for (const style of PLAY_STYLES) {
+      expect(en.common.playStyles).toHaveProperty(style);
+    }
   });
 });

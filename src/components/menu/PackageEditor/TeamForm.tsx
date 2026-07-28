@@ -165,6 +165,9 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
             label={t("worldEditor.teamPlayStyle")}
             value={editingTeam.playStyle}
             options={PLAY_STYLES}
+            optionLabels={Object.fromEntries(
+              PLAY_STYLES.map((style) => [style, t(`common.playStyles.${style}`)]),
+            )}
             onChange={(v) => updateField("playStyle", v)}
           />
           <LabeledInput
