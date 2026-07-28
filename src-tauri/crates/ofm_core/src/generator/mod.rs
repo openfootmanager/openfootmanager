@@ -108,6 +108,14 @@ fn normalize_opening_contracts(players: &mut [Player]) {
 /// value underflows. Mirrors the career floor in `commands/game.rs`.
 pub const MIN_OPENING_YEAR: u32 = 1900;
 
+/// Latest year a world may open in.
+///
+/// `baseYear` is an unbounded `i32` in the manifest, and the year is formatted
+/// straight into contract and birth dates. A wild value does not crash, but it
+/// produces dates no parser accepts, which then degrade silently into
+/// unparseable ages — better to pin the era into a range dates can represent.
+pub const MAX_OPENING_YEAR: u32 = 2999;
+
 pub fn default_opening_year() -> u32 {
     use chrono::Datelike;
     // Clamped only so the cast cannot wrap: a negative system year is absurd,
@@ -986,7 +994,7 @@ pub fn build_world_data_from_package(
                 .and_then(|year| u32::try_from(year).ok())
         })
         .unwrap_or_else(default_opening_year)
-        .max(MIN_OPENING_YEAR);
+        .clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR);
     let mut rng = rand::rng();
     let names_def = {
         let mut merged = default_names_definition();

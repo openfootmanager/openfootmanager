@@ -2121,6 +2121,32 @@ colors:
     }
 
     #[test]
+    fn an_absurdly_late_base_year_still_produces_parseable_dates() {
+        // The year is formatted straight into birth and contract dates, so an
+        // unbounded value yields strings no date parser accepts — no crash,
+        // just ages that silently stop resolving.
+        let dir = temp_package();
+        write_era_package(&dir, 2_000_000_000);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        let ceiling = crate::generator::MAX_OPENING_YEAR as i32;
+        for player in &world.players {
+            chrono::NaiveDate::parse_from_str(&player.date_of_birth, "%Y-%m-%d")
+                .unwrap_or_else(|_| panic!("unparseable dob {}", player.date_of_birth));
+            let birth_year: i32 = player.date_of_birth[0..4].parse().expect("year");
+            assert!(
+                birth_year <= ceiling,
+                "{} was born in {birth_year}, past the era ceiling {ceiling}",
+                player.full_name,
+            );
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn career_start_year_overrides_the_packages_declared_base_year() {
         // Installing a 1962 database but starting a 1985 career must age squads
         // against 1985 — the clock is what the player actually experiences.
