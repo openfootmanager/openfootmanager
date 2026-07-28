@@ -3883,7 +3883,7 @@
       "selectorSource": "Der Wettbewerb, dessen Gewinner sich für diesen qualifizieren. Wettbewerbs-ID eingeben (z.B. 'nationale-liga').",
       "packageId": "Ein eindeutiger Slug für dieses Weltpaket (z.B. 'england-fussball-2026'). Wird als Dateiname beim Erstellen der .ofm-Datei verwendet.",
       "packageType": "Datenbank: eine vollständige Welt. Patch: modifiziert eine bestehende Welt. Assets: nur Grafiken.",
-      "teamReputationRange": "0–1000. Empfehlung: <300 Amateur, 300–550 Unterliga, 550–720 Mittelfeld, 720–850 Erstliga, 850+ Elite.",
+      "teamReputationRange": "0–1000. Empfehlung: 0–299 Amateur, 300–549 Unterliga, 550–719 Mittelfeld, 720–849 Erstliga, 850+ Elite.",
       "teamFinanceRange": "Monatsbudget in Spielwährung. Ungefähr Rep × 4.000–9.000. Top: ~3M–8M. Mittel: ~1M–4M. Klein: ~100T–1M."
     },
     "searchCountries": "Länder suchen…",

@@ -54,20 +54,18 @@ export function deriveTransferBudget(finance: number): number {
   return Math.floor(finance * TRANSFER_BUDGET_SHARE);
 }
 
-/** Compact amount ("3.5M", "450K") so a range fits on one line. */
-export function formatCompactAmount(value: number): string {
+/**
+ * Compact amount ("3.5M", "450K") so a range fits on one line.
+ *
+ * Delegates to `Intl` rather than appending hardcoded `K`/`M`, which would ship
+ * English magnitude suffixes to every locale — Chinese groups by 万, German
+ * writes "Mio.". It also rounds before deciding whether a fraction is needed,
+ * so 1,999,999 reads "2M" rather than "2.0M".
+ */
+export function formatCompactAmount(value: number, locale = "en"): string {
   if (!Number.isFinite(value)) return "0";
-  const sign = value < 0 ? "-" : "";
-  const magnitude = Math.abs(value);
-
-  const scale = (divisor: number, suffix: string): string => {
-    const scaled = magnitude / divisor;
-    // One decimal, but never a trailing ".0" — "4M" reads better than "4.0M".
-    const rendered = Number.isInteger(scaled) ? `${scaled}` : scaled.toFixed(1);
-    return `${sign}${rendered}${suffix}`;
-  };
-
-  if (magnitude >= 1_000_000) return scale(1_000_000, "M");
-  if (magnitude >= 1_000) return scale(1_000, "K");
-  return `${sign}${magnitude}`;
+  return new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
 }

@@ -3880,7 +3880,7 @@
       "selectorSource": "Soutěž, jejíž vítěz(ové) se kvalifikují do této soutěže. Zadejte ID soutěže (např. 'national-league-one').",
       "packageId": "Jedinečný identifikátor (slug) pro tento balíček světa (např. 'england-football-2026'). Používá se jako název souboru při sestavování souboru .ofm.",
       "packageType": "Databáze: kompletní svět nahrazující výchozí. Opravný balíček (Patch): upravuje stávající svět. Soubory (Assets): pouze grafika.",
-      "teamReputationRange": "0–1000. Použití: <300 amatéři, 300–550 nižší liga, 550–720 střed tabulky, 720–850 nejvyšší soutěž, 850+ elita.",
+      "teamReputationRange": "0–1000. Použití: 0–299 amatéři, 300–549 nižší liga, 550–719 střed tabulky, 720–849 nejvyšší soutěž, 850+ elita.",
       "teamFinanceRange": "Měsíční rozpočet (herní měna). Hrubým odhadem reputace × 4 000–9 000. Špičkové kluby: cca 3M–8M. Střední: cca 1M–4M. Malé: cca 100K–1M."
     },
     "searchCountries": "Hledat země…",

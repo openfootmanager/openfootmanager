@@ -3883,7 +3883,7 @@
       "selectorSource": "La compétition dont les vainqueurs se qualifient ici. Entrez l'ID de compétition (ex. 'division-2').",
       "packageId": "Un identifiant unique pour ce monde (ex. 'france-football-2026'). Utilisé comme nom de fichier pour le .ofm.",
       "packageType": "Base de données: un monde complet. Patch: modifie un monde existant. Assets: graphismes uniquement.",
-      "teamReputationRange": "0–1000. Référence : <300 amateur, 300–550 divisions inférieures, 550–720 milieu de tableau, 720–850 première division, 850+ élite.",
+      "teamReputationRange": "0–1000. Référence : 0–299 amateur, 300–549 divisions inférieures, 550–719 milieu de tableau, 720–849 première division, 850+ élite.",
       "teamFinanceRange": "Budget mensuel en devise du jeu. Environ rép × 4 000–9 000. Top : ~3M–8M. Moyen : ~1M–4M. Petit : ~100K–1M."
     },
     "searchCountries": "Rechercher des pays…",

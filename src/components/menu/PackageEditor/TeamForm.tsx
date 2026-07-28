@@ -30,7 +30,7 @@ interface TeamFormProps {
 }
 
 export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, onBack, onSave, updateField }: TeamFormProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingTeamIndex === null && !editingTeam.id);
   const [logoRefresh, setLogoRefresh] = useState(0);
   const logoDataUrl = useAssetDataUrl(editingTeam.logo, projectDir, logoRefresh);
@@ -52,10 +52,10 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
   const financeRange = editingTeam.financeRange;
   const budgetReadout = financeRange
     ? t("worldEditor.budgetReadout", {
-        min: formatCompactAmount(financeRange[0]),
-        max: formatCompactAmount(financeRange[1]),
-        transferMin: formatCompactAmount(deriveTransferBudget(financeRange[0])),
-        transferMax: formatCompactAmount(deriveTransferBudget(financeRange[1])),
+        min: formatCompactAmount(financeRange[0], i18n.language),
+        max: formatCompactAmount(financeRange[1], i18n.language),
+        transferMin: formatCompactAmount(deriveTransferBudget(financeRange[0]), i18n.language),
+        transferMax: formatCompactAmount(deriveTransferBudget(financeRange[1]), i18n.language),
       })
     : null;
   const [repMin, setRepMin] = useState<string>(editingTeam.reputationRange?.[0]?.toString() ?? "");

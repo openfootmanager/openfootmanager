@@ -66,8 +66,21 @@ describe("formatCompactAmount", () => {
     expect(formatCompactAmount(750)).toBe("750");
   });
 
+  it("rounds before deciding whether a fraction is needed", () => {
+    // 1,999,999 must not read "2.0M" — rounding has to happen first.
+    expect(formatCompactAmount(1_999_999)).toBe("2M");
+  });
+
   it("handles zero and negatives without producing junk", () => {
     expect(formatCompactAmount(0)).toBe("0");
     expect(formatCompactAmount(-2_000_000)).toBe("-2M");
+  });
+
+  it("uses each locale's own magnitude conventions", () => {
+    // Hardcoded K/M suffixes would ship English units to every language.
+    expect(formatCompactAmount(4_000_000, "zh-CN")).toBe("400万");
+    expect(formatCompactAmount(450_000, "zh-CN")).toBe("45万");
+    // Intl separates the unit with a non-breaking space in German.
+    expect(formatCompactAmount(4_000_000, "de")).toBe("4\u00a0Mio.");
   });
 });
