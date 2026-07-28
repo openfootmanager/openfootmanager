@@ -7,7 +7,7 @@ import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import JerseyIcon from "../../ui/JerseyIcon";
-import { PLAY_STYLES, makeRange, parseRangeBound, toSlug } from "./helpers";
+import { PLAY_STYLES, makeRange, normalizePlayStyle, parseRangeBound, toSlug } from "./helpers";
 import type { KitPattern, TeamDef } from "./types";
 import { TeamPreviewCard } from "./TeamPreviewCard";
 
@@ -163,7 +163,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
           />
           <LabeledSelect
             label={t("worldEditor.teamPlayStyle")}
-            value={editingTeam.playStyle}
+            value={normalizePlayStyle(editingTeam.playStyle)}
             options={PLAY_STYLES}
             optionLabels={Object.fromEntries(
               PLAY_STYLES.map((style) => [style, t(`common.playStyles.${style}`)]),

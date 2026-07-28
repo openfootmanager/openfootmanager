@@ -32,6 +32,19 @@ export const PLAY_STYLES = [
   "Counter",
   "HighPress",
 ];
+/**
+ * Coerce a stored play style to one the engine and the editor both know.
+ *
+ * The editor used to offer "Pressing", which was never a `PlayStyle` variant —
+ * the generator silently read it as Balanced. Packages authored then still
+ * carry it, and binding a value the select does not list leaves the control
+ * blank and writes the invalid value straight back on save.
+ */
+export function normalizePlayStyle(value: string | null | undefined): string {
+  const trimmed = (value ?? "").trim();
+  return PLAY_STYLES.includes(trimmed) ? trimmed : "Balanced";
+}
+
 export const PACKAGE_TYPES = ["database", "patch", "assets"];
 
 export const POSITIONS: Position[] = [
