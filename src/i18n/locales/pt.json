@@ -3883,7 +3883,7 @@
       "selectorSource": "A competição cujos vencedores se qualificam para esta. Insira o ID da competição (ex. 'segunda-liga').",
       "packageId": "Um identificador único para este mundo (ex. 'portugal-futebol-2026'). Usado como nome de ficheiro para o .ofm.",
       "packageType": "Base de dados: um mundo completo. Patch: modifica um mundo existente. Assets: apenas gráficos.",
-      "teamReputationRange": "0–950. Referência: <300 amador, 300–550 ligas inferiores, 550–720 meados, 720–850 primeira liga, 850+ elite.",
+      "teamReputationRange": "0–1000. Referência: <300 amador, 300–550 ligas inferiores, 550–720 meados, 720–850 primeira liga, 850+ elite.",
       "teamFinanceRange": "Orçamento mensal em moeda do jogo. Aprox. rep × 4.000–9.000. Top: ~3M–8M. Médio: ~1M–4M. Pequeno: ~100K–1M."
     },
     "searchCountries": "Pesquisar países…",
@@ -3958,7 +3958,17 @@
     "removeLogo": "Remover",
     "openInEditor": "Editar",
     "poolKeyTaken": "Essa chave de conjunto já é usada por outro conjunto.",
-    "playerDisplayNamePlaceholder": "Nome exibido em jogo"
+    "playerDisplayNamePlaceholder": "Nome exibido em jogo",
+    "repBands": {
+      "amateur": "Amador",
+      "lowerLeague": "Divisões inferiores",
+      "midTable": "Meio da tabela",
+      "topFlight": "Primeira divisão",
+      "elite": "Nível de elite"
+    },
+    "repReadoutSingle": "{{min}}–{{max}} de {{scaleMax}} · {{band}}",
+    "repReadoutSpan": "{{min}}–{{max}} de {{scaleMax}} · de {{minBand}} a {{maxBand}}",
+    "budgetReadout": "{{min}}–{{max}} por mês · verba de transferências {{transferMin}}–{{transferMax}}"
   },
   "packageBuild": {
     "title": "Constrói o teu mundo",

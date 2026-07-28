@@ -3880,7 +3880,7 @@
       "selectorSource": "其冠军将参加本赛事的赛事ID（例如 'national-league'）。",
       "packageId": "此世界包的唯一标识符（例如 'china-football-2026'），构建 .ofm 文件时用作文件名。",
       "packageType": "数据库：完整世界。补丁：修改现有世界。资源：仅图形。",
-      "teamReputationRange": "0–950。参考：<300 业余，300–550 低级联赛，550–720 中游，720–850 顶级联赛，850+ 精英。",
+      "teamReputationRange": "0–1000。参考：<300 业余，300–550 低级联赛，550–720 中游，720–850 顶级联赛，850+ 精英。",
       "teamFinanceRange": "每月预算（游戏货币）。约等于声望 × 4000–9000。顶级球队：约3M–8M。中游：约1M–4M。小球队：约100K–1M。"
     },
     "searchCountries": "搜索国家…",
@@ -3955,7 +3955,17 @@
     "removeLogo": "移除",
     "openInEditor": "编辑",
     "poolKeyTaken": "该名称池键已被另一个名称池使用。",
-    "playerDisplayNamePlaceholder": "比赛显示名称"
+    "playerDisplayNamePlaceholder": "比赛显示名称",
+    "repBands": {
+      "amateur": "业余",
+      "lowerLeague": "低级别联赛",
+      "midTable": "中游",
+      "topFlight": "顶级联赛",
+      "elite": "豪门"
+    },
+    "repReadoutSingle": "{{min}}–{{max}}／{{scaleMax}} · {{band}}",
+    "repReadoutSpan": "{{min}}–{{max}}／{{scaleMax}} · {{minBand}}至{{maxBand}}",
+    "budgetReadout": "每月 {{min}}–{{max}} · 转会预算 {{transferMin}}–{{transferMax}}"
   },
   "packageBuild": {
     "title": "构建您的世界",

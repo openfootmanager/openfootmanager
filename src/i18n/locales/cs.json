@@ -3880,7 +3880,7 @@
       "selectorSource": "Soutěž, jejíž vítěz(ové) se kvalifikují do této soutěže. Zadejte ID soutěže (např. 'national-league-one').",
       "packageId": "Jedinečný identifikátor (slug) pro tento balíček světa (např. 'england-football-2026'). Používá se jako název souboru při sestavování souboru .ofm.",
       "packageType": "Databáze: kompletní svět nahrazující výchozí. Opravný balíček (Patch): upravuje stávající svět. Soubory (Assets): pouze grafika.",
-      "teamReputationRange": "0–950. Použití: <300 amatéři, 300–550 nižší liga, 550–720 střed tabulky, 720–850 nejvyšší soutěž, 850+ elita.",
+      "teamReputationRange": "0–1000. Použití: <300 amatéři, 300–550 nižší liga, 550–720 střed tabulky, 720–850 nejvyšší soutěž, 850+ elita.",
       "teamFinanceRange": "Měsíční rozpočet (herní měna). Hrubým odhadem reputace × 4 000–9 000. Špičkové kluby: cca 3M–8M. Střední: cca 1M–4M. Malé: cca 100K–1M."
     },
     "searchCountries": "Hledat země…",
@@ -3955,7 +3955,17 @@
     "chooseLogo": "Vybrat obrázek…",
     "removeLogo": "Odebrat",
     "poolKeyTaken": "Tento klíč databáze jmen již používá jiná databáze.",
-    "playerDisplayNamePlaceholder": "Zápasové jméno"
+    "playerDisplayNamePlaceholder": "Zápasové jméno",
+    "repBands": {
+      "amateur": "Amatérská",
+      "lowerLeague": "Nižší soutěž",
+      "midTable": "Střed tabulky",
+      "topFlight": "Nejvyšší soutěž",
+      "elite": "Špička"
+    },
+    "repReadoutSingle": "{{min}}–{{max}} z {{scaleMax}} · {{band}}",
+    "repReadoutSpan": "{{min}}–{{max}} z {{scaleMax}} · od {{minBand}} po {{maxBand}}",
+    "budgetReadout": "{{min}}–{{max}} měsíčně · přestupní rozpočet {{transferMin}}–{{transferMax}}"
   },
   "packageBuild": {
     "title": "Sestavte svůj svět",
