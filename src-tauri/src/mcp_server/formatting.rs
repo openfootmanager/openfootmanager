@@ -20,7 +20,7 @@ pub fn translate_error(key: &str) -> String {
         "be.error.createManager.minAge" => "Manager must be at least 30 years old.".to_string(),
         "be.error.createManager.invalidDob" => "Invalid date of birth.".to_string(),
         "be.error.createManager.nameMaxLength" => "Manager name must be 30 characters or less.".to_string(),
-        "be.error.createManager.startYearMin" => "Start year must be 2020 or later.".to_string(),
+        "be.error.createManager.startYearMin" => "Start year must be 1900 or later.".to_string(),
         "be.error.createManager.invalidStartPhase" => "Invalid start phase. Use 'seasonStart' or 'midSeason'.".to_string(),
         "be.error.createManager.historyDepthMax" => "History depth exceeds maximum.".to_string(),
         "be.error.invalidSquadRole" => "Invalid squad role. Use 'Senior' or 'Youth'.".to_string(),

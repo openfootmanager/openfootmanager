@@ -140,8 +140,14 @@ struct StartupOptions {
     history_depth_years: u32,
 }
 
+/// Earliest year a career may start. Historical world packages recreate eras
+/// decades before the modern game — a 1962 Santos world is the motivating case —
+/// so the floor only needs to keep the clock inside a sane calendar range.
+/// Must match `MIN_CAREER_START_YEAR` in `src/pages/MainMenu.tsx`.
+const MIN_START_YEAR: i32 = 1900;
+
 fn default_start_year() -> i32 {
-    chrono::Utc::now().year().max(2020)
+    chrono::Utc::now().year().max(MIN_START_YEAR)
 }
 
 fn default_history_depth_years() -> u32 {
@@ -196,13 +202,14 @@ fn preseason_season_start(clock: &GameClock) -> chrono::DateTime<Utc> {
 
 fn preseason_league_year(clock: &GameClock) -> u32 {
     let year = clock.start_date.year() + i32::from(clock.start_date.month() == 12);
-    u32::try_from(year).unwrap_or(2020)
+    // Only reachable for a negative year, which the start-year floor rules out.
+    u32::try_from(year).unwrap_or(MIN_START_YEAR as u32)
 }
 
 fn normalize_startup_options(raw: Option<RawStartupOptions>) -> Result<StartupOptions, String> {
     let raw = raw.unwrap_or_default();
     let start_year = raw.start_year.unwrap_or_else(default_start_year);
-    if start_year < 2020 {
+    if start_year < MIN_START_YEAR {
         return Err("be.error.createManager.startYearMin".to_string());
     }
 
@@ -2069,7 +2076,7 @@ mod tests {
         preseason_season_start, rebuild_competitions_for_management_date,
         require_active_stats_state, resolve_simulation_scope, select_continental_entrants,
         split_into_divisions, start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
-        DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
+        DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS, MIN_START_YEAR,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -3294,7 +3301,11 @@ competitions:
     fn normalize_startup_options_defaults_to_current_year_and_season_start() {
         let options = normalize_startup_options(None).unwrap();
 
-        assert!(options.start_year >= 2020);
+        use chrono::Datelike;
+
+        // Defaulting still means "today", not the floor — a fresh career should
+        // open in the current year even though historical years are now legal.
+        assert_eq!(options.start_year, chrono::Utc::now().year());
         assert_eq!(options.start_phase, StartPhase::SeasonStart);
         assert_eq!(
             options.history_depth_years,
@@ -3303,14 +3314,38 @@ competitions:
     }
 
     #[test]
-    fn normalize_startup_options_rejects_years_before_2020() {
+    fn normalize_startup_options_rejects_years_before_the_floor() {
         let result = normalize_startup_options(Some(RawStartupOptions {
-            start_year: Some(2019),
+            start_year: Some(MIN_START_YEAR - 1),
             start_phase: Some("seasonStart".to_string()),
             history_depth_years: None,
         }));
 
         assert_eq!(result.unwrap_err(), "be.error.createManager.startYearMin");
+    }
+
+    #[test]
+    fn normalize_startup_options_accepts_historical_start_years() {
+        // A 1962 career is the motivating case: historical world packages need a
+        // clock that predates the modern era by decades.
+        let options = normalize_startup_options(Some(RawStartupOptions {
+            start_year: Some(1962),
+            start_phase: Some("seasonStart".to_string()),
+            history_depth_years: None,
+        }))
+        .expect("1962 is above the floor and must be accepted");
+
+        assert_eq!(options.start_year, 1962);
+    }
+
+    #[test]
+    fn start_date_for_historical_world_cup_year_opens_in_june() {
+        use chrono::Datelike;
+
+        let start = start_date_for_year(1962).expect("1962 is a valid start year");
+
+        assert_eq!(start.year(), 1962);
+        assert_eq!(start.month(), 6);
     }
 
     #[test]

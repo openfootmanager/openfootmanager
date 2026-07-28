@@ -2696,7 +2696,7 @@
         "invalidDobFormat": "Data de nascimento inválida. Use o formato AAAA-MM-DD.",
         "minAge": "O treinador deve ter pelo menos 30 anos.",
         "invalidDob": "Data de nascimento inválida.",
-        "startYearMin": "O ano de início deve ser 2020 ou posterior.",
+        "startYearMin": "O ano de início deve ser 1900 ou posterior.",
         "invalidStartYear": "O ano de início selecionado não é válido.",
         "invalidStartPhase": "A fase de início selecionada não é válida.",
         "historyDepthMax": "A profundidade do histórico gerado deve ser de 24 temporadas ou menos."

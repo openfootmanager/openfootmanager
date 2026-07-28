@@ -2696,7 +2696,7 @@
         "invalidDobFormat": "Ungültiges Geburtsdatum. Verwende das Format JJJJ-MM-TT.",
         "minAge": "Der Manager muss mindestens 30 Jahre alt sein.",
         "invalidDob": "Ungültiges Geburtsdatum.",
-        "startYearMin": "Das Startjahr muss 2020 oder später sein.",
+        "startYearMin": "Das Startjahr muss 1900 oder später sein.",
         "invalidStartYear": "Ungültiges Startjahr ausgewählt.",
         "invalidStartPhase": "Ungültige Startphase ausgewählt.",
         "historyDepthMax": "Die Tiefe der generierten Historie muss 24 Saisons oder weniger betragen."

@@ -2696,7 +2696,7 @@
         "invalidDobFormat": "出生日期无效。请使用 YYYY-MM-DD 格式。",
         "minAge": "经理年龄必须至少为 30 岁。",
         "invalidDob": "出生日期无效。",
-        "startYearMin": "开始年份必须为 2020 或之后。",
+        "startYearMin": "开始年份必须为 1900 或之后。",
         "invalidStartYear": "所选开始年份无效。",
         "invalidStartPhase": "所选开始阶段无效。",
         "historyDepthMax": "生成历史深度必须为 24 个赛季或更少。"

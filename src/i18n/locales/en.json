@@ -2704,7 +2704,7 @@
         "invalidDobFormat": "Invalid date of birth. Use YYYY-MM-DD format.",
         "minAge": "Manager must be at least 30 years old.",
         "invalidDob": "Invalid date of birth.",
-        "startYearMin": "Start year must be 2020 or later.",
+        "startYearMin": "Start year must be 1900 or later.",
         "invalidStartYear": "Invalid start year selected.",
         "invalidStartPhase": "Invalid start phase selected.",
         "historyDepthMax": "Generated history depth must be 24 seasons or fewer."
