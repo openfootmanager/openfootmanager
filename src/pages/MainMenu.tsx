@@ -74,7 +74,12 @@ interface SaveEntry {
  * Minimum manager age (years) on create.
  */
 const MANAGER_MINIMUM_AGE = 30;
-const MIN_CAREER_START_YEAR = 2020;
+/**
+ * Earliest year a career may start. Historical world packages recreate eras
+ * decades before the modern game, so the floor only keeps the clock inside a
+ * sane calendar range. Must match `MIN_START_YEAR` in `commands/game.rs`.
+ */
+const MIN_CAREER_START_YEAR = 1900;
 const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS = 12;
 const MAX_GENERATED_HISTORY_DEPTH_YEARS = 24;
 const GENERATED_HISTORY_DEPTH_STORAGE_KEY = "ofm-generated-history-depth-years";

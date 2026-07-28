@@ -2696,7 +2696,7 @@
         "invalidDobFormat": "Data di nascita non valida. Usa il formato AAAA-MM-GG.",
         "minAge": "L'allenatore deve avere almeno 30 anni.",
         "invalidDob": "Data di nascita non valida.",
-        "startYearMin": "L'anno di inizio deve essere 2020 o successivo.",
+        "startYearMin": "L'anno di inizio deve essere 1900 o successivo.",
         "invalidStartYear": "L'anno di inizio selezionato non è valido.",
         "invalidStartPhase": "La fase di inizio selezionata non è valida.",
         "historyDepthMax": "La profondità della storia generata deve essere di 24 stagioni o meno."

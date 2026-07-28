@@ -2704,7 +2704,7 @@
         "invalidDobFormat": "Geçersiz doğum tarihi. YYYY-AA-GG biçimini kullanın.",
         "minAge": "Menajer en az 30 yaşında olmalıdır.",
         "invalidDob": "Geçersiz doğum tarihi.",
-        "startYearMin": "Başlangıç yılı 2020 veya sonrası olmalıdır.",
+        "startYearMin": "Başlangıç yılı 1900 veya sonrası olmalıdır.",
         "invalidStartYear": "Geçersiz başlangıç yılı seçildi.",
         "invalidStartPhase": "Geçersiz başlangıç aşaması seçildi.",
         "historyDepthMax": "Üretilen tarihçe derinliği 24 sezon veya daha az olmalıdır."

@@ -601,12 +601,12 @@ describe("MainMenu", () => {
     });
   });
 
-  it("blocks progression when the start year is before 2020 and focuses the year field", async () => {
+  it("blocks progression when the start year is before the floor and focuses the year field", async () => {
     render(<MainMenu />);
 
     await openCreateManagerForm();
     fillManagerDetails();
-    fillCareerStartDetails("2019", "seasonStart");
+    fillCareerStartDetails("1899", "seasonStart");
     await selectNationality("en", "ES");
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
@@ -616,6 +616,27 @@ describe("MainMenu", () => {
     });
     expect(screen.getByText("validation.minStartYear")).toBeInTheDocument();
     expect(screen.queryByTestId("package-build-step")).not.toBeInTheDocument();
+  });
+
+  it("allows a historical start year so era world packages can be played", async () => {
+    render(<MainMenu />);
+
+    await openCreateManagerForm();
+    fillManagerDetails();
+    // A manager active in 1962 has to have been born in the era too — the
+    // minimum-age rule is measured against the career start, not today.
+    fireEvent.change(screen.getByLabelText("manager-date-of-birth"), {
+      target: { value: "1920-01-01" },
+    });
+    fillCareerStartDetails("1962", "seasonStart");
+    await selectNationality("en", "ES");
+
+    fireEvent.click(screen.getByText("createManager.chooseWorld"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("package-build-step")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("validation.minStartYear")).not.toBeInTheDocument();
   });
 
   it("passes the activated world package ids when starting a new career", async () => {

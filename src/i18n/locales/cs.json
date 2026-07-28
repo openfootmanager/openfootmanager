@@ -2705,7 +2705,7 @@
         "invalidDobFormat": "Neplatný formát data narození. Použijte formát RRRR-MM-DD.",
         "minAge": "Manažer musí mít alespoň 30 let.",
         "invalidDob": "Neplatné datum narození.",
-        "startYearMin": "Počáteční rok musí být 2020 nebo novější.",
+        "startYearMin": "Počáteční rok musí být 1900 nebo novější.",
         "invalidStartYear": "Byl vybrán neplatný počáteční rok.",
         "invalidStartPhase": "Byla vybrána neplatná počáteční fáze.",
         "historyDepthMax": "Generovaná hloubka historie musí být 24 sezón nebo méně."
