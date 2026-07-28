@@ -231,6 +231,35 @@ describe("StaffTab", () => {
     expect(within(card).getByText("70 OVR")).toBeInTheDocument();
   });
 
+  it("falls back to an even split for a role it does not recognise", async () => {
+    // Borrowing Coach's weighting would rate an unknown role on coaching
+    // alone; an even split is the honest "no opinion" answer.
+    const odd = createStaff({
+      id: "staff-odd",
+      first_name: "Ola",
+      last_name: "Other",
+      // Cast deliberately: the role arrives from the backend at runtime, where
+      // the union type is erased, so a role added there outruns this type.
+      role: "Nutritionist" as StaffData["role"],
+      attributes: {
+        coaching: 40,
+        judgingAbility: 60,
+        judgingPotential: 80,
+        physiotherapy: 20,
+      },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([odd]);
+      return createGameState([odd]);
+    });
+
+    render(<StaffTab gameState={createGameState([odd])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+
+    const card = await screen.findByTestId("staff-card-staff-odd");
+    // (40 + 60 + 80 + 20) / 4 = 50 — not coaching's 40.
+    expect(within(card).getByText("50 OVR")).toBeInTheDocument();
+  });
+
   it("switches to available staff and filters by role and search", async () => {
     const staff = [
       createStaff(),
