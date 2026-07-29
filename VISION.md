@@ -1,12 +1,12 @@
 # The Openfoot Manager Vision
 
-I’ve been quietly dreaming about and building this game for over a decade. What started as myself's 14-year-old mockup called "Soccer City" during the 2010 World Cup has somehow grown into a living, breathing project.
+I’ve been quietly dreaming about and building this game for over a decade. What started as my 14-year-old self's mockup called "Soccer City" during the 2010 World Cup has somehow grown into a living, breathing project.
 
 But as more contributors jump in and the community grows, I realize this is no longer *my* project anymore. This has become a real community effort.
 
 With so many ideas flying around, so many new people joining the project, we need a shared understanding of what Openfoot Manager **actually is**, what **it is not**, and **where it is ultimately going**.
 
-Keep in mind that this isn't a rigid feature list (our [Roadmap](https://github.com/openfootmanager/openfootmanager/issues/11) takes care of that). This document is a general guidance.
+Keep in mind that this isn't a rigid feature list (our [Roadmap](https://github.com/openfootmanager/openfootmanager/issues/11) takes care of that). This document is general guidance.
 
 If you are contributing and unsure whether an idea belongs in the game, this document should give you the answer.
 
@@ -20,7 +20,7 @@ The difference here is that, this game is actually **yours**. It runs **locally*
 
 Your saves and your data belong to **you**, in files **you** can read, on a disk **you own**. If this project disappeared off the internet tomorrow (I'm not saying that it will), your game would keep working exactly as it did yesterday.
 
-It is licensed under the [GPLv3](LICENSE.md), and it always will be. This means that: if you want to create a version of the game that needs a server, needs an account, and that tracks people data, you can actually do that, but you need to make it open source as well. That's it.
+It is licensed under the [GPLv3](LICENSE.md), and it always will be. This means that: if you want to create a version of the game that needs a server, needs an account, and that tracks people's data, you can actually do that, but you need to make it open source as well. That's it.
 
 ---
 
@@ -48,7 +48,7 @@ A lot of people come to this project hoping for a few things that are not really
 
 * **No multiplayer or online mode.** This is strictly a single-player, offline sandbox. OFM is designed around your career, your world, at your pace. This experience would gain very little from networking, but would cost us everything in complexity, infrastructure, security, and data protection. For this same reason, there are no plans for a web/browser version. It's not completely off the books. I might decide to support it one day, but it's simply not worth it right now.
 * **No licensed real-world data.** We will not ship copyrighted club names, badges, or player databases. We build the engine; the community authors the worlds.
-* **No accounts, no servers, no telemetry.** I really don't care about your data. If we ever implement telemetry one day, it will be to collect data about the game itself, NOT YOURS. Some software actually use telemetry to catch bugs and potential failures, and it is a valid usage, but if we ever do this, it will be opt-in, with your consent, and totally transparent. We don't want anything else other than game data.
+* **No accounts, no servers, no telemetry.** I really don't care about your data. If we ever implement telemetry one day, it will be to collect data about the game itself, NOT YOURS. Some software actually uses telemetry to catch bugs and potential failures, and it is a valid usage, but if we ever do this, it will be opt-in, with your consent, and totally transparent. We don't want anything other than game data.
 * **No monetization of any kind.** No lootboxes, no pay-to-win mechanics, no waiting timers, no cosmetic stores, and no "supporter editions" with gated features. Of course, it costs money to make the game, so you can consider donating directly to the developers, but only if you want to (and if you can). That's not a hard requirement, you don't need to pay us, but any support is appreciated.
 
 ---
