@@ -35,6 +35,26 @@ If you really want to help us directly, thank you very much! We have a few jobs 
 - **Create new content**  
   You can propose and contribute content for the game, such as images, logos, and database improvements. Please open an Issue first so we can align scope and format.
 
+### How work gets scheduled
+
+Before picking something up, it helps to know how work is organised:
+
+1. [**VISION.md**](VISION.md) says what the project is for, what it will never do, and where it is
+   going. Read it first if you are proposing something new — it will tell you whether an idea fits
+   before you write any code.
+2. The [**roadmap index** (#11)](https://github.com/openfootmanager/openfootmanager/issues/11) lists
+   every release and links to its tracking issue.
+3. Each **release tracking issue** holds that release's theme, its goals, its explicit non-goals, and
+   the checklist that has to pass before it ships. This is the best place to look for "what is being
+   worked on right now".
+4. Individual issues carry a **milestone** (the stable release they are due in) and an `area:*`
+   label. Issues labelled `good first issue` are a good entry point, and `release-blocker` marks the
+   ones holding up the next stable cut.
+
+Discussion about something not yet on the roadmap belongs in
+[Discussions](https://github.com/openfootmanager/openfootmanager/discussions) (the `Ideas` category)
+or on Discord.
+
 ## Submitting code
 
 The most traditional way to contribute is to submit new code. **Openfoot Manager** is a GPLv3 licensed project, read the [LICENSE.md](LICENSE.md) before submitting your code.
@@ -144,6 +164,34 @@ build date — is injected by `vite.config.ts` as `__APP_VERSION__`, `__APP_CHAN
 
 The channel is set by CI via the `OFM_CHANNEL` environment variable; locally it defaults to
 `dev`. It is deliberately not translated — it is part of a semver identifier, not prose.
+
+Version numbers do not carry a maturity tag. There is no `0.4.0-beta` — the odd/even number already
+says whether a build is stable, and "this project is pre-1.0" is said in
+[VISION.md](VISION.md#what-10-means), not in every version string. Older roadmap entries used
+`-alpha`/`-beta` suffixes; those are historical.
+
+### What "stable" means
+
+An even release is a promise, so it has a gate. Before a stable version is cut from `release`, all of
+the following must hold:
+
+- **No open `release-blocker` issues** in that release's milestone.
+- **A full season plays start to finish** — create a career, play through to the end of the season,
+  including a transfer window and the season rollover, without hitting a blocking defect.
+- **Saves round-trip.** Save and load at several points in that playthrough, and confirm nothing is
+  lost. See [`docs/SAVE_SYSTEM_DESIGN.md`](docs/SAVE_SYSTEM_DESIGN.md); a save written by a stable
+  release must keep loading for the life of that stable line.
+- **Translations are complete** — `src/i18n/localeCoverage.test.ts` green across all 11 locales, and
+  no untranslated player-facing strings introduced since the last cut (see [Translations](#translations)).
+- **The suite is green** — `npm test`, `cargo test --workspace`, and both clippy gates
+  (`cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings`, and
+  the same with `--features mcp`).
+
+The full-season playthrough is currently a manual check. An automated scenario suite driving the game
+through the MCP server is planned for 0.4.0, and joins this list when it lands.
+
+Nightlies carry none of these promises, which is the entire point of having two streams: `develop` can
+move fast because `release` is the thing that has to be trustworthy.
 
 ### Release workflows
 

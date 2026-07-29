@@ -4,6 +4,18 @@ This directory contains the technical documentation for OpenFoot Manager, a desk
 
 ---
 
+## Project direction
+
+### [VISION.md](../VISION.md)
+
+What Openfoot Manager is for, what it deliberately will not do, and where it is going. Covers the core pillars (open source, community-driven, offline-first, accessibility, internationalization, moddability, approachable depth), why this is explicitly not a Football Manager clone, the out-of-scope decisions (no multiplayer, no licensed data, no monetization), what 1.0 means as a quality bar, and the unscheduled long-horizon ambitions. Start here if you are proposing something new.
+
+### [roadmap/ARCHIVE.md](roadmap/ARCHIVE.md)
+
+Historical record of the shipped 0.1.x, 0.2.x and 0.3.0 releases, preserved verbatim from the roadmap issue before it was restructured into an index. Uses the old `-alpha`/`-beta` naming; see [CONTRIBUTING](../CONTRIBUTING.md) for the current odd/even scheme. The live roadmap is [issue #11](https://github.com/openfootmanager/openfootmanager/issues/11).
+
+---
+
 ## Documents
 
 ### [GETTING_STARTED.md](GETTING_STARTED.md)

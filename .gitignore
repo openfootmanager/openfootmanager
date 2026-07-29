@@ -35,6 +35,7 @@ coverage/
 # contributor tooling. Only per-user and per-session artefacts are ignored.)
 .claude/settings.local.json
 .claude/worktrees/
+.worktrees/
 
 # Local Vitest reporter output
 vitest-*.json
