@@ -13,6 +13,7 @@ import {
   emptyPlayer,
   emptyStaff,
   emptyTeam,
+  normalizePlayStyle,
 } from "../components/menu/PackageEditor/helpers";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useEntityEditor } from "../hooks/useEntityEditor";
@@ -167,7 +168,15 @@ export default function WorldEditor() {
     setMeta(data.meta);
     setConfederations(data.confederations);
     setCountries(data.countries);
-    setTeams(data.teams);
+    // Coerce play styles the engine no longer knows (packages authored when
+    // the editor still offered "Pressing"), so the value the user sees is the
+    // value that gets saved.
+    setTeams(
+      data.teams.map((team) => ({
+        ...team,
+        playStyle: normalizePlayStyle(team.playStyle),
+      })),
+    );
     setPlayers(data.players);
     setStaff(data.staff ?? []);
     setNames(data.names ?? emptyNamesDefinition());

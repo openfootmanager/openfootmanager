@@ -18,7 +18,33 @@ import type {
   WorldMetaDef,
 } from "./types";
 
-export const PLAY_STYLES = ["Balanced", "Attacking", "Defensive", "Counter", "Pressing"];
+/**
+ * Club play styles, matching `play_style_from_str` in the generator exactly.
+ * That function falls back to Balanced for any unrecognised name *silently*,
+ * so an entry here that the engine does not know produces a Balanced club with
+ * no error — which is what "Pressing" used to do.
+ */
+export const PLAY_STYLES = [
+  "Balanced",
+  "Attacking",
+  "Defensive",
+  "Possession",
+  "Counter",
+  "HighPress",
+];
+/**
+ * Coerce a stored play style to one the engine and the editor both know.
+ *
+ * The editor used to offer "Pressing", which was never a `PlayStyle` variant —
+ * the generator silently read it as Balanced. Packages authored then still
+ * carry it, and binding a value the select does not list leaves the control
+ * blank and writes the invalid value straight back on save.
+ */
+export function normalizePlayStyle(value: string | null | undefined): string {
+  const trimmed = (value ?? "").trim();
+  return PLAY_STYLES.includes(trimmed) ? trimmed : "Balanced";
+}
+
 export const PACKAGE_TYPES = ["database", "patch", "assets"];
 
 export const POSITIONS: Position[] = [
