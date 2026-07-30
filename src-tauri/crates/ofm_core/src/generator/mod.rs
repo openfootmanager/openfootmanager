@@ -94,13 +94,6 @@ fn normalize_opening_contracts(players: &mut [Player]) {
     }
 }
 
-/// The year a world opens in when nothing declares one.
-///
-/// Correct only for **contemporary** worlds. A historical world should never
-/// reach this — it carries its era from the career start year, or failing that
-/// from the package manifest's `baseYear`. Generation used to hard code a
-/// literal year in place of this, which silently aged every historical
-/// package's squads by decades and drifted out of date on its own.
 /// Earliest year a world may open in.
 ///
 /// `baseYear` is author-supplied with no lower bound, and birth years are
@@ -114,8 +107,20 @@ pub const MIN_OPENING_YEAR: u32 = 1900;
 /// straight into contract and birth dates. A wild value does not crash, but it
 /// produces dates no parser accepts, which then degrade silently into
 /// unparseable ages — better to pin the era into a range dates can represent.
+///
+/// Removable once either half of that stops being true: `baseYear` validated at
+/// manifest load, so an out-of-range era is refused with a message instead of
+/// silently clamped here; or dates carried as a real year type rather than a
+/// four-character prefix, so the formatting has no range to fall out of.
 pub const MAX_OPENING_YEAR: u32 = 2999;
 
+/// The year a world opens in when nothing declares one.
+///
+/// Correct only for **contemporary** worlds. A historical world should never
+/// reach this — it carries its era from the career start year, or failing that
+/// from the package manifest's `baseYear`. Generation used to hard code a
+/// literal year in place of this, which silently aged every historical
+/// package's squads by decades and drifted out of date on its own.
 pub fn default_opening_year() -> u32 {
     use chrono::Datelike;
     // Clamped only so the cast cannot wrap: a negative system year is absurd,
