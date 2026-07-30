@@ -109,8 +109,19 @@ export default function WorldEditor() {
   // Snapshot helpers
   // ---------------------------------------------------------------------------
 
+  // Latest committed slices, read at write time so a serialized/queued persist
+  // writes one consistent snapshot rather than whatever its closure captured.
+  const stateRef = useRef({ meta, confederations, countries, teams, players, staff, names, competitions });
+  stateRef.current = { meta, confederations, countries, teams, players, staff, names, competitions };
+
+  /**
+   * The undo snapshot, read through `stateRef` rather than this render's state.
+   * An asset pick calls back after awaiting a native file dialog, so a snapshot
+   * built from the closure would record the world as it was before whatever the
+   * user did while the dialog was open — and undo would restore that.
+   */
   function currentSnapshot(): EntitySnapshot {
-    return { meta, confederations, countries, teams, players, staff, names, competitions };
+    return { ...stateRef.current };
   }
 
   function applySnapshot(snapshot: EntitySnapshot) {
@@ -199,11 +210,6 @@ export default function WorldEditor() {
       return updated;
     });
   }
-
-  // Latest committed slices, read at write time so a serialized/queued persist
-  // writes one consistent snapshot rather than whatever its closure captured.
-  const stateRef = useRef({ meta, confederations, countries, teams, players, staff, names, competitions });
-  stateRef.current = { meta, confederations, countries, teams, players, staff, names, competitions };
 
   // Serializes save_package_project writes so concurrent saves can't interleave
   // full-file writes or let an older write land after a newer one.

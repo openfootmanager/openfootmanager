@@ -269,6 +269,45 @@ describe("useEntityEditor", () => {
 
       expect(setItems).toHaveBeenCalledWith([{ id: "a", name: "A", logo: null }]);
     });
+
+    it("writes to the record it was picked for, not the array slot it had", () => {
+      // A pick awaits a native file dialog before committing, and the list can
+      // be edited during that gap. `staleCommit` is deliberately captured
+      // before the change: calling hook.result.current afterwards would take a
+      // fresh closure and pass against the very bug this pins.
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+      const { hook, setItems, defaults } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(1); });
+      const staleCommit = hook.result.current.commitField;
+
+      // Meanwhile the user deletes the first entity, so "b" is now at index 0.
+      const reordered: Item[] = [{ id: "b", name: "B" }];
+      hook.rerender({ ...defaults, items: reordered });
+
+      act(() => { staleCommit("logo", "assets/images/b.png"); });
+
+      expect(setItems).toHaveBeenCalledWith([
+        { id: "b", name: "B", logo: "assets/images/b.png" },
+      ]);
+    });
+
+    it("drops the commit when the record it was picked for is gone", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+      const { hook, setItems, defaults, captureHistory } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(1); });
+      const staleCommit = hook.result.current.commitField;
+
+      // An undo removed "b" while the file dialog was open. Re-adding it from a
+      // stale commit would resurrect a record the user just discarded.
+      hook.rerender({ ...defaults, items: [{ id: "a", name: "A" }] });
+      setItems.mockClear();
+      captureHistory.mockClear();
+
+      act(() => { staleCommit("logo", "assets/images/b.png"); });
+
+      expect(setItems).not.toHaveBeenCalled();
+      expect(captureHistory).not.toHaveBeenCalled();
+    });
   });
 
   describe("handleSave", () => {

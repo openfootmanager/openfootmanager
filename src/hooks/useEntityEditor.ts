@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 /**
  * Pick an unused id for a copy of `baseId`, counting up from `-2`.
@@ -55,6 +55,12 @@ export function useEntityEditor<T extends { id: string }>(options: {
     setEditing((prev) => ({ ...prev, [key]: value }));
   }
 
+  // commitField can run long after the render that created it — an asset pick
+  // awaits a native file dialog first — so it must not write through the list
+  // it saw back then. Anything the user did during the dialog would be undone.
+  const latest = useRef({ items, setItems, captureHistory, saveItems, autoSave, onDirty });
+  latest.current = { items, setItems, captureHistory, saveItems, autoSave, onDirty };
+
   /**
    * Like `updateField`, but also writes the value straight into the record so it
    * survives switching to another entity without pressing Save.
@@ -64,12 +70,30 @@ export function useEntityEditor<T extends { id: string }>(options: {
    * preview updating while the path stays unpersisted reads as a lost edit.
    * A brand-new record (`editingIndex === null`) has no row to write into yet,
    * so it keeps the buffer-until-Save behaviour.
+   *
+   * The target is the record that was open when the commit was set in motion,
+   * re-located by id in the *current* list — the same identity-over-position
+   * rule `syncEditing` follows, and for the same reason: between the pick and
+   * the commit the list may have been reordered, or the record removed.
    */
   function commitField<K extends keyof T>(key: K, value: T[K]) {
-    setEditing((prev) => ({ ...prev, [key]: value }));
-    if (editingIndex === null) return;
+    if (editingIndex === null) {
+      setEditing((prev) => ({ ...prev, [key]: value }));
+      return;
+    }
+    const { items, setItems, captureHistory, saveItems, autoSave, onDirty } = latest.current;
+    // A blank id cannot be told apart from another blank one, so an unnamed
+    // record falls back to the position it had when the commit started — no
+    // worse than before, and it keeps a not-yet-named entity working.
+    const index = editingId
+      ? items.findIndex((item) => item.id === editingId)
+      : editingIndex;
+    // The record is gone (an undo discarded it). Writing it back would
+    // resurrect something the user just removed.
+    if (index === -1 || index >= items.length) return;
+    setEditing((prev) => (editingId && prev.id !== editingId ? prev : { ...prev, [key]: value }));
     captureHistory();
-    const updated = items.map((item, i) => (i === editingIndex ? { ...item, [key]: value } : item));
+    const updated = items.map((item, i) => (i === index ? { ...item, [key]: value } : item));
     setItems(updated);
     onDirty?.();
     if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
