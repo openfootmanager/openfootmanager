@@ -361,6 +361,11 @@ pub(crate) fn validate_package_id(id: &str) -> Result<(), String> {
 
 /// The one package id that cannot be installed — it collides with the prefix
 /// that tells a bundled asset path from a package-qualified one.
+///
+/// Removable once `isPackageQualifiedAsset` (`src/lib/packageAssets.ts`) stops
+/// deciding on the first path segment — if a qualified path carried an explicit
+/// marker, or the two kinds of path were separate fields, `assets` would be an
+/// ordinary id again.
 const RESERVED_PACKAGE_ID: &str = "assets";
 
 /// Remove an installed package by id.
@@ -390,6 +395,13 @@ pub fn uninstall_package(
 /// block the install — the world plays, its clubs just keep generated crests.
 fn extract_assets_for_package(ofm_path: &std::path::Path, assets_root: &std::path::Path, id: &str) {
     let package_assets = assets_root.join(id);
+    // Replace, don't merge. Installing over an existing version is the normal
+    // upgrade path, and a version that renamed or dropped a badge would
+    // otherwise leave the old file in place — where a save's already-qualified
+    // path still points at it, rendering artwork the package no longer ships.
+    // If extraction then fails the club falls back to a generated crest, which
+    // is the honest outcome; stale artwork is not.
+    remove_package_assets(assets_root, id);
     match ofm_core::generator::extract_package_assets(ofm_path, &package_assets) {
         Ok(skipped) if !skipped.is_empty() => {
             warn!("[assets] {id}: {} asset entries skipped", skipped.len());
@@ -821,6 +833,32 @@ mod tests {
             fs::read(assets_root.join("badge-pkg/assets/images/santos.png")).unwrap(),
             b"PNGBYTES",
             "the badge should be readable at the path a save's qualified path resolves to",
+        );
+    }
+
+    #[test]
+    fn reinstalling_a_package_does_not_keep_artwork_it_dropped() {
+        // Installing over an existing version is the normal upgrade path. If the
+        // new archive renamed or removed a badge, a merge would leave the old
+        // file behind — and a save whose qualified path still points at it would
+        // render artwork the package no longer ships.
+        let temp_dir = TempCommandDir::new();
+        let assets_root = temp_dir.path().join("package-assets");
+        let stale = assets_root.join("badge-pkg/assets/images/old-badge.png");
+        fs::create_dir_all(stale.parent().unwrap()).unwrap();
+        fs::write(&stale, b"OLDPNG").unwrap();
+
+        let archive = temp_dir.path().join("badge-pkg.ofm");
+        write_ofm_with_badge(&archive);
+        super::extract_assets_for_package(&archive, &assets_root, "badge-pkg");
+
+        assert!(
+            !stale.exists(),
+            "artwork the reinstalled package no longer ships must not survive",
+        );
+        assert!(
+            assets_root.join("badge-pkg/assets/images/santos.png").exists(),
+            "the reinstalled package's own artwork must still land",
         );
     }
 
