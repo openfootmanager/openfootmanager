@@ -149,6 +149,117 @@ describe("StaffTab", () => {
     });
   });
 
+  it("rates a specialist on the attribute their role actually uses", async () => {
+    // A flat average over all four attributes made an elite physio read as
+    // mediocre: the engine only consumes `physiotherapy` for physios
+    // (training.rs), yet coaching and scouting dragged the number down.
+    const physio = createStaff({
+      id: "staff-physio",
+      first_name: "Pat",
+      last_name: "Physio",
+      role: "Physio",
+      attributes: {
+        coaching: 30,
+        judgingAbility: 30,
+        judgingPotential: 30,
+        physiotherapy: 90,
+      },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([physio]);
+      return createGameState([physio]);
+    });
+
+    render(<StaffTab gameState={createGameState([physio])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+
+    const card = await screen.findByTestId("staff-card-staff-physio");
+    expect(within(card).getByText("90 OVR")).toBeInTheDocument();
+  });
+
+  it("weights an assistant manager the way the engine does", async () => {
+    // delegated_renewals.rs scores assistants as
+    // (coaching*4 + judgingAbility*3 + judgingPotential*3) / 10.
+    const assistant = createStaff({
+      id: "staff-assistant",
+      first_name: "Ash",
+      last_name: "Assistant",
+      role: "AssistantManager",
+      attributes: {
+        coaching: 80,
+        judgingAbility: 60,
+        judgingPotential: 40,
+        physiotherapy: 10,
+      },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([assistant]);
+      return createGameState([assistant]);
+    });
+
+    render(<StaffTab gameState={createGameState([assistant])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+
+    const card = await screen.findByTestId("staff-card-staff-assistant");
+    // (80*4 + 60*3 + 40*3) / 10 = 62 — physiotherapy must not count.
+    expect(within(card).getByText("62 OVR")).toBeInTheDocument();
+  });
+
+  it("averages both judging attributes for a scout", async () => {
+    // The scout branch weights judgingAbility and judgingPotential equally;
+    // divergent values catch either key being dropped or mis-weighted, which
+    // an equal pair would hide.
+    const scout = createStaff({
+      id: "staff-scout",
+      first_name: "Sam",
+      last_name: "Scout",
+      role: "Scout",
+      attributes: {
+        coaching: 20,
+        judgingAbility: 80,
+        judgingPotential: 60,
+        physiotherapy: 10,
+      },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([scout]);
+      return createGameState([scout]);
+    });
+
+    render(<StaffTab gameState={createGameState([scout])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+
+    const card = await screen.findByTestId("staff-card-staff-scout");
+    // (80 + 60) / 2 = 70 — coaching and physiotherapy must not count.
+    expect(within(card).getByText("70 OVR")).toBeInTheDocument();
+  });
+
+  it("falls back to an even split for a role it does not recognise", async () => {
+    // Borrowing Coach's weighting would rate an unknown role on coaching
+    // alone; an even split is the honest "no opinion" answer.
+    const odd = createStaff({
+      id: "staff-odd",
+      first_name: "Ola",
+      last_name: "Other",
+      // Cast deliberately: the role arrives from the backend at runtime, where
+      // the union type is erased, so a role added there outruns this type.
+      role: "Nutritionist" as StaffData["role"],
+      attributes: {
+        coaching: 40,
+        judgingAbility: 60,
+        judgingPotential: 80,
+        physiotherapy: 20,
+      },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([odd]);
+      return createGameState([odd]);
+    });
+
+    render(<StaffTab gameState={createGameState([odd])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+
+    const card = await screen.findByTestId("staff-card-staff-odd");
+    // (40 + 60 + 80 + 20) / 4 = 50 — not coaching's 40.
+    expect(within(card).getByText("50 OVR")).toBeInTheDocument();
+  });
+
   it("switches to available staff and filters by role and search", async () => {
     const staff = [
       createStaff(),
@@ -273,8 +384,10 @@ describe("StaffTab", () => {
     render(<StaffTab gameState={createGameState([])} />);
 
     const card = await screen.findByTestId("staff-card-staff-1");
-    // OVR = (63+52+71+44)/4 = 57.5 → 58
-    expect(within(card).getByText("58 OVR")).toBeInTheDocument();
+    // A Coach is rated on `coaching` alone, so OVR is 63. The camelCase guard
+    // rests on the attribute assertions below rather than on this number —
+    // `coaching` is a single word and cannot regress the way the judging keys did.
+    expect(within(card).getByText("63 OVR")).toBeInTheDocument();
     expect(within(card).getByText("52")).toBeInTheDocument();
     expect(within(card).getByText("71")).toBeInTheDocument();
     expect(within(card).getByText(/judgingPotential \(71\)/)).toBeInTheDocument();
