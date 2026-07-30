@@ -66,6 +66,14 @@ export default function FinancesPayrollTable({
                     <tr
                       key={p.id}
                       onClick={() => onSelectPlayer?.(p.id)}
+                      onKeyDown={onSelectPlayer ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectPlayer(p.id);
+                        }
+                      } : undefined}
+                      role={onSelectPlayer ? "button" : undefined}
+                      tabIndex={onSelectPlayer ? 0 : undefined}
                       className={`hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors ${onSelectPlayer ? "cursor-pointer group" : ""}`}
                     >
                       <td className="py-3 px-5 font-semibold text-sm text-gray-800 dark:text-gray-200">
