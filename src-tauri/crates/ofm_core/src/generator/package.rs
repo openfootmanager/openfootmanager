@@ -1136,7 +1136,7 @@ pub fn extract_package_assets(
 }
 
 /// Whether an archive entry belongs to the package's asset tree.
-pub(crate) fn is_package_asset_entry(entry_name: &str) -> bool {
+fn is_package_asset_entry(entry_name: &str) -> bool {
     let normalised = entry_name.replace('\\', "/");
     normalised.starts_with(ASSET_DIR_PREFIX)
 }
@@ -1144,6 +1144,26 @@ pub(crate) fn is_package_asset_entry(entry_name: &str) -> bool {
 /// Directory inside a package that holds artwork, as established by the World
 /// Editor's `copy_package_asset`.
 pub const ASSET_DIR_PREFIX: &str = "assets/";
+
+/// Whether a manifest-authored asset reference stays inside its own package.
+///
+/// Mirrors [`safe_entry_path`]'s rules for archive entries: a manifest carries
+/// exactly as much trust as the archive it came in, and these values are joined
+/// to the extracted asset root by the frontend and handed to Tauri's asset
+/// protocol. Backslashes are refused outright rather than normalised, because
+/// `Path` reads `..\..\x` as one ordinary component on Unix and as traversal on
+/// Windows — the same string must not mean two different things.
+fn is_contained_asset_path(value: &str) -> bool {
+    if value.starts_with('/') || value.contains('\\') {
+        return false;
+    }
+    Path::new(value).components().all(|component| {
+        matches!(
+            component,
+            std::path::Component::Normal(_) | std::path::Component::CurDir
+        )
+    })
+}
 
 /// Rewrite a package's asset references so they carry the package they came
 /// from: `assets/images/santos.png` becomes `brazil-1962/assets/images/santos.png`.
@@ -1153,17 +1173,34 @@ pub const ASSET_DIR_PREFIX: &str = "assets/";
 /// The result is a stable, relative key the frontend resolves against the
 /// extracted asset root — relative rather than absolute so a save stays portable
 /// between machines.
+///
+/// A reference that escapes its package is dropped rather than qualified. The
+/// consumers already render a generated crest or portrait when there is no
+/// artwork, so refusing the path costs nothing and keeps a crafted manifest
+/// from naming a file outside the asset root.
 pub fn qualify_package_asset_paths(package: &mut WorldPackage, package_id: &str) {
     if package_id.is_empty() {
         return;
     }
     let qualify = |path: &mut Option<String>| {
-        if let Some(value) = path.as_mut()
-            && !value.trim().is_empty()
-            && !value.starts_with(&format!("{package_id}/"))
-        {
-            *value = format!("{package_id}/{value}");
+        // Trim first and store the trimmed value: the frontend trims before it
+        // joins, so validating anything else would check a path that is not the
+        // one eventually resolved.
+        let Some(value) = path.as_ref().map(|value| value.trim().to_string()) else {
+            return;
+        };
+        if value.is_empty() {
+            return;
         }
+        if !is_contained_asset_path(&value) {
+            *path = None;
+            return;
+        }
+        *path = Some(if value.starts_with(&format!("{package_id}/")) {
+            value
+        } else {
+            format!("{package_id}/{value}")
+        });
     };
 
     for team in &mut package.teams {
@@ -1595,6 +1632,62 @@ mod tests {
             }))
             .expect("team def");
         team.logo = Some("assets/images/santos.png".to_string());
+        package.teams.push(team);
+
+        qualify_package_asset_paths(&mut package, "brazil-1962");
+
+        assert_eq!(
+            package.teams[0].logo.as_deref(),
+            Some("brazil-1962/assets/images/santos.png"),
+        );
+    }
+
+    #[test]
+    fn qualifying_asset_paths_drops_a_reference_that_escapes_the_package() {
+        // A manifest is as untrusted as the archive entries beside it, and these
+        // values are handed to the asset protocol verbatim. A club that names a
+        // file outside its own asset tree gets no artwork; the generated crest
+        // is the right outcome, not a read of whatever sits at that path.
+        let escapes = [
+            "../../../../etc/passwd",
+            "assets/../../secret.png",
+            "/etc/passwd",
+            "..\\..\\windows\\win.ini",
+            "   ../sneaky.png",
+        ];
+
+        for path in escapes {
+            let mut package = WorldPackage::default();
+            let mut team: super::super::definitions::TeamDef =
+                serde_json::from_value(serde_json::json!({
+                    "id": "santos", "name": "Santos", "city": "Santos", "country": "BR",
+                    "colors": { "primary": "#fff", "secondary": "#000" }
+                }))
+                .expect("team def");
+            team.logo = Some(path.to_string());
+            package.teams.push(team);
+
+            qualify_package_asset_paths(&mut package, "brazil-1962");
+
+            assert_eq!(
+                package.teams[0].logo, None,
+                "{path} escapes the package and must not be qualified",
+            );
+        }
+    }
+
+    #[test]
+    fn qualifying_asset_paths_trims_before_it_qualifies() {
+        // The frontend trims before joining, so validating an untrimmed value
+        // would let " ../x.png" pass here and traverse there.
+        let mut package = WorldPackage::default();
+        let mut team: super::super::definitions::TeamDef =
+            serde_json::from_value(serde_json::json!({
+                "id": "santos", "name": "Santos", "city": "Santos", "country": "BR",
+                "colors": { "primary": "#fff", "secondary": "#000" }
+            }))
+            .expect("team def");
+        team.logo = Some("  assets/images/santos.png  ".to_string());
         package.teams.push(team);
 
         qualify_package_asset_paths(&mut package, "brazil-1962");

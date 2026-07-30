@@ -14,7 +14,13 @@ import { isPackageQualifiedAsset, joinAssetRoot } from "../lib/packageAssets";
 let appDataDirPromise: Promise<string> | null = null;
 
 function resolveAppDataDir(): Promise<string> {
-  appDataDirPromise ??= appDataDir();
+  // Only a resolved lookup is worth keeping. A rejected promise is still
+  // truthy, so caching one would turn a single transient failure into "no
+  // package artwork anywhere until the app restarts".
+  appDataDirPromise ??= appDataDir().catch((err) => {
+    appDataDirPromise = null;
+    throw err;
+  });
   return appDataDirPromise;
 }
 

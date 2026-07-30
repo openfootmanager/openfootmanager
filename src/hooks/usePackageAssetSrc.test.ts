@@ -60,6 +60,24 @@ describe("usePackageAssetSrc", () => {
     await waitFor(() => expect(result.current).toBeNull());
   });
 
+  it("retries the directory lookup after a failed one", async () => {
+    // Deliberately no resetPackageAssetRoot between the two renders: a rejected
+    // promise is still truthy, so caching it would disable every package badge
+    // and photo for the rest of the session.
+    appDataDir.mockRejectedValueOnce(new Error("transient"));
+
+    const failed = renderHook(() => usePackageAssetSrc("pkg/assets/a.png"));
+    await waitFor(() => expect(failed.result.current).toBeNull());
+
+    const retried = renderHook(() => usePackageAssetSrc("pkg/assets/b.png"));
+
+    await waitFor(() => {
+      expect(retried.result.current).toBe(
+        "asset://localhost//home/u/.local/share/app/package-assets/pkg/assets/b.png",
+      );
+    });
+  });
+
   it("returns nothing for an empty path", () => {
     const { result } = renderHook(() => usePackageAssetSrc(null));
 
