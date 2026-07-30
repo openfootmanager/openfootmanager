@@ -286,6 +286,16 @@ pub fn install_package(
     let dest = packages_dir.join(format!("{id}.ofm"));
     std::fs::copy(src, &dest).map_err(|_| "be.error.package.installFailed".to_string())?;
 
+    // Land the artwork now, so "extracted assets exist" tracks "package is
+    // installed" and nothing else. World creation extracts too, but a save
+    // stores already-qualified paths and reloads without ever going through
+    // that path — so a package uninstalled and reinstalled after the save was
+    // made would otherwise leave every club in it on a generated crest forever.
+    // Best effort, exactly as at world load: the world still plays without art.
+    if let Ok(assets_root) = package_assets_dir(&app_handle) {
+        extract_assets_for_package(&dest, &assets_root, &id);
+    }
+
     let logo_data_url = meta.logo.as_deref()
         .and_then(|logo| ofm_core::generator::read_logo_from_ofm(&dest, logo));
     Ok(ofm_core::generator::PackageInfo {
@@ -338,11 +348,20 @@ pub(crate) fn validate_package_id(id: &str) -> Result<(), String> {
         || id.contains('\\')
         || id.contains("..")
         || id.contains('\0')
+        // "assets" is reserved: a qualified path is `<package_id>/assets/...`,
+        // so this id yields `assets/assets/…`, which `isPackageQualifiedAsset`
+        // on the frontend classifies as an app-bundled asset and resolves
+        // against the wrong root. Refusing the id keeps that classifier simple.
+        || id == RESERVED_PACKAGE_ID
     {
         return Err("be.error.package.invalid".to_string());
     }
     Ok(())
 }
+
+/// The one package id that cannot be installed — it collides with the prefix
+/// that tells a bundled asset path from a package-qualified one.
+const RESERVED_PACKAGE_ID: &str = "assets";
 
 /// Remove an installed package by id.
 #[tauri::command]
@@ -364,6 +383,20 @@ pub fn uninstall_package(
         remove_package_assets(&assets_root, &id);
     }
     Ok(())
+}
+
+/// Unpack a package's artwork into `<assets_root>/<id>/`. Best effort: a
+/// package with no artwork produces no directory, and a failure here must not
+/// block the install — the world plays, its clubs just keep generated crests.
+fn extract_assets_for_package(ofm_path: &std::path::Path, assets_root: &std::path::Path, id: &str) {
+    let package_assets = assets_root.join(id);
+    match ofm_core::generator::extract_package_assets(ofm_path, &package_assets) {
+        Ok(skipped) if !skipped.is_empty() => {
+            warn!("[assets] {id}: {} asset entries skipped", skipped.len());
+        }
+        Err(err) => warn!("[assets] {id}: extraction failed: {err}"),
+        _ => {}
+    }
 }
 
 /// Delete a package's extracted artwork. Best effort: a package with no assets
@@ -751,8 +784,8 @@ mod tests {
     fn removing_package_assets_deletes_only_that_package() {
         // Uninstalling has to take the extracted artwork with it, or every
         // package a user ever installed leaves a directory behind.
-        let root = std::env::temp_dir().join("ofm-assets-uninstall-test");
-        std::fs::remove_dir_all(&root).ok();
+        let temp_dir = TempCommandDir::new();
+        let root = temp_dir.path().join("package-assets");
         for id in ["going", "staying"] {
             let dir = root.join(id).join("assets/images");
             std::fs::create_dir_all(&dir).unwrap();
@@ -769,18 +802,46 @@ mod tests {
             root.join("staying/assets/images/badge.png").exists(),
             "another package's assets must be untouched",
         );
-        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn installing_a_package_lands_its_artwork_for_an_existing_save() {
+        // A save stores already-qualified asset paths and reloads without going
+        // through world creation, so extraction cannot only happen there: a
+        // package reinstalled after the save was made would never get its
+        // artwork back. Installing is what puts it on disk.
+        let temp_dir = TempCommandDir::new();
+        let assets_root = temp_dir.path().join("package-assets");
+        let archive = temp_dir.path().join("badge-pkg.ofm");
+        write_ofm_with_badge(&archive);
+
+        super::extract_assets_for_package(&archive, &assets_root, "badge-pkg");
+
+        assert_eq!(
+            fs::read(assets_root.join("badge-pkg/assets/images/santos.png")).unwrap(),
+            b"PNGBYTES",
+            "the badge should be readable at the path a save's qualified path resolves to",
+        );
+    }
+
+    /// A minimal `.ofm` carrying one image under the asset tree. Built through
+    /// the exporter rather than the zip crate directly, so the app crate does
+    /// not take a dependency just to author a fixture.
+    fn write_ofm_with_badge(path: &Path) {
+        let source = path.with_extension("src");
+        let images = source.join("assets/images");
+        fs::create_dir_all(&images).expect("fixture tree should be created");
+        fs::write(images.join("santos.png"), b"PNGBYTES").expect("badge should be written");
+        ofm_core::generator::export_directory_to_ofm(&source, path).expect("archive should build");
     }
 
     #[test]
     fn removing_package_assets_tolerates_a_package_with_none() {
-        let root = std::env::temp_dir().join("ofm-assets-uninstall-none");
-        std::fs::remove_dir_all(&root).ok();
+        let temp_dir = TempCommandDir::new();
+        let root = temp_dir.path().join("package-assets");
         std::fs::create_dir_all(&root).unwrap();
 
         super::remove_package_assets(&root, "never-had-assets");
-
-        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
@@ -797,6 +858,11 @@ mod tests {
             "a/b",
             "a\\b",
             "with\0null",
+            // Qualified asset paths are `<package_id>/assets/...`, so a package
+            // called "assets" produces `assets/assets/images/x.png`, which the
+            // frontend classifier reads as an app-bundled path and serves from
+            // the wrong root — every club in it silently loses its badge.
+            "assets",
         ] {
             assert!(
                 validate_package_id(bad).is_err(),

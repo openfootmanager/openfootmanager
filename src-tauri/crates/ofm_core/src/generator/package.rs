@@ -1143,7 +1143,7 @@ fn is_package_asset_entry(entry_name: &str) -> bool {
 
 /// Directory inside a package that holds artwork, as established by the World
 /// Editor's `copy_package_asset`.
-pub const ASSET_DIR_PREFIX: &str = "assets/";
+const ASSET_DIR_PREFIX: &str = "assets/";
 
 /// Whether a manifest-authored asset reference stays inside its own package.
 ///
