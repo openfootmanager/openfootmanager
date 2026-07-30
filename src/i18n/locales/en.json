@@ -2588,6 +2588,7 @@
         "playerNotOnBench": "Player not on bench",
         "playerNotInStartingXi": "Player not in starting XI"
       },
+      "csv": { "writeFailed": "Failed to write the CSV file." },
       "worldReadFileFailed": "Failed to read the world database file.",
       "package": {
         "invalid": "This world package is invalid and could not be loaded.",
@@ -3732,6 +3733,8 @@
     "legsSingle": "Single round-robin",
     "legsDouble": "Double round-robin",
     "duplicateEntity": "Duplicate",
+    "exportCsv": "Export CSV",
+    "exportCsvSuccess": "CSV file written.",
     "baseYear": "Base Year",
     "typeDatabase": "Database",
     "typePatch": "Patch",

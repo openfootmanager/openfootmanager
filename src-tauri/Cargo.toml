@@ -43,6 +43,14 @@ webp = "0.3.1"
 # transitive `cookie` 0.18.1 (pulled in by Tauri). Remove once Tauri/cookie
 # ship a fix. See PR #265 CI failure.
 time = "=0.3.51"
+# Team names and cities are free text, so CSV export has to quote and escape
+# properly — a club like "Preston North End, Lancashire" would otherwise shift
+# every following column. Using the same crate to read keeps a future importer
+# byte-compatible with what we write.
+csv = "1"
+
+[dev-dependencies]
+tempfile = "3"
 
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own

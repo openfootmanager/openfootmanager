@@ -2588,6 +2588,7 @@
         "playerNotOnBench": "Oyuncu yedek kulübesinde değil",
         "playerNotInStartingXi": "Oyuncu ilk 11'de değil"
       },
+      "csv": { "writeFailed": "CSV dosyası yazılamadı." },
       "worldReadFileFailed": "Dünya veritabanı dosyası okunamadı.",
       "package": {
         "invalid": "Bu dünya paketi geçersiz ve yüklenemedi.",
@@ -3732,6 +3733,8 @@
     "legsSingle": "Tek devreli",
     "legsDouble": "Çift devreli (iç saha ve deplasman)",
     "duplicateEntity": "Çoğalt",
+    "exportCsv": "CSV olarak dışa aktar",
+    "exportCsvSuccess": "CSV dosyası yazıldı.",
     "baseYear": "Temel Yıl",
     "typeDatabase": "Veritabanı",
     "typePatch": "Yama",

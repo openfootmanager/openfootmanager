@@ -2575,6 +2575,7 @@
         "playerNotOnBench": "O jogador não está no banco",
         "playerNotInStartingXi": "O jogador não está no onze inicial"
       },
+      "csv": { "writeFailed": "Falha ao escrever o ficheiro CSV." },
       "worldReadFileFailed": "Falha ao ler o ficheiro da base de dados do mundo.",
       "package": {
         "invalid": "Este pacote de mundo é inválido e não pôde ser carregado.",
@@ -3736,6 +3737,8 @@
     "legsSingle": "Uma volta (todos contra todos)",
     "legsDouble": "Duas voltas (casa e fora)",
     "duplicateEntity": "Duplicar",
+    "exportCsv": "Exportar CSV",
+    "exportCsvSuccess": "Ficheiro CSV escrito.",
     "baseYear": "Ano Base",
     "typeDatabase": "Base de Dados",
     "typePatch": "Patch",

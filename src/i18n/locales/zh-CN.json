@@ -2575,6 +2575,7 @@
         "playerNotOnBench": "球员不在替补席上",
         "playerNotInStartingXi": "球员不在首发阵容中"
       },
+      "csv": { "writeFailed": "无法写入 CSV 文件。" },
       "worldReadFileFailed": "读取世界数据库文件失败。",
       "package": {
         "invalid": "此世界包无效，无法加载。",
@@ -3733,6 +3734,8 @@
     "legsSingle": "单循环",
     "legsDouble": "双循环（主客场）",
     "duplicateEntity": "复制",
+    "exportCsv": "导出 CSV",
+    "exportCsvSuccess": "已写入 CSV 文件。",
     "baseYear": "基础年份",
     "typeDatabase": "数据库",
     "typePatch": "补丁",
