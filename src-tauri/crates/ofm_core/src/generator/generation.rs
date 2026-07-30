@@ -293,22 +293,11 @@ pub(super) fn generate_random_player_from_def(
         },
     };
 
-    // For initial market-value sizing, use a temporary simple attribute average.
-    // The accurate position-weighted OVR is computed by refresh_player_derived() below.
+    // Size market value and wage from the same position-weighted rating the
+    // player will be shown with, so a keeper is priced on keeping.
     let current_year: u32 = 2026;
 
-    let approx_ovr = (attributes.pace as u32
-        + attributes.stamina as u32
-        + attributes.strength as u32
-        + attributes.passing as u32
-        + attributes.shooting as u32
-        + attributes.tackling as u32
-        + attributes.dribbling as u32
-        + attributes.defending as u32
-        + attributes.positioning as u32
-        + attributes.vision as u32
-        + attributes.decisions as u32)
-        / 11;
+    let approx_ovr = crate::player_rating::ovr_from_attributes(&attributes, &position).round() as u32;
 
     let age_factor = if age <= 23 {
         1.5
@@ -691,18 +680,8 @@ pub(super) fn generate_player_from_def(
         .clone()
         .unwrap_or_else(|| attributes_for_overall(def.overall.unwrap_or(65), &def.position, rng));
 
-    let approx_ovr = (attributes.pace as u32
-        + attributes.stamina as u32
-        + attributes.strength as u32
-        + attributes.passing as u32
-        + attributes.shooting as u32
-        + attributes.tackling as u32
-        + attributes.dribbling as u32
-        + attributes.defending as u32
-        + attributes.positioning as u32
-        + attributes.vision as u32
-        + attributes.decisions as u32)
-        / 11;
+    let approx_ovr =
+        crate::player_rating::ovr_from_attributes(&attributes, &def.position).round() as u32;
     let age_factor = if age <= 23 {
         1.5
     } else if age <= 28 {
