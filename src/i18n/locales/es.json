@@ -2634,7 +2634,8 @@
         "unknownCompetition": "\"{{field}}\" hace referencia a una competición desconocida \"{{id}}\".",
         "unknownRegion": "\"{{field}}\" hace referencia a una región desconocida \"{{id}}\".",
         "reversedRange": "El equipo \"{{team}}\" tiene un {{field}} invertido (mín > máx).",
-        "outOfRange": "El equipo \"{{team}}\" tiene valores de {{field}} fuera de rango (reputación 0–1000, finanzas ≥ 0)."
+        "outOfRange": "El equipo \"{{team}}\" tiene valores de {{field}} fuera de rango (reputación 0–1000, finanzas ≥ 0).",
+        "unsupportedFormatVersion": "Este paquete se creó con una versión más reciente del juego (formato {{version}}; esta versión admite {{supported}}). Actualiza el juego para abrirlo."
       },
       "competitionDef": {
         "invalidEmbedded": "Las definiciones de competiciones de este mundo no son válidas y no se pudieron cargar.",

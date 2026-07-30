@@ -2615,7 +2615,8 @@
         "unknownCompetition": "\"{{field}}\", bilinmeyen \"{{id}}\" turnuvasına atıfta bulunuyor.",
         "unknownRegion": "\"{{field}}\", bilinmeyen \"{{id}}\" bölgesine atıfta bulunuyor.",
         "reversedRange": "\"{{team}}\" takımının {{field}} aralığı ters (min > maks).",
-        "outOfRange": "\"{{team}}\" takımının {{field}} değerleri aralık dışında (itibar 0–1000, finans ≥ 0)."
+        "outOfRange": "\"{{team}}\" takımının {{field}} değerleri aralık dışında (itibar 0–1000, finans ≥ 0).",
+        "unsupportedFormatVersion": "Bu paket oyunun daha yeni bir sürümüyle oluşturuldu (biçim {{version}}; bu sürüm {{supported}} destekliyor). Açmak için oyunu güncelleyin."
       },
       "conflict": {
         "duplicateId": "\"{{packages}}\" paketlerinin ikisi de {{entityKind}} \"{{entityId}}\" kaydını farklı içerikle tanımlıyor. Son paket geçerli olur.",

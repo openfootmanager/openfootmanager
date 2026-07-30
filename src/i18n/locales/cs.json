@@ -2616,7 +2616,8 @@
         "unknownCompetition": "„{{field}}“ odkazuje na neznámou soutěž „{{id}}“.",
         "unknownRegion": "„{{field}}“ odkazuje na neznámý region „{{id}}“.",
         "reversedRange": "Tým „{{team}}“ má obrácený rozsah v poli {{field}} (min > max).",
-        "outOfRange": "Tým „{{team}}“ má hodnoty v poli {{field}} mimo rozsah (reputace 0–1000, finance ≥ 0)."
+        "outOfRange": "Tým „{{team}}“ má hodnoty v poli {{field}} mimo rozsah (reputace 0–1000, finance ≥ 0).",
+        "unsupportedFormatVersion": "Tento balíček byl vytvořen v novější verzi hry (formát {{version}}; tato verze podporuje {{supported}}). Pro otevření hru aktualizujte."
       },
       "conflict": {
         "duplicateId": "Balíčky „{{packages}}“ definují stejný objekt {{entityKind}} s ID „{{entityId}}“, ale s odlišným obsahem. Použije se poslední balíček.",

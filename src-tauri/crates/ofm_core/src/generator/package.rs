@@ -229,6 +229,7 @@ pub struct WorldPackage {
 const READ_FAILED: &str = "be.error.package.readFailed";
 const MISSING_SCHEMA: &str = "be.error.package.missingSchema";
 const UNKNOWN_SCHEMA: &str = "be.error.package.unknownSchema";
+const UNSUPPORTED_FORMAT_VERSION: &str = "be.error.package.unsupportedFormatVersion";
 const INVALID_ENTITY: &str = "be.error.package.invalidEntity";
 const MISSING_ID: &str = "be.error.package.missingId";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
@@ -477,8 +478,45 @@ pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>)
 /// independent of file-discovery order (and therefore of folder layout).
 pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let (package, mut errors) = load_world_package_files(dir);
+    errors.extend(validate_format_version(&package));
     errors.extend(validate_references(&package));
     (package, errors)
+}
+
+/// Highest package `formatVersion` this build understands.
+pub const SUPPORTED_PACKAGE_FORMAT_VERSION: u32 = 1;
+
+/// Reject a package written against a newer format than this build knows.
+///
+/// Without this a future package loads "successfully" as nothing at all: its
+/// unfamiliar schemas are each reported as unknown, every collection comes back
+/// empty, and the only clue is a count of issues. Naming the real reason is what
+/// lets a user act on it.
+pub fn validate_format_version(package: &WorldPackage) -> Vec<PackageError> {
+    let Some(meta) = package.meta.as_ref() else {
+        return Vec::new();
+    };
+    if meta.format_version > SUPPORTED_PACKAGE_FORMAT_VERSION {
+        return vec![PackageError::new(UNSUPPORTED_FORMAT_VERSION, "package.json")
+            .with("version", meta.format_version.to_string())
+            .with("supported", SUPPORTED_PACKAGE_FORMAT_VERSION.to_string())];
+    }
+    Vec::new()
+}
+
+/// Whether a load produced nothing an editor could show.
+///
+/// A package that partially parses is still worth opening — repairing one is
+/// what the editor is for. A package where *nothing* resolved is different: it
+/// presents as a blank project, and saving over it destroys the original.
+pub fn is_unreadable(package: &WorldPackage) -> bool {
+    package.confederations.is_empty()
+        && package.countries.is_empty()
+        && package.teams.is_empty()
+        && package.players.is_empty()
+        && package.staff.is_empty()
+        && package.competitions.is_empty()
+        && package.names.is_none()
 }
 
 /// Validate that every entity has a non-empty id and that ids are unique within
@@ -1307,6 +1345,75 @@ mod tests {
         }
         zip.finish().unwrap();
         path
+    }
+
+    #[test]
+    fn a_newer_format_version_is_named_as_the_reason() {
+        // A package from a future build parses as nothing recognisable, so the
+        // only symptom is emptiness. Say what is actually wrong.
+        let dir = temp_package();
+        write(
+            &dir,
+            "world.yaml",
+            "schema: world\nname: Future World\nformatVersion: 99\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+
+        let error = errors
+            .iter()
+            .find(|e| e.code == UNSUPPORTED_FORMAT_VERSION)
+            .expect("an unsupported format version should be reported");
+        let param = |key: &str| {
+            error
+                .params
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| value.as_str())
+        };
+        assert_eq!(param("version"), Some("99"));
+        assert_eq!(param("supported"), Some("1"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_supported_format_version_passes_quietly() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "world.yaml",
+            "schema: world\nname: Fine World\nformatVersion: 1\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+
+        assert!(
+            !errors.iter().any(|e| e.code == UNSUPPORTED_FORMAT_VERSION),
+            "a supported version must not be flagged: {errors:?}",
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_package_that_resolved_to_nothing_is_unreadable() {
+        let package = WorldPackage::default();
+        assert!(is_unreadable(&package));
+    }
+
+    #[test]
+    fn a_partially_parsed_package_is_still_readable() {
+        // The editor exists to repair broken packages, so partial content must
+        // keep opening — only total emptiness is treated as unreadable.
+        let mut package = WorldPackage::default();
+        let team: super::super::definitions::TeamDef =
+            serde_json::from_value(serde_json::json!({
+                "id": "zed-fc", "name": "Zed FC", "city": "Zedtown", "country": "ZZ",
+                "colors": { "primary": "#000", "secondary": "#fff" }
+            }))
+            .expect("team def");
+        package.teams.push(team);
+
+        assert!(!is_unreadable(&package));
     }
 
     #[test]
