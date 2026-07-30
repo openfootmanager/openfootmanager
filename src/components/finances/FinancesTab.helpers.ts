@@ -49,8 +49,9 @@ export function getFacilityUpgradeCost(level: number): number {
 }
 
 export function formatSignedAmount(value: number): string {
-  const formatted = formatVal(Math.abs(value));
-  return value < 0 ? `-${formatted}` : formatted;
+  // formatVal already renders the sign (see prefixCurrency), so taking the
+  // absolute value and re-attaching "-" here only duplicated that work.
+  return formatVal(value);
 }
 
 export function facilityUpgradeBlockReason(
