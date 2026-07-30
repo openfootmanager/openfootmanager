@@ -2045,7 +2045,7 @@ colors:
     }
 
     /// A minimal one-country package declaring `base_year`, for era assertions.
-    fn write_era_package(dir: &std::path::Path, base_year: u32) {
+    fn write_era_package(dir: &std::path::Path, base_year: i32) {
         write(
             dir,
             "world.yaml",
@@ -2064,7 +2064,9 @@ colors:
         );
     }
 
-    fn earliest_birth_year(world: &crate::generator::WorldData) -> i32 {
+    /// The most recent birth year in the world — the era ceiling every player
+    /// must sit at or below.
+    fn newest_birth_year(world: &crate::generator::WorldData) -> i32 {
         world
             .players
             .iter()
@@ -2084,7 +2086,7 @@ colors:
         let world = crate::generator::build_world_data_from_package(&package, None);
 
         assert!(
-            earliest_birth_year(&world) < 1962,
+            newest_birth_year(&world) < 1962,
             "a package declaring baseYear 1962 must not generate players born after it",
         );
         std::fs::remove_dir_all(&dir).ok();
@@ -2117,6 +2119,27 @@ colors:
                 player.full_name,
             );
         }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_negative_base_year_clamps_to_the_floor_like_a_tiny_one_does() {
+        // `baseYear: 5` and `baseYear: -50` are the same authoring mistake, so
+        // they belong in the same place. Discarding the negative instead of
+        // clamping it silently opened a contemporary world from a manifest that
+        // plainly asked for a historical one.
+        let dir = temp_package();
+        write_era_package(&dir, -50);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        let floor = crate::generator::MIN_OPENING_YEAR as i32;
+        assert!(
+            newest_birth_year(&world) <= floor,
+            "a negative baseYear must clamp to {floor}, not fall back to today",
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -2157,7 +2180,7 @@ colors:
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
         let world = crate::generator::build_world_data_from_package(&package, Some(1985));
 
-        let newest = earliest_birth_year(&world);
+        let newest = newest_birth_year(&world);
         assert!(
             newest < 1985,
             "players must not be born after the career start year, got {newest}",

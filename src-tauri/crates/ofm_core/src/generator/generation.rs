@@ -323,7 +323,7 @@ pub(super) fn generate_random_player_from_def(
     } else {
         2
     };
-    let contract_end = format!("{}-06-30", opening_year + contract_years);
+    let contract_end = format!("{}-06-30", opening_year.saturating_add(contract_years));
 
     let mut player = Player::new(
         p_id,
@@ -708,7 +708,7 @@ pub(super) fn generate_player_from_def(
     } else {
         rng.random_range(1..4)
     };
-    let contract_end = format!("{}-06-30", opening_year + contract_years);
+    let contract_end = format!("{}-06-30", opening_year.saturating_add(contract_years));
 
     let id = if def.id.is_empty() {
         Uuid::new_v4().to_string()

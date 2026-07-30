@@ -501,7 +501,6 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     if unemployed_mgr_count < floor {
         let needed = floor - unemployed_mgr_count;
         let (names_def, country_codes) = create_staff_generator_context();
-        let current_year = game.clock.current_date.year() as u32;
         let mut rng = rand::rng();
         for _ in 0..needed {
             let nationality = if country_codes.is_empty() {
@@ -513,7 +512,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
             let mgr = generation::generate_random_unemployed_manager(
                 &nationality,
                 &names_def,
-                current_year,
+                market_year,
                 &mut rng,
             );
             game.managers.push(mgr);
@@ -996,7 +995,12 @@ pub fn build_world_data_from_package(
                 .meta
                 .as_ref()
                 .and_then(|meta| meta.base_year)
-                .and_then(|year| u32::try_from(year).ok())
+                // Clamp while the value is still signed. Casting first would
+                // discard a negative `baseYear` entirely and fall through to the
+                // contemporary default, so `baseYear: -50` opened a modern world
+                // while `baseYear: 5` correctly clamped to the floor — the same
+                // authoring mistake landing in two different eras.
+                .map(|year| year.clamp(MIN_OPENING_YEAR as i32, MAX_OPENING_YEAR as i32) as u32)
         })
         .unwrap_or_else(default_opening_year)
         .clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR);
