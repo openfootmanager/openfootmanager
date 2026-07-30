@@ -3883,7 +3883,7 @@
       "selectorSource": "A competição cujos vencedores se qualificam para esta. Insira o ID da competição (ex. 'segunda-liga').",
       "packageId": "Um identificador único para este mundo (ex. 'portugal-futebol-2026'). Usado como nome de ficheiro para o .ofm.",
       "packageType": "Base de dados: um mundo completo. Patch: modifica um mundo existente. Assets: apenas gráficos.",
-      "teamReputationRange": "0–1000. Referência: 0–299 amador, 300–549 ligas inferiores, 550–719 meados, 720–849 primeira liga, 850+ elite.",
+      "teamReputationRange": "0–1000. Referência: 0–299 amador, 300–549 ligas inferiores, 550–719 meio da tabela, 720–849 primeira divisão, 850+ elite.",
       "teamFinanceRange": "Orçamento mensal em moeda do jogo. Aprox. rep × 4.000–9.000. Top: ~3M–8M. Médio: ~1M–4M. Pequeno: ~100K–1M."
     },
     "searchCountries": "Pesquisar países…",
