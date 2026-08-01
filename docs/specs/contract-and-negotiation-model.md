@@ -106,9 +106,13 @@ pub struct Contract {
     pub player_id: String,
     pub terms: ContractTerms,
     pub status: ContractStatus,
-    pub signed_on: Option<String>,      // required when status == Active (see
-                                        // invariant below). None only while
-                                        // Prospective. Set on Prospective→Active.
+    pub signed_on: Option<String>,      // `None` while `Prospective` and while
+                                        // `Agreed` (agreement != signature).
+                                        // Set to `today` at the Agreed→Active
+                                        // transition (§5 atomic replacement).
+                                        // For legacy-migrated Active contracts
+                                        // it may stay `None` — see the invariant
+                                        // below and §7.
     pub source: ContractSource,
     /// Standing intent, from the manager or the player, for how this
     /// club↔player relationship ends. Contract-scoped; see §6.
@@ -117,9 +121,14 @@ pub struct Contract {
     pub exit_intent: Option<ContractExitIntent>,
 }
 
-// Invariant: `status == Active ⇒ signed_on.is_some()`. Enforced at the
-// Prospective→Active transition. Legacy-save migration must supply a
-// `signed_on` for existing active contracts (see §7).
+// Invariant (post-migration):
+//   `status == Active AND source != Initial ⇒ signed_on.is_some()`.
+// Enforced at the Agreed→Active transition, which sets `signed_on = today`.
+// Legacy-migrated active contracts (`source = Initial`) are the exception —
+// their true signing date is not in the pre-migration save, so `signed_on`
+// stays `None` and the UI shows only remaining duration for them. Every
+// fresh signing (renewal, free-agent, transfer) writes a real `signed_on`,
+// so the exception decays as those contracts get renewed. See §7.
 
 /// A standing decision that ends the club↔player relationship. Contract-scoped:
 /// each variant only makes sense in the context of a specific contract with a
@@ -151,10 +160,13 @@ pub struct RetirementIntent {
 
 pub enum RetirementCause { Age, Injuries }
 
-/// One negotiation session over one (prospective or existing) contract.
+/// One negotiation session over one prospective contract. Constructed **with**
+/// its first offer, so `offered` and `last_activity_on` are always populated
+/// from birth — there is no persisted "constructed but no offer yet" state
+/// (see `NegotiationStatus` below).
 pub struct ContractNegotiation {
-    pub status: NegotiationStatus,          // Idle | Open | Agreed | Blocked | Stalled
-    pub round: u8,
+    pub status: NegotiationStatus,          // Open | Agreed | Blocked | Stalled
+    pub round: u8,                          // starts at 1 with the first offer
     pub offered: ContractTerms,             // last terms the club tabled
     pub suggested: Option<ContractTerms>,   // player's counter
     pub blocked_until: Option<String>,      // insult cooldown (see §5). Distinct
@@ -175,13 +187,13 @@ pub struct ContractNegotiation {
 }
 
 pub enum NegotiationStatus {
-    Idle,     // constructed, no offer tabled yet
-    Open,     // active back-and-forth
+    Open,     // active back-and-forth (initial state — a negotiation is always
+              //   constructed with its first offer)
     Agreed,   // terms accepted; ⇒ Contract.status = Agreed
     Blocked,  // insult cooldown; **recoverable** — auto-returns to Open when
-              // `blocked_until` passes (see §5)
-    Stalled,  // terminal: no activity for N days (see §5). Prospective contract
-              // is GC'd; existing renewal ends without a signature.
+              //   `blocked_until` passes (see §5)
+    Stalled,  // terminal: no activity for N days (§5, N = 14). Prospective
+              //   contract is GC'd; existing renewal ends without a signature.
 }
 
 pub enum NegotiationOutcome {
@@ -222,39 +234,67 @@ Contract.status:
         └─ negotiation → Stalled ─────────▶ (contract discarded)
 
 ContractNegotiation.status (per prospective contract):
-  Idle ──first offer──▶ Open
+  (constructed with first offer) ──▶ Open (round = 1)
   Open ──counter──▶ Open (round++)
   Open ──insult──▶ Blocked (cooldown; **recoverable**, not terminal)
   Blocked ──today ≥ blocked_until──▶ Open (auto-return; round stays)
   Open ──terms met──▶ Agreed (⇒ Contract.status = Agreed; terminal-success)
-  Open|Blocked ──today − last_activity_on ≥ N days──▶ Stalled (terminal-failure;
-                                                   contract discarded)
+  Open|Blocked ──today − last_activity_on ≥ STALE_N──▶ Stalled (terminal-failure;
+                                                    contract discarded)
 ```
+
+**Stale threshold.** `STALE_N = 14` calendar days, matching the existing renewal
+cadence in `develop`. One named constant, used consistently by the state machine
+above, the §10 Q4 prospective-contract GC, and the §9 tests. A future tuning pass
+may make it configurable per source (renewal vs transfer), but v1 uses one value.
 
 **Precedence when Blocked and staleness collide** (`blocked_until` in the past AND
 `last_activity_on` also stale): **staleness wins.** A negotiation that sat idle past
-the stale threshold is dead even if its cooldown happens to have expired in the
-meantime — the party who insulted never came back.
+`STALE_N` days is dead even if its cooldown happens to have expired in the meantime
+— the party who insulted never came back.
 
 ### Atomic active-contract replacement
 
 The "exactly one `Active` contract per player" invariant (§4) means every place the
 active contract changes must be a **single atomic transition**, not a sequence of
-independent status writes. Applies to renewal, transfer, and free-agent signing:
+independent status writes. Applies to renewal, transfer, and free-agent signing.
+
+The transition **moves** the same `Contract` record (identified by `Contract.id`)
+out of the prospective collection and into the active slot — it never clones. Under
+Option A that means: pop the entry from `player.contract_negotiations` whose
+`contract.id` matches, set its `status = Active` and `signed_on = today`, and
+assign it to `player.contract`. Under Option B it's a single UPDATE of the
+row's `status` (the row's `id` is already stable).
 
 ```text
-old.status: Active   → Expired    ┐
-new.status: Agreed   → Active     ├ one transaction (save-write barrier)
-player.retirement_intent          ┘  ← only touched if applicable
+old.status: Active → Expired                  ┐
+new: taken from contract_negotiations,        │ one transaction
+     status Agreed → Active, signed_on set,   ├ (save-write barrier;
+     assigned to player.contract              │  serialized per player,
+player.retirement_intent (only if applicable) ┘  see below)
 ```
 
-Idempotent-retry semantics: if the transition committed but the caller crashed before
-observing success, replaying the same call is a no-op — the old contract is already
-`Expired`, the new one is already `Active`, `player.contract` already points at the
-new one. Nothing creates a duplicate `Active` or leaves the player with none.
+**Idempotent-retry semantics.** If the transition committed but the caller
+crashed before observing success, replaying the same call is a no-op. The check
+is: does `player.contract.id == new.id`? If yes, the transition already ran —
+succeed. This works even though `new` is no longer in `player.contract_negotiations`
+(the move already happened) because `Contract.id` is stable across the move.
 
-Free-agent signing is a degenerate case (no old contract to expire; `Prospective`
-`Agreed` → `Active` in one transaction, with `player.contract = Some(new)`).
+**Concurrent promotions.** Two `Agreed` prospective contracts for the same player
+(e.g. a renewal and a transfer both ready to sign in the same tick) race for the
+one `Active` slot. Resolution: promotion is **serialized per player** at the
+save-write barrier — a per-player mutex under Option A, a compare-and-swap on
+`player.contract_id` or a partial-unique-index conflict under Option B. First
+writer wins. The loser's promotion attempt observes the new `Active` at check
+time and fails with a typed `PromotionRaceLost { winner_id }`, leaving its own
+prospective contract in `Agreed`. The calling flow decides what to do next —
+transfer flows treat it as "another club moved first" and roll back the fee
+agreement; renewal treats it as "player already signed elsewhere" and closes
+the renewal draft.
+
+**Free-agent signing** is a degenerate case (no old contract to expire): the
+`Prospective` → `Agreed` → `Active` move happens under the same serialized
+barrier, with `player.contract = Some(new)`.
 
 Mapping the transfer flow onto this (replaces the #275 `PersonalTermsPending` /
 `PersonalTermsFailed` offer states):
@@ -349,13 +389,14 @@ Save migration covers three shapes:
 
 - **Active contract** — synthesize a `Contract` from `wage` + `contract_end`, with
   `club_id` resolved to the contract owner (**parent club during a loan**, not
-  `player.team_id`, so renewal/termination permissions stay with the parent). Pre-migration
-  saves have no start date; `signed_on` migrates to `None`, and the "original term length"
-  UI shows only remaining duration until a fresh signing (renewal, free-agent, transfer)
-  writes a real `signed_on`. New signings post-migration always populate `signed_on`, so
-  the invariant `status == Active ⇒ signed_on.is_some()` is enforced only for contracts
-  created after the migration boundary — pre-migration active contracts are a documented
-  exception the getter honours by returning `None` for original term.
+  `player.team_id`, so renewal/termination permissions stay with the parent). Set
+  `source = Initial` on the synthesized contract; this both marks it as
+  migration-origin and admits the `signed_on` exception spelled out in §4 — the
+  pre-migration save has no signing date, so `signed_on` migrates to `None` and
+  the "original term length" UI shows only remaining duration. Every fresh
+  signing (renewal, free-agent, transfer) creates a contract with `source ≠
+  Initial` and a real `signed_on`, so the exception decays as `Initial` contracts
+  turn over. No fabricated dates.
 - **Renewal session** — `player.morale_core.renewal_state` (`ContractRenewalState`) fields
   map to distinct targets — they carry different semantics and must not be lumped
   together:
@@ -410,11 +451,18 @@ unspecified.
 - **Unit** — the shared negotiation evaluator (accept / counter / insult→cooldown /
   stale) and the guard (each gate) — one test suite, exercised by all three flows.
 - **Contract lifecycle** — Prospective→Agreed→Active→Expired transitions; renewal
-  replaces active atomically (idempotent retry test — replaying the same commit is a
-  no-op); transfer promotes prospective; free-agent creates first contract.
+  replaces active atomically (idempotent retry test — replaying the same commit is
+  a no-op, verified by `player.contract.id == promoted.id`); the promotion **moves**
+  the same `Contract.id` from `player.contract_negotiations` to `player.contract`
+  (no clone); transfer promotes prospective; free-agent creates first contract;
+  concurrent-promotion race — two `Agreed` prospective contracts for the same
+  player promoted in one tick, only one wins, loser gets `PromotionRaceLost` and
+  its own status stays `Agreed`.
 - **Negotiation state machine** — `Blocked → Open` auto-return when `blocked_until`
-  passes (must not skip a round), `Open|Blocked → Stalled` at staleness threshold,
-  precedence when both trigger on the same tick (staleness wins).
+  passes (must not skip a round), `Open|Blocked → Stalled` at `STALE_N` days,
+  precedence when both trigger on the same tick (staleness wins). Constructor
+  test: a fresh negotiation is `Open`, round 1, with a populated first offer and
+  `last_activity_on = today` (no `Idle` gap where those fields would be absent).
 - **Flow integration** — renewal, free-agent, transfer (in-window sign, out-of-window
   defer→register), each reaching a definite end. Transfer guard-block path: a fee-agreed
   transfer against a `RetirementIntent` player cancels the fee agreement and rejects
@@ -459,8 +507,9 @@ unspecified.
      reads `player.contract?.terms.*` instead. `FinancesTab` computes wage bill and
      expiry risk from the optional (missing = 0 / not-at-risk), replacing the current
      required-value calculations.
-4. **Prospective-contract GC:** reuse the same 14-day `last_activity_on` stale rule
-   (§4/§5) to discard abandoned prospective contracts alongside their negotiations?
+4. **Prospective-contract GC:** reuse the same `STALE_N` (= 14) `last_activity_on`
+   stale rule (§5) to discard abandoned prospective contracts alongside their
+   negotiations?
 5. **Guard reasons:** which gates ship in v1 (definitely `exit_intent` + cooldown; relationship
    and rival-club now or later)?
 6. **Loan wage-split:** confirmed out of scope for the Contract entity (stays club-level)?
