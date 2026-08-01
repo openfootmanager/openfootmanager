@@ -110,7 +110,18 @@ pub enum ContractStatus {
                  //   field on `Contract` below (not enum-with-data).
 }
 
-pub enum ContractSource { Initial, Renewal, FreeAgent, Transfer }
+pub enum ContractSource {
+    Initial,        // world-generation contract at save start — has a real
+                    //   `signed_on` (world start date, or the date the save
+                    //   was created for the initial squad).
+    LegacyMigrated, // synthesized by the legacy-save migration from the loose
+                    //   `player.wage` + `player.contract_end` fields (§7). No
+                    //   pre-migration signing date exists, so `signed_on`
+                    //   stays `None` — see the invariant below.
+    Renewal,
+    FreeAgent,
+    Transfer,
+}
 
 pub struct Contract {
     pub id: String,                     // stable identity — see §7 (Option B).
@@ -122,9 +133,10 @@ pub struct Contract {
                                         // `Agreed` (agreement != signature).
                                         // Set to `today` at the Agreed→Active
                                         // transition (§5 atomic replacement).
-                                        // For legacy-migrated Active contracts
-                                        // it may stay `None` — see the invariant
-                                        // below and §7.
+                                        // Only `LegacyMigrated` Active contracts
+                                        // stay `None` — see the invariant below
+                                        // and §7. `Initial` (world-gen) contracts
+                                        // do have a real `signed_on`.
     pub source: ContractSource,
     /// Standing intent, from the manager or the player, for how this
     /// club↔player relationship ends. Contract-scoped; see §6.
@@ -140,14 +152,16 @@ pub struct Contract {
     pub superseded_by: Option<String>,
 }
 
-// Invariant (post-migration):
-//   `status == Active AND source != Initial ⇒ signed_on.is_some()`.
+// Invariant:
+//   `status == Active AND source != LegacyMigrated ⇒ signed_on.is_some()`.
 // Enforced at the Agreed→Active transition, which sets `signed_on = today`.
-// Legacy-migrated active contracts (`source = Initial`) are the exception —
-// their true signing date is not in the pre-migration save, so `signed_on`
-// stays `None` and the UI shows only remaining duration for them. Every
-// fresh signing (renewal, free-agent, transfer) writes a real `signed_on`,
-// so the exception decays as those contracts get renewed. See §7.
+// The only exception is `source = LegacyMigrated` (§7): the pre-migration
+// save has no signing date, so `signed_on` stays `None` and the UI shows
+// only remaining duration for those contracts. World-generated `Initial`
+// contracts are **not** the exception — they set `signed_on` at world
+// creation (see §7). Every fresh signing (renewal, free-agent, transfer)
+// writes a real `signed_on`, so the `LegacyMigrated` exception decays as
+// those contracts get renewed.
 
 /// A standing decision that ends the club↔player relationship. Contract-scoped:
 /// each variant only makes sense in the context of a specific contract with a
@@ -485,22 +499,27 @@ transaction. Replay lookups for `PromotionRaceLost` search both the
 prospective collection and the history so a losing caller can find its
 `Superseded` record regardless of when it crashed.
 
-**Migration:** ~25 Rust files read `player.wage`; a similar set read `contract_end`, plus the
-frontend. All become `player.contract.terms.weekly_wage` / `…end_date` (or an accessor). This
-is a mechanical but wide change — the main cost of the refactor.
+**Migration:** many call sites read `player.wage` and `player.contract_end` today
+across both the backend and the frontend. All become
+`player.contract.terms.weekly_wage` / `…end_date` (or an accessor). This is a
+mechanical but wide change — the main cost of the refactor.
 
 Save migration covers three shapes:
 
-- **Active contract** — synthesize a `Contract` from `wage` + `contract_end`, with
-  `club_id` resolved to the contract owner (**parent club during a loan**, not
-  `player.team_id`, so renewal/termination permissions stay with the parent). Set
-  `source = Initial` on the synthesized contract; this both marks it as
-  migration-origin and admits the `signed_on` exception spelled out in §4 — the
-  pre-migration save has no signing date, so `signed_on` migrates to `None` and
-  the "original term length" UI shows only remaining duration. Every fresh
-  signing (renewal, free-agent, transfer) creates a contract with `source ≠
-  Initial` and a real `signed_on`, so the exception decays as `Initial` contracts
-  turn over. No fabricated dates.
+- **Active contract** — synthesize a `Contract` **only when the player is
+  currently employed**, i.e. `player.team_id.is_some() &&
+  player.contract_end.is_some()`. Free agents (no team, no contract_end) get
+  `player.contract = None` — no synthesized contract, no fabricated dates.
+  For an employed player, resolve `club_id` to the contract owner (**parent
+  club during a loan**, not `player.team_id`, so renewal/termination
+  permissions stay with the parent). Set `source = LegacyMigrated`; this both
+  marks the contract as migration-origin and admits the `signed_on` exception
+  spelled out in §4 — the pre-migration save has no signing date, so
+  `signed_on` migrates to `None` and the "original term length" UI shows only
+  remaining duration. Every fresh signing (renewal, free-agent, transfer)
+  creates a contract with a non-`LegacyMigrated` source and a real
+  `signed_on`, so the exception decays as `LegacyMigrated` contracts get
+  renewed. No fabricated dates.
 - **Renewal session** — `player.morale_core.renewal_state` (`ContractRenewalState`) fields
   map to distinct targets — they carry different semantics and must not be lumped
   together:
@@ -605,8 +624,9 @@ unspecified.
   optional cleanly; a loaned player's active contract resolves to the parent club as
   owner and passes renewal-permission checks against the parent, not the borrower.
 - **Legacy-save migration** — round-trip a save from `develop` through the migration:
-  `wage`/`contract_end`/`team_id` → `Contract` with `source = Initial` and
-  `signed_on = None`; `renewal_state` fields land in the right targets per the
+  employed player (`team_id.is_some() && contract_end.is_some()`) →
+  `Contract` with `source = LegacyMigrated` and `signed_on = None`; free agent
+  → `player.contract = None` (no synthesized contract); `renewal_state` fields land in the right targets per the
   mapping table (§7); `LetExpire` on the *active* contract hard-blocks renewal via
   the guard; `manager_blocked_until` becomes `ManagerRelease.reopen_after`;
   `last_assistant_attempt_date` becomes `last_delegate_attempt_on` (not
