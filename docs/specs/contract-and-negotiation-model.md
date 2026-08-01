@@ -33,11 +33,12 @@ Consequences of the fragmentation:
   transfer-terms flow while renewals were *multi-round*, with missing translations and
   divergent UX, because it copied the concept instead of sharing it.
 
-The project is early (alpha/beta). The data model is the foundation everything else is built
-on — release clauses, signing bonuses, agent fees, loan wage-splits, board approval, contract
-history all attach to "a contract." Getting it right is cheapest now and the refactor cost
-compounds with every feature layered on the fragmented model. **Decision: unify now, no
-staging.**
+The data model is the foundation everything else attaches to — release clauses, signing
+bonuses, agent fees, loan wage-splits, board approval, contract history. A fragmented
+foundation compounds refactor cost with every feature layered on it, and the #275 attempt
+already demonstrates the drift: two structures for one concept diverge on the first
+feature. Unifying is the smaller total change than layering more features on the
+fragmented shape and normalizing later. **Decision: unify, no staging.**
 
 ## 2. Goals / non-goals
 
@@ -282,9 +283,9 @@ Save migration covers two shapes:
   dropping `LetExpire` would flip existing saves back to "renewal open" and change
   gameplay.
 
-Given alpha status, an alternative path is to drop old-save support outright; if we
-choose that, the migration commit must say so explicitly rather than leaving the
-in-flight session state unspecified.
+An alternative path is to drop legacy-save support outright; if we choose that, the
+migration commit must say so explicitly rather than leaving the in-flight session state
+unspecified.
 
 ## 8. Impact / call sites to touch
 
