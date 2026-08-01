@@ -1,4 +1,4 @@
-# Feature spec: Contract entity & unified Contract-Negotiation model
+# Feature spec: Contract entity & unified ContractNegotiation model
 
 - **Status:** Draft for review
 - **Target:** implement on a fresh branch off `develop` (this spec is written against
@@ -92,9 +92,10 @@ pub struct ContractTerms {
                                    // codebase already uses for other date fields).
                                    // "Length" (remaining or original term) is a
                                    // UI-only derivation. We store end_date because
-                                   // expiry is a calendar fact — no ambiguity across
-                                   // DST or year boundaries the way a stored length
-                                   // + start_date would have.
+                                   // expiry is a direct calendar fact — no
+                                   // ambiguity from interpreting a stored length
+                                   // (years/months) against a start date across
+                                   // leap years and varying month lengths.
     // future: release_clause, signing_bonus, appearance_fee, ...
 }
 
@@ -427,9 +428,11 @@ The game is an in-memory object graph serialized to SQLite (players are rows wit
 blobs). Two options for the **active** contract:
 
 - **(A) Embedded on the player** — `player.contract: Option<Contract>` replaces the loose
-  `wage`/`contract_end` fields (club side still mirrored by `team_id`). No new table; keeps
-  the object-graph style. Prospective contracts + negotiations attach to their initiating
-  context (transfer offer, renewal intent, free-agent intent).
+  `wage`/`contract_end` fields. The employer is `contract.club_id` (see §4 —
+  during a loan that's the parent club, not `player.team_id`, which points at
+  the borrower). No new table; keeps the object-graph style. Prospective
+  contracts + negotiations attach to their initiating context (transfer offer,
+  renewal intent, free-agent intent).
 - **(B) Normalized `contracts` table** — active + prospective contracts as rows
   primary-keyed by `Contract.id` (stable across status changes and safe for
   `TransferOffer` foreign keys). Separate constraints enforce the semantics: a partial
