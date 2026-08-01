@@ -70,8 +70,15 @@ fragmented shape and normalizing later. **Decision: unify, no staging.**
   (repeated insult → cooldown, or the talks go stale), **not** on a single "no"
   ("breakdown-only kill").
 - **Every** transfer that reaches a fee agreement must run a contract negotiation before the
-  player moves. AI-to-AI and out-of-window (deferred) deals auto-resolve; the managed club
-  negotiates via UI. The move only completes when both fee and contract are agreed.
+  player moves. Three cases:
+  - **AI-to-AI** — negotiation auto-resolves in the same tick (no UI involved).
+  - **Managed club, in-window** — the manager negotiates via UI; on agreement the
+    transfer executes immediately.
+  - **Managed club, out-of-window (deferred)** — the manager negotiates via UI; on
+    agreement the prospective contract parks as `Agreed` and executes at
+    window-open via §5's atomic replacement.
+
+  The move only completes when both fee and contract are agreed.
 
 ## 4. Domain model
 
@@ -97,8 +104,9 @@ pub enum ContractStatus {
     Active,      // signed and in force
     Expired,     // ran out / terminated
     Superseded,  // was `Agreed` for the same player when a competing prospective
-                 //   contract won the promotion race (§5). Terminal; carries
-                 //   `superseded_by` so replay can report the winner.
+                 //   contract won the promotion race (§5). Terminal. Unit variant;
+                 //   the winner reference lives in the separate `superseded_by`
+                 //   field on `Contract` below (not enum-with-data).
 }
 
 pub enum ContractSource { Initial, Renewal, FreeAgent, Transfer }
@@ -122,8 +130,10 @@ pub struct Contract {
     /// Note: **player retirement** is player-global (`player.retirement_intent`),
     /// not a variant here — a free agent can retire without a contract.
     pub exit_intent: Option<ContractExitIntent>,
-    /// Set when `status = Superseded` — points at the `Contract.id` that won
-    /// the promotion race (§5). Enables idempotent-terminal replay: a losing
+    /// `Some(winner_id)` when `status == Superseded`, `None` otherwise (unit
+    /// variant + separate field, not enum-with-data — the pattern is
+    /// `status == Superseded && superseded_by == Some(winner_id)` at every
+    /// site, including replay). Enables idempotent-terminal replay: a losing
     /// caller reads this and returns `PromotionRaceLost { winner_id }`
     /// without a second write.
     pub superseded_by: Option<String>,
@@ -202,6 +212,8 @@ pub enum NegotiationStatus {
               //   `blocked_until` passes (see §5)
     Stalled,  // terminal: no activity for N days (§5, N = 14). Prospective
               //   contract is GC'd; existing renewal ends without a signature.
+              //   Transition also sets `last_outcome = Some(TimedOut)` (§5),
+              //   overwriting any prior `Countered` / `Insulted`.
 }
 
 pub enum NegotiationOutcome {
@@ -249,8 +261,10 @@ ContractNegotiation.status (per prospective contract):
   Open ──insult──▶ Blocked (cooldown; **recoverable**, not terminal)
   Blocked ──today ≥ blocked_until──▶ Open (auto-return; round stays)
   Open ──terms met──▶ Agreed (⇒ Contract.status = Agreed; terminal-success)
-  Open|Blocked ──today − last_activity_on ≥ STALE_N──▶ Stalled (terminal-failure;
-                                                    contract discarded)
+  Open|Blocked ──today − last_activity_on ≥ STALE_N──▶ Stalled + last_outcome
+                                                    = Some(TimedOut)
+                                                    (terminal-failure;
+                                                     contract discarded)
 ```
 
 **Stale threshold.** `STALE_N = 14` calendar days, matching the existing renewal
@@ -309,24 +323,41 @@ The loser is closed **inside the same transaction** as the winner's promotion,
 not deferred to caller cleanup. Concretely, when the barrier is held, the
 transaction:
 
-1. promotes the winner (Agreed → Active, move into `player.contract`), and
+1. promotes the winner (`Agreed → Active`, move into `player.contract`);
 2. transitions every *other* `Agreed` prospective contract for the same player
    from `Agreed` to `Superseded` (a new terminal `ContractStatus` variant),
-   stamping `superseded_by = Some(winner_id)`.
+   setting `superseded_by = Some(winner_id)`; and
+3. moves those loser contracts out of `player.contract_negotiations` (whose
+   contract is `Prospective | Agreed`) into a **`player.contract_history:
+   Vec<Contract>`** collection under Option A — `Superseded`, `Expired`, and
+   any other terminal status that we want to keep as an audit tombstone lives
+   there. Under Option B the row simply flips `status = Superseded` and its
+   `contract_negotiations` row is deleted (see §7 Option B lifecycle rules
+   below).
 
 `Superseded` is terminal (like `Expired`) and never GC'd by the stale rule.
 This makes the outcome durable in one write: the loser cannot linger as a
 live prospective agreement even if the caller crashes before observing the
-result. On replay, a losing caller inspects its prospective contract, sees
-`Superseded { superseded_by: winner_id }`, and returns
-`PromotionRaceLost { winner_id }` from a pure read — no second write needed
-(idempotent-terminal).
+result. On replay, a losing caller looks up its `Contract.id` — under Option
+A it searches both `player.contract_negotiations` and `player.contract_history`
+— and sees `status == Superseded && superseded_by == Some(winner_id)`, then
+returns `PromotionRaceLost { winner_id }` from a pure read (no second write,
+idempotent-terminal).
 
-The calling flow still decides what to surface: transfer flows treat it as
-"another club moved first" and roll back the fee agreement (its own
-transaction, keyed by the same `winner_id`); renewal treats it as "player
-already signed elsewhere" and closes the renewal draft (already closed by
-the barrier — this is just UI).
+**Fee-rollback crash safety.** The caller's follow-up — "cancel the fee
+agreement because we lost the personal-terms race" — is not part of the
+promotion transaction (the fee is club-to-club state, owned by a different
+subsystem). To keep it crash-safe, fee rollback is an **idempotent operation
+keyed by `(loser_contract.id, winner_id)`**: it flips the fee agreement to
+`Cancelled` with `cancel_reason = LostPersonalTermsRace { winner_id }` if
+still `Agreed`, and is a no-op if already `Cancelled` with the same key.
+Replay of a losing caller therefore always converges the fee to `Cancelled`
+regardless of when it crashed — the fee-rollback call and the pure
+`PromotionRaceLost` read together are a two-step idempotent recovery.
+
+Renewal treats losing the race as "player already signed elsewhere" and
+closes the renewal draft; the barrier already did the closing, so there's
+nothing to roll back — this is just UI.
 
 **Free-agent signing** is a degenerate case (no old contract to expire): the
 `Prospective` → `Agreed` → `Active` move happens under the same serialized
@@ -413,6 +444,23 @@ blobs). Two options for the **active** contract:
   schema shallow; either way it must be restorable and updatable from Option B's
   documented storage.
 
+  **Negotiation-row lifecycle on status change (Option B).** The
+  `contract_negotiations` row is meaningful only while its contract is
+  `Prospective` or `Agreed`. Terminal transitions delete it atomically with
+  the `Contract.status` update, in one transaction:
+
+  | Contract transition | `contract_negotiations` row |
+  |---|---|
+  | `Agreed → Active` (promotion) | `DELETE` |
+  | `Agreed → Superseded` (lost race) | `DELETE` |
+  | `Prospective → discarded` (Stalled GC) | `DELETE` (cascades via the row's `ON DELETE CASCADE` on the contract row, when the contract row itself is deleted; if the contract row is kept as an audit tombstone, delete the negotiation row explicitly) |
+  | `Active → Expired` | n/a (already deleted at the previous transition) |
+
+  Idempotent replay: if the row is already absent, the delete is a no-op —
+  repeating the promotion (or the loss cleanup) converges to the same
+  `contracts` row state and no `contract_negotiations` row, no
+  duplicate-write conflict.
+
 **Recommendation: (A) embedded**, unless a reviewer wants full normalization. (A) delivers
 the unification (one `Contract`/`ContractNegotiation` type, one negotiation engine, one UI)
 at far lower churn, and matches how the rest of the game state is stored. Revisit (B) only if
@@ -424,6 +472,15 @@ Prospective-contract storage (under option A): a single
 ContractNegotiation }`. This is club-keyed (`contract.club_id`), so it naturally supports
 competing buyers and a renewal draft simultaneously, and removes the need to store terms on
 the `TransferOffer` at all — the offer references the prospective contract.
+
+Terminal-status audit storage (under option A): `player.contract_history:
+Vec<Contract>` holds contracts whose status is `Expired` or `Superseded` — the
+audit tombstones. On the atomic transitions in §5, the contract record is
+moved out of `player.contract` (Expired) or `player.contract_negotiations`
+(Superseded) and appended to `player.contract_history`, in the same
+transaction. Replay lookups for `PromotionRaceLost` search both the
+prospective collection and the history so a losing caller can find its
+`Superseded` record regardless of when it crashed.
 
 **Migration:** ~25 Rust files read `player.wage`; a similar set read `contract_end`, plus the
 frontend. All become `player.contract.terms.weekly_wage` / `…end_date` (or an accessor). This
@@ -448,7 +505,8 @@ Save migration covers three shapes:
   | Legacy field | New home | Notes |
   |---|---|---|
   | `status = Idle` | **no renewal draft created** | `Idle` means "no offer tabled" — the new model has no such state (§4). Drop the legacy session; the player just has no in-flight renewal, which is what `Idle` meant. |
-  | `status = Open` \| `Blocked` \| `Agreed` | new `ContractNegotiation` (renewal draft) with a synthesized first offer — see next rows | required-field defaults below |
+  | `status = Open` \| `Blocked` | new prospective `Contract` (`status = Prospective`, `source = Renewal`) + `ContractNegotiation` with a synthesized first offer — see next rows | preserves the invariant `NegotiationStatus == Open` ⇒ `Contract.status == Prospective` |
+  | `status = Agreed` | new prospective `Contract` **with `status = Agreed`** + `ContractNegotiation` (`status = Agreed`) — see next rows | preserves `NegotiationStatus::Agreed ⇒ Contract.status = Agreed` (§4). The next tick's atomic-replacement step promotes it to `Active` normally, so no in-flight-renewal is dropped |
   | `round`, `last_outcome` | direct copy | |
   | `blocked_until` (insult cooldown from the shared evaluator) | `ContractNegotiation.blocked_until` | direct copy — same semantics |
   | `last_attempt_date` (present) | `ContractNegotiation.last_activity_on` | already the same concept (Appendix A) |
@@ -479,13 +537,16 @@ unspecified.
 ## 8. Impact / call sites to touch
 
 - `domain/player.rs` — new `Contract` (with `ContractStatus::Superseded` +
-  `superseded_by` for the promotion-race audit tombstone), `ContractTerms`,
-  `ContractNegotiation`, `NegotiationStatus` (rename of `RenewalSessionStatus`),
-  `NegotiationOutcome`, `ContractExitIntent` (contract-scoped: `ManagerRelease`,
+  `Contract.superseded_by: Option<String>` — unit variant + separate field,
+  not enum-with-data), `ContractTerms`, `ContractNegotiation`,
+  `NegotiationStatus` (rename of `RenewalSessionStatus`), `NegotiationOutcome`,
+  `ContractExitIntent` (contract-scoped: `ManagerRelease`,
   `PlayerSeekTransfer`), `RetirementIntent` (player-scoped, on
-  `Player.retirement_intent`). Replace `player.wage`/`contract_end` with
-  optional getters (returning `Option<u32>` / `Option<String>`); replace
-  `morale_core.renewal_state`.
+  `Player.retirement_intent`). New collections on `Player` (Option A):
+  `player.contract_negotiations` for `Prospective | Agreed`, plus
+  `player.contract_history` for `Expired | Superseded` tombstones. Replace
+  `player.wage`/`contract_end` with optional getters (returning `Option<u32>`
+  / `Option<String>`); replace `morale_core.renewal_state`.
 - `ofm_core/contracts.rs` — renewal + free-agent rebuilt on the shared negotiation engine +
   guard.
 - `ofm_core/transfers.rs` — fee agreement creates a prospective contract; personal-terms use
@@ -508,18 +569,29 @@ unspecified.
   the same `Contract.id` from `player.contract_negotiations` to `player.contract`
   (no clone); transfer promotes prospective; free-agent creates first contract.
 - **Concurrent-promotion race** — two `Agreed` prospective contracts for the same
-  player promoted in one tick, only one wins; loser is transitioned to `Superseded`
-  with `superseded_by = winner_id` **inside the winner's transaction** (not
-  deferred to caller cleanup). **Loser crash+replay** — kill the losing caller
-  between barrier and rollback, then re-drive it: it must read `Superseded`,
-  return `PromotionRaceLost { winner_id }` from a pure read (no second write),
-  and leave the persisted state identical to a clean loss. `Superseded`
-  contracts are excluded from `STALE_N` GC (they persist as audit tombstones).
+  player promoted in one tick, only one wins; loser is transitioned to
+  `status = Superseded` with `superseded_by = Some(winner_id)` **inside the
+  winner's transaction** (unit variant + separate field; never enum-with-data).
+  Post-transaction assertions:
+  - Option A: winner is in `player.contract`, loser is in
+    `player.contract_history` (not `contract_negotiations`);
+  - Option B: winner row has `status = Active`, loser row has
+    `status = Superseded`, both `contract_negotiations` rows are gone.
+  **Loser crash+replay** — kill the losing caller between the barrier and its
+  fee-rollback call, then re-drive it: (a) it must read `Superseded +
+  superseded_by = Some(winner_id)` and return `PromotionRaceLost { winner_id }`
+  from a pure read, and (b) the idempotent fee-rollback op (keyed by
+  `(loser_contract.id, winner_id)`) must converge the fee to `Cancelled` no
+  matter how many times it runs — verify the fee state is `Cancelled` with
+  `cancel_reason = LostPersonalTermsRace { winner_id }` after both first
+  execution and a repeated replay.
 - **Negotiation state machine** — `Blocked → Open` auto-return when `blocked_until`
   passes (must not skip a round), `Open|Blocked → Stalled` at `STALE_N` days,
-  precedence when both trigger on the same tick (staleness wins). Constructor
-  test: a fresh negotiation is `Open`, round 1, with a populated first offer and
-  `last_activity_on = today` (no `Idle` gap where those fields would be absent).
+  precedence when both trigger on the same tick (staleness wins). Stale transition
+  sets `last_outcome = Some(TimedOut)`, overwriting any prior `Countered`/`Insulted`.
+  Constructor test: a fresh negotiation is `Open`, round 1, with a populated first
+  offer and `last_activity_on = today` (no `Idle` gap where those fields would be
+  absent).
 - **Flow integration** — renewal, free-agent, transfer (in-window sign, out-of-window
   defer→register), each reaching a definite end. Transfer guard-block path: a fee-agreed
   transfer against a `RetirementIntent` player flips the fee agreement to `Cancelled`
@@ -535,12 +607,20 @@ unspecified.
   mapping table (§7); `LetExpire` on the *active* contract hard-blocks renewal via
   the guard; `manager_blocked_until` becomes `ManagerRelease.reopen_after`;
   `last_assistant_attempt_date` becomes `last_delegate_attempt_on` (not
-  `last_activity_on`). One test per legacy `RenewalSessionStatus`: `Idle` → no
-  renewal draft created; `Open`/`Blocked`/`Agreed` → draft with synthesized
-  `offered = player.current_terms`, `suggested = None`, `delegated = false`, and
-  `last_activity_on = migration_date` when the legacy value is absent. These
-  tests run **before** the loose fields and `renewal_state` are deleted, not
-  after.
+  `last_activity_on`). One test per legacy `RenewalSessionStatus`:
+  - `Idle` → no renewal draft created;
+  - `Open` / `Blocked` → prospective `Contract` with `status = Prospective` +
+    `ContractNegotiation` with the corresponding status;
+  - `Agreed` → prospective `Contract` with **`status = Agreed`** +
+    `ContractNegotiation` with `status = Agreed` (preserves the
+    `NegotiationStatus::Agreed ⇒ Contract.status = Agreed` invariant; a
+    subsequent tick promotes it to `Active` via the normal atomic path);
+  - all live statuses share the synthesized field defaults —
+    `offered = player.current_terms`, `suggested = None`, `delegated = false`,
+    and `last_activity_on = migration_date` when the legacy value is absent.
+
+  These tests run **before** the loose fields and `renewal_state` are deleted,
+  not after.
 - **Regression parity** — renewal/free-agent behaviour unchanged vs `develop` (same
   accept/counter thresholds).
 
