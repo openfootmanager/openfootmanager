@@ -2616,6 +2616,7 @@
         "unknownRegion": "\"{{field}}\", bilinmeyen \"{{id}}\" bölgesine atıfta bulunuyor.",
         "reversedRange": "\"{{team}}\" takımının {{field}} aralığı ters (min > maks).",
         "outOfRange": "\"{{team}}\" takımının {{field}} değerleri aralık dışında (itibar 0–1000, finans ≥ 0).",
+        "playerFieldOutOfRange": "\"{{entity}}\" oyuncusunun {{field}} değeri aralık dışında.",
         "unsupportedFormatVersion": "Bu paket oyunun daha yeni bir sürümüyle oluşturuldu (biçim {{version}}; bu sürüm {{supported}} destekliyor). Açmak için oyunu güncelleyin."
       },
       "conflict": {
@@ -3703,6 +3704,10 @@
     "winRate": "Galibiyet oranı"
   },
   "worldEditor": {
+    "playerCareerHistory": "Kariyer geçmişi",
+    "playerAlternatePositions": "Alternatif pozisyonlar",
+    "addCareerEntry": "Dönem ekle",
+    "selectTeam": "Takım seç…",
     "title": "Dünya Editörü",
     "newPackage": "Yeni Dünya",
     "openPackageFile": ".ofm dosyası aç",

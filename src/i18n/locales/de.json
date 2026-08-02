@@ -2603,6 +2603,7 @@
         "unknownRegion": "\"{{field}}\" verweist auf unbekannte Region \"{{id}}\".",
         "reversedRange": "Team \"{{team}}\" hat einen umgekehrten {{field}} (min > max).",
         "outOfRange": "Team \"{{team}}\" hat {{field}}-Werte außerhalb des gültigen Bereichs (Reputation 0–1000, Finanzen ≥ 0).",
+        "playerFieldOutOfRange": "Spieler \"{{entity}}\" hat einen {{field}}-Wert außerhalb des gültigen Bereichs.",
         "unsupportedFormatVersion": "Dieses Paket wurde mit einer neueren Version des Spiels erstellt (Format {{version}}; diese Version unterstützt {{supported}}). Aktualisiere das Spiel, um es zu öffnen."
       },
       "competitionDef": {
@@ -3707,6 +3708,10 @@
     "winRate": "Siegquote"
   },
   "worldEditor": {
+    "playerCareerHistory": "Karriereverlauf",
+    "playerAlternatePositions": "Alternative Positionen",
+    "addCareerEntry": "Station hinzufügen",
+    "selectTeam": "Team auswählen…",
     "title": "Welt-Editor",
     "newPackage": "Neue Welt",
     "openPackageFile": ".ofm-Datei öffnen",

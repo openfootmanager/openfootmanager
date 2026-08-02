@@ -445,6 +445,14 @@ mod tests {
             photo: None,
             footedness: None,
             youth: false,
+            contract_end: None,
+            wage: None,
+            value: None,
+            condition: None,
+            morale: None,
+            weak_foot: None,
+            alternate_positions: Vec::new(),
+            career: Vec::new(),
         }];
 
         let mut pools = HashMap::new();

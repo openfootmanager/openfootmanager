@@ -116,6 +116,16 @@ export interface PlayerAttributesDef {
 
 export type Footedness = "Left" | "Right" | "Both";
 
+/** One prior-club spell. `teamId` must reference a team in the package. */
+export interface CareerEntryDef {
+  season: number;
+  teamId: string;
+  teamName: string;
+  appearances: number;
+  goals: number;
+  assists: number;
+}
+
 export interface PlayerDef {
   id: string;
   name: string;
@@ -130,6 +140,15 @@ export interface PlayerDef {
   photo?: string | null;
   footedness?: Footedness | null;
   youth?: boolean;
+  // All optional: omitted values are generated/inferred by the engine on import.
+  contractEnd?: string | null;
+  wage?: number | null;
+  value?: number | null;
+  condition?: number | null;
+  morale?: number | null;
+  weakFoot?: number | null;
+  alternatePositions?: Position[];
+  career?: CareerEntryDef[];
 }
 
 // ---------------------------------------------------------------------------

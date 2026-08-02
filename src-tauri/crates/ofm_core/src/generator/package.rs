@@ -81,6 +81,50 @@ pub struct PlayerDef {
     /// If true, the player belongs to the club's youth / academy squad rather than the first team.
     #[serde(default, skip_serializing_if = "is_false")]
     pub youth: bool,
+    /// Contract expiry ("YYYY-MM-DD"). Generated from age when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_end: Option<String>,
+    /// Weekly-or-annual wage in the engine's money units. Derived from value when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wage: Option<u32>,
+    /// Market value in the engine's money units. Derived from ability/age when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<u64>,
+    /// Match sharpness 0–100. Randomised in a realistic band when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<u8>,
+    /// Morale 0–100. Randomised in a realistic band when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub morale: Option<u8>,
+    /// Weak-foot skill 1–5. Inferred when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weak_foot: Option<u8>,
+    /// Secondary positions the player can cover. Inferred when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternate_positions: Vec<Position>,
+    /// Prior-club appearance record. Each entry's `teamId` must reference a team
+    /// defined in the package (validated in `validate_references`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub career: Vec<CareerDef>,
+}
+
+/// One prior-club spell in a player's authored career history. Mirrors
+/// [`domain::player::CareerEntry`]; `team_id` references a [`TeamDef`] id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CareerDef {
+    #[serde(default)]
+    pub season: u32,
+    #[serde(default)]
+    pub team_id: String,
+    #[serde(default)]
+    pub team_name: String,
+    #[serde(default)]
+    pub appearances: u32,
+    #[serde(default)]
+    pub goals: u32,
+    #[serde(default)]
+    pub assists: u32,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -240,6 +284,7 @@ const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
 const UNKNOWN_REGION: &str = "be.error.package.unknownRegion";
 const REVERSED_RANGE: &str = "be.error.package.reversedRange";
 const OUT_OF_RANGE: &str = "be.error.package.outOfRange";
+const PLAYER_FIELD_OUT_OF_RANGE: &str = "be.error.package.playerFieldOutOfRange";
 
 /// Maximum team reputation. Reputation is a `u32`, so it cannot go below 0.
 const MAX_REPUTATION: u32 = 1000;
@@ -628,6 +673,31 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                     .with("entity", &player.id)
                     .with("country", &player.nationality),
             );
+        }
+        // Optional status fields must stay within their documented ranges.
+        let field_out_of_range = |field: &str| {
+            PackageError::new(PLAYER_FIELD_OUT_OF_RANGE, "")
+                .with("entity", &player.id)
+                .with("field", field)
+        };
+        if player.condition.is_some_and(|value| value > 100) {
+            errors.push(field_out_of_range("condition"));
+        }
+        if player.morale.is_some_and(|value| value > 100) {
+            errors.push(field_out_of_range("morale"));
+        }
+        if player.weak_foot.is_some_and(|value| !(1..=5).contains(&value)) {
+            errors.push(field_out_of_range("weakFoot"));
+        }
+        // Career-history clubs must reference a team defined in the package.
+        for entry in &player.career {
+            if !entry.team_id.is_empty() && !team_ids.contains(entry.team_id.as_str()) {
+                errors.push(
+                    PackageError::new(UNKNOWN_TEAM, "")
+                        .with("entity", &player.id)
+                        .with("team", &entry.team_id),
+                );
+            }
         }
     }
 
@@ -2234,6 +2304,58 @@ colors:
         assert!(
             errors.iter().any(|e| e.code == OUT_OF_RANGE),
             "negative finance must produce an OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn player_weak_foot_out_of_range_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\nweakFoot: 0\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == PLAYER_FIELD_OUT_OF_RANGE),
+            "weakFoot outside 1–5 must produce a PLAYER_FIELD_OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn player_condition_out_of_range_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\ncondition: 101\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == PLAYER_FIELD_OUT_OF_RANGE),
+            "condition above 100 must produce a PLAYER_FIELD_OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn player_morale_out_of_range_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\nmorale: 150\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == PLAYER_FIELD_OUT_OF_RANGE),
+            "morale above 100 must produce a PLAYER_FIELD_OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn player_career_with_unknown_team_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: player\nid: p-a\nname: Player A\ncareer:\n  - season: 2019\n    teamId: ghost-club\n    teamName: Ghost Club\n    appearances: 10\n    goals: 2\n    assists: 1\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == UNKNOWN_TEAM),
+            "a career entry referencing an undefined team must produce an UNKNOWN_TEAM error: {errors:?}"
         );
         std::fs::remove_dir_all(&dir).ok();
     }

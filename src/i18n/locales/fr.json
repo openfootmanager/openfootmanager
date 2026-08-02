@@ -2603,6 +2603,7 @@
         "unknownRegion": "« {{field}} » référence une région inconnue « {{id}} ».",
         "reversedRange": "L'équipe « {{team}} » a un {{field}} inversé (min > max).",
         "outOfRange": "L’équipe « {{team}} » a des valeurs {{field}} hors limites (réputation 0–1000, finances ≥ 0).",
+        "playerFieldOutOfRange": "Le joueur \"{{entity}}\" a une valeur de {{field}} hors limites.",
         "unsupportedFormatVersion": "Ce paquet a été créé avec une version plus récente du jeu (format {{version}} ; cette version prend en charge {{supported}}). Mettez le jeu à jour pour l'ouvrir."
       },
       "competitionDef": {
@@ -3707,6 +3708,10 @@
     "winRate": "Taux de victoire"
   },
   "worldEditor": {
+    "playerCareerHistory": "Historique de carrière",
+    "playerAlternatePositions": "Postes secondaires",
+    "addCareerEntry": "Ajouter un passage",
+    "selectTeam": "Choisir une équipe…",
     "title": "Éditeur de Monde",
     "newPackage": "Nouveau Monde",
     "openPackageFile": "Ouvrir un fichier .ofm",

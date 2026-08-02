@@ -193,6 +193,14 @@ export function emptyPlayer(): PlayerDef {
     overall: null,
     attributes: null,
     footedness: null,
+    contractEnd: null,
+    wage: null,
+    value: null,
+    condition: null,
+    morale: null,
+    weakFoot: null,
+    alternatePositions: [],
+    career: [],
   };
 }
 
