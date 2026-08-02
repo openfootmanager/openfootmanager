@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use chrono::Datelike;
-use log::info;
+use log::{info, warn};
 use tauri::Manager as TauriManager;
 use tauri::State;
 
@@ -164,6 +164,20 @@ pub fn write_temp_database(app_handle: tauri::AppHandle, json: String) -> Result
     write_database_json_to_dir(&db_dir, &json)
 }
 
+/// Where a package's extracted artwork lives.
+///
+/// Kept beside the installed archives rather than inside `packages/` so a
+/// directory listing of installed `.ofm` files stays a list of files. Allowed by
+/// the asset protocol scope in `tauri.conf.json`, which is what lets the webview
+/// load these files at all.
+pub fn package_assets_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    Ok(app_data_dir.join("package-assets"))
+}
+
 fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let app_data_dir = app_handle
         .path()
@@ -272,6 +286,16 @@ pub fn install_package(
     let dest = packages_dir.join(format!("{id}.ofm"));
     std::fs::copy(src, &dest).map_err(|_| "be.error.package.installFailed".to_string())?;
 
+    // Land the artwork now, so "extracted assets exist" tracks "package is
+    // installed" and nothing else. World creation extracts too, but a save
+    // stores already-qualified paths and reloads without ever going through
+    // that path — so a package uninstalled and reinstalled after the save was
+    // made would otherwise leave every club in it on a generated crest forever.
+    // Best effort, exactly as at world load: the world still plays without art.
+    if let Ok(assets_root) = package_assets_dir(&app_handle) {
+        extract_assets_for_package(&dest, &assets_root, &id);
+    }
+
     let logo_data_url = meta.logo.as_deref()
         .and_then(|logo| ofm_core::generator::read_logo_from_ofm(&dest, logo));
     Ok(ofm_core::generator::PackageInfo {
@@ -324,11 +348,25 @@ pub(crate) fn validate_package_id(id: &str) -> Result<(), String> {
         || id.contains('\\')
         || id.contains("..")
         || id.contains('\0')
+        // "assets" is reserved: a qualified path is `<package_id>/assets/...`,
+        // so this id yields `assets/assets/…`, which `isPackageQualifiedAsset`
+        // on the frontend classifies as an app-bundled asset and resolves
+        // against the wrong root. Refusing the id keeps that classifier simple.
+        || id == RESERVED_PACKAGE_ID
     {
         return Err("be.error.package.invalid".to_string());
     }
     Ok(())
 }
+
+/// The one package id that cannot be installed — it collides with the prefix
+/// that tells a bundled asset path from a package-qualified one.
+///
+/// Removable once `isPackageQualifiedAsset` (`src/lib/packageAssets.ts`) stops
+/// deciding on the first path segment — if a qualified path carried an explicit
+/// marker, or the two kinds of path were separate fields, `assets` would be an
+/// ordinary id again.
+const RESERVED_PACKAGE_ID: &str = "assets";
 
 /// Remove an installed package by id.
 #[tauri::command]
@@ -343,7 +381,45 @@ pub fn uninstall_package(
         std::fs::remove_file(&dest)
             .map_err(|_| "be.error.package.installFailed".to_string())?;
     }
+    // The archive is not the only thing on disk: its artwork was extracted
+    // alongside it at world load. Leaving that behind would accumulate an
+    // orphaned directory per package the user ever installed.
+    if let Ok(assets_root) = package_assets_dir(&app_handle) {
+        remove_package_assets(&assets_root, &id);
+    }
     Ok(())
+}
+
+/// Unpack a package's artwork into `<assets_root>/<id>/`. Best effort: a
+/// package with no artwork produces no directory, and a failure here must not
+/// block the install — the world plays, its clubs just keep generated crests.
+fn extract_assets_for_package(ofm_path: &std::path::Path, assets_root: &std::path::Path, id: &str) {
+    let package_assets = assets_root.join(id);
+    // Replace, don't merge. Installing over an existing version is the normal
+    // upgrade path, and a version that renamed or dropped a badge would
+    // otherwise leave the old file in place — where a save's already-qualified
+    // path still points at it, rendering artwork the package no longer ships.
+    // If extraction then fails the club falls back to a generated crest, which
+    // is the honest outcome; stale artwork is not.
+    remove_package_assets(assets_root, id);
+    match ofm_core::generator::extract_package_assets(ofm_path, &package_assets) {
+        Ok(skipped) if !skipped.is_empty() => {
+            warn!("[assets] {id}: {} asset entries skipped", skipped.len());
+        }
+        Err(err) => warn!("[assets] {id}: extraction failed: {err}"),
+        _ => {}
+    }
+}
+
+/// Delete a package's extracted artwork. Best effort: a package with no assets
+/// has no directory, and a failure here must not block the uninstall itself.
+fn remove_package_assets(assets_root: &std::path::Path, id: &str) {
+    let dir = assets_root.join(id);
+    if dir.exists() {
+        if let Err(err) = std::fs::remove_dir_all(&dir) {
+            warn!("[assets] could not remove {}: {err}", dir.display());
+        }
+    }
 }
 
 /// Serialisable conflict info returned to the frontend.
@@ -717,6 +793,96 @@ mod tests {
     }
 
     #[test]
+    fn removing_package_assets_deletes_only_that_package() {
+        // Uninstalling has to take the extracted artwork with it, or every
+        // package a user ever installed leaves a directory behind.
+        let temp_dir = TempCommandDir::new();
+        let root = temp_dir.path().join("package-assets");
+        for id in ["going", "staying"] {
+            let dir = root.join(id).join("assets/images");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("badge.png"), b"PNG").unwrap();
+        }
+
+        super::remove_package_assets(&root, "going");
+
+        assert!(
+            !root.join("going").exists(),
+            "the package's assets should be gone"
+        );
+        assert!(
+            root.join("staying/assets/images/badge.png").exists(),
+            "another package's assets must be untouched",
+        );
+    }
+
+    #[test]
+    fn installing_a_package_lands_its_artwork_for_an_existing_save() {
+        // A save stores already-qualified asset paths and reloads without going
+        // through world creation, so extraction cannot only happen there: a
+        // package reinstalled after the save was made would never get its
+        // artwork back. Installing is what puts it on disk.
+        let temp_dir = TempCommandDir::new();
+        let assets_root = temp_dir.path().join("package-assets");
+        let archive = temp_dir.path().join("badge-pkg.ofm");
+        write_ofm_with_badge(&archive);
+
+        super::extract_assets_for_package(&archive, &assets_root, "badge-pkg");
+
+        assert_eq!(
+            fs::read(assets_root.join("badge-pkg/assets/images/santos.png")).unwrap(),
+            b"PNGBYTES",
+            "the badge should be readable at the path a save's qualified path resolves to",
+        );
+    }
+
+    #[test]
+    fn reinstalling_a_package_does_not_keep_artwork_it_dropped() {
+        // Installing over an existing version is the normal upgrade path. If the
+        // new archive renamed or removed a badge, a merge would leave the old
+        // file behind — and a save whose qualified path still points at it would
+        // render artwork the package no longer ships.
+        let temp_dir = TempCommandDir::new();
+        let assets_root = temp_dir.path().join("package-assets");
+        let stale = assets_root.join("badge-pkg/assets/images/old-badge.png");
+        fs::create_dir_all(stale.parent().unwrap()).unwrap();
+        fs::write(&stale, b"OLDPNG").unwrap();
+
+        let archive = temp_dir.path().join("badge-pkg.ofm");
+        write_ofm_with_badge(&archive);
+        super::extract_assets_for_package(&archive, &assets_root, "badge-pkg");
+
+        assert!(
+            !stale.exists(),
+            "artwork the reinstalled package no longer ships must not survive",
+        );
+        assert!(
+            assets_root.join("badge-pkg/assets/images/santos.png").exists(),
+            "the reinstalled package's own artwork must still land",
+        );
+    }
+
+    /// A minimal `.ofm` carrying one image under the asset tree. Built through
+    /// the exporter rather than the zip crate directly, so the app crate does
+    /// not take a dependency just to author a fixture.
+    fn write_ofm_with_badge(path: &Path) {
+        let source = path.with_extension("src");
+        let images = source.join("assets/images");
+        fs::create_dir_all(&images).expect("fixture tree should be created");
+        fs::write(images.join("santos.png"), b"PNGBYTES").expect("badge should be written");
+        ofm_core::generator::export_directory_to_ofm(&source, path).expect("archive should build");
+    }
+
+    #[test]
+    fn removing_package_assets_tolerates_a_package_with_none() {
+        let temp_dir = TempCommandDir::new();
+        let root = temp_dir.path().join("package-assets");
+        std::fs::create_dir_all(&root).unwrap();
+
+        super::remove_package_assets(&root, "never-had-assets");
+    }
+
+    #[test]
     fn validate_package_id_rejects_traversal_tokens() {
         // Legitimate ids pass.
         assert!(validate_package_id("eng-premier-league").is_ok());
@@ -730,6 +896,11 @@ mod tests {
             "a/b",
             "a\\b",
             "with\0null",
+            // Qualified asset paths are `<package_id>/assets/...`, so a package
+            // called "assets" produces `assets/assets/images/x.png`, which the
+            // frontend classifier reads as an app-bundled path and serves from
+            // the wrong root — every club in it silently loses its badge.
+            "assets",
         ] {
             assert!(
                 validate_package_id(bad).is_err(),

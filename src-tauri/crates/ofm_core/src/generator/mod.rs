@@ -12,8 +12,8 @@ pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
-    hash_package_file, is_unreadable, load_world_package, load_world_package_files,
-    load_world_package_from_ofm,
+    extract_package_assets, hash_package_file, is_unreadable, load_world_package,
+    load_world_package_files, load_world_package_from_ofm, qualify_package_asset_paths,
     merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm, validate_package_stack,
     validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
     PackageLock, PlayerDef, StaffDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,

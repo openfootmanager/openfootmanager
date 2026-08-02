@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { resolveLocalMediaPath } from "../../lib/mediaAssets";
+import { usePackageAssetSrc } from "../../hooks/usePackageAssetSrc";
 import {
   canGenerateRuntimePlayerPortraits,
   getRuntimeGeneratedPlayerPortrait,
@@ -122,6 +122,7 @@ export function PlayerAvatar({
   fallback,
   enableRuntimePortrait = true,
 }: PlayerAvatarProps) {
+  const faceSrc = usePackageAssetSrc(player.media?.face);
   const defaultFallback =
     fallback ?? (
       <GeneratedAvatar
@@ -134,7 +135,7 @@ export function PlayerAvatar({
   return (
     <div className={className}>
       <AssetImage
-        src={resolveLocalMediaPath(player.media?.face)}
+        src={faceSrc}
         alt={player.full_name}
         className={imageClassName}
         fallback={
