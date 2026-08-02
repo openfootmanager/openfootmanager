@@ -3883,7 +3883,7 @@
       "selectorSource": "La competizione i cui vincitori si qualificano per questa. Inserisci l'ID competizione (es. 'serie-b').",
       "packageId": "Un identificatore univoco per questo mondo (es. 'italia-calcio-2026'). Usato come nome file per il .ofm.",
       "packageType": "Database: un mondo completo. Patch: modifica un mondo esistente. Assets: solo grafica.",
-      "teamReputationRange": "0–950. Riferimento: <300 dilettanti, 300–550 serie minori, 550–720 metà classifica, 720–850 prima divisione, 850+ élite.",
+      "teamReputationRange": "0–1000. Riferimento: 0–299 dilettanti, 300–549 serie minori, 550–719 metà classifica, 720–849 massima serie, 850+ élite.",
       "teamFinanceRange": "Budget mensile in valuta di gioco. Circa rep × 4.000–9.000. Top: ~3M–8M. Medio: ~1M–4M. Piccolo: ~100K–1M."
     },
     "searchCountries": "Cerca paesi…",
@@ -3958,7 +3958,17 @@
     "removeLogo": "Rimuovi",
     "openInEditor": "Modifica",
     "poolKeyTaken": "Quella chiave del pool è già usata da un altro pool.",
-    "playerDisplayNamePlaceholder": "Nome visualizzato in partita"
+    "playerDisplayNamePlaceholder": "Nome visualizzato in partita",
+    "repBands": {
+      "amateur": "Dilettanti",
+      "lowerLeague": "Serie minori",
+      "midTable": "Metà classifica",
+      "topFlight": "Massima serie",
+      "elite": "Élite"
+    },
+    "repReadoutSingle": "{{min}}–{{max}} su {{scaleMax}} · {{band}}",
+    "repReadoutSpan": "{{min}}–{{max}} su {{scaleMax}} · da {{minBand}} a {{maxBand}}",
+    "budgetReadout": "{{min}}–{{max}} al mese · budget trasferimenti {{transferMin}}–{{transferMax}}"
   },
   "packageBuild": {
     "title": "Costruisci il tuo mondo",

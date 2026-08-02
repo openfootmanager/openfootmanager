@@ -3879,7 +3879,7 @@
       "selectorSource": "The competition whose winner(s) qualify for this competition. Enter the competition ID (e.g. 'national-league-one').",
       "packageId": "A unique slug for this world package (e.g. 'england-football-2026'). Used as the file name when building the .ofm file.",
       "packageType": "Database: a full world replacing the default. Patch: modifies an existing world. Assets: graphics only.",
-      "teamReputationRange": "0–950. Use: <300 amateur, 300–550 lower league, 550–720 mid-table, 720–850 top flight, 850+ elite.",
+      "teamReputationRange": "0–1000. Use: 0–299 amateur, 300–549 lower league, 550–719 mid-table, 720–849 top flight, 850+ elite.",
       "teamFinanceRange": "Monthly budget (game currency). Roughly rep × 4,000–9,000. Top clubs: ~3M–8M. Mid: ~1M–4M. Small: ~100K–1M."
     },
     "searchCountries": "Search countries…",
@@ -3954,7 +3954,17 @@
     "chooseLogo": "Choose Image…",
     "removeLogo": "Remove",
     "poolKeyTaken": "That pool key is already used by another pool.",
-    "playerDisplayNamePlaceholder": "Match display name"
+    "playerDisplayNamePlaceholder": "Match display name",
+    "repBands": {
+      "amateur": "Amateur",
+      "lowerLeague": "Lower league",
+      "midTable": "Mid-table",
+      "topFlight": "Top flight",
+      "elite": "Elite"
+    },
+    "repReadoutSingle": "{{min}}–{{max}} of {{scaleMax}} · {{band}}",
+    "repReadoutSpan": "{{min}}–{{max}} of {{scaleMax}} · {{minBand}} to {{maxBand}}",
+    "budgetReadout": "{{min}}–{{max}} per month · transfer budget {{transferMin}}–{{transferMax}}"
   },
   "packageBuild": {
     "title": "Build Your World",

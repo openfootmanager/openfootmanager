@@ -8,6 +8,12 @@ import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataU
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import JerseyIcon from "../../ui/JerseyIcon";
 import { PLAY_STYLES, makeRange, normalizePlayStyle, parseRangeBound, toSlug } from "./helpers";
+import {
+  REPUTATION_MAX,
+  deriveTransferBudget,
+  formatCompactAmount,
+  reputationBandKey,
+} from "./teamRanges.helpers";
 import type { KitPattern, TeamDef } from "./types";
 import { TeamPreviewCard } from "./TeamPreviewCard";
 
@@ -24,10 +30,34 @@ interface TeamFormProps {
 }
 
 export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, onBack, onSave, updateField }: TeamFormProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingTeamIndex === null && !editingTeam.id);
   const [logoRefresh, setLogoRefresh] = useState(0);
   const logoDataUrl = useAssetDataUrl(editingTeam.logo, projectDir, logoRefresh);
+
+  // Both range fields are bare numbers with no natural units. Reputation runs
+  // 0–1000 rather than the 0–100 an author reasonably assumes, and finance
+  // silently sets the club's transfer budget — so say what the values mean.
+  const reputationRange = editingTeam.reputationRange;
+  const reputationReadout = (() => {
+    if (!reputationRange) return null;
+    const [min, max] = reputationRange;
+    const minBand = t(`worldEditor.repBands.${reputationBandKey(min)}`);
+    const maxBand = t(`worldEditor.repBands.${reputationBandKey(max)}`);
+    return minBand === maxBand
+      ? t("worldEditor.repReadoutSingle", { min, max, scaleMax: REPUTATION_MAX, band: minBand })
+      : t("worldEditor.repReadoutSpan", { min, max, scaleMax: REPUTATION_MAX, minBand, maxBand });
+  })();
+
+  const financeRange = editingTeam.financeRange;
+  const budgetReadout = financeRange
+    ? t("worldEditor.budgetReadout", {
+        min: formatCompactAmount(financeRange[0], i18n.language),
+        max: formatCompactAmount(financeRange[1], i18n.language),
+        transferMin: formatCompactAmount(deriveTransferBudget(financeRange[0]), i18n.language),
+        transferMax: formatCompactAmount(deriveTransferBudget(financeRange[1]), i18n.language),
+      })
+    : null;
   const [repMin, setRepMin] = useState<string>(editingTeam.reputationRange?.[0]?.toString() ?? "");
   const [repMax, setRepMax] = useState<string>(editingTeam.reputationRange?.[1]?.toString() ?? "");
   const [finMin, setFinMin] = useState<string>(editingTeam.financeRange?.[0]?.toString() ?? "");
@@ -282,6 +312,11 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 }}
               />
             </div>
+            {reputationReadout && (
+              <p className="text-[11px] text-gray-500 dark:text-gray-400" aria-live="polite">
+                {reputationReadout}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <LabeledInput
                 label={t("worldEditor.teamFinMin")}
@@ -303,6 +338,11 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 }}
               />
             </div>
+            {budgetReadout && (
+              <p className="text-[11px] text-gray-500 dark:text-gray-400" aria-live="polite">
+                {budgetReadout}
+              </p>
+            )}
           </div>
         </div>
 

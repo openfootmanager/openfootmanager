@@ -3879,7 +3879,7 @@
       "selectorSource": "Şampiyonlarının bu turnuvaya katılmaya hak kazandığı turnuva. Turnuva ID'sini girin (örn. 'national-league-one').",
       "packageId": "Bu dünya paketi için benzersiz bir kısa ad (örn. 'england-football-2026'). .ofm dosyası derlenirken dosya adı olarak kullanılır.",
       "packageType": "Veritabanı: varsayılanın yerini alan eksiksiz bir dünya. Yama: mevcut bir dünyayı değiştirir. Varlıklar: yalnızca grafikler.",
-      "teamReputationRange": "0–950. Kullanım: <300 amatör, 300–550 alt lig, 550–720 orta sıra, 720–850 üst lig, 850+ elit.",
+      "teamReputationRange": "0–1000. Kullanım: 0–299 amatör, 300–549 alt lig, 550–719 orta sıra, 720–849 üst lig, 850+ elit.",
       "teamFinanceRange": "Aylık bütçe (oyun para birimi). Yaklaşık itibar × 4.000–9.000. Büyük kulüpler: ~3M–8M. Orta: ~1M–4M. Küçük: ~100K–1M."
     },
     "searchCountries": "Ülke ara…",
@@ -3954,7 +3954,17 @@
     "chooseLogo": "Görsel Seç…",
     "removeLogo": "Kaldır",
     "poolKeyTaken": "Bu havuz anahtarı zaten başka bir havuz tarafından kullanılıyor.",
-    "playerDisplayNamePlaceholder": "Maçta görünen ad"
+    "playerDisplayNamePlaceholder": "Maçta görünen ad",
+    "repBands": {
+      "amateur": "Amatör",
+      "lowerLeague": "Alt lig",
+      "midTable": "Orta sıra",
+      "topFlight": "Üst lig",
+      "elite": "Elit"
+    },
+    "repReadoutSingle": "{{scaleMax}} üzerinden {{min}}–{{max}} · {{band}}",
+    "repReadoutSpan": "{{scaleMax}} üzerinden {{min}}–{{max}} · {{minBand}} ile {{maxBand}} arası",
+    "budgetReadout": "Aylık {{min}}–{{max}} · transfer bütçesi {{transferMin}}–{{transferMax}}"
   },
   "packageBuild": {
     "title": "Dünyanızı Oluşturun",
