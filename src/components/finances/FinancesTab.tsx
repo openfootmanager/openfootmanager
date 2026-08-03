@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
-import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
+import {
+  GameStateData,
+  PlayerSelectionOptions,
+  TeamData,
+} from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import {
   formatExactMoney,
@@ -45,6 +49,13 @@ interface FinancesTabProps {
   onSelectPlayer?: (id: string, options?: PlayerSelectionOptions) => void;
 }
 
+/**
+ * Resolves the managed team and renders nothing else. The guard has to live in a
+ * component that calls no hooks of its own: `FinancesTabContent` opens with ten
+ * `useState` calls, and returning early above them would change the hook count
+ * between renders the moment the manager's team resolves, which React rejects
+ * with "Rendered more hooks than during the previous render".
+ */
 export default function FinancesTab({
   gameState,
   onGameUpdate,
@@ -58,6 +69,28 @@ export default function FinancesTab({
     return (
       <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
     );
+
+  return (
+    <FinancesTabContent
+      gameState={gameState}
+      myTeam={myTeam}
+      onGameUpdate={onGameUpdate}
+      onSelectPlayer={onSelectPlayer}
+    />
+  );
+}
+
+interface FinancesTabContentProps extends FinancesTabProps {
+  myTeam: TeamData;
+}
+
+function FinancesTabContent({
+  gameState,
+  myTeam,
+  onGameUpdate,
+  onSelectPlayer,
+}: FinancesTabContentProps) {
+  const { t } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<
