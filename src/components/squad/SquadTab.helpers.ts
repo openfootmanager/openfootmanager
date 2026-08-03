@@ -401,7 +401,11 @@ export function getPitchSlotWidth(slotCount: number): number {
   return 82;
 }
 
-function comparePlayersForSlot(
+/**
+ * Order candidates for a pitch slot: natural fits first, then exact-role
+ * fits, then the strongest and freshest player, with name as a stable tiebreak.
+ */
+export function comparePlayersForSlot(
   leftPlayer: PlayerData,
   rightPlayer: PlayerData,
   slotPosition: string,

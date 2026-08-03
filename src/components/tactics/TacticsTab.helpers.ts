@@ -6,7 +6,7 @@ import {
   buildStartingXIIds,
   type PitchSlotRow,
   canonicalPosition,
-  isPlayerExactForSlot,
+  comparePlayersForSlot,
   getPreferredPositions,
   isPlayerOutOfPosition,
   normalisePosition,
@@ -107,21 +107,6 @@ interface ResolveStartingXiIdsOptions {
   savedStartingXiIds: string[];
 }
 
-function comparePlayersForSlot(
-  leftPlayer: PlayerData,
-  rightPlayer: PlayerData,
-  slotPosition: string,
-): number {
-  return (
-    Number(isPlayerOutOfPosition(leftPlayer, slotPosition)) -
-    Number(isPlayerOutOfPosition(rightPlayer, slotPosition)) ||
-    Number(!isPlayerExactForSlot(leftPlayer, slotPosition)) -
-    Number(!isPlayerExactForSlot(rightPlayer, slotPosition)) ||
-    getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer) ||
-    rightPlayer.condition - leftPlayer.condition ||
-    leftPlayer.full_name.localeCompare(rightPlayer.full_name)
-  );
-}
 
 export function buildTacticsRoster(
   players: PlayerData[],
