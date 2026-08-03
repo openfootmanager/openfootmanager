@@ -196,7 +196,10 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
         EntityKind::World => {
             let mut meta = new_package_meta(display, "", "1.0.0", "database");
             meta.id = slug;
-            manifest_json(&meta).unwrap_or_else(|_| json!({}))
+            // An internal invariant: `WorldMetaDef` is a plain struct of plain
+            // fields. Swallowing a failure here would emit a manifest with no
+            // `schema` and no keys, which reads as a template rather than a bug.
+            manifest_json(&meta).expect("package metadata serializes")
         }
         EntityKind::Team => {
             let short: String = display
@@ -294,13 +297,17 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
             "nameKey": null,
             "logo": null,
         }),
+        // `NamePool` carries no `rename_all`, so its fields are snake_case while
+        // every other entity is camelCase. The template said `firstNames` and
+        // produced a file the loader could not deserialize at all — `ofm-cli add
+        // names` failed validation on a package the same CLI had just created.
         EntityKind::Names => json!({
             "version": 1,
             "description": format!("{display} name pools"),
             "pools": {
                 "ENG": {
-                    "firstNames": ["James", "Oliver", "Harry"],
-                    "lastNames": ["Smith", "Jones", "Williams"]
+                    "first_names": ["James", "Oliver", "Harry"],
+                    "last_names": ["Smith", "Jones", "Williams"]
                 }
             },
         }),
@@ -317,7 +324,16 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     let content = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, &content).map_err(|e| e.to_string())?;
-    std::fs::rename(&tmp, path).map_err(|e| e.to_string())
+    match std::fs::rename(&tmp, path) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            // Leaving the sibling behind is not harmless: `export_directory_to_ofm`
+            // archives every file under the package, so a stray `.json.tmp` would
+            // ship inside the `.ofm`.
+            std::fs::remove_file(&tmp).ok();
+            Err(e.to_string())
+        }
+    }
 }
 
 /// Create the directory skeleton and empty collection files for a new package.
@@ -352,7 +368,7 @@ mod tests {
     use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType};
     use domain::player::PlayerAttributes;
     use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
-    use crate::generator::definitions::{TeamColorsDef, TeamDef};
+    use crate::generator::definitions::{NamePool, NamesDefinition, TeamColorsDef, TeamDef};
     use crate::generator::package::{ConfederationDef, CountryDef, PlayerDef, StaffDef};
 
     /// Top-level keys a value serializes to.
@@ -373,14 +389,35 @@ mod tests {
     fn assert_template_covers(kind: EntityKind, serialized: &Value) {
         let template = entity_template(kind, Some("Sample Name"));
         let template_keys = keys(&template);
-        let missing: Vec<String> = keys(serialized)
-            .into_iter()
+        let struct_keys = keys(serialized);
+
+        let missing: Vec<String> = struct_keys
+            .iter()
             .filter(|k| !template_keys.contains(k))
+            .cloned()
             .collect();
         assert!(
             missing.is_empty(),
             "`ofm-cli` scaffolds {} without {missing:?}. A modder starting from this \
              template never learns those fields exist. Add them to `entity_template`.",
+            kind.schema_name(),
+        );
+
+        // The other direction, which matters just as much: a key the template
+        // invents is a key the loader ignores, so the scaffolded file quietly
+        // does nothing. This is what a one-way check missed — the names template
+        // wrote `firstNames` where `NamePool` (uniquely, having no `rename_all`)
+        // expects `first_names`, so `ofm-cli add names` produced a file that
+        // failed validation on a package the same CLI had just created.
+        let invented: Vec<String> = template_keys
+            .iter()
+            .filter(|k| !struct_keys.contains(k))
+            .cloned()
+            .collect();
+        assert!(
+            invented.is_empty(),
+            "the {} template writes {invented:?}, which the definition does not \
+             deserialize. The scaffolded file would load as if those were absent.",
             kind.schema_name(),
         );
     }
@@ -466,6 +503,63 @@ mod tests {
             age: Some(50),
         };
         assert_template_covers(EntityKind::Staff, &serde_json::to_value(&staff).unwrap());
+    }
+
+    #[test]
+    fn the_names_template_matches_the_names_definition() {
+        // Names is the odd one out twice over: it is a single keyed document
+        // rather than an `items` list, and `NamePool` carries no `rename_all`, so
+        // its fields are snake_case while every other entity is camelCase. Both
+        // make it the easiest template to get wrong, and it was wrong.
+        let names = NamesDefinition {
+            version: 1,
+            description: "Sample pools".into(),
+            pools: std::collections::HashMap::from([(
+                "ENG".to_string(),
+                NamePool {
+                    first_names: vec!["James".into()],
+                    last_names: vec!["Smith".into()],
+                },
+            )]),
+        };
+        assert_template_covers(EntityKind::Names, &serde_json::to_value(&names).unwrap());
+
+        // Round-trip the template itself: whatever `ofm-cli add names` writes has
+        // to deserialize back into a definition, pools and all.
+        let template = entity_template(EntityKind::Names, Some("Brazil"));
+        let parsed: NamesDefinition =
+            serde_json::from_value(template).expect("the names template deserializes");
+        let pool = parsed.pools.get("ENG").expect("the template ships a pool");
+        assert!(!pool.first_names.is_empty() && !pool.last_names.is_empty());
+    }
+
+    #[test]
+    fn the_names_template_survives_the_shape_the_cli_writes_it_in() {
+        // `ofm-cli add` wraps a template in `{"schema": …, "items": [ … ]}` for
+        // every kind. Names is a single keyed document rather than a list, so
+        // this is the one place that wrapping could be meaningless — and the
+        // combination is what shipped broken: the file was written, validated
+        // clean by nothing, and its pools never reached the world.
+        let dir = std::env::temp_dir().join(format!("ofm-names-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("names")).expect("temp dir");
+        std::fs::write(
+            dir.join("package.json"),
+            r#"{"schema":"world","id":"n","name":"N"}"#,
+        )
+        .expect("manifest written");
+        let template = entity_template(EntityKind::Names, Some("Brazil"));
+        std::fs::write(
+            dir.join("names").join("brazil.json"),
+            serde_json::to_string(&json!({"schema": "names", "items": [template]})).unwrap(),
+        )
+        .expect("names written");
+
+        let (package, errors) = crate::generator::load_world_package(&dir);
+
+        assert!(errors.is_empty(), "the CLI's own output must load: {errors:?}");
+        let names = package.names.expect("the pools have to reach the package");
+        assert!(names.pools.contains_key("ENG"));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -164,6 +164,7 @@ const SCHEMA_WORLD: &str = r##"// World manifest — save as package.json at the
   "baseYear": null,             // optional: integer season year, e.g. 2024
   "defaultActiveRegions": [],  // optional: region IDs enabled by default
   "defaultActiveCompetitions": [], // optional: competition IDs enabled by default
+  "logo": null,                // optional: relative path to a package logo image asset
   "fallbackLeague": null       // optional: overrides for the auto-generated league
                                // when a database package has teams but no
                                // competitions, e.g.
@@ -328,6 +329,11 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
     let meta = new_package_meta(name, author, version, pkg_type);
     if let Err(e) = scaffold_package(&pkg_dir, &meta) {
         eprintln!("{} Failed to create package: {}", "error:".red().bold(), e);
+        // Scaffolding writes a directory at a time, so a failure part-way leaves
+        // a partial tree — and the guard above then refuses every retry with
+        // "directory already exists". Since this run created it, this run
+        // removes it.
+        std::fs::remove_dir_all(&pkg_dir).ok();
         return 1;
     }
 
@@ -716,16 +722,11 @@ mod tests {
         // tests in `ofm_core::generator::scaffold`, so tying the prose to the
         // template transitively ties all three together.
         let mut drift: Vec<String> = Vec::new();
-        for entity in [
-            EntityKind::Team,
-            EntityKind::Player,
-            EntityKind::Staff,
-            EntityKind::Confederation,
-            EntityKind::Country,
-            EntityKind::Competition,
-        ] {
-            let kind = CoreEntityKind::from(&entity);
-            let text = entity_schema_text(&entity);
+        // Every kind, World and Names included. Excluding them is what let the
+        // manifest and the names pools drift in the first place.
+        for entity in ALL_ENTITIES {
+            let kind = CoreEntityKind::from(entity);
+            let text = entity_schema_text(entity);
             let template = entity_template(kind, Some("Sample Name"));
             for key in template.as_object().expect("an object").keys() {
                 if !text.contains(&format!("\"{key}\"")) {
@@ -754,15 +755,8 @@ mod tests {
             .unwrap_or_else(|e| panic!("cannot read {}: {e}", docs.display()));
 
         let mut undocumented: Vec<String> = Vec::new();
-        for entity in [
-            EntityKind::Team,
-            EntityKind::Player,
-            EntityKind::Staff,
-            EntityKind::Confederation,
-            EntityKind::Country,
-            EntityKind::Competition,
-        ] {
-            let kind = CoreEntityKind::from(&entity);
+        for entity in ALL_ENTITIES {
+            let kind = CoreEntityKind::from(entity);
             let template = entity_template(kind, Some("Sample Name"));
             for key in template.as_object().expect("an object").keys() {
                 // The reference lists fields as `\`name\`` table cells, and
@@ -785,17 +779,9 @@ mod tests {
         // The clap enum exists only to parse an argument; everything downstream
         // asks `ofm_core`. If this mapping ever collided, `ofm-cli add country`
         // would happily scaffold a confederation and nothing else would notice.
-        let cli = [
-            EntityKind::World,
-            EntityKind::Team,
-            EntityKind::Player,
-            EntityKind::Staff,
-            EntityKind::Confederation,
-            EntityKind::Country,
-            EntityKind::Competition,
-            EntityKind::Names,
-        ];
-        let mapped: Vec<CoreEntityKind> = cli.iter().map(CoreEntityKind::from).collect();
+        // Reuses ALL_ENTITIES rather than repeating it: two lists that must agree
+        // is the exact shape of problem this PR exists to remove.
+        let mapped: Vec<CoreEntityKind> = ALL_ENTITIES.iter().map(CoreEntityKind::from).collect();
 
         // Same length as the core list: neither side may gain a kind alone.
         assert_eq!(mapped.len(), CoreEntityKind::ALL.len());
