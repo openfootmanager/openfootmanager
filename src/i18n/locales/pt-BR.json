@@ -2575,10 +2575,13 @@
         "playerNotOnBench": "O jogador não está no banco",
         "playerNotInStartingXi": "O jogador não está no time titular"
       },
-      "csv": { "writeFailed": "Falha ao gravar o arquivo CSV." },
+      "csv": {
+        "writeFailed": "Falha ao gravar o arquivo CSV."
+      },
       "worldReadFileFailed": "Falha ao ler o arquivo do banco de dados do mundo.",
       "package": {
         "invalid": "Este pacote de mundo é inválido e não pôde ser carregado.",
+        "invalidPackageId": "Não é possível usar o ID do pacote \"{{id}}\". Ele não pode estar vazio nem se chamar \"assets\", e não pode conter \"/\", \"\\\", \"..\" ou caracteres de controle.",
         "readFailed": "Não foi possível ler um arquivo do pacote.",
         "missingSchema": "Falta o campo \"schema\" em um arquivo do pacote.",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",

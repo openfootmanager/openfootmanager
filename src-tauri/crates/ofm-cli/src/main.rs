@@ -3,7 +3,7 @@ use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
     export_directory_to_ofm, load_world_package, load_world_package_from_ofm,
-    read_package_manifest_from_ofm,
+    read_package_manifest_from_ofm, validate_package,
 };
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -686,11 +686,20 @@ fn cmd_validate(path: &Path) -> i32 {
     println!("Validating {}...", path.display());
 
     let is_ofm = path.extension().and_then(|e| e.to_str()) == Some("ofm");
-    let (pkg, errors) = if is_ofm {
+    let (pkg, mut errors) = if is_ofm {
         load_world_package_from_ofm(path)
     } else {
         load_world_package(path)
     };
+    if is_ofm {
+        // The archive load is the runtime read path and stays permissive on
+        // purpose, so that an already-installed package keeps working. Validating
+        // is this command's whole job, though, and a `.ofm` is the shape a
+        // package is actually shared in — so ask for the full set explicitly.
+        // Same set the directory branch gets, from the same place, so the two
+        // answers cannot diverge for the same package.
+        errors.extend(validate_package(&pkg));
+    }
 
     if errors.is_empty() {
         println!(
