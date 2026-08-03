@@ -10,7 +10,7 @@ import {
 import type { JSX, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getTeamName } from "../../lib/helpers";
+import { getTeamName, positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
@@ -20,7 +20,6 @@ import {
 } from "../playerActions/playerContextMenuItems";
 import { Badge, PlayerAvatar, TeamLogo, ThemeToggle } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
-import { getPlayerBadgeVariant } from "./dashboardHelpers";
 
 export interface DashboardMatchModeMeta {
   buttonColorClass: string;
@@ -254,7 +253,7 @@ function renderSearchResults(props: {
                     player={player}
                     className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300"
                   />
-                  <Badge variant={getPlayerBadgeVariant(player.position)} size="sm">
+                  <Badge variant={positionBadgeVariant(player.position)} size="sm">
                     {translatePositionAbbreviation(t, player.position)}
                   </Badge>
                   <span className="text-sm font-medium text-gray-800 dark:text-gray-200">

@@ -53,21 +53,6 @@ export function getManagerTeamName(gameState: GameStateData): string | null {
   );
 }
 
-export function getPlayerBadgeVariant(
-  position: string,
-): "accent" | "danger" | "primary" | "success" {
-  switch (position) {
-    case "Goalkeeper":
-      return "accent";
-    case "Defender":
-      return "primary";
-    case "Midfielder":
-      return "success";
-    default:
-      return "danger";
-  }
-}
-
 export function getDashboardSearchResults(
   gameState: GameStateData,
   query: string,

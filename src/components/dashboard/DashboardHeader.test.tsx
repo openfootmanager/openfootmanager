@@ -149,4 +149,51 @@ describe("DashboardHeader", () => {
         expect(onSelectSearchTeam).toHaveBeenCalledWith("team-1");
         expect(onSelectSearchPlayer).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ["CenterBack", "bg-primary-100"],
+        ["LeftBack", "bg-primary-100"],
+        ["DefensiveMidfielder", "bg-green-100"],
+        ["AttackingMidfielder", "bg-green-100"],
+        ["Striker", "bg-red-100"],
+        ["Goalkeeper", "bg-accent-100"],
+    ])("badges a %s the same way the rest of the app does", (position, expectedClass) => {
+        const teams = [createTeam()];
+
+        render(
+            <DashboardHeader
+                activeTabLabel="Dashboard"
+                currentDate="2026-08-10"
+                hasProfileHistory={false}
+                hasMatchToday={false}
+                isAdvancing={false}
+                isUnemployed={false}
+                isSaving={false}
+                matchMode="live"
+                matchedPlayers={[createPlayer({ position } as Partial<PlayerData>)]}
+                matchedTeams={teams}
+                modeMeta={createModeMeta()}
+                onBack={vi.fn()}
+                onContinue={vi.fn()}
+                onSave={vi.fn()}
+                onSearchBlur={vi.fn()}
+                onSearchFocus={vi.fn()}
+                onSearchQueryChange={vi.fn()}
+                onSelectMatchMode={vi.fn()}
+                onSelectSearchPlayer={vi.fn()}
+                onSelectSearchTeam={vi.fn()}
+                onSkipToMatchDay={vi.fn()}
+                onToggleContinueMenu={vi.fn()}
+                saveFlash={false}
+                searchOpen
+                searchQuery="jo"
+                seasonComplete={false}
+                showContinueMenu={false}
+                teams={teams}
+            />,
+        );
+
+        const row = screen.getByTestId("dashboard-search-player-player-1");
+        expect(row.querySelector("span.rounded-md")).toHaveClass(expectedClass);
+    });
 });

@@ -5,7 +5,6 @@ import {
   getDashboardAlerts,
   getDashboardSearchResults,
   getManagerTeamName,
-  getPlayerBadgeVariant,
   getTodayMatchFixture,
   getUnreadMessagesCount,
 } from "./dashboardHelpers";
@@ -274,13 +273,6 @@ describe("dashboardHelpers", function (): void {
     expect(results.matchedPlayers[0].id).toBe("player-2");
     expect(results.matchedTeams).toHaveLength(1);
     expect(results.matchedTeams[0].id).toBe("team-2");
-  });
-
-  it("maps player positions to dashboard badge variants", function (): void {
-    expect(getPlayerBadgeVariant("Goalkeeper")).toBe("accent");
-    expect(getPlayerBadgeVariant("Defender")).toBe("primary");
-    expect(getPlayerBadgeVariant("Midfielder")).toBe("success");
-    expect(getPlayerBadgeVariant("Forward")).toBe("danger");
   });
 
   it("builds dashboard alerts for critical squad issues", function (): void {
