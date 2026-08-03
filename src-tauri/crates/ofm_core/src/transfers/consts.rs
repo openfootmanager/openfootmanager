@@ -26,14 +26,17 @@ pub(super) const ERR_PLAYER_NOT_OWNED_BY_USER: &str = "be.error.transfers.player
 pub(super) const ERR_OFFER_NOT_PENDING: &str = "be.error.transfers.offerNotPending";
 pub(super) const ERR_COUNTER_OFFER_MUST_EXCEED_CURRENT: &str =
     "be.error.transfers.counterOfferMustExceedCurrentOffer";
-pub(super) const ERR_LOAN_COUNTER_MUST_IMPROVE_TERMS: &str = "be.error.transfers.loanCounterMustImproveTerms";
+pub(super) const ERR_LOAN_COUNTER_MUST_IMPROVE_TERMS: &str =
+    "be.error.transfers.loanCounterMustImproveTerms";
 pub(super) const ERR_PLAYER_NOT_LOAN_LISTED: &str = "be.error.transfers.playerNotLoanListed";
 pub(super) const ERR_PLAYER_ALREADY_LOANED: &str = "be.error.transfers.playerAlreadyLoaned";
 pub(super) const ERR_INVALID_LOAN_END_DATE: &str = "be.error.transfers.invalidLoanEndDate";
-pub(super) const ERR_INVALID_LOAN_WAGE_CONTRIBUTION: &str = "be.error.transfers.invalidLoanWageContribution";
+pub(super) const ERR_INVALID_LOAN_WAGE_CONTRIBUTION: &str =
+    "be.error.transfers.invalidLoanWageContribution";
 pub(super) const ERR_INVALID_LOAN_BUY_OPTION: &str = "be.error.transfers.invalidLoanBuyOption";
 pub(super) const ERR_NO_LOAN_BUY_OPTION: &str = "be.error.transfers.noLoanBuyOption";
-pub(super) const ERR_LOAN_BUY_OPTION_NOT_AVAILABLE: &str = "be.error.transfers.loanBuyOptionNotAvailable";
+pub(super) const ERR_LOAN_BUY_OPTION_NOT_AVAILABLE: &str =
+    "be.error.transfers.loanBuyOptionNotAvailable";
 pub(super) const LOAN_DEVELOPMENT_REPORT_INTERVAL_DAYS: i64 = 30;
 pub(super) const OPENING_LOAN_LISTINGS_PER_AI_TEAM: usize = 2;
 pub(super) const MIN_OPENING_LOAN_CONTRACT_RUNWAY_DAYS: i64 = 90;
