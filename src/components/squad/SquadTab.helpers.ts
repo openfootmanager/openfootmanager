@@ -402,8 +402,13 @@ export function getPitchSlotWidth(slotCount: number): number {
 }
 
 /**
- * Order candidates for a pitch slot: natural fits first, then exact-role
- * fits, then the strongest and freshest player, with name as a stable tiebreak.
+ * Order candidates for a pitch slot, best first.
+ *
+ * Players who can play the slot at all lead: it is one of their preferred
+ * positions, or at least in the same position group. Among those, a player
+ * whose natural position *is* the slot goes ahead of one merely covering it.
+ * Then the higher rating, then the fresher legs, with name as a stable
+ * tiebreak so the order never wobbles between renders.
  */
 export function comparePlayersForSlot(
   leftPlayer: PlayerData,
