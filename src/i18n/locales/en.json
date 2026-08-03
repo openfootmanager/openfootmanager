@@ -2588,10 +2588,13 @@
         "playerNotOnBench": "Player not on bench",
         "playerNotInStartingXi": "Player not in starting XI"
       },
-      "csv": { "writeFailed": "Failed to write the CSV file." },
+      "csv": {
+        "writeFailed": "Failed to write the CSV file."
+      },
       "worldReadFileFailed": "Failed to read the world database file.",
       "package": {
         "invalid": "This world package is invalid and could not be loaded.",
+        "invalidPackageId": "The package ID \"{{id}}\" cannot be used. It must not be empty or named \"assets\", and cannot contain \"/\", \"\\\" or \"..\".",
         "readFailed": "A package file could not be read.",
         "missingSchema": "A package file is missing its \"schema\" field.",
         "unknownSchema": "Unknown schema \"{{schema}}\".",

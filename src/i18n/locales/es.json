@@ -2607,10 +2607,13 @@
         "playerNotOnBench": "El jugador no está en el banquillo",
         "playerNotInStartingXi": "El jugador no está en el once inicial"
       },
-      "csv": { "writeFailed": "No se pudo escribir el archivo CSV." },
+      "csv": {
+        "writeFailed": "No se pudo escribir el archivo CSV."
+      },
       "worldReadFileFailed": "No se pudo leer el archivo de la base de datos del mundo.",
       "package": {
         "invalid": "Este paquete de mundo no es válido y no se pudo cargar.",
+        "invalidPackageId": "No se puede usar el ID de paquete \"{{id}}\". No puede estar vacío ni llamarse \"assets\", y no puede contener \"/\", \"\\\" ni \"..\".",
         "readFailed": "No se pudo leer un archivo del paquete.",
         "missingSchema": "A un archivo del paquete le falta el campo \"schema\".",
         "unknownSchema": "Esquema desconocido \"{{schema}}\".",

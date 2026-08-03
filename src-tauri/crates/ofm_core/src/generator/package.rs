@@ -233,6 +233,7 @@ const UNSUPPORTED_FORMAT_VERSION: &str = "be.error.package.unsupportedFormatVers
 const INVALID_ENTITY: &str = "be.error.package.invalidEntity";
 const MISSING_ID: &str = "be.error.package.missingId";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
+const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
 const UNKNOWN_COUNTRY: &str = "be.error.package.unknownCountry";
 const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
@@ -479,6 +480,7 @@ pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>)
 pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let (package, mut errors) = load_world_package_files(dir);
     errors.extend(validate_format_version(&package));
+    errors.extend(validate_manifest(&package));
     errors.extend(validate_references(&package));
     (package, errors)
 }
@@ -500,6 +502,53 @@ pub fn validate_format_version(package: &WorldPackage) -> Vec<PackageError> {
         return vec![PackageError::new(UNSUPPORTED_FORMAT_VERSION, "package.json")
             .with("version", meta.format_version.to_string())
             .with("supported", SUPPORTED_PACKAGE_FORMAT_VERSION.to_string())];
+    }
+    Vec::new()
+}
+
+/// The one package id that cannot be installed — it collides with the prefix
+/// that tells a bundled asset path from a package-qualified one.
+///
+/// Removable once `isPackageQualifiedAsset` (`src/lib/packageAssets.ts`) stops
+/// deciding on the first path segment — if a qualified path carried an explicit
+/// marker, or the two kinds of path were separate fields, `assets` would be an
+/// ordinary id again.
+pub const RESERVED_PACKAGE_ID: &str = "assets";
+
+/// Whether `id` can be used as a package identifier.
+///
+/// The id is not just a label. It becomes a filename under the packages
+/// directory (`<id>.ofm`) and the first segment of every qualified asset path
+/// (`<id>/assets/images/…`), so anything that could escape that directory has
+/// to be refused.
+///
+/// This is the single source of truth for that rule. The installer applies it
+/// to the id it resolves; [`validate_manifest`] applies it while the author can
+/// still fix it. Before they shared this function a manifest could declare an
+/// id that the editor and the CLI both called valid and the installer then
+/// refused with a generic "invalid package" — issue #414, `trendyol-super-lig-25/26`.
+pub fn is_valid_package_id(id: &str) -> bool {
+    !(id.is_empty()
+        || id.contains('/')
+        || id.contains('\\')
+        || id.contains("..")
+        || id.contains('\0')
+        || id == RESERVED_PACKAGE_ID)
+}
+
+/// Reject a manifest that declares an id the installer could never accept.
+///
+/// An **empty** id is deliberately not an error here: a package may omit it and
+/// the installer falls back to the archive's filename. Only an id the author
+/// actually wrote, and that cannot be used, is reported.
+pub fn validate_manifest(package: &WorldPackage) -> Vec<PackageError> {
+    let Some(meta) = package.meta.as_ref() else {
+        return Vec::new();
+    };
+    if !meta.id.is_empty() && !is_valid_package_id(&meta.id) {
+        return vec![
+            PackageError::new(INVALID_PACKAGE_ID, "package.json").with("id", meta.id.clone()),
+        ];
     }
     Vec::new()
 }
@@ -1306,7 +1355,11 @@ pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageErr
     };
 
     // Load whatever was successfully extracted, even if some entries had errors.
-    let (package, load_errors) = load_world_package_files(&temp_dir);
+    let (package, mut load_errors) = load_world_package_files(&temp_dir);
+    // An unusable id has to surface here too, not only from a directory load:
+    // `ofm-cli validate some.ofm` and the installer both come through this path,
+    // and an archive is the shape a package is actually shared in.
+    load_errors.extend(validate_manifest(&package));
     let _ = std::fs::remove_dir_all(&temp_dir);
 
     // Prepend extraction-level errors before the parse/validate errors.
@@ -1452,6 +1505,81 @@ mod tests {
         }
         zip.finish().unwrap();
         path
+    }
+
+    #[test]
+    fn an_unusable_package_id_is_caught_while_the_author_can_still_fix_it() {
+        // Issue #414: the reporter's manifest declared `trendyol-super-lig-25/26`.
+        // The editor and `ofm-cli validate` both called the package valid, and the
+        // installer then refused it — the slash makes `<id>.ofm` escape the
+        // packages directory. Whatever the installer will not accept has to fail
+        // here, at authoring time, on the author's own machine.
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"trendyol-super-lig-25/26","name":"Süper Lig"}"#,
+        );
+
+        let (_pkg, errors) = load_world_package(&dir);
+
+        let err = errors
+            .iter()
+            .find(|e| e.code == INVALID_PACKAGE_ID)
+            .expect("the unusable id should be reported");
+        // The id travels with the error: "invalid package" alone is what left the
+        // reporter with nothing to act on.
+        assert_eq!(
+            err.params,
+            vec![("id".to_string(), "trendyol-super-lig-25/26".to_string())]
+        );
+    }
+
+    #[test]
+    fn an_omitted_package_id_is_not_an_error() {
+        // An empty id is legal — the installer falls back to the archive filename,
+        // and procedurally generated packages rely on that. Only an id the author
+        // actually wrote, and that cannot be used, is a problem.
+        let dir = temp_package();
+        write(&dir, "package.json", r#"{"schema":"world","name":"Nameless"}"#);
+
+        let (_pkg, errors) = load_world_package(&dir);
+
+        assert!(
+            !errors.iter().any(|e| e.code == INVALID_PACKAGE_ID),
+            "an omitted id must not be reported, got {errors:?}"
+        );
+    }
+
+    #[test]
+    fn an_unusable_package_id_is_caught_in_an_archive_too() {
+        // A package is shared as a `.ofm`, and both `ofm-cli validate x.ofm` and
+        // the installer read it through the archive path — which used to skip the
+        // manifest check the directory path ran.
+        let archive = build_zip(&[(
+            "package.json",
+            br#"{"schema":"world","id":"a/b","name":"Slashed"}"#,
+        )]);
+
+        let (_pkg, errors) = load_world_package_from_ofm(&archive);
+
+        assert!(
+            errors.iter().any(|e| e.code == INVALID_PACKAGE_ID),
+            "expected the archive load to report the id, got {errors:?}"
+        );
+        std::fs::remove_file(&archive).ok();
+    }
+
+    #[test]
+    fn the_installer_and_the_validator_share_one_id_rule() {
+        // The two used to be separate copies, which is how they drifted apart.
+        // If a case is ever added to one list, this fails until it is in both.
+        for bad in ["", "..", "../evil", "a/b", "a\\b", "with\0null", "assets"] {
+            assert!(!is_valid_package_id(bad), "expected {bad:?} to be refused");
+        }
+        for good in ["eng-premier-league", "brasileirao_2026", "süper-lig-25-26"] {
+            assert!(is_valid_package_id(good), "expected {good:?} to pass");
+        }
     }
 
     #[test]

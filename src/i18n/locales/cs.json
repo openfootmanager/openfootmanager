@@ -2589,10 +2589,13 @@
         "playerNotOnBench": "Hráč není na lavički",
         "playerNotInStartingXi": "Hráč není v základní sestavě"
       },
-      "csv": { "writeFailed": "Nepodařilo se zapsat soubor CSV." },
+      "csv": {
+        "writeFailed": "Nepodařilo se zapsat soubor CSV."
+      },
       "worldReadFileFailed": "Nepodařilo se načíst databázový soubor světa.",
       "package": {
         "invalid": "Tento balíček světa je neplatný a nepodařilo se ho načíst.",
+        "invalidPackageId": "ID balíčku „{{id}}“ nelze použít. Nesmí být prázdné ani se jmenovat „assets“ a nesmí obsahovat „/“, „\\“ ani „..“.",
         "readFailed": "Soubor balíčku nebylo možné načíst.",
         "missingSchema": "V souboru balíčku chybí pole „schema“.",
         "unknownSchema": "Neznámé schéma „{{schema}}“.",

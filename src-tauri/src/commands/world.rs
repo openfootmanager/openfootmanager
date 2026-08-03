@@ -342,31 +342,36 @@ pub fn list_installed_packages(
 }
 
 /// Reject any package id that contains path separators or traversal tokens.
+///
+/// The rule itself lives in `ofm_core` so the editor and the CLI refuse the same
+/// ids while the author can still change them; this wrapper only turns it into
+/// the message the install dialog shows. That message names the id, because the
+/// previous generic "invalid package" gave a modder nothing to act on (#414).
 pub(crate) fn validate_package_id(id: &str) -> Result<(), String> {
-    if id.is_empty()
-        || id.contains('/')
-        || id.contains('\\')
-        || id.contains("..")
-        || id.contains('\0')
-        // "assets" is reserved: a qualified path is `<package_id>/assets/...`,
-        // so this id yields `assets/assets/…`, which `isPackageQualifiedAsset`
-        // on the frontend classifies as an app-bundled asset and resolves
-        // against the wrong root. Refusing the id keeps that classifier simple.
-        || id == RESERVED_PACKAGE_ID
-    {
-        return Err("be.error.package.invalid".to_string());
+    if ofm_core::generator::is_valid_package_id(id) {
+        return Ok(());
     }
-    Ok(())
+    Err(format!(
+        "be.error.package.invalidPackageId?id={}",
+        encode_param_value(id)
+    ))
 }
 
-/// The one package id that cannot be installed — it collides with the prefix
-/// that tells a bundled asset path from a package-qualified one.
+/// Percent-encode the characters that would otherwise be read as query-string
+/// structure by `parseBackendMessage` (`src/utils/backendI18n.ts`), which splits
+/// on `?` and hands the rest to `URLSearchParams`.
 ///
-/// Removable once `isPackageQualifiedAsset` (`src/lib/packageAssets.ts`) stops
-/// deciding on the first path segment — if a qualified path carried an explicit
-/// marker, or the two kinds of path were separate fields, `assets` would be an
-/// ordinary id again.
-const RESERVED_PACKAGE_ID: &str = "assets";
+/// Only these five matter: `%` first so its own escapes are not re-encoded, then
+/// the separators, then `+` — which `URLSearchParams` decodes to a space. A
+/// package id is author-controlled text, so it can contain any of them.
+fn encode_param_value(value: &str) -> String {
+    value
+        .replace('%', "%25")
+        .replace('&', "%26")
+        .replace('=', "%3D")
+        .replace('?', "%3F")
+        .replace('+', "%2B")
+}
 
 /// Remove an installed package by id.
 #[tauri::command]
@@ -907,5 +912,33 @@ mod tests {
                 "expected {bad:?} to be rejected"
             );
         }
+    }
+
+    #[test]
+    fn a_rejected_package_id_is_named_in_the_error() {
+        // The reporter in #414 shipped `trendyol-super-lig-25/26` and got only
+        // "invalid package": nothing pointed at the id, let alone the slash. The
+        // id has to survive into the message for the error to be actionable.
+        let err = validate_package_id("trendyol-super-lig-25/26").unwrap_err();
+        assert_eq!(
+            err,
+            "be.error.package.invalidPackageId?id=trendyol-super-lig-25/26"
+        );
+    }
+
+    #[test]
+    fn an_id_carrying_query_syntax_survives_the_frontend_parser() {
+        // parseBackendMessage splits on the first `?` and hands the rest to
+        // URLSearchParams, so an unescaped `&` or `=` in the id would truncate or
+        // corrupt the value the dialog shows. `+` matters too: URLSearchParams
+        // decodes it to a space, silently renaming the id in the message.
+        let err = validate_package_id("a&b=c+d?e%f/g").unwrap_err();
+        let (key, query) = err.split_once('?').expect("the message carries params");
+        assert_eq!(key, "be.error.package.invalidPackageId");
+        // Percent-decoding this by the URLSearchParams rules gives back the id
+        // exactly. `/` is left alone deliberately — it is legal in a query value
+        // and is the very character the reporter's id tripped on, so escaping it
+        // would only make the message harder to read.
+        assert_eq!(query, "id=a%26b%3Dc%2Bd%3Fe%25f/g");
     }
 }
