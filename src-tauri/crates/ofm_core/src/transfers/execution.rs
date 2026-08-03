@@ -37,6 +37,12 @@ pub(super) fn build_transfer_feedback(
     }
 }
 
+// The eight parameters are the agreed loan terms, and every caller has them as
+// separate values already — validated field by field during negotiation, or
+// read off a `LoanOffer`. Bundling them into a terms struct here would only
+// move the assembly to the call sites. It becomes worth doing if `LoanOffer`
+// ever grows a shared terms type the negotiation code can pass straight
+// through.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn execute_loan(
     game: &mut Game,
