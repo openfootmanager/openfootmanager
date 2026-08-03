@@ -99,7 +99,7 @@ export default function TournamentsAwardCard({
                 >
                   <span
                     className={`font-heading font-bold text-sm w-5 text-center ${i === 0
-                      ? "text-accent-500"
+                      ? "text-accent-500 dark:text-accent-400"
                       : "text-gray-400 dark:text-gray-500"
                       }`}
                   >
@@ -120,7 +120,7 @@ export default function TournamentsAwardCard({
                   </div>
                   <span
                     className={`font-heading font-bold tabular-nums ${i === 0
-                      ? "text-lg text-accent-500"
+                      ? "text-lg text-accent-500 dark:text-accent-400"
                       : "text-sm text-gray-600 dark:text-gray-400"
                       }`}
                   >
