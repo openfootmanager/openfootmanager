@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
-import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
+import {
+  GameStateData,
+  PlayerSelectionOptions,
+  TeamData,
+} from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import {
   formatExactMoney,
@@ -45,6 +49,20 @@ interface FinancesTabProps {
   onSelectPlayer?: (id: string, options?: PlayerSelectionOptions) => void;
 }
 
+/**
+ * Resolves the managed team, and renders the tab only once there is one.
+ *
+ * The guard needs its own component so that each component's hook sequence is
+ * the same on every render. Here `useTranslation` runs before the early return,
+ * so this component always contributes exactly that one hook whether or not a
+ * team was found; `FinancesTabContent` is mounted only with a team in hand, so
+ * it always runs all of its own hooks. Putting the guard directly above
+ * `FinancesTabContent`'s ten `useState` calls instead would take the hook count
+ * from one to eleven the moment the manager's team resolved, which React
+ * rejects with "Rendered more hooks than during the previous render".
+ *
+ * The two components can be merged again once the tab no longer needs state.
+ */
 export default function FinancesTab({
   gameState,
   onGameUpdate,
@@ -58,6 +76,28 @@ export default function FinancesTab({
     return (
       <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
     );
+
+  return (
+    <FinancesTabContent
+      gameState={gameState}
+      myTeam={myTeam}
+      onGameUpdate={onGameUpdate}
+      onSelectPlayer={onSelectPlayer}
+    />
+  );
+}
+
+interface FinancesTabContentProps extends FinancesTabProps {
+  myTeam: TeamData;
+}
+
+function FinancesTabContent({
+  gameState,
+  myTeam,
+  onGameUpdate,
+  onSelectPlayer,
+}: FinancesTabContentProps) {
+  const { t } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<

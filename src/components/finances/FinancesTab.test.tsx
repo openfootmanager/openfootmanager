@@ -13,13 +13,25 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-vi.mock("react-i18next", () => ({
-  initReactI18next: {
-    type: "3rdParty",
-    init: () => { },
-  },
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, string | number>) => {
+vi.mock("react-i18next", async () => {
+  const { useRef } = await import("react");
+
+  return {
+    initReactI18next: {
+      type: "3rdParty",
+      init: () => { },
+    },
+    useTranslation: () => {
+      // The real useTranslation consumes context and state, so it always costs
+      // at least one hook slot. The mock has to do the same. A hook-free mock
+      // lets a component that returns before its useState calls render *zero*
+      // hooks on the guard path, and React then re-takes the mount path on the
+      // next render instead of reporting the hook-count change — which silently
+      // hides Rules-of-Hooks bugs from every test in this file.
+      useRef(null);
+
+      return {
+        t: (key: string, params?: Record<string, string | number>) => {
       if (key === "finances.facilities") return "Facilities";
       if (key === "finances.sponsors") return "Sponsors";
       if (key === "finances.activeSponsor") return "Active Sponsor";
@@ -122,10 +134,12 @@ vi.mock("react-i18next", () => ({
       if (key === "common.contract") return "Contract";
       if (key === "common.noTeam") return "No team";
       return key;
+        },
+        i18n: { language: "en" },
+      };
     },
-    i18n: { language: "en" },
-  }),
-}));
+  };
+});
 
 const mockedInvoke = vi.mocked(invoke);
 
@@ -936,5 +950,43 @@ describe("FinancesTab facilities", () => {
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     expect(screen.getByText("1 done, 1 pending, 0 failed")).toBeInTheDocument();
+  });
+});
+
+describe("FinancesTab team guard", () => {
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return pendingPromise();
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+  });
+
+  it("shows the no-team message when the manager has no club", () => {
+    const gameState = createGameState();
+    gameState.manager.team_id = null;
+
+    render(<FinancesTab gameState={gameState} />);
+
+    expect(screen.getByText("No team")).toBeInTheDocument();
+  });
+
+  it("survives the manager gaining a team without remounting", () => {
+    const unemployed = createGameState();
+    unemployed.manager.team_id = null;
+
+    const { rerender } = render(<FinancesTab gameState={unemployed} />);
+    expect(screen.getByText("No team")).toBeInTheDocument();
+
+    // Same component instance, team now resolves. When the guard sat above the
+    // hooks this rerender threw "Rendered more hooks than during the previous
+    // render" because the hook count went from 1 to 11.
+    rerender(<FinancesTab gameState={createGameState()} />);
+
+    expect(screen.queryByText("No team")).not.toBeInTheDocument();
+    expect(screen.getByText("Facilities")).toBeInTheDocument();
   });
 });
