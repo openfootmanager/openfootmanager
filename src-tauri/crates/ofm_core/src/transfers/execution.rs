@@ -1,8 +1,8 @@
 //! Carrying out a transfer or a loan once its terms are agreed.
 //!
-//! The negotiation lives in `bids`; by the time anything here runs the deal is
-//! settled and these functions only move the player, the money and the
-//! paperwork.
+//! The negotiation that reaches those terms is still in the parent module. By
+//! the time anything here runs the deal is settled, and these functions only
+//! move the player, the money and the paperwork.
 
 use super::*;
 
