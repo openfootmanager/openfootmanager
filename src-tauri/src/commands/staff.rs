@@ -5,7 +5,7 @@ use tauri::State;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
-use crate::commands::util::{mutate_active_game, user_team_mut};
+use crate::commands::util::{mutate_active_game, user_team_id, user_team_mut};
 
 #[tauri::command]
 pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
@@ -15,11 +15,7 @@ pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Resu
 pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] hire_staff: staff_id={}", staff_id);
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         // Read and validate before writing anything: mutate_active_game mutates
         // the live game, so a write made before an error is returned would stick.
@@ -231,11 +227,7 @@ pub fn release_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> R
 pub fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] release_staff: staff_id={}", staff_id);
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         // Read and validate before writing anything: mutate_active_game mutates
         // the live game, so a write made before an error is returned would stick.

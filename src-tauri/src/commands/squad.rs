@@ -6,7 +6,7 @@ use tauri::State;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
-use crate::commands::util::{mutate_active_game, user_team_mut};
+use crate::commands::util::{mutate_active_game, user_team_id, user_team_mut};
 
 fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     match squad_role {
@@ -29,11 +29,7 @@ fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option
 
 pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         // Note: `player.position` is intentionally NOT mutated here. A player's
         // stored position is their natural position; the position they are
@@ -55,11 +51,7 @@ pub fn set_starting_xi_internal(
     player_ids: Vec<String>,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         let team = user_team_mut(game)?;
         team.starting_xi_ids = player_ids;
@@ -248,11 +240,7 @@ pub fn set_player_training_focus_internal(
         player_id, focus
     );
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         let training_focus = focus.and_then(|f| match f {
             "Physical" => Some(domain::team::TrainingFocus::Physical),
@@ -297,11 +285,7 @@ pub fn set_player_squad_role_internal(
         player_id, squad_role
     );
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
         let target_role =
             parse_squad_role(squad_role).ok_or("be.error.invalidSquadRole".to_string())?;
         let current_date = game.clock.current_date.date_naive();
@@ -372,11 +356,7 @@ pub fn assign_jersey_number_internal(
     jersey_number: Option<u8>,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         if let Some(n) = jersey_number {
             if !(1..=99).contains(&n) {
@@ -425,11 +405,7 @@ pub fn set_team_kit_pattern_internal(
             return Err("be.error.kitChangesLockedInSeason".to_string());
         }
 
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         let team = game
             .teams
@@ -630,11 +606,7 @@ pub fn set_player_role_internal(
 ) -> Result<Game, String> {
     info!("[cmd] set_player_role: player={} role={:?}", player_id, role);
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
         // Validate the role against where the player is actually deployed (the
         // granular slot from formation + starting XI), falling back to their
@@ -647,14 +619,11 @@ pub fn set_player_role_internal(
             .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&team_id))
             .map(|p| p.natural_position.clone())
             .ok_or_else(|| "be.error.playerNotOnTeam".to_string())?;
-        let validation_position = game
-            .teams
-            .iter()
-            .find(|t| t.id == team_id)
-            .and_then(|team| ofm_core::player_rating::deployed_position(team, &player_id))
-            .unwrap_or(natural_position);
-
         let team = user_team_mut(game)?;
+        let validation_position =
+            ofm_core::player_rating::deployed_position(team, &player_id)
+                .unwrap_or(natural_position);
+
         match role {
             Some(r) => {
                 let role_enum = r
