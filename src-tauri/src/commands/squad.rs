@@ -6,7 +6,7 @@ use tauri::State;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
-use crate::commands::util::mutate_active_game;
+use crate::commands::util::{mutate_active_game, user_team_mut};
 
 fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     match squad_role {
@@ -41,9 +41,8 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
         // (see `player_rating::deployed_position`). The previous stat-ranked
         // bucket overwrite corrupted role validation and match simulation
         // (issue #257).
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.formation = formation.to_string();
-        }
+        let team = user_team_mut(game)?;
+        team.formation = formation.to_string();
 
         reconcile_player_roles(game, &team_id);
 
@@ -62,9 +61,8 @@ pub fn set_starting_xi_internal(
             .clone()
             .ok_or("be.error.noTeamAssigned".to_string())?;
 
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.starting_xi_ids = player_ids;
-        }
+        let team = user_team_mut(game)?;
+        team.starting_xi_ids = player_ids;
 
         reconcile_player_roles(game, &team_id);
 
@@ -101,12 +99,6 @@ pub fn set_play_style(
 
 pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
-
         let style = match play_style {
             "Attacking" => domain::team::PlayStyle::Attacking,
             "Defensive" => domain::team::PlayStyle::Defensive,
@@ -116,9 +108,8 @@ pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result
             _ => domain::team::PlayStyle::Balanced,
         };
 
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.play_style = style;
-        }
+        let team = user_team_mut(game)?;
+        team.play_style = style;
 
         Ok(())
     })
@@ -138,15 +129,8 @@ pub fn set_team_match_roles_internal(
     match_roles: domain::team::MatchRoles,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
-
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.match_roles = match_roles;
-        }
+        let team = user_team_mut(game)?;
+        team.match_roles = match_roles;
 
         Ok(())
     })
@@ -171,12 +155,6 @@ pub fn set_training_internal(
     intensity: &str,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
-
         let training_focus = match focus {
             "Physical" => domain::team::TrainingFocus::Physical,
             "Technical" => domain::team::TrainingFocus::Technical,
@@ -194,10 +172,9 @@ pub fn set_training_internal(
             _ => domain::team::TrainingIntensity::Medium,
         };
 
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.training_focus = training_focus;
-            team.training_intensity = training_intensity;
-        }
+        let team = user_team_mut(game)?;
+        team.training_focus = training_focus;
+        team.training_intensity = training_intensity;
 
         Ok(())
     })
@@ -217,12 +194,6 @@ pub fn set_training_schedule_internal(
     schedule: &str,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
-
         let training_schedule = match schedule {
             "Intense" => domain::team::TrainingSchedule::Intense,
             "Balanced" => domain::team::TrainingSchedule::Balanced,
@@ -230,9 +201,8 @@ pub fn set_training_schedule_internal(
             _ => domain::team::TrainingSchedule::Balanced,
         };
 
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.training_schedule = training_schedule;
-        }
+        let team = user_team_mut(game)?;
+        team.training_schedule = training_schedule;
 
         Ok(())
     })
@@ -252,15 +222,8 @@ pub fn set_training_groups_internal(
     groups: Vec<domain::team::TrainingGroup>,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
-
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.training_groups = groups;
-        }
+        let team = user_team_mut(game)?;
+        team.training_groups = groups;
 
         Ok(())
     })
@@ -361,13 +324,16 @@ pub fn set_player_squad_role_internal(
             }
         }
 
-        game.players[player_index].squad_role = target_role;
-
+        // Drop the player from the XI first. It is the only step here that can
+        // fail, and mutate_active_game mutates the live game, so doing it after
+        // the squad-role write would leave that write in place on an error.
         if matches!(target_role, domain::player::SquadRole::Youth) {
-            if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
-                team.starting_xi_ids.retain(|id| id != player_id);
-            }
+            user_team_mut(game)?
+                .starting_xi_ids
+                .retain(|id| id != player_id);
         }
+
+        game.players[player_index].squad_role = target_role;
 
         Ok(())
     })
@@ -688,20 +654,19 @@ pub fn set_player_role_internal(
             .and_then(|team| ofm_core::player_rating::deployed_position(team, &player_id))
             .unwrap_or(natural_position);
 
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            match role {
-                Some(r) => {
-                    let role_enum = r
-                        .parse::<domain::team::PlayerRole>()
-                        .map_err(|_| "be.error.invalidPlayerRole".to_string())?;
-                    if !role_valid_for_position(&role_enum, &validation_position) {
-                        return Err("be.error.roleNotValidForPosition".to_string());
-                    }
-                    team.player_roles.insert(player_id.clone(), role_enum);
+        let team = user_team_mut(game)?;
+        match role {
+            Some(r) => {
+                let role_enum = r
+                    .parse::<domain::team::PlayerRole>()
+                    .map_err(|_| "be.error.invalidPlayerRole".to_string())?;
+                if !role_valid_for_position(&role_enum, &validation_position) {
+                    return Err("be.error.roleNotValidForPosition".to_string());
                 }
-                None => {
-                    team.player_roles.remove(&player_id);
-                }
+                team.player_roles.insert(player_id.clone(), role_enum);
+            }
+            None => {
+                team.player_roles.remove(&player_id);
             }
         }
 
@@ -729,77 +694,70 @@ pub fn set_tactics_phase(
     use domain::team::*;
     info!("[cmd] set_tactics_phase");
     mutate_active_game(&state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
-
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            let p = &mut team.tactics_phase;
-            if let Some(v) = build_up_style {
-                p.build_up_style = match v.as_str() {
-                    "Short" => BuildUpStyle::Short,
-                    "Long" => BuildUpStyle::Long,
-                    _ => BuildUpStyle::Mixed,
-                };
-            }
-            if let Some(v) = width {
-                p.width = match v.as_str() {
-                    "Narrow" => PitchWidth::Narrow,
-                    "Wide" => PitchWidth::Wide,
-                    _ => PitchWidth::Normal,
-                };
-            }
-            if let Some(v) = tempo {
-                p.tempo = match v.as_str() {
-                    "Patient" => Tempo::Patient,
-                    _ => Tempo::Direct,
-                };
-            }
-            if let Some(v) = defensive_line {
-                p.defensive_line = match v.as_str() {
-                    "VeryLow" => DefensiveLine::VeryLow,
-                    "Low" => DefensiveLine::Low,
-                    "High" => DefensiveLine::High,
-                    _ => DefensiveLine::Medium,
-                };
-            }
-            if let Some(v) = pressing_intensity {
-                p.pressing_intensity = match v.as_str() {
-                    "Passive" => PressingIntensity::Passive,
-                    "Aggressive" => PressingIntensity::Aggressive,
-                    _ => PressingIntensity::Medium,
-                };
-            }
-            if let Some(v) = defensive_shape {
-                p.defensive_shape = match v.as_str() {
-                    "Stretched" => DefensiveShape::Stretched,
-                    "Compact" => DefensiveShape::Compact,
-                    _ => DefensiveShape::Normal,
-                };
-            }
-            if let Some(v) = marking_style {
-                p.marking_style = match v.as_str() {
-                    "ManToMan" => MarkingStyle::ManToMan,
-                    "Mixed" => MarkingStyle::Mixed,
-                    _ => MarkingStyle::Zonal,
-                };
-            }
-            if let Some(v) = counter_press_duration {
-                p.counter_press_duration = match v.as_str() {
-                    "Short" => CounterPressDuration::Short,
-                    "Long" => CounterPressDuration::Long,
-                    _ => CounterPressDuration::None,
-                };
-            }
-            if let Some(v) = break_speed {
-                p.break_speed = match v.as_str() {
-                    "Slow" => BreakSpeed::Slow,
-                    "Fast" => BreakSpeed::Fast,
-                    _ => BreakSpeed::Medium,
-                };
-            }
+        let team = user_team_mut(game)?;
+        let p = &mut team.tactics_phase;
+        if let Some(v) = build_up_style {
+            p.build_up_style = match v.as_str() {
+                "Short" => BuildUpStyle::Short,
+                "Long" => BuildUpStyle::Long,
+                _ => BuildUpStyle::Mixed,
+            };
+        }
+        if let Some(v) = width {
+            p.width = match v.as_str() {
+                "Narrow" => PitchWidth::Narrow,
+                "Wide" => PitchWidth::Wide,
+                _ => PitchWidth::Normal,
+            };
+        }
+        if let Some(v) = tempo {
+            p.tempo = match v.as_str() {
+                "Patient" => Tempo::Patient,
+                _ => Tempo::Direct,
+            };
+        }
+        if let Some(v) = defensive_line {
+            p.defensive_line = match v.as_str() {
+                "VeryLow" => DefensiveLine::VeryLow,
+                "Low" => DefensiveLine::Low,
+                "High" => DefensiveLine::High,
+                _ => DefensiveLine::Medium,
+            };
+        }
+        if let Some(v) = pressing_intensity {
+            p.pressing_intensity = match v.as_str() {
+                "Passive" => PressingIntensity::Passive,
+                "Aggressive" => PressingIntensity::Aggressive,
+                _ => PressingIntensity::Medium,
+            };
+        }
+        if let Some(v) = defensive_shape {
+            p.defensive_shape = match v.as_str() {
+                "Stretched" => DefensiveShape::Stretched,
+                "Compact" => DefensiveShape::Compact,
+                _ => DefensiveShape::Normal,
+            };
+        }
+        if let Some(v) = marking_style {
+            p.marking_style = match v.as_str() {
+                "ManToMan" => MarkingStyle::ManToMan,
+                "Mixed" => MarkingStyle::Mixed,
+                _ => MarkingStyle::Zonal,
+            };
+        }
+        if let Some(v) = counter_press_duration {
+            p.counter_press_duration = match v.as_str() {
+                "Short" => CounterPressDuration::Short,
+                "Long" => CounterPressDuration::Long,
+                _ => CounterPressDuration::None,
+            };
+        }
+        if let Some(v) = break_speed {
+            p.break_speed = match v.as_str() {
+                "Slow" => BreakSpeed::Slow,
+                "Fast" => BreakSpeed::Fast,
+                _ => BreakSpeed::Medium,
+            };
         }
 
         Ok(())
@@ -901,6 +859,56 @@ mod tests {
             vec![],
             vec![],
         )
+    }
+
+    /// The manager holds a team id, but no club in the world has it. This used
+    /// to be a silent no-op: the lookup was written `if let Some(team) = ...`
+    /// with no else, so the command reported success having changed nothing.
+    fn make_game_with_dangling_team_id(player: Player) -> Game {
+        let mut game = make_game(player);
+        game.teams[0].id = "team-elsewhere".to_string();
+        game
+    }
+
+    #[test]
+    fn set_formation_internal_reports_a_team_id_that_matches_no_club() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_dangling_team_id(make_player("1998-01-01")));
+
+        let result = set_formation_internal(&state, "4-3-3");
+
+        assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
+
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        assert_ne!(stored.teams[0].formation, "4-3-3");
+    }
+
+    #[test]
+    fn set_formation_internal_reports_an_unemployed_manager() {
+        let state = StateManager::new();
+        let mut game = make_game(make_player("1998-01-01"));
+        game.manager.team_id = None;
+        state.set_game(game);
+
+        assert_eq!(
+            set_formation_internal(&state, "4-3-3").err(),
+            Some("be.error.noTeamAssigned".into())
+        );
+    }
+
+    #[test]
+    fn set_player_squad_role_internal_reports_a_team_id_that_matches_no_club() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_dangling_team_id(make_player("2008-01-01")));
+
+        let result = set_player_squad_role_internal(&state, "player-1", "Youth");
+
+        assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
+
+        // The XI edit is the fallible step and runs first, so the squad-role
+        // write must not have happened either.
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        assert_ne!(stored.players[0].squad_role, SquadRole::Youth);
     }
 
     #[test]
