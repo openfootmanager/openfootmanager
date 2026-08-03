@@ -2,8 +2,14 @@ import { useState, useEffect } from "react";
 import CompetitionsOverview from "./CompetitionsOverview";
 import KnockoutBracket from "./KnockoutBracket";
 import TournamentsAwardCard from "./TournamentsAwardCard";
+import {
+  buildTopScorers,
+  byTablePosition,
+  isKnockoutCompetition,
+  localizedRoundName,
+  summarizeCompetitionProgress,
+} from "./TournamentsTab.helpers";
 import { invoke } from "@tauri-apps/api/core";
-import type { TFunction } from "i18next";
 import {
   FixtureData,
   GameStateData,
@@ -45,34 +51,6 @@ interface TournamentsTabProps {
   gameState: GameStateData;
   onSelectTeam: (id: string) => void;
   onSelectPlayer?: (id: string) => void;
-}
-
-function isKnockoutCompetition(competition: LeagueData): boolean {
-  return (
-    (competition.rules != null && competition.rules.format !== "LeagueTable") ||
-    (competition.knockout_rounds?.length ?? 0) > 0
-  );
-}
-
-function byTablePosition(
-  a: { points: number; goals_for: number; goals_against: number },
-  b: { points: number; goals_for: number; goals_against: number },
-): number {
-  return (
-    b.points - a.points ||
-    b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
-    b.goals_for - a.goals_for
-  );
-}
-
-/** Round names arrive as backend data ("Final", "Round of 16"); localize the known shapes. */
-function localizedRoundName(t: TFunction, name: string): string {
-  if (name === "Final") return t("tournaments.rounds.final");
-  if (name === "Semifinal") return t("tournaments.rounds.semifinal");
-  if (name === "Quarterfinal") return t("tournaments.rounds.quarterfinal");
-  const roundOf = name.match(/^Round of (\d+)$/);
-  if (roundOf) return t("tournaments.rounds.roundOf", { size: roundOf[1] });
-  return name;
 }
 
 export default function TournamentsTab({
@@ -233,29 +211,14 @@ export default function TournamentsTab({
 
   const competitiveFixtures = getCompetitiveFixtures(league.fixtures);
 
-  const matchdays = new Map<number, FixtureData[]>();
-  competitiveFixtures.forEach((f) => {
-    const list = matchdays.get(f.matchday) || [];
-    list.push(f);
-    matchdays.set(f.matchday, list);
-  });
-  const sortedMatchdays = Array.from(matchdays.entries()).sort(
-    (a, b) => a[0] - b[0],
-  );
-
-  const completedMatchdays = sortedMatchdays.filter(([, fixtures]) =>
-    fixtures.every((f) => f.status === "Completed"),
-  ).length;
-  const totalMatchdays = sortedMatchdays.length;
-  // Awards only become final once the competition's season has fully played out;
-  // before that the standings-based winners are just current leaders.
-  const seasonComplete = totalMatchdays > 0 && completedMatchdays >= totalMatchdays;
-  const totalGoals = competitiveFixtures
-    .filter((f) => f.result)
-    .reduce((s, f) => s + (f.result!.home_goals + f.result!.away_goals), 0);
-  const completedMatches = competitiveFixtures.filter(
-    (f) => f.status === "Completed",
-  ).length;
+  const {
+    sortedMatchdays,
+    completedMatchdays,
+    totalMatchdays,
+    seasonComplete,
+    totalGoals,
+    completedMatches,
+  } = summarizeCompetitionProgress(competitiveFixtures);
 
   // Build fallback player name lookup from gameState.players while slice loads.
   const fallbackPlayerNames = Object.fromEntries(
@@ -272,28 +235,7 @@ export default function TournamentsTab({
   const resolvedPlayerNames =
     Object.keys(playerNames).length > 0 ? playerNames : fallbackPlayerNames;
 
-  const topScorers = (() => {
-    const goals: Record<string, number> = {};
-    competitiveFixtures.forEach((f) => {
-      if (f.result) {
-        f.result.home_scorers.forEach((s) => {
-          goals[s.player_id] = (goals[s.player_id] || 0) + 1;
-        });
-        f.result.away_scorers.forEach((s) => {
-          goals[s.player_id] = (goals[s.player_id] || 0) + 1;
-        });
-      }
-    });
-    return Object.entries(goals)
-      .map(([pid, g]) => ({
-        playerId: pid,
-        playerName: resolvedPlayerNames[pid] ?? null,
-        goals: g,
-      }))
-      .filter((e) => e.playerName !== null)
-      .sort((a, b) => b.goals - a.goals)
-      .slice(0, 10);
-  })();
+  const topScorers = buildTopScorers(competitiveFixtures, resolvedPlayerNames);
 
   const isClubTeam = (id: string) => id in teamNames;
   const resolveTeamName = (id: string) => {
