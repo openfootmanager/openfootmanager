@@ -1,0 +1,92 @@
+{
+  "competition": [
+    "berths",
+    "countryId",
+    "format",
+    "id",
+    "logo",
+    "name",
+    "nameKey",
+    "participants",
+    "priority",
+    "regionId",
+    "requiredRegionIds",
+    "scope",
+    "seasonStartDay",
+    "seasonStartMonth",
+    "type"
+  ],
+  "confederation": [
+    "id",
+    "name"
+  ],
+  "country": [
+    "confederation",
+    "id",
+    "name"
+  ],
+  "names": [
+    "description",
+    "pools",
+    "version"
+  ],
+  "player": [
+    "age",
+    "attributes",
+    "club",
+    "dateOfBirth",
+    "firstName",
+    "footedness",
+    "id",
+    "lastName",
+    "name",
+    "nationality",
+    "overall",
+    "photo",
+    "position",
+    "youth"
+  ],
+  "staff": [
+    "age",
+    "attributes",
+    "club",
+    "dateOfBirth",
+    "firstName",
+    "id",
+    "lastName",
+    "nationality",
+    "role",
+    "specialization"
+  ],
+  "team": [
+    "city",
+    "colors",
+    "country",
+    "financeRange",
+    "foundedYear",
+    "id",
+    "kitPattern",
+    "logo",
+    "name",
+    "playStyle",
+    "reputationRange",
+    "shortName",
+    "stadiumName"
+  ],
+  "world": [
+    "author",
+    "baseYear",
+    "defaultActiveCompetitions",
+    "defaultActiveRegions",
+    "description",
+    "fallbackLeague",
+    "formatVersion",
+    "gameMinVersion",
+    "id",
+    "license",
+    "logo",
+    "name",
+    "packageType",
+    "version"
+  ]
+}
