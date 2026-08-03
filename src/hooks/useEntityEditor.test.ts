@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useEntityEditor } from "./useEntityEditor";
 
-type Item = { id: string; name: string };
+type Item = { id: string; name: string; logo?: string | null };
 
 const emptyItem = (): Item => ({ id: "", name: "" });
 
@@ -13,6 +13,7 @@ function makeHook(overrides: Partial<Parameters<typeof useEntityEditor<Item>>[0]
   const onOpen = vi.fn();
   const onClose = vi.fn();
   const setIsBusy = vi.fn();
+  const onDirty = vi.fn();
 
   const defaults = {
     items: [] as Item[],
@@ -24,12 +25,13 @@ function makeHook(overrides: Partial<Parameters<typeof useEntityEditor<Item>>[0]
     onOpen,
     onClose,
     setIsBusy,
+    onDirty,
   };
 
   const hook = renderHook((props: Parameters<typeof useEntityEditor<Item>>[0]) =>
     useEntityEditor(props), { initialProps: { ...defaults, ...overrides } });
 
-  return { hook, setItems, captureHistory, saveItems, onOpen, onClose, setIsBusy };
+  return { hook, setItems, captureHistory, saveItems, onOpen, onClose, setIsBusy, onDirty, defaults };
 }
 
 describe("useEntityEditor", () => {
@@ -188,6 +190,159 @@ describe("useEntityEditor", () => {
       const { hook, saveItems } = makeHook({ items, autoSave: false });
       await act(async () => { hook.result.current.handleDelete(0); });
       expect(saveItems).not.toHaveBeenCalled();
+    });
+  });
+
+  // Asset picks (team logo, player photo, competition badge) copy the image into
+  // the package before setting the path, so the preview updates immediately. If
+  // the path only lived in the editing buffer, switching entities dropped it and
+  // the logo looked like it had vanished — see commitField.
+  describe("commitField", () => {
+    it("writes the value into the record, not just the editing buffer", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+      const { hook, setItems } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(0); });
+      act(() => { hook.result.current.commitField("logo", "assets/images/a.png"); });
+
+      expect(hook.result.current.editing.logo).toBe("assets/images/a.png");
+      expect(setItems).toHaveBeenCalledWith([
+        { id: "a", name: "A", logo: "assets/images/a.png" },
+        { id: "b", name: "B" },
+      ]);
+    });
+
+    it("survives switching to another entity and back (the reported bug)", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+      const { hook, setItems, defaults } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(0); });
+      act(() => { hook.result.current.commitField("logo", "assets/images/a.png"); });
+
+      // The page owns the array, so feed the committed list back in as the
+      // parent would before the user clicks away.
+      const updated = setItems.mock.calls[0][0] as Item[];
+      hook.rerender({ ...defaults, items: updated });
+
+      act(() => { hook.result.current.handleSelect(1); });
+      expect(hook.result.current.editing.logo).toBeUndefined();
+
+      act(() => { hook.result.current.handleSelect(0); });
+      expect(hook.result.current.editing.logo).toBe("assets/images/a.png");
+    });
+
+    it("buffers without touching the list for a brand-new record", () => {
+      const { hook, setItems, captureHistory, saveItems } = makeHook({ items: [], autoSave: true });
+      act(() => { hook.result.current.handleAdd(); });
+      act(() => { hook.result.current.commitField("logo", "assets/images/new.png"); });
+
+      expect(hook.result.current.editing.logo).toBe("assets/images/new.png");
+      expect(setItems).not.toHaveBeenCalled();
+      expect(captureHistory).not.toHaveBeenCalled();
+      expect(saveItems).not.toHaveBeenCalled();
+    });
+
+    it("persists once and captures a single history entry when autoSave is on", async () => {
+      const items: Item[] = [{ id: "a", name: "A" }];
+      const { hook, saveItems, captureHistory } = makeHook({ items, autoSave: true });
+      act(() => { hook.result.current.handleSelect(0); });
+      await act(async () => { hook.result.current.commitField("logo", "assets/images/a.png"); });
+
+      expect(captureHistory).toHaveBeenCalledTimes(1);
+      expect(saveItems).toHaveBeenCalledTimes(1);
+      expect(saveItems).toHaveBeenCalledWith([{ id: "a", name: "A", logo: "assets/images/a.png" }]);
+    });
+
+    it("flags the project dirty instead of persisting when autoSave is off", () => {
+      const items: Item[] = [{ id: "a", name: "A" }];
+      const { hook, saveItems, onDirty } = makeHook({ items, autoSave: false });
+      act(() => { hook.result.current.handleSelect(0); });
+      act(() => { hook.result.current.commitField("logo", "assets/images/a.png"); });
+
+      expect(saveItems).not.toHaveBeenCalled();
+      expect(onDirty).toHaveBeenCalledTimes(1);
+    });
+
+    it("persists a cleared value the same way", () => {
+      const items: Item[] = [{ id: "a", name: "A", logo: "assets/images/a.png" }];
+      const { hook, setItems } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(0); });
+      act(() => { hook.result.current.commitField("logo", null); });
+
+      expect(setItems).toHaveBeenCalledWith([{ id: "a", name: "A", logo: null }]);
+    });
+
+    it("writes to the record it was picked for, not the array slot it had", () => {
+      // A pick awaits a native file dialog before committing, and the list can
+      // be edited during that gap. `staleCommit` is deliberately captured
+      // before the change: calling hook.result.current afterwards would take a
+      // fresh closure and pass against the very bug this pins.
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+      const { hook, setItems, defaults } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(1); });
+      const staleCommit = hook.result.current.commitField;
+
+      // Meanwhile the user deletes the first entity, so "b" is now at index 0.
+      const reordered: Item[] = [{ id: "b", name: "B" }];
+      hook.rerender({ ...defaults, items: reordered });
+
+      act(() => { staleCommit("logo", "assets/images/b.png"); });
+
+      expect(setItems).toHaveBeenCalledWith([
+        { id: "b", name: "B", logo: "assets/images/b.png" },
+      ]);
+    });
+
+    it("drops the commit when the record it was picked for is gone", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+      const { hook, setItems, defaults, captureHistory } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(1); });
+      const staleCommit = hook.result.current.commitField;
+
+      // An undo removed "b" while the file dialog was open. Re-adding it from a
+      // stale commit would resurrect a record the user just discarded.
+      hook.rerender({ ...defaults, items: [{ id: "a", name: "A" }] });
+      setItems.mockClear();
+      captureHistory.mockClear();
+
+      act(() => { staleCommit("logo", "assets/images/b.png"); });
+
+      expect(setItems).not.toHaveBeenCalled();
+      expect(captureHistory).not.toHaveBeenCalled();
+    });
+
+    it("keeps the buffer in sync when the id is renamed during the pick", () => {
+      // Renaming the club while the copy is in flight is not switching away from
+      // it. Matching the buffer on `id === editingId` failed here: the record got
+      // the path, the buffer did not, and the next Save wrote the buffer back
+      // over the record — losing the logo the user had just chosen.
+      const items: Item[] = [{ id: "a", name: "A" }];
+      const { hook } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(0); });
+      const commit = hook.result.current.commitField;
+
+      act(() => { hook.result.current.updateField("id", "a-renamed"); });
+      act(() => { commit("logo", "assets/images/a.png"); });
+
+      expect(hook.result.current.editing).toEqual({
+        id: "a-renamed",
+        name: "A",
+        logo: "assets/images/a.png",
+      });
+    });
+
+    it("drops a pick from a new record the user has since abandoned", () => {
+      // Add, start a pick, then go Back and Add again before the copy resolves.
+      // The new-record branch has no id to re-locate by, so without a session
+      // check the first record's asset lands on the second record's form.
+      const { hook } = makeHook({ items: [] });
+      act(() => { hook.result.current.handleAdd(); });
+      const staleCommit = hook.result.current.commitField;
+
+      act(() => { hook.result.current.handleAdd(); });
+      act(() => { hook.result.current.updateField("name", "Second"); });
+
+      act(() => { staleCommit("logo", "assets/images/first.png"); });
+
+      expect(hook.result.current.editing).toEqual({ id: "", name: "Second" });
     });
   });
 

@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, CheckCircle, ImagePlus, Loader2, X } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
-import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
+import { useAssetPicker } from "./useAssetPicker";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import JerseyIcon from "../../ui/JerseyIcon";
 import { PLAY_STYLES, makeRange, normalizePlayStyle, parseRangeBound, toSlug } from "./helpers";
@@ -27,13 +25,25 @@ interface TeamFormProps {
   onBack: () => void;
   onSave: () => void;
   updateField: <K extends keyof TeamDef>(key: K, value: TeamDef[K]) => void;
+  /**
+   * Writes through to the saved record instead of only the form buffer. The
+   * logo pick already copied the image into the package, so the path must not
+   * depend on the user remembering to press Save.
+   */
+  commitField?: <K extends keyof TeamDef>(key: K, value: TeamDef[K]) => void;
+  onAssetError: (err: unknown) => void;
 }
 
-export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, onBack, onSave, updateField }: TeamFormProps) {
+export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, onBack, onSave, updateField, commitField, onAssetError }: TeamFormProps) {
   const { t, i18n } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingTeamIndex === null && !editingTeam.id);
-  const [logoRefresh, setLogoRefresh] = useState(0);
-  const logoDataUrl = useAssetDataUrl(editingTeam.logo, projectDir, logoRefresh);
+  const { dataUrl: logoDataUrl, pick: pickLogo, clear: clearLogo } = useAssetPicker({
+    relPath: editingTeam.logo,
+    projectDir,
+    entityId: () => editingTeam.id || `unnamed-team-${Date.now()}`,
+    commit: (relPath) => (commitField ?? updateField)("logo", relPath),
+    onError: onAssetError,
+  });
 
   // Both range fields are bare numbers with no natural units. Reputation runs
   // 0–1000 rather than the 0–100 an author reasonably assumes, and finance
@@ -58,6 +68,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
         transferMax: formatCompactAmount(deriveTransferBudget(financeRange[1]), i18n.language),
       })
     : null;
+
   const [repMin, setRepMin] = useState<string>(editingTeam.reputationRange?.[0]?.toString() ?? "");
   const [repMax, setRepMax] = useState<string>(editingTeam.reputationRange?.[1]?.toString() ?? "");
   const [finMin, setFinMin] = useState<string>(editingTeam.financeRange?.[0]?.toString() ?? "");
@@ -71,25 +82,6 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
     // Sync only when the selected entity changes, not on every field edit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingTeamIndex]);
-
-  async function handlePickLogo() {
-    if (!projectDir) return;
-    const selected = await open({
-      multiple: false,
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
-    });
-    if (!selected || Array.isArray(selected)) return;
-    try {
-      const relPath = await invoke<string>("copy_package_asset", {
-        dir: projectDir,
-        entityId: editingTeam.id || `unnamed-team-${Date.now()}`,
-        srcPath: selected,
-      });
-      evictAssetDataUrl(projectDir, relPath);
-      setLogoRefresh((k) => k + 1); // refresh even if the path is unchanged
-      updateField("logo", relPath);
-    } catch { /* ignore */ }
-  }
 
   function handleNameChange(v: string) {
     updateField("name", v);
@@ -149,7 +141,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => { void handlePickLogo(); }}
+                    onClick={() => { void pickLogo(); }}
                     className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
                   >
                     {t("worldEditor.chooseLogo")}
@@ -157,7 +149,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                   {editingTeam.logo && (
                     <button
                       type="button"
-                      onClick={() => { updateField("logo", null); }}
+                      onClick={() => { clearLogo(); }}
                       className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                     >
                       <X className="w-3.5 h-3.5" />

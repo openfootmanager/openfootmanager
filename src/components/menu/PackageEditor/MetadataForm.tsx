@@ -1,10 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Info, XCircle, Globe, ImagePlus, X } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
 import { InlineHelp, LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
-import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
+import { useAssetPicker } from "./useAssetPicker";
 import { COMPETITION_SCOPES, PACKAGE_TYPES, mergeFallbackLeague } from "./helpers";
 import type { CompetitionScope, FallbackLeagueConfig, WorldMetaDef } from "./types";
 
@@ -78,34 +76,33 @@ interface EntityCounts {
 interface MetadataFormProps {
   meta: WorldMetaDef;
   onChange: (m: WorldMetaDef) => void;
+  /**
+   * Like `onChange`, but also persists. Used for the logo, whose image is
+   * copied into the package before the path is set — leaving that path pending
+   * a Save press is what makes a picked logo look like it vanished.
+   */
+  onCommit?: (m: WorldMetaDef) => void;
+  onAssetError: (err: unknown) => void;
   counts?: EntityCounts;
   projectDir?: string;
 }
 
-export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFormProps) {
+export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, projectDir }: MetadataFormProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
-  const [logoRefresh, setLogoRefresh] = useState(0);
-  const logoDataUrl = useAssetDataUrl(meta.logo, projectDir, logoRefresh);
-
-  async function handlePickLogo() {
-    if (!projectDir) return;
-    const selected = await open({
-      multiple: false,
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
-    });
-    if (!selected || Array.isArray(selected)) return;
-    try {
-      const relPath = await invoke<string>("copy_package_asset", {
-        dir: projectDir,
-        entityId: meta.id || "package-logo",
-        srcPath: selected,
-      });
-      evictAssetDataUrl(projectDir, relPath);
-      setLogoRefresh((k) => k + 1); // refresh even if the path is unchanged
-      set({ logo: relPath });
-    } catch { /* ignore */ }
-  }
+  // The logo commit fires after an async copy, and this form applies its other
+  // field edits by replacing the whole `meta`. Read the latest `meta` from a ref
+  // at commit time so an edit made while the copy was in flight isn't clobbered
+  // by a stale render snapshot.
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
+  const { dataUrl: logoDataUrl, pick: pickLogo, clear: clearLogo } = useAssetPicker({
+    relPath: meta.logo,
+    projectDir,
+    entityId: () => metaRef.current.id || "package-logo",
+    commit: (relPath) => (onCommit ?? onChange)({ ...metaRef.current, logo: relPath }),
+    onError: onAssetError,
+  });
 
   const isKnownLicense = SPDX_LICENSES.some(
     (l) => l.id !== "__custom__" && l.id === meta.license,
@@ -218,7 +215,7 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => { void handlePickLogo(); }}
+                  onClick={() => { void pickLogo(); }}
                   className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
                 >
                   {t("worldEditor.chooseLogo")}
@@ -226,7 +223,7 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
                 {meta.logo && (
                   <button
                     type="button"
-                    onClick={() => { set({ logo: null }); }}
+                    onClick={() => { clearLogo(); }}
                     className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                   >
                     <X className="w-3.5 h-3.5" />

@@ -109,8 +109,19 @@ export default function WorldEditor() {
   // Snapshot helpers
   // ---------------------------------------------------------------------------
 
+  // Latest committed slices, read at write time so a serialized/queued persist
+  // writes one consistent snapshot rather than whatever its closure captured.
+  const stateRef = useRef({ meta, confederations, countries, teams, players, staff, names, competitions });
+  stateRef.current = { meta, confederations, countries, teams, players, staff, names, competitions };
+
+  /**
+   * The undo snapshot, read through `stateRef` rather than this render's state.
+   * An asset pick calls back after awaiting a native file dialog, so a snapshot
+   * built from the closure would record the world as it was before whatever the
+   * user did while the dialog was open — and undo would restore that.
+   */
   function currentSnapshot(): EntitySnapshot {
-    return { meta, confederations, countries, teams, players, staff, names, competitions };
+    return { ...stateRef.current };
   }
 
   function applySnapshot(snapshot: EntitySnapshot) {
@@ -199,11 +210,6 @@ export default function WorldEditor() {
       return updated;
     });
   }
-
-  // Latest committed slices, read at write time so a serialized/queued persist
-  // writes one consistent snapshot rather than whatever its closure captured.
-  const stateRef = useRef({ meta, confederations, countries, teams, players, staff, names, competitions });
-  stateRef.current = { meta, confederations, countries, teams, players, staff, names, competitions };
 
   // Serializes save_package_project writes so concurrent saves can't interleave
   // full-file writes or let an older write land after a newer one.
@@ -462,6 +468,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("team"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const confEditor = useEntityEditor({
@@ -474,6 +481,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("confederation"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const countryEditor = useEntityEditor({
@@ -486,6 +494,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("country"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const playerEditor = useEntityEditor({
@@ -498,6 +507,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("player"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const youthEditor = useEntityEditor({
@@ -510,6 +520,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("youth"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const staffEditor = useEntityEditor({
@@ -522,6 +533,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("staff"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   const compEditor = useEntityEditor({
@@ -534,6 +546,7 @@ export default function WorldEditor() {
     onOpen: () => setFormPanel("competition"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
+    onDirty: () => setIsDirty(true),
   });
 
   // ---------------------------------------------------------------------------
@@ -656,7 +669,14 @@ export default function WorldEditor() {
           projectDir={projectDir}
           meta={meta}
           onMetaChange={(m) => { setMeta(m); setIsDirty(true); }}
-          onSaveMetadata={() => { pushHistory(currentSnapshot()); void persist({ meta }).catch(() => {}); }}
+          onMetaCommit={(m) => {
+            pushHistory(currentSnapshot());
+            setMeta(m);
+            setIsDirty(true);
+            if (autoSave) void persist({ meta: m }).catch(() => {});
+          }}
+          onSaveMetadata={() => { void persist({ meta }).catch(() => {}); }}
+          onAssetError={(err) => flashError(resolveBackendError(err))}
           counts={{
             teams: teams.length,
             players: players.length,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 /**
  * Pick an unused id for a copy of `baseId`, counting up from `-2`.
@@ -32,8 +32,9 @@ export function useEntityEditor<T extends { id: string }>(options: {
    * override to also disambiguate a display name.
    */
   cloneItem?: (item: T, id: string) => T;
+  onDirty?: () => void;
 }) {
-  const { items, setItems, empty, captureHistory, saveItems, autoSave, onOpen, onClose, setIsBusy } =
+  const { items, setItems, empty, captureHistory, saveItems, autoSave, onOpen, onClose, setIsBusy, onDirty } =
     options;
   const cloneItem = options.cloneItem ?? ((item: T, id: string) => ({ ...structuredClone(item), id }));
 
@@ -52,6 +53,63 @@ export function useEntityEditor<T extends { id: string }>(options: {
 
   function updateField<K extends keyof T>(key: K, value: T[K]) {
     setEditing((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // commitField can run long after the render that created it — an asset pick
+  // awaits a native file dialog first — so it must not write through the list
+  // it saw back then. Anything the user did during the dialog would be undone.
+  const latest = useRef({ items, setItems, captureHistory, saveItems, autoSave, onDirty, revision });
+  latest.current = { items, setItems, captureHistory, saveItems, autoSave, onDirty, revision };
+
+  /**
+   * Like `updateField`, but also writes the value straight into the record so it
+   * survives switching to another entity without pressing Save.
+   *
+   * Used for fields whose edit already has a side effect outside the form — an
+   * asset pick copies the image into the package before this runs, so the
+   * preview updating while the path stays unpersisted reads as a lost edit.
+   * A brand-new record (`editingIndex === null`) has no row to write into yet,
+   * so it keeps the buffer-until-Save behaviour.
+   *
+   * The target is the record that was open when the commit was set in motion,
+   * re-located by id in the *current* list — the same identity-over-position
+   * rule `syncEditing` follows, and for the same reason: between the pick and
+   * the commit the list may have been reordered, or the record removed.
+   */
+  function commitField<K extends keyof T>(key: K, value: T[K]) {
+    // Whether the form still holds the record this pick was started from.
+    // `revision` bumps on select/add/duplicate/undo-sync — every way the open
+    // record can change — and deliberately not on an ordinary field edit, so
+    // renaming the entity mid-pick does not count as switching away from it.
+    const sameSession = revision === latest.current.revision;
+    if (editingIndex === null) {
+      // A new record has no id to re-locate by, so the session is all there is.
+      // Without this, abandoning an unsaved record mid-pick and starting another
+      // grafts the first record's asset onto the second one's form.
+      if (!sameSession) return;
+      setEditing((prev) => ({ ...prev, [key]: value }));
+      return;
+    }
+    const { items, setItems, captureHistory, saveItems, autoSave, onDirty } = latest.current;
+    // A blank id cannot be told apart from another blank one, so an unnamed
+    // record falls back to the position it had when the commit started — no
+    // worse than before, and it keeps a not-yet-named entity working.
+    const index = editingId
+      ? items.findIndex((item) => item.id === editingId)
+      : editingIndex;
+    // The record is gone (an undo discarded it). Writing it back would
+    // resurrect something the user just removed.
+    if (index === -1 || index >= items.length) return;
+    // Match on the session, not on the buffer's id. The id is editable text: a
+    // user who renames the club while the copy is in flight would otherwise fail
+    // an `id === editingId` check, leave the buffer without the asset path, and
+    // lose it on the next Save — the record having been written correctly.
+    if (sameSession) setEditing((prev) => ({ ...prev, [key]: value }));
+    captureHistory();
+    const updated = items.map((item, i) => (i === index ? { ...item, [key]: value } : item));
+    setItems(updated);
+    onDirty?.();
+    if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
   }
 
   function handleSelect(index: number) {
@@ -152,5 +210,5 @@ export function useEntityEditor<T extends { id: string }>(options: {
     }
   }
 
-  return { editing, editingIndex, revision, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleDuplicate, handleSave, syncEditing };
+  return { editing, editingIndex, revision, setEditing, updateField, commitField, handleSelect, handleAdd, handleDelete, handleDuplicate, handleSave, syncEditing };
 }

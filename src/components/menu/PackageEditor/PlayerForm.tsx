@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, X } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
+import { useAssetPicker } from "./useAssetPicker";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
 import { DatePicker } from "../../ui/DatePicker";
@@ -25,6 +23,13 @@ interface PlayerFormProps {
   onBack: () => void;
   onSave: () => void;
   updateField: <K extends keyof PlayerDef>(key: K, value: PlayerDef[K]) => void;
+  /**
+   * Writes through to the saved record instead of only the form buffer. The
+   * photo pick already copied the image into the package, so the path must not
+   * depend on the user remembering to press Save.
+   */
+  commitField?: <K extends keyof PlayerDef>(key: K, value: PlayerDef[K]) => void;
+  onAssetError: (err: unknown) => void;
 }
 
 export function PlayerForm({
@@ -36,33 +41,19 @@ export function PlayerForm({
   onBack,
   onSave,
   updateField,
+  commitField,
+  onAssetError,
 }: PlayerFormProps) {
   const { t } = useTranslation();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
-  const [photoRefresh, setPhotoRefresh] = useState(0);
-  const photoDataUrl = useAssetDataUrl(editing.photo, projectDir, photoRefresh);
-
-  async function handlePickPhoto() {
-    if (!projectDir) return;
-    const selected = await open({
-      multiple: false,
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
-    });
-    if (!selected || Array.isArray(selected)) return;
-    try {
-      const relPath = await invoke<string>("copy_package_asset", {
-        dir: projectDir,
-        entityId: editing.id || `unnamed-player-${Date.now()}`,
-        srcPath: selected,
-      });
-      // The path is reused for an entity, so drop any cached data URL before
-      // pointing at the freshly written file.
-      evictAssetDataUrl(projectDir, relPath);
-      setPhotoRefresh((k) => k + 1); // refresh even if the path is unchanged
-      updateField("photo", relPath);
-    } catch { /* ignore */ }
-  }
+  const { dataUrl: photoDataUrl, pick: pickPhoto, clear: clearPhoto } = useAssetPicker({
+    relPath: editing.photo,
+    projectDir,
+    entityId: () => editing.id || `unnamed-player-${Date.now()}`,
+    commit: (relPath) => (commitField ?? updateField)("photo", relPath),
+    onError: onAssetError,
+  });
 
   const inputClass =
     "w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition";
@@ -144,7 +135,7 @@ export function PlayerForm({
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => { void handlePickPhoto(); }}
+                onClick={() => { void pickPhoto(); }}
                 className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
               >
                 {t("worldEditor.chooseLogo")}
@@ -152,7 +143,7 @@ export function PlayerForm({
               {editing.photo && (
                 <button
                   type="button"
-                  onClick={() => { updateField("photo", null); }}
+                  onClick={() => { clearPhoto(); }}
                   className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                 >
                   <X className="w-3.5 h-3.5" />

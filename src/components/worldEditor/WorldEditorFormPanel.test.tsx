@@ -47,6 +47,7 @@ function makeEditor(id: string) {
     revision: 0,
     handleSave: vi.fn(),
     updateField: vi.fn(),
+    commitField: vi.fn(),
   };
 }
 
@@ -61,7 +62,9 @@ function renderPanel(formPanel: FormPanel, playerId: string, youthId: string) {
       projectDir=""
       meta={{} as never}
       onMetaChange={() => {}}
+      onMetaCommit={() => {}}
       onSaveMetadata={() => {}}
+      onAssetError={() => {}}
       counts={{ teams: 0, players: 0, confederations: 0, countries: 0, competitions: 0, namePools: 0 }}
       issues={[]}
       teamEditor={stub as never}
