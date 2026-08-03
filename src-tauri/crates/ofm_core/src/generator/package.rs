@@ -479,10 +479,23 @@ pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>)
 /// independent of file-discovery order (and therefore of folder layout).
 pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let (package, mut errors) = load_world_package_files(dir);
-    errors.extend(validate_format_version(&package));
-    errors.extend(validate_manifest(&package));
-    errors.extend(validate_references(&package));
+    errors.extend(validate_package(&package));
     (package, errors)
+}
+
+/// Every check a package must pass, for callers that obtained one some other way.
+///
+/// [`load_world_package`] runs exactly this after reading a directory. The
+/// archive loader deliberately does not — it is the runtime read path, and an
+/// already-installed package has to keep loading — so anything whose job *is*
+/// validation calls this itself. Keeping the set in one place is the point: when
+/// it lived in two, `ofm-cli validate <dir>` and `ofm-cli validate <file>.ofm`
+/// disagreed about the same package.
+pub fn validate_package(package: &WorldPackage) -> Vec<PackageError> {
+    let mut errors = validate_format_version(package);
+    errors.extend(validate_manifest(package));
+    errors.extend(validate_references(package));
+    errors
 }
 
 /// Highest package `formatVersion` this build understands.
@@ -1577,6 +1590,42 @@ mod tests {
         assert!(validate_manifest(&pkg)
             .iter()
             .any(|e| e.code == INVALID_PACKAGE_ID));
+        std::fs::remove_file(&archive).ok();
+    }
+
+    #[test]
+    fn an_archive_and_a_directory_validate_to_the_same_answer() {
+        // `ofm-cli validate` used to give two answers for the same package: the
+        // directory branch ran the full set, the archive branch ran none of it,
+        // so an unsupported formatVersion or a dangling reference came back
+        // "Valid" from a `.ofm` and rejected from the folder it was packed from.
+        // `validate_package` is the one set both now ask for.
+        let manifest = r#"{"schema":"world","id":"drifted","name":"Drifted","formatVersion":99}"#;
+        let team = r##"{"schema":"team","items":[{"id":"zed","name":"Zed FC","city":"Zed",
+             "country":"NOWHERE","colors":{"primary":"#fff","secondary":"#000"}}]}"##;
+
+        let dir = temp_package();
+        write(&dir, "package.json", manifest);
+        write(&dir, "teams/teams.json", team);
+        let (_, from_dir) = load_world_package(&dir);
+
+        let archive = build_zip(&[
+            ("package.json", manifest.as_bytes()),
+            ("teams/teams.json", team.as_bytes()),
+        ]);
+        let (pkg, mut from_archive) = load_world_package_from_ofm(&archive);
+        from_archive.extend(validate_package(&pkg));
+
+        let codes = |errors: &[PackageError]| {
+            let mut codes: Vec<String> = errors.iter().map(|e| e.code.clone()).collect();
+            codes.sort();
+            codes
+        };
+        assert_eq!(codes(&from_dir), codes(&from_archive));
+        assert!(from_dir.iter().any(|e| e.code == UNSUPPORTED_FORMAT_VERSION));
+        assert!(from_dir.iter().any(|e| e.code == UNKNOWN_COUNTRY));
+
+        std::fs::remove_dir_all(&dir).ok();
         std::fs::remove_file(&archive).ok();
     }
 
