@@ -2581,7 +2581,7 @@
       "worldReadFileFailed": "读取世界数据库文件失败。",
       "package": {
         "invalid": "此世界包无效，无法加载。",
-        "invalidPackageId": "无法使用软件包 ID“{{id}}”。它不能为空，不能命名为“assets”，也不能包含“/”、“\\”或“..”。",
+        "invalidPackageId": "无法使用软件包 ID“{{id}}”。它不能为空，不能命名为“assets”，也不能包含“/”、“\\”、“..”或控制字符。",
         "readFailed": "无法读取某个包文件。",
         "missingSchema": "某个包文件缺少 \"schema\" 字段。",
         "unknownSchema": "未知的 schema \"{{schema}}\"。",

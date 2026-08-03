@@ -2581,7 +2581,7 @@
       "worldReadFileFailed": "Impossibile leggere il file del database del mondo.",
       "package": {
         "invalid": "Questo pacchetto mondo non è valido e non può essere caricato.",
-        "invalidPackageId": "L'ID del pacchetto \"{{id}}\" non può essere utilizzato. Non deve essere vuoto né chiamarsi \"assets\" e non può contenere \"/\", \"\\\" o \"..\".",
+        "invalidPackageId": "L'ID del pacchetto \"{{id}}\" non può essere utilizzato. Non deve essere vuoto né chiamarsi \"assets\" e non può contenere \"/\", \"\\\", \"..\" o caratteri di controllo.",
         "readFailed": "Impossibile leggere un file del pacchetto.",
         "missingSchema": "A un file del pacchetto manca il campo \"schema\".",
         "unknownSchema": "Schema sconosciuto \"{{schema}}\".",

@@ -2581,7 +2581,7 @@
       "worldReadFileFailed": "Impossible de lire le fichier de base de données du monde.",
       "package": {
         "invalid": "Ce package de monde est invalide et n’a pas pu être chargé.",
-        "invalidPackageId": "L'identifiant de paquet « {{id}} » ne peut pas être utilisé. Il ne doit pas être vide ni s'appeler « assets », et ne peut pas contenir « / », « \\ » ou « .. ».",
+        "invalidPackageId": "L'identifiant de paquet « {{id}} » ne peut pas être utilisé. Il ne doit pas être vide ni s'appeler « assets », et ne peut pas contenir « / », « \\ », « .. » ou des caractères de contrôle.",
         "readFailed": "Un fichier du package n’a pas pu être lu.",
         "missingSchema": "Un fichier du package n’a pas de champ « schema ».",
         "unknownSchema": "Schéma inconnu « {{schema}} ».",

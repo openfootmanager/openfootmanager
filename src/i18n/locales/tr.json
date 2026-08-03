@@ -2594,7 +2594,7 @@
       "worldReadFileFailed": "Dünya veritabanı dosyası okunamadı.",
       "package": {
         "invalid": "Bu dünya paketi geçersiz ve yüklenemedi.",
-        "invalidPackageId": "\"{{id}}\" paket kimliği kullanılamaz. Boş olamaz, \"assets\" adını taşıyamaz ve \"/\", \"\\\" veya \"..\" içeremez.",
+        "invalidPackageId": "\"{{id}}\" paket kimliği kullanılamaz. Boş olamaz, \"assets\" adını taşıyamaz ve \"/\", \"\\\", \"..\" veya kontrol karakterleri içeremez.",
         "readFailed": "Bir paket dosyası okunamadı.",
         "missingSchema": "Bir paket dosyasında \"schema\" alanı eksik.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
