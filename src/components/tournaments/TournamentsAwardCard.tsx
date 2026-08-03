@@ -13,6 +13,19 @@ import {
 
 type AwardEntry = SeasonAwardEntryData | SeasonManagerAwardEntryData;
 
+function entryId(entry: AwardEntry): string {
+  return "player_id" in entry ? entry.player_id : entry.manager_id;
+}
+
+function entryName(entry: AwardEntry): string {
+  return "player_name" in entry ? entry.player_name : entry.manager_name;
+}
+
+/** Manager awards are ranked on win rate; player awards on their raw tally. */
+function entryValue(entry: AwardEntry): number {
+  return "win_rate" in entry ? entry.win_rate : entry.value;
+}
+
 interface TournamentsAwardCardProps {
   icon: ReactNode;
   title: string;
@@ -78,11 +91,11 @@ export default function TournamentsAwardCard({
             {entries.map((entry, i) => (
               <ContextMenu
                 items={buildAwardMenuItems(entry)}
-                key={"player_id" in entry ? entry.player_id : entry.manager_id}
+                key={entryId(entry)}
               >
                 <div
                   className="flex items-center px-4 py-2.5 gap-3"
-                  data-testid={`tournaments-award-entry-${"player_id" in entry ? entry.player_id : entry.manager_id}`}
+                  data-testid={`tournaments-award-entry-${entryId(entry)}`}
                 >
                   <span
                     className={`font-heading font-bold text-sm w-5 text-center ${i === 0
@@ -99,7 +112,7 @@ export default function TournamentsAwardCard({
                         : "text-gray-700 dark:text-gray-300"
                         }`}
                     >
-                      {"player_name" in entry ? entry.player_name : entry.manager_name}
+                      {entryName(entry)}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       {entry.team_name}
@@ -111,7 +124,9 @@ export default function TournamentsAwardCard({
                       : "text-sm text-gray-600 dark:text-gray-400"
                       }`}
                   >
-                    {decimal ? entry.value.toFixed(2) : `${Math.round("win_rate" in entry ? entry.win_rate : entry.value)}`}
+                    {decimal
+                      ? entryValue(entry).toFixed(2)
+                      : `${Math.round(entryValue(entry))}`}
                   </span>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 w-12">
                     {unit}

@@ -109,6 +109,14 @@ describe("TournamentsAwardCard", () => {
     expect(screen.getByText("72")).toBeInTheDocument();
   });
 
+  it("keeps reading win rate when a manager award is shown with decimals", () => {
+    renderCard({ entries: [managerEntry()], unit: "win rate", decimal: true });
+
+    // 72.4 is the win rate; 30 is the value field, which must not be shown.
+    expect(screen.getByText("72.40")).toBeInTheDocument();
+    expect(screen.queryByText("30.00")).not.toBeInTheDocument();
+  });
+
   it("offers a profile action for player entries", () => {
     const onSelectPlayer = vi.fn();
     renderCard({ onSelectPlayer });
