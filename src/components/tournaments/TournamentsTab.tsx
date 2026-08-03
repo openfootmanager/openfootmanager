@@ -1,16 +1,14 @@
 import { useState, useEffect } from "react";
 import CompetitionsOverview from "./CompetitionsOverview";
 import KnockoutBracket from "./KnockoutBracket";
+import TournamentsAwardCard from "./TournamentsAwardCard";
 import { invoke } from "@tauri-apps/api/core";
-import type { ReactNode } from "react";
 import type { TFunction } from "i18next";
 import {
   FixtureData,
   GameStateData,
   LeagueData,
-  SeasonAwardEntryData,
   SeasonAwardsData,
-  SeasonManagerAwardEntryData,
 } from "../../store/gameStore";
 import {
   fetchCompetitionsView,
@@ -978,7 +976,7 @@ export default function TournamentsTab({
           )}
           {awards ? (
             <>
-              <AwardCard
+              <TournamentsAwardCard
                 icon={<Briefcase className="w-5 h-5 text-accent-500" />}
                 title={t("tournaments.awards.managerOfSeasonTitle")}
                 subtitle={t("tournaments.awards.managerOfSeasonSubtitle")}
@@ -988,7 +986,7 @@ export default function TournamentsTab({
                 decimal={false}
                 onSelectTeam={onSelectTeam}
               />
-              <AwardCard
+              <TournamentsAwardCard
                 icon={<Zap className="w-5 h-5 text-accent-500" />}
                 title={t("tournaments.awards.goldenBootTitle")}
                 subtitle={t("tournaments.awards.goldenBootSubtitle")}
@@ -998,7 +996,7 @@ export default function TournamentsTab({
                 onSelectPlayer={onSelectPlayer}
                 onSelectTeam={onSelectTeam}
               />
-              <AwardCard
+              <TournamentsAwardCard
                 icon={<Star className="w-5 h-5 text-purple-500" />}
                 title={t("tournaments.awards.assistKingTitle")}
                 subtitle={t("tournaments.awards.assistKingSubtitle")}
@@ -1008,7 +1006,7 @@ export default function TournamentsTab({
                 onSelectPlayer={onSelectPlayer}
                 onSelectTeam={onSelectTeam}
               />
-              <AwardCard
+              <TournamentsAwardCard
                 icon={<Trophy className="w-5 h-5 text-primary-500" />}
                 title={t("tournaments.awards.playerOfYearTitle")}
                 subtitle={t("tournaments.awards.playerOfYearSubtitle")}
@@ -1019,7 +1017,7 @@ export default function TournamentsTab({
                 onSelectPlayer={onSelectPlayer}
                 onSelectTeam={onSelectTeam}
               />
-              <AwardCard
+              <TournamentsAwardCard
                 icon={<Shield className="w-5 h-5 text-blue-500" />}
                 title={t("tournaments.awards.goldenGloveTitle")}
                 subtitle={t("tournaments.awards.goldenGloveSubtitle")}
@@ -1029,7 +1027,7 @@ export default function TournamentsTab({
                 onSelectPlayer={onSelectPlayer}
                 onSelectTeam={onSelectTeam}
               />
-              <AwardCard
+              <TournamentsAwardCard
                 icon={<Users className="w-5 h-5 text-green-500" />}
                 title={t("tournaments.awards.everPresentTitle")}
                 subtitle={t("tournaments.awards.everPresentSubtitle")}
@@ -1039,7 +1037,7 @@ export default function TournamentsTab({
                 onSelectPlayer={onSelectPlayer}
                 onSelectTeam={onSelectTeam}
               />
-              <AwardCard
+              <TournamentsAwardCard
                 icon={<Star className="w-5 h-5 text-amber-500" />}
                 title={t("tournaments.awards.youngPlayerTitle")}
                 subtitle={t("tournaments.awards.youngPlayerSubtitle")}
@@ -1075,110 +1073,5 @@ export default function TournamentsTab({
         </div>
       )}
     </div>
-  );
-}
-
-function AwardCard({
-  icon,
-  title,
-  subtitle,
-  entries,
-  unit,
-  emptyText,
-  decimal,
-  onSelectPlayer,
-  onSelectTeam,
-}: {
-  icon: ReactNode;
-  title: string;
-  subtitle: string;
-  entries: Array<SeasonAwardEntryData | SeasonManagerAwardEntryData>;
-  unit: string;
-  emptyText: string;
-  decimal?: boolean;
-  onSelectPlayer?: (id: string) => void;
-  onSelectTeam: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const buildAwardMenuItems = (entry: SeasonAwardEntryData | SeasonManagerAwardEntryData) => {
-    const items = [buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))];
-
-    if (typeof onSelectPlayer === "function" && "player_id" in entry) {
-      items.unshift(
-        buildViewProfileMenuItem(t, () => onSelectPlayer(entry.player_id)),
-      );
-    }
-
-    return items;
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          {icon}
-          <div>
-            <span>{title}</span>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal normal-case tracking-normal">
-              {subtitle}
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardBody className="p-0">
-        {entries.length === 0 ? (
-          <p className="p-4 text-sm text-gray-400 dark:text-gray-500 text-center">
-            {emptyText}
-          </p>
-        ) : (
-          <div className="divide-y divide-gray-100 dark:divide-navy-600">
-            {entries.map((entry, i) => (
-              <ContextMenu
-                items={buildAwardMenuItems(entry)}
-                key={"player_id" in entry ? entry.player_id : entry.manager_id}
-              >
-                <div
-                  className="flex items-center px-4 py-2.5 gap-3"
-                  data-testid={`tournaments-award-entry-${"player_id" in entry ? entry.player_id : entry.manager_id}`}
-                >
-                  <span
-                    className={`font-heading font-bold text-sm w-5 text-center ${i === 0
-                      ? "text-accent-500"
-                      : "text-gray-400 dark:text-gray-500"
-                      }`}
-                  >
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-sm font-semibold truncate ${i === 0
-                        ? "text-gray-900 dark:text-gray-100"
-                        : "text-gray-700 dark:text-gray-300"
-                        }`}
-                    >
-                      {"player_name" in entry ? entry.player_name : entry.manager_name}
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                      {entry.team_name}
-                    </p>
-                  </div>
-                  <span
-                    className={`font-heading font-bold tabular-nums ${i === 0
-                      ? "text-lg text-accent-500"
-                      : "text-sm text-gray-600 dark:text-gray-400"
-                      }`}
-                  >
-                    {decimal ? entry.value.toFixed(2) : `${Math.round("win_rate" in entry ? entry.win_rate : entry.value)}`}
-                  </span>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 w-12">
-                    {unit}
-                  </span>
-                </div>
-              </ContextMenu>
-            ))}
-          </div>
-        )}
-      </CardBody>
-    </Card>
   );
 }
