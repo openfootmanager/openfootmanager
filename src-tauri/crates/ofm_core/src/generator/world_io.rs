@@ -208,8 +208,9 @@ pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
 /// world file. Call only after [`super::load_world_package`] reports no errors.
 pub fn build_world_from_package(
     package: &super::package::WorldPackage,
+    opening_year: Option<u32>,
 ) -> Result<WorldData, String> {
-    let world = normalize_world(super::build_world_data_from_package(package));
+    let world = normalize_world(super::build_world_data_from_package(package, opening_year));
     validate_embedded_definitions(&world)?;
     Ok(world)
 }

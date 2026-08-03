@@ -1552,7 +1552,10 @@ mod tests {
         assert!(errors.is_empty(), "package should load: {errors:?}");
         qualify_package_asset_paths(&mut package, "badge-pkg");
 
-        let world = crate::generator::build_world_from_package(&package).expect("world builds");
+        // No opening year: this asserts badge resolution, not era ageing, so let
+        // the package's own `baseYear` (absent here) pick the default.
+        let world =
+            crate::generator::build_world_from_package(&package, None).expect("world builds");
         let logo = world
             .teams
             .iter()
@@ -2041,6 +2044,154 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// A minimal one-country package declaring `base_year`, for era assertions.
+    fn write_era_package(dir: &std::path::Path, base_year: i32) {
+        write(
+            dir,
+            "world.yaml",
+            &format!("schema: world\nname: Era World\nbaseYear: {base_year}\n"),
+        );
+        write(dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
+        write(
+            dir,
+            "country.yaml",
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        );
+        write(
+            dir,
+            "teams.yaml",
+            "schema: team\nitems:\n  - { id: zed-fc, name: Zed FC, city: Zedtown, country: ZZ, colors: { primary: \"#000\", secondary: \"#fff\" } }\n",
+        );
+    }
+
+    /// The most recent birth year in the world — the era ceiling every player
+    /// must sit at or below.
+    fn newest_birth_year(world: &crate::generator::WorldData) -> i32 {
+        world
+            .players
+            .iter()
+            .filter_map(|player| player.date_of_birth.get(0..4))
+            .filter_map(|year| year.parse::<i32>().ok())
+            .max()
+            .expect("world should have players with parseable birth years")
+    }
+
+    #[test]
+    fn package_base_year_ages_squads_when_no_career_year_is_given() {
+        let dir = temp_package();
+        write_era_package(&dir, 1962);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        assert!(
+            newest_birth_year(&world) < 1962,
+            "a package declaring baseYear 1962 must not generate players born after it",
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_absurdly_early_base_year_cannot_underflow_birth_years() {
+        // `baseYear` is author-supplied with no lower bound, and every birth
+        // year is `opening_year - age`. A tiny value therefore underflows a
+        // u32 — a panic in debug, a birth year near 4 billion in release —
+        // so a mistyped manifest could take the game down.
+        let dir = temp_package();
+        write_era_package(&dir, 5);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        // `baseYear: 5` resolves to the clamped floor, so every player must be
+        // born at or before it. A loose range here would let a regression that
+        // ignores the clamp slip through.
+        let floor = crate::generator::MIN_OPENING_YEAR as i32;
+        for player in &world.players {
+            let birth_year: i32 = player.date_of_birth[0..4]
+                .parse()
+                .unwrap_or_else(|_| panic!("unparseable dob {}", player.date_of_birth));
+            assert!(
+                birth_year <= floor && birth_year > floor - 100,
+                "{} was born in {birth_year}, outside the clamped era floor {floor}",
+                player.full_name,
+            );
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_negative_base_year_clamps_to_the_floor_like_a_tiny_one_does() {
+        // `baseYear: 5` and `baseYear: -50` are the same authoring mistake, so
+        // they belong in the same place. Discarding the negative instead of
+        // clamping it silently opened a contemporary world from a manifest that
+        // plainly asked for a historical one.
+        let dir = temp_package();
+        write_era_package(&dir, -50);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        let floor = crate::generator::MIN_OPENING_YEAR as i32;
+        assert!(
+            newest_birth_year(&world) <= floor,
+            "a negative baseYear must clamp to {floor}, not fall back to today",
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_absurdly_late_base_year_still_produces_parseable_dates() {
+        // The year is formatted straight into birth and contract dates, so an
+        // unbounded value yields strings no date parser accepts — no crash,
+        // just ages that silently stop resolving.
+        let dir = temp_package();
+        write_era_package(&dir, 2_000_000_000);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, None);
+
+        let ceiling = crate::generator::MAX_OPENING_YEAR as i32;
+        for player in &world.players {
+            chrono::NaiveDate::parse_from_str(&player.date_of_birth, "%Y-%m-%d")
+                .unwrap_or_else(|_| panic!("unparseable dob {}", player.date_of_birth));
+            let birth_year: i32 = player.date_of_birth[0..4].parse().expect("year");
+            assert!(
+                birth_year <= ceiling,
+                "{} was born in {birth_year}, past the era ceiling {ceiling}",
+                player.full_name,
+            );
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn career_start_year_overrides_the_packages_declared_base_year() {
+        // Installing a 1962 database but starting a 1985 career must age squads
+        // against 1985 — the clock is what the player actually experiences.
+        let dir = temp_package();
+        write_era_package(&dir, 1962);
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+        let world = crate::generator::build_world_data_from_package(&package, Some(1985));
+
+        let newest = newest_birth_year(&world);
+        assert!(
+            newest < 1985,
+            "players must not be born after the career start year, got {newest}",
+        );
+        assert!(
+            newest > 1962,
+            "squads should be aged against the 1985 career, not the 1962 manifest (got {newest})",
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn builds_a_playable_world_from_a_package() {
         let dir = temp_package();
@@ -2065,7 +2216,7 @@ colors:
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
 
-        let world = crate::generator::build_world_data_from_package(&package);
+        let world = crate::generator::build_world_data_from_package(&package, None);
         assert_eq!(world.name, "Zed World");
         let team_ids: Vec<&str> = world.teams.iter().map(|t| t.id.as_str()).collect();
         assert_eq!(team_ids, vec!["zed-fc", "zed-utd"], "stable authored ids are kept");
@@ -2111,7 +2262,7 @@ colors:
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "{errors:?}");
 
-        let world = crate::generator::build_world_data_from_package(&package);
+        let world = crate::generator::build_world_data_from_package(&package, None);
 
         let star = world
             .players
@@ -2369,7 +2520,7 @@ colors:
             ("d.yaml", "schema: team\nid: team-d\nname: Team D\ncity: City D\ncountry: ES\ncolors: { primary: \"#555\", secondary: \"#fff\" }\n"),
         ]);
         assert!(errors.is_empty());
-        let world = crate::generator::build_world_data_from_package(&pkg);
+        let world = crate::generator::build_world_data_from_package(&pkg, None);
         assert_eq!(world.teams.len(), 4);
         // Fallback league must be generated.
         let defs = world.competition_definitions.as_ref()
@@ -2393,7 +2544,7 @@ colors:
         // totalling 8 teams, and a fallback league covering all of them.
         let (pkg, errors, dir) = package_from_files(&[("a.yaml", TEAM_A)]);
         assert!(errors.is_empty());
-        let world = crate::generator::build_world_data_from_package(&pkg);
+        let world = crate::generator::build_world_data_from_package(&pkg, None);
         assert_eq!(world.teams.len(), 8, "should fill to THIN_PACKAGE_MIN_TEAMS");
         assert!(
             world.competition_definitions.is_some(),
@@ -2579,7 +2730,7 @@ colors:
         let dir = temp_package();
         write(&dir, "world.yaml", "schema: world\nid: empty\nname: Empty World\n");
         let (pkg, _) = load_world_package(&dir);
-        let world = crate::generator::build_world_data_from_package(&pkg);
+        let world = crate::generator::build_world_data_from_package(&pkg, None);
         // The world builds but has no teams; game.rs rejects this as noDatabasePackage.
         assert!(world.teams.is_empty(), "OK: correctly produces 0 teams");
         std::fs::remove_dir_all(&dir).ok();

@@ -94,10 +94,52 @@ fn normalize_opening_contracts(players: &mut [Player]) {
     }
 }
 
-fn opening_player_age(date_of_birth: &str) -> Option<i32> {
+/// Earliest year a world may open in.
+///
+/// `baseYear` is author-supplied with no lower bound, and birth years are
+/// derived by subtracting an age from the opening year, so an absurdly small
+/// value underflows. Mirrors the career floor in `commands/game.rs`.
+pub const MIN_OPENING_YEAR: u32 = 1900;
+
+/// Latest year a world may open in.
+///
+/// `baseYear` is an unbounded `i32` in the manifest, and the year is formatted
+/// straight into contract and birth dates. A wild value does not crash, but it
+/// produces dates no parser accepts, which then degrade silently into
+/// unparseable ages — better to pin the era into a range dates can represent.
+///
+/// Removable once either half of that stops being true: `baseYear` validated at
+/// manifest load, so an out-of-range era is refused with a message instead of
+/// silently clamped here; or dates carried as a real year type rather than a
+/// four-character prefix, so the formatting has no range to fall out of.
+pub const MAX_OPENING_YEAR: u32 = 2999;
+
+/// The year a world opens in when nothing declares one.
+///
+/// Correct only for **contemporary** worlds. A historical world should never
+/// reach this — it carries its era from the career start year, or failing that
+/// from the package manifest's `baseYear`. Generation used to hard code a
+/// literal year in place of this, which silently aged every historical
+/// package's squads by decades and drifted out of date on its own.
+///
+/// The result is always within `MIN_OPENING_YEAR..=MAX_OPENING_YEAR`. It is read
+/// from the system clock, which is not something this code controls — a machine
+/// set to 1970 or to 5000 would otherwise hand a fully procedural world an era
+/// the date formatting cannot represent, and `generate_world_with_rng` takes
+/// this value with no clamp of its own.
+pub fn default_opening_year() -> u32 {
+    use chrono::Datelike;
+    // Clamp in signed space first: casting a negative year to u32 would wrap it
+    // into the far future rather than falling back to the floor.
+    chrono::Utc::now()
+        .year()
+        .clamp(MIN_OPENING_YEAR as i32, MAX_OPENING_YEAR as i32) as u32
+}
+
+fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
     use chrono::{Datelike, NaiveDate};
 
-    let opening_date = NaiveDate::from_ymd_opt(2026, 7, 1)?;
+    let opening_date = NaiveDate::from_ymd_opt(opening_year, 7, 1)?;
     let birth_date = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
     let mut age = opening_date.year() - birth_date.year();
 
@@ -108,11 +150,12 @@ fn opening_player_age(date_of_birth: &str) -> Option<i32> {
     Some(age)
 }
 
-fn is_opening_youth_candidate(player: &Player) -> bool {
+fn is_opening_youth_candidate(player: &Player, opening_year: i32) -> bool {
     use domain::player::Position;
 
     player.position != Position::Goalkeeper
-        && opening_player_age(&player.date_of_birth).is_some_and(|age| age <= OPENING_YOUTH_MAX_AGE)
+        && opening_player_age(&player.date_of_birth, opening_year)
+            .is_some_and(|age| age <= OPENING_YOUTH_MAX_AGE)
 }
 
 fn sort_opening_youth_indices(players: &[Player], indices: &mut [usize]) {
@@ -142,11 +185,11 @@ fn apply_opening_youth_assignments(players: &mut [Player], candidate_indices: Ve
     assigned
 }
 
-fn seed_opening_youth_academy(players: &mut [Player]) {
+fn seed_opening_youth_academy(players: &mut [Player], opening_year: i32) {
     let mut eligible_indices: Vec<usize> = players
         .iter()
         .enumerate()
-        .filter(|(_, player)| is_opening_youth_candidate(player))
+        .filter(|(_, player)| is_opening_youth_candidate(player, opening_year))
         .map(|(index, _)| index)
         .collect();
 
@@ -173,13 +216,15 @@ pub fn repair_opening_youth_academies(game: &mut crate::game::Game) -> bool {
     let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
     let mut repaired = false;
 
+    let opening_year = game.clock.start_date.year();
+
     for team_id in team_ids {
         let mut candidate_indices: Vec<usize> = game
             .players
             .iter()
             .enumerate()
             .filter(|(_, player)| player.team_id.as_deref() == Some(team_id.as_str()))
-            .filter(|(_, player)| is_opening_youth_candidate(player))
+            .filter(|(_, player)| is_opening_youth_candidate(player, opening_year))
             .map(|(index, _)| index)
             .collect();
 
@@ -190,14 +235,28 @@ pub fn repair_opening_youth_academies(game: &mut crate::game::Game) -> bool {
     repaired
 }
 
-pub fn generate_youth_academy_recruit(team: &Team, target_position: Option<&Position>) -> Player {
-    generate_youth_academy_recruit_with_nationality(team, target_position, None)
+/// Generate a youth prospect who is joining **now**.
+///
+/// `current_year` is the year the recruit arrives, not the year the world opened:
+/// a prospect scouted five seasons into a career is fifteen in *that* season. The
+/// two coincide only for the opening intake, which is why the distinction is
+/// worth naming — a call site that passed the world's opening year here would
+/// quietly produce a squad of players five years too old.
+pub fn generate_youth_academy_recruit(
+    team: &Team,
+    target_position: Option<&Position>,
+    current_year: u32,
+) -> Player {
+    generate_youth_academy_recruit_with_nationality(team, target_position, None, current_year)
 }
 
+/// As [`generate_youth_academy_recruit`], with the prospect's nationality forced
+/// rather than drawn from the club's country. See there for `current_year`.
 pub fn generate_youth_academy_recruit_with_nationality(
     team: &Team,
     target_position: Option<&Position>,
     nationality_override: Option<&str>,
+    current_year: u32,
 ) -> Player {
     use domain::player::SquadRole;
 
@@ -210,7 +269,14 @@ pub fn generate_youth_academy_recruit_with_nationality(
     let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
     let mut player =
-        generate_random_player_from_def(&team.id, slot_index, &nationality, &names_def, &mut rng);
+        generate_random_player_from_def(
+            &team.id,
+            slot_index,
+            &nationality,
+            current_year,
+            &names_def,
+            &mut rng,
+        );
     player.squad_role = SquadRole::Youth;
     player.transfer_listed = false;
     player.loan_listed = false;
@@ -221,14 +287,25 @@ pub fn generate_youth_academy_recruit_with_nationality(
 /// follows the standard squad layout (GK 0-1, DEF 2-8, MID 9-15, FWD 16-21)
 /// and drives the position; the player belongs to no club and holds no
 /// contract, so clubs may sign them afterwards.
-pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Player {
+pub fn generate_national_team_player(
+    nationality: &str,
+    squad_slot: usize,
+    opening_year: u32,
+) -> Player {
     let mut rng = rand::rng();
     let names_def = default_names_definition();
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
     let slot = senior_slot(squad_slot % SQUAD_SLOTS);
     let mut player =
-        generate_random_player_from_def("national-pool", slot, &nationality, &names_def, &mut rng);
+        generate_random_player_from_def(
+            "national-pool",
+            slot,
+            &nationality,
+            opening_year,
+            &names_def,
+            &mut rng,
+        );
     player.team_id = None;
     player.contract_end = None;
     player.wage = 0;
@@ -237,8 +314,8 @@ pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Pl
     player
 }
 
-fn normalize_generated_team(team: &mut Team, players: &mut [Player]) {
-    seed_opening_youth_academy(players);
+fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_year: i32) {
+    seed_opening_youth_academy(players, opening_year);
     normalize_opening_contracts(players);
 
     let annual_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
@@ -276,7 +353,7 @@ fn create_staff_generator_context() -> (definitions::NamesDefinition, Vec<String
     (names_def, country_codes)
 }
 
-fn generate_missing_team_staff(world: &mut WorldData) -> bool {
+fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool {
     let mut rng = rand::rng();
     let (names_def, country_codes) = create_staff_generator_context();
     let mut generated_staff = Vec::new();
@@ -306,6 +383,7 @@ fn generate_missing_team_staff(world: &mut WorldData) -> bool {
                 &team.id,
                 role.clone(),
                 &nationality,
+                opening_year,
                 &names_def,
                 &mut rng,
             ));
@@ -317,7 +395,7 @@ fn generate_missing_team_staff(world: &mut WorldData) -> bool {
     changed
 }
 
-fn generate_standard_available_staff_for_teams(teams: &[Team]) -> Vec<Staff> {
+fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32) -> Vec<Staff> {
     let mut rng = rand::rng();
     let (names_def, country_codes) = create_staff_generator_context();
     let fallback_seed = teams
@@ -337,7 +415,13 @@ fn generate_standard_available_staff_for_teams(teams: &[Team]) -> Vec<Staff> {
                     .unwrap_or(fallback_seed);
                 pick_nationality_from_def(seed_country, &country_codes, &mut rng)
             };
-            generate_random_staff_unattached_from_def(role, &nationality, &names_def, &mut rng)
+            generate_random_staff_unattached_from_def(
+                role,
+                &nationality,
+                opening_year,
+                &names_def,
+                &mut rng,
+            )
         })
         .collect()
 }
@@ -349,33 +433,38 @@ fn available_staff_count(staff: &[Staff]) -> usize {
         .count()
 }
 
-fn replace_available_staff_market(staff: &mut Vec<Staff>, teams: &[Team]) {
+fn replace_available_staff_market(staff: &mut Vec<Staff>, teams: &[Team], opening_year: u32) {
     staff.retain(|staff_member| staff_member.team_id.is_some());
-    staff.extend(generate_standard_available_staff_for_teams(teams));
+    staff.extend(generate_standard_available_staff_for_teams(teams, opening_year));
 }
 
-pub fn replenish_available_staff_market(staff: &mut Vec<Staff>, teams: &[Team]) -> bool {
+pub fn replenish_available_staff_market(
+    staff: &mut Vec<Staff>,
+    teams: &[Team],
+    opening_year: u32,
+) -> bool {
     if available_staff_count(staff) > 0 {
         return false;
     }
 
-    replace_available_staff_market(staff, teams);
+    replace_available_staff_market(staff, teams, opening_year);
     true
 }
 
-pub fn normalize_imported_world_for_career_start(world: &mut WorldData) {
-    generate_missing_team_staff(world);
-    let _ = replenish_available_staff_market(&mut world.staff, &world.teams);
+pub fn normalize_imported_world_for_career_start(world: &mut WorldData, opening_year: u32) {
+    generate_missing_team_staff(world, opening_year);
+    let _ = replenish_available_staff_market(&mut world.staff, &world.teams, opening_year);
 }
 
 pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
     use chrono::NaiveDate;
 
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let current_year = game.clock.current_date.year() as u32;
     let available_count = available_staff_count(&game.staff);
 
     if available_count == 0 {
-        replace_available_staff_market(&mut game.staff, &game.teams);
+        replace_available_staff_market(&mut game.staff, &game.teams, current_year);
         game.available_staff_market_last_activity_date = Some(today);
         return true;
     }
@@ -395,7 +484,7 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
         return false;
     }
 
-    replace_available_staff_market(&mut game.staff, &game.teams);
+    replace_available_staff_market(&mut game.staff, &game.teams, current_year);
     game.available_staff_market_last_activity_date = Some(today);
     true
 }
@@ -406,6 +495,9 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
 /// enough candidates for the player to consider hiring.  The function only adds
 /// entries — it never removes any.
 pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
+    // The market is topped up while a career runs, so new faces are aged against
+    // the running clock rather than the year the world opened in.
+    let market_year = game.clock.current_date.year() as u32;
     let team_count = game.teams.len();
     let floor = team_count * 2;
 
@@ -425,7 +517,6 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     if unemployed_mgr_count < floor {
         let needed = floor - unemployed_mgr_count;
         let (names_def, country_codes) = create_staff_generator_context();
-        let current_year = game.clock.current_date.year() as u32;
         let mut rng = rand::rng();
         for _ in 0..needed {
             let nationality = if country_codes.is_empty() {
@@ -437,7 +528,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
             let mgr = generation::generate_random_unemployed_manager(
                 &nationality,
                 &names_def,
-                current_year,
+                market_year,
                 &mut rng,
             );
             game.managers.push(mgr);
@@ -465,6 +556,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
             let scout = generate_random_staff_unattached_from_def(
                 StaffRole::Scout,
                 &nationality,
+                market_year,
                 &names_def,
                 &mut rng,
             );
@@ -551,6 +643,7 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
 fn build_club(
     tdef: &TeamDef,
     country_codes: &[String],
+    opening_year: u32,
     names_def: &NamesDefinition,
     rng: &mut impl rand::Rng,
 ) -> (domain::team::Team, Vec<Player>, Vec<Staff>) {
@@ -561,7 +654,7 @@ fn build_club(
     for slot in 0..SQUAD_SLOTS {
         let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
         let mut player =
-            generate_random_player_from_def(&team_id, slot, &nationality, names_def, rng);
+            generate_random_player_from_def(&team_id, slot, &nationality, opening_year, names_def, rng);
         if rng.random_range(0..100) < 12 {
             player.transfer_listed = true;
         } else if rng.random_range(0..100) < 8 {
@@ -582,12 +675,13 @@ fn build_club(
             &team_id,
             role,
             &nationality,
+            opening_year,
             names_def,
             rng,
         ));
     }
 
-    normalize_generated_team(&mut team, &mut team_players);
+    normalize_generated_team(&mut team, &mut team_players, opening_year as i32);
     (team, team_players, team_staff)
 }
 
@@ -629,7 +723,12 @@ fn group_index(group: &Position) -> Option<usize> {
 /// without an academy. That is the authored squad winning, which is what #349
 /// asks for — packages seed an academy by authoring `youth: true` players (the
 /// world editor's Youth section) rather than by having one generated for them.
-fn trim_backfill_players(players: &mut Vec<Player>, placed: &[bool], authored_count: usize) {
+fn trim_backfill_players(
+    players: &mut Vec<Player>,
+    placed: &[bool],
+    authored_count: usize,
+    opening_year: i32,
+) {
     let target = authored_count.max(SQUAD_SLOTS);
     if players.len() <= target {
         return;
@@ -666,7 +765,7 @@ fn trim_backfill_players(players: &mut Vec<Player>, placed: &[bool], authored_co
             .max_by_key(|(index, surplus)| {
                 (
                     *surplus,
-                    !is_opening_youth_candidate(&players[*index]),
+                    !is_opening_youth_candidate(&players[*index], opening_year),
                     std::cmp::Reverse(players[*index].ovr),
                 )
             });
@@ -693,17 +792,20 @@ fn build_package_club(
     tdef: &TeamDef,
     authored: &[&package::PlayerDef],
     country_codes: &[String],
+    opening_year: u32,
     names_def: &NamesDefinition,
     rng: &mut impl rand::Rng,
 ) -> (domain::team::Team, Vec<Player>, Vec<Staff>) {
-    let (mut team, mut players, staff) = build_club(tdef, country_codes, names_def, rng);
+    let (mut team, mut players, staff) =
+        build_club(tdef, country_codes, opening_year, names_def, rng);
     if authored.is_empty() {
         return (team, players, staff);
     }
 
     let mut placed = vec![false; players.len()];
     for def in authored {
-        let authored_player = generate_player_from_def(def, &team.id, names_def, rng);
+        let authored_player =
+            generate_player_from_def(def, &team.id, opening_year, names_def, rng);
         let group = authored_player.position.to_group_position();
         let slot = players
             .iter()
@@ -722,11 +824,11 @@ fn build_package_club(
         }
     }
 
-    trim_backfill_players(&mut players, &placed, authored.len());
+    trim_backfill_players(&mut players, &placed, authored.len(), opening_year as i32);
 
     // Authored wages may differ from the players they replaced, so re-normalise
     // the opening wage budget to the final squad.
-    normalize_generated_team(&mut team, &mut players);
+    normalize_generated_team(&mut team, &mut players, opening_year as i32);
     (team, players, staff)
 }
 
@@ -893,7 +995,31 @@ fn build_fallback_competition(
 /// generated squads, regions from the package's confederations/countries, and
 /// the package's competitions as embedded definitions (resolved at game start).
 /// Call only after [`package::load_world_package`] reports no errors.
-pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldData {
+/// Build world data from a package. `opening_year` is the year the career will
+/// actually start in and always wins, because the clock is what the player
+/// experiences; a package that declares `baseYear` supplies it when the caller
+/// has no opinion (inspection, tooling), and failing both, the real calendar
+/// year. Ages, contracts and market values are all measured from it, so this is
+/// what keeps a 1962 database from generating players born in the 1990s.
+pub fn build_world_data_from_package(
+    package: &package::WorldPackage,
+    opening_year: Option<u32>,
+) -> WorldData {
+    let opening_year = opening_year
+        .or_else(|| {
+            package
+                .meta
+                .as_ref()
+                .and_then(|meta| meta.base_year)
+                // Clamp while the value is still signed. Casting first would
+                // discard a negative `baseYear` entirely and fall through to the
+                // contemporary default, so `baseYear: -50` opened a modern world
+                // while `baseYear: 5` correctly clamped to the floor — the same
+                // authoring mistake landing in two different eras.
+                .map(|year| year.clamp(MIN_OPENING_YEAR as i32, MAX_OPENING_YEAR as i32) as u32)
+        })
+        .unwrap_or_else(default_opening_year)
+        .clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR);
     let mut rng = rand::rng();
     let names_def = {
         let mut merged = default_names_definition();
@@ -943,13 +1069,17 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
             .map(Vec::as_slice)
             .unwrap_or(NO_AUTHORED_STAFF);
         let (team, team_players, mut team_staff) =
-            build_package_club(tdef, authored, &country_codes, &names_def, &mut rng);
+            build_package_club(tdef, authored, &country_codes, opening_year, &names_def, &mut rng);
         // Replace auto-generated staff with authored versions, consuming each slot
         // at most once so multiple authored staff of the same role all survive.
         let mut replaced_staff_slots = vec![false; team_staff.len()];
         for sdef in authored_staff {
             let authored_member = generation::generate_staff_from_authored_def(
-                sdef, Some(&team.id), &names_def, &mut rng,
+                sdef,
+                Some(&team.id),
+                opening_year,
+                &names_def,
+                &mut rng,
             );
             // Only the original auto-generated slots are replacement candidates;
             // already-placed authored staff (appended below) are never overwritten.
@@ -972,7 +1102,13 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
     }
     // Unattached authored staff (no club) go directly into the staff list.
     for sdef in package.staff.iter().filter(|s| s.club.is_empty()) {
-        staff.push(generation::generate_staff_from_authored_def(sdef, None, &names_def, &mut rng));
+        staff.push(generation::generate_staff_from_authored_def(
+            sdef,
+            None,
+            opening_year,
+            &names_def,
+            &mut rng,
+        ));
     }
 
     let mut build_notices: Vec<String> = Vec::new();
@@ -987,7 +1123,7 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         let country = teams[0].country.clone();
         for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, &mut rng) {
             let (team, team_players, team_staff) =
-                build_club(def, &country_codes, &names_def, &mut rng);
+                build_club(def, &country_codes, opening_year, &names_def, &mut rng);
             teams.push(team);
             players.extend(team_players);
             staff.extend(team_staff);
@@ -1083,6 +1219,9 @@ fn generate_world_with_rng(
     data_dir: Option<&std::path::Path>,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
     info!("[generator] generate_world: data_dir={:?}", data_dir);
+    // A procedurally generated world is contemporary, so it opens in the real
+    // calendar year rather than a year baked in at build time.
+    let opening_year = default_opening_year();
     let mut teams_out = Vec::new();
     let mut players = Vec::new();
     let mut staff = Vec::new();
@@ -1117,7 +1256,7 @@ fn generate_world_with_rng(
 
     for tdef in &team_defs {
         let (team, team_players, team_staff) =
-            build_club(tdef, &country_codes, &names_def, &mut rng);
+            build_club(tdef, &country_codes, opening_year, &names_def, &mut rng);
         players.extend(team_players);
         staff.extend(team_staff);
         teams_out.push(team);
@@ -1126,7 +1265,8 @@ fn generate_world_with_rng(
     // Generate free-agent staff
     for role in standard_available_staff_roles() {
         let nat = &country_codes[rng.random_range(0..country_codes.len())];
-        let s = generate_random_staff_unattached_from_def(role, nat, &names_def, &mut rng);
+        let s =
+            generate_random_staff_unattached_from_def(role, nat, opening_year, &names_def, &mut rng);
         staff.push(s);
     }
 
@@ -1146,6 +1286,13 @@ mod tests {
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
+
+    /// Opening year for tests that need *an* era, not a specific one.
+    const TEST_OPENING_YEAR: u32 = 2026;
+
+    /// The season the motivating historical world models.
+    const HISTORICAL_OPENING_YEAR: u32 = 1962;
+
     use domain::manager::Manager;
     use domain::player::{Position, SquadRole};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -1200,13 +1347,111 @@ mod tests {
     }
 
     fn build_test_package_club(authored: &[package::PlayerDef]) -> Vec<Player> {
+        build_test_package_club_in_year(authored, TEST_OPENING_YEAR)
+    }
+
+    /// An authored player born in `birth_year`, for era-sensitive assertions.
+    fn authored_player_born(index: usize, position: Position, birth_year: i32) -> package::PlayerDef {
+        let mut def = authored_player(index, position);
+        def.date_of_birth = Some(format!("{birth_year}-10-23"));
+        def
+    }
+
+    #[test]
+    fn authored_player_ages_against_the_world_opening_year() {
+        // Pelé was 21 in 1962. Generation used to measure every authored player
+        // against a hardcoded modern year, which made him 86 and crushed his
+        // value and wage into the "past it" bracket.
+        let authored = vec![authored_player_born(0, Position::Forward, 1940)];
+
+        let players = build_test_package_club_in_year(&authored, HISTORICAL_OPENING_YEAR);
+        let star = players
+            .iter()
+            .find(|player| player.match_name == "Authored0")
+            .expect("authored player should be in the squad");
+
+        let age = opening_player_age(&star.date_of_birth, HISTORICAL_OPENING_YEAR as i32)
+            .expect("authored dob should parse");
+        assert_eq!(age, 21, "a 1940-born player is 21 in 1962");
+
+        let contract_end_year: i32 = star
+            .contract_end
+            .as_deref()
+            .expect("authored player should get a contract")[0..4]
+            .parse()
+            .expect("contract end should start with a year");
+        assert!(
+            (HISTORICAL_OPENING_YEAR as i32..HISTORICAL_OPENING_YEAR as i32 + 10)
+                .contains(&contract_end_year),
+            "contract should expire in the world's era, got {contract_end_year}"
+        );
+    }
+
+    #[test]
+    fn generated_squad_filler_is_born_in_the_world_era() {
+        // Authored squads are topped up to SQUAD_SLOTS. Those fillers used to be
+        // born in the 1990s-2000s regardless of era, so a 1962 club fielded
+        // players who would not be born for another thirty years.
+        let authored = vec![authored_player_born(0, Position::Forward, 1940)];
+
+        let players = build_test_package_club_in_year(&authored, HISTORICAL_OPENING_YEAR);
+        let filler: Vec<&Player> = players
+            .iter()
+            .filter(|player| player.match_name != "Authored0")
+            .collect();
+
+        assert!(!filler.is_empty(), "squad should be topped up with filler");
+        for player in filler {
+            let birth_year: i32 = player.date_of_birth[0..4]
+                .parse()
+                .expect("generated dob should start with a year");
+            assert!(
+                birth_year < HISTORICAL_OPENING_YEAR as i32,
+                "{} was born in {birth_year}, after a {HISTORICAL_OPENING_YEAR} world opened",
+                player.full_name
+            );
+        }
+    }
+
+    #[test]
+    fn youth_eligibility_is_measured_from_the_world_opening_year() {
+        // An 18-year-old in 1962 was born in 1944. Measured against a hardcoded
+        // modern year they read as 82, so no authored historical player could
+        // ever qualify for the opening academy.
+        let authored = vec![authored_player_born(0, Position::Forward, 1944)];
+        let players = build_test_package_club_in_year(&authored, HISTORICAL_OPENING_YEAR);
+        let prospect = players
+            .iter()
+            .find(|player| player.match_name == "Authored0")
+            .expect("authored player should be in the squad");
+
+        assert!(
+            is_opening_youth_candidate(prospect, HISTORICAL_OPENING_YEAR as i32),
+            "a 1944-born player is 18 in 1962 and belongs in the academy",
+        );
+        assert!(
+            !is_opening_youth_candidate(prospect, TEST_OPENING_YEAR as i32),
+            "the same player is far too old to be a prospect in a modern world",
+        );
+    }
+
+    fn build_test_package_club_in_year(
+        authored: &[package::PlayerDef],
+        opening_year: u32,
+    ) -> Vec<Player> {
         let tdef = test_team_def();
         let names_def = default_names_definition();
         let country_codes = sorted_country_codes(&names_def);
         let mut rng = StdRng::seed_from_u64(42);
         let refs: Vec<&package::PlayerDef> = authored.iter().collect();
-        let (_team, players, _staff) =
-            build_package_club(&tdef, &refs, &country_codes, &names_def, &mut rng);
+        let (_team, players, _staff) = build_package_club(
+            &tdef,
+            &refs,
+            &country_codes,
+            opening_year,
+            &names_def,
+            &mut rng,
+        );
         players
     }
 
@@ -1437,7 +1682,7 @@ mod tests {
 
     #[test]
     fn generate_national_team_player_is_a_senior_free_agent() {
-        let player = generate_national_team_player("JP", 5);
+        let player = generate_national_team_player("JP", 5, TEST_OPENING_YEAR);
 
         assert_eq!(player.nationality, "JP");
         assert_eq!(
@@ -1566,7 +1811,7 @@ mod tests {
             );
             assert!(
                 youth_players.iter().all(|player| {
-                    opening_player_age(&player.date_of_birth)
+                    opening_player_age(&player.date_of_birth, TEST_OPENING_YEAR as i32)
                         .is_some_and(|age| age <= OPENING_YOUTH_MAX_AGE)
                 }),
                 "{} has an overage opening youth player",
@@ -1668,7 +1913,8 @@ mod tests {
             20000,
         );
 
-        let player = generate_youth_academy_recruit_with_nationality(&team, None, Some("GB"));
+        let player =
+            generate_youth_academy_recruit_with_nationality(&team, None, Some("GB"), TEST_OPENING_YEAR);
 
         assert_eq!(player.nationality, "ENG");
         assert_eq!(player.football_nation, "ENG");
@@ -1691,6 +1937,7 @@ mod tests {
                 &team,
                 Some(&Position::Goalkeeper),
                 None,
+                TEST_OPENING_YEAR,
             );
             assert_eq!(
                 player.position,
@@ -1698,7 +1945,7 @@ mod tests {
                 "targeted youth recruit must be a goalkeeper",
             );
             assert!(
-                opening_player_age(&player.date_of_birth)
+                opening_player_age(&player.date_of_birth, TEST_OPENING_YEAR as i32)
                     .is_some_and(|age| age <= OPENING_YOUTH_MAX_AGE),
                 "targeted youth recruit must be youth-aged",
             );
@@ -1713,13 +1960,13 @@ mod tests {
         // past the youth cap (the youth-reserved slot would cap every player at it).
         let mut saw_senior_age = false;
         for _ in 0..64 {
-            let player = generate_national_team_player("GB", 1);
+            let player = generate_national_team_player("GB", 1, TEST_OPENING_YEAR);
             assert_eq!(
                 player.position,
                 Position::Goalkeeper,
                 "national-team slot 1 must produce a goalkeeper",
             );
-            if opening_player_age(&player.date_of_birth)
+            if opening_player_age(&player.date_of_birth, TEST_OPENING_YEAR as i32)
                 .is_some_and(|age| age > OPENING_YOUTH_MAX_AGE)
             {
                 saw_senior_age = true;
@@ -1982,7 +2229,7 @@ mod tests {
     fn normalize_imported_world_backfills_missing_team_staff_and_available_pool() {
         let mut world = make_roster_baseline_world_without_staff();
 
-        normalize_imported_world_for_career_start(&mut world);
+        normalize_imported_world_for_career_start(&mut world, TEST_OPENING_YEAR);
 
         for team in &world.teams {
             for role in [
@@ -2024,7 +2271,7 @@ mod tests {
             make_import_staff("free-existing", None, StaffRole::Scout),
         ];
 
-        normalize_imported_world_for_career_start(&mut world);
+        normalize_imported_world_for_career_start(&mut world, TEST_OPENING_YEAR);
 
         assert!(
             world
