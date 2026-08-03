@@ -44,13 +44,6 @@ fn write_json_atomic(path: &Path, value: &serde_json::Value) -> Result<(), Strin
 }
 
 
-fn names_to_file(names: &NamesDefinition) -> Result<serde_json::Value, String> {
-    let mut v = serde_json::to_value(names).map_err(|e| e.to_string())?;
-    if let Some(obj) = v.as_object_mut() {
-        obj.insert("schema".to_string(), json!("names"));
-    }
-    Ok(v)
-}
 
 // ---------------------------------------------------------------------------
 // Commands
@@ -200,7 +193,7 @@ pub fn save_package_project(
         &json!({"schema": "staff", "items": stf}),
     )?;
 
-    write_json_atomic(&pkg_dir.join("names").join("names.json"), &names_to_file(&names)?)?;
+    write_json_atomic(&pkg_dir.join("names").join("names.json"), &ofm_core::generator::names_json(&names)?)?;
 
     let comps = serde_json::to_value(&competitions).map_err(|e| e.to_string())?;
     write_json_atomic(

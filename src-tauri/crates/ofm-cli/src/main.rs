@@ -187,6 +187,8 @@ const SCHEMA_TEAM: &str = r##"// Team entity — place inside teams/*.json in th
   "stadiumName": "My Arena",  // optional
   "reputationRange": [300, 900],      // optional: [min, max] 0-1000
   "financeRange": [500000, 10000000], // optional: [min, max] budget in euros
+  "kitPattern": "Solid",      // optional: "Solid" | "Stripes" | "Hoops" | "HalfAndHalf" | "Diagonal"
+  "foundedYear": 1900,        // optional: year founded (randomly generated if omitted)
   "logo": null                // optional: relative path to logo image asset
 }"##;
 
@@ -251,6 +253,7 @@ const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside comp
   "scope": "Domestic",         // required: "Domestic" | "Regional" | "Continental" | "International"
   "countryId": "ENG",          // optional: country ID (Domestic/Regional competitions)
   "regionId": null,            // optional: region ID (Regional/Continental competitions)
+  "requiredRegionIds": [],     // optional: only create this competition when these regions are active
   "priority": 1,               // optional: scheduling priority (higher = scheduled first)
   "format": {
     "kind": "LeagueTable",     // required: "LeagueTable" | "Knockout" | "GroupAndKnockout"
@@ -277,7 +280,9 @@ const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside comp
   // Berths - qualification spots this competition awards into others:
   "berths": [
     // { "rule": "TopN", "count": 4, "targetCompetition": "ucl", "fromTop": true }
-  ]
+  ],
+  "nameKey": null,        // optional: i18n key; translated via t(nameKey, { year }) instead of "name"
+  "logo": null            // optional: relative path to a badge image asset
 }"##;
 
 const SCHEMA_NAMES: &str = r##"// Names entity — place inside names/*.json in the "items" array.
@@ -697,6 +702,82 @@ mod tests {
         let tpl = entity_template(CoreEntityKind::from(&EntityKind::Player), Some("Sam Doe"));
         assert_eq!(tpl["footedness"], "Right");
         assert_eq!(tpl["youth"], false);
+    }
+
+    #[test]
+    fn the_annotated_schema_documents_every_field_the_template_scaffolds() {
+        // `ofm-cli schema <entity>` prints a hand-written annotated block. It says
+        // things the struct cannot — which fields are required, what the allowed
+        // play styles are — so it is worth keeping by hand. What it must not do is
+        // fall behind: a modder reading `ofm-cli schema team` and a modder running
+        // `ofm-cli add team` have to see the same fields.
+        //
+        // The template is already tied to the definition struct by the parity
+        // tests in `ofm_core::generator::scaffold`, so tying the prose to the
+        // template transitively ties all three together.
+        let mut drift: Vec<String> = Vec::new();
+        for entity in [
+            EntityKind::Team,
+            EntityKind::Player,
+            EntityKind::Staff,
+            EntityKind::Confederation,
+            EntityKind::Country,
+            EntityKind::Competition,
+        ] {
+            let kind = CoreEntityKind::from(&entity);
+            let text = entity_schema_text(&entity);
+            let template = entity_template(kind, Some("Sample Name"));
+            for key in template.as_object().expect("an object").keys() {
+                if !text.contains(&format!("\"{key}\"")) {
+                    drift.push(format!("{}: {key}", kind.schema_name()));
+                }
+            }
+        }
+        assert!(
+            drift.is_empty(),
+            "`ofm-cli schema` does not document {drift:?} — a modder reading the \
+             annotated reference never learns those fields exist"
+        );
+    }
+
+    #[test]
+    fn the_schema_reference_documents_every_field_the_template_scaffolds() {
+        // `docs/modding/SCHEMA_REFERENCE.md` is what a modder reads before they
+        // ever run the CLI, and it was the copy furthest behind — `kitPattern`
+        // was absent from it entirely while being a real, loadable TeamDef field.
+        //
+        // Resolved from CARGO_MANIFEST_DIR so the test does not depend on the
+        // working directory a runner happens to use.
+        let docs = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/SCHEMA_REFERENCE.md");
+        let text = std::fs::read_to_string(&docs)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", docs.display()));
+
+        let mut undocumented: Vec<String> = Vec::new();
+        for entity in [
+            EntityKind::Team,
+            EntityKind::Player,
+            EntityKind::Staff,
+            EntityKind::Confederation,
+            EntityKind::Country,
+            EntityKind::Competition,
+        ] {
+            let kind = CoreEntityKind::from(&entity);
+            let template = entity_template(kind, Some("Sample Name"));
+            for key in template.as_object().expect("an object").keys() {
+                // The reference lists fields as `\`name\`` table cells, and
+                // documents a nested object by its leaves instead — `colors` is
+                // covered by `colors.primary` / `colors.secondary`, which is more
+                // precise, not less. Accept either spelling.
+                if !text.contains(&format!("`{key}`")) && !text.contains(&format!("`{key}.")) {
+                    undocumented.push(format!("{}: {key}", kind.schema_name()));
+                }
+            }
+        }
+        assert!(
+            undocumented.is_empty(),
+            "SCHEMA_REFERENCE.md does not document {undocumented:?}"
+        );
     }
 
     #[test]

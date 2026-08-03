@@ -23,7 +23,8 @@ pub use package::{
     RESERVED_PACKAGE_ID,
 };
 pub use scaffold::{
-    entity_template, manifest_json, new_package_meta, scaffold_package, slugify, EntityKind,
+    entity_template, manifest_json, names_json, new_package_meta, scaffold_package, slugify,
+    EntityKind,
 };
 pub use world_io::*;
 

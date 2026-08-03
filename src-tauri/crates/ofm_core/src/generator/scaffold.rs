@@ -150,6 +150,19 @@ pub fn manifest_json(meta: &WorldMetaDef) -> Result<Value, String> {
     Ok(value)
 }
 
+/// A names definition as it is written to disk: the pools, plus the `schema` tag.
+///
+/// Shares [`manifest_json`]'s shape for the same reason — the editor's save path
+/// and the scaffolder must not disagree about what a names file looks like.
+pub fn names_json(names: &super::definitions::NamesDefinition) -> Result<Value, String> {
+    let mut value = serde_json::to_value(names).map_err(|e| e.to_string())?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| "names definition did not serialize to an object".to_string())?;
+    object.insert("schema".to_string(), json!(EntityKind::Names.schema_name()));
+    Ok(value)
+}
+
 /// An empty collection file for `kind`, as written into a fresh project.
 fn empty_collection(kind: EntityKind) -> Value {
     match kind {
