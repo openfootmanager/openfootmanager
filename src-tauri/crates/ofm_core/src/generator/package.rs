@@ -234,6 +234,7 @@ const INVALID_ENTITY: &str = "be.error.package.invalidEntity";
 const MISSING_ID: &str = "be.error.package.missingId";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
 const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
+const WORLD_EXPORT_NOT_PACKAGE: &str = "be.error.package.worldExportNotPackage";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
 const UNKNOWN_COUNTRY: &str = "be.error.package.unknownCountry";
 const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
@@ -478,9 +479,69 @@ pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>)
 /// every problem found. Collections are sorted by id so the result is
 /// independent of file-discovery order (and therefore of folder layout).
 pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
+    // An exported world save is not a package and never will parse as one, so
+    // say that rather than reporting each of its shards as malformed. The two
+    // formats are genuinely different — see `world_export_manifest`.
+    if let Some(manifest) = world_export_manifest(dir) {
+        return (
+            WorldPackage::default(),
+            vec![PackageError::new(WORLD_EXPORT_NOT_PACKAGE, &manifest)],
+        );
+    }
+
     let (package, mut errors) = load_world_package_files(dir);
     errors.extend(validate_package(&package));
     (package, errors)
+}
+
+/// The filename of the world-save manifest in `dir`, if `dir` holds an exported
+/// world rather than an authoring package.
+///
+/// The two formats collide on nothing but the `.json` extension. `export_world_package`
+/// writes a manifest plus a `<stem>.shards/` folder whose files are bare JSON
+/// **arrays**; a package is per-entity files shaped `{"schema": …, "items": […]}`.
+/// Pointed at the former, `classify_file` calls every shard schema-less and the
+/// editor reports nine identical problems that name the wrong cause (#413).
+///
+/// The match is a `shards` map plus the absence of the `schema` field that every
+/// package manifest carries. That pair is narrow enough on its own — no package
+/// schema has shards — and it deliberately ignores `formatVersion`: pinning it to
+/// the 2 the exporter writes today would mean a later bump silently stops the
+/// detection and quietly reopens #413, with no test going red. Only the top level
+/// is scanned, which is where the exporter puts the manifest.
+fn world_export_manifest(dir: &Path) -> Option<String> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        // Case-insensitive, as `collect_data_files` already is: a `.JSON` that
+        // survived a rename on a case-preserving filesystem must not slip past
+        // and land the user back on the per-file errors this exists to replace.
+        if !path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+        {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(&text)
+        else {
+            continue;
+        };
+        if map.contains_key("schema") {
+            continue;
+        }
+        if !map.get("shards").is_some_and(serde_json::Value::is_object) {
+            continue;
+        }
+        return path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(str::to_string);
+    }
+    None
 }
 
 /// Every check a package must pass, for callers that obtained one some other way.
@@ -1639,6 +1700,81 @@ mod tests {
         for good in ["eng-premier-league", "brasileirao_2026", "süper-lig-25-26"] {
             assert!(is_valid_package_id(good), "expected {good:?} to pass");
         }
+    }
+
+    #[test]
+    fn an_exported_world_is_recognised_instead_of_reported_as_broken_files() {
+        // Issue #413: export a world, then open the exported folder in the editor.
+        // Every shard came back "missing schema", which names a cause that is not
+        // the real one — the folder is a world save, a different format entirely.
+        //
+        // Built with the real exporter, so a change to the export layout that
+        // breaks the detection fails here rather than in a user's hands.
+        let dir = temp_package();
+        let world = crate::generator::WorldData::default();
+        crate::generator::export_world_package(&world, &dir.join("my-world.json"))
+            .expect("the world exports");
+
+        let (pkg, errors) = load_world_package(&dir);
+
+        assert_eq!(
+            errors.len(),
+            1,
+            "one clear reason, not one per shard: {errors:?}"
+        );
+        assert_eq!(errors[0].code, WORLD_EXPORT_NOT_PACKAGE);
+        assert_eq!(errors[0].file, "my-world.json");
+        assert!(is_unreadable(&pkg));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_future_world_export_is_still_recognised() {
+        // The detection must not be pinned to the format version the exporter
+        // happens to write today. Version-locking it would mean a bump to 3 stops
+        // the detection silently and reopens #413 with every test still green.
+        let dir = temp_package();
+        // Uppercase extension too: `collect_data_files` matches case-insensitively,
+        // so this must as well or the two disagree about what is even a data file.
+        write(
+            &dir,
+            "my-world.JSON",
+            r#"{"formatVersion":3,"worldId":"w","name":"W","description":"",
+                "shards":{"teams":"my-world.shards/teams.json"}}"#,
+        );
+
+        let (_pkg, errors) = load_world_package(&dir);
+
+        assert_eq!(errors.len(), 1, "expected one clear reason: {errors:?}");
+        assert_eq!(errors[0].code, WORLD_EXPORT_NOT_PACKAGE);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_ordinary_package_is_not_mistaken_for_a_world_export() {
+        // The detection has to stay narrow. A package manifest carries `schema`
+        // and its own `formatVersion`, and neither may read as a world save.
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"real","name":"Real","formatVersion":1}"#,
+        );
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","items":[{"id":"zed","name":"Zed FC","city":"Zed",
+                 "country":"BR","colors":{"primary":"#fff","secondary":"#000"}}]}"##,
+        );
+
+        let (pkg, errors) = load_world_package(&dir);
+
+        assert!(
+            !errors.iter().any(|e| e.code == WORLD_EXPORT_NOT_PACKAGE),
+            "a real package must still load: {errors:?}"
+        );
+        assert_eq!(pkg.teams.len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

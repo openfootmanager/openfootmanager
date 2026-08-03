@@ -2584,6 +2584,7 @@
         "invalidPackageId": "L'ID del pacchetto \"{{id}}\" non può essere utilizzato. Non deve essere vuoto né chiamarsi \"assets\" e non può contenere \"/\", \"\\\", \"..\" o caratteri di controllo.",
         "readFailed": "Impossibile leggere un file del pacchetto.",
         "missingSchema": "A un file del pacchetto manca il campo \"schema\".",
+        "worldExportNotPackage": "Questa cartella è un mondo esportato, non un progetto di pacchetto. I mondi esportati usano un formato diverso e non possono essere modificati qui.",
         "unknownSchema": "Schema sconosciuto \"{{schema}}\".",
         "invalidEntity": "Una voce \"{{schema}}\" non è valida.",
         "missingId": "A una voce {{kind}} manca l’id.",
