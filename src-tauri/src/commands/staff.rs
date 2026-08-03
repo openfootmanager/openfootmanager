@@ -142,6 +142,55 @@ mod tests {
         )
     }
 
+    /// The manager holds a team id that no club in the world has. Both commands
+    /// used to swallow that: the wage adjustment sat behind `if let Some(team)`
+    /// with no else, so the staff record changed and the club's books did not.
+    fn with_dangling_team_id(mut game: Game) -> Game {
+        game.teams[0].id = "team-elsewhere".to_string();
+        game
+    }
+
+    #[test]
+    fn hire_staff_internal_reports_a_team_id_that_matches_no_club() {
+        let state = StateManager::new();
+        state.set_game(with_dangling_team_id(make_game()));
+
+        let result = hire_staff_internal(&state, "staff-1");
+
+        assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
+
+        // The wage adjustment is the fallible step and now runs first, so the
+        // staff member must not have been hired either.
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        let staff = stored
+            .staff
+            .iter()
+            .find(|staff| staff.id == "staff-1")
+            .expect("stored staff should exist");
+        assert!(staff.team_id.is_none());
+        assert_eq!(stored.teams[0].season_expenses, 0);
+    }
+
+    #[test]
+    fn release_staff_internal_reports_a_team_id_that_matches_no_club() {
+        let state = StateManager::new();
+        state.set_game(with_dangling_team_id(make_game_with_employed_staff()));
+
+        let result = release_staff_internal(&state, "staff-1");
+
+        assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
+
+        // Likewise: the staff member stays employed rather than being released
+        // while the command reports failure.
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        let staff = stored
+            .staff
+            .iter()
+            .find(|staff| staff.id == "staff-1")
+            .expect("stored staff should exist");
+        assert_eq!(staff.team_id.as_deref(), Some("team-1"));
+    }
+
     #[test]
     fn hire_staff_internal_updates_state() {
         let state = StateManager::new();
