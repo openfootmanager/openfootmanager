@@ -58,8 +58,8 @@ export function useEntityEditor<T extends { id: string }>(options: {
   // commitField can run long after the render that created it — an asset pick
   // awaits a native file dialog first — so it must not write through the list
   // it saw back then. Anything the user did during the dialog would be undone.
-  const latest = useRef({ items, setItems, captureHistory, saveItems, autoSave, onDirty });
-  latest.current = { items, setItems, captureHistory, saveItems, autoSave, onDirty };
+  const latest = useRef({ items, setItems, captureHistory, saveItems, autoSave, onDirty, revision });
+  latest.current = { items, setItems, captureHistory, saveItems, autoSave, onDirty, revision };
 
   /**
    * Like `updateField`, but also writes the value straight into the record so it
@@ -77,7 +77,16 @@ export function useEntityEditor<T extends { id: string }>(options: {
    * the commit the list may have been reordered, or the record removed.
    */
   function commitField<K extends keyof T>(key: K, value: T[K]) {
+    // Whether the form still holds the record this pick was started from.
+    // `revision` bumps on select/add/duplicate/undo-sync — every way the open
+    // record can change — and deliberately not on an ordinary field edit, so
+    // renaming the entity mid-pick does not count as switching away from it.
+    const sameSession = revision === latest.current.revision;
     if (editingIndex === null) {
+      // A new record has no id to re-locate by, so the session is all there is.
+      // Without this, abandoning an unsaved record mid-pick and starting another
+      // grafts the first record's asset onto the second one's form.
+      if (!sameSession) return;
       setEditing((prev) => ({ ...prev, [key]: value }));
       return;
     }
@@ -91,7 +100,11 @@ export function useEntityEditor<T extends { id: string }>(options: {
     // The record is gone (an undo discarded it). Writing it back would
     // resurrect something the user just removed.
     if (index === -1 || index >= items.length) return;
-    setEditing((prev) => (editingId && prev.id !== editingId ? prev : { ...prev, [key]: value }));
+    // Match on the session, not on the buffer's id. The id is editable text: a
+    // user who renames the club while the copy is in flight would otherwise fail
+    // an `id === editingId` check, leave the buffer without the asset path, and
+    // lose it on the next Save — the record having been written correctly.
+    if (sameSession) setEditing((prev) => ({ ...prev, [key]: value }));
     captureHistory();
     const updated = items.map((item, i) => (i === index ? { ...item, [key]: value } : item));
     setItems(updated);

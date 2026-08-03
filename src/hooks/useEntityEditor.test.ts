@@ -308,6 +308,42 @@ describe("useEntityEditor", () => {
       expect(setItems).not.toHaveBeenCalled();
       expect(captureHistory).not.toHaveBeenCalled();
     });
+
+    it("keeps the buffer in sync when the id is renamed during the pick", () => {
+      // Renaming the club while the copy is in flight is not switching away from
+      // it. Matching the buffer on `id === editingId` failed here: the record got
+      // the path, the buffer did not, and the next Save wrote the buffer back
+      // over the record — losing the logo the user had just chosen.
+      const items: Item[] = [{ id: "a", name: "A" }];
+      const { hook } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(0); });
+      const commit = hook.result.current.commitField;
+
+      act(() => { hook.result.current.updateField("id", "a-renamed"); });
+      act(() => { commit("logo", "assets/images/a.png"); });
+
+      expect(hook.result.current.editing).toEqual({
+        id: "a-renamed",
+        name: "A",
+        logo: "assets/images/a.png",
+      });
+    });
+
+    it("drops a pick from a new record the user has since abandoned", () => {
+      // Add, start a pick, then go Back and Add again before the copy resolves.
+      // The new-record branch has no id to re-locate by, so without a session
+      // check the first record's asset lands on the second record's form.
+      const { hook } = makeHook({ items: [] });
+      act(() => { hook.result.current.handleAdd(); });
+      const staleCommit = hook.result.current.commitField;
+
+      act(() => { hook.result.current.handleAdd(); });
+      act(() => { hook.result.current.updateField("name", "Second"); });
+
+      act(() => { staleCommit("logo", "assets/images/first.png"); });
+
+      expect(hook.result.current.editing).toEqual({ id: "", name: "Second" });
+    });
   });
 
   describe("handleSave", () => {
