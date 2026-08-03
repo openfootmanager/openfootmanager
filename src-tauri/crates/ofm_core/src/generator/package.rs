@@ -1355,11 +1355,14 @@ pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageErr
     };
 
     // Load whatever was successfully extracted, even if some entries had errors.
-    let (package, mut load_errors) = load_world_package_files(&temp_dir);
-    // An unusable id has to surface here too, not only from a directory load:
-    // `ofm-cli validate some.ofm` and the installer both come through this path,
-    // and an archive is the shape a package is actually shared in.
-    load_errors.extend(validate_manifest(&package));
+    //
+    // Deliberately *not* validating the manifest id here. This is the runtime
+    // read path: `read_package_info` drops a package from the installed list on
+    // any error at all, and career startup refuses to begin. A package already
+    // sitting in the packages directory — dropped there by hand, or installed by
+    // a build that predates the check — would silently disappear instead of
+    // continuing to work. Authoring tools call `validate_manifest` themselves.
+    let (package, load_errors) = load_world_package_files(&temp_dir);
     let _ = std::fs::remove_dir_all(&temp_dir);
 
     // Prepend extraction-level errors before the parse/validate errors.
@@ -1552,21 +1555,28 @@ mod tests {
     }
 
     #[test]
-    fn an_unusable_package_id_is_caught_in_an_archive_too() {
-        // A package is shared as a `.ofm`, and both `ofm-cli validate x.ofm` and
-        // the installer read it through the archive path — which used to skip the
-        // manifest check the directory path ran.
+    fn reading_an_installed_archive_stays_permissive_about_the_id() {
+        // The archive load is the *runtime* read path. `read_package_info` drops a
+        // package from the installed list on any error, and career startup refuses
+        // to begin — so folding the id check in here would make a package that is
+        // already installed, and already working, silently disappear. Whatever the
+        // id says, reading it back has to keep succeeding; `validate_manifest` is
+        // what authoring tools ask for on top.
         let archive = build_zip(&[(
             "package.json",
             br#"{"schema":"world","id":"a/b","name":"Slashed"}"#,
         )]);
 
-        let (_pkg, errors) = load_world_package_from_ofm(&archive);
+        let (pkg, errors) = load_world_package_from_ofm(&archive);
 
         assert!(
-            errors.iter().any(|e| e.code == INVALID_PACKAGE_ID),
-            "expected the archive load to report the id, got {errors:?}"
+            errors.is_empty(),
+            "the runtime read must not fail on the id: {errors:?}"
         );
+        // …and asking explicitly, as `ofm-cli validate` does, still reports it.
+        assert!(validate_manifest(&pkg)
+            .iter()
+            .any(|e| e.code == INVALID_PACKAGE_ID));
         std::fs::remove_file(&archive).ok();
     }
 
