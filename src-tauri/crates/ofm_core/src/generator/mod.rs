@@ -5,6 +5,7 @@ pub mod definitions;
 pub mod file_format;
 mod generation;
 pub mod package;
+pub mod scaffold;
 pub mod world_io;
 
 pub use clubs::WorldGenConfig;
@@ -20,6 +21,9 @@ pub use package::{
     validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
     PackageLock, PlayerDef, StaffDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
     RESERVED_PACKAGE_ID,
+};
+pub use scaffold::{
+    entity_template, manifest_json, new_package_meta, scaffold_package, slugify, EntityKind,
 };
 pub use world_io::*;
 

@@ -43,13 +43,6 @@ fn write_json_atomic(path: &Path, value: &serde_json::Value) -> Result<(), Strin
     std::fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
 
-fn meta_to_manifest(meta: &WorldMetaDef) -> Result<serde_json::Value, String> {
-    let mut v = serde_json::to_value(meta).map_err(|e| e.to_string())?;
-    if let Some(obj) = v.as_object_mut() {
-        obj.insert("schema".to_string(), json!("world"));
-    }
-    Ok(v)
-}
 
 fn names_to_file(names: &NamesDefinition) -> Result<serde_json::Value, String> {
     let mut v = serde_json::to_value(names).map_err(|e| e.to_string())?;
@@ -64,29 +57,12 @@ fn names_to_file(names: &NamesDefinition) -> Result<serde_json::Value, String> {
 // ---------------------------------------------------------------------------
 
 fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), String> {
-    let subdirs = ["teams", "players", "staff", "confederations", "countries", "competitions", "names"];
-    for sub in &subdirs {
-        std::fs::create_dir_all(pkg_dir.join(sub)).map_err(|e| e.to_string())?;
-    }
-
-    let manifest = meta_to_manifest(meta)?;
-    write_json_atomic(&pkg_dir.join("package.json"), &manifest)?;
-
-    let stubs: &[(&str, &str, serde_json::Value)] = &[
-        ("teams", "teams.json", json!({"schema": "team", "items": []})),
-        ("players", "players.json", json!({"schema": "player", "items": []})),
-        ("staff", "staff.json", json!({"schema": "staff", "items": []})),
-        ("confederations", "confederations.json", json!({"schema": "confederation", "items": []})),
-        ("countries", "countries.json", json!({"schema": "country", "items": []})),
-        ("competitions", "competitions.json", json!({"schema": "competition", "items": []})),
-        ("names", "names.json", json!({"schema": "names", "version": 1, "description": "", "pools": {}})),
-    ];
-
-    for (sub, file, content) in stubs {
-        write_json_atomic(&pkg_dir.join(sub).join(file), content)?;
-    }
-
-    Ok(())
+    // The skeleton lives in `ofm_core` so `ofm-cli new` and this produce the
+    // same package. When they were separate the CLI's manifest silently missed
+    // fields the editor wrote (`fallbackLeague`, `logo`), and its `names.json`
+    // used an `items` array that loads without error and is then dropped — the
+    // file looked fine and did nothing.
+    ofm_core::generator::scaffold_package(pkg_dir, meta)
 }
 
 fn dir_is_nonempty(path: &Path) -> bool {
@@ -191,7 +167,7 @@ pub fn save_package_project(
 ) -> Result<(), String> {
     let pkg_dir = Path::new(&dir);
 
-    write_json_atomic(&pkg_dir.join("package.json"), &meta_to_manifest(&meta)?)?;
+    write_json_atomic(&pkg_dir.join("package.json"), &ofm_core::generator::manifest_json(&meta)?)?;
 
     let confs = serde_json::to_value(&confederations).map_err(|e| e.to_string())?;
     write_json_atomic(

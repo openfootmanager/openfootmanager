@@ -2,8 +2,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
-    export_directory_to_ofm, load_world_package, load_world_package_from_ofm,
-    read_package_manifest_from_ofm, validate_package,
+    entity_template, export_directory_to_ofm, load_world_package, load_world_package_from_ofm,
+    new_package_meta, read_package_manifest_from_ofm, scaffold_package, slugify, validate_package,
+    EntityKind as CoreEntityKind,
 };
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -70,6 +71,8 @@ enum Commands {
     },
 }
 
+/// Clap's view of the entity list. It exists only so `clap` can parse the
+/// argument; every question about what an entity *is* goes to `ofm_core`.
 #[derive(ValueEnum, Clone, Debug)]
 enum EntityKind {
     World,
@@ -80,6 +83,21 @@ enum EntityKind {
     Country,
     Competition,
     Names,
+}
+
+impl From<&EntityKind> for CoreEntityKind {
+    fn from(kind: &EntityKind) -> Self {
+        match kind {
+            EntityKind::World => CoreEntityKind::World,
+            EntityKind::Team => CoreEntityKind::Team,
+            EntityKind::Player => CoreEntityKind::Player,
+            EntityKind::Staff => CoreEntityKind::Staff,
+            EntityKind::Confederation => CoreEntityKind::Confederation,
+            EntityKind::Country => CoreEntityKind::Country,
+            EntityKind::Competition => CoreEntityKind::Competition,
+            EntityKind::Names => CoreEntityKind::Names,
+        }
+    }
 }
 
 fn main() {
@@ -117,158 +135,9 @@ fn main() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn slugify(s: &str) -> String {
-    let raw: String = s
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
-        .collect();
-    raw.split('-')
-        .filter(|p| !p.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
-}
 
-fn entity_dir(entity: &EntityKind) -> &'static str {
-    match entity {
-        EntityKind::World => panic!("world entity has no subdirectory"),
-        EntityKind::Team => "teams",
-        EntityKind::Player => "players",
-        EntityKind::Staff => "staff",
-        EntityKind::Confederation => "confederations",
-        EntityKind::Country => "countries",
-        EntityKind::Competition => "competitions",
-        EntityKind::Names => "names",
-    }
-}
 
-fn entity_schema_name(entity: &EntityKind) -> &'static str {
-    match entity {
-        EntityKind::World => "world",
-        EntityKind::Team => "team",
-        EntityKind::Player => "player",
-        EntityKind::Staff => "staff",
-        EntityKind::Confederation => "confederation",
-        EntityKind::Country => "country",
-        EntityKind::Competition => "competition",
-        EntityKind::Names => "names",
-    }
-}
 
-fn entity_template(entity: &EntityKind, name: Option<&str>) -> Value {
-    let slug = name
-        .map(slugify)
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| format!("my-{}", entity_schema_name(entity)));
-    let display = name.unwrap_or("My Entity");
-
-    match entity {
-        EntityKind::World => json!({
-            "schema": "world",
-            "id": slug,
-            "name": display,
-            "description": "",
-            "version": "1.0.0",
-            "author": "",
-            "license": "CC-BY-4.0",
-            "packageType": "database",
-            "gameMinVersion": "",
-            "formatVersion": 1,
-            "baseYear": null,
-            "defaultActiveRegions": [],
-            "defaultActiveCompetitions": []
-        }),
-        EntityKind::Team => {
-            let short: String = display
-                .split_whitespace()
-                .filter_map(|w| w.chars().next())
-                .take(3)
-                .collect::<String>()
-                .to_uppercase();
-            json!({
-                "id": slug,
-                "name": display,
-                "shortName": short,
-                "city": "City",
-                "country": "ENG",
-                "colors": { "primary": "#cc0000", "secondary": "#ffffff" },
-                "playStyle": "Balanced",
-                "stadiumName": format!("{} Arena", display),
-                "reputationRange": [300, 900],
-                "financeRange": [500000, 10000000]
-            })
-        }
-        EntityKind::Player => {
-            let mut parts = display.splitn(2, ' ');
-            let first = parts.next().unwrap_or("First");
-            let last = parts.next().unwrap_or("Last");
-            json!({
-                "id": slug,
-                "name": display,
-                "firstName": first,
-                "lastName": last,
-                "club": "club-id",
-                "nationality": "ENG",
-                "position": "CM",
-                "footedness": "Right",
-                "dateOfBirth": "1995-01-01",
-                "youth": false,
-                "overall": 70
-            })
-        }
-        EntityKind::Staff => {
-            let mut parts = display.splitn(2, ' ');
-            let first = parts.next().unwrap_or("First");
-            let last = parts.next().unwrap_or("Last");
-            json!({
-                "id": slug,
-                "firstName": first,
-                "lastName": last,
-                "club": "club-id",
-                "nationality": "ENG",
-                "role": "Coach",
-                "specialization": null,
-                "dateOfBirth": "1975-01-01"
-            })
-        }
-        EntityKind::Confederation => json!({
-            "id": slug,
-            "name": display
-        }),
-        EntityKind::Country => json!({
-            "id": slug,
-            "name": display,
-            "confederation": "confederation-id"
-        }),
-        EntityKind::Competition => json!({
-            "id": slug,
-            "name": display,
-            "type": "League",
-            "scope": "Domestic",
-            "countryId": "ENG",
-            "priority": 1,
-            "format": { "kind": "LeagueTable", "legs": 2 },
-            "participants": {
-                "selector": {
-                    "kind": "topByReputation",
-                    "country": "ENG",
-                    "count": 20
-                }
-            },
-            "seasonStartMonth": 8,
-            "seasonStartDay": 1
-        }),
-        EntityKind::Names => json!({
-            "version": 1,
-            "description": format!("{} name pools", display),
-            "pools": {
-                "ENG": {
-                    "firstNames": ["James", "Oliver", "Harry"],
-                    "lastNames": ["Smith", "Jones", "Williams"]
-                }
-            }
-        }),
-    }
-}
 
 fn write_json(path: &Path, value: &Value) -> Result<(), String> {
     let content = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
@@ -439,6 +308,9 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(name));
 
+    // The CLI refuses any existing directory; the editor refuses only a
+    // non-empty one. That difference is a UI choice, so it stays here rather
+    // than in the shared scaffolder.
     if pkg_dir.exists() {
         eprintln!(
             "{} Directory already exists: {}",
@@ -448,68 +320,10 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
         return 1;
     }
 
-    let slug = slugify(name);
-
-    let subdirs = [
-        "teams",
-        "players",
-        "staff",
-        "confederations",
-        "countries",
-        "competitions",
-        "names",
-    ];
-    for sub in &subdirs {
-        let path = pkg_dir.join(sub);
-        if let Err(e) = std::fs::create_dir_all(&path) {
-            eprintln!(
-                "{} Failed to create {}: {}",
-                "error:".red().bold(),
-                path.display(),
-                e
-            );
-            return 1;
-        }
-    }
-
-    let manifest = json!({
-        "schema": "world",
-        "id": slug,
-        "name": name,
-        "description": "",
-        "version": version,
-        "author": author,
-        "license": "CC-BY-4.0",
-        "packageType": pkg_type,
-        "gameMinVersion": "",
-        "formatVersion": 1,
-        "baseYear": null,
-        "defaultActiveRegions": [],
-        "defaultActiveCompetitions": []
-    });
-
-    let manifest_path = pkg_dir.join("package.json");
-    if let Err(e) = write_json(&manifest_path, &manifest) {
-        eprintln!("{} Failed to write manifest: {}", "error:".red().bold(), e);
+    let meta = new_package_meta(name, author, version, pkg_type);
+    if let Err(e) = scaffold_package(&pkg_dir, &meta) {
+        eprintln!("{} Failed to create package: {}", "error:".red().bold(), e);
         return 1;
-    }
-
-    let stubs: &[(&str, &str, Value)] = &[
-        ("teams", "teams.json", json!({"schema": "team", "items": []})),
-        ("players", "players.json", json!({"schema": "player", "items": []})),
-        ("staff", "staff.json", json!({"schema": "staff", "items": []})),
-        ("confederations", "confederations.json", json!({"schema": "confederation", "items": []})),
-        ("countries", "countries.json", json!({"schema": "country", "items": []})),
-        ("competitions", "competitions.json", json!({"schema": "competition", "items": []})),
-        ("names", "names.json", json!({"schema": "names", "items": []})),
-    ];
-
-    for (sub, file, content) in stubs {
-        let path = pkg_dir.join(sub).join(file);
-        if let Err(e) = write_json(&path, content) {
-            eprintln!("{} Failed to write {}: {}", "error:".red().bold(), path.display(), e);
-            return 1;
-        }
     }
 
     println!("{} Created package directory: {}", "✓".green().bold(), pkg_dir.display());
@@ -553,9 +367,11 @@ fn cmd_add(
     }
 
     let pkg_dir = dir.map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    let sub = entity_dir(entity);
-    let schema = entity_schema_name(entity);
-    let template = entity_template(entity, name);
+    let kind = CoreEntityKind::from(entity);
+    // `World` is rejected above, so every kind reaching here has a directory.
+    let sub = kind.dir().expect("non-world entities live in a subdirectory");
+    let schema = kind.schema_name();
+    let template = entity_template(kind, name);
 
     if let Some(target_file) = append_to {
         // --append-to names a file inside the entity subdirectory; reject path
@@ -862,13 +678,14 @@ mod tests {
 
     #[test]
     fn staff_entity_maps_to_staff_dir_and_schema() {
-        assert_eq!(entity_dir(&EntityKind::Staff), "staff");
-        assert_eq!(entity_schema_name(&EntityKind::Staff), "staff");
+        let kind = CoreEntityKind::from(&EntityKind::Staff);
+        assert_eq!(kind.dir(), Some("staff"));
+        assert_eq!(kind.schema_name(), "staff");
     }
 
     #[test]
     fn staff_template_carries_role_and_split_name() {
-        let tpl = entity_template(&EntityKind::Staff, Some("Alex Ferguson"));
+        let tpl = entity_template(CoreEntityKind::from(&EntityKind::Staff), Some("Alex Ferguson"));
         assert_eq!(tpl["id"], "alex-ferguson");
         assert_eq!(tpl["firstName"], "Alex");
         assert_eq!(tpl["lastName"], "Ferguson");
@@ -877,8 +694,36 @@ mod tests {
 
     #[test]
     fn player_template_exposes_footedness_and_youth() {
-        let tpl = entity_template(&EntityKind::Player, Some("Sam Doe"));
+        let tpl = entity_template(CoreEntityKind::from(&EntityKind::Player), Some("Sam Doe"));
         assert_eq!(tpl["footedness"], "Right");
         assert_eq!(tpl["youth"], false);
+    }
+
+    #[test]
+    fn every_cli_entity_maps_to_a_distinct_core_kind() {
+        // The clap enum exists only to parse an argument; everything downstream
+        // asks `ofm_core`. If this mapping ever collided, `ofm-cli add country`
+        // would happily scaffold a confederation and nothing else would notice.
+        let cli = [
+            EntityKind::World,
+            EntityKind::Team,
+            EntityKind::Player,
+            EntityKind::Staff,
+            EntityKind::Confederation,
+            EntityKind::Country,
+            EntityKind::Competition,
+            EntityKind::Names,
+        ];
+        let mapped: Vec<CoreEntityKind> = cli.iter().map(CoreEntityKind::from).collect();
+
+        // Same length as the core list: neither side may gain a kind alone.
+        assert_eq!(mapped.len(), CoreEntityKind::ALL.len());
+        for kind in CoreEntityKind::ALL {
+            assert!(
+                mapped.contains(kind),
+                "{} is a package entity the CLI cannot name",
+                kind.schema_name()
+            );
+        }
     }
 }
