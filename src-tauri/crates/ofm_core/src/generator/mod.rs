@@ -228,19 +228,28 @@ pub fn repair_opening_youth_academies(game: &mut crate::game::Game) -> bool {
     repaired
 }
 
+/// Generate a youth prospect who is joining **now**.
+///
+/// `current_year` is the year the recruit arrives, not the year the world opened:
+/// a prospect scouted five seasons into a career is fifteen in *that* season. The
+/// two coincide only for the opening intake, which is why the distinction is
+/// worth naming — a call site that passed the world's opening year here would
+/// quietly produce a squad of players five years too old.
 pub fn generate_youth_academy_recruit(
     team: &Team,
     target_position: Option<&Position>,
-    opening_year: u32,
+    current_year: u32,
 ) -> Player {
-    generate_youth_academy_recruit_with_nationality(team, target_position, None, opening_year)
+    generate_youth_academy_recruit_with_nationality(team, target_position, None, current_year)
 }
 
+/// As [`generate_youth_academy_recruit`], with the prospect's nationality forced
+/// rather than drawn from the club's country. See there for `current_year`.
 pub fn generate_youth_academy_recruit_with_nationality(
     team: &Team,
     target_position: Option<&Position>,
     nationality_override: Option<&str>,
-    opening_year: u32,
+    current_year: u32,
 ) -> Player {
     use domain::player::SquadRole;
 
@@ -257,7 +266,7 @@ pub fn generate_youth_academy_recruit_with_nationality(
             &team.id,
             slot_index,
             &nationality,
-            opening_year,
+            current_year,
             &names_def,
             &mut rng,
         );
