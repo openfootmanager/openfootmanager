@@ -7,7 +7,10 @@ import DashboardHeader, { type DashboardMatchModeMeta } from "./DashboardHeader"
 
 vi.mock("react-i18next", () => ({
     useTranslation: () => ({
-        t: (key: string) => {
+        // Honours defaultValue, as the real t does. translatePositionAbbreviation
+        // relies on it to fall back to the position code, so a mock that ignored
+        // it would render raw translation keys as badge text.
+        t: (key: string, options?: { defaultValue?: string }) => {
             if (key === "dashboard.noResults") return "No results";
             if (key === "dashboard.searchPlayers") return "Players";
             if (key === "dashboard.searchTeams") return "Teams";
@@ -18,7 +21,7 @@ vi.mock("react-i18next", () => ({
             if (key === "common.back") return "Back";
             if (key === "squad.viewProfile") return "View profile";
             if (key === "common.viewTeam") return "View team";
-            return key;
+            return options?.defaultValue ?? key;
         },
     }),
 }));
@@ -150,14 +153,28 @@ describe("DashboardHeader", () => {
         expect(onSelectSearchPlayer).not.toHaveBeenCalled();
     });
 
+    // Every position positionBadgeVariant names explicitly. The dashboard used to
+    // keep its own four-bucket copy, so each granular position rendered red here
+    // while the rest of the app rendered it blue or green.
     it.each([
-        ["CenterBack", "bg-primary-100"],
-        ["LeftBack", "bg-primary-100"],
-        ["DefensiveMidfielder", "bg-green-100"],
-        ["AttackingMidfielder", "bg-green-100"],
-        ["Striker", "bg-red-100"],
-        ["Goalkeeper", "bg-accent-100"],
-    ])("badges a %s the same way the rest of the app does", (position, expectedClass) => {
+        ["Goalkeeper", "GK", "bg-accent-100"],
+        ["Defender", "DEF", "bg-primary-100"],
+        ["RightBack", "RB", "bg-primary-100"],
+        ["CenterBack", "CB", "bg-primary-100"],
+        ["LeftBack", "LB", "bg-primary-100"],
+        ["RightWingBack", "RWB", "bg-primary-100"],
+        ["LeftWingBack", "LWB", "bg-primary-100"],
+        ["Midfielder", "MID", "bg-green-100"],
+        ["DefensiveMidfielder", "DM", "bg-green-100"],
+        ["CentralMidfielder", "CM", "bg-green-100"],
+        ["AttackingMidfielder", "AM", "bg-green-100"],
+        ["RightMidfielder", "RM", "bg-green-100"],
+        ["LeftMidfielder", "LM", "bg-green-100"],
+        ["Forward", "FWD", "bg-red-100"],
+        ["RightWinger", "RW", "bg-red-100"],
+        ["LeftWinger", "LW", "bg-red-100"],
+        ["Striker", "ST", "bg-red-100"],
+    ])("badges a %s the same way the rest of the app does", (position, abbreviation, expectedClass) => {
         const teams = [createTeam()];
 
         render(
@@ -170,7 +187,7 @@ describe("DashboardHeader", () => {
                 isUnemployed={false}
                 isSaving={false}
                 matchMode="live"
-                matchedPlayers={[createPlayer({ position } as Partial<PlayerData>)]}
+                matchedPlayers={[createPlayer({ position })]}
                 matchedTeams={teams}
                 modeMeta={createModeMeta()}
                 onBack={vi.fn()}
@@ -193,7 +210,6 @@ describe("DashboardHeader", () => {
             />,
         );
 
-        const row = screen.getByTestId("dashboard-search-player-player-1");
-        expect(row.querySelector("span.rounded-md")).toHaveClass(expectedClass);
+        expect(screen.getByText(abbreviation)).toHaveClass(expectedClass);
     });
 });
