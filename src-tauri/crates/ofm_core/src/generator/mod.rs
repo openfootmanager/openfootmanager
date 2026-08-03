@@ -121,12 +121,19 @@ pub const MAX_OPENING_YEAR: u32 = 2999;
 /// from the package manifest's `baseYear`. Generation used to hard code a
 /// literal year in place of this, which silently aged every historical
 /// package's squads by decades and drifted out of date on its own.
+///
+/// The result is always within `MIN_OPENING_YEAR..=MAX_OPENING_YEAR`. It is read
+/// from the system clock, which is not something this code controls — a machine
+/// set to 1970 or to 5000 would otherwise hand a fully procedural world an era
+/// the date formatting cannot represent, and `generate_world_with_rng` takes
+/// this value with no clamp of its own.
 pub fn default_opening_year() -> u32 {
     use chrono::Datelike;
-    // Clamped only so the cast cannot wrap: a negative system year is absurd,
-    // but wrapping it into a u32 would generate players born billions of years
-    // from now rather than failing loudly.
-    chrono::Utc::now().year().max(1) as u32
+    // Clamp in signed space first: casting a negative year to u32 would wrap it
+    // into the far future rather than falling back to the floor.
+    chrono::Utc::now()
+        .year()
+        .clamp(MIN_OPENING_YEAR as i32, MAX_OPENING_YEAR as i32) as u32
 }
 
 fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
