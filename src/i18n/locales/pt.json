@@ -2585,7 +2585,7 @@
         "readFailed": "Não foi possível ler um ficheiro do pacote.",
         "missingSchema": "Falta o campo \"schema\" num ficheiro do pacote.",
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Os mundos exportados usam um formato diferente e não podem ser editados aqui.",
-        "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolhe a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, abre-o com «Abrir ficheiro de pacote».",
+        "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolhe a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, usa «Abrir ficheiro .ofm».",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
         "invalidEntity": "Uma entrada \"{{schema}}\" é inválida.",
         "missingId": "Falta o id numa entrada {{kind}}.",

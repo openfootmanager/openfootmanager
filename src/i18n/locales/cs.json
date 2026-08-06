@@ -2599,7 +2599,7 @@
         "readFailed": "Soubor balíčku nebylo možné načíst.",
         "missingSchema": "V souboru balíčku chybí pole „schema“.",
         "worldExportNotPackage": "Tato složka je exportovaný svět, nikoli projekt balíčku. Exportované světy používají jiný formát a nelze je zde upravovat.",
-        "notAProjectDirectory": "Toto není složka projektu balíčku. Vyberte složku, která obsahuje package.json balíčku — nebo nainstalovaný balíček .ofm otevřete pomocí „Otevřít soubor balíčku“.",
+        "notAProjectDirectory": "Toto není složka projektu balíčku. Vyberte složku, která obsahuje package.json balíčku — nebo pro nainstalovaný balíček .ofm použijte „Otevřít soubor .ofm“.",
         "unknownSchema": "Neznámé schéma „{{schema}}“.",
         "invalidEntity": "Záznam „{{schema}}“ je neplatný.",
         "missingId": "Záznamu typu {{kind}} chybí ID.",

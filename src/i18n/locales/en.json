@@ -2598,7 +2598,7 @@
         "readFailed": "A package file could not be read.",
         "missingSchema": "A package file is missing its \"schema\" field.",
         "worldExportNotPackage": "This folder is an exported world save, not a package project. Exported worlds use a different format and cannot be edited here.",
-        "notAProjectDirectory": "This is not a package project folder. Pick the folder that contains the package's package.json — or, for an installed .ofm package, open it with \"Open Package File\".",
+        "notAProjectDirectory": "This is not a package project folder. Pick the folder that contains the package's package.json — or, for an installed .ofm package, use \"Open .ofm File\".",
         "unknownSchema": "Unknown schema \"{{schema}}\".",
         "invalidEntity": "A \"{{schema}}\" entry is invalid.",
         "missingId": "A {{kind}} entry is missing its id.",
