@@ -650,6 +650,20 @@ mod tests {
     }
 
     #[test]
+    fn a_nation_whose_name_is_not_ascii_is_still_matched_case_insensitively() {
+        // `eq_ignore_ascii_case` compares bytes, so `Ü` and `ü` are different
+        // characters to it and `TÜRKIYE` would scaffold a *custom* country named
+        // after one the catalog already has.
+        assert_eq!(entity_template(EntityKind::Country, Some("TÜRKIYE"))["id"], "TR");
+        assert_eq!(entity_template(EntityKind::Country, Some("türkiye"))["id"], "TR");
+        assert_eq!(entity_template(EntityKind::Country, Some("CURAÇAO"))["id"], "CW");
+        assert_eq!(
+            entity_template(EntityKind::Country, Some("SÃO TOMÉ AND PRÍNCIPE"))["id"],
+            "ST"
+        );
+    }
+
+    #[test]
     fn a_country_the_catalog_does_not_know_keeps_the_name_it_was_given() {
         // Custom countries are legitimate — a historical state, an invented one.
         // What they must not carry is a confederation placeholder:

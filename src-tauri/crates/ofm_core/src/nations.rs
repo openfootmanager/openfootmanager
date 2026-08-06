@@ -272,10 +272,14 @@ pub fn nation_by_code(code: &str) -> Option<&'static NationDef> {
 ///
 /// Used when scaffolding a country, where the input is a hand-typed name and the
 /// output has to be the nation the rest of the game already knows.
+///
+/// Folds case with `to_lowercase`, not `eq_ignore_ascii_case`: the catalog holds
+/// `Türkiye`, `Curaçao` and `São Tomé and Príncipe`, whose accented letters are
+/// not ASCII, so a byte-wise comparison would miss `TÜRKIYE` and `CURAÇAO`.
 pub fn nation_by_name(name: &str) -> Option<&'static NationDef> {
-    all_nations().find(|nation| {
-        nation.name.eq_ignore_ascii_case(name) || nation.code.eq_ignore_ascii_case(name)
-    })
+    let needle = name.trim().to_lowercase();
+    all_nations()
+        .find(|nation| nation.name.to_lowercase() == needle || nation.code.to_lowercase() == needle)
 }
 
 /// Confederation/region id for a nation code, defaulting to Europe for nations
