@@ -401,7 +401,21 @@ export function getPitchSlotWidth(slotCount: number): number {
   return 82;
 }
 
-function comparePlayersForSlot(
+/**
+ * Order candidates for a pitch slot, best first.
+ *
+ * Players who can play the slot at all lead: it is one of their preferred
+ * positions, or at least in the same position group. Among those, a player
+ * whose natural position *is* the slot goes ahead of one merely covering it.
+ * Then the higher rating, then the fresher legs, with name as a stable
+ * tiebreak so the order never wobbles between renders.
+ *
+ * Squad and Tactics both auto-fill from this, so the precedence is a shared
+ * contract, not a local preference: changing it moves players in Squad's
+ * best-fit assignment and Tactics' auto-pick at the same time. Change it
+ * deliberately, or not at all.
+ */
+export function comparePlayersForSlot(
   leftPlayer: PlayerData,
   rightPlayer: PlayerData,
   slotPosition: string,
