@@ -17,6 +17,7 @@ import {
   LeagueData,
 } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
+import StandingsTable from "./StandingsTable";
 import { competitionDisplayName } from "../../lib/competitionName";
 import { Card, CardHeader, CardBody, Badge, Select } from "../ui";
 import {
@@ -137,10 +138,6 @@ export default function TournamentsTab({
         ...buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
         label: `${t("common.viewTeam")}: ${resolveTeamName(teamId)}`,
       }));
-
-  const buildStandingMenuItems = (teamId: string) => [
-    buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
-  ];
 
   const buildPlayerMenuItems = (playerId: string, teamId?: string | null) => {
     const items = [];
@@ -441,83 +438,14 @@ export default function TournamentsTab({
                   </p>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 w-8">
-                        #
-                      </th>
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        {t("common.team")}
-                      </th>
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                        {t("common.played")}
-                      </th>
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                        {t("common.won")}
-                      </th>
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                        {t("common.drawn")}
-                      </th>
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                        {t("common.lost")}
-                      </th>
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                        {t("common.gd")}
-                      </th>
-                      <th className="py-2 px-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                        {t("common.pts")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-                    {standings.map((entry, idx) => {
-                      const isUser = entry.team_id === userTeamId;
-                      const gd = entry.goals_for - entry.goals_against;
-                      return (
-                        <ContextMenu
-                          items={buildStandingMenuItems(entry.team_id)}
-                          key={entry.team_id}
-                        >
-                          <tr
-                            onClick={() => onSelectTeam(entry.team_id)}
-                            className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
-                            data-testid={`tournaments-overview-standing-${entry.team_id}`}
-                          >
-                            <td className="py-2 px-3 font-heading font-bold text-sm text-gray-400">
-                              {idx + 1}
-                            </td>
-                            <td
-                              className={`py-2 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                            >
-                              {resolveTeamName(entry.team_id)}
-                            </td>
-                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                              {entry.played}
-                            </td>
-                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                              {entry.won}
-                            </td>
-                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                              {entry.drawn}
-                            </td>
-                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                              {entry.lost}
-                            </td>
-                            <td
-                              className={`py-2 px-3 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
-                            >
-                              {gd > 0 ? `+${gd}` : gd}
-                            </td>
-                            <td className="py-2 px-3 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
-                              {entry.points}
-                            </td>
-                          </tr>
-                        </ContextMenu>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <StandingsTable
+                  standings={standings}
+                  variant="compact"
+                  userTeamId={userTeamId}
+                  resolveTeamName={resolveTeamName}
+                  onSelectTeam={onSelectTeam}
+                  testIdPrefix="tournaments-overview-standing"
+                />
               )}
             </CardBody>
           </Card>
@@ -643,114 +571,15 @@ export default function TournamentsTab({
               </h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 w-8">
-                      #
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      {t("common.team")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.played")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.won")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.drawn")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.lost")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.gf")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.ga")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.gd")}
-                    </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                      {t("common.pts")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-                  {standings.map((entry, idx) => {
-                    const isUser = entry.team_id === userTeamId;
-                    const gd = entry.goals_for - entry.goals_against;
-                    const inPromotionZone = idx < zones.promotionSlots;
-                    const inRelegationZone =
-                      zones.relegationSlots > 0 &&
-                      idx >= standings.length - zones.relegationSlots;
-                    return (
-                      <ContextMenu
-                        items={buildStandingMenuItems(entry.team_id)}
-                        key={entry.team_id}
-                      >
-                        <tr
-                          onClick={() => onSelectTeam(entry.team_id)}
-                          className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
-                          data-testid={`tournaments-standing-${entry.team_id}`}
-                        >
-                          <td
-                            className={`py-3 px-4 font-heading font-bold text-sm ${
-                              inPromotionZone
-                                ? "border-l-2 border-primary-500 text-primary-500"
-                                : inRelegationZone
-                                  ? "border-l-2 border-red-500 text-red-500"
-                                  : "text-gray-400"
-                            }`}
-                            data-testid={
-                              inPromotionZone
-                                ? `tournaments-promotion-${entry.team_id}`
-                                : inRelegationZone
-                                  ? `tournaments-relegation-${entry.team_id}`
-                                  : undefined
-                            }
-                          >
-                            {idx + 1}
-                          </td>
-                          <td
-                            className={`py-3 px-4 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                          >
-                            {resolveTeamName(entry.team_id)}
-                          </td>
-                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.played}
-                          </td>
-                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.won}
-                          </td>
-                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.drawn}
-                          </td>
-                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.lost}
-                          </td>
-                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.goals_for}
-                          </td>
-                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.goals_against}
-                          </td>
-                          <td
-                            className={`py-3 px-4 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
-                          >
-                            {gd > 0 ? `+${gd}` : gd}
-                          </td>
-                          <td className="py-3 px-4 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
-                            {entry.points}
-                          </td>
-                        </tr>
-                      </ContextMenu>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <StandingsTable
+                standings={standings}
+                variant="full"
+                userTeamId={userTeamId}
+                resolveTeamName={resolveTeamName}
+                onSelectTeam={onSelectTeam}
+                testIdPrefix="tournaments-standing"
+                zones={zones}
+              />
               {(zones.promotionSlots > 0 || zones.relegationSlots > 0) && (
                 <div className="flex gap-5 border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500 dark:border-navy-600 dark:text-gray-400">
                   {zones.promotionSlots > 0 && (
