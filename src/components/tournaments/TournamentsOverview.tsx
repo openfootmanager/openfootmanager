@@ -1,8 +1,8 @@
-import { Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import StandingsTable from "./StandingsTable";
 import TournamentsGroupTable from "./TournamentsGroupTable";
+import TournamentsPreseasonNote from "./TournamentsPreseasonNote";
 import TournamentsTopScorers from "./TournamentsTopScorers";
 import { localizedRoundName, type TopScorerEntry } from "./TournamentsTab.helpers";
 import type { TournamentsTeamLookup } from "./teamLookup";
@@ -71,35 +71,25 @@ export default function TournamentsOverview({
     </div>
   );
 
-  const preseasonNote = (
-    <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-      <Trophy className="w-8 h-8 text-gray-300 dark:text-navy-600" />
-      <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100">
-        {t("season.standingsLocked")}
-      </p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md">
-        {t("season.tournamentsPreseasonHint")}
-      </p>
-    </div>
-  );
-
-  const summary = isKnockout
-    ? // A bracket that has not been drawn yet still has its group stage to show.
-      knockoutRounds.length === 0 && groups.length > 0
-      ? groupGrid
-      : roundProgress
-    : groups.length > 0
-      ? groupGrid
-      : isPreseason
-        ? preseasonNote
-        : (
-            <StandingsTable
-              standings={standings}
-              variant="compact"
-              teams={teams}
-              testIdPrefix="tournaments-overview-standing"
-            />
-          );
+  // Same order as TournamentsStandingsView: what a competition has to show
+  // depends on its shape, and a drawn bracket outranks the group stage feeding it.
+  const summary = (() => {
+    if (isKnockout) {
+      return knockoutRounds.length === 0 && groups.length > 0
+        ? groupGrid
+        : roundProgress;
+    }
+    if (groups.length > 0) return groupGrid;
+    if (isPreseason) return <TournamentsPreseasonNote />;
+    return (
+      <StandingsTable
+        standings={standings}
+        variant="compact"
+        teams={teams}
+        testIdPrefix="tournaments-overview-standing"
+      />
+    );
+  })();
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

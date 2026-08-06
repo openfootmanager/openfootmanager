@@ -28,7 +28,7 @@ export default function StandingsTable({
   zones,
 }: StandingsTableProps) {
   const { t } = useTranslation();
-  const { userTeamId, resolveTeamName, onSelectTeam } = teams;
+  const { userTeamId, isClubTeam, resolveTeamName, onSelectTeam } = teams;
   const pad = variant === "full" ? "py-3 px-4" : "py-2 px-3";
   const headPad = variant === "full" ? "py-3 px-4" : "py-2 px-3";
 
@@ -80,14 +80,22 @@ export default function StandingsTable({
             (zones?.relegationSlots ?? 0) > 0 &&
             idx >= standings.length - (zones?.relegationSlots ?? 0);
 
+          // A qualifying group with no groups defined lands national teams in
+          // this table, and those have no team page to open.
+          const clickable = isClubTeam(entry.team_id);
+
           return (
             <ContextMenu
-              items={[buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))]}
+              items={
+                clickable
+                  ? [buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))]
+                  : []
+              }
               key={entry.team_id}
             >
               <tr
-                onClick={() => onSelectTeam(entry.team_id)}
-                className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
+                onClick={clickable ? () => onSelectTeam(entry.team_id) : undefined}
+                className={`transition-colors ${clickable ? "cursor-pointer" : ""} ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
                 data-testid={`${testIdPrefix}-${entry.team_id}`}
               >
                 <td
@@ -111,7 +119,17 @@ export default function StandingsTable({
                 <td
                   className={`${pad} font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
                 >
-                  {resolveTeamName(entry.team_id)}
+                  {clickable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectTeam(entry.team_id)}
+                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                    >
+                      {resolveTeamName(entry.team_id)}
+                    </button>
+                  ) : (
+                    resolveTeamName(entry.team_id)
+                  )}
                 </td>
                 {statColumns.map((column) => (
                   <td key={column.key} className={statClass}>

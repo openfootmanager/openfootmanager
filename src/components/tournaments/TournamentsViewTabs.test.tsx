@@ -55,15 +55,17 @@ describe("TournamentsViewTabs", () => {
     ]);
   });
 
+  // Selection was signalled by background colour alone, which assistive
+  // technology cannot report — hence the pressed state rather than a class.
   it("marks the tab currently being shown", () => {
     renderTabs({ view: "fixtures" });
 
     expect(
-      screen.getByRole("button", { name: "schedule.fixtures" }).className,
-    ).toContain("bg-primary-500");
+      screen.getByRole("button", { name: "schedule.fixtures", pressed: true }),
+    ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "tournaments.overview" }).className,
-    ).not.toContain("bg-primary-500");
+      screen.getByRole("button", { name: "tournaments.overview" }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 
   it("switches view when a tab is picked", () => {

@@ -51,7 +51,17 @@ export default function TournamentsGroupTable({
                 <td
                   className={`py-1.5 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
                 >
-                  {resolveTeamName(entry.team_id)}
+                  {clickable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectTeam(entry.team_id)}
+                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                    >
+                      {resolveTeamName(entry.team_id)}
+                    </button>
+                  ) : (
+                    resolveTeamName(entry.team_id)
+                  )}
                 </td>
                 <td className="py-1.5 px-3 text-center text-xs text-gray-600 dark:text-gray-400 tabular-nums">
                   {entry.played}

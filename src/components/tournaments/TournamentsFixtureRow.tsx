@@ -32,14 +32,32 @@ export default function TournamentsFixtureRow({
       label: `${t("common.viewTeam")}: ${resolveTeamName(teamId)}`,
     }));
 
-  const teamName = (teamId: string, align: "text-right" | "text-left") => (
-    <span
-      onClick={isClubTeam(teamId) ? () => onSelectTeam(teamId) : undefined}
-      className={`flex-1 ${align} font-semibold text-sm ${isClubTeam(teamId) ? "cursor-pointer hover:underline" : ""} ${teamId === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-    >
-      {resolveTeamName(teamId)}
-    </span>
-  );
+  const teamName = (teamId: string, align: "text-right" | "text-left") => {
+    const tone =
+      teamId === userTeamId
+        ? "text-primary-600 dark:text-primary-400"
+        : "text-gray-800 dark:text-gray-200";
+
+    // A national team has no page to open, so it stays plain text rather than
+    // a button that goes nowhere.
+    if (!isClubTeam(teamId)) {
+      return (
+        <span className={`flex-1 ${align} font-semibold text-sm ${tone}`}>
+          {resolveTeamName(teamId)}
+        </span>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => onSelectTeam(teamId)}
+        className={`flex-1 ${align} font-semibold text-sm hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded ${tone}`}
+      >
+        {resolveTeamName(teamId)}
+      </button>
+    );
+  };
 
   return (
     <ContextMenu items={menuItems}>
@@ -55,7 +73,7 @@ export default function TournamentsFixtureRow({
             </span>
           ) : (
             <Badge variant="neutral" size="sm">
-              vs
+              {t("common.vs")}
             </Badge>
           )}
         </div>

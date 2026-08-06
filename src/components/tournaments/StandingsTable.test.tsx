@@ -124,4 +124,28 @@ describe("StandingsTable", () => {
 
     expect(onSelectTeam).toHaveBeenCalledWith("bottom");
   });
+
+  // The row click is a mouse affordance. Keyboard and screen-reader users
+  // reach the team through the button in the name cell.
+  it("opens a team from a focusable control, not the row alone", () => {
+    const onSelectTeam = vi.fn();
+    renderTable({ teams: teamLookup({ onSelectTeam }) });
+
+    fireEvent.click(screen.getByRole("button", { name: "Name of top" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("top");
+  });
+
+  // A qualifying competition with no groups puts national teams in this table,
+  // and those have no page to open.
+  it("leaves teams with no page of their own inert", () => {
+    const onSelectTeam = vi.fn();
+    renderTable({
+      teams: teamLookup({ isClubTeam: () => false, onSelectTeam }),
+    });
+
+    expect(screen.queryByRole("button", { name: "Name of top" })).toBeNull();
+    fireEvent.click(screen.getByTestId("row-top"));
+    expect(onSelectTeam).not.toHaveBeenCalled();
+  });
 });

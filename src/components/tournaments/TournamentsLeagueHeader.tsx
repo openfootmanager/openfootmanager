@@ -55,7 +55,7 @@ export default function TournamentsLeagueHeader({
             <Trophy className="w-7 h-7 text-accent-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-2xl font-heading font-bold text-white uppercase tracking-wide">
+            <h2 className="text-2xl font-heading font-bold text-white uppercase tracking-wider">
               {competitionDisplayName(league, t)}
             </h2>
             <p className="text-gray-400 text-sm mt-0.5">

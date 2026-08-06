@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import KnockoutBracket from "./KnockoutBracket";
 import StandingsTable from "./StandingsTable";
 import TournamentsGroupTable from "./TournamentsGroupTable";
+import TournamentsPreseasonNote from "./TournamentsPreseasonNote";
 import { localizedRoundName } from "./TournamentsTab.helpers";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import { competitionDisplayName } from "../../lib/competitionName";
@@ -55,6 +56,18 @@ export default function TournamentsStandingsView({
   );
 
   if (isKnockout) {
+    // Before the draw a cup has neither a bracket nor groups. Saying so beats
+    // rendering an empty panel with no explanation.
+    if (knockoutRounds.length === 0 && groups.length === 0) {
+      return (
+        <Card>
+          <CardBody>
+            <TournamentsPreseasonNote className="py-6" />
+          </CardBody>
+        </Card>
+      );
+    }
+
     return (
       <div className="flex flex-col gap-4">
         {groups.length > 0 && groupGrid}
@@ -84,15 +97,7 @@ export default function TournamentsStandingsView({
     return (
       <Card>
         <CardBody>
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <Trophy className="w-8 h-8 text-gray-300 dark:text-navy-600" />
-            <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100">
-              {t("season.standingsLocked")}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md">
-              {t("season.tournamentsPreseasonHint")}
-            </p>
-          </div>
+          <TournamentsPreseasonNote className="py-6" />
         </CardBody>
       </Card>
     );
@@ -101,7 +106,7 @@ export default function TournamentsStandingsView({
   return (
     <Card>
       <div className="p-5 border-b border-gray-100 dark:border-navy-600 bg-gradient-to-r from-navy-700 to-navy-800 rounded-t-xl">
-        <h3 className="text-lg font-heading font-bold text-white flex items-center gap-2 uppercase tracking-wide">
+        <h3 className="text-lg font-heading font-bold text-white flex items-center gap-2 uppercase tracking-wider">
           <Trophy className="text-accent-400 w-5 h-5" />
           {competitionDisplayName(league, t)} —{" "}
           {t("schedule.season", { number: league.season })}

@@ -67,7 +67,7 @@ export default function TournamentsTopScorers({
                         ""}
                     </p>
                   </div>
-                  <span className="font-heading font-bold text-lg text-accent-500 tabular-nums">
+                  <span className="font-heading font-bold text-lg text-accent-500 dark:text-accent-400 tabular-nums">
                     {entry.goals}
                   </span>
                 </div>
