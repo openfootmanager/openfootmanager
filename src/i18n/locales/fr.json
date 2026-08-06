@@ -2584,6 +2584,7 @@
         "invalidPackageId": "L'identifiant de paquet « {{id}} » ne peut pas être utilisé. Il ne doit pas être vide ni s'appeler « assets », et ne peut pas contenir « / », « \\ », « .. » ou des caractères de contrôle.",
         "readFailed": "Un fichier du package n’a pas pu être lu.",
         "missingSchema": "Un fichier du package n’a pas de champ « schema ».",
+        "worldExportNotPackage": "Ce dossier est une sauvegarde de monde exportée, pas un projet de paquet. Les mondes exportés utilisent un format différent et ne peuvent pas être modifiés ici.",
         "unknownSchema": "Schéma inconnu « {{schema}} ».",
         "invalidEntity": "Une entrée « {{schema}} » est invalide.",
         "missingId": "Une entrée {{kind}} n’a pas d’id.",

@@ -2597,6 +2597,7 @@
         "invalidPackageId": "\"{{id}}\" paket kimliği kullanılamaz. Boş olamaz, \"assets\" adını taşıyamaz ve \"/\", \"\\\", \"..\" veya kontrol karakterleri içeremez.",
         "readFailed": "Bir paket dosyası okunamadı.",
         "missingSchema": "Bir paket dosyasında \"schema\" alanı eksik.",
+        "worldExportNotPackage": "Bu klasör dışa aktarılmış bir dünya kaydı, paket projesi değil. Dışa aktarılan dünyalar farklı bir biçim kullanır ve burada düzenlenemez.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
         "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz.",
         "missingId": "Bir {{kind}} kaydında id eksik.",

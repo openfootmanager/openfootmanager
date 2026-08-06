@@ -2597,6 +2597,7 @@
         "invalidPackageId": "The package ID \"{{id}}\" cannot be used. It must not be empty or named \"assets\", and cannot contain \"/\", \"\\\", \"..\" or control characters.",
         "readFailed": "A package file could not be read.",
         "missingSchema": "A package file is missing its \"schema\" field.",
+        "worldExportNotPackage": "This folder is an exported world save, not a package project. Exported worlds use a different format and cannot be edited here.",
         "unknownSchema": "Unknown schema \"{{schema}}\".",
         "invalidEntity": "A \"{{schema}}\" entry is invalid.",
         "missingId": "A {{kind}} entry is missing its id.",

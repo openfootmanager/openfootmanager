@@ -2598,6 +2598,7 @@
         "invalidPackageId": "ID balíčku „{{id}}“ nelze použít. Nesmí být prázdné ani se jmenovat „assets“ a nesmí obsahovat „/“, „\\“, „..“ ani řídicí znaky.",
         "readFailed": "Soubor balíčku nebylo možné načíst.",
         "missingSchema": "V souboru balíčku chybí pole „schema“.",
+        "worldExportNotPackage": "Tato složka je exportovaný svět, nikoli projekt balíčku. Exportované světy používají jiný formát a nelze je zde upravovat.",
         "unknownSchema": "Neznámé schéma „{{schema}}“.",
         "invalidEntity": "Záznam „{{schema}}“ je neplatný.",
         "missingId": "Záznamu typu {{kind}} chybí ID.",

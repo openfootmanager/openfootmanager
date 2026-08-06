@@ -2584,6 +2584,7 @@
         "invalidPackageId": "Die Paket-ID „{{id}}“ kann nicht verwendet werden. Sie darf nicht leer sein, nicht „assets“ heißen und weder „/“, „\\“, „..“ noch Steuerzeichen enthalten.",
         "readFailed": "Eine Paketdatei konnte nicht gelesen werden.",
         "missingSchema": "Einer Paketdatei fehlt das Feld \"schema\".",
+        "worldExportNotPackage": "Dieser Ordner ist eine exportierte Weltspeicherung, kein Paketprojekt. Exportierte Welten verwenden ein anderes Format und können hier nicht bearbeitet werden.",
         "unknownSchema": "Unbekanntes Schema \"{{schema}}\".",
         "invalidEntity": "Ein \"{{schema}}\"-Eintrag ist ungültig.",
         "missingId": "Einem {{kind}}-Eintrag fehlt die id.",
