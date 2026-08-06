@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
 import type { CountryFlag as CountryFlagType } from "./CountryFlag";
@@ -45,6 +45,8 @@ interface CountryComboboxProps {
 export function CountryCombobox({ label, value, onChange, placeholder }: CountryComboboxProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
+  const labelId = useId();
+  const buttonId = useId();
   const ref = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -96,12 +98,23 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
 
   return (
     <div className="flex flex-col gap-1" ref={ref}>
-      <label className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+      <label
+        id={labelId}
+        className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400"
+      >
         {label}
       </label>
       <div className="relative">
         <button
           type="button"
+          id={buttonId}
+          // The label sits above a button, not a form control, so `htmlFor`
+          // cannot reach it. Naming the button after both gives it the
+          // "<field>, <current value>" reading a native select has, instead of
+          // announcing a bare country name with nothing to say what it is.
+          aria-labelledby={`${labelId} ${buttonId}`}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
           onMouseDown={(e) => {
             e.preventDefault();
             isOpen ? setIsOpen(false) : open();

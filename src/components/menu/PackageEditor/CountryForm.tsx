@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Globe, PencilLine } from "lucide-react";
 import { LabeledInput } from "./primitives";
 import { EntityFormShell } from "./shared";
 import { Select } from "../../ui/Select";
-import { toSlug } from "./helpers";
+import { CountryCombobox } from "../../ui/CountryCombobox";
+import { useNations } from "../../../hooks/useNations";
 import type { ConfederationDef, CountryDef } from "./types";
 
 interface CountryFormProps {
@@ -16,6 +18,17 @@ interface CountryFormProps {
   updateField: <K extends keyof CountryDef>(key: K, value: CountryDef[K]) => void;
 }
 
+/**
+ * How the country's identity is being authored.
+ *
+ * `builtin` picks from the game's nation catalog, which fixes the id to a code
+ * the rest of the game already understands — flags, translated names, and
+ * nationality matching all key off it. `custom` is the escape hatch for a
+ * nation the catalog does not carry (a historical state, an invented one), and
+ * is the only way to author a free-text id.
+ */
+type IdentityMode = "builtin" | "custom";
+
 export function CountryForm({
   editing,
   editingIndex,
@@ -26,18 +39,50 @@ export function CountryForm({
   updateField,
 }: CountryFormProps) {
   const { t } = useTranslation();
-  const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
+  const nations = useNations();
+  // Set only when the author picks a mode. Until then the mode is inferred from
+  // the record, so opening an existing country never depends on state that
+  // could have been left behind by the previously edited one. The form is
+  // remounted on every buffer swap (keyed on `revision` in WorldEditorFormPanel),
+  // so this starts empty for each record.
+  const [chosenMode, setChosenMode] = useState<IdentityMode | null>(null);
 
-  useEffect(() => {
-    setIdAutoMode(editingIndex === null && !editing.id);
-  // Reset only when the selected record changes, not as auto-ID populates editing.id
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingIndex]);
+  // `null` while the catalog is loading and the record has an id we cannot yet
+  // classify. Guessing here is what would rewrite authored data: show a custom
+  // country in the picker and it reads as unset.
+  const inferredMode: IdentityMode | null = !editing.id
+    ? "builtin"
+    : nations === null
+      ? null
+      : nations.some((nation) => nation.code === editing.id)
+        ? "builtin"
+        : "custom";
+  const mode = chosenMode ?? inferredMode;
+
+  /**
+   * Adopt a catalog nation: its code becomes the id, its canonical name the
+   * name.
+   *
+   * The name deliberately comes from the catalog rather than from the label the
+   * author just clicked. That label is translated into the editor's language,
+   * so filling from it would write "Brasil" into a package authored in pt-BR
+   * and "Brazil" into the same package authored in English — two packages that
+   * no longer agree, and a name that is wrong in the other nine locales. The
+   * stored name is a stable fallback; what a player reads is translated from
+   * the id at render time.
+   */
+  function selectNation(code: string) {
+    const nation = nations?.find((entry) => entry.code === code);
+    updateField("id", code);
+    updateField("name", nation?.name ?? code);
+  }
 
   const labelClass =
     "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";
   const inputClass =
     "w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition";
+  const switchClass =
+    "inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 dark:focus:ring-offset-navy-800 transition";
 
   return (
     <EntityFormShell
@@ -48,21 +93,45 @@ export function CountryForm({
       saveDisabled={!editing.id || !editing.name}
       saveLabel={t("worldEditor.saveCountry")}
     >
-      <LabeledInput
-        label={t("worldEditor.countryId")}
-        value={editing.id}
-        onChange={(v) => { setIdAutoMode(false); updateField("id", v); }}
-        placeholder="ENG"
-      />
-      <LabeledInput
-        label={t("worldEditor.countryName")}
-        value={editing.name}
-        onChange={(v) => {
-          updateField("name", v);
-          if (idAutoMode) updateField("id", toSlug(v));
-        }}
-        placeholder="England"
-      />
+      {mode === null ? (
+        <div className="flex min-h-[62px] items-center justify-center" aria-live="polite">
+          <span className="sr-only">{t("worldEditor.countryLoadingNations")}</span>
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+        </div>
+      ) : mode === "builtin" ? (
+        <>
+          <CountryCombobox
+            label={t("worldEditor.countryNation")}
+            value={editing.id}
+            onChange={selectNation}
+            placeholder={t("worldEditor.countryNationPlaceholder")}
+          />
+          <button type="button" className={switchClass} onClick={() => setChosenMode("custom")}>
+            <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("worldEditor.countryCustom")}
+          </button>
+        </>
+      ) : (
+        <>
+          <LabeledInput
+            label={t("worldEditor.countryId")}
+            value={editing.id}
+            onChange={(v) => updateField("id", v)}
+            placeholder="YUG"
+            help={t("worldEditor.countryIdHelp")}
+          />
+          <LabeledInput
+            label={t("worldEditor.countryName")}
+            value={editing.name}
+            onChange={(v) => updateField("name", v)}
+            placeholder="Yugoslavia"
+          />
+          <button type="button" className={switchClass} onClick={() => setChosenMode("builtin")}>
+            <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("worldEditor.countryFromCatalog")}
+          </button>
+        </>
+      )}
       <div className="flex flex-col gap-1">
         <label className={labelClass}>{t("worldEditor.countryConfederation")}</label>
         {confederations.length > 0 ? (
