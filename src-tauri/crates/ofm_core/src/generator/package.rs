@@ -10,7 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use domain::league::CompetitionScope;
@@ -220,14 +220,21 @@ pub struct WorldPackage {
     /// code (e.g. `"de"`, `"fr"`). Loaded from `translations.{locale}.json`
     /// files found anywhere in the package directory tree.
     pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
-    /// Which file each entity was declared in, keyed by [`source_key`].
+    /// Which files each entity was declared in, keyed by [`source_key`], in
+    /// declaration order.
     ///
     /// A package may spread its entities over as many files as the author likes
     /// and the loader walks the tree recursively, so an entity id is not a
     /// location. Validation reports a *reference* problem — a country naming a
     /// confederation that does not exist — long after the file it came from is
     /// out of scope, and without this the author is told only which id is wrong.
-    pub sources: std::collections::HashMap<String, String>,
+    ///
+    /// A `Vec` rather than one file because the errors that most need a location
+    /// are the ones where an id appears *more than once*. Keeping only the last
+    /// declaration would make every duplicate-id error name the same file, and
+    /// every entity with a blank id shares a single key, so they would all name
+    /// whichever file happened to be read last.
+    pub sources: std::collections::HashMap<String, Vec<String>>,
 }
 
 /// Key into [`WorldPackage::sources`]: an entity is identified by its schema and
@@ -237,11 +244,32 @@ fn source_key(schema: &str, id: &str) -> String {
 }
 
 impl WorldPackage {
-    /// The file `id` was declared in, or `""` when it is not known — a package
-    /// assembled in memory rather than loaded from disk has no files to name.
+    /// The file `id` was last declared in, or `""` when it is not known — a
+    /// package assembled in memory rather than loaded from disk has no files to
+    /// name.
+    ///
+    /// The *last* declaration, because that is the one that won: within a
+    /// package a later file overwrites an earlier one, and across a merged stack
+    /// a later package overrides an earlier one. A reference error is about the
+    /// entity as it ended up, so it belongs to the declaration that produced it.
     fn source_of(&self, schema: &str, id: &str) -> String {
         self.sources
             .get(&source_key(schema, id))
+            .and_then(|files| files.last())
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// The file of the `occurrence`-th declaration of `id`, counting from zero.
+    ///
+    /// Used by the id checks, which are the one place that reasons about
+    /// individual declarations rather than the entity they add up to: the second
+    /// declaration of an id is a different problem from the third, and each
+    /// should name its own file.
+    fn source_at(&self, schema: &str, id: &str, occurrence: usize) -> String {
+        self.sources
+            .get(&source_key(schema, id))
+            .and_then(|files| files.get(occurrence).or_else(|| files.last()))
             .cloned()
             .unwrap_or_default()
     }
@@ -350,7 +378,9 @@ fn classify_entity(
         ($id:expr) => {
             package
                 .sources
-                .insert(source_key(schema, $id), file.to_string());
+                .entry(source_key(schema, $id))
+                .or_default()
+                .push(file.to_string());
         };
     }
 
@@ -733,19 +763,28 @@ fn check_ids<'a>(
     package: &WorldPackage,
     errors: &mut Vec<PackageError>,
 ) {
-    let mut seen: HashSet<&str> = HashSet::new();
+    // How many times each id has been seen, so the n-th declaration can be
+    // matched to the n-th recorded file. Entities are collected in the order
+    // their files were read, which is the order they were recorded in.
+    let mut seen: HashMap<&str, usize> = HashMap::new();
     for id in ids {
+        let occurrence = seen.entry(id).or_insert(0);
+        let index = *occurrence;
+        *occurrence += 1;
+
         if id.is_empty() {
-            // Entities with no id are all recorded under the same key, so this
-            // names the last file that declared one. Better than nothing, and
-            // an id-less entity cannot be identified any other way.
-            errors.push(PackageError::new(MISSING_ID, &package.source_of(kind, "")).with("kind", kind));
-        } else if !seen.insert(id) {
-            // The later declaration overwrote the earlier one in `sources`, so
-            // this names the duplicate rather than the original — which is the
-            // one the author almost certainly wants to look at.
+            // Every entity with a blank id shares one key, so the index is what
+            // tells two id-less entities in different files apart — they cannot
+            // be identified any other way.
             errors.push(
-                PackageError::new(DUPLICATE_ID, &package.source_of(kind, id))
+                PackageError::new(MISSING_ID, &package.source_at(kind, "", index)).with("kind", kind),
+            );
+        } else if index > 0 {
+            // Name the declaration that repeats the id rather than the original:
+            // the third occurrence points at the third file, not at whichever
+            // one happened to be read last.
+            errors.push(
+                PackageError::new(DUPLICATE_ID, &package.source_at(kind, id, index))
                     .with("kind", kind)
                     .with("id", id),
             );
@@ -939,7 +978,16 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
             // and has no idea about files, so the id is the only handle back to
             // one. Errors it raises about the file as a whole carry no id and
             // stay unlocated, which is honest — they are not about one entity.
-            let file = package.source_of("competition", &error.competition_id);
+            //
+            // The emptiness check has to guard the *lookup*, not only the param:
+            // a competition with a blank id is recorded under the blank key, so
+            // looking one up would pin a file-level error to whichever file
+            // happened to declare that unnamed competition.
+            let file = if error.competition_id.is_empty() {
+                String::new()
+            } else {
+                package.source_of("competition", &error.competition_id)
+            };
             if !error.competition_id.is_empty() {
                 params.push(("competition".to_string(), error.competition_id));
             }
@@ -1164,7 +1212,9 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         // so a stacked package that replaces an entity also replaces where the
         // merged stack says that entity came from. Without this, validating a
         // stack loses every location the individual packages had.
-        merged.sources.extend(package.sources);
+        for (key, files) in package.sources {
+            merged.sources.entry(key).or_default().extend(files);
+        }
         for c in package.confederations { confeds.insert(c.id.clone(), c); }
         for c in package.countries { countries.insert(c.id.clone(), c); }
         for t in package.teams { teams.insert(t.id.clone(), t); }
@@ -2504,6 +2554,97 @@ colors:
         // Files are walked in directory order, so the second declaration is the
         // one reported — the copy, not the original.
         assert_eq!(duplicate.file, "countries/second.json", "{duplicate:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn each_repeat_of_an_id_names_its_own_file() {
+        // Three files, one id. Storing only the last declaration would make both
+        // duplicate errors name `third.json`, sending the author to the same
+        // place twice and never to the second copy.
+        let dir = temp_package();
+        for (file, name) in [
+            ("countries/first.json", "Spain"),
+            ("countries/second.json", "Espana"),
+            ("countries/third.json", "España"),
+        ] {
+            write(
+                &dir,
+                file,
+                &format!(
+                    r#"{{ "schema": "country", "id": "ES", "name": "{name}", "confederation": "europe" }}"#
+                ),
+            );
+        }
+
+        let (_package, errors) = load_world_package(&dir);
+        let files: Vec<&str> = errors
+            .iter()
+            .filter(|e| e.code == DUPLICATE_ID)
+            .map(|e| e.file.as_str())
+            .collect();
+
+        assert_eq!(files, ["countries/second.json", "countries/third.json"]);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn two_entities_with_no_id_name_the_two_files_they_are_in() {
+        // Every id-less entity shares one key, so without per-declaration
+        // locations both errors would name the same file — and an entity with no
+        // id cannot be identified any other way, making the file the *only*
+        // thing that points at it.
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/alpha.json",
+            r##"{ "schema": "team", "name": "No Id FC", "city": "A", "country": "ENG",
+                  "colors": { "primary": "#000", "secondary": "#fff" } }"##,
+        );
+        write(
+            &dir,
+            "teams/beta.json",
+            r##"{ "schema": "team", "name": "Also No Id", "city": "B", "country": "ENG",
+                  "colors": { "primary": "#000", "secondary": "#fff" } }"##,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let mut files: Vec<&str> = errors
+            .iter()
+            .filter(|e| e.code == MISSING_ID)
+            .map(|e| e.file.as_str())
+            .collect();
+        files.sort_unstable();
+
+        assert_eq!(files, ["teams/alpha.json", "teams/beta.json"]);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_competition_error_names_the_file_that_declares_the_competition() {
+        // Competition problems come from the definition validator, which reasons
+        // over the merged list and knows nothing about files. Without a test, a
+        // regression that dropped the location back to "" would look fine — the
+        // existing competition tests only assert the error code.
+        let dir = temp_package();
+        write(
+            &dir,
+            "competitions/league.json",
+            r#"{ "schema": "competition", "id": "cup", "name": "Cup", "type": "League",
+                 "scope": "Domestic", "countryId": "ZZ", "priority": 1,
+                 "format": { "kind": "LeagueTable", "legs": 2 },
+                 "participants": { "selector": { "kind": "allInCountry", "country": "ZZ" } } }"#,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let located = errors
+            .iter()
+            .find(|e| e.params.iter().any(|(k, v)| k == "competition" && v == "cup"))
+            .expect("the competition's unknown country must be reported");
+        assert_eq!(located.file, "competitions/league.json", "{located:?}");
 
         std::fs::remove_dir_all(&dir).ok();
     }
