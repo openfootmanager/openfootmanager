@@ -134,6 +134,9 @@ describe("StandingsTable", () => {
     fireEvent.click(screen.getByRole("button", { name: "Name of top" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("top");
+    // The button sits inside a row that is itself clickable, so without
+    // stopping propagation one press opens the team twice.
+    expect(onSelectTeam).toHaveBeenCalledTimes(1);
   });
 
   // A qualifying competition with no groups puts national teams in this table,

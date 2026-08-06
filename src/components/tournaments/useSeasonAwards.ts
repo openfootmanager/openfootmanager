@@ -41,7 +41,9 @@ export function useSeasonAwards(
   const [awardsRetryCount, setAwardsRetryCount] = useState(0);
 
   const cached = awardsBySeason[currentSeason];
-  const awards = cached?.asOfDate === asOfDate ? cached.awards : null;
+  // `cached &&` is load-bearing: with no clock both sides of the date check are
+  // undefined, so an optional chain would compare equal on a missing entry.
+  const awards = cached && cached.asOfDate === asOfDate ? cached.awards : null;
 
   useEffect(() => {
     if (!enabled || awards) {

@@ -54,7 +54,11 @@ export default function TournamentsGroupTable({
                   {clickable ? (
                     <button
                       type="button"
-                      onClick={() => onSelectTeam(entry.team_id)}
+                      onClick={(event) => {
+                        // The row is clickable too; without this the team opens twice.
+                        event.stopPropagation();
+                        onSelectTeam(entry.team_id);
+                      }}
                       className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
                     >
                       {resolveTeamName(entry.team_id)}
