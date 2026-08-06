@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import CompetitionsOverview from "./CompetitionsOverview";
 import KnockoutBracket from "./KnockoutBracket";
 import TournamentsAwardCard from "./TournamentsAwardCard";
@@ -9,17 +9,13 @@ import {
   localizedRoundName,
   summarizeCompetitionProgress,
 } from "./TournamentsTab.helpers";
-import { invoke } from "@tauri-apps/api/core";
+import { useSeasonAwards } from "./useSeasonAwards";
+import { useTournamentsData } from "./useTournamentsData";
 import {
   FixtureData,
   GameStateData,
   LeagueData,
-  SeasonAwardsData,
 } from "../../store/gameStore";
-import {
-  fetchCompetitionsView,
-  type CompetitionsView,
-} from "../../services/competitionsService";
 import ContextMenu from "../ContextMenu";
 import { competitionDisplayName } from "../../lib/competitionName";
 import { Card, CardHeader, CardBody, Badge, Select } from "../ui";
@@ -40,7 +36,6 @@ import {
   getPromotionRelegationZones,
   formatMatchDate,
 } from "../../lib/helpers";
-import { resolveSeasonContext } from "../../lib/seasonContext";
 import { useTranslation } from "react-i18next";
 import {
   buildViewProfileMenuItem,
@@ -59,134 +54,28 @@ export default function TournamentsTab({
   onSelectPlayer,
 }: TournamentsTabProps) {
   const { t } = useTranslation();
-  const [competitionsView, setCompetitionsView] = useState<CompetitionsView | null>(null);
-
-  const currentDate = gameState.clock?.current_date;
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchCompetitionsView()
-      .then((view) => {
-        if (!cancelled) setCompetitionsView(view);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [currentDate]);
-
-  // Fall back to building a teamNames map from gameState.teams while slice loads.
-  const fallbackTeamNames: Record<string, string> = Object.fromEntries(
-    (gameState.teams ?? []).map((t) => [t.id, t.name]),
-  );
-  const teamNames = competitionsView?.team_names ?? fallbackTeamNames;
-  const fallbackNationalTeamNames: Record<string, string> = Object.fromEntries(
-    (gameState.national_teams ?? []).map((nt) => [nt.id, nt.name]),
-  );
-  const nationalTeamNames =
-    competitionsView?.national_team_names ?? fallbackNationalTeamNames;
-  const nationalTeamNameKeys = competitionsView?.national_team_name_keys ?? {};
-  const playerNames = competitionsView?.player_names ?? {};
-
-  const userTeamId =
-    competitionsView?.manager_team_id ?? gameState.manager.team_id;
-  const seasonContext = resolveSeasonContext(gameState);
-  const isPreseason = seasonContext.phase === "Preseason";
-
-  // Derive active competitions from slice; fall back to gameState while loading.
-  const gsLeague = gameState.league ? [gameState.league] : [];
-  const allCompetitions =
-    competitionsView?.competitions ?? gameState.competitions ?? gsLeague;
-  const activeIds =
-    competitionsView?.active_competition_ids ?? gameState.active_competition_ids ?? [];
-  const activeCompetitions =
-    activeIds.length === 0
-      ? allCompetitions
-      : allCompetitions.filter((c) => activeIds.includes(c.id));
+  const {
+    teamNames,
+    nationalTeamNames,
+    nationalTeamNameKeys,
+    playerNames,
+    userTeamId,
+    seasonContext,
+    isPreseason,
+    activeCompetitions,
+    setSelectedCompetitionId,
+    league,
+    currentSeason,
+    worldCupChampion,
+  } = useTournamentsData(gameState);
 
   const [view, setView] = useState<
     "overview" | "fixtures" | "standings" | "awards"
   >("overview");
-  const [selectedCompetitionId, setSelectedCompetitionId] = useState<string | null>(null);
-  const [awardsBySeason, setAwardsBySeason] = useState<
-    Record<number, SeasonAwardsData>
-  >({});
-  const [awardsLoadState, setAwardsLoadState] = useState<
-    "idle" | "loading" | "error"
-  >("idle");
-  const [awardsRetryCount, setAwardsRetryCount] = useState(0);
-  const userCompetitions = activeCompetitions.filter((competition) =>
-    competition.participant_ids?.includes(userTeamId ?? ""),
+  const { awards, awardsLoadState, retryAwards } = useSeasonAwards(
+    currentSeason,
+    view === "awards",
   );
-  const league =
-    activeCompetitions.find((competition) => competition.id === selectedCompetitionId) ??
-    userCompetitions[0] ??
-    activeCompetitions[0] ??
-    gameState.league ??
-    null;
-  const currentSeason = league?.season ?? 0;
-  const awards = awardsBySeason[currentSeason] ?? null;
-  const isWorldCup = league?.kind === "InternationalNation";
-  const worldCupChampions = competitionsView?.world_cup_champions ?? gameState.world_history?.world_cup_champions ?? [];
-  const worldCupChampion = isWorldCup
-    ? worldCupChampions.find((c) => c.year === currentSeason) ?? null
-    : null;
-
-  const activeCompetitionIds = activeCompetitions.map((c) => c.id).join(",");
-  const userCompetitionIds = userCompetitions.map((c) => c.id).join(",");
-
-  useEffect(() => {
-    if (activeCompetitions.length === 0) {
-      if (selectedCompetitionId !== null) {
-        setSelectedCompetitionId(null);
-      }
-      return;
-    }
-
-    const hasSelection = activeCompetitions.some(
-      (competition) => competition.id === selectedCompetitionId,
-    );
-    if (hasSelection) {
-      return;
-    }
-
-    setSelectedCompetitionId(userCompetitions[0]?.id ?? activeCompetitions[0].id);
-  // activeCompetitionIds / userCompetitionIds are stable string keys derived from
-  // the arrays; using the arrays directly would cause the effect to fire on every
-  // render because getActiveCompetitions() and .filter() always return new refs.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCompetitionIds, selectedCompetitionId, userCompetitionIds]);
-
-  useEffect(() => {
-    if (view !== "awards" || awards) {
-      return;
-    }
-
-    let cancelled = false;
-    setAwardsLoadState("loading");
-
-    invoke<SeasonAwardsData>("get_season_awards")
-      .then((nextAwards) => {
-        if (cancelled) {
-          return;
-        }
-
-        setAwardsBySeason((current) => ({
-          ...current,
-          [currentSeason]: nextAwards,
-        }));
-        setAwardsLoadState("idle");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAwardsLoadState("error");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [view, awards, currentSeason, awardsRetryCount]);
 
   if (!league) {
     return (
@@ -998,7 +887,7 @@ export default function TournamentsTab({
                 {t("tournaments.awards.noDataYet")}
               </p>
               <button
-                onClick={() => setAwardsRetryCount((count) => count + 1)}
+                onClick={retryAwards}
                 className="px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider bg-primary-500 text-white hover:bg-primary-600 transition-colors"
               >
                 {t("common.retry")}
