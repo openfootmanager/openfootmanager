@@ -97,6 +97,15 @@ pub fn create_world_project(
 #[tauri::command]
 pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     let path = Path::new(&dir);
+
+    // Anything that is not a directory cannot be walked for entity files, and
+    // walking it fails *silently* — the loader simply finds nothing. Naming the
+    // problem here is the difference between "that is not a package folder" and
+    // an editor that opens with every field blank.
+    if !path.is_dir() {
+        return Err("be.error.package.notAProjectDirectory".to_string());
+    }
+
     let (pkg, errors) = load_world_package(path);
 
     // A package that resolved to nothing must not open as a blank project.
@@ -110,6 +119,15 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
         // `resolveBackendError` understands, so the message can name the
         // offending version or schema rather than leaving blanks.
         return Err(crate::commands::game::first_package_error_message(&errors));
+    }
+
+    // Nothing resolved *and* nothing went wrong: the directory is simply not a
+    // package. The guard above cannot catch this — it needs an error to report,
+    // and finding no files to read is not an error. A newly scaffolded project
+    // is legitimately empty but always has its manifest, which is what tells the
+    // two apart.
+    if pkg.meta.is_none() && ofm_core::generator::is_unreadable(&pkg) {
+        return Err("be.error.package.notAProjectDirectory".to_string());
     }
 
     let issues = errors
@@ -253,6 +271,95 @@ mod tests {
         assert_eq!(data.meta.id, "fresh");
         assert!(data.teams.is_empty());
         assert!(data.issues.is_empty(), "an empty scaffold has no issues");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_package_with_entities_in_subdirectories_opens_with_all_of_them() {
+        // The other half of the reported bug: refusing what is not a package is
+        // only useful if the real one still opens. Shaped like the package that
+        // was reported — a manifest at the root, entities spread across
+        // subdirectories, some files holding several entities.
+        let dir = temp_project(
+            "real-shape",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"brazil-1962","name":"Brazil 1962"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    r##"{"schema":"team","items":[
+                        {"id":"santos","name":"Santos","city":"Santos","country":"BR",
+                         "colors":{"primary":"#ffffff","secondary":"#000000"}},
+                        {"id":"palmeiras","name":"Palmeiras","city":"Sao Paulo","country":"BR",
+                         "colors":{"primary":"#00aa00","secondary":"#ffffff"}}
+                    ]}"##,
+                ),
+                (
+                    "players/santos.json",
+                    r#"{"schema":"player","items":[
+                        {"id":"pele","name":"Pele","firstName":"Edson","lastName":"Nascimento",
+                         "club":"santos","nationality":"BR","position":"Striker","overall":99}
+                    ]}"#,
+                ),
+            ],
+        );
+
+        let data = read_package_project(dir.to_string_lossy().to_string())
+            .expect("a package with real content must open");
+
+        assert_eq!(data.meta.id, "brazil-1962");
+        assert_eq!(data.teams.len(), 2);
+        assert_eq!(data.players.len(), 1);
+        assert!(data.issues.is_empty(), "unexpected issues: {}", data.issues.len());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn pointing_the_editor_at_an_ofm_archive_is_refused() {
+        // Reported from real use: "Open in Editor" on an installed package
+        // showed an empty editor, for a package that loads fine in the game.
+        // An installed package is a `.ofm` *file*, and this command takes a
+        // directory — walking a file finds no entity files, which produced an
+        // empty package and, because nothing failed, *no errors*. So the
+        // "must not open as a blank project" guard never fired.
+        let dir = temp_project("ofm-archive", &[]);
+        std::fs::create_dir_all(&dir).unwrap();
+        let archive = dir.join("brazil-1962.ofm");
+        std::fs::write(&archive, b"PK\x03\x04 not really a zip").unwrap();
+
+        let result = read_package_project(archive.to_string_lossy().to_string());
+
+        assert!(
+            result.is_err(),
+            "an archive is not a package directory and must not open as a blank project"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn opening_a_directory_that_is_not_there_is_refused() {
+        // A recent-projects entry outlives the directory it points at. Reading
+        // one that has been moved or deleted resolves to nothing at all, which
+        // is the same blank-project failure by another route.
+        let dir = std::env::temp_dir().join("ofm-editor-open-vanished");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let result = read_package_project(dir.to_string_lossy().to_string());
+
+        assert!(result.is_err(), "a missing directory must not open as a blank project");
+    }
+
+    #[test]
+    fn a_folder_with_no_package_in_it_is_refused() {
+        // Picking the wrong folder is easy to do and, before this, indistinguishable
+        // from opening a real package that happened to be empty.
+        let dir = temp_project("not-a-package", &[("notes.txt", "just some files")]);
+
+        let result = read_package_project(dir.to_string_lossy().to_string());
+
+        assert!(result.is_err(), "a folder with no manifest and no entities is not a package");
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -787,3 +894,4 @@ pub fn read_file_as_data_url(path: String, base_dir: String) -> Result<String, S
     let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(format!("data:{};base64,{}", mime, encoded))
 }
+
