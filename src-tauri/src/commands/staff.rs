@@ -5,7 +5,7 @@ use tauri::State;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
-use crate::commands::util::mutate_active_game;
+use crate::commands::util::{mutate_active_game, user_team_id, user_team_mut};
 
 #[tauri::command]
 pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
@@ -15,16 +15,14 @@ pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Resu
 pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] hire_staff: staff_id={}", staff_id);
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
+        // Read and validate before writing anything: mutate_active_game mutates
+        // the live game, so a write made before an error is returned would stick.
         let staff_wage = {
             let staff = game
                 .staff
-                .iter_mut()
+                .iter()
                 .find(|s| s.id == staff_id)
                 .ok_or("be.error.staffMemberNotFound".to_string())?;
 
@@ -32,14 +30,18 @@ pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game,
                 return Err("be.error.staffMemberAlreadyEmployed".to_string());
             }
 
-            staff.team_id = Some(team_id.clone());
             staff.wage
         };
 
         // Deduct wage from team budget
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-            team.season_expenses += staff_wage as i64;
-        }
+        let team = user_team_mut(game)?;
+        team.season_expenses += staff_wage as i64;
+
+        game.staff
+            .iter_mut()
+            .find(|s| s.id == staff_id)
+            .ok_or("be.error.staffMemberNotFound".to_string())?
+            .team_id = Some(team_id);
 
         game.available_staff_market_last_activity_date =
             Some(game.clock.current_date.format("%Y-%m-%d").to_string());
@@ -140,6 +142,55 @@ mod tests {
         )
     }
 
+    /// The manager holds a team id that no club in the world has. Both commands
+    /// used to swallow that: the wage adjustment sat behind `if let Some(team)`
+    /// with no else, so the staff record changed and the club's books did not.
+    fn with_dangling_team_id(mut game: Game) -> Game {
+        game.teams[0].id = "team-elsewhere".to_string();
+        game
+    }
+
+    #[test]
+    fn hire_staff_internal_reports_a_team_id_that_matches_no_club() {
+        let state = StateManager::new();
+        state.set_game(with_dangling_team_id(make_game()));
+
+        let result = hire_staff_internal(&state, "staff-1");
+
+        assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
+
+        // The wage adjustment is the fallible step and now runs first, so the
+        // staff member must not have been hired either.
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        let staff = stored
+            .staff
+            .iter()
+            .find(|staff| staff.id == "staff-1")
+            .expect("stored staff should exist");
+        assert!(staff.team_id.is_none());
+        assert_eq!(stored.teams[0].season_expenses, 0);
+    }
+
+    #[test]
+    fn release_staff_internal_reports_a_team_id_that_matches_no_club() {
+        let state = StateManager::new();
+        state.set_game(with_dangling_team_id(make_game_with_employed_staff()));
+
+        let result = release_staff_internal(&state, "staff-1");
+
+        assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
+
+        // Likewise: the staff member stays employed rather than being released
+        // while the command reports failure.
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        let staff = stored
+            .staff
+            .iter()
+            .find(|staff| staff.id == "staff-1")
+            .expect("stored staff should exist");
+        assert_eq!(staff.team_id.as_deref(), Some("team-1"));
+    }
+
     #[test]
     fn hire_staff_internal_updates_state() {
         let state = StateManager::new();
@@ -225,27 +276,32 @@ pub fn release_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> R
 pub fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] release_staff: staff_id={}", staff_id);
     mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team_id = user_team_id(game)?;
 
-        let staff = game
-            .staff
+        // Read and validate before writing anything: mutate_active_game mutates
+        // the live game, so a write made before an error is returned would stick.
+        let staff_wage = {
+            let staff = game
+                .staff
+                .iter()
+                .find(|s| s.id == staff_id)
+                .ok_or("be.error.staffMemberNotFound".to_string())?;
+
+            if staff.team_id.as_deref() != Some(&team_id) {
+                return Err("be.error.staffMemberNotInTeam".to_string());
+            }
+
+            staff.wage
+        };
+
+        let team = user_team_mut(game)?;
+        team.season_expenses = team.season_expenses.saturating_sub(staff_wage as i64);
+
+        game.staff
             .iter_mut()
             .find(|s| s.id == staff_id)
-            .ok_or("be.error.staffMemberNotFound".to_string())?;
-
-        if staff.team_id.as_deref() != Some(&team_id) {
-            return Err("be.error.staffMemberNotInTeam".to_string());
-        }
-
-        if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
-            team.season_expenses = team.season_expenses.saturating_sub(staff.wage as i64);
-        }
-
-        staff.team_id = None;
+            .ok_or("be.error.staffMemberNotFound".to_string())?
+            .team_id = None;
 
         Ok(())
     })
