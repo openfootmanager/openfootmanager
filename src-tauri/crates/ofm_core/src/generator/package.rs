@@ -220,6 +220,31 @@ pub struct WorldPackage {
     /// code (e.g. `"de"`, `"fr"`). Loaded from `translations.{locale}.json`
     /// files found anywhere in the package directory tree.
     pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
+    /// Which file each entity was declared in, keyed by [`source_key`].
+    ///
+    /// A package may spread its entities over as many files as the author likes
+    /// and the loader walks the tree recursively, so an entity id is not a
+    /// location. Validation reports a *reference* problem — a country naming a
+    /// confederation that does not exist — long after the file it came from is
+    /// out of scope, and without this the author is told only which id is wrong.
+    pub sources: std::collections::HashMap<String, String>,
+}
+
+/// Key into [`WorldPackage::sources`]: an entity is identified by its schema and
+/// its id, since ids only have to be unique within a schema.
+fn source_key(schema: &str, id: &str) -> String {
+    format!("{schema}:{id}")
+}
+
+impl WorldPackage {
+    /// The file `id` was declared in, or `""` when it is not known — a package
+    /// assembled in memory rather than loaded from disk has no files to name.
+    fn source_of(&self, schema: &str, id: &str) -> String {
+        self.sources
+            .get(&source_key(schema, id))
+            .cloned()
+            .unwrap_or_default()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -318,34 +343,51 @@ fn classify_entity(
     package: &mut WorldPackage,
     errors: &mut Vec<PackageError>,
 ) {
+    // Remember where an entity was declared, so a problem found later — when
+    // only the aggregated lists are in scope — can still name a file. Recorded
+    // per entity rather than per file because one file may declare many.
+    macro_rules! remember {
+        ($id:expr) => {
+            package
+                .sources
+                .insert(source_key(schema, $id), file.to_string());
+        };
+    }
+
     match schema {
         "confederation" => {
             if let Some(def) = parse_entity::<ConfederationDef>(value, file, schema, errors) {
+                remember!(&def.id);
                 package.confederations.push(def);
             }
         }
         "country" => {
             if let Some(def) = parse_entity::<CountryDef>(value, file, schema, errors) {
+                remember!(&def.id);
                 package.countries.push(def);
             }
         }
         "team" => {
             if let Some(def) = parse_entity::<TeamDef>(value, file, schema, errors) {
+                remember!(&def.id);
                 package.teams.push(def);
             }
         }
         "player" => {
             if let Some(def) = parse_entity::<PlayerDef>(value, file, schema, errors) {
+                remember!(&def.id);
                 package.players.push(def);
             }
         }
         "staff" => {
             if let Some(def) = parse_entity::<StaffDef>(value, file, schema, errors) {
+                remember!(&def.id);
                 package.staff.push(def);
             }
         }
         "competition" => {
             if let Some(def) = parse_entity::<CompetitionDefinition>(value, file, schema, errors) {
+                remember!(&def.id);
                 package.competitions.push(def);
             }
         }
@@ -649,31 +691,37 @@ pub fn validate_ids(package: &WorldPackage) -> Vec<PackageError> {
     check_ids(
         package.confederations.iter().map(|c| c.id.as_str()),
         "confederation",
+        package,
         &mut errors,
     );
     check_ids(
         package.countries.iter().map(|c| c.id.as_str()),
         "country",
+        package,
         &mut errors,
     );
     check_ids(
         package.teams.iter().map(|t| t.id.as_str()),
         "team",
+        package,
         &mut errors,
     );
     check_ids(
         package.players.iter().map(|p| p.id.as_str()),
         "player",
+        package,
         &mut errors,
     );
     check_ids(
         package.staff.iter().map(|s| s.id.as_str()),
         "staff",
+        package,
         &mut errors,
     );
     check_ids(
         package.competitions.iter().map(|c| c.id.as_str()),
         "competition",
+        package,
         &mut errors,
     );
     errors
@@ -682,15 +730,22 @@ pub fn validate_ids(package: &WorldPackage) -> Vec<PackageError> {
 fn check_ids<'a>(
     ids: impl Iterator<Item = &'a str>,
     kind: &str,
+    package: &WorldPackage,
     errors: &mut Vec<PackageError>,
 ) {
     let mut seen: HashSet<&str> = HashSet::new();
     for id in ids {
         if id.is_empty() {
-            errors.push(PackageError::new(MISSING_ID, "").with("kind", kind));
+            // Entities with no id are all recorded under the same key, so this
+            // names the last file that declared one. Better than nothing, and
+            // an id-less entity cannot be identified any other way.
+            errors.push(PackageError::new(MISSING_ID, &package.source_of(kind, "")).with("kind", kind));
         } else if !seen.insert(id) {
+            // The later declaration overwrote the earlier one in `sources`, so
+            // this names the duplicate rather than the original — which is the
+            // one the author almost certainly wants to look at.
             errors.push(
-                PackageError::new(DUPLICATE_ID, "")
+                PackageError::new(DUPLICATE_ID, &package.source_of(kind, id))
                     .with("kind", kind)
                     .with("id", id),
             );
@@ -720,7 +775,7 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     for country in &package.countries {
         if !country.confederation.is_empty() && !known_confederation(&country.confederation) {
             errors.push(
-                PackageError::new(UNKNOWN_CONFEDERATION, "")
+                PackageError::new(UNKNOWN_CONFEDERATION, &package.source_of("country", &country.id))
                     .with("country", &country.id)
                     .with("confederation", &country.confederation),
             );
@@ -730,7 +785,7 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     for team in &package.teams {
         if !team.country.is_empty() && !known_country(&team.country) {
             errors.push(
-                PackageError::new(UNKNOWN_COUNTRY, "")
+                PackageError::new(UNKNOWN_COUNTRY, &package.source_of("team", &team.id))
                     .with("entity", &team.id)
                     .with("country", &team.country),
             );
@@ -740,14 +795,14 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     for player in &package.players {
         if !player.club.is_empty() && !team_ids.contains(player.club.as_str()) {
             errors.push(
-                PackageError::new(UNKNOWN_TEAM, "")
+                PackageError::new(UNKNOWN_TEAM, &package.source_of("player", &player.id))
                     .with("entity", &player.id)
                     .with("team", &player.club),
             );
         }
         if !player.nationality.is_empty() && !known_country(&player.nationality) {
             errors.push(
-                PackageError::new(UNKNOWN_COUNTRY, "")
+                PackageError::new(UNKNOWN_COUNTRY, &package.source_of("player", &player.id))
                     .with("entity", &player.id)
                     .with("country", &player.nationality),
             );
@@ -757,14 +812,14 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     for staff in &package.staff {
         if !staff.club.is_empty() && !team_ids.contains(staff.club.as_str()) {
             errors.push(
-                PackageError::new(UNKNOWN_TEAM, "")
+                PackageError::new(UNKNOWN_TEAM, &package.source_of("staff", &staff.id))
                     .with("entity", &staff.id)
                     .with("team", &staff.club),
             );
         }
         if !staff.nationality.is_empty() && !known_country(&staff.nationality) {
             errors.push(
-                PackageError::new(UNKNOWN_COUNTRY, "")
+                PackageError::new(UNKNOWN_COUNTRY, &package.source_of("staff", &staff.id))
                     .with("entity", &staff.id)
                     .with("country", &staff.nationality),
             );
@@ -880,12 +935,17 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         .into_iter()
         .map(|error| {
             let mut params = error.params;
+            // The definition validator reasons over the merged competition list
+            // and has no idea about files, so the id is the only handle back to
+            // one. Errors it raises about the file as a whole carry no id and
+            // stay unlocated, which is honest — they are not about one entity.
+            let file = package.source_of("competition", &error.competition_id);
             if !error.competition_id.is_empty() {
                 params.push(("competition".to_string(), error.competition_id));
             }
             PackageError {
                 code: error.code,
-                file: String::new(),
+                file,
                 params,
             }
         })
@@ -1100,6 +1160,11 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
                 merged_meta_base = Some(meta);
             }
         }
+        // Carried forward in the same override order as the entities themselves,
+        // so a stacked package that replaces an entity also replaces where the
+        // merged stack says that entity came from. Without this, validating a
+        // stack loses every location the individual packages had.
+        merged.sources.extend(package.sources);
         for c in package.confederations { confeds.insert(c.id.clone(), c); }
         for c in package.countries { countries.insert(c.id.clone(), c); }
         for t in package.teams { teams.insert(t.id.clone(), t); }
@@ -2329,6 +2394,116 @@ colors:
                 >= 2,
             "both the team's and player's unknown country should be reported: {errors:?}"
         );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_reference_error_names_the_file_the_offending_entity_came_from() {
+        // Reported from real use: a package used `uefa` as a confederation, and
+        // validation said so without saying *where*, so the author had to open
+        // every file in the package to find the one country that said it. The
+        // id alone is not a location — packages split entities across as many
+        // files as the author likes, and the loader walks the tree recursively.
+        let dir = temp_package();
+        write(
+            &dir,
+            "countries/europe/spain.json",
+            r#"{ "schema": "country", "id": "ES", "name": "Spain", "confederation": "uefa" }"#,
+        );
+        write(
+            &dir,
+            "teams/ghosts.json",
+            r##"{ "schema": "team", "id": "t1", "name": "Ghost FC", "city": "Nowhere", "country": "ZZ",
+                  "colors": { "primary": "#000", "secondary": "#fff" } }"##,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+
+        let confederation = errors
+            .iter()
+            .find(|e| e.code == UNKNOWN_CONFEDERATION)
+            .expect("`uefa` is not a built-in region, so this must error");
+        assert_eq!(
+            confederation.file, "countries/europe/spain.json",
+            "the error must name the file that declares the country: {confederation:?}"
+        );
+
+        // Not just the one path: an error is located by whichever entity carries
+        // the bad reference, so a team's unknown country names the team's file.
+        let country = errors
+            .iter()
+            .find(|e| e.code == UNKNOWN_COUNTRY)
+            .expect("`ZZ` is not a known country");
+        assert_eq!(country.file, "teams/ghosts.json", "{country:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_merged_stack_keeps_the_locations_its_packages_had() {
+        // `merge_world_packages` rebuilds every entity list through a BTreeMap.
+        // If the source index did not ride along, validating a stack would be
+        // exactly as unhelpful as validating a single package used to be — and
+        // it would only show up for users who stack, which is the harder case
+        // to notice.
+        let base = temp_package();
+        write(
+            &base,
+            "world.json",
+            r#"{ "schema": "world", "id": "base", "name": "Base", "packageType": "database" }"#,
+        );
+        let overlay = temp_package();
+        write(
+            &overlay,
+            "world.json",
+            r#"{ "schema": "world", "id": "overlay", "name": "Overlay", "packageType": "patch" }"#,
+        );
+        write(
+            &overlay,
+            "countries/added.json",
+            r#"{ "schema": "country", "id": "ES", "name": "Spain", "confederation": "uefa" }"#,
+        );
+
+        let (base_pkg, _) = load_world_package_files(&base);
+        let (overlay_pkg, _) = load_world_package_files(&overlay);
+        let (merged, _) = merge_world_packages(vec![base_pkg, overlay_pkg]);
+
+        let error = validate_references(&merged)
+            .into_iter()
+            .find(|e| e.code == UNKNOWN_CONFEDERATION)
+            .expect("the overlay's country still references an unknown confederation");
+        assert_eq!(error.file, "countries/added.json", "{error:?}");
+
+        std::fs::remove_dir_all(&base).ok();
+        std::fs::remove_dir_all(&overlay).ok();
+    }
+
+    #[test]
+    fn a_duplicate_id_names_the_file_that_repeats_it() {
+        // Two files declaring the same id is the other "go and find it" error:
+        // the message names the id, which the author already knows, and not the
+        // file, which is what they are looking for.
+        let dir = temp_package();
+        write(
+            &dir,
+            "countries/first.json",
+            r#"{ "schema": "country", "id": "ES", "name": "Spain", "confederation": "europe" }"#,
+        );
+        write(
+            &dir,
+            "countries/second.json",
+            r#"{ "schema": "country", "id": "ES", "name": "España", "confederation": "europe" }"#,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let duplicate = errors
+            .iter()
+            .find(|e| e.code == DUPLICATE_ID)
+            .expect("the same country id twice is a duplicate");
+        // Files are walked in directory order, so the second declaration is the
+        // one reported — the copy, not the original.
+        assert_eq!(duplicate.file, "countries/second.json", "{duplicate:?}");
 
         std::fs::remove_dir_all(&dir).ok();
     }
