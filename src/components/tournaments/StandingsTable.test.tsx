@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import StandingsTable from "./StandingsTable";
+import type { TournamentsTeamLookup } from "./teamLookup";
 import type { StandingData } from "../../store/gameStore";
 
 vi.mock("react-i18next", async () => {
@@ -34,6 +35,18 @@ const table = [
   standing({ team_id: "bottom", points: 4, goals_for: 6, goals_against: 20 }),
 ];
 
+function teamLookup(
+  overrides: Partial<TournamentsTeamLookup> = {},
+): TournamentsTeamLookup {
+  return {
+    userTeamId: "mid",
+    isClubTeam: () => true,
+    resolveTeamName: (id) => `Name of ${id}`,
+    onSelectTeam: vi.fn(),
+    ...overrides,
+  };
+}
+
 function renderTable(
   props: Partial<React.ComponentProps<typeof StandingsTable>> = {},
 ) {
@@ -41,9 +54,7 @@ function renderTable(
     <StandingsTable
       standings={table}
       variant="full"
-      userTeamId="mid"
-      resolveTeamName={(id) => `Name of ${id}`}
-      onSelectTeam={vi.fn()}
+      teams={teamLookup()}
       testIdPrefix="row"
       {...props}
     />,
@@ -107,7 +118,7 @@ describe("StandingsTable", () => {
 
   it("opens a team from its row", () => {
     const onSelectTeam = vi.fn();
-    renderTable({ onSelectTeam });
+    renderTable({ teams: teamLookup({ onSelectTeam }) });
 
     fireEvent.click(screen.getByTestId("row-bottom"));
 

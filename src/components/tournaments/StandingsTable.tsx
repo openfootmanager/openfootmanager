@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
+import type { TournamentsTeamLookup } from "./teamLookup";
 import type { StandingData } from "../../store/gameStore";
 
 interface StandingsTableProps {
@@ -12,9 +13,7 @@ interface StandingsTableProps {
    * summary the overview shows alongside everything else.
    */
   variant: "compact" | "full";
-  userTeamId: string | null;
-  resolveTeamName: (id: string) => string;
-  onSelectTeam: (id: string) => void;
+  teams: TournamentsTeamLookup;
   /** Rows get `${testIdPrefix}-${team_id}`, so the two tables stay tellable apart. */
   testIdPrefix: string;
   zones?: { promotionSlots: number; relegationSlots: number };
@@ -24,13 +23,12 @@ interface StandingsTableProps {
 export default function StandingsTable({
   standings,
   variant,
-  userTeamId,
-  resolveTeamName,
-  onSelectTeam,
+  teams,
   testIdPrefix,
   zones,
 }: StandingsTableProps) {
   const { t } = useTranslation();
+  const { userTeamId, resolveTeamName, onSelectTeam } = teams;
   const pad = variant === "full" ? "py-3 px-4" : "py-2 px-3";
   const headPad = variant === "full" ? "py-3 px-4" : "py-2 px-3";
 

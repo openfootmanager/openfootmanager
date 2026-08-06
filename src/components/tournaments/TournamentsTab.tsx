@@ -11,13 +11,12 @@ import {
 } from "./TournamentsTab.helpers";
 import { useSeasonAwards } from "./useSeasonAwards";
 import { useTournamentsData } from "./useTournamentsData";
-import {
-  FixtureData,
-  GameStateData,
-  LeagueData,
-} from "../../store/gameStore";
+import { GameStateData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import StandingsTable from "./StandingsTable";
+import TournamentsFixtureRow from "./TournamentsFixtureRow";
+import TournamentsGroupTable from "./TournamentsGroupTable";
+import type { TournamentsTeamLookup } from "./teamLookup";
 import { competitionDisplayName } from "../../lib/competitionName";
 import { Card, CardHeader, CardBody, Badge, Select } from "../ui";
 import {
@@ -131,13 +130,12 @@ export default function TournamentsTab({
     return nationalTeamNames[id] ?? id;
   };
 
-  const buildFixtureMenuItems = (fixture: FixtureData) =>
-    [fixture.home_team_id, fixture.away_team_id]
-      .filter((teamId) => isClubTeam(teamId))
-      .map((teamId) => ({
-        ...buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
-        label: `${t("common.viewTeam")}: ${resolveTeamName(teamId)}`,
-      }));
+  const teams: TournamentsTeamLookup = {
+    userTeamId,
+    isClubTeam,
+    resolveTeamName,
+    onSelectTeam,
+  };
 
   const buildPlayerMenuItems = (playerId: string, teamId?: string | null) => {
     const items = [];
@@ -151,99 +149,6 @@ export default function TournamentsTab({
     }
 
     return items;
-  };
-
-  const renderGroupTable = (group: NonNullable<LeagueData["groups"]>[number]) => {
-    const groupStandings = [...group.standings].sort(byTablePosition);
-    return (
-      <div key={group.id} data-testid={`tournaments-group-${group.id}`}>
-        <div className="px-4 py-2 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800">
-          <h5 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-300">
-            {t("tournaments.group", { name: group.name })}
-          </h5>
-        </div>
-        <table className="w-full text-left border-collapse">
-          <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-            {groupStandings.map((entry, idx) => {
-              const isUser = entry.team_id === userTeamId;
-              return (
-                <tr
-                  key={entry.team_id}
-                  onClick={
-                    isClubTeam(entry.team_id)
-                      ? () => onSelectTeam(entry.team_id)
-                      : undefined
-                  }
-                  className={`${isClubTeam(entry.team_id) ? "cursor-pointer" : ""} transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
-                  data-testid={`tournaments-group-standing-${entry.team_id}`}
-                >
-                  <td className="py-1.5 px-3 font-heading font-bold text-xs text-gray-400 w-6">
-                    {idx + 1}
-                  </td>
-                  <td
-                    className={`py-1.5 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                  >
-                    {resolveTeamName(entry.team_id)}
-                  </td>
-                  <td className="py-1.5 px-3 text-center text-xs text-gray-600 dark:text-gray-400 tabular-nums">
-                    {entry.played}
-                  </td>
-                  <td className="py-1.5 px-3 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
-                    {entry.points}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderFixtureRow = (f: FixtureData, testId: string) => {
-    const isUserMatch =
-      f.home_team_id === userTeamId || f.away_team_id === userTeamId;
-    const completed = f.status === "Completed";
-    return (
-      <ContextMenu items={buildFixtureMenuItems(f)} key={f.id}>
-        <div
-          className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}
-          data-testid={testId}
-        >
-          <span
-            onClick={
-              isClubTeam(f.home_team_id)
-                ? () => onSelectTeam(f.home_team_id)
-                : undefined
-            }
-            className={`flex-1 text-right font-semibold text-sm ${isClubTeam(f.home_team_id) ? "cursor-pointer hover:underline" : ""} ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-          >
-            {resolveTeamName(f.home_team_id)}
-          </span>
-          <div className="w-24 text-center mx-3">
-            {completed && f.result ? (
-              <span className="font-heading font-bold text-lg text-gray-800 dark:text-gray-100">
-                {f.result.home_goals} - {f.result.away_goals}
-              </span>
-            ) : (
-              <Badge variant="neutral" size="sm">
-                vs
-              </Badge>
-            )}
-          </div>
-          <span
-            onClick={
-              isClubTeam(f.away_team_id)
-                ? () => onSelectTeam(f.away_team_id)
-                : undefined
-            }
-            className={`flex-1 text-left font-semibold text-sm ${isClubTeam(f.away_team_id) ? "cursor-pointer hover:underline" : ""} ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-          >
-            {resolveTeamName(f.away_team_id)}
-          </span>
-        </div>
-      </ContextMenu>
-    );
   };
 
   return (
@@ -401,7 +306,9 @@ export default function TournamentsTab({
               {isKnockout ? (
                 knockoutRounds.length === 0 && groups.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2">
-                    {groups.map(renderGroupTable)}
+                    {groups.map((group) => (
+                    <TournamentsGroupTable key={group.id} group={group} teams={teams} />
+                  ))}
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100 dark:divide-navy-600">
@@ -425,7 +332,9 @@ export default function TournamentsTab({
                 )
               ) : groups.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2">
-                  {groups.map(renderGroupTable)}
+                  {groups.map((group) => (
+                    <TournamentsGroupTable key={group.id} group={group} teams={teams} />
+                  ))}
                 </div>
               ) : isPreseason ? (
                 <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
@@ -441,9 +350,7 @@ export default function TournamentsTab({
                 <StandingsTable
                   standings={standings}
                   variant="compact"
-                  userTeamId={userTeamId}
-                  resolveTeamName={resolveTeamName}
-                  onSelectTeam={onSelectTeam}
+                  teams={teams}
                   testIdPrefix="tournaments-overview-standing"
                 />
               )}
@@ -513,7 +420,9 @@ export default function TournamentsTab({
             <Card>
               <CardBody className="p-0">
                 <div className="grid grid-cols-1 md:grid-cols-2">
-                  {groups.map(renderGroupTable)}
+                  {groups.map((group) => (
+                    <TournamentsGroupTable key={group.id} group={group} teams={teams} />
+                  ))}
                 </div>
               </CardBody>
             </Card>
@@ -539,7 +448,9 @@ export default function TournamentsTab({
         <Card>
           <CardBody className="p-0">
             <div className="grid grid-cols-1 md:grid-cols-2">
-              {groups.map(renderGroupTable)}
+              {groups.map((group) => (
+                    <TournamentsGroupTable key={group.id} group={group} teams={teams} />
+                  ))}
             </div>
           </CardBody>
         </Card>
@@ -574,9 +485,7 @@ export default function TournamentsTab({
               <StandingsTable
                 standings={standings}
                 variant="full"
-                userTeamId={userTeamId}
-                resolveTeamName={resolveTeamName}
-                onSelectTeam={onSelectTeam}
+                teams={teams}
                 testIdPrefix="tournaments-standing"
                 zones={zones}
               />
@@ -613,9 +522,14 @@ export default function TournamentsTab({
               </div>
               <CardBody className="p-0">
                 <div className="divide-y divide-gray-100 dark:divide-navy-600">
-                  {fixtures.map((f) =>
-                    renderFixtureRow(f, `tournaments-fixture-${f.id}`),
-                  )}
+                  {fixtures.map((f) => (
+                    <TournamentsFixtureRow
+                      key={f.id}
+                      fixture={f}
+                      testId={`tournaments-fixture-${f.id}`}
+                      teams={teams}
+                    />
+                  ))}
                 </div>
               </CardBody>
             </Card>
