@@ -339,6 +339,57 @@ mod tests {
     }
 
     #[test]
+    fn creating_a_project_here_matches_what_the_cli_scaffolds() {
+        // The editor's New Package and `ofm-cli new` must produce the same
+        // package. They agree today because both delegate to
+        // `scaffold_package` — this asserts that `create_package_project` still
+        // *does* delegate, rather than growing a second skeleton of its own,
+        // which is exactly how the manifest drifted before (`fallbackLeague` and
+        // `logo` reached the editor's output and never reached the CLI's).
+        //
+        // Comparing the command against the shared function is the only crossing
+        // available from this crate: `cmd_new` lives in the CLI binary. Calling
+        // `scaffold_package` twice and diffing would compare a function with
+        // itself and could never fail.
+        let meta = ofm_core::generator::new_package_meta("Parity", "Author", "1.0.0", "database");
+
+        let via_command = std::env::temp_dir().join("ofm-editor-parity-command");
+        std::fs::remove_dir_all(&via_command).ok();
+        create_package_project(via_command.to_string_lossy().to_string(), meta.clone())
+            .expect("the editor creates a project");
+
+        let via_core = std::env::temp_dir().join("ofm-editor-parity-core");
+        std::fs::remove_dir_all(&via_core).ok();
+        ofm_core::generator::scaffold_package(&via_core, &meta).expect("the shared scaffolder runs");
+
+        let listing = |root: &std::path::Path| {
+            let mut found: Vec<(String, String)> = Vec::new();
+            let mut stack = vec![root.to_path_buf()];
+            while let Some(dir) = stack.pop() {
+                for entry in std::fs::read_dir(&dir).expect("readable").flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        stack.push(path);
+                    } else {
+                        let rel = path
+                            .strip_prefix(root)
+                            .expect("under root")
+                            .to_string_lossy()
+                            .replace('\\', "/");
+                        found.push((rel, std::fs::read_to_string(&path).expect("readable")));
+                    }
+                }
+            }
+            found.sort();
+            found
+        };
+
+        assert_eq!(listing(&via_command), listing(&via_core));
+        std::fs::remove_dir_all(&via_command).ok();
+        std::fs::remove_dir_all(&via_core).ok();
+    }
+
+    #[test]
     fn package_editor_round_trip_all_entities() {
         let dir = std::env::temp_dir().join(format!(
             "ofm-rt-{}",

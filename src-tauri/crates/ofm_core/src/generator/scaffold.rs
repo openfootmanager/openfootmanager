@@ -314,6 +314,23 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
     }
 }
 
+/// Every field name each entity serializes, keyed by schema name.
+///
+/// The frontend defines its own `TeamDef`/`PlayerDef`/… in TypeScript and cannot
+/// read Rust structs, so this is the handshake between them: it is generated
+/// from the same fully-populated instances the parity tests use, checked into
+/// the repo, and asserted from both sides. A field added to a definition here
+/// fails the Rust test until the file is regenerated, and then fails the
+/// frontend test until the editor's types learn about it.
+///
+/// Without it a field could reach the package format and never reach the editor.
+/// Nothing is silently deleted when that happens — the editor sends the objects
+/// it loaded straight back, and a JavaScript object keeps properties TypeScript
+/// never declared. What is lost is the editor's ability to *see* the field: no
+/// form can show it, no code can read it without a cast, and nobody adding a
+/// feature knows it exists.
+pub const SCHEMA_FIELDS_FIXTURE: &str = "src/components/menu/PackageEditor/schemaFields.generated.json";
+
 /// Write `value` to `path` without leaving a half-written file behind.
 ///
 /// Writes a `.tmp` sibling and renames over the target. The editor always did
@@ -422,11 +439,18 @@ mod tests {
         );
     }
 
-    #[test]
-    fn the_team_template_offers_every_field_a_team_serializes() {
-        // Exhaustive literal on purpose: adding a field to TeamDef breaks this
-        // line, which is the point. `founded_year`, `kit_pattern` and `logo` were
-        // all missing from the CLI template before this module existed.
+    /// One fully-populated instance of every entity definition, serialized.
+    ///
+    /// The single place the exhaustive struct literals live, feeding both the
+    /// template parity checks and the frontend fixture. Each literal is written
+    /// **without** `..Default::default()` on purpose: adding a field to a
+    /// definition stops this function compiling, so the field cannot be added
+    /// without deciding what the template and the editor should do with it.
+    ///
+    /// Every value is populated rather than defaulted because several fields
+    /// carry `skip_serializing_if` — a default instance would silently omit
+    /// exactly the optional fields most likely to be forgotten downstream.
+    fn populated_definitions() -> Vec<(EntityKind, Value)> {
         let team = TeamDef {
             id: "sample".into(),
             name: "Sample".into(),
@@ -445,14 +469,7 @@ mod tests {
             kit_pattern: Some("Solid".into()),
             founded_year: Some(1900),
         };
-        assert_template_covers(EntityKind::Team, &serde_json::to_value(&team).unwrap());
-    }
 
-    #[test]
-    fn the_player_template_offers_every_field_a_player_serializes() {
-        // `attributes` is the one that matters most: it takes precedence over
-        // `overall`, and a template that never mentions it hides the format's
-        // main authoring decision.
         let player = PlayerDef {
             id: "sample".into(),
             name: "Sample Player".into(),
@@ -466,7 +483,7 @@ mod tests {
             overall: Some(70),
             // Eleven of the twenty attributes carry a serde default; the rest are
             // required, so name those and let the defaults fill the remainder.
-            // Only the presence of the `attributes` key matters to this test.
+            // Only the presence of the `attributes` key matters here.
             attributes: Some(
                 serde_json::from_value::<PlayerAttributes>(json!({
                     "pace": 50, "stamina": 50, "strength": 50,
@@ -480,11 +497,7 @@ mod tests {
             footedness: Some("Right".into()),
             youth: true,
         };
-        assert_template_covers(EntityKind::Player, &serde_json::to_value(&player).unwrap());
-    }
 
-    #[test]
-    fn the_staff_template_offers_every_field_a_staff_member_serializes() {
         let staff = StaffDef {
             id: "sample".into(),
             first_name: "Sample".into(),
@@ -502,15 +515,22 @@ mod tests {
             date_of_birth: Some("1975-01-01".into()),
             age: Some(50),
         };
-        assert_template_covers(EntityKind::Staff, &serde_json::to_value(&staff).unwrap());
-    }
 
-    #[test]
-    fn the_names_template_matches_the_names_definition() {
-        // Names is the odd one out twice over: it is a single keyed document
-        // rather than an `items` list, and `NamePool` carries no `rename_all`, so
-        // its fields are snake_case while every other entity is camelCase. Both
-        // make it the easiest template to get wrong, and it was wrong.
+        let country = CountryDef {
+            id: "ENG".into(),
+            name: "England".into(),
+            confederation: "europe".into(),
+        };
+
+        let confederation = ConfederationDef {
+            id: "europe".into(),
+            name: "Europe".into(),
+        };
+
+        // Names is the odd one out twice over: a single keyed document rather
+        // than an `items` list, and the only definition with no `rename_all`, so
+        // its fields are snake_case. Leaving it out of this list is how the
+        // template came to say `firstNames`.
         let names = NamesDefinition {
             version: 1,
             description: "Sample pools".into(),
@@ -522,71 +542,7 @@ mod tests {
                 },
             )]),
         };
-        assert_template_covers(EntityKind::Names, &serde_json::to_value(&names).unwrap());
 
-        // Round-trip the template itself: whatever `ofm-cli add names` writes has
-        // to deserialize back into a definition, pools and all.
-        let template = entity_template(EntityKind::Names, Some("Brazil"));
-        let parsed: NamesDefinition =
-            serde_json::from_value(template).expect("the names template deserializes");
-        let pool = parsed.pools.get("ENG").expect("the template ships a pool");
-        assert!(!pool.first_names.is_empty() && !pool.last_names.is_empty());
-    }
-
-    #[test]
-    fn the_names_template_survives_the_shape_the_cli_writes_it_in() {
-        // `ofm-cli add` wraps a template in `{"schema": …, "items": [ … ]}` for
-        // every kind. Names is a single keyed document rather than a list, so
-        // this is the one place that wrapping could be meaningless — and the
-        // combination is what shipped broken: the file was written, validated
-        // clean by nothing, and its pools never reached the world.
-        let dir = std::env::temp_dir().join(format!("ofm-names-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(dir.join("names")).expect("temp dir");
-        std::fs::write(
-            dir.join("package.json"),
-            r#"{"schema":"world","id":"n","name":"N"}"#,
-        )
-        .expect("manifest written");
-        let template = entity_template(EntityKind::Names, Some("Brazil"));
-        std::fs::write(
-            dir.join("names").join("brazil.json"),
-            serde_json::to_string(&json!({"schema": "names", "items": [template]})).unwrap(),
-        )
-        .expect("names written");
-
-        let (package, errors) = crate::generator::load_world_package(&dir);
-
-        assert!(errors.is_empty(), "the CLI's own output must load: {errors:?}");
-        let names = package.names.expect("the pools have to reach the package");
-        assert!(names.pools.contains_key("ENG"));
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn the_country_and_confederation_templates_offer_every_field() {
-        let country = CountryDef {
-            id: "ENG".into(),
-            name: "England".into(),
-            confederation: "europe".into(),
-        };
-        assert_template_covers(EntityKind::Country, &serde_json::to_value(&country).unwrap());
-
-        let confederation = ConfederationDef {
-            id: "europe".into(),
-            name: "Europe".into(),
-        };
-        assert_template_covers(
-            EntityKind::Confederation,
-            &serde_json::to_value(&confederation).unwrap(),
-        );
-    }
-
-    #[test]
-    fn the_competition_template_offers_every_top_level_field() {
-        // Only the top level: a competition's `format` and `participants` are
-        // genuinely variant-shaped (a knockout carries different keys from a
-        // league), so a single template cannot cover every nested field and
-        // should not pretend to.
         let competition = CompetitionDefinition {
             id: "sample".into(),
             name: "Sample League".into(),
@@ -610,22 +566,149 @@ mod tests {
             name_key: Some("competition.sample".into()),
             logo: Some("assets/images/sample.png".into()),
         };
-        // `berths` is skip_serializing_if empty, so assert it explicitly rather
-        // than relying on a populated value we would have to construct.
-        let mut serialized = serde_json::to_value(&competition).unwrap();
-        serialized
+
+        let mut competition_value = serde_json::to_value(&competition).unwrap();
+        // `berths` is `skip_serializing_if` empty and is genuinely a list, so
+        // rather than construct a berth just to see the key, assert it directly.
+        competition_value
             .as_object_mut()
             .unwrap()
             .insert("berths".into(), json!([]));
-        assert_template_covers(EntityKind::Competition, &serialized);
+
+        vec![
+            (EntityKind::Team, serde_json::to_value(&team).unwrap()),
+            (EntityKind::Player, serde_json::to_value(&player).unwrap()),
+            (EntityKind::Staff, serde_json::to_value(&staff).unwrap()),
+            (
+                EntityKind::Country,
+                serde_json::to_value(&country).unwrap(),
+            ),
+            (
+                EntityKind::Confederation,
+                serde_json::to_value(&confederation).unwrap(),
+            ),
+            (EntityKind::Competition, competition_value),
+            (EntityKind::Names, serde_json::to_value(&names).unwrap()),
+        ]
     }
 
     #[test]
-    fn the_manifest_offers_every_field_the_metadata_serializes() {
-        // The drift that started this: `fallbackLeague` and `logo` reached the
-        // editor's manifest (serialized from the struct) and never reached the
-        // CLI's (a hand-written literal).
-        let meta = WorldMetaDef {
+    fn every_template_offers_every_field_its_definition_serializes() {
+        // `foundedYear`, `kitPattern` and `logo` were missing from the team
+        // template; `attributes`, `photo` and `age` from the player one —
+        // `attributes` being the field that takes precedence over `overall`, so
+        // the template hid the format's main authoring decision.
+        //
+        // Competitions are checked at the top level only: `format` and
+        // `participants` are variant-shaped (a knockout carries different keys
+        // from a league), so one template cannot cover every nested field and
+        // should not pretend to.
+        for (kind, serialized) in populated_definitions() {
+            assert_template_covers(kind, &serialized);
+        }
+    }
+
+
+    #[test]
+    fn the_names_template_round_trips_into_a_definition() {
+        // Whatever `ofm-cli add names` writes has to deserialize back into a
+        // definition with its pools intact. The template said `firstNames`, which
+        // cannot become `first_names`, so the file failed validation on a package
+        // the same CLI had just created.
+        let template = entity_template(EntityKind::Names, Some("Brazil"));
+        let parsed: NamesDefinition =
+            serde_json::from_value(template).expect("the names template deserializes");
+        let pool = parsed.pools.get("ENG").expect("the template ships a pool");
+        assert!(!pool.first_names.is_empty() && !pool.last_names.is_empty());
+    }
+
+    #[test]
+    fn the_names_template_survives_the_shape_the_cli_writes_it_in() {
+        // `ofm-cli add` wraps a template in `{"schema": …, "items": [ … ]}` for
+        // every kind. Names is a single keyed document rather than a list, so
+        // this is the one place that wrapping could turn out to be meaningless.
+        let dir = std::env::temp_dir().join(format!("ofm-names-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("names")).expect("temp dir");
+        std::fs::write(
+            dir.join("package.json"),
+            r#"{"schema":"world","id":"n","name":"N"}"#,
+        )
+        .expect("manifest written");
+        let template = entity_template(EntityKind::Names, Some("Brazil"));
+        std::fs::write(
+            dir.join("names").join("brazil.json"),
+            serde_json::to_string(&json!({"schema": "names", "items": [template]})).unwrap(),
+        )
+        .expect("names written");
+
+        let (package, errors) = crate::generator::load_world_package(&dir);
+
+        assert!(errors.is_empty(), "the CLI's own output must load: {errors:?}");
+        let names = package.names.expect("the pools have to reach the package");
+        assert!(names.pools.contains_key("ENG"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_frontend_fixture_lists_every_field_every_definition_serializes() {
+        // The editor defines its own TypeScript `TeamDef`/`PlayerDef`/… and
+        // cannot read Rust structs. This file is the handshake: generated here
+        // from the same populated instances, checked into the repo, asserted by
+        // a vitest on the other side.
+        //
+        // It matters because the editor can only show what it can name. Nothing
+        // is deleted when a field is missing here — the editor sends back the
+        // objects it loaded, unknown properties included — but no form can
+        // display it and no code can read it without a cast. `age` on a player
+        // sat in that state: real, loadable, and invisible to the editor.
+        //
+        // Regenerate with:
+        //   OFM_UPDATE_SCHEMA_FIXTURE=1 cargo test -p ofm_core --lib the_frontend_fixture
+        let mut expected = serde_json::Map::new();
+        for (kind, serialized) in populated_definitions() {
+            let mut names: Vec<String> = keys(&serialized);
+            names.sort();
+            expected.insert(kind.schema_name().to_string(), json!(names));
+        }
+        let mut manifest_names: Vec<String> = keys(&serde_json::to_value(populated_meta()).unwrap());
+        manifest_names.sort();
+        expected.insert(EntityKind::World.schema_name().to_string(), json!(manifest_names));
+
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../")
+            .join(SCHEMA_FIELDS_FIXTURE);
+        let rendered = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&Value::Object(expected.clone()))
+                .expect("the fixture serializes")
+        );
+
+        if std::env::var("OFM_UPDATE_SCHEMA_FIXTURE").is_ok() {
+            std::fs::create_dir_all(path.parent().expect("has a parent")).ok();
+            std::fs::write(&path, &rendered).expect("the fixture is writable");
+            return;
+        }
+
+        let on_disk = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!(
+                "cannot read {} ({e}). Regenerate with \
+                 OFM_UPDATE_SCHEMA_FIXTURE=1 cargo test -p ofm_core --lib the_frontend_fixture",
+                path.display()
+            )
+        });
+        assert_eq!(
+            on_disk.trim(),
+            rendered.trim(),
+            "the package schema changed but {} is stale. Regenerate with \
+             OFM_UPDATE_SCHEMA_FIXTURE=1 cargo test -p ofm_core --lib the_frontend_fixture, \
+             then teach the editor's types about the new field.",
+            SCHEMA_FIELDS_FIXTURE,
+        );
+    }
+
+    /// A fully-populated manifest, for the same reasons as `populated_definitions`.
+    fn populated_meta() -> WorldMetaDef {
+        WorldMetaDef {
             id: "sample".into(),
             name: "Sample".into(),
             description: "A sample".into(),
@@ -640,7 +723,15 @@ mod tests {
             package_type: "database".into(),
             logo: Some("assets/images/logo.png".into()),
             fallback_league: Some(Default::default()),
-        };
+        }
+    }
+
+    #[test]
+    fn the_manifest_offers_every_field_the_metadata_serializes() {
+        // The drift that started this: `fallbackLeague` and `logo` reached the
+        // editor's manifest (serialized from the struct) and never reached the
+        // CLI's (a hand-written literal).
+        let meta = populated_meta();
         let manifest = manifest_json(&meta).unwrap();
         let manifest_keys = keys(&manifest);
         let missing: Vec<String> = keys(&serde_json::to_value(&meta).unwrap())
@@ -676,49 +767,6 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    #[test]
-    fn the_cli_and_the_editor_scaffold_byte_identical_packages() {
-        // The invariant the maintainer asked for, stated directly: the two front
-        // ends are one package system. `ofm-cli new` and the editor's New Package
-        // both land here with the same metadata, so every file they produce must
-        // match byte for byte — not "be equivalent", not "both validate".
-        //
-        // Their genuine differences stay in the callers: the CLI refuses any
-        // existing directory, the editor refuses a non-empty one. Neither is a
-        // property of the format.
-        let meta = new_package_meta("Sample Package", "Author", "1.0.0", "database");
-
-        let from_cli = std::env::temp_dir().join(format!("ofm-cli-{}", uuid::Uuid::new_v4()));
-        let from_editor = std::env::temp_dir().join(format!("ofm-ed-{}", uuid::Uuid::new_v4()));
-        scaffold_package(&from_cli, &meta).expect("cli scaffold");
-        scaffold_package(&from_editor, &meta).expect("editor scaffold");
-
-        let listing = |root: &Path| {
-            let mut found: Vec<(String, String)> = Vec::new();
-            let mut stack = vec![root.to_path_buf()];
-            while let Some(dir) = stack.pop() {
-                for entry in std::fs::read_dir(&dir).expect("readable").flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        stack.push(path);
-                    } else {
-                        let rel = path
-                            .strip_prefix(root)
-                            .expect("under root")
-                            .to_string_lossy()
-                            .replace('\\', "/");
-                        found.push((rel, std::fs::read_to_string(&path).expect("readable")));
-                    }
-                }
-            }
-            found.sort();
-            found
-        };
-
-        assert_eq!(listing(&from_cli), listing(&from_editor));
-        std::fs::remove_dir_all(&from_cli).ok();
-        std::fs::remove_dir_all(&from_editor).ok();
-    }
 
     #[test]
     fn every_entity_kind_has_a_home_in_the_skeleton() {

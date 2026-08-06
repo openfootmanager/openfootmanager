@@ -125,6 +125,13 @@ export interface PlayerDef {
   nationality: string;
   position: Position;
   dateOfBirth: string | null;
+  /**
+   * Age at the world's opening year, an alternative to `dateOfBirth` that the
+   * generator derives a birth date from. The editor authors `dateOfBirth`, but
+   * a hand-written package may carry this instead, so the type has to admit it
+   * or the field is invisible to everything here.
+   */
+  age?: number | null;
   overall: number | null;
   attributes: PlayerAttributesDef | null;
   photo?: string | null;

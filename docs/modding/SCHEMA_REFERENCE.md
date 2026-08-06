@@ -6,6 +6,38 @@ All field names use **camelCase** in JSON/YAML (e.g. `shortName`, `playStyle`, `
 
 ---
 
+## Adding a field to a schema
+
+The package format is described in six places, and they used to drift apart
+silently — `kitPattern` was a real, loadable field that no document mentioned,
+and `fallbackLeague` reached the World Editor without ever reaching `ofm-cli`.
+They are now chained together, each link enforced by a test:
+
+```text
+Rust  *Def struct                                  ← the format
+  └─ scaffold::entity_template                     ← ofm-cli add / the skeleton
+       ├─ ofm-cli schema <entity> annotated text
+       ├─ this document
+       └─ schemaFields.generated.json               ← the frontend handshake
+            └─ the editor's types.ts interfaces
+```
+
+So adding a field is a checklist that mostly writes itself — each step fails
+until you do the next:
+
+1. Add it to the `*Def` struct with `#[serde(default)]` (old packages must keep
+   loading). `populated_definitions` in `generator/scaffold.rs` stops compiling,
+   because its struct literals are deliberately exhaustive.
+2. Add it there, and to `entity_template`, until the parity tests pass.
+3. Document it in `ofm-cli`'s annotated `SCHEMA_*` text and in the table below —
+   `the_annotated_schema_...` and `the_schema_reference_...` in the CLI's tests
+   name whatever is still missing.
+4. Regenerate the frontend fixture:
+   `OFM_UPDATE_SCHEMA_FIXTURE=1 cargo test -p ofm_core --lib the_frontend_fixture`
+5. Declare it on the matching interface in
+   `src/components/menu/PackageEditor/types.ts`, until `schemaParity.test.ts`
+   passes. The editor can only show what it can name.
+
 ## File Format Rules
 
 - Supported formats: `.json`, `.yaml`, `.yml`
