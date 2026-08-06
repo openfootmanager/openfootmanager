@@ -21,7 +21,6 @@ interface UseTournamentsDataResult {
   setSelectedCompetitionId: (id: string | null) => void;
   league: LeagueData | null;
   currentSeason: number;
-  isWorldCup: boolean;
   worldCupChampion: WorldCupChampionData | null;
 }
 
@@ -160,7 +159,6 @@ export function useTournamentsData(
     setSelectedCompetitionId,
     league,
     currentSeason,
-    isWorldCup,
     worldCupChampion,
   };
 }

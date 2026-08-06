@@ -14,7 +14,9 @@ import TournamentsFixtureRow from "./TournamentsFixtureRow";
 import TournamentsLeagueHeader from "./TournamentsLeagueHeader";
 import TournamentsOverview from "./TournamentsOverview";
 import TournamentsStandingsView from "./TournamentsStandingsView";
-import TournamentsViewTabs from "./TournamentsViewTabs";
+import TournamentsViewTabs, {
+  type TournamentsView,
+} from "./TournamentsViewTabs";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import { Card, CardBody, Badge } from "../ui";
 import { Trophy } from "lucide-react";
@@ -52,9 +54,7 @@ export default function TournamentsTab({
     worldCupChampion,
   } = useTournamentsData(gameState);
 
-  const [view, setView] = useState<
-    "overview" | "fixtures" | "standings" | "awards"
-  >("overview");
+  const [view, setView] = useState<TournamentsView>("overview");
   const { awards, awardsLoadState, retryAwards } = useSeasonAwards(
     currentSeason,
     view === "awards",

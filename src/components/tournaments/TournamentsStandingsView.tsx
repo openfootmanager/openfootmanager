@@ -8,7 +8,7 @@ import { localizedRoundName } from "./TournamentsTab.helpers";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import { competitionDisplayName } from "../../lib/competitionName";
 import { Card, CardBody } from "../ui";
-import type { LeagueData, StandingData } from "../../store/types";
+import type { LeagueData, StandingData } from "../../store/gameStore";
 
 type Group = NonNullable<LeagueData["groups"]>[number];
 type KnockoutRound = NonNullable<LeagueData["knockout_rounds"]>[number];

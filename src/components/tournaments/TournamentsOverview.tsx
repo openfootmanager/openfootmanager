@@ -7,7 +7,7 @@ import TournamentsTopScorers from "./TournamentsTopScorers";
 import { localizedRoundName, type TopScorerEntry } from "./TournamentsTab.helpers";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
-import type { LeagueData, StandingData } from "../../store/types";
+import type { LeagueData, StandingData } from "../../store/gameStore";
 
 type Group = NonNullable<LeagueData["groups"]>[number];
 type KnockoutRound = NonNullable<LeagueData["knockout_rounds"]>[number];
