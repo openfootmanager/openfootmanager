@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { LeagueData, WorldCupChampionData } from "../store/types";
+import type {
+  LeagueData,
+  SeasonAwardsData,
+  WorldCupChampionData,
+} from "../store/types";
 
 export interface PlayerNameEntry {
   match_name: string;
@@ -21,4 +25,8 @@ export interface CompetitionsView {
 
 export async function fetchCompetitionsView(): Promise<CompetitionsView> {
   return invoke<CompetitionsView>("get_competitions_view", { query: {} });
+}
+
+export async function fetchSeasonAwards(): Promise<SeasonAwardsData> {
+  return invoke<SeasonAwardsData>("get_season_awards");
 }

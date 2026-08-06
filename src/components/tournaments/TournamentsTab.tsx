@@ -75,6 +75,7 @@ export default function TournamentsTab({
   const { awards, awardsLoadState, retryAwards } = useSeasonAwards(
     currentSeason,
     view === "awards",
+    gameState.clock?.current_date,
   );
 
   if (!league) {

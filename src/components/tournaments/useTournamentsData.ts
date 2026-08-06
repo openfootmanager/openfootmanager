@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { GameStateData, LeagueData } from "../../store/gameStore";
 import type { SeasonContextData, WorldCupChampionData } from "../../store/types";
@@ -50,19 +50,30 @@ export function useTournamentsData(
       .then((view) => {
         if (!cancelled) setCompetitionsView(view);
       })
+      // A failed slice fetch is not fatal: every field below falls back to
+      // gameState, so the screen still renders from the world already in
+      // memory. Worth surfacing once the screen has somewhere to show it.
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [currentDate]);
 
-  // Fall back to building a teamNames map from gameState.teams while slice loads.
-  const fallbackTeamNames: Record<string, string> = Object.fromEntries(
-    (gameState.teams ?? []).map((t) => [t.id, t.name]),
+  // Fall back to name maps built from gameState while the slice loads. These
+  // walk every team in the world (~440), and `??` evaluates its left operand
+  // second, so without useMemo they would be rebuilt on every render — tab
+  // switches included — long after the slice made them unnecessary.
+  const fallbackTeamNames = useMemo<Record<string, string>>(
+    () => Object.fromEntries((gameState.teams ?? []).map((t) => [t.id, t.name])),
+    [gameState.teams],
   );
   const teamNames = competitionsView?.team_names ?? fallbackTeamNames;
-  const fallbackNationalTeamNames: Record<string, string> = Object.fromEntries(
-    (gameState.national_teams ?? []).map((nt) => [nt.id, nt.name]),
+  const fallbackNationalTeamNames = useMemo<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        (gameState.national_teams ?? []).map((nt) => [nt.id, nt.name]),
+      ),
+    [gameState.national_teams],
   );
   const nationalTeamNames =
     competitionsView?.national_team_names ?? fallbackNationalTeamNames;
@@ -130,9 +141,10 @@ export function useTournamentsData(
     }
 
     setSelectedCompetitionId(userCompetitions[0]?.id ?? activeCompetitions[0].id);
-  // activeCompetitionIds / userCompetitionIds are stable string keys derived from
-  // the arrays; using the arrays directly would cause the effect to fire on every
-  // render because getActiveCompetitions() and .filter() always return new refs.
+  // activeCompetitionIds / userCompetitionIds are stable string keys standing in
+  // for activeCompetitions and userCompetitions. Both are rebuilt by .filter()
+  // above on every render, so depending on the arrays themselves would refire
+  // this effect forever. The disable can go once they are memoized.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompetitionIds, selectedCompetitionId, userCompetitionIds]);
 
