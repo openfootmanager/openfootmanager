@@ -202,7 +202,10 @@ const SCHEMA_PLAYER: &str = r##"// Player entity — place inside players/*.json
   "lastName": "Last",         // required
   "club": "club-id",          // required: team ID matching your teams/*.json
   "nationality": "ENG",       // required: country ID
-  "position": "CM",           // required: GK | CB | LB | RB | CDM | CM | CAM | LW | RW | ST
+  "position": "CentralMidfielder", // required: Goalkeeper | Defender | Midfielder | Forward |
+                              //   RightBack | CenterBack | LeftBack | RightWingBack | LeftWingBack |
+                              //   DefensiveMidfielder | CentralMidfielder | AttackingMidfielder |
+                              //   RightMidfielder | LeftMidfielder | RightWinger | LeftWinger | Striker
   "footedness": "Right",      // optional: Right | Left | Both (defaults to Right)
   "dateOfBirth": "1995-01-01",// optional: ISO date (YYYY-MM-DD)
   "age": null,                // optional: integer (used if dateOfBirth absent)
@@ -241,7 +244,11 @@ const SCHEMA_COUNTRY: &str = r##"// Country entity — place inside countries/*.
 {
   "id": "ENG",               // required: stable slug / country code
   "name": "England",         // required: display name
-  "confederation": "uefa"    // required: confederation ID matching your confederations/*.json
+  "confederation": "europe"  // optional: a built-in region id (europe | south-america |
+                             //   north-america | central-america | africa | asia | oceania)
+                             //   or one your confederations/*.json defines. Not the FIFA
+                             //   confederation codes — "uefa" resolves to nothing unless
+                             //   you define it yourself. Empty leaves it to the world build.
 }"##;
 
 const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside competitions/*.json in the "items" array.
@@ -675,6 +682,121 @@ mod tests {
         EntityKind::Competition,
         EntityKind::Names,
     ];
+
+    /// A package directory under the OS temp dir, named after the calling test.
+    fn scratch_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("ofm-cli-{name}"));
+        std::fs::remove_dir_all(&dir).ok();
+        dir
+    }
+
+    #[test]
+    fn a_freshly_scaffolded_package_passes_the_cli_s_own_validation() {
+        // The whole point of `new` + `add` is to hand a modder a package that
+        // works. Every template was written by hand against the struct next to
+        // it, and nothing ever ran the result back through the validator — so
+        // three of them shipped placeholders the loader rejects: a player
+        // `position` that is not a variant, a `confederation-id` that resolves
+        // to nothing, and a `club-id` naming a team that cannot exist yet.
+        let dir = scratch_dir("scaffold-validates");
+        assert_eq!(cmd_new("demo", Some(&dir), "Author", "1.0.0", "database"), 0);
+
+        for entity in ALL_ENTITIES {
+            // `world` is the manifest `new` already wrote; `add` rejects it.
+            if matches!(entity, EntityKind::World) {
+                continue;
+            }
+            let name = format!("Sample {}", CoreEntityKind::from(entity).schema_name());
+            assert_eq!(
+                cmd_add(entity, Some(&name), Some(&dir), None, "json"),
+                0,
+                "adding a {entity:?} failed"
+            );
+        }
+
+        let (_package, errors) = load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        let reported: Vec<String> = errors
+            .iter()
+            .map(|e| format!("{} {:?}", e.code, e.params))
+            .collect();
+        assert!(
+            reported.is_empty(),
+            "a package the CLI just scaffolded does not validate: {reported:#?}"
+        );
+    }
+
+    /// The values `ofm-cli schema player` offers for `position`, read out of the
+    /// annotated block's comment (which wraps over several lines).
+    fn documented_positions() -> Vec<String> {
+        let start = SCHEMA_PLAYER
+            .find("\"position\"")
+            .expect("the player schema declares a position");
+        let rest = &SCHEMA_PLAYER[start..];
+        let end = rest.find("\"footedness\"").unwrap_or(rest.len());
+        rest[..end]
+            .split("//")
+            .skip(1)
+            .collect::<String>()
+            .replace("required:", " ")
+            .split('|')
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .collect()
+    }
+
+    #[test]
+    fn the_annotated_schema_lists_positions_the_loader_accepts() {
+        // The block used to offer `GK | CB | LB | RB | CDM | CM | CAM | LW | RW
+        // | ST` — abbreviations the loader accepts none of. A modder following
+        // `ofm-cli schema player` wrote a file that could not deserialize, and
+        // the field-set parity tests could not see it: they compare which fields
+        // exist, not which values are legal.
+        let documented = documented_positions();
+        assert!(
+            documented.len() > 5,
+            "no position list found in the player schema: {documented:?}"
+        );
+        for position in &documented {
+            let player = json!({ "id": "p", "position": position });
+            assert!(
+                serde_json::from_value::<ofm_core::generator::PlayerDef>(player).is_ok(),
+                "`ofm-cli schema player` offers position {position:?}, which the loader rejects"
+            );
+        }
+
+        // And what the template scaffolds has to be one of them.
+        let template = entity_template(CoreEntityKind::from(&EntityKind::Player), Some("Sam Doe"));
+        let scaffolded = template["position"].as_str().unwrap_or_default().to_string();
+        assert!(
+            documented.contains(&scaffolded),
+            "`ofm-cli add player` scaffolds position {scaffolded:?}, which the schema does not list"
+        );
+    }
+
+    #[test]
+    fn the_schema_reference_lists_every_built_in_confederation() {
+        // The reference named six built-in ids and left out `central-america`,
+        // which the catalog does define — so a modder writing it had no way to
+        // know it would resolve, and one grouping the Americas by the list they
+        // were given had to define a confederation the game already had.
+        let docs = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/SCHEMA_REFERENCE.md");
+        let text = std::fs::read_to_string(&docs)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", docs.display()));
+
+        let mut missing: Vec<&str> = ofm_core::nations::all_nations()
+            .map(|nation| nation.region_id)
+            .filter(|region| !text.contains(&format!("`{region}`")))
+            .collect();
+        missing.sort_unstable();
+        missing.dedup();
+        assert!(
+            missing.is_empty(),
+            "SCHEMA_REFERENCE.md does not list the built-in confederation ids {missing:?}"
+        );
+    }
 
     #[test]
     fn every_entity_has_a_nonempty_annotated_schema() {

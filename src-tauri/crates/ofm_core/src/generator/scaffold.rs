@@ -233,9 +233,15 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
                 "name": display,
                 "firstName": first,
                 "lastName": last,
-                "club": "club-id",
+                // Empty, not a placeholder id: a scaffolded player has no team
+                // to belong to yet, and validation reads empty as "unattached"
+                // where `club-id` is a reference to a team that cannot exist.
+                "club": "",
                 "nationality": "ENG",
-                "position": "CM",
+                // A `Position` variant, spelled the way the enum spells it. The
+                // template said "CM", which is not a variant, so every player
+                // `ofm-cli add player` created failed to deserialize at all.
+                "position": "CentralMidfielder",
                 "footedness": "Right",
                 "dateOfBirth": "1995-01-01",
                 "age": null,
@@ -256,7 +262,8 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
                 "id": slug,
                 "firstName": first,
                 "lastName": last,
-                "club": "club-id",
+                // Empty for the same reason as the player template.
+                "club": "",
                 "nationality": "ENG",
                 "role": "Coach",
                 "specialization": null,
@@ -269,11 +276,27 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
             "id": slug,
             "name": display,
         }),
-        EntityKind::Country => json!({
-            "id": slug,
-            "name": display,
-            "confederation": "confederation-id",
-        }),
+        // `ofm-cli add country "Brazil"` has to produce the country the game
+        // already knows, not a second one under a slug of the same name: the id
+        // is what teams, players and flags resolve against, so `brazil` and `BR`
+        // are two different countries and only one of them works.
+        EntityKind::Country => match crate::nations::nation_by_name(display) {
+            Some(nation) => json!({
+                "id": nation.code,
+                "name": nation.name,
+                "confederation": nation.region_id,
+            }),
+            // A name the catalog does not carry is a custom country, which is
+            // allowed. Its confederation is left empty rather than guessed:
+            // validation reads empty as "not set" and lets the world build
+            // default it, where the old `confederation-id` placeholder was an id
+            // that resolved to nothing and failed validation outright.
+            None => json!({
+                "id": slug,
+                "name": display,
+                "confederation": "",
+            }),
+        },
         EntityKind::Competition => json!({
             "id": slug,
             "name": display,
@@ -608,6 +631,36 @@ mod tests {
         }
     }
 
+
+    #[test]
+    fn a_country_named_after_a_real_nation_scaffolds_as_that_nation() {
+        // `ofm-cli add country "Brazil"` used to write id `brazil`, which is not
+        // the id anything else in the game uses: teams, players and flags all
+        // resolve against the catalog code. The package looked fine, and the
+        // country it defined was a different one from the country its clubs
+        // pointed at.
+        let template = entity_template(EntityKind::Country, Some("Brazil"));
+        assert_eq!(template["id"], "BR");
+        assert_eq!(template["name"], "Brazil");
+        assert_eq!(template["confederation"], "south-america");
+
+        // The name is matched the way a person types it, not exactly.
+        assert_eq!(entity_template(EntityKind::Country, Some("brazil"))["id"], "BR");
+        assert_eq!(entity_template(EntityKind::Country, Some("BR"))["id"], "BR");
+    }
+
+    #[test]
+    fn a_country_the_catalog_does_not_know_keeps_the_name_it_was_given() {
+        // Custom countries are legitimate — a historical state, an invented one.
+        // What they must not carry is a confederation placeholder:
+        // `confederation-id` resolved to nothing, so every custom country the
+        // CLI scaffolded failed validation. Empty means "unset", which is
+        // allowed and left to the world build.
+        let template = entity_template(EntityKind::Country, Some("Yugoslavia"));
+        assert_eq!(template["id"], "yugoslavia");
+        assert_eq!(template["name"], "Yugoslavia");
+        assert_eq!(template["confederation"], "");
+    }
 
     #[test]
     fn the_names_template_round_trips_into_a_definition() {
