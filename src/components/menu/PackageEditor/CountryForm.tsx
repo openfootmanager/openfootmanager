@@ -47,16 +47,26 @@ export function CountryForm({
   // so this starts empty for each record.
   const [chosenMode, setChosenMode] = useState<IdentityMode | null>(null);
 
-  // `null` while the catalog is loading and the record has an id we cannot yet
-  // classify. Guessing here is what would rewrite authored data: show a custom
-  // country in the picker and it reads as unset.
-  const inferredMode: IdentityMode | null = !editing.id
-    ? "builtin"
-    : nations === null
+  // `null` until the catalog resolves, for a new country as much as an existing
+  // one. `CountryCombobox` loads its own copy of the name data, so offering the
+  // picker early lets a nation be adopted before there is a catalog to read its
+  // canonical name out of — and `selectNation` would then store the code as the
+  // name, which is the one thing the canonical-name rule exists to prevent.
+  //
+  // A catalog that resolves empty (it could not be read) means nothing can be
+  // called built-in, and the picker would fall back to offering every ISO
+  // country — a wider list than this format accepts. Author by hand instead.
+  //
+  // Guessing in either direction is what would rewrite authored data: show a
+  // custom country in the picker and it reads as unset.
+  const inferredMode: IdentityMode | null =
+    nations === null
       ? null
-      : nations.some((nation) => nation.code === editing.id)
-        ? "builtin"
-        : "custom";
+      : nations.length === 0
+        ? "custom"
+        : !editing.id || nations.some((nation) => nation.code === editing.id)
+          ? "builtin"
+          : "custom";
   const mode = chosenMode ?? inferredMode;
 
   /**
@@ -96,7 +106,7 @@ export function CountryForm({
       {mode === null ? (
         <div className="flex min-h-[62px] items-center justify-center" aria-live="polite">
           <span className="sr-only">{t("worldEditor.countryLoadingNations")}</span>
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+          <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
         </div>
       ) : mode === "builtin" ? (
         <>

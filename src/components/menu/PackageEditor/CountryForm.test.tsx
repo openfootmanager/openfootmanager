@@ -51,17 +51,17 @@ function renderForm(country: Partial<CountryDef>, updateField = vi.fn()) {
 }
 
 /**
- * Open the nation picker and choose the entry labelled `name`.
+ * Open the nation picker and choose the entry named `name`.
  *
- * Each option renders its flag beside the name, and the flag carries a label of
- * its own, so an option's accessible name comes out as "EnglandEngland" — hence
- * the prefix match rather than an exact one.
+ * The exact match is load-bearing: each option renders a flag beside its name,
+ * and while that flag labelled itself an option read out as "EnglandEngland".
+ * It is decoration next to the name it duplicates, so it is now hidden from the
+ * accessible name and this matches what a screen reader would announce.
  */
 async function pickNation(name: string) {
   const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
   fireEvent.mouseDown(trigger);
-  const option = await screen.findByRole("button", { name: new RegExp(`^${name}`) });
-  fireEvent.mouseDown(option);
+  fireEvent.mouseDown(await screen.findByRole("button", { name }));
 }
 
 describe("CountryForm nation picker", () => {
@@ -126,6 +126,44 @@ describe("CountryForm nation picker", () => {
 
     expect(screen.getByLabelText("worldEditor.countryId")).toBeInTheDocument();
     expect(screen.getByLabelText("worldEditor.countryName")).toBeInTheDocument();
+  });
+
+  it("does not offer the picker for a new country until the catalog has loaded", async () => {
+    // `CountryCombobox` loads its own copy of the name data, so it can render a
+    // list of countries before `useNations` has resolved. Picking one then finds
+    // no catalog entry and stores the *code* as the name — the exact thing the
+    // canonical-name rule exists to prevent.
+    let release!: (nations: typeof CATALOG) => void;
+    invoke.mockImplementation((cmd: string) =>
+      cmd === "get_nations"
+        ? new Promise((resolve) => {
+            release = resolve;
+          })
+        : Promise.reject(new Error(cmd)),
+    );
+    renderForm({});
+
+    expect(
+      screen.queryByRole("button", { name: /worldEditor\.countryNation/ }),
+    ).not.toBeInTheDocument();
+
+    release(CATALOG);
+    expect(
+      await screen.findByRole("button", { name: /worldEditor\.countryNation/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("authors a new country by hand when the catalog cannot be read", async () => {
+    // With no catalog there is nothing to call built-in, and the picker would
+    // fall back to offering every ISO country — a list this package format does
+    // not accept. Worse, adopting one would store its code as its name.
+    invoke.mockRejectedValue(new Error("offline"));
+    renderForm({});
+
+    expect(await screen.findByLabelText("worldEditor.countryId")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /worldEditor\.countryNation/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("falls back to authoring by hand when the catalog cannot be read", async () => {

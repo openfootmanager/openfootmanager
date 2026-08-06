@@ -126,7 +126,14 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
         >
           {selectedLabel ? (
             <span className="flex items-center gap-2 text-gray-900 dark:text-white">
-              {resources && <resources.CountryFlag code={value} locale={locale} className="text-base leading-none" />}
+              {resources && (
+                <resources.CountryFlag
+                  code={value}
+                  locale={locale}
+                  decorative
+                  className="text-base leading-none"
+                />
+              )}
               <span>{selectedLabel}</span>
             </span>
           ) : (
@@ -176,6 +183,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                           <resources.CountryFlag
                             code={entry.code}
                             locale={locale}
+                            decorative
                             className="text-base leading-none"
                           />
                           <span>{entry.name}</span>
@@ -190,7 +198,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
               </>
             ) : (
               <div className="flex min-h-16 items-center justify-center p-3">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+                <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
               </div>
             )}
           </div>
