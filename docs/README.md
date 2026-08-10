@@ -28,7 +28,7 @@ Project structure and architectural overview. Covers the technology stack, crate
 
 ### [MATCH_SIMULATION.md](MATCH_SIMULATION.md)
 
-Deep dive into the match simulation engine (`engine` crate). Explains the 5-zone pitch model, minute-by-minute action resolution, shot/foul/card/penalty/injury mechanics, player attributes (18 total), trait bonuses across 7 contexts, composite team ratings, play style modifiers, home advantage, and tuneable `MatchConfig` parameters. Also documents the live match system (11 phases, tactical commands, stamina depletion, penalty shootout), AI manager decision logic, domain↔engine type conversion, and test coverage (69 tests).
+Deep dive into the match simulation engine (`engine` crate). Explains the 5-zone pitch model, minute-by-minute action resolution, shot/foul/card/penalty/injury mechanics, player attributes (19 total), trait bonuses across 7 contexts, composite team ratings, play style modifiers, home advantage, and tuneable `MatchConfig` parameters. Also documents the live match system (11 phases, tactical commands, stamina depletion, penalty shootout), AI manager decision logic, domain↔engine type conversion, and test coverage (69 tests).
 
 ### [GAME_SYSTEMS.md](GAME_SYSTEMS.md)
 

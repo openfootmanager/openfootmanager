@@ -640,22 +640,38 @@ mod tests {
     /// vocabulary that appears nowhere else in the format.
     #[test]
     fn every_template_deserializes_into_its_definition() {
-        let template = |kind| entity_template(kind, Some("Sample Name"));
-
-        serde_json::from_value::<TeamDef>(template(EntityKind::Team))
-            .expect("the team template deserializes");
-        serde_json::from_value::<PlayerDef>(template(EntityKind::Player))
-            .expect("the player template deserializes");
-        serde_json::from_value::<StaffDef>(template(EntityKind::Staff))
-            .expect("the staff template deserializes");
-        serde_json::from_value::<CountryDef>(template(EntityKind::Country))
-            .expect("the country template deserializes");
-        serde_json::from_value::<ConfederationDef>(template(EntityKind::Confederation))
-            .expect("the confederation template deserializes");
-        serde_json::from_value::<CompetitionDefinition>(template(EntityKind::Competition))
-            .expect("the competition template deserializes");
-        serde_json::from_value::<NamesDefinition>(template(EntityKind::Names))
-            .expect("the names template deserializes");
+        // Driven off `ALL` with an exhaustive match rather than a hand-listed set
+        // of calls: a ninth `EntityKind` would silently escape a list, which is
+        // the same way `position` escaped the key-parity check.
+        //
+        // Note what this can and cannot see. It catches a bad value in any field
+        // backed by an enum — `Position`, `StaffRole`, `CoachingSpecialization`,
+        // the competition type/scope/format. It cannot catch one in a field typed
+        // as `String`, so `playStyle`, `kitPattern`, `footedness` and
+        // `packageType` still rely on their annotated reference text being right.
+        for kind in EntityKind::ALL {
+            let value = entity_template(*kind, Some("Sample Name"));
+            let parsed = match kind {
+                EntityKind::World => serde_json::from_value::<WorldMetaDef>(value).map(drop),
+                EntityKind::Team => serde_json::from_value::<TeamDef>(value).map(drop),
+                EntityKind::Player => serde_json::from_value::<PlayerDef>(value).map(drop),
+                EntityKind::Staff => serde_json::from_value::<StaffDef>(value).map(drop),
+                EntityKind::Confederation => {
+                    serde_json::from_value::<ConfederationDef>(value).map(drop)
+                }
+                EntityKind::Country => serde_json::from_value::<CountryDef>(value).map(drop),
+                EntityKind::Competition => {
+                    serde_json::from_value::<CompetitionDefinition>(value).map(drop)
+                }
+                EntityKind::Names => serde_json::from_value::<NamesDefinition>(value).map(drop),
+            };
+            parsed.unwrap_or_else(|error| {
+                panic!(
+                    "the {} template does not deserialize into its definition: {error}",
+                    kind.schema_name()
+                )
+            });
+        }
     }
 
     #[test]
