@@ -894,4 +894,3 @@ pub fn read_file_as_data_url(path: String, base_dir: String) -> Result<String, S
     let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(format!("data:{};base64,{}", mime, encoded))
 }
-
