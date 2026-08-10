@@ -94,15 +94,43 @@ pub(super) fn pick_name_from_def(
         }
     }
 
-    // Fallback: pick from any available pool. Use the lexicographically
-    // smallest key so the choice is stable (HashMap order is randomized).
-    if let Some(key) = names_def.pools.keys().min() {
-        let pool = &names_def.pools[key];
-        let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
-        let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
-        return (first, last);
+    // No pool of its own. Borrow from the same part of the world first: far more
+    // nationalities lack a pool than have one, and picking the lexicographically
+    // smallest key — as this used to — meant every single one of them drew from
+    // `AR`, so a Russian, a Nigerian and a Japanese player were all named Ezequiel.
+    //
+    // Candidates are sorted before the draw because `pools` is a `HashMap` whose
+    // iteration order is randomized per process; without that, a seeded world
+    // would not reproduce.
+    let usable = |code: &String| {
+        names_def
+            .pools
+            .get(code)
+            .is_some_and(|pool| !pool.first_names.is_empty() && !pool.last_names.is_empty())
+    };
+    // `region_for_code` defaults anything it does not know to `europe`, which is
+    // what files the legacy `GB` pool — not a nation in either catalog — among the
+    // European candidates. That is the right bucket for it, but by default rather
+    // than by declaration.
+    let region = crate::nations::region_for_code(nationality);
+    let mut candidates: Vec<&String> = names_def
+        .pools
+        .keys()
+        .filter(|code| usable(code) && crate::nations::region_for_code(code) == region)
+        .collect();
+    if candidates.is_empty() {
+        // Nothing nearby — any usable pool beats no name at all.
+        candidates = names_def.pools.keys().filter(|code| usable(code)).collect();
     }
-    ("Player".to_string(), "Unknown".to_string())
+    if candidates.is_empty() {
+        return ("Player".to_string(), "Unknown".to_string());
+    }
+    candidates.sort();
+
+    let pool = &names_def.pools[candidates[rng.random_range(0..candidates.len())]];
+    let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
+    let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
+    (first, last)
 }
 
 pub(super) fn country_to_iso(country: &str) -> &str {

@@ -1040,7 +1040,11 @@ pub fn build_world_data_from_package(
         }
         merged
     };
-    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
+    // Via the helper: these codes are indexed with the RNG when a generated player
+    // is given a nationality, and `pools` is a `HashMap` with randomized iteration
+    // order. Collecting the keys directly, as this did, is the exact trap
+    // `sorted_country_codes` exists to close.
+    let country_codes: Vec<String> = sorted_country_codes(&names_def);
 
     // Group hand-authored players and staff by the club they belong to.
     let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
@@ -1874,6 +1878,89 @@ mod tests {
         let (first2, last2) = pick_name_from_def("ZZ", &names_def, &mut rng);
         assert!(!first2.is_empty());
         assert!(!last2.is_empty());
+    }
+
+    /// The fallback used to take `pools.keys().min()` — the lexicographically
+    /// smallest key, which with the shipped pools is always `AR`. Every one of the
+    /// ~190 nationalities without a pool of its own was therefore given Argentine
+    /// names, deterministically.
+    #[test]
+    fn an_unpooled_nationality_is_not_pinned_to_one_pool() {
+        let names_def = default_names_definition();
+        let argentine: std::collections::HashSet<&String> =
+            names_def.pools["AR"].first_names.iter().collect();
+        let mut rng = StdRng::seed_from_u64(5);
+
+        let drawn: Vec<String> = (0..64)
+            .map(|_| pick_name_from_def("RU", &names_def, &mut rng).0)
+            .collect();
+
+        assert!(
+            drawn.iter().any(|name| !argentine.contains(name)),
+            "every fallback name came from the AR pool: {drawn:?}"
+        );
+    }
+
+    /// A nationality with no pool should borrow from its own part of the world.
+    /// `BR` sorts before `SE`, so the old lexicographic fallback handed a Russian
+    /// player a Brazilian name.
+    #[test]
+    fn the_name_fallback_prefers_a_pool_from_the_same_region() {
+        let pools = std::collections::HashMap::from([
+            (
+                "SE".to_string(),
+                definitions::NamePool {
+                    first_names: vec!["Erik".to_string()],
+                    last_names: vec!["Svensson".to_string()],
+                },
+            ),
+            (
+                "BR".to_string(),
+                definitions::NamePool {
+                    first_names: vec!["Joao".to_string()],
+                    last_names: vec!["Silva".to_string()],
+                },
+            ),
+        ]);
+        let names_def = definitions::NamesDefinition {
+            version: 1,
+            description: String::new(),
+            pools,
+        };
+        let mut rng = StdRng::seed_from_u64(1);
+
+        for _ in 0..32 {
+            let (first, _) = pick_name_from_def("RU", &names_def, &mut rng);
+            assert_eq!(
+                first, "Erik",
+                "a European nationality should borrow from the European pool"
+            );
+        }
+    }
+
+    /// With nothing in its own region to borrow from, any pool will do — but the
+    /// choice must still vary rather than pinning to one key, and it must never
+    /// panic on a pool set that cannot satisfy the region preference.
+    #[test]
+    fn the_name_fallback_still_works_when_no_regional_pool_exists() {
+        let pools = std::collections::HashMap::from([(
+            "SE".to_string(),
+            definitions::NamePool {
+                first_names: vec!["Erik".to_string()],
+                last_names: vec!["Svensson".to_string()],
+            },
+        )]);
+        let names_def = definitions::NamesDefinition {
+            version: 1,
+            description: String::new(),
+            pools,
+        };
+        let mut rng = StdRng::seed_from_u64(2);
+
+        let (first, last) = pick_name_from_def("JP", &names_def, &mut rng);
+
+        assert_eq!(first, "Erik");
+        assert_eq!(last, "Svensson");
     }
 
     #[test]
