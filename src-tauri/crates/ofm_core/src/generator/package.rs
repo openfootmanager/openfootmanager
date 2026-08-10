@@ -3029,6 +3029,23 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Pinning a club to a single value is legitimate authoring — the world
+    /// editor's `makeRange` documents equal bounds as allowed, and packages in the
+    /// wild use them. Tightening `REVERSED_RANGE` to `min >= max` would reject
+    /// those packages, so the acceptance is asserted rather than left implicit.
+    #[test]
+    fn ranges_pinned_to_a_single_value_are_accepted() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: team\nid: team-a\nname: Team A\ncity: City A\ncountry: ES\ncolors: { primary: \"#111\", secondary: \"#fff\" }\nreputationRange: [640, 640]\nfinanceRange: [1000000, 1000000]\n",
+        )]);
+        assert!(
+            !errors.iter().any(|e| e.code == OUT_OF_RANGE || e.code == REVERSED_RANGE),
+            "equal bounds must not error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     // --- Hostile content in string fields ------------------------------------
 
     #[test]

@@ -254,17 +254,21 @@ pub fn standings_update_article(
 }
 
 fn preview_contenders<'a>(team_names: &'a [String], rng: &mut impl Rng) -> (&'a str, &'a str) {
+    if team_names.is_empty() {
+        return ("", "");
+    }
     let favourite = &team_names[rng.random_range(0..team_names.len())];
 
-    if team_names.len() == 1 {
-        return (favourite.as_str(), favourite.as_str());
-    }
-
-    let dark_horse = loop {
-        let pick = &team_names[rng.random_range(0..team_names.len())];
-        if pick != favourite {
-            break pick;
-        }
+    // Draw the dark horse from the clubs actually named differently, falling back
+    // to the favourite when there are none. The obvious formulation — keep picking
+    // at random until the name differs — never terminates if every club shares a
+    // name, and a package is free to do that; guarding on `team_names.len()`, as
+    // this used to, does not catch it.
+    let others: Vec<&String> = team_names.iter().filter(|name| *name != favourite).collect();
+    let dark_horse = if others.is_empty() {
+        favourite
+    } else {
+        others[rng.random_range(0..others.len())]
     };
 
     (favourite.as_str(), dark_horse.as_str())
@@ -1021,6 +1025,34 @@ mod tests {
             article.i18n_params.get("darkHorse"),
             Some(&"Solo FC".to_string())
         );
+    }
+
+    /// The single-team guard was on the *count*, but the dark-horse search rejected
+    /// picks by *name*. A package is free to give several clubs the same name, and
+    /// then no pick ever differs from the favourite and the search never returns.
+    #[test]
+    fn season_preview_article_handles_duplicate_team_names_without_looping() {
+        let teams = vec!["United".to_string(), "United".to_string()];
+
+        let article = season_preview_article(&teams, "2025-08-01");
+
+        assert_eq!(
+            article.i18n_params.get("favourite"),
+            Some(&"United".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("darkHorse"),
+            Some(&"United".to_string())
+        );
+    }
+
+    /// A world with no clubs at all must not index into an empty slice.
+    #[test]
+    fn season_preview_article_handles_no_teams() {
+        let article = season_preview_article(&[], "2025-08-01");
+
+        assert_eq!(article.i18n_params.get("favourite"), Some(&String::new()));
+        assert_eq!(article.i18n_params.get("darkHorse"), Some(&String::new()));
     }
 
     // ---------------------------------------------------------------------

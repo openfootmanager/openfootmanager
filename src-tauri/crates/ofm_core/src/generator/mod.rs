@@ -626,8 +626,21 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         stadium,
         rng.random_range(10000..80000),
     );
-    team.finance = rng.random_range(fin_range[0]..fin_range[1]);
-    team.reputation = rng.random_range(rep_range[0]..rep_range[1]);
+    // Inclusive *and* ordered, because `rand` panics on any empty range and that
+    // panic is uniquely expensive here: `build_team` runs inside `start_new_game`,
+    // an async Tauri command, so unwinding leaves the IPC call unanswered and the
+    // player watches a spinner forever with no error (#441).
+    //
+    // Inclusive fixes `[640, 640]`, a club pinned to one value, and makes the
+    // authored upper bound reachable. Ordering the bounds is what makes the panic
+    // unreachable rather than merely unlikely: package validation does reject
+    // `min > max`, but `build_team` also serves the procedural generator and
+    // `default_teams` definition files, which nothing validates. Two comparisons
+    // are a cheap price for a failure mode with no diagnostic.
+    let (fin_lo, fin_hi) = (fin_range[0].min(fin_range[1]), fin_range[0].max(fin_range[1]));
+    let (rep_lo, rep_hi) = (rep_range[0].min(rep_range[1]), rep_range[0].max(rep_range[1]));
+    team.finance = rng.random_range(fin_lo..=fin_hi);
+    team.reputation = rng.random_range(rep_lo..=rep_hi);
     team.wage_budget = (team.finance as f64 * 0.06) as i64;
     team.transfer_budget = (team.finance as f64 * 0.15) as i64;
     team.founded_year = tdef.founded_year.unwrap_or(rng.random_range(1880..1960));
@@ -1319,6 +1332,76 @@ mod tests {
             "colors": { "primary": "#ff0000", "secondary": "#ffffff" }
         }))
         .expect("team def should deserialize")
+    }
+
+    /// A club whose reputation is pinned to a single value — one rating typed into
+    /// both the min and max boxes in the world editor, or a bulk import mapping a
+    /// single club rating onto both bounds — must still build. `[640, 640]` reached
+    /// `rng.random_range(640..640)`, an empty range, which `rand` asserts on; the
+    /// panic unwound inside an async Tauri command, so no IPC response was ever
+    /// sent and world creation hung forever rather than reporting an error (#441).
+    #[test]
+    fn a_club_pinned_to_one_value_still_builds() {
+        let mut rng = StdRng::seed_from_u64(7);
+        let mut tdef = test_team_def();
+        tdef.reputation_range = Some([640, 640]);
+        tdef.finance_range = Some([1_000_000, 1_000_000]);
+
+        let team = build_team(&tdef, &mut rng);
+
+        assert_eq!(team.reputation, 640);
+        assert_eq!(team.finance, 1_000_000);
+    }
+
+    /// `..=` alone does not close the panic class — `rand` treats `900..=300` as
+    /// empty and asserts on it exactly as it did on `640..640`. Package validation
+    /// rejects a reversed range, but `build_team` also serves the procedural
+    /// generator and `default_teams` definition files, which nothing validates, so
+    /// the ordering has to happen here rather than be assumed of the caller.
+    #[test]
+    fn a_club_with_reversed_bounds_builds_instead_of_panicking() {
+        let mut rng = StdRng::seed_from_u64(13);
+        let mut tdef = test_team_def();
+        tdef.reputation_range = Some([900, 300]);
+        tdef.finance_range = Some([9_000_000, 1_000_000]);
+
+        let team = build_team(&tdef, &mut rng);
+
+        assert!((300..=900).contains(&team.reputation));
+        assert!((1_000_000..=9_000_000).contains(&team.finance));
+    }
+
+    /// The upper bound must be reachable, not just non-panicking: a two-value range
+    /// has to be able to produce both values, or every such club silently pins to
+    /// the minimum.
+    #[test]
+    fn team_ranges_can_reach_their_upper_bound() {
+        let mut rng = StdRng::seed_from_u64(11);
+        let mut tdef = test_team_def();
+        // Two-value ranges, so "drew the top" cannot be confused with "drew
+        // somewhere in the middle". Both fields changed, so both are asserted.
+        tdef.reputation_range = Some([500, 501]);
+        tdef.finance_range = Some([1_000_000, 1_000_001]);
+
+        let (saw_top_reputation, saw_top_finance) = (0..64).fold(
+            (false, false),
+            |(reputation, finance), _| {
+                let team = build_team(&tdef, &mut rng);
+                (
+                    reputation || team.reputation == 501,
+                    finance || team.finance == 1_000_001,
+                )
+            },
+        );
+
+        assert!(
+            saw_top_reputation,
+            "501 should be reachable from the reputation range [500, 501]"
+        );
+        assert!(
+            saw_top_finance,
+            "1000001 should be reachable from the finance range [1000000, 1000001]"
+        );
     }
 
     /// A senior authored player at `position`, tagged so tests can tell authored
