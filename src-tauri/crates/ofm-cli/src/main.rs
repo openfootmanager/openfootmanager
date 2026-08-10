@@ -729,11 +729,15 @@ mod tests {
 
     /// The values `ofm-cli schema player` offers for `position`, read out of the
     /// annotated block's comment (which wraps over several lines).
-    fn documented_positions() -> Vec<String> {
-        let start = SCHEMA_PLAYER
+    ///
+    /// Prose written for a reader, parsed for a test, so it tolerates what a
+    /// reader would: a parenthetical after a value (`Forward (generic)`) is an
+    /// aside about the value, not part of it.
+    fn documented_positions_in(schema: &str) -> Vec<String> {
+        let start = schema
             .find("\"position\"")
             .expect("the player schema declares a position");
-        let rest = &SCHEMA_PLAYER[start..];
+        let rest = &schema[start..];
         let end = rest.find("\"footedness\"").unwrap_or(rest.len());
         rest[..end]
             .split("//")
@@ -741,9 +745,31 @@ mod tests {
             .collect::<String>()
             .replace("required:", " ")
             .split('|')
-            .map(|value| value.trim().to_string())
+            .map(|value| value.split('(').next().unwrap_or(value).trim().to_string())
             .filter(|value| !value.is_empty())
             .collect()
+    }
+
+    fn documented_positions() -> Vec<String> {
+        documented_positions_in(SCHEMA_PLAYER)
+    }
+
+    #[test]
+    fn reading_the_position_list_tolerates_how_it_is_written() {
+        // The list is prose: it wraps over lines, and a value may carry an aside
+        // explaining it. Reading those asides as part of the value would fail
+        // the check below on a wording change alone, which is a test failing for
+        // a reason that has nothing to do with what it is testing.
+        let sample = r##"{
+  "position": "Striker",      // required: Goalkeeper | CentralMidfielder
+                              //   | Forward (generic)
+  "footedness": "Right",
+}"##;
+
+        assert_eq!(
+            documented_positions_in(sample),
+            vec!["Goalkeeper", "CentralMidfielder", "Forward"]
+        );
     }
 
     #[test]
