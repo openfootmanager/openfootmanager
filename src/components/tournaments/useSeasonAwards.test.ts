@@ -27,6 +27,14 @@ describe("useSeasonAwards", () => {
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 
+  // A game with no clock yet leaves asOfDate undefined. Nothing is cached, so
+  // the cache lookup has to cope with having no entry to compare against.
+  it("survives having no game date to key the cache on", () => {
+    expect(() =>
+      renderHook(() => useSeasonAwards(2026, false, undefined)),
+    ).not.toThrow();
+  });
+
   it("fetches once the awards view is opened", async () => {
     mockedFetch.mockResolvedValue(awardsFor(2026));
 

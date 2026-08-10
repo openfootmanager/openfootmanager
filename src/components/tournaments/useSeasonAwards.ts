@@ -16,11 +16,16 @@ interface CachedAwards {
 }
 
 /**
- * The season awards for one competition's season, fetched on first view.
+ * The season awards, fetched on first view and cached per season.
+ *
+ * Note what the payload is *not*: `get_season_awards` takes no competition, and
+ * computes the race within the user's own division — or across the whole game
+ * when they have no division. Selecting a different competition does not scope
+ * it. The season is still the right cache key, because it is what changes when
+ * the awards themselves do.
  *
  * `enabled` is the awards tab being open: nothing is fetched until the player
- * asks for it. Results are cached per season rather than per fetch, so moving
- * between competitions and back serves the season already loaded.
+ * asks for it.
  *
  * Mid-season the board is standings rather than honours — it is captioned
  * "current leaders" — so a cached payload is only good for the day it was
@@ -41,7 +46,9 @@ export function useSeasonAwards(
   const [awardsRetryCount, setAwardsRetryCount] = useState(0);
 
   const cached = awardsBySeason[currentSeason];
-  const awards = cached?.asOfDate === asOfDate ? cached.awards : null;
+  // `cached &&` is load-bearing: with no clock both sides of the date check are
+  // undefined, so an optional chain would compare equal on a missing entry.
+  const awards = cached && cached.asOfDate === asOfDate ? cached.awards : null;
 
   useEffect(() => {
     if (!enabled || awards) {

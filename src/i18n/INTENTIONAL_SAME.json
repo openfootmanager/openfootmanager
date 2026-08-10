@@ -13,6 +13,7 @@
     "common.posAbbr.RightMidfielder",
     "common.posAbbr.RightWinger",
     "common.posAbbr.Striker",
+    "common.rank",
     "common.statsView",
     "common.radarView",
     "tactics.playerRoles.Carrilero",

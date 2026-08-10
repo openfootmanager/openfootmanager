@@ -21,7 +21,6 @@ interface UseTournamentsDataResult {
   setSelectedCompetitionId: (id: string | null) => void;
   league: LeagueData | null;
   currentSeason: number;
-  isWorldCup: boolean;
   worldCupChampion: WorldCupChampionData | null;
 }
 
@@ -59,10 +58,10 @@ export function useTournamentsData(
     };
   }, [currentDate]);
 
-  // Fall back to name maps built from gameState while the slice loads. These
-  // walk every team in the world (~440), and `??` evaluates its left operand
-  // second, so without useMemo they would be rebuilt on every render — tab
-  // switches included — long after the slice made them unnecessary.
+  // Fall back to name maps built from gameState while the slice loads. Each is
+  // a separate binding, so its initializer runs on every render whether or not
+  // the `??` below ends up using it — and it walks every team in the world
+  // (~440). useMemo cuts that to one build per change of the underlying list.
   const fallbackTeamNames = useMemo<Record<string, string>>(
     () => Object.fromEntries((gameState.teams ?? []).map((t) => [t.id, t.name])),
     [gameState.teams],
@@ -160,7 +159,6 @@ export function useTournamentsData(
     setSelectedCompetitionId,
     league,
     currentSeason,
-    isWorldCup,
     worldCupChampion,
   };
 }
