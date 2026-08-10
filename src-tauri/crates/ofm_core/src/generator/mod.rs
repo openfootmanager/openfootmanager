@@ -1351,12 +1351,30 @@ mod tests {
     fn team_ranges_can_reach_their_upper_bound() {
         let mut rng = StdRng::seed_from_u64(11);
         let mut tdef = test_team_def();
+        // Two-value ranges, so "drew the top" cannot be confused with "drew
+        // somewhere in the middle". Both fields changed, so both are asserted.
         tdef.reputation_range = Some([500, 501]);
-        tdef.finance_range = Some([1_000_000, 2_000_000]);
+        tdef.finance_range = Some([1_000_000, 1_000_001]);
 
-        let saw_top = (0..64).any(|_| build_team(&tdef, &mut rng).reputation == 501);
+        let (saw_top_reputation, saw_top_finance) = (0..64).fold(
+            (false, false),
+            |(reputation, finance), _| {
+                let team = build_team(&tdef, &mut rng);
+                (
+                    reputation || team.reputation == 501,
+                    finance || team.finance == 1_000_001,
+                )
+            },
+        );
 
-        assert!(saw_top, "501 should be reachable from the range [500, 501]");
+        assert!(
+            saw_top_reputation,
+            "501 should be reachable from the reputation range [500, 501]"
+        );
+        assert!(
+            saw_top_finance,
+            "1000001 should be reachable from the finance range [1000000, 1000001]"
+        );
     }
 
     /// A senior authored player at `position`, tagged so tests can tell authored

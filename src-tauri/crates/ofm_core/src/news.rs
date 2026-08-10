@@ -257,22 +257,18 @@ fn preview_contenders<'a>(team_names: &'a [String], rng: &mut impl Rng) -> (&'a 
     if team_names.is_empty() {
         return ("", "");
     }
-    let favourite_index = rng.random_range(0..team_names.len());
-    let favourite = &team_names[favourite_index];
+    let favourite = &team_names[rng.random_range(0..team_names.len())];
 
-    // Pick the dark horse from the other entries by index rather than rejecting
-    // picks until the *name* differs: a package may give several clubs the same
-    // name, and a value-based retry loop never terminates when every alternative
-    // matches the favourite.
-    let others: Vec<&String> = team_names
-        .iter()
-        .enumerate()
-        .filter(|(index, name)| *index != favourite_index && *name != favourite)
-        .map(|(_, name)| name)
-        .collect();
-    let dark_horse = match others.len() {
-        0 => favourite,
-        len => others[rng.random_range(0..len)],
+    // Draw the dark horse from the clubs actually named differently, falling back
+    // to the favourite when there are none. The obvious formulation — keep picking
+    // at random until the name differs — never terminates if every club shares a
+    // name, and a package is free to do that; guarding on `team_names.len()`, as
+    // this used to, does not catch it.
+    let others: Vec<&String> = team_names.iter().filter(|name| *name != favourite).collect();
+    let dark_horse = if others.is_empty() {
+        favourite
+    } else {
+        others[rng.random_range(0..others.len())]
     };
 
     (favourite.as_str(), dark_horse.as_str())
