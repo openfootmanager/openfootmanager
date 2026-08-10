@@ -4,7 +4,8 @@ use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
 use uuid::Uuid;
 
-use super::definitions::NamesDefinition;
+use super::definitions::{NamePool, NamesDefinition};
+use crate::nations;
 use crate::player_rating::{generate_potential, refresh_player_derived};
 
 // ---------------------------------------------------------------------------
@@ -94,15 +95,66 @@ pub(super) fn pick_name_from_def(
         }
     }
 
-    // Fallback: pick from any available pool. Use the lexicographically
-    // smallest key so the choice is stable (HashMap order is randomized).
-    if let Some(key) = names_def.pools.keys().min() {
-        let pool = &names_def.pools[key];
-        let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
-        let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
-        return (first, last);
+    match fallback_pool(nationality, names_def, rng) {
+        Some(pool) => draw_name(pool, rng),
+        None => ("Player".to_string(), "Unknown".to_string()),
     }
-    ("Player".to_string(), "Unknown".to_string())
+}
+
+/// A random first/last pair from `pool`. Callers must have checked it is usable.
+fn draw_name(pool: &NamePool, rng: &mut impl Rng) -> (String, String) {
+    let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
+    let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
+    (first, last)
+}
+
+/// The pool to borrow from when a nationality has none of its own — the common
+/// case, since only 17 pools ship against ~210 selectable nations.
+///
+/// Prefers a pool from the same confederation, then any usable pool. This used to
+/// take `pools.keys().min()`, the lexicographically smallest key, which for the
+/// shipped set is always `AR`: a Pole, a Nigerian and a Japanese player were
+/// all named Ezequiel, deterministically.
+///
+/// Both sides of the region comparison must resolve to a *declared* region.
+/// `region_for_code` answers `europe` for anything it does not recognise, so
+/// matching on it would file every unknown key — a package keying its pools
+/// `BRA`/`ESP`/`JPN`, say — as European, then hand a Pole a Japanese name
+/// while a Brazilian matched none of them. An unknown code on either side falls
+/// straight through to "any usable pool" instead, which is merely arbitrary
+/// rather than confidently wrong.
+///
+/// Candidates are sorted before the draw because `pools` is a `HashMap` whose
+/// iteration order is randomized per process.
+fn fallback_pool<'a>(
+    nationality: &str,
+    names_def: &'a NamesDefinition,
+    rng: &mut impl Rng,
+) -> Option<&'a NamePool> {
+    let usable = |pool: &NamePool| !pool.first_names.is_empty() && !pool.last_names.is_empty();
+    let region_of = |code: &str| nations::nation_by_code(code).map(|nation| nation.region_id);
+
+    let mut candidates: Vec<(&String, &NamePool)> = Vec::new();
+    if let Some(region) = region_of(nationality) {
+        candidates = names_def
+            .pools
+            .iter()
+            .filter(|(code, pool)| usable(pool) && region_of(code) == Some(region))
+            .collect();
+    }
+    if candidates.is_empty() {
+        candidates = names_def
+            .pools
+            .iter()
+            .filter(|(_, pool)| usable(pool))
+            .collect();
+    }
+    if candidates.is_empty() {
+        return None;
+    }
+    candidates.sort_by(|left, right| left.0.cmp(right.0));
+
+    Some(candidates[rng.random_range(0..candidates.len())].1)
 }
 
 pub(super) fn country_to_iso(country: &str) -> &str {
