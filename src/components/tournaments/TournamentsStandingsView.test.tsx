@@ -109,6 +109,15 @@ describe("TournamentsStandingsView", () => {
     expect(screen.getByTestId("knockout-bracket")).toBeInTheDocument();
   });
 
+  // Before the draw a cup has neither a bracket nor groups. An empty panel with
+  // no explanation is what this replaced.
+  it("explains an undrawn cup rather than showing an empty panel", () => {
+    renderView({ isKnockout: true });
+
+    expect(screen.getByText("season.standingsLocked")).toBeInTheDocument();
+    expect(screen.queryByTestId("knockout-bracket")).toBeNull();
+  });
+
   it("takes the bracket over the table for a knockout in preseason", () => {
     renderView({ isKnockout: true, knockoutRounds: [round], isPreseason: true });
 

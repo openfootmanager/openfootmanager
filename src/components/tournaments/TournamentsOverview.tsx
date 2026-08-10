@@ -75,9 +75,11 @@ export default function TournamentsOverview({
   // depends on its shape, and a drawn bracket outranks the group stage feeding it.
   const summary = (() => {
     if (isKnockout) {
-      return knockoutRounds.length === 0 && groups.length > 0
-        ? groupGrid
-        : roundProgress;
+      if (groups.length > 0 && knockoutRounds.length === 0) return groupGrid;
+      // Before the draw a cup has neither, and roundProgress over no rounds is
+      // an empty panel. Say why it is empty, as the standings view does.
+      if (knockoutRounds.length === 0) return <TournamentsPreseasonNote />;
+      return roundProgress;
     }
     if (groups.length > 0) return groupGrid;
     if (isPreseason) return <TournamentsPreseasonNote />;
