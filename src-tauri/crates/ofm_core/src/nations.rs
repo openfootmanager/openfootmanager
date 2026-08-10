@@ -41,6 +41,7 @@ pub const NATION_CATALOG: &[NationDef] = &[
     NationDef { code: "TR", name: "Türkiye", region_id: "europe" },
     NationDef { code: "PL", name: "Poland", region_id: "europe" },
     NationDef { code: "RS", name: "Serbia", region_id: "europe" },
+    NationDef { code: "RU", name: "Russia", region_id: "europe" },
     NationDef { code: "SE", name: "Sweden", region_id: "europe" },
     NationDef { code: "NO", name: "Norway", region_id: "europe" },
     NationDef { code: "CZ", name: "Czechia", region_id: "europe" },
@@ -363,6 +364,126 @@ mod tests {
         assert!(nation_by_code("AQ").is_none(), "Antarctica must be excluded");
         // The bare UK code is never used — the home nations stand in for it.
         assert!(nation_by_code("GB").is_none(), "GB must not be used");
+    }
+
+    /// Widening the selectable set for #270 added the rest of the FIFA membership
+    /// but skipped Russia — every other UEFA member is present, including Belarus
+    /// and Kosovo. Real-world FIFA suspensions are not something this game models,
+    /// and users reported Russian players being unusable as a result.
+    ///
+    /// Russia sits in the World Cup pool proper rather than [`ADDITIONAL_NATIONS`],
+    /// but not for the reason that first suggests itself. Catalog membership is
+    /// *not* what makes a nation reachable at a World Cup: `select_field` builds
+    /// its candidates as the world's player nationalities **union** the catalog, so
+    /// any nation with players is already an entrant from either list. Nor does the
+    /// catalog get Russia into an empty world's field — unplayed nations all tie on
+    /// strength and the draw falls back to alphabetical order, where `RU` sits 22nd
+    /// of europe's 27 for 19 berths.
+    ///
+    /// What the catalog actually carries is the `nations.<code>` translation keys:
+    /// en.json has one per catalogued nation and none for the additional list,
+    /// while `assign_world_cup_squads` stamps `name_key` on every field member
+    /// regardless. In [`ADDITIONAL_NATIONS`] a Russian squad would render as
+    /// "nations.ru National Team" — which is what the other 143 do today.
+    ///
+    /// This grows the pool from 67 to 68, deliberately widening the contract
+    /// `additional_nations_are_not_world_cup_entrants` documents. It costs nothing:
+    /// nothing keys off `NATION_CATALOG.len()`, and
+    /// [`crate::world_cup::berths_by_region`] allocates proportionally, so one more
+    /// European candidate out of 67 leaves every region's berth count unchanged at
+    /// both field sizes.
+    #[test]
+    fn russia_is_a_world_cup_nation() {
+        let russia = nation_by_code("RU").expect("Russia should be a known nation");
+        assert_eq!(russia.region_id, "europe");
+        assert!(
+            NATION_CATALOG.iter().any(|n| n.code == "RU"),
+            "Russia belongs in the World Cup pool, not merely the selectable list"
+        );
+    }
+
+    /// UEFA's 55 member associations. A bare count would be brittle — membership
+    /// really does change, Gibraltar in 2013 and Kosovo in 2016 — but a named set
+    /// is not: it fails with the missing code in the message, and a real admission
+    /// or expulsion is a deliberate one-line edit. This is the test that would have
+    /// caught Russia's omission when the selectable set was widened for #270.
+    const UEFA_MEMBERS: &[&str] = &[
+        "AL", "AD", "AM", "AT", "AZ", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "ENG", "EE",
+        "FO", "FI", "FR", "GE", "DE", "GI", "GR", "HU", "IS", "IL", "IT", "KZ", "XK", "LV", "LI",
+        "LT", "LU", "MT", "MD", "ME", "NL", "MK", "NIR", "NO", "PL", "PT", "IE", "RO", "RU", "SM",
+        "SCO", "RS", "SK", "SI", "ES", "SE", "CH", "TR", "UA", "WAL",
+    ];
+
+    #[test]
+    fn every_uefa_member_is_selectable() {
+        let known: std::collections::HashSet<&str> = all_nations().map(|n| n.code).collect();
+
+        let missing: Vec<&str> = UEFA_MEMBERS
+            .iter()
+            .copied()
+            .filter(|code| !known.contains(code))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "UEFA members missing from the nation lists: {missing:?}"
+        );
+        assert_eq!(UEFA_MEMBERS.len(), 55, "UEFA has 55 member associations");
+    }
+
+    /// Adding Russia is only safe because the berth split is proportional. Pin
+    /// that: the catalog's regional shape must still hand every confederation the
+    /// same allocation, or the #270 decoupling contract has been broken in effect
+    /// even though the two lists remain disjoint.
+    #[test]
+    fn the_catalog_shape_leaves_world_cup_berths_unchanged() {
+        let mut by_region: std::collections::BTreeMap<String, usize> = Default::default();
+        for nation in NATION_CATALOG {
+            *by_region.entry(nation.region_id.to_string()).or_default() += 1;
+        }
+
+        // Both supported field sizes, every region named: a partial assertion
+        // would let a berth move between two unchecked regions unnoticed, which
+        // is exactly the failure this is meant to catch.
+        let expected: [(usize, [(&str, usize); 7]); 2] = [
+            (
+                32,
+                [
+                    ("africa", 5),
+                    ("asia", 5),
+                    ("central-america", 3),
+                    ("europe", 12),
+                    ("north-america", 1),
+                    ("oceania", 2),
+                    ("south-america", 4),
+                ],
+            ),
+            (
+                48,
+                [
+                    ("africa", 7),
+                    ("asia", 7),
+                    ("central-america", 4),
+                    ("europe", 19),
+                    ("north-america", 2),
+                    ("oceania", 2),
+                    ("south-america", 7),
+                ],
+            ),
+        ];
+
+        for (field, regions) in expected {
+            let berths = crate::world_cup::berths_by_region(field, &by_region);
+            for (region, want) in regions {
+                assert_eq!(
+                    berths.get(region),
+                    Some(&want),
+                    "{region} berths at field {field}"
+                );
+            }
+            assert_eq!(berths.len(), regions.len(), "no region may be left out");
+            assert_eq!(berths.values().sum::<usize>(), field);
+        }
     }
 
     #[test]

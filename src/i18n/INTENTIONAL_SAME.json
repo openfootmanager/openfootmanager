@@ -259,6 +259,7 @@
     "packageBuild.patches"
   ],
   "it": [
+    "nations.ru",
     "nations.sn",
     "nations.gh",
     "nations.ng",
