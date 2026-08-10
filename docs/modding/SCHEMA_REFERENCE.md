@@ -253,7 +253,9 @@ Defines a non-playing staff member (manager assistant, coach, scout, or physio).
 
 Defines a football confederation or regional grouping. You only need this if you are creating fictional confederations not in the built-in catalog.
 
-**Built-in confederation ids:** `europe`, `south-america`, `north-america`, `africa`, `asia`, `oceania`
+**Built-in confederation ids:** `europe`, `south-america`, `north-america`, `central-america`, `africa`, `asia`, `oceania`
+
+These are the game's regional groupings, which split the Americas into three. They are not the six FIFA confederations — `uefa`, `concacaf` and the rest are not ids you can reference, and a package that wants them has to define them itself.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|

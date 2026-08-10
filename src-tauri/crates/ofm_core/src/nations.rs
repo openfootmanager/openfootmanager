@@ -268,6 +268,21 @@ pub fn nation_by_code(code: &str) -> Option<&'static NationDef> {
     all_nations().find(|nation| nation.code == code)
 }
 
+/// Look a nation up by what a person would type: its display name, or its code.
+/// Case-insensitive, so `ofm-cli add country "brazil"` finds Brazil.
+///
+/// Used when scaffolding a country, where the input is a hand-typed name and the
+/// output has to be the nation the rest of the game already knows.
+///
+/// Folds case with `to_lowercase`, not `eq_ignore_ascii_case`: the catalog holds
+/// `Türkiye`, `Curaçao` and `São Tomé and Príncipe`, whose accented letters are
+/// not ASCII, so a byte-wise comparison would miss `TÜRKIYE` and `CURAÇAO`.
+pub fn nation_by_name(name: &str) -> Option<&'static NationDef> {
+    let needle = name.trim().to_lowercase();
+    all_nations()
+        .find(|nation| nation.name.to_lowercase() == needle || nation.code.to_lowercase() == needle)
+}
+
 /// Confederation/region id for a nation code, defaulting to Europe for nations
 /// outside the catalog. Single source of truth for region inference across the
 /// generator, competitions, and the UI.
