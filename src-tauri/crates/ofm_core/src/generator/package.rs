@@ -220,6 +220,84 @@ pub struct WorldPackage {
     /// code (e.g. `"de"`, `"fr"`). Loaded from `translations.{locale}.json`
     /// files found anywhere in the package directory tree.
     pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
+    /// Which file each entity was declared in, keyed by schema and held
+    /// **parallel to the entity lists**: `sources["country"][i]` is where
+    /// `countries[i]` came from.
+    ///
+    /// A package may spread its entities over as many files as the author likes
+    /// and the loader walks the tree recursively, so an entity id is not a
+    /// location. Validation reports a *reference* problem — a country naming a
+    /// confederation that does not exist — long after the file it came from is
+    /// out of scope, and without this the author is told only which id is wrong.
+    ///
+    /// Indexed by position rather than by id, because an id is not specific
+    /// enough to be a location: two files may declare the same one, and every
+    /// entity missing an id shares the blank. Keyed by id, an error had to guess
+    /// which declaration it meant and guessed wrong whenever the offending one
+    /// was not the last — sending the author to a file whose entity is fine,
+    /// which is worse than no location at all because it reads as authoritative.
+    ///
+    /// Private: the alignment with the entity lists is the whole contract, so it
+    /// is maintained here and read through [`WorldPackage::source_at`].
+    sources: std::collections::HashMap<String, Vec<String>>,
+}
+
+impl WorldPackage {
+    /// Remember that the entity about to be appended to `schema`'s list was
+    /// declared in `file`. Called exactly once per entity pushed and in the same
+    /// order — that pairing is what makes an index a location.
+    fn remember(&mut self, schema: &str, file: &str) {
+        self.sources
+            .entry(schema.to_string())
+            .or_default()
+            .push(file.to_string());
+    }
+
+    /// The file the `index`-th entity of `schema` was declared in, or `""` when
+    /// it is not known — a package assembled in memory rather than loaded from
+    /// disk has no files to name.
+    fn source_at(&self, schema: &str, index: usize) -> String {
+        self.sources
+            .get(schema)
+            .and_then(|files| files.get(index))
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// How many declarations have been recorded for `schema`; equal to that
+    /// schema's entity count whenever the package was loaded from disk.
+    ///
+    /// Exists to assert that alignment. Nothing in production asks — the loader
+    /// maintains the invariant rather than checking it.
+    #[cfg(test)]
+    fn sources_len(&self, schema: &str) -> usize {
+        self.sources.get(schema).map_or(0, Vec::len)
+    }
+}
+
+/// Sort `entities` by id while keeping `files` — the file each was declared in —
+/// at the matching index.
+///
+/// The loader sorts so that a package's contents do not depend on folder layout.
+/// The sort is stable, so repeated ids stay in declaration order and the second
+/// declaration of an id still points at the second file.
+fn sort_by_id_keeping_sources<T>(
+    entities: &mut Vec<T>,
+    files: &mut Vec<String>,
+    id_of: impl Fn(&T) -> &str,
+) {
+    let mut paired: Vec<(T, String)> = std::mem::take(entities)
+        .into_iter()
+        .zip(
+            std::mem::take(files)
+                .into_iter()
+                .chain(std::iter::repeat(String::new())),
+        )
+        .collect();
+    paired.sort_by(|a, b| id_of(&a.0).cmp(id_of(&b.0)));
+    let (sorted_entities, sorted_files) = paired.into_iter().unzip();
+    *entities = sorted_entities;
+    *files = sorted_files;
 }
 
 // ---------------------------------------------------------------------------
@@ -321,31 +399,37 @@ fn classify_entity(
     match schema {
         "confederation" => {
             if let Some(def) = parse_entity::<ConfederationDef>(value, file, schema, errors) {
+                package.remember(schema, file);
                 package.confederations.push(def);
             }
         }
         "country" => {
             if let Some(def) = parse_entity::<CountryDef>(value, file, schema, errors) {
+                package.remember(schema, file);
                 package.countries.push(def);
             }
         }
         "team" => {
             if let Some(def) = parse_entity::<TeamDef>(value, file, schema, errors) {
+                package.remember(schema, file);
                 package.teams.push(def);
             }
         }
         "player" => {
             if let Some(def) = parse_entity::<PlayerDef>(value, file, schema, errors) {
+                package.remember(schema, file);
                 package.players.push(def);
             }
         }
         "staff" => {
             if let Some(def) = parse_entity::<StaffDef>(value, file, schema, errors) {
+                package.remember(schema, file);
                 package.staff.push(def);
             }
         }
         "competition" => {
             if let Some(def) = parse_entity::<CompetitionDefinition>(value, file, schema, errors) {
+                package.remember(schema, file);
                 package.competitions.push(def);
             }
         }
@@ -463,12 +547,41 @@ pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>)
         }
     }
 
-    package.confederations.sort_by(|a, b| a.id.cmp(&b.id));
-    package.countries.sort_by(|a, b| a.id.cmp(&b.id));
-    package.teams.sort_by(|a, b| a.id.cmp(&b.id));
-    package.players.sort_by(|a, b| a.id.cmp(&b.id));
-    package.staff.sort_by(|a, b| a.id.cmp(&b.id));
-    package.competitions.sort_by(|a, b| a.id.cmp(&b.id));
+    // Sorted together with their sources: the entity lists are ordered by id so
+    // that a package does not depend on folder layout, and a file left in read
+    // order would then describe a different entity.
+    let mut sources = std::mem::take(&mut package.sources);
+    sort_by_id_keeping_sources(
+        &mut package.confederations,
+        sources.entry("confederation".to_string()).or_default(),
+        |entity| &entity.id,
+    );
+    sort_by_id_keeping_sources(
+        &mut package.countries,
+        sources.entry("country".to_string()).or_default(),
+        |entity| &entity.id,
+    );
+    sort_by_id_keeping_sources(
+        &mut package.teams,
+        sources.entry("team".to_string()).or_default(),
+        |entity| &entity.id,
+    );
+    sort_by_id_keeping_sources(
+        &mut package.players,
+        sources.entry("player".to_string()).or_default(),
+        |entity| &entity.id,
+    );
+    sort_by_id_keeping_sources(
+        &mut package.staff,
+        sources.entry("staff".to_string()).or_default(),
+        |entity| &entity.id,
+    );
+    sort_by_id_keeping_sources(
+        &mut package.competitions,
+        sources.entry("competition".to_string()).or_default(),
+        |entity| &entity.id,
+    );
+    package.sources = sources;
 
     errors.extend(validate_ids(&package));
     (package, errors)
@@ -649,31 +762,37 @@ pub fn validate_ids(package: &WorldPackage) -> Vec<PackageError> {
     check_ids(
         package.confederations.iter().map(|c| c.id.as_str()),
         "confederation",
+        package,
         &mut errors,
     );
     check_ids(
         package.countries.iter().map(|c| c.id.as_str()),
         "country",
+        package,
         &mut errors,
     );
     check_ids(
         package.teams.iter().map(|t| t.id.as_str()),
         "team",
+        package,
         &mut errors,
     );
     check_ids(
         package.players.iter().map(|p| p.id.as_str()),
         "player",
+        package,
         &mut errors,
     );
     check_ids(
         package.staff.iter().map(|s| s.id.as_str()),
         "staff",
+        package,
         &mut errors,
     );
     check_ids(
         package.competitions.iter().map(|c| c.id.as_str()),
         "competition",
+        package,
         &mut errors,
     );
     errors
@@ -682,15 +801,22 @@ pub fn validate_ids(package: &WorldPackage) -> Vec<PackageError> {
 fn check_ids<'a>(
     ids: impl Iterator<Item = &'a str>,
     kind: &str,
+    package: &WorldPackage,
     errors: &mut Vec<PackageError>,
 ) {
     let mut seen: HashSet<&str> = HashSet::new();
-    for id in ids {
+    // The position in the entity list *is* the declaration, so each problem
+    // names its own file: the third entity to repeat an id points at the third
+    // file, and two entities with no id at all — indistinguishable by id, since
+    // they share the blank — are still told apart.
+    for (index, id) in ids.enumerate() {
         if id.is_empty() {
-            errors.push(PackageError::new(MISSING_ID, "").with("kind", kind));
+            errors.push(
+                PackageError::new(MISSING_ID, &package.source_at(kind, index)).with("kind", kind),
+            );
         } else if !seen.insert(id) {
             errors.push(
-                PackageError::new(DUPLICATE_ID, "")
+                PackageError::new(DUPLICATE_ID, &package.source_at(kind, index))
                     .with("kind", kind)
                     .with("id", id),
             );
@@ -717,54 +843,54 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     let known_country =
         |code: &str| country_ids.contains(code) || crate::nations::nation_by_code(code).is_some();
 
-    for country in &package.countries {
+    for (index, country) in package.countries.iter().enumerate() {
         if !country.confederation.is_empty() && !known_confederation(&country.confederation) {
             errors.push(
-                PackageError::new(UNKNOWN_CONFEDERATION, "")
+                PackageError::new(UNKNOWN_CONFEDERATION, &package.source_at("country", index))
                     .with("country", &country.id)
                     .with("confederation", &country.confederation),
             );
         }
     }
 
-    for team in &package.teams {
+    for (index, team) in package.teams.iter().enumerate() {
         if !team.country.is_empty() && !known_country(&team.country) {
             errors.push(
-                PackageError::new(UNKNOWN_COUNTRY, "")
+                PackageError::new(UNKNOWN_COUNTRY, &package.source_at("team", index))
                     .with("entity", &team.id)
                     .with("country", &team.country),
             );
         }
     }
 
-    for player in &package.players {
+    for (index, player) in package.players.iter().enumerate() {
         if !player.club.is_empty() && !team_ids.contains(player.club.as_str()) {
             errors.push(
-                PackageError::new(UNKNOWN_TEAM, "")
+                PackageError::new(UNKNOWN_TEAM, &package.source_at("player", index))
                     .with("entity", &player.id)
                     .with("team", &player.club),
             );
         }
         if !player.nationality.is_empty() && !known_country(&player.nationality) {
             errors.push(
-                PackageError::new(UNKNOWN_COUNTRY, "")
+                PackageError::new(UNKNOWN_COUNTRY, &package.source_at("player", index))
                     .with("entity", &player.id)
                     .with("country", &player.nationality),
             );
         }
     }
 
-    for staff in &package.staff {
+    for (index, staff) in package.staff.iter().enumerate() {
         if !staff.club.is_empty() && !team_ids.contains(staff.club.as_str()) {
             errors.push(
-                PackageError::new(UNKNOWN_TEAM, "")
+                PackageError::new(UNKNOWN_TEAM, &package.source_at("staff", index))
                     .with("entity", &staff.id)
                     .with("team", &staff.club),
             );
         }
         if !staff.nationality.is_empty() && !known_country(&staff.nationality) {
             errors.push(
-                PackageError::new(UNKNOWN_COUNTRY, "")
+                PackageError::new(UNKNOWN_COUNTRY, &package.source_at("staff", index))
                     .with("entity", &staff.id)
                     .with("country", &staff.nationality),
             );
@@ -880,12 +1006,25 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         .into_iter()
         .map(|error| {
             let mut params = error.params;
+            // The definition validator reasons over the whole competition list
+            // and has no idea about files, so the id is the only handle back to
+            // one — it carries no occurrence, so a repeated id resolves to its
+            // first declaration. Errors it raises about the package as a whole
+            // carry no id and stay unlocated, which is honest: they are not
+            // about one entity. A blank id matches nothing on purpose, so such
+            // an error is not pinned to whichever competition went unnamed.
+            let file = package
+                .competitions
+                .iter()
+                .position(|c| !c.id.is_empty() && c.id == error.competition_id)
+                .map(|index| package.source_at("competition", index))
+                .unwrap_or_default();
             if !error.competition_id.is_empty() {
                 params.push(("competition".to_string(), error.competition_id));
             }
             PackageError {
                 code: error.code,
-                file: String::new(),
+                file,
                 params,
             }
         })
@@ -1050,12 +1189,15 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let has_database = !databases.is_empty();
 
     let mut merged = WorldPackage::default();
-    let mut confeds: BTreeMap<String, ConfederationDef> = BTreeMap::new();
-    let mut countries: BTreeMap<String, CountryDef> = BTreeMap::new();
-    let mut teams: BTreeMap<String, TeamDef> = BTreeMap::new();
-    let mut players: BTreeMap<String, PlayerDef> = BTreeMap::new();
-    let mut staff_map: BTreeMap<String, StaffDef> = BTreeMap::new();
-    let mut competitions: BTreeMap<String, CompetitionDefinition> = BTreeMap::new();
+    // Each entity is carried with the file it was declared in, so overriding an
+    // entity overrides its location too. Keeping the two apart is what let a
+    // merged stack report an entity at a file the merge had already discarded.
+    let mut confeds: BTreeMap<String, (ConfederationDef, String)> = BTreeMap::new();
+    let mut countries: BTreeMap<String, (CountryDef, String)> = BTreeMap::new();
+    let mut teams: BTreeMap<String, (TeamDef, String)> = BTreeMap::new();
+    let mut players: BTreeMap<String, (PlayerDef, String)> = BTreeMap::new();
+    let mut staff_map: BTreeMap<String, (StaffDef, String)> = BTreeMap::new();
+    let mut competitions: BTreeMap<String, (CompetitionDefinition, String)> = BTreeMap::new();
 
     // Collected meta fields for union/max merging.
     let mut all_default_active_competitions: Vec<String> = Vec::new();
@@ -1100,12 +1242,20 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
                 merged_meta_base = Some(meta);
             }
         }
-        for c in package.confederations { confeds.insert(c.id.clone(), c); }
-        for c in package.countries { countries.insert(c.id.clone(), c); }
-        for t in package.teams { teams.insert(t.id.clone(), t); }
-        for p in package.players { players.insert(p.id.clone(), p); }
-        for s in package.staff { staff_map.insert(s.id.clone(), s); }
-        for c in package.competitions { competitions.insert(c.id.clone(), c); }
+        let sources = package.sources;
+        let file_of = |schema: &str, index: usize| -> String {
+            sources
+                .get(schema)
+                .and_then(|files| files.get(index))
+                .cloned()
+                .unwrap_or_default()
+        };
+        for (i, c) in package.confederations.into_iter().enumerate() { confeds.insert(c.id.clone(), (c, file_of("confederation", i))); }
+        for (i, c) in package.countries.into_iter().enumerate() { countries.insert(c.id.clone(), (c, file_of("country", i))); }
+        for (i, t) in package.teams.into_iter().enumerate() { teams.insert(t.id.clone(), (t, file_of("team", i))); }
+        for (i, p) in package.players.into_iter().enumerate() { players.insert(p.id.clone(), (p, file_of("player", i))); }
+        for (i, s) in package.staff.into_iter().enumerate() { staff_map.insert(s.id.clone(), (s, file_of("staff", i))); }
+        for (i, c) in package.competitions.into_iter().enumerate() { competitions.insert(c.id.clone(), (c, file_of("competition", i))); }
         if let Some(names) = package.names {
             saw_names = true;
             if names.version > names_version { names_version = names.version; }
@@ -1134,12 +1284,24 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         });
     }
 
-    merged.confederations = confeds.into_values().collect();
-    merged.countries = countries.into_values().collect();
-    merged.teams = teams.into_values().collect();
-    merged.players = players.into_values().collect();
-    merged.staff = staff_map.into_values().collect();
-    merged.competitions = competitions.into_values().collect();
+    let (confederations, confederations_files): (Vec<_>, Vec<_>) = confeds.into_values().unzip();
+    merged.confederations = confederations;
+    merged.sources.insert("confederation".to_string(), confederations_files);
+    let (countries, countries_files): (Vec<_>, Vec<_>) = countries.into_values().unzip();
+    merged.countries = countries;
+    merged.sources.insert("country".to_string(), countries_files);
+    let (teams, teams_files): (Vec<_>, Vec<_>) = teams.into_values().unzip();
+    merged.teams = teams;
+    merged.sources.insert("team".to_string(), teams_files);
+    let (players, players_files): (Vec<_>, Vec<_>) = players.into_values().unzip();
+    merged.players = players;
+    merged.sources.insert("player".to_string(), players_files);
+    let (staff, staff_files): (Vec<_>, Vec<_>) = staff_map.into_values().unzip();
+    merged.staff = staff;
+    merged.sources.insert("staff".to_string(), staff_files);
+    let (competitions, competitions_files): (Vec<_>, Vec<_>) = competitions.into_values().unzip();
+    merged.competitions = competitions;
+    merged.sources.insert("competition".to_string(), competitions_files);
 
     let mut errors = validate_ids(&merged);
     errors.extend(validate_references(&merged));
@@ -2329,6 +2491,321 @@ colors:
                 >= 2,
             "both the team's and player's unknown country should be reported: {errors:?}"
         );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_reference_error_names_the_file_the_offending_entity_came_from() {
+        // Reported from real use: a package used `uefa` as a confederation, and
+        // validation said so without saying *where*, so the author had to open
+        // every file in the package to find the one country that said it. The
+        // id alone is not a location — packages split entities across as many
+        // files as the author likes, and the loader walks the tree recursively.
+        let dir = temp_package();
+        write(
+            &dir,
+            "countries/europe/spain.json",
+            r#"{ "schema": "country", "id": "ES", "name": "Spain", "confederation": "uefa" }"#,
+        );
+        write(
+            &dir,
+            "teams/ghosts.json",
+            r##"{ "schema": "team", "id": "t1", "name": "Ghost FC", "city": "Nowhere", "country": "ZZ",
+                  "colors": { "primary": "#000", "secondary": "#fff" } }"##,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+
+        let confederation = errors
+            .iter()
+            .find(|e| e.code == UNKNOWN_CONFEDERATION)
+            .expect("`uefa` is not a built-in region, so this must error");
+        assert_eq!(
+            confederation.file, "countries/europe/spain.json",
+            "the error must name the file that declares the country: {confederation:?}"
+        );
+
+        // Not just the one path: an error is located by whichever entity carries
+        // the bad reference, so a team's unknown country names the team's file.
+        let country = errors
+            .iter()
+            .find(|e| e.code == UNKNOWN_COUNTRY)
+            .expect("`ZZ` is not a known country");
+        assert_eq!(country.file, "teams/ghosts.json", "{country:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_merged_stack_keeps_the_locations_its_packages_had() {
+        // `merge_world_packages` rebuilds every entity list through a BTreeMap.
+        // If the source index did not ride along, validating a stack would be
+        // exactly as unhelpful as validating a single package used to be — and
+        // it would only show up for users who stack, which is the harder case
+        // to notice.
+        let base = temp_package();
+        write(
+            &base,
+            "world.json",
+            r#"{ "schema": "world", "id": "base", "name": "Base", "packageType": "database" }"#,
+        );
+        let overlay = temp_package();
+        write(
+            &overlay,
+            "world.json",
+            r#"{ "schema": "world", "id": "overlay", "name": "Overlay", "packageType": "patch" }"#,
+        );
+        write(
+            &overlay,
+            "countries/added.json",
+            r#"{ "schema": "country", "id": "ES", "name": "Spain", "confederation": "uefa" }"#,
+        );
+
+        let (base_pkg, _) = load_world_package_files(&base);
+        let (overlay_pkg, _) = load_world_package_files(&overlay);
+        let (merged, _) = merge_world_packages(vec![base_pkg, overlay_pkg]);
+
+        let error = validate_references(&merged)
+            .into_iter()
+            .find(|e| e.code == UNKNOWN_CONFEDERATION)
+            .expect("the overlay's country still references an unknown confederation");
+        assert_eq!(error.file, "countries/added.json", "{error:?}");
+
+        std::fs::remove_dir_all(&base).ok();
+        std::fs::remove_dir_all(&overlay).ok();
+    }
+
+    #[test]
+    fn the_declaration_that_holds_the_bad_reference_is_the_one_named() {
+        // Two files declare `ES`, and it is the *first* that names a
+        // confederation nothing resolves. Locating the error by id alone picked
+        // whichever declaration was read last, so the author was sent to the
+        // file whose country is fine — worse than no location at all, because
+        // it reads as authoritative.
+        let dir = temp_package();
+        write(
+            &dir,
+            "countries/a-broken.json",
+            r#"{ "schema": "country", "id": "ES", "name": "Spain", "confederation": "uefa" }"#,
+        );
+        write(
+            &dir,
+            "countries/b-fine.json",
+            r#"{ "schema": "country", "id": "ES", "name": "España", "confederation": "europe" }"#,
+        );
+
+        let (package, _) = load_world_package(&dir);
+        let error = validate_references(&package)
+            .into_iter()
+            .find(|e| e.code == UNKNOWN_CONFEDERATION)
+            .expect("`uefa` resolves to nothing, so this must error");
+        assert_eq!(
+            error.file, "countries/a-broken.json",
+            "the file that says `uefa` is the one to open: {error:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_merged_blank_id_names_the_declaration_that_survived_the_merge() {
+        // Blank ids all collapse onto one key, so merging two packages that each
+        // leave a country unnamed keeps exactly one of them — the later package
+        // overrides the earlier. The error has to name the survivor's file;
+        // naming the overridden one sends the author to a declaration that is no
+        // longer part of the merged world.
+        let base = temp_package();
+        write(
+            &base,
+            "world.json",
+            r#"{ "schema": "world", "id": "base", "name": "Base", "packageType": "database" }"#,
+        );
+        write(
+            &base,
+            "countries/nameless-in-base.json",
+            r#"{ "schema": "country", "id": "", "name": "Base Nowhere" }"#,
+        );
+        let overlay = temp_package();
+        write(
+            &overlay,
+            "world.json",
+            r#"{ "schema": "world", "id": "overlay", "name": "Overlay", "packageType": "patch" }"#,
+        );
+        write(
+            &overlay,
+            "countries/nameless-in-overlay.json",
+            r#"{ "schema": "country", "id": "", "name": "Overlay Nowhere" }"#,
+        );
+
+        let (base_pkg, _) = load_world_package_files(&base);
+        let (overlay_pkg, _) = load_world_package_files(&overlay);
+        let (merged, _) = merge_world_packages(vec![base_pkg, overlay_pkg]);
+
+        assert_eq!(merged.countries.len(), 1, "one blank id survives the merge");
+        let error = validate_ids(&merged)
+            .into_iter()
+            .find(|e| e.code == MISSING_ID)
+            .expect("a country with no id is still an error after merging");
+        assert_eq!(
+            error.file, "countries/nameless-in-overlay.json",
+            "the surviving declaration is the overlay's: {error:?}"
+        );
+
+        std::fs::remove_dir_all(&base).ok();
+        std::fs::remove_dir_all(&overlay).ok();
+    }
+
+    #[test]
+    fn every_entity_keeps_a_source_beside_it() {
+        // The invariant the whole index rests on: one recorded file per entity,
+        // in the same order. An entity pushed without one would shift every
+        // location after it in that schema by one, and each error would name a
+        // real file — just the wrong one.
+        let dir = temp_package();
+        write(
+            &dir,
+            "countries/two.json",
+            r#"{ "schema": "country", "items": [
+                { "id": "ES", "name": "Spain", "confederation": "europe" },
+                { "id": "FR", "name": "France", "confederation": "europe" }
+            ]}"#,
+        );
+        write(
+            &dir,
+            "teams/one.json",
+            r##"{ "schema": "team", "id": "t1", "name": "FC", "city": "Town", "country": "ES",
+                  "colors": { "primary": "#000", "secondary": "#fff" } }"##,
+        );
+
+        let (package, _) = load_world_package(&dir);
+
+        assert_eq!(package.sources_len("country"), package.countries.len());
+        assert_eq!(package.sources_len("team"), package.teams.len());
+        // And they are aligned, not merely equal in number: the entity lists are
+        // sorted by id after loading, so the files have to be carried along.
+        let spain = package.countries.iter().position(|c| c.id == "ES").unwrap();
+        assert_eq!(package.source_at("country", spain), "countries/two.json");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_duplicate_id_names_the_file_that_repeats_it() {
+        // Two files declaring the same id is the other "go and find it" error:
+        // the message names the id, which the author already knows, and not the
+        // file, which is what they are looking for.
+        let dir = temp_package();
+        write(
+            &dir,
+            "countries/first.json",
+            r#"{ "schema": "country", "id": "ES", "name": "Spain", "confederation": "europe" }"#,
+        );
+        write(
+            &dir,
+            "countries/second.json",
+            r#"{ "schema": "country", "id": "ES", "name": "España", "confederation": "europe" }"#,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let duplicate = errors
+            .iter()
+            .find(|e| e.code == DUPLICATE_ID)
+            .expect("the same country id twice is a duplicate");
+        // Files are walked in directory order, so the second declaration is the
+        // one reported — the copy, not the original.
+        assert_eq!(duplicate.file, "countries/second.json", "{duplicate:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn each_repeat_of_an_id_names_its_own_file() {
+        // Three files, one id. Storing only the last declaration would make both
+        // duplicate errors name `third.json`, sending the author to the same
+        // place twice and never to the second copy.
+        let dir = temp_package();
+        for (file, name) in [
+            ("countries/first.json", "Spain"),
+            ("countries/second.json", "Espana"),
+            ("countries/third.json", "España"),
+        ] {
+            write(
+                &dir,
+                file,
+                &format!(
+                    r#"{{ "schema": "country", "id": "ES", "name": "{name}", "confederation": "europe" }}"#
+                ),
+            );
+        }
+
+        let (_package, errors) = load_world_package(&dir);
+        let files: Vec<&str> = errors
+            .iter()
+            .filter(|e| e.code == DUPLICATE_ID)
+            .map(|e| e.file.as_str())
+            .collect();
+
+        assert_eq!(files, ["countries/second.json", "countries/third.json"]);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn two_entities_with_no_id_name_the_two_files_they_are_in() {
+        // Every id-less entity shares one key, so without per-declaration
+        // locations both errors would name the same file — and an entity with no
+        // id cannot be identified any other way, making the file the *only*
+        // thing that points at it.
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/alpha.json",
+            r##"{ "schema": "team", "name": "No Id FC", "city": "A", "country": "ENG",
+                  "colors": { "primary": "#000", "secondary": "#fff" } }"##,
+        );
+        write(
+            &dir,
+            "teams/beta.json",
+            r##"{ "schema": "team", "name": "Also No Id", "city": "B", "country": "ENG",
+                  "colors": { "primary": "#000", "secondary": "#fff" } }"##,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let mut files: Vec<&str> = errors
+            .iter()
+            .filter(|e| e.code == MISSING_ID)
+            .map(|e| e.file.as_str())
+            .collect();
+        files.sort_unstable();
+
+        assert_eq!(files, ["teams/alpha.json", "teams/beta.json"]);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_competition_error_names_the_file_that_declares_the_competition() {
+        // Competition problems come from the definition validator, which reasons
+        // over the merged list and knows nothing about files. Without a test, a
+        // regression that dropped the location back to "" would look fine — the
+        // existing competition tests only assert the error code.
+        let dir = temp_package();
+        write(
+            &dir,
+            "competitions/league.json",
+            r#"{ "schema": "competition", "id": "cup", "name": "Cup", "type": "League",
+                 "scope": "Domestic", "countryId": "ZZ", "priority": 1,
+                 "format": { "kind": "LeagueTable", "legs": 2 },
+                 "participants": { "selector": { "kind": "allInCountry", "country": "ZZ" } } }"#,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let located = errors
+            .iter()
+            .find(|e| e.params.iter().any(|(k, v)| k == "competition" && v == "cup"))
+            .expect("the competition's unknown country must be reported");
+        assert_eq!(located.file, "competitions/league.json", "{located:?}");
 
         std::fs::remove_dir_all(&dir).ok();
     }
