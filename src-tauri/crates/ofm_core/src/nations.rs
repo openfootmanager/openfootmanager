@@ -41,6 +41,7 @@ pub const NATION_CATALOG: &[NationDef] = &[
     NationDef { code: "TR", name: "Türkiye", region_id: "europe" },
     NationDef { code: "PL", name: "Poland", region_id: "europe" },
     NationDef { code: "RS", name: "Serbia", region_id: "europe" },
+    NationDef { code: "RU", name: "Russia", region_id: "europe" },
     NationDef { code: "SE", name: "Sweden", region_id: "europe" },
     NationDef { code: "NO", name: "Norway", region_id: "europe" },
     NationDef { code: "CZ", name: "Czechia", region_id: "europe" },
@@ -363,6 +364,52 @@ mod tests {
         assert!(nation_by_code("AQ").is_none(), "Antarctica must be excluded");
         // The bare UK code is never used — the home nations stand in for it.
         assert!(nation_by_code("GB").is_none(), "GB must not be used");
+    }
+
+    /// Widening the selectable set for #270 added the rest of the FIFA membership
+    /// but skipped Russia — every other UEFA member is present, including Belarus
+    /// and Kosovo. Real-world FIFA suspensions are not something this game models,
+    /// and users reported Russian players being unusable as a result.
+    ///
+    /// Russia sits in the World Cup pool proper rather than [`ADDITIONAL_NATIONS`]:
+    /// its footballing record is comparable to Romania, Greece and Hungary, which
+    /// are all catalogued, and the selectable-only list would leave it permanently
+    /// unable to reach a World Cup — the same exclusion by another name.
+    ///
+    /// This grows the pool from 67 to 68. That is a deliberate widening of the
+    /// contract `additional_nations_are_not_world_cup_entrants` documents, and it
+    /// costs nothing: nothing keys off `NATION_CATALOG.len()`, and
+    /// [`crate::world_cup::berths_by_region`] allocates proportionally, so one more
+    /// European candidate out of 67 leaves every region's berth count unchanged at
+    /// both the 32- and 48-team field sizes (europe stays on 12 and 19).
+    #[test]
+    fn russia_is_a_world_cup_nation() {
+        let russia = nation_by_code("RU").expect("Russia should be a known nation");
+        assert_eq!(russia.region_id, "europe");
+        assert!(
+            NATION_CATALOG.iter().any(|n| n.code == "RU"),
+            "Russia belongs in the World Cup pool, not merely the selectable list"
+        );
+    }
+
+    /// Adding Russia is only safe because the berth split is proportional. Pin
+    /// that: the catalog's regional shape must still hand every confederation the
+    /// same allocation, or the #270 decoupling contract has been broken in effect
+    /// even though the two lists remain disjoint.
+    #[test]
+    fn the_catalog_shape_leaves_world_cup_berths_unchanged() {
+        let mut by_region: std::collections::BTreeMap<String, usize> = Default::default();
+        for nation in NATION_CATALOG {
+            *by_region.entry(nation.region_id.to_string()).or_default() += 1;
+        }
+
+        let berths = crate::world_cup::berths_by_region(48, &by_region);
+
+        assert_eq!(berths.get("europe"), Some(&19));
+        assert_eq!(berths.get("south-america"), Some(&7));
+        assert_eq!(berths.get("africa"), Some(&7));
+        assert_eq!(berths.get("asia"), Some(&7));
+        assert_eq!(berths.values().sum::<usize>(), 48);
     }
 
     #[test]
