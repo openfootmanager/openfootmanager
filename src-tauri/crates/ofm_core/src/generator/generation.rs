@@ -4,7 +4,8 @@ use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
 use uuid::Uuid;
 
-use super::definitions::NamesDefinition;
+use super::definitions::{NamePool, NamesDefinition};
+use crate::nations;
 use crate::player_rating::{generate_potential, refresh_player_derived};
 
 // ---------------------------------------------------------------------------
@@ -94,43 +95,66 @@ pub(super) fn pick_name_from_def(
         }
     }
 
-    // No pool of its own. Borrow from the same part of the world first: far more
-    // nationalities lack a pool than have one, and picking the lexicographically
-    // smallest key — as this used to — meant every single one of them drew from
-    // `AR`, so a Russian, a Nigerian and a Japanese player were all named Ezequiel.
-    //
-    // Candidates are sorted before the draw because `pools` is a `HashMap` whose
-    // iteration order is randomized per process; without that, a seeded world
-    // would not reproduce.
-    let usable = |code: &String| {
-        names_def
-            .pools
-            .get(code)
-            .is_some_and(|pool| !pool.first_names.is_empty() && !pool.last_names.is_empty())
-    };
-    // `region_for_code` defaults anything it does not know to `europe`, which is
-    // what files the legacy `GB` pool — not a nation in either catalog — among the
-    // European candidates. That is the right bucket for it, but by default rather
-    // than by declaration.
-    let region = crate::nations::region_for_code(nationality);
-    let mut candidates: Vec<&String> = names_def
-        .pools
-        .keys()
-        .filter(|code| usable(code) && crate::nations::region_for_code(code) == region)
-        .collect();
-    if candidates.is_empty() {
-        // Nothing nearby — any usable pool beats no name at all.
-        candidates = names_def.pools.keys().filter(|code| usable(code)).collect();
+    match fallback_pool(nationality, names_def, rng) {
+        Some(pool) => draw_name(pool, rng),
+        None => ("Player".to_string(), "Unknown".to_string()),
     }
-    if candidates.is_empty() {
-        return ("Player".to_string(), "Unknown".to_string());
-    }
-    candidates.sort();
+}
 
-    let pool = &names_def.pools[candidates[rng.random_range(0..candidates.len())]];
+/// A random first/last pair from `pool`. Callers must have checked it is usable.
+fn draw_name(pool: &NamePool, rng: &mut impl Rng) -> (String, String) {
     let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
     let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
     (first, last)
+}
+
+/// The pool to borrow from when a nationality has none of its own — the common
+/// case, since only 17 pools ship against ~210 selectable nations.
+///
+/// Prefers a pool from the same confederation, then any usable pool. This used to
+/// take `pools.keys().min()`, the lexicographically smallest key, which for the
+/// shipped set is always `AR`: a Pole, a Nigerian and a Japanese player were
+/// all named Ezequiel, deterministically.
+///
+/// Both sides of the region comparison must resolve to a *declared* region.
+/// `region_for_code` answers `europe` for anything it does not recognise, so
+/// matching on it would file every unknown key — a package keying its pools
+/// `BRA`/`ESP`/`JPN`, say — as European, then hand a Pole a Japanese name
+/// while a Brazilian matched none of them. An unknown code on either side falls
+/// straight through to "any usable pool" instead, which is merely arbitrary
+/// rather than confidently wrong.
+///
+/// Candidates are sorted before the draw because `pools` is a `HashMap` whose
+/// iteration order is randomized per process.
+fn fallback_pool<'a>(
+    nationality: &str,
+    names_def: &'a NamesDefinition,
+    rng: &mut impl Rng,
+) -> Option<&'a NamePool> {
+    let usable = |pool: &NamePool| !pool.first_names.is_empty() && !pool.last_names.is_empty();
+    let region_of = |code: &str| nations::nation_by_code(code).map(|nation| nation.region_id);
+
+    let mut candidates: Vec<(&String, &NamePool)> = Vec::new();
+    if let Some(region) = region_of(nationality) {
+        candidates = names_def
+            .pools
+            .iter()
+            .filter(|(code, pool)| usable(pool) && region_of(code) == Some(region))
+            .collect();
+    }
+    if candidates.is_empty() {
+        candidates = names_def
+            .pools
+            .iter()
+            .filter(|(_, pool)| usable(pool))
+            .collect();
+    }
+    if candidates.is_empty() {
+        return None;
+    }
+    candidates.sort_by(|left, right| left.0.cmp(right.0));
+
+    Some(candidates[rng.random_range(0..candidates.len())].1)
 }
 
 pub(super) fn country_to_iso(country: &str) -> &str {

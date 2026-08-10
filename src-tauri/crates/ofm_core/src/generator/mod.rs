@@ -1040,10 +1040,11 @@ pub fn build_world_data_from_package(
         }
         merged
     };
-    // Via the helper: these codes are indexed with the RNG when a generated player
-    // is given a nationality, and `pools` is a `HashMap` with randomized iteration
-    // order. Collecting the keys directly, as this did, is the exact trap
-    // `sorted_country_codes` exists to close.
+    // Via the helper the other three call sites use, rather than a fourth copy of
+    // its body. Nothing observable changes today — this path draws from an
+    // unseeded `rand::rng()`, and a uniform draw over a set does not care about
+    // order — but the codes are indexed with the RNG, so the sort is what the
+    // helper exists for and what would matter if this build were ever seeded.
     let country_codes: Vec<String> = sorted_country_codes(&names_def);
 
     // Group hand-authored players and staff by the club they belong to.
@@ -1887,22 +1888,97 @@ mod tests {
     #[test]
     fn an_unpooled_nationality_is_not_pinned_to_one_pool() {
         let names_def = default_names_definition();
-        let argentine: std::collections::HashSet<&String> =
-            names_def.pools["AR"].first_names.iter().collect();
+        // Only the AR-exclusive names, because half of AR's first names also
+        // appear in European pools (Federico, Lucas, Sergio …). Asserting "no
+        // Argentine name at all" would fail on those shared entries and prove
+        // nothing about which pool was chosen.
+        let others: std::collections::HashSet<&String> = names_def
+            .pools
+            .iter()
+            .filter(|(code, _)| *code != "AR")
+            .flat_map(|(_, pool)| pool.first_names.iter())
+            .collect();
+        let ar_only: std::collections::HashSet<&String> = names_def.pools["AR"]
+            .first_names
+            .iter()
+            .filter(|name| !others.contains(*name))
+            .collect();
+        assert!(!ar_only.is_empty(), "the AR pool must have exclusive names");
         let mut rng = StdRng::seed_from_u64(5);
 
         let drawn: Vec<String> = (0..64)
-            .map(|_| pick_name_from_def("RU", &names_def, &mut rng).0)
+            .map(|_| pick_name_from_def("PL", &names_def, &mut rng).0)
             .collect();
 
         assert!(
-            drawn.iter().any(|name| !argentine.contains(name)),
-            "every fallback name came from the AR pool: {drawn:?}"
+            !drawn.iter().any(|name| ar_only.contains(name)),
+            "a Polish player drew an Argentine-only name: {drawn:?}"
         );
     }
 
+    /// The region preference has to be shown working on a nationality whose region
+    /// is *not* `europe`: `region_for_code` answers `europe` for anything it does
+    /// not recognise, so a European test case cannot tell a successful lookup
+    /// apart from everything falling to the default. Uruguay is South American and
+    /// unpooled, and `AR`/`BR` are the only South American pools shipped.
+    #[test]
+    fn the_name_fallback_resolves_a_non_default_region() {
+        let names_def = default_names_definition();
+        let south_american: std::collections::HashSet<&String> = ["AR", "BR"]
+            .iter()
+            .flat_map(|code| names_def.pools[*code].first_names.iter())
+            .collect();
+        let mut rng = StdRng::seed_from_u64(17);
+
+        for _ in 0..64 {
+            let (first, _) = pick_name_from_def("UY", &names_def, &mut rng);
+            assert!(
+                south_american.contains(&first),
+                "Uruguay should borrow from a South American pool, drew {first}"
+            );
+        }
+    }
+
+    /// A pool whose key is not a catalogued nation cannot be region-matched, and
+    /// must not be treated as European just because the lookup defaults there —
+    /// otherwise a package keyed `BRA`/`JPN` hands a Pole a Japanese name while
+    /// a Brazilian matches none of them.
+    #[test]
+    fn uncatalogued_pool_keys_are_not_filed_as_european() {
+        let pools = std::collections::HashMap::from([
+            (
+                "JPN".to_string(),
+                definitions::NamePool {
+                    first_names: vec!["Kenji".to_string()],
+                    last_names: vec!["Sato".to_string()],
+                },
+            ),
+            (
+                "SE".to_string(),
+                definitions::NamePool {
+                    first_names: vec!["Erik".to_string()],
+                    last_names: vec!["Svensson".to_string()],
+                },
+            ),
+        ]);
+        let names_def = definitions::NamesDefinition {
+            version: 1,
+            description: String::new(),
+            pools,
+        };
+        let mut rng = StdRng::seed_from_u64(23);
+
+        for _ in 0..32 {
+            let (first, _) = pick_name_from_def("PL", &names_def, &mut rng);
+            assert_eq!(
+                first, "Erik",
+                "only the catalogued European pool should match a European nationality"
+            );
+        }
+    }
+
     /// A nationality with no pool should borrow from its own part of the world.
-    /// `BR` sorts before `SE`, so the old lexicographic fallback handed a Russian
+    /// `BR` sorts before `SE`, so the old lexicographic fallback handed a Polish
     /// player a Brazilian name.
     #[test]
     fn the_name_fallback_prefers_a_pool_from_the_same_region() {
@@ -1930,7 +2006,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(1);
 
         for _ in 0..32 {
-            let (first, _) = pick_name_from_def("RU", &names_def, &mut rng);
+            let (first, _) = pick_name_from_def("PL", &names_def, &mut rng);
             assert_eq!(
                 first, "Erik",
                 "a European nationality should borrow from the European pool"
