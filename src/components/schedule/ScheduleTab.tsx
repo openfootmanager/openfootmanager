@@ -15,6 +15,7 @@ import {
   getTeamName,
   formatMatchDate,
   getUserCalledUpPlayers,
+  nationalTeamDisplayName,
 } from "../../lib/helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { competitionDisplayName } from "../../lib/competitionName";
@@ -607,9 +608,7 @@ function InternationalView({
                     {player.match_name}
                   </span>
                   <Badge variant="neutral" size="sm">
-                    {nationalTeamNameKey
-                      ? t("nations.nationalTeamTemplate", { name: t(nationalTeamNameKey) })
-                      : nationalTeamName}
+                    {nationalTeamDisplayName(nationalTeamNameKey, nationalTeamName, t)}
                   </Badge>
                 </div>
               ))}

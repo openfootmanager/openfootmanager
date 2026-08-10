@@ -18,6 +18,7 @@ import TournamentsViewTabs, {
   type TournamentsView,
 } from "./TournamentsViewTabs";
 import type { TournamentsTeamLookup } from "./teamLookup";
+import { nationalTeamDisplayName } from "../../lib/nationalTeams";
 import { Card, CardBody, Badge } from "../ui";
 import { Trophy } from "lucide-react";
 import {
@@ -107,9 +108,11 @@ export default function TournamentsTab({
   const isClubTeam = (id: string) => id in teamNames;
   const resolveTeamName = (id: string) => {
     if (id in teamNames) return teamNames[id];
-    const nameKey = nationalTeamNameKeys[id];
-    if (nameKey) return t("nations.nationalTeamTemplate", { name: t(nameKey) });
-    return nationalTeamNames[id] ?? id;
+    return nationalTeamDisplayName(
+      nationalTeamNameKeys[id],
+      nationalTeamNames[id] ?? id,
+      t,
+    );
   };
 
   const teams: TournamentsTeamLookup = {

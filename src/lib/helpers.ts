@@ -21,6 +21,7 @@ export {
   getNationalTeamFixtures,
   getNationalTeamName,
   getUserCalledUpPlayers,
+  nationalTeamDisplayName,
 } from "./nationalTeams";
 export { getPromotionRelegationZones } from "./pyramid";
 

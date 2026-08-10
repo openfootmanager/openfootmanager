@@ -43,6 +43,24 @@ function player(overrides: Partial<PlayerData> = {}): PlayerData {
   return { id: "p1", match_name: "J. Doe", team_id: "team-1", ...overrides } as PlayerData;
 }
 
+const TRANSLATIONS: Record<string, string> = {
+  "nations.nationalTeamTemplate": "{{name}} National Team",
+  "nations.br": "Brazil",
+};
+
+/**
+ * Mirrors i18next closely enough to be worth trusting: a missing key yields
+ * `defaultValue` when one is supplied and the key itself otherwise. A mock that
+ * always echoed the key, or always returned "", would hide the bug under test.
+ */
+function t(key: string, options?: Record<string, unknown>): string {
+  const template = TRANSLATIONS[key];
+  if (template === undefined) {
+    return typeof options?.defaultValue === "string" ? options.defaultValue : key;
+  }
+  return template.replace("{{name}}", String(options?.name ?? ""));
+}
+
 function gameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
     manager: { team_id: "team-1" },
@@ -109,6 +127,29 @@ describe("getNationalTeamName", () => {
 
   it("falls back to the id when the nation is unknown", () => {
     expect(getNationalTeamName(gameState(), "nt-xyz")).toBe("nt-xyz");
+  });
+
+  it("localises the name through the template when the nation has a key", () => {
+    const state = gameState({
+      national_teams: [
+        nationalTeam({ id: "nt-bra", name: "Brazil National Team", name_key: "nations.br" }),
+      ],
+    });
+
+    expect(getNationalTeamName(state, "nt-bra", t)).toBe("Brazil National Team");
+  });
+
+  it("does not print the raw key when no locale defines it", () => {
+    // `name_key` is stamped on every World Cup field member, but `nations.*`
+    // exists only for the catalogued nations — so any world with, say, Albanian
+    // players carries `nations.al`, which no locale defines.
+    const state = gameState({
+      national_teams: [
+        nationalTeam({ id: "nt-al", name: "Albania National Team", name_key: "nations.al" }),
+      ],
+    });
+
+    expect(getNationalTeamName(state, "nt-al", t)).toBe("Albania National Team");
   });
 });
 
