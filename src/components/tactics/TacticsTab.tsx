@@ -178,9 +178,6 @@ export default function TacticsTab({
           }}
           playerRoles={team?.player_roles}
           tacticsPhase={team?.tactics_phase}
-          teamKitPattern={team?.kit_pattern}
-          teamPrimaryColor={team?.colors?.primary}
-          teamSecondaryColor={team?.colors?.secondary}
           onAssignBestFit={(playerId) => {
             void handleAssignBestFit(playerId);
           }}
