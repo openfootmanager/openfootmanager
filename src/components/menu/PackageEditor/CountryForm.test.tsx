@@ -61,7 +61,7 @@ function renderForm(country: Partial<CountryDef>, updateField = vi.fn()) {
 async function pickNation(name: string) {
   const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
   fireEvent.mouseDown(trigger);
-  fireEvent.mouseDown(await screen.findByRole("button", { name }));
+  fireEvent.mouseDown(await screen.findByRole("option", { name }));
 }
 
 describe("CountryForm nation picker", () => {
@@ -86,6 +86,28 @@ describe("CountryForm nation picker", () => {
 
     expect(updateField).toHaveBeenCalledWith("id", "ENG");
     expect(updateField).toHaveBeenCalledWith("name", "England");
+  });
+
+  it("opens a real listbox, since that is what the trigger promises", async () => {
+    // The trigger carries `aria-haspopup="listbox"`. The popup was a plain div
+    // of buttons, so a screen reader was told to expect options and handed
+    // controls with no position, no count and no selected state — a promise the
+    // markup did not keep.
+    renderForm({ id: "ENG", name: "England" });
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+
+    const listbox = await screen.findByRole("listbox");
+    expect(trigger).toHaveAttribute("aria-controls", listbox.id);
+    expect(await screen.findByRole("option", { name: "England" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("option", { name: "Brazil" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
   });
 
   it("offers no free-text id while a built-in nation is being picked", async () => {

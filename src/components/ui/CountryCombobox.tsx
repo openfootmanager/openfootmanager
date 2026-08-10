@@ -47,6 +47,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
   const locale = i18n.language;
   const labelId = useId();
   const buttonId = useId();
+  const listboxId = useId();
   const ref = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -115,6 +116,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
           aria-labelledby={`${labelId} ${buttonId}`}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
+          aria-controls={isOpen ? listboxId : undefined}
           onMouseDown={(e) => {
             e.preventDefault();
             isOpen ? setIsOpen(false) : open();
@@ -159,15 +161,25 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                   />
                 </div>
                 <div className="max-h-48 overflow-y-auto overscroll-contain">
-                  {filtered.length === 0 ? (
+                  {filtered.length === 0 && (
                     <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
                       {t("menu.noResults")}
                     </p>
-                  ) : (
-                    filtered.map((entry) => (
+                  )}
+                  {/*
+                    A real listbox, because the trigger promises one with
+                    `aria-haspopup="listbox"`. A screen reader told to expect
+                    options and handed plain buttons announces the wrong thing —
+                    no position, no count, no selected state. The "no matches"
+                    line sits outside it: a listbox holds options, not prose.
+                  */}
+                  <div role="listbox" id={listboxId} aria-label={label}>
+                    {filtered.map((entry) => (
                       <button
                         key={entry.code}
                         type="button"
+                        role="option"
+                        aria-selected={value === entry.code}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           onChange(entry.code);
@@ -192,8 +204,8 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                           <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />
                         )}
                       </button>
-                    ))
-                  )}
+                    ))}
+                  </div>
                 </div>
               </>
             ) : (
