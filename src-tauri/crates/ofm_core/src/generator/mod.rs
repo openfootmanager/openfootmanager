@@ -626,8 +626,12 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         stadium,
         rng.random_range(10000..80000),
     );
-    team.finance = rng.random_range(fin_range[0]..fin_range[1]);
-    team.reputation = rng.random_range(rep_range[0]..rep_range[1]);
+    // Inclusive: a package may legitimately pin a club to a single value, and the
+    // exclusive form made `[640, 640]` an empty range, which `rand` panics on. It
+    // also means the authored upper bound is actually reachable. Package validation
+    // rejects `min > max` (`REVERSED_RANGE`), so both bounds are trustworthy here.
+    team.finance = rng.random_range(fin_range[0]..=fin_range[1]);
+    team.reputation = rng.random_range(rep_range[0]..=rep_range[1]);
     team.wage_budget = (team.finance as f64 * 0.06) as i64;
     team.transfer_budget = (team.finance as f64 * 0.15) as i64;
     team.founded_year = tdef.founded_year.unwrap_or(rng.random_range(1880..1960));
@@ -1319,6 +1323,40 @@ mod tests {
             "colors": { "primary": "#ff0000", "secondary": "#ffffff" }
         }))
         .expect("team def should deserialize")
+    }
+
+    /// A club whose reputation is pinned to a single value — one rating typed into
+    /// both the min and max boxes in the world editor, or a bulk import mapping a
+    /// single club rating onto both bounds — must still build. `[640, 640]` reached
+    /// `rng.random_range(640..640)`, an empty range, which `rand` asserts on; the
+    /// panic unwound inside an async Tauri command, so no IPC response was ever
+    /// sent and world creation hung forever rather than reporting an error (#441).
+    #[test]
+    fn a_club_pinned_to_one_reputation_still_builds() {
+        let mut rng = StdRng::seed_from_u64(7);
+        let mut tdef = test_team_def();
+        tdef.reputation_range = Some([640, 640]);
+        tdef.finance_range = Some([1_000_000, 1_000_000]);
+
+        let team = build_team(&tdef, &mut rng);
+
+        assert_eq!(team.reputation, 640);
+        assert_eq!(team.finance, 1_000_000);
+    }
+
+    /// The upper bound must be reachable, not just non-panicking: a two-value range
+    /// has to be able to produce both values, or every such club silently pins to
+    /// the minimum.
+    #[test]
+    fn team_ranges_can_reach_their_upper_bound() {
+        let mut rng = StdRng::seed_from_u64(11);
+        let mut tdef = test_team_def();
+        tdef.reputation_range = Some([500, 501]);
+        tdef.finance_range = Some([1_000_000, 2_000_000]);
+
+        let saw_top = (0..64).any(|_| build_team(&tdef, &mut rng).reputation == 501);
+
+        assert!(saw_top, "501 should be reachable from the range [500, 501]");
     }
 
     /// A senior authored player at `position`, tagged so tests can tell authored
