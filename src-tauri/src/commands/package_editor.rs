@@ -247,6 +247,91 @@ mod tests {
         dir
     }
 
+    /// A `.ofm` archive built from `files`, plus the editing paths for it.
+    fn archive_for(
+        tag: &str,
+        files: &[(&str, &str)],
+    ) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+        let source = temp_project(&format!("{tag}-src"), files);
+        let root = std::env::temp_dir().join(format!("ofm-editor-open-{tag}-edit"));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).unwrap();
+        let archive = root.join("pkg.ofm");
+        export_directory_to_ofm(&source, &archive).unwrap();
+        std::fs::remove_dir_all(&source).ok();
+        (archive, root.join("pkg"), root.join("pkg.source"))
+    }
+
+    #[test]
+    fn reopening_an_installed_package_keeps_the_edits_made_to_it() {
+        // The editing directory is a real project once it is open — it goes into
+        // recent projects and is saved into like any other. Re-extracting over
+        // it threw away every edit since, and only for the author who came back
+        // through the installed list instead of through recents: the same
+        // package, opened two ways, with different contents.
+        let (archive, edit_dir, marker) = archive_for(
+            "keeps-edits",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"keep","name":"Keep"}"#,
+            )],
+        );
+
+        extract_ofm_for_editing_into(&archive, &edit_dir, &marker).unwrap();
+        let edited = edit_dir.join("countries/added-by-the-author.json");
+        std::fs::create_dir_all(edited.parent().unwrap()).unwrap();
+        std::fs::write(&edited, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+
+        extract_ofm_for_editing_into(&archive, &edit_dir, &marker).unwrap();
+
+        assert!(
+            edited.exists(),
+            "reopening the same archive must not discard what was authored in it"
+        );
+        std::fs::remove_dir_all(edit_dir.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn a_different_archive_under_the_same_name_starts_clean() {
+        // The reuse is keyed on the archive, not on the name. A package that was
+        // updated or reinstalled no longer describes what was extracted, and
+        // merging the two would present a mix of two packages as one.
+        let (first, edit_dir, marker) = archive_for(
+            "replaced",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"v1","name":"One"}"#,
+            )],
+        );
+        extract_ofm_for_editing_into(&first, &edit_dir, &marker).unwrap();
+        let stale = edit_dir.join("countries/from-the-old-package.json");
+        std::fs::create_dir_all(stale.parent().unwrap()).unwrap();
+        std::fs::write(&stale, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+
+        // Same path, different contents — as a reinstall would leave it.
+        let replacement = temp_project(
+            "replaced-v2",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"v2","name":"Two"}"#,
+            )],
+        );
+        std::fs::remove_file(&first).unwrap();
+        export_directory_to_ofm(&replacement, &first).unwrap();
+
+        extract_ofm_for_editing_into(&first, &edit_dir, &marker).unwrap();
+
+        assert!(
+            !stale.exists(),
+            "content from the previous archive must not survive into the new one"
+        );
+        let manifest = std::fs::read_to_string(edit_dir.join("package.json")).unwrap();
+        assert!(manifest.contains("v2"), "the new archive's manifest: {manifest}");
+
+        std::fs::remove_dir_all(edit_dir.parent().unwrap()).ok();
+        std::fs::remove_dir_all(&replacement).ok();
+    }
+
     #[test]
     fn a_freshly_scaffolded_empty_project_still_opens() {
         // `ofm-cli new` and the editor's own "new project" both produce a
@@ -751,8 +836,54 @@ mod tests {
     }
 }
 
-/// Extract a `.ofm` archive to a temporary editing directory.
-/// Returns the path to the extracted directory.
+/// Extract a `.ofm` archive to an editing directory, or reuse the one already
+/// extracted from that same archive.
+///
+/// The reuse is what keeps an author's work. The editing directory is a real
+/// project once it is open — it is added to recent projects and saved into like
+/// any other — so re-extracting over it silently discards every edit made since
+/// it was opened. That only bites the author who returns to the package through
+/// the installed list rather than through recents, which is the harder loss to
+/// understand: the same package, opened two ways, with different contents.
+///
+/// The archive's hash decides. Identical archive, keep what is there; a
+/// different one under the same name (the package was updated or reinstalled)
+/// no longer describes the extract, so start clean rather than present a mix of
+/// two packages as one.
+///
+/// The marker lives beside the directory rather than inside it, so it cannot be
+/// picked up as package content or end up inside a rebuilt archive.
+fn extract_ofm_for_editing_into(
+    ofm: &Path,
+    edit_dir: &Path,
+    marker: &Path,
+) -> Result<(), String> {
+    let fingerprint = ofm_core::generator::hash_package_file(ofm).unwrap_or_default();
+    let extracted_from = std::fs::read_to_string(marker).unwrap_or_default();
+
+    if edit_dir.is_dir() && !fingerprint.is_empty() && extracted_from == fingerprint {
+        return Ok(());
+    }
+
+    if edit_dir.exists() {
+        std::fs::remove_dir_all(edit_dir).map_err(|e| e.to_string())?;
+    }
+
+    // extract_ofm_to_dir removes the destination on any entry error, so a
+    // rejected archive never leaves a partial tree in world-editor-temp.
+    extract_ofm_to_dir(ofm, edit_dir)?;
+
+    // Best-effort: an unwritable marker costs a re-extract next time, which is
+    // the old behaviour, and must not fail an otherwise good open.
+    if let Some(parent) = marker.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(marker, &fingerprint).ok();
+    Ok(())
+}
+
+/// Extract a `.ofm` archive to its editing directory, keeping any edits already
+/// made to an extract of that same archive. Returns the path to the directory.
 #[tauri::command]
 pub fn extract_ofm_for_editing(
     app_handle: tauri::AppHandle,
@@ -768,17 +899,11 @@ pub fn extract_ofm_for_editing(
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?;
-    let edit_dir = base_dir.join("world-editor-temp").join(stem);
+    let temp_root = base_dir.join("world-editor-temp");
+    let edit_dir = temp_root.join(stem);
+    let marker = temp_root.join(format!("{stem}.source"));
 
-    // Always start from a clean directory so stale files from a previous edit of
-    // a same-named archive can't leak into the freshly opened project.
-    if edit_dir.exists() {
-        std::fs::remove_dir_all(&edit_dir).map_err(|e| e.to_string())?;
-    }
-
-    // extract_ofm_to_dir removes the destination on any entry error, so a
-    // rejected archive never leaves a partial tree in world-editor-temp.
-    extract_ofm_to_dir(ofm, &edit_dir)?;
+    extract_ofm_for_editing_into(ofm, &edit_dir, &marker)?;
 
     edit_dir
         .to_str()
