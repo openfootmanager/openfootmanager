@@ -172,7 +172,7 @@ Defines a specific player. Reference teams and countries by their `id`.
 | `youth` | boolean | no | `false` | If `true`, the player joins the club's youth/academy squad instead of the first team. |
 | `photo` | string or null | no | `null` | Relative path to a player photo asset bundled in the package. |
 | `overall` | integer (1–99) or null | no | `null` | Overall ability rating. The engine generates a realistic attribute spread from this value. |
-| `attributes` | object or null | no | `null` | Explicit attribute overrides (19 attributes). Overrides the `overall`-based generation for the specified attributes. |
+| `attributes` | object or null | no | `null` | Explicit attribute block. Replaces `overall`-based generation entirely — this is not a partial override, so any of the 19 attributes you omit takes its serde default (8 are optional; the other 11 are required). |
 
 > **Tip**: You only need to specify `overall` *or* `attributes` — not both. For most authored players, `overall` is sufficient. Use `attributes` for precise control.
 

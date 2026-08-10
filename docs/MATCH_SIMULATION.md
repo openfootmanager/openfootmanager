@@ -95,7 +95,7 @@ Sent-off players are excluded from all future player selection for their team.
 
 ## Player Attributes
 
-The engine uses 18 player attributes, grouped into categories:
+The engine uses 19 player attributes, grouped into categories:
 
 **Physical**: pace, stamina, strength, agility
 **Technical**: passing, shooting, tackling, dribbling, defending
