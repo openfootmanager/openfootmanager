@@ -105,6 +105,18 @@ describe("choosing a country's confederation", () => {
     expect(updateField).not.toHaveBeenCalled();
   });
 
+  it("waits for the catalog before saying what is recognised", async () => {
+    // The built-in list is derived from the catalog, so while it loads *every*
+    // value looks unrecognised. Offering the field early filed a perfectly good
+    // `europe` under "not recognised" until the backend answered, then moved it.
+    invoke.mockImplementation(() => new Promise(() => {}));
+    renderForm({ id: "ES", name: "Spain", confederation: "europe" });
+
+    expect(
+      screen.queryByRole("combobox", { name: /worldEditor\.countryConfederation/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("reports the id, not the label, when a built-in region is chosen", async () => {
     const updateField = renderForm({ id: "BR", name: "Brazil" });
 

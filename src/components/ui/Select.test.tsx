@@ -153,6 +153,37 @@ describe("Select", () => {
     expect(screen.getByRole("option", { name: "—" })).toBeInTheDocument();
   });
 
+  it("keeps two groups that share a label apart", () => {
+    // Groups were keyed by their label, so two `optgroup`s carrying the same
+    // one collided — React warned about a duplicate key and was free to reuse
+    // the wrong subtree when the list changed. A caller building groups from
+    // data has no way to guarantee the labels differ.
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(
+      <Select value="a" aria-label="Confederation">
+        <optgroup label="Built-in">
+          <option value="a">A</option>
+        </optgroup>
+        <optgroup label="In this package">
+          <option value="b">B</option>
+        </optgroup>
+        <optgroup label="Built-in">
+          <option value="c">C</option>
+        </optgroup>
+      </Select>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
+
+    expect(screen.getAllByRole("group")).toHaveLength(3);
+    expect(
+      errors.mock.calls.filter((call) => /same key|unique "key"/.test(String(call[0]))),
+    ).toEqual([]);
+
+    errors.mockRestore();
+  });
+
   it("selects a grouped option and reports its value", () => {
     const onChange = vi.fn();
 

@@ -448,7 +448,7 @@ export function Select({
             aria-required={required}
             className="max-h-60 overflow-y-auto p-1"
           >
-            {groupedOptions.map((section) => {
+            {groupedOptions.map((section, sectionIndex) => {
               const rendered = section.options.map((option) => {
               const isSelected = option.value === currentValue;
 
@@ -482,7 +482,10 @@ export function Select({
               }
 
               return (
-                <div key={`group-${section.label}`} role="group" aria-label={section.label}>
+                // Keyed by position, not by label: two `optgroup`s may carry the
+                // same label without being adjacent, and keying on the label
+                // would give them the same key.
+                <div key={`group-${sectionIndex}`} role="group" aria-label={section.label}>
                   <div
                     aria-hidden="true"
                     className="px-3 pb-1 pt-2 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500"
