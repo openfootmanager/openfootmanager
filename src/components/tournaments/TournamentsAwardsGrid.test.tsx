@@ -45,7 +45,7 @@ function awardsData(): SeasonAwardsData {
     clean_sheet_king: playerEntries("csk"),
     most_appearances: playerEntries("ma"),
     young_player: playerEntries("yp"),
-  } as unknown as SeasonAwardsData;
+  };
 }
 
 function renderGrid(
