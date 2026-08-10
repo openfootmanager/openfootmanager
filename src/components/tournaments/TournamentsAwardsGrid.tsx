@@ -134,7 +134,7 @@ export default function TournamentsAwardsGrid({
         <div className="col-span-full text-center py-12">
           <Award className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
           <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
-            {t("tournaments.awards.noDataYet")}
+            {t("tournaments.awards.loadFailed")}
           </p>
           <button
             type="button"

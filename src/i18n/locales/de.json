@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "Nachwuchsspieler des Jahres",
       "youngPlayerSubtitle": "Bester U21-Notenschnitt (mind. 3 Einsätze)",
       "noDataYet": "Noch keine Daten",
+      "loadFailed": "Die Auszeichnungen konnten nicht geladen werden.",
       "units": {
         "goals": "Tore",
         "assists": "Vorlagen",

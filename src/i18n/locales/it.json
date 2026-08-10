@@ -1534,6 +1534,7 @@
       "youngPlayerTitle": "Giovane dell'anno",
       "youngPlayerSubtitle": "Miglior media voto U21 (min. 3 presenze)",
       "noDataYet": "Nessun dato per ora",
+      "loadFailed": "Impossibile caricare i premi.",
       "units": {
         "goals": "gol",
         "assists": "assist",

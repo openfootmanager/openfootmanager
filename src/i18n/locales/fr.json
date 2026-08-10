@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "Jeune joueur de l'année",
       "youngPlayerSubtitle": "Meilleure note moyenne U21 (min. 3 matchs)",
       "noDataYet": "Aucune donnée pour le moment",
+      "loadFailed": "Impossible de charger les trophées.",
       "units": {
         "goals": "buts",
         "assists": "passes",

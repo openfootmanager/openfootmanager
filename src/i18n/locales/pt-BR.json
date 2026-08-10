@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "Jovem Jogador do Ano",
       "youngPlayerSubtitle": "Melhor média sub-21 (mín. 3 jogos)",
       "noDataYet": "Ainda não há dados",
+      "loadFailed": "Não foi possível carregar as premiações.",
       "units": {
         "goals": "gols",
         "assists": "assist.",

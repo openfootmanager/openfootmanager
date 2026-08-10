@@ -62,6 +62,22 @@ function renderTable(
 }
 
 describe("StandingsTable", () => {
+  // The position column reads "#", which is not a name a screen reader can
+  // use. Every column has to be identifiable by role and name.
+  it("names its columns for a screen reader", () => {
+    renderTable();
+
+    for (const name of [
+      "common.position",
+      "common.team",
+      "common.played",
+      "common.gd",
+      "common.pts",
+    ]) {
+      expect(screen.getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+  });
+
   it("shows goals for and against in the full table", () => {
     renderTable();
 

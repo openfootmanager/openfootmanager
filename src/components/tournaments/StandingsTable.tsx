@@ -60,15 +60,35 @@ export default function StandingsTable({
     <table className="w-full text-left border-collapse">
       <thead>
         <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-          <th className={`${headClass} w-8`}>{t("common.rank")}</th>
-          <th className={headClass}>{t("common.team")}</th>
+          {/*
+            The column reads "#" because the design has 8px for it, but "number
+            sign" is not a column name. The label is what assistive tech gets.
+          */}
+          <th
+            scope="col"
+            aria-label={t("common.position")}
+            className={`${headClass} w-8`}
+          >
+            {t("common.rank")}
+          </th>
+          <th scope="col" className={headClass}>
+            {t("common.team")}
+          </th>
           {statColumns.map((column) => (
-            <th key={column.key} className={`${headClass} text-center`}>
+            <th
+              key={column.key}
+              scope="col"
+              className={`${headClass} text-center`}
+            >
               {column.label}
             </th>
           ))}
-          <th className={`${headClass} text-center`}>{t("common.gd")}</th>
-          <th className={`${headClass} text-center`}>{t("common.pts")}</th>
+          <th scope="col" className={`${headClass} text-center`}>
+            {t("common.gd")}
+          </th>
+          <th scope="col" className={`${headClass} text-center`}>
+            {t("common.pts")}
+          </th>
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100 dark:divide-navy-600">

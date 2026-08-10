@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "Молодой игрок года",
       "youngPlayerSubtitle": "Лучший средний рейтинг U21 (минимум 3 матча)",
       "noDataYet": "Данных пока нет",
+      "loadFailed": "Не удалось загрузить награды.",
       "units": {
         "goals": "голов",
         "assists": "ассистов",

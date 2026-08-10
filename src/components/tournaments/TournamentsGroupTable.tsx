@@ -34,6 +34,19 @@ export default function TournamentsGroupTable({
         </h5>
       </div>
       <table className="w-full text-left border-collapse">
+        {/*
+          The group table shows its columns by position alone — four narrow
+          cells under a heading, with no room for a visible header row. Screen
+          readers still need the names, so they are here and hidden.
+        */}
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">{t("common.position")}</th>
+            <th scope="col">{t("common.team")}</th>
+            <th scope="col">{t("common.played")}</th>
+            <th scope="col">{t("common.pts")}</th>
+          </tr>
+        </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
           {groupStandings.map((entry, idx) => {
             const isUser = entry.team_id === userTeamId;
