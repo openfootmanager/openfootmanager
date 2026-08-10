@@ -110,6 +110,44 @@ describe("CountryForm nation picker", () => {
     );
   });
 
+  it("can be chosen with the keyboard, not only the mouse", async () => {
+    // The options only listened for `mousedown`. Enter and Space on a focused
+    // button fire a click and no mousedown at all, so the list could be tabbed
+    // into and never chosen from — the picker being the *only* way to author a
+    // built-in country, that left keyboard users with no route to one.
+    const updateField = renderForm({});
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+    const option = await screen.findByRole("option", { name: "England" });
+
+    // `detail: 0` is what a browser reports for activation that did not come
+    // from a pointer, which is how the trigger beside it already tells them apart.
+    fireEvent.click(option, { detail: 0 });
+
+    expect(updateField).toHaveBeenCalledWith("id", "ENG");
+    expect(updateField).toHaveBeenCalledWith("name", "England");
+  });
+
+  it("points at the list of countries only once there is one", async () => {
+    // The popup opens before the country data arrives and shows a spinner
+    // meanwhile, so the listbox is not on the page yet. `aria-controls` naming
+    // an element that does not exist is an authoring error, and assistive tech
+    // is told to read it as though the attribute were absent.
+    renderForm({});
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+
+    // Synchronously after opening, the country data has not been awaited yet —
+    // this is the spinner frame, and there is no listbox to point at.
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(trigger).not.toHaveAttribute("aria-controls");
+
+    const listbox = await screen.findByRole("listbox");
+    expect(trigger).toHaveAttribute("aria-controls", listbox.id);
+  });
+
   it("offers no free-text id while a built-in nation is being picked", async () => {
     // Typing an arbitrary id is what made countries untranslatable: a package
     // saying `br`/`BRA`/`brasil` cannot be matched to a flag or a name.

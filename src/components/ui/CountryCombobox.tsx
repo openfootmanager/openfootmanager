@@ -83,6 +83,11 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
     setSearch("");
   }
 
+  function select(code: string) {
+    onChange(code);
+    setIsOpen(false);
+  }
+
   const normSearch = normaliseSearch(search);
   const options = useMemo(() => resources?.allNationalities(locale) ?? [], [resources, locale]);
   const filtered = useMemo(
@@ -116,7 +121,12 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
           aria-labelledby={`${labelId} ${buttonId}`}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
-          aria-controls={isOpen ? listboxId : undefined}
+          // Only once the listbox is actually on the page. The popup opens
+          // before the country data loads and shows a spinner in the meantime,
+          // so pointing at the listbox from the moment it opens would name an
+          // element that is not there yet — which assistive tech is told to
+          // treat as if the attribute were absent.
+          aria-controls={isOpen && resources ? listboxId : undefined}
           onMouseDown={(e) => {
             e.preventDefault();
             isOpen ? setIsOpen(false) : open();
@@ -180,10 +190,20 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                         type="button"
                         role="option"
                         aria-selected={value === entry.code}
+                        // Pressing while the search field still has focus must
+                        // not blur it before the choice lands, hence mousedown
+                        // with the default prevented.
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          onChange(entry.code);
-                          setIsOpen(false);
+                          select(entry.code);
+                        }}
+                        // Enter and Space on a focused button fire a click and
+                        // no mousedown at all, so without this the list could be
+                        // reached by keyboard and never chosen from. `detail`
+                        // is 0 only for activation that did not come from a
+                        // pointer, which the mousedown above has already taken.
+                        onClick={(e) => {
+                          if (e.detail === 0) select(entry.code);
                         }}
                         className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${
                           value === entry.code
