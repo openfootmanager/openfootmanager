@@ -234,7 +234,12 @@ pub struct WorldPackage {
     /// declaration would make every duplicate-id error name the same file, and
     /// every entity with a blank id shares a single key, so they would all name
     /// whichever file happened to be read last.
-    pub sources: std::collections::HashMap<String, Vec<String>>,
+    ///
+    /// Private: the key format is an implementation detail, so a caller outside
+    /// this module could not read the map without depending on it. Everything
+    /// worth asking is asked through [`WorldPackage::source_of`] and
+    /// [`WorldPackage::source_at`].
+    sources: std::collections::HashMap<String, Vec<String>>,
 }
 
 /// Key into [`WorldPackage::sources`]: an entity is identified by its schema and
@@ -244,6 +249,17 @@ fn source_key(schema: &str, id: &str) -> String {
 }
 
 impl WorldPackage {
+    /// Remember that `id` was declared in `file`, so a problem found later —
+    /// when only the aggregated entity lists are in scope — can still name a
+    /// file. Recorded per entity rather than per file, because one file may
+    /// declare many.
+    fn remember(&mut self, schema: &str, id: &str, file: &str) {
+        self.sources
+            .entry(source_key(schema, id))
+            .or_default()
+            .push(file.to_string());
+    }
+
     /// The file `id` was last declared in, or `""` when it is not known — a
     /// package assembled in memory rather than loaded from disk has no files to
     /// name.
@@ -371,53 +387,40 @@ fn classify_entity(
     package: &mut WorldPackage,
     errors: &mut Vec<PackageError>,
 ) {
-    // Remember where an entity was declared, so a problem found later — when
-    // only the aggregated lists are in scope — can still name a file. Recorded
-    // per entity rather than per file because one file may declare many.
-    macro_rules! remember {
-        ($id:expr) => {
-            package
-                .sources
-                .entry(source_key(schema, $id))
-                .or_default()
-                .push(file.to_string());
-        };
-    }
-
     match schema {
         "confederation" => {
             if let Some(def) = parse_entity::<ConfederationDef>(value, file, schema, errors) {
-                remember!(&def.id);
+                package.remember(schema, &def.id, file);
                 package.confederations.push(def);
             }
         }
         "country" => {
             if let Some(def) = parse_entity::<CountryDef>(value, file, schema, errors) {
-                remember!(&def.id);
+                package.remember(schema, &def.id, file);
                 package.countries.push(def);
             }
         }
         "team" => {
             if let Some(def) = parse_entity::<TeamDef>(value, file, schema, errors) {
-                remember!(&def.id);
+                package.remember(schema, &def.id, file);
                 package.teams.push(def);
             }
         }
         "player" => {
             if let Some(def) = parse_entity::<PlayerDef>(value, file, schema, errors) {
-                remember!(&def.id);
+                package.remember(schema, &def.id, file);
                 package.players.push(def);
             }
         }
         "staff" => {
             if let Some(def) = parse_entity::<StaffDef>(value, file, schema, errors) {
-                remember!(&def.id);
+                package.remember(schema, &def.id, file);
                 package.staff.push(def);
             }
         }
         "competition" => {
             if let Some(def) = parse_entity::<CompetitionDefinition>(value, file, schema, errors) {
-                remember!(&def.id);
+                package.remember(schema, &def.id, file);
                 package.competitions.push(def);
             }
         }
