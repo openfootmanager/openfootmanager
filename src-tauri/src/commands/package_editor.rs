@@ -328,6 +328,15 @@ mod tests {
         let manifest = std::fs::read_to_string(edit_dir.join("package.json")).unwrap();
         assert!(manifest.contains("v2"), "the new archive's manifest: {manifest}");
 
+        // ...but it is not destroyed either. Whatever the author wrote against
+        // the previous version is still on disk beside the new extract, because
+        // nothing has asked them whether they were finished with it.
+        let kept = superseded_path(&edit_dir).join("countries/from-the-old-package.json");
+        assert!(
+            kept.exists(),
+            "work done against the previous archive must be moved aside, not deleted"
+        );
+
         std::fs::remove_dir_all(edit_dir.parent().unwrap()).ok();
         std::fs::remove_dir_all(&replacement).ok();
     }
@@ -853,6 +862,16 @@ mod tests {
 ///
 /// The marker lives beside the directory rather than inside it, so it cannot be
 /// picked up as package content or end up inside a rebuilt archive.
+/// Where an editing directory is kept when a different archive replaces it.
+/// A sibling, so it is beside the extract an author would go looking from.
+fn superseded_path(edit_dir: &Path) -> std::path::PathBuf {
+    let name = edit_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("world");
+    edit_dir.with_file_name(format!("{name}.superseded"))
+}
+
 fn extract_ofm_for_editing_into(
     ofm: &Path,
     edit_dir: &Path,
@@ -865,8 +884,23 @@ fn extract_ofm_for_editing_into(
         return Ok(());
     }
 
+    // A different archive under this name — the package was updated or
+    // reinstalled — no longer describes what is here, so the new one is
+    // extracted fresh rather than merged into a mix of two packages.
+    //
+    // What was there is moved aside rather than deleted. It may hold work the
+    // author did against the previous version, and nothing has asked them
+    // whether they still want it; deleting it is a decision this function is
+    // not in a position to make. One copy is kept — the previous supersede is
+    // replaced — so this cannot grow without bound.
     if edit_dir.exists() {
-        std::fs::remove_dir_all(edit_dir).map_err(|e| e.to_string())?;
+        let superseded = superseded_path(edit_dir);
+        std::fs::remove_dir_all(&superseded).ok();
+        if std::fs::rename(edit_dir, &superseded).is_err() {
+            // Same-filesystem rename should not fail, but if it does the open
+            // still has to work, and a stale tree would be read as the package.
+            std::fs::remove_dir_all(edit_dir).map_err(|e| e.to_string())?;
+        }
     }
 
     // extract_ofm_to_dir removes the destination on any entry error, so a
