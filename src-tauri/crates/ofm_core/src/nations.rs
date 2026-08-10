@@ -403,13 +403,48 @@ mod tests {
             *by_region.entry(nation.region_id.to_string()).or_default() += 1;
         }
 
-        let berths = crate::world_cup::berths_by_region(48, &by_region);
+        // Both supported field sizes, every region named: a partial assertion
+        // would let a berth move between two unchecked regions unnoticed, which
+        // is exactly the failure this is meant to catch.
+        let expected: [(usize, [(&str, usize); 7]); 2] = [
+            (
+                32,
+                [
+                    ("africa", 5),
+                    ("asia", 5),
+                    ("central-america", 3),
+                    ("europe", 12),
+                    ("north-america", 1),
+                    ("oceania", 2),
+                    ("south-america", 4),
+                ],
+            ),
+            (
+                48,
+                [
+                    ("africa", 7),
+                    ("asia", 7),
+                    ("central-america", 4),
+                    ("europe", 19),
+                    ("north-america", 2),
+                    ("oceania", 2),
+                    ("south-america", 7),
+                ],
+            ),
+        ];
 
-        assert_eq!(berths.get("europe"), Some(&19));
-        assert_eq!(berths.get("south-america"), Some(&7));
-        assert_eq!(berths.get("africa"), Some(&7));
-        assert_eq!(berths.get("asia"), Some(&7));
-        assert_eq!(berths.values().sum::<usize>(), 48);
+        for (field, regions) in expected {
+            let berths = crate::world_cup::berths_by_region(field, &by_region);
+            for (region, want) in regions {
+                assert_eq!(
+                    berths.get(region),
+                    Some(&want),
+                    "{region} berths at field {field}"
+                );
+            }
+            assert_eq!(berths.len(), regions.len(), "no region may be left out");
+            assert_eq!(berths.values().sum::<usize>(), field);
+        }
     }
 
     #[test]
