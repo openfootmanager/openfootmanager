@@ -82,7 +82,7 @@ The Rust backend is organized into 4 crates with clear dependency boundaries:
 
 Contains only structs and enums with no game logic. All other crates depend on it.
 
-- **`player.rs`** — `Player`, `PlayerAttributes` (18 attributes), `Position`, `PlayerTrait` (20 traits), `PlayerSeasonStats`, `Injury`, `TransferOffer`
+- **`player.rs`** — `Player`, `PlayerAttributes` (19 attributes), `Position`, `PlayerTrait` (20 traits), `PlayerSeasonStats`, `Injury`, `TransferOffer`
 - **`team.rs`** — `Team`, `PlayStyle`, `TrainingFocus`, `TrainingIntensity`, `TrainingSchedule`, `TeamColors`
 - **`staff.rs`** — `Staff`, `StaffRole` (4 roles), `CoachingSpecialization` (7 specializations), `StaffAttributes`
 - **`manager.rs`** — `Manager`, `ManagerCareerStats`, `ManagerCareerEntry`

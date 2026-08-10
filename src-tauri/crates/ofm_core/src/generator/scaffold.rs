@@ -504,9 +504,9 @@ mod tests {
             date_of_birth: Some("1995-01-01".into()),
             age: Some(30),
             overall: Some(70),
-            // Eleven of the twenty attributes carry a serde default; the rest are
-            // required, so name those and let the defaults fill the remainder.
-            // Only the presence of the `attributes` key matters here.
+            // Eight of the nineteen attributes carry a serde default; the other
+            // eleven are required, so name those and let the defaults fill the
+            // remainder. Only the presence of the `attributes` key matters here.
             attributes: Some(
                 serde_json::from_value::<PlayerAttributes>(json!({
                     "pace": 50, "stamina": 50, "strength": 50,
@@ -631,6 +631,32 @@ mod tests {
         }
     }
 
+
+    /// Naming every field correctly is not the same as filling them with values
+    /// the definition can parse, and the key-parity check above cannot tell the
+    /// difference. `ofm-cli add player` scaffolded `"position": "CM"`, which is
+    /// not a `Position` variant — so the very next `ofm-cli validate` rejected a
+    /// file the same CLI had just written, with an unknown-variant error naming a
+    /// vocabulary that appears nowhere else in the format.
+    #[test]
+    fn every_template_deserializes_into_its_definition() {
+        let template = |kind| entity_template(kind, Some("Sample Name"));
+
+        serde_json::from_value::<TeamDef>(template(EntityKind::Team))
+            .expect("the team template deserializes");
+        serde_json::from_value::<PlayerDef>(template(EntityKind::Player))
+            .expect("the player template deserializes");
+        serde_json::from_value::<StaffDef>(template(EntityKind::Staff))
+            .expect("the staff template deserializes");
+        serde_json::from_value::<CountryDef>(template(EntityKind::Country))
+            .expect("the country template deserializes");
+        serde_json::from_value::<ConfederationDef>(template(EntityKind::Confederation))
+            .expect("the confederation template deserializes");
+        serde_json::from_value::<CompetitionDefinition>(template(EntityKind::Competition))
+            .expect("the competition template deserializes");
+        serde_json::from_value::<NamesDefinition>(template(EntityKind::Names))
+            .expect("the names template deserializes");
+    }
 
     #[test]
     fn a_country_named_after_a_real_nation_scaffolds_as_that_nation() {

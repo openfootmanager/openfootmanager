@@ -304,7 +304,7 @@ The experience factor scales how early and aggressively the AI makes decisions.
 
 The `turn.rs` module in `ofm_core` handles the conversion:
 
-1. **`build_engine_team()`** — converts domain `Player`/`Team` objects into engine `PlayerData`/`TeamData`, mapping positions, play styles, and all 18 attributes + traits.
+1. **`build_engine_team()`** — converts domain `Player`/`Team` objects into engine `PlayerData`/`TeamData`, mapping positions, play styles, and all 19 attributes + traits.
 2. **`simulate_matchday()`** — for each fixture on a match day, builds engine teams and calls `engine::simulate()`.
 3. **`apply_match_report()`** — writes results back to the domain: fixture status, match result, standings updates, player season stats (goals, assists, cards, rating, clean sheets).
 4. **`apply_player_stats()`** — updates individual `PlayerSeasonStats` from the engine's `PlayerMatchStats`.
