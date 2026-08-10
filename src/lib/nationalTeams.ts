@@ -23,6 +23,29 @@ export function getNationalTeamFixtures(
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
+/**
+ * Localised name for a national team, given the key and name the backend stored.
+ *
+ * The backend stamps `name_key` on every World Cup field member, but the
+ * `nations.*` locale block only covers the catalogued nations — a world with
+ * Albanian or Icelandic players carries `nations.al`, which no locale defines.
+ * Resolving that unguarded printed the key verbatim: "nations.al National Team".
+ *
+ * So the key is only trusted once it resolves; otherwise the stored `name` wins,
+ * which the backend already fills with a readable label. Every caller must go
+ * through here — the three that hand-rolled this all had the same bug.
+ */
+export function nationalTeamDisplayName(
+  nameKey: string | null | undefined,
+  storedName: string,
+  t?: TranslateFn,
+): string {
+  if (!t || !nameKey) return storedName;
+  const nation = t(nameKey, { defaultValue: "" });
+  if (!nation) return storedName;
+  return t("nations.nationalTeamTemplate", { name: nation });
+}
+
 /** Display name for a national team, falling back to its id when unknown. */
 export function getNationalTeamName(
   gameState: Pick<GameStateData, "national_teams">,
@@ -33,10 +56,7 @@ export function getNationalTeamName(
     (nation) => nation.id === nationalTeamId,
   );
   if (!team) return nationalTeamId;
-  if (t && team.name_key) {
-    return t("nations.nationalTeamTemplate", { name: t(team.name_key) });
-  }
-  return team.name;
+  return nationalTeamDisplayName(team.name_key, team.name, t);
 }
 
 export interface CalledUpPlayer {
