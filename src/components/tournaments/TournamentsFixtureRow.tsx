@@ -52,7 +52,7 @@ export default function TournamentsFixtureRow({
       <button
         type="button"
         onClick={() => onSelectTeam(teamId)}
-        className={`flex-1 ${align} font-semibold text-sm hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded ${tone}`}
+        className={`flex-1 ${align} font-semibold text-sm hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800 rounded ${tone}`}
       >
         {resolveTeamName(teamId)}
       </button>

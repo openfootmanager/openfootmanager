@@ -48,7 +48,7 @@ export default function TournamentsAwardsGrid({
     ? [
         {
           id: "managerOfSeason",
-          icon: <Briefcase className="w-5 h-5 text-accent-500" />,
+          icon: <Briefcase className="w-5 h-5 text-accent-500 dark:text-accent-400" />,
           title: t("tournaments.awards.managerOfSeasonTitle"),
           subtitle: t("tournaments.awards.managerOfSeasonSubtitle"),
           entries: awards.manager_of_season,
@@ -57,7 +57,7 @@ export default function TournamentsAwardsGrid({
         },
         {
           id: "goldenBoot",
-          icon: <Zap className="w-5 h-5 text-accent-500" />,
+          icon: <Zap className="w-5 h-5 text-accent-500 dark:text-accent-400" />,
           title: t("tournaments.awards.goldenBootTitle"),
           subtitle: t("tournaments.awards.goldenBootSubtitle"),
           entries: awards.golden_boot,
@@ -65,7 +65,7 @@ export default function TournamentsAwardsGrid({
         },
         {
           id: "assistKing",
-          icon: <Star className="w-5 h-5 text-purple-500" />,
+          icon: <Star className="w-5 h-5 text-purple-500 dark:text-purple-400" />,
           title: t("tournaments.awards.assistKingTitle"),
           subtitle: t("tournaments.awards.assistKingSubtitle"),
           entries: awards.assist_king,
@@ -73,7 +73,7 @@ export default function TournamentsAwardsGrid({
         },
         {
           id: "playerOfYear",
-          icon: <Trophy className="w-5 h-5 text-primary-500" />,
+          icon: <Trophy className="w-5 h-5 text-primary-500 dark:text-primary-400" />,
           title: t("tournaments.awards.playerOfYearTitle"),
           subtitle: t("tournaments.awards.playerOfYearSubtitle"),
           entries: awards.player_of_year,
@@ -82,7 +82,7 @@ export default function TournamentsAwardsGrid({
         },
         {
           id: "goldenGlove",
-          icon: <Shield className="w-5 h-5 text-blue-500" />,
+          icon: <Shield className="w-5 h-5 text-blue-500 dark:text-blue-400" />,
           title: t("tournaments.awards.goldenGloveTitle"),
           subtitle: t("tournaments.awards.goldenGloveSubtitle"),
           entries: awards.clean_sheet_king,
@@ -90,7 +90,7 @@ export default function TournamentsAwardsGrid({
         },
         {
           id: "everPresent",
-          icon: <Users className="w-5 h-5 text-green-500" />,
+          icon: <Users className="w-5 h-5 text-green-500 dark:text-green-400" />,
           title: t("tournaments.awards.everPresentTitle"),
           subtitle: t("tournaments.awards.everPresentSubtitle"),
           entries: awards.most_appearances,
@@ -98,7 +98,7 @@ export default function TournamentsAwardsGrid({
         },
         {
           id: "youngPlayer",
-          icon: <Star className="w-5 h-5 text-amber-500" />,
+          icon: <Star className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
           title: t("tournaments.awards.youngPlayerTitle"),
           subtitle: t("tournaments.awards.youngPlayerSubtitle"),
           entries: awards.young_player,

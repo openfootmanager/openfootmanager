@@ -45,7 +45,7 @@ export default function TournamentsGroupTable({
                 className={`${clickable ? "cursor-pointer" : ""} transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
                 data-testid={`tournaments-group-standing-${entry.team_id}`}
               >
-                <td className="py-1.5 px-3 font-heading font-bold text-xs text-gray-400 w-6">
+                <td className="py-1.5 px-3 font-heading font-bold text-xs text-gray-400 dark:text-gray-500 w-6">
                   {idx + 1}
                 </td>
                 <td
@@ -59,7 +59,7 @@ export default function TournamentsGroupTable({
                         event.stopPropagation();
                         onSelectTeam(entry.team_id);
                       }}
-                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800 rounded"
                     >
                       {resolveTeamName(entry.team_id)}
                     </button>

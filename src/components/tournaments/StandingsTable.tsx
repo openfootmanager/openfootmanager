@@ -60,7 +60,7 @@ export default function StandingsTable({
     <table className="w-full text-left border-collapse">
       <thead>
         <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-          <th className={`${headClass} w-8`}>#</th>
+          <th className={`${headClass} w-8`}>{t("common.rank")}</th>
           <th className={headClass}>{t("common.team")}</th>
           {statColumns.map((column) => (
             <th key={column.key} className={`${headClass} text-center`}>
@@ -101,10 +101,10 @@ export default function StandingsTable({
                 <td
                   className={`${pad} font-heading font-bold text-sm ${
                     inPromotionZone
-                      ? "border-l-2 border-primary-500 text-primary-500"
+                      ? "border-l-2 border-primary-500 text-primary-500 dark:text-primary-400"
                       : inRelegationZone
-                        ? "border-l-2 border-red-500 text-red-500"
-                        : "text-gray-400"
+                        ? "border-l-2 border-red-500 text-red-500 dark:text-red-400"
+                        : "text-gray-400 dark:text-gray-500"
                   }`}
                   data-testid={
                     inPromotionZone
@@ -127,7 +127,7 @@ export default function StandingsTable({
                         event.stopPropagation();
                         onSelectTeam(entry.team_id);
                       }}
-                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800 rounded"
                     >
                       {resolveTeamName(entry.team_id)}
                     </button>
@@ -141,7 +141,7 @@ export default function StandingsTable({
                   </td>
                 ))}
                 <td
-                  className={`${pad} text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
+                  className={`${pad} text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500 dark:text-primary-400" : gd < 0 ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
                 >
                   {gd > 0 ? `+${gd}` : gd}
                 </td>
