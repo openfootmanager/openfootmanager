@@ -371,17 +371,27 @@ mod tests {
     /// and Kosovo. Real-world FIFA suspensions are not something this game models,
     /// and users reported Russian players being unusable as a result.
     ///
-    /// Russia sits in the World Cup pool proper rather than [`ADDITIONAL_NATIONS`]:
-    /// its footballing record is comparable to Romania, Greece and Hungary, which
-    /// are all catalogued, and the selectable-only list would leave it permanently
-    /// unable to reach a World Cup — the same exclusion by another name.
+    /// Russia sits in the World Cup pool proper rather than [`ADDITIONAL_NATIONS`],
+    /// but not for the reason that first suggests itself. Catalog membership is
+    /// *not* what makes a nation reachable at a World Cup: `select_field` builds
+    /// its candidates as the world's player nationalities **union** the catalog, so
+    /// any nation with players is already an entrant from either list. Nor does the
+    /// catalog get Russia into an empty world's field — unplayed nations all tie on
+    /// strength and the draw falls back to alphabetical order, where `RU` sits 22nd
+    /// of europe's 27 for 19 berths.
     ///
-    /// This grows the pool from 67 to 68. That is a deliberate widening of the
-    /// contract `additional_nations_are_not_world_cup_entrants` documents, and it
-    /// costs nothing: nothing keys off `NATION_CATALOG.len()`, and
+    /// What the catalog actually carries is the `nations.<code>` translation keys:
+    /// en.json has one per catalogued nation and none for the additional list,
+    /// while `assign_world_cup_squads` stamps `name_key` on every field member
+    /// regardless. In [`ADDITIONAL_NATIONS`] a Russian squad would render as
+    /// "nations.ru National Team" — which is what the other 143 do today.
+    ///
+    /// This grows the pool from 67 to 68, deliberately widening the contract
+    /// `additional_nations_are_not_world_cup_entrants` documents. It costs nothing:
+    /// nothing keys off `NATION_CATALOG.len()`, and
     /// [`crate::world_cup::berths_by_region`] allocates proportionally, so one more
     /// European candidate out of 67 leaves every region's berth count unchanged at
-    /// both the 32- and 48-team field sizes (europe stays on 12 and 19).
+    /// both field sizes.
     #[test]
     fn russia_is_a_world_cup_nation() {
         let russia = nation_by_code("RU").expect("Russia should be a known nation");
@@ -390,6 +400,35 @@ mod tests {
             NATION_CATALOG.iter().any(|n| n.code == "RU"),
             "Russia belongs in the World Cup pool, not merely the selectable list"
         );
+    }
+
+    /// UEFA's 55 member associations. A bare count would be brittle — membership
+    /// really does change, Gibraltar in 2013 and Kosovo in 2016 — but a named set
+    /// is not: it fails with the missing code in the message, and a real admission
+    /// or expulsion is a deliberate one-line edit. This is the test that would have
+    /// caught Russia's omission when the selectable set was widened for #270.
+    const UEFA_MEMBERS: &[&str] = &[
+        "AL", "AD", "AM", "AT", "AZ", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "ENG", "EE",
+        "FO", "FI", "FR", "GE", "DE", "GI", "GR", "HU", "IS", "IL", "IT", "KZ", "XK", "LV", "LI",
+        "LT", "LU", "MT", "MD", "ME", "NL", "MK", "NIR", "NO", "PL", "PT", "IE", "RO", "RU", "SM",
+        "SCO", "RS", "SK", "SI", "ES", "SE", "CH", "TR", "UA", "WAL",
+    ];
+
+    #[test]
+    fn every_uefa_member_is_selectable() {
+        let known: std::collections::HashSet<&str> = all_nations().map(|n| n.code).collect();
+
+        let missing: Vec<&str> = UEFA_MEMBERS
+            .iter()
+            .copied()
+            .filter(|code| !known.contains(code))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "UEFA members missing from the nation lists: {missing:?}"
+        );
+        assert_eq!(UEFA_MEMBERS.len(), 55, "UEFA has 55 member associations");
     }
 
     /// Adding Russia is only safe because the berth split is proportional. Pin
