@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, PencilLine } from "lucide-react";
 import { LabeledInput } from "./primitives";
@@ -6,6 +6,7 @@ import { EntityFormShell } from "./shared";
 import { Select } from "../../ui/Select";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { useNations } from "../../../hooks/useNations";
+import { buildRegionLabel } from "../../../lib/teamRegions";
 import type { ConfederationDef, CountryDef } from "./types";
 
 interface CountryFormProps {
@@ -46,6 +47,25 @@ export function CountryForm({
   // remounted on every buffer swap (keyed on `revision` in WorldEditorFormPanel),
   // so this starts empty for each record.
   const [chosenMode, setChosenMode] = useState<IdentityMode | null>(null);
+  const confederationLabelId = useId();
+
+  // The regions the catalog itself uses, which are exactly the ids
+  // `is_builtin_region` accepts. Derived from the nation catalog rather than
+  // listed here, so the editor cannot come to disagree with the backend about
+  // which confederations exist.
+  const builtInRegions = useMemo(() => {
+    const seen = new Set((nations ?? []).map((nation) => nation.region));
+    return [...seen].sort();
+  }, [nations]);
+
+  // An authored value that is neither built in nor defined by this package —
+  // `uefa`, say, which reads like a confederation and resolves to nothing.
+  const unrecognisedConfederation =
+    editing.confederation &&
+    !builtInRegions.includes(editing.confederation) &&
+    !confederations.some((c) => c.id === editing.confederation)
+      ? editing.confederation
+      : null;
 
   // `null` until the catalog resolves, for a new country as much as an existing
   // one. `CountryCombobox` loads its own copy of the name data, so offering the
@@ -97,8 +117,6 @@ export function CountryForm({
 
   const labelClass =
     "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";
-  const inputClass =
-    "w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition";
   const switchClass =
     "inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 dark:focus:ring-offset-navy-800 transition";
 
@@ -151,29 +169,53 @@ export function CountryForm({
         </>
       )}
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.countryConfederation")}</label>
-        {confederations.length > 0 ? (
-          <Select
-            value={editing.confederation}
-            onChange={(e) => updateField("confederation", e.target.value)}
-            fullWidth
-          >
-            <option value="">—</option>
-            {confederations.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name || c.id}
-              </option>
-            ))}
-          </Select>
-        ) : (
-          <input
-            type="text"
-            value={editing.confederation}
-            onChange={(e) => updateField("confederation", e.target.value)}
-            placeholder="europe"
-            className={inputClass}
-          />
-        )}
+        <label className={labelClass} id={confederationLabelId}>
+          {t("worldEditor.countryConfederation")}
+        </label>
+        <Select
+          value={editing.confederation}
+          onChange={(e) => updateField("confederation", e.target.value)}
+          aria-labelledby={confederationLabelId}
+          fullWidth
+        >
+          <option value="">—</option>
+          {/*
+            The built-ins come first because most countries want one, and they
+            are grouped so it is visible which values the game already knows
+            versus which this package defines. Without that distinction an
+            author cannot tell whether they need to define a confederation at
+            all — the question that sent one package to `uefa`, an id nothing
+            resolves.
+          */}
+          {builtInRegions.length > 0 && (
+            <optgroup label={t("worldEditor.confederationBuiltIn")}>
+              {builtInRegions.map((region) => (
+                <option key={region} value={region}>
+                  {buildRegionLabel(t, region)}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {confederations.length > 0 && (
+            <optgroup label={t("worldEditor.confederationInPackage")}>
+              {confederations.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || c.id}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {/*
+            An authored value that matches neither list still has to be
+            selectable, or opening the country would show an empty field and
+            saving would write that emptiness back over what the author wrote.
+          */}
+          {unrecognisedConfederation && (
+            <optgroup label={t("worldEditor.confederationUnrecognised")}>
+              <option value={unrecognisedConfederation}>{unrecognisedConfederation}</option>
+            </optgroup>
+          )}
+        </Select>
       </div>
     </EntityFormShell>
   );

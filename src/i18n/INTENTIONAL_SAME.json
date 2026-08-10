@@ -322,7 +322,8 @@
     "worldEditor.sectionStaff",
     "worldEditor.staffClub",
     "worldEditor.staffRole.Scout",
-    "worldEditor.staffSpecialization.Fitness"
+    "worldEditor.staffSpecialization.Fitness",
+    "teamSelect.regionLabels.africa"
   ],
   "es": [
     "nations.pt",

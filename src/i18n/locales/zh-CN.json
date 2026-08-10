@@ -340,6 +340,7 @@
       "central-america": "中美洲",
       "south-america": "南美洲",
       "europe": "欧洲",
+      "africa": "非洲",
       "asia": "亚洲",
       "oceania": "大洋洲"
     },
@@ -3778,6 +3779,9 @@
     "countryId": "ID",
     "countryName": "名称",
     "countryConfederation": "联合会",
+    "confederationBuiltIn": "内置",
+    "confederationInPackage": "本数据包定义",
+    "confederationUnrecognised": "无法识别",
     "countryNation": "国家",
     "countryNationPlaceholder": "选择国家",
     "countryCustom": "自定义国家",

@@ -124,4 +124,52 @@ describe("Select", () => {
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
+
+  it("groups options under an optgroup label", () => {
+    // Some lists mix values that come from different places — built-in ones a
+    // package may reference, and ones it defines itself. Without a group label
+    // the two are indistinguishable, which is the whole reason a caller reaches
+    // for `optgroup`.
+    render(
+      <Select value="europe" aria-label="Confederation">
+        <option value="">—</option>
+        <optgroup label="Built-in">
+          <option value="europe">Europe</option>
+          <option value="africa">Africa</option>
+        </optgroup>
+        <optgroup label="In this package">
+          <option value="fictland">Fictland Union</option>
+        </optgroup>
+      </Select>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
+
+    expect(screen.getByRole("group", { name: "Built-in" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "In this package" })).toBeInTheDocument();
+    // Grouping must not cost the options themselves.
+    expect(screen.getByRole("option", { name: "Africa" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Fictland Union" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "—" })).toBeInTheDocument();
+  });
+
+  it("selects a grouped option and reports its value", () => {
+    const onChange = vi.fn();
+
+    render(
+      <Select value="" aria-label="Confederation" onChange={onChange}>
+        <option value="">—</option>
+        <optgroup label="Built-in">
+          <option value="africa">Africa</option>
+        </optgroup>
+      </Select>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
+    fireEvent.click(screen.getByRole("option", { name: "Africa" }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ target: expect.objectContaining({ value: "africa" }) }),
+    );
+  });
 });

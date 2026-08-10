@@ -340,6 +340,7 @@
       "central-america": "Střední Amerika",
       "south-america": "Jižní Amerika",
       "europe": "Evropa",
+      "africa": "Afrika",
       "asia": "Asie",
       "oceania": "Oceánie"
     },
@@ -3778,6 +3779,9 @@
     "countryId": "ID",
     "countryName": "Název",
     "countryConfederation": "Konfederace",
+    "confederationBuiltIn": "Vestavěné",
+    "confederationInPackage": "Definované v tomto balíčku",
+    "confederationUnrecognised": "Nerozpoznaná",
     "countryNation": "Země",
     "countryNationPlaceholder": "Vyberte zemi",
     "countryCustom": "Vlastní země",
