@@ -66,6 +66,21 @@ function renderGroup(
 }
 
 describe("TournamentsGroupTable", () => {
+  // The table shows its columns by position alone — there is no room for a
+  // visible header row — so the names have to exist for assistive tech.
+  it("names its columns for a screen reader", () => {
+    renderGroup();
+
+    for (const name of [
+      "common.position",
+      "common.team",
+      "common.played",
+      "common.pts",
+    ]) {
+      expect(screen.getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+  });
+
   it("orders the group by table position, not by the order it arrived in", () => {
     renderGroup();
 

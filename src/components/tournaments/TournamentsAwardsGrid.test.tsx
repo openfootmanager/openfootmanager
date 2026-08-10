@@ -116,6 +116,19 @@ describe("TournamentsAwardsGrid", () => {
     expect(retryAwards).toHaveBeenCalledTimes(1);
   });
 
+  // "No data yet" describes an empty season, not a request that failed — and
+  // it read as a contradiction next to a retry button.
+  it("says the awards failed rather than that there are none", () => {
+    renderGrid({ awards: null, awardsLoadState: "error" });
+
+    expect(
+      screen.getByText("tournaments.awards.loadFailed"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("tournaments.awards.noDataYet"),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows a loading note while the awards are on their way", () => {
     renderGrid({ awards: null, awardsLoadState: "loading" });
 

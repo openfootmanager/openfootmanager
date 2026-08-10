@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "年度最佳年轻球员",
       "youngPlayerSubtitle": "U21 平均评分最高（至少 3 次出场）",
       "noDataYet": "暂无数据",
+      "loadFailed": "无法加载奖项。",
       "units": {
         "goals": "球",
         "assists": "助攻",

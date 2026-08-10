@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "Mladý hráč roku",
       "youngPlayerSubtitle": "Nejlepší průměrné hodnocení hráčů do 21 let (min. 3 zápasy)",
       "noDataYet": "Zatím žádná data",
+      "loadFailed": "Ocenění se nepodařilo načíst.",
       "units": {
         "goals": "gólů",
         "assists": "asistencí",

@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "Yılın Genç Oyuncusu",
       "youngPlayerSubtitle": "En İyi 21 Yaş Altı Ort. Puanı (en az 3 maç)",
       "noDataYet": "Henüz veri yok",
+      "loadFailed": "Ödüller yüklenemedi.",
       "units": {
         "goals": "gol",
         "assists": "asist",

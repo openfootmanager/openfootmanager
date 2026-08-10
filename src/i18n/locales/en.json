@@ -1515,6 +1515,7 @@
       "youngPlayerTitle": "Young Player of the Year",
       "youngPlayerSubtitle": "Best U21 Avg Rating (min 3 apps)",
       "noDataYet": "No data yet",
+      "loadFailed": "Could not load the awards.",
       "units": {
         "goals": "goals",
         "assists": "assists",
