@@ -159,7 +159,9 @@ pub(super) fn make_bootstrap_test_game() -> Game {
                 format!("{}-player-{}", team_id, index),
                 format!("{} P{}", team_id, index),
                 format!("{} Player {}", team_id, index),
-                format!("199{}-01-01", index),
+                // 1990..=2000. The obvious `format!("199{index}")` breaks at the
+                // eleventh player of each side, which parses as the year 19910.
+                format!("{}-01-01", 1990 + index),
                 "England".to_string(),
                 position,
                 default_player_attributes(),
