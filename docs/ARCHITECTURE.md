@@ -334,12 +334,23 @@ The `engine` crate has **no dependency on `domain`**. It defines its own `Player
 
 Every new field added to domain types uses `#[serde(default)]` or a custom default function. This ensures old save files can be loaded without migration scripts. The trade-off is that new features gracefully degrade (e.g., old saves have no traits, empty training schedules) rather than failing.
 
-### 3. Hardcoded Fallbacks for External Data
+### 3. Generation Data Lives in Files, Not Rust
 
-Generator definition files (`default_names.json`, `default_teams.json`) are loaded at runtime with fallback to hardcoded arrays compiled into the binary. This means:
-- The game always works, even without external files
-- Users can customize by placing definition files in the data directory
-- No build-time dependency on external data files
+Generator definition files (`default_names.json`, `default_nations.json`) live in
+`crates/ofm_core/data/` and are resolved through three tiers: the user's
+`<app-data>/data/` directory, then the copy bundled beside the installed game,
+then the same files compiled in with `include_str!`. This means:
+- Users can customize by placing a definition file in their data directory — the
+  documented behaviour, which for a long time was documented but not implemented
+- The game always works, even from an incomplete install or a dev build with no
+  bundled resources
+- **There is one copy of the data.** The embedded tier is the *same file* as the
+  bundled one, so the compiled-in fallback cannot drift from what ships — which
+  is what happened when the fallback was a separate hand-maintained Rust array
+
+Definition files configure *generation*. Hand-authored content — specific clubs,
+players, competitions — belongs in `.ofm` packages instead, which merge and
+stack. See [DEFINITIONS.md](DEFINITIONS.md).
 
 ### 4. Mutex-Based State Management
 

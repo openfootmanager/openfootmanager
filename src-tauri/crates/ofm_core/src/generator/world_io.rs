@@ -8,28 +8,23 @@ const WORLD_SERIALIZE_FAILED_ERROR: &str = "be.error.worldSerializeFailed";
 const RANDOM_WORLD_NAME_KEY: &str = "be.msg.world.randomName";
 const RANDOM_WORLD_DESCRIPTION_KEY: &str = "be.msg.world.randomDescription";
 
+/// The region a country belongs to.
+///
+/// This used to be a hand-maintained match over 21 codes that answered
+/// `"europe"` for everything else — and it sits on the *live* path, because
+/// `normalize_world` infers regions whenever a world declares none, which a
+/// procedurally generated world always does. While generation only ever
+/// produced clubs in the same handful of European-plus-BR/AR countries the
+/// match happened to list, the gap was invisible. Now that the nations a world
+/// contains are read from `data/default_nations.json`, the first person to add
+/// Japan or Nigeria would have had them filed under Europe.
+///
+/// `nations::region_for_code` already knows the correct region for all 211
+/// catalogued nations. Its own `"europe"` default is the right behaviour here:
+/// region inference has to answer *something*, and an uncatalogued code has no
+/// better answer available.
 fn infer_region_id(country_code: &str) -> &'static str {
-    match country_code {
-        "BR" | "AR" | "UY" | "CL" | "CO" | "PE" | "EC" | "VE" | "PY" | "BO" => {
-            "south-america"
-        }
-        "US" | "CA" | "MX" => "north-america",
-        "CR" | "PA" | "HN" | "GT" | "SV" | "NI" => "central-america",
-        "AU" | "NZ" => "oceania",
-        "JP" | "KR" | "CN" | "SA" | "QA" => "asia",
-        _ => "europe",
-    }
-}
-
-fn region_name(region_id: &str) -> &'static str {
-    match region_id {
-        "north-america" => "North America",
-        "central-america" => "Central America",
-        "south-america" => "South America",
-        "asia" => "Asia",
-        "oceania" => "Oceania",
-        _ => "Europe",
-    }
+    crate::nations::region_for_code(country_code)
 }
 
 fn backend_text_with_param(key: &str, param_name: &str, param_value: usize) -> String {
@@ -66,7 +61,9 @@ fn infer_world_regions(teams: &[domain::team::Team]) -> Vec<WorldRegionDefinitio
             country_codes.sort();
             country_codes.dedup();
             WorldRegionDefinition {
-                name: region_name(&region_id).to_string(),
+                // Shared with the package path rather than a second, shorter
+                // list of its own — the copy here had no `africa` arm at all.
+                name: super::builtin_region_name(&region_id),
                 id: region_id,
                 country_codes,
             }
@@ -115,14 +112,14 @@ fn manifest_shard_path(base: &Path, shard_ref: &str) -> PathBuf {
 }
 
 /// Generate a random world and wrap it in a `WorldData`.
-/// If `data_dir` is provided, tries to load definition files from that directory.
-pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
-    world_data_from_parts(super::generate_world(data_dir))
+/// `sources` decides where definition files are read from.
+pub fn generate_world_data(sources: &super::DefinitionSources) -> WorldData {
+    world_data_from_parts(super::generate_world(sources))
 }
 
 /// Deterministic variant of [`generate_world_data`]: same `seed` → identical world.
-pub fn generate_world_data_seeded(seed: u64, data_dir: Option<&std::path::Path>) -> WorldData {
-    world_data_from_parts(super::generate_world_seeded(seed, data_dir))
+pub fn generate_world_data_seeded(seed: u64, sources: &super::DefinitionSources) -> WorldData {
+    world_data_from_parts(super::generate_world_seeded(seed, sources))
 }
 
 /// Deterministic generation with an explicit config — e.g. a small world for
@@ -130,13 +127,13 @@ pub fn generate_world_data_seeded(seed: u64, data_dir: Option<&std::path::Path>)
 pub fn generate_world_data_seeded_with(
     seed: u64,
     config: &super::WorldGenConfig,
-    data_dir: Option<&std::path::Path>,
+    sources: &super::DefinitionSources,
 ) -> WorldData {
     use rand::SeedableRng;
     world_data_from_parts(super::generate_world_with_rng(
         rand::rngs::StdRng::seed_from_u64(seed),
         config,
-        data_dir,
+        sources,
     ))
 }
 
@@ -570,7 +567,7 @@ mod tests {
 
     #[test]
     fn export_world_to_json_writes_canonical_football_identity_fields() {
-        let mut world = generate_world_data(None);
+        let mut world = generate_world_data(&crate::generator::DefinitionSources::embedded_only());
         world.teams[0].country = "GB".to_string();
         world.teams[0].football_nation.clear();
 
@@ -726,7 +723,7 @@ mod tests {
 
     #[test]
     fn export_world_to_json_preserves_historical_snapshot_fields() {
-        let mut world = generate_world_data(None);
+        let mut world = generate_world_data(&crate::generator::DefinitionSources::embedded_only());
         world.managers.push(domain::manager::Manager::new(
             "mgr-1".to_string(),
             "Ada".to_string(),

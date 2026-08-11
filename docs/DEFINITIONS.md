@@ -1,17 +1,32 @@
 # Definition Files
 
-OpenFootManager uses **JSON or YAML definition files** to drive world generation. These files control the name pools, team templates, and other data used when creating a new game. You can customize or replace them to create your own leagues, nationalities, and more.
+OpenFootManager uses **JSON or YAML definition files** to drive world generation. These files control the name pools and the per-nation inputs to procedural club generation. You can customize or replace them to change the nations a generated world contains, the cities its clubs are named after, and the names its players are given.
 
 > **JSON or YAML?** Every definition file may be written in either format — pick whichever you prefer; YAML is often easier to hand-author. Files are recognised by their `.json`, `.yaml`, or `.yml` extension (and standalone imports are sniffed by content). All examples below show JSON, but the same fields apply to YAML.
 
+## Definition files or a package?
+
+Two different jobs, and picking the wrong one is the usual source of confusion:
+
+| You want to… | Use |
+|---|---|
+| Change how the engine *generates* a world — which nations exist, their cities, how many divisions, what names players get | a **definition file** (this document) |
+| Ship specific, hand-authored clubs, players or competitions | an **`.ofm` package** ([modding guide](modding/README.md)) |
+
+Definition files configure generation. Packages supply content. A curated list of clubs is content, so it belongs in a package — see the [`classic-sixteen`](modding/examples/classic-sixteen/) example.
+
 ## File Locations
 
-The game searches for definition files in the following order:
+The game searches for each definition file in this order and uses the first one it finds:
 
-1. **Bundled data** — `<app-resources>/data/` (ships with the game)
-2. **Hardcoded fallback** — built into the binary (always available)
+1. **Your data directory** — `<app-data>/data/` — writable, and the one to use for your own edits:
+   - Linux: `~/.local/share/com.sturdyrobot.openfootmanager/data/`
+   - macOS: `~/Library/Application Support/com.sturdyrobot.openfootmanager/data/`
+   - Windows: `%APPDATA%\com.sturdyrobot.openfootmanager\data\`
+2. **Bundled data** — `<app-resources>/data/`, shipped beside the installed game. Read-only — treat it as the reference copy to read and copy from, not to edit in place.
+3. **Built into the binary** — the same files as (2), compiled in, so the game always has a working set even if the install is incomplete.
 
-If a file cannot be found or parsed, the game silently falls back to the hardcoded defaults.
+A file that is present but does not parse is skipped with a warning, and the next tier is used. That way a half-edited override never stops the game starting.
 
 ## File Types
 
@@ -53,28 +68,32 @@ Controls the first and last names used when generating players and staff.
 
 ---
 
-### `default_teams.json` — Team Templates
+### `default_nations.json` — Generation Nations
 
-Controls the teams created during world generation.
+Controls **which nations a generated world contains** and how their leagues are
+shaped. This is the seed procedural generation grows from: each nation produces
+`clubsPerDivision × tiers` clubs, named from its city pool using its naming
+style.
+
+Adding a nation used to mean editing Rust and recompiling. It is now an edit to
+this file.
 
 ```json
 {
   "version": 1,
-  "description": "My custom league",
-  "teams": [
+  "description": "My custom generation nations",
+  "clubsPerDivision": 20,
+  "colorPalette": [
+    { "primary": "#dc2626", "secondary": "#ffffff" }
+  ],
+  "genericCities": ["Northtown", "Eastford"],
+  "nations": [
     {
-      "name": "London FC",
-      "short_name": "LFC",
-      "city": "London",
-      "country": "ENG",
-      "colors": {
-        "primary": "#dc2626",
-        "secondary": "#ffffff"
-      },
-      "play_style": "Possession",
-      "stadium_name": "London Arena",
-      "reputation_range": [600, 900],
-      "finance_range": [3000000, 10000000]
+      "code": "JP",
+      "style": "Generic",
+      "tiers": 1,
+      "strength": 3,
+      "cities": ["Tokyo", "Osaka", "Nagoya", "Sapporo"]
     }
   ]
 }
@@ -84,28 +103,46 @@ Controls the teams created during world generation.
 |-------|------|----------|---------|-------------|
 | `version` | `number` | No | `0` | Schema version |
 | `description` | `string` | No | `""` | Human-readable description |
-| `teams` | `TeamDef[]` | **Yes** | — | Array of team definitions |
+| `clubsPerDivision` | `number` | No | `20` | Clubs generated in each division |
+| `colorPalette` | `{primary, secondary}[]` | No | `[]` | Kit colour pairs drawn from at random |
+| `genericCities` | `string[]` | No | `[]` | City names used for a country with no curated pool |
+| `nations` | `NationGen[]` | **Yes** | — | The nations to generate |
 
-#### TeamDef
+#### NationGen
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `name` | `string` | **Yes** | — | Full team name |
-| `short_name` | `string` | No | Auto-generated from initials | 2-3 letter abbreviation |
-| `city` | `string` | **Yes** | — | City name |
-| `country` | `string` | **Yes** | — | Team location / football identity code |
-| `colors.primary` | `string` | **Yes** | — | Primary color (hex, e.g. `"#dc2626"`) |
-| `colors.secondary` | `string` | **Yes** | — | Secondary color (hex) |
-| `play_style` | `string` | No | `"Balanced"` | One of: `Attacking`, `Defensive`, `Possession`, `Counter`, `HighPress`, `Balanced` |
-| `stadium_name` | `string` | No | `"<city> Arena"` | Stadium name |
-| `reputation_range` | `[min, max]` | No | `[300, 900]` | Random reputation range (0-1000) |
-| `finance_range` | `[min, max]` | No | `[500000, 10000000]` | Random starting finance range |
+| `code` | `string` | **Yes** | — | Football country code — see [Country Codes](#country-codes) |
+| `cities` | `string[]` | **Yes** | — | City pool club names are built from |
+| `style` | `string` | **Yes** | — | Naming culture (below) |
+| `tiers` | `number` | **Yes** | — | Divisions: `1`, or `2` for a nation with a second tier |
+| `strength` | `number` | **Yes** | — | `1`–`5`; seeds the reputation band its clubs are drawn in |
+
+**`style`** is one of `English`, `Scottish`, `Spanish`, `Italian`, `German`,
+`French`, `Portuguese`, `Dutch`, `Nordic`, `Balkan`, `LatinAmerican`,
+`Brazilian`, `Generic`. Unlike most fields, an unrecognised value is a **parse
+error** rather than a silent default — the file is skipped and the shipped one
+used, with a warning in the log. Use `Generic` for a culture the list does not
+cover yet.
 
 **Notes:**
-- The number of teams determines the league size. Must be an **even** number ≥ 2 for schedule generation.
-- Each team gets 22 players (2 GK, 7 DEF, 7 MID, 6 FWD) and 4 staff (AssistantManager, Coach, Scout, Physio).
-- Player nationalities are weighted 60% toward the team's country, 40% random from available pools.
-- 12 free-agent staff are also generated regardless of team count.
+- Give a nation at least as many cities as it generates clubs, or names start
+  repeating with numeric suffixes (`Tokyo FC 2`).
+- Use a `code` that is in the [nation catalog](#country-codes). An uncatalogued
+  code still generates, but the world cannot tell which region it belongs to and
+  files it under Europe.
+- Each club gets 22 players (2 GK, 7 DEF, 7 MID, 6 FWD) and 4 staff
+  (AssistantManager, Coach, Scout, Physio); 12 free-agent staff are generated on
+  top, regardless of club count.
+- Player nationalities are weighted 60% toward the club's country and 40% drawn
+  from the available name pools.
+
+> **Looking for `default_teams.json`?** It was retired. As a definition file it
+> *replaced* procedural generation rather than adding to it, so shipping one
+> silently cut a ~440-club world down to its own contents. Hand-authored clubs
+> belong in an `.ofm` package, which merges and stacks properly — the clubs it
+> used to hold now ship as the
+> [`classic-sixteen`](modding/examples/classic-sixteen/) example package.
 
 ---
 
@@ -353,10 +390,19 @@ loads half-broken. If the package has no `world` name, the folder name is used.
 
 ## Creating Your Own
 
-1. **Start simple** — Copy `default_names.json` and `default_teams.json` from the `data/` directory.
-2. **Edit** — Add your own teams, cities, name pools. Use any text editor.
-3. **Place** — Put your files in the game's `data/` directory (for definition files) or `databases/` directory (for world databases).
-4. **Test** — Start a new game and verify your changes appear.
+1. **Start from the shipped copy** — take `default_names.json` or
+   `default_nations.json` from the game's bundled `data/` directory (tier 2 in
+   [File Locations](#file-locations)). They are the real files, so you are
+   editing something known to work rather than starting from a blank page.
+2. **Edit** — add your own nations, cities and name pools. Any text editor; JSON
+   or YAML.
+3. **Place** — put the edited file in **your** data directory (tier 1), *not*
+   back into the bundled one. On Linux that is
+   `~/.local/share/com.sturdyrobot.openfootmanager/data/`. Create the folder if
+   it is not there. World databases still go in `databases/`.
+4. **Test** — start a new game and verify your changes appear. If they do not,
+   check the log: a file that fails to parse is skipped with a warning and the
+   shipped one is used instead.
 
 ### Tips
 

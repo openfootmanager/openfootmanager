@@ -18,7 +18,8 @@ use domain::manager::Manager;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::generator::{
-    WorldGenConfig, generate_world_data_seeded_with, repair_opening_youth_academies,
+    DefinitionSources, WorldGenConfig, generate_world_data_seeded_with,
+    repair_opening_youth_academies,
 };
 use ofm_core::turn;
 use std::collections::HashSet;
@@ -35,7 +36,7 @@ use std::collections::HashSet;
 fn make_scenario_game(seed: u64) -> Game {
     // A small, reproducible world keeps the full-season simulation fast; the
     // invariants under test hold for any world size.
-    let world = generate_world_data_seeded_with(seed, &WorldGenConfig::compact(), None);
+    let world = generate_world_data_seeded_with(seed, &WorldGenConfig::compact(), &DefinitionSources::embedded_only());
 
     let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
     let clock = GameClock::new(start);

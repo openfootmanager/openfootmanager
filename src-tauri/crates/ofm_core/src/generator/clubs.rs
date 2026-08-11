@@ -8,13 +8,14 @@
 //! domestic competition without hand-authoring every team.
 
 use rand::{Rng, RngExt};
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 use super::definitions::{TeamColorsDef, TeamDef};
 
 /// Naming conventions drive the club-name patterns used for a nation, giving
 /// each footballing culture its own flavour (United/City vs CF/Real vs Calcio…).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NamingStyle {
     English,
     Scottish,
@@ -95,10 +96,15 @@ impl NamingStyle {
 /// Per-nation generation spec: where clubs come from and how strong the league
 /// is. `tiers` is 1 (a single division) or 2 (a major nation with a second
 /// division below the top flight). `strength` (1–5) seeds the reputation band.
-#[derive(Debug, Clone, Copy)]
+///
+/// Owned rather than `&'static` because these are read from
+/// `data/default_nations.json` at startup, not compiled in. `style` names a
+/// [`NamingStyle`] variant, so an unknown style is a parse error the author
+/// sees rather than a silent fallback.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NationGen {
-    pub code: &'static str,
-    pub cities: &'static [&'static str],
+    pub code: String,
+    pub cities: Vec<String>,
     pub style: NamingStyle,
     pub tiers: usize,
     pub strength: u8,
@@ -110,23 +116,54 @@ pub struct WorldGenConfig {
     /// Clubs in each division (20 by default).
     pub clubs_per_division: usize,
     pub nations: Vec<NationGen>,
+    /// Kit colour pairs clubs are dressed from.
+    pub color_palette: Vec<(String, String)>,
+    /// Fallback city names for a country with no curated pool.
+    pub generic_cities: Vec<String>,
 }
 
 impl WorldGenConfig {
-    /// The full shipped world: every catalogued nation with curated content.
+    /// The full shipped world, from the embedded definition.
+    ///
+    /// Prefer [`standard_from`] anywhere a player override could apply — this
+    /// one deliberately ignores the search path, which is what tests want.
     pub fn standard() -> Self {
+        Self::standard_from(&super::definitions::DefinitionSources::embedded_only())
+    }
+
+    /// The full shipped world, honouring a player-supplied `default_nations`
+    /// file when one is present.
+    ///
+    /// The config has to be built *from* the search path rather than before it,
+    /// because `generate_world` used to pass `WorldGenConfig::standard()` as an
+    /// argument — evaluated before the override was ever looked at, so a
+    /// `default_nations.json` override could never have taken effect.
+    pub fn standard_from(sources: &super::definitions::DefinitionSources) -> Self {
+        let def = super::definitions::nations_definition(sources);
         Self {
-            clubs_per_division: 20,
-            nations: STANDARD_NATIONS.to_vec(),
+            clubs_per_division: def.clubs_per_division,
+            nations: def.nations,
+            color_palette: def
+                .color_palette
+                .into_iter()
+                .map(|pair| (pair.primary, pair.secondary))
+                .collect(),
+            generic_cities: def.generic_cities,
         }
     }
 
-    /// A tiny world for fast tests: two small single-division nations.
+    /// A tiny world for fast tests: the first two shipped nations, four clubs
+    /// per division.
+    ///
+    /// Deliberately built from [`standard`] rather than `standard_from`, so it
+    /// is always the *shipped* nations regardless of any override on disk. A
+    /// test's fixture should not change because the machine running it happens
+    /// to have a `default_nations.json` in its app data directory.
     pub fn compact() -> Self {
-        Self {
-            clubs_per_division: 4,
-            nations: vec![STANDARD_NATIONS[0], STANDARD_NATIONS[1]],
-        }
+        let mut config = Self::standard();
+        config.clubs_per_division = 4;
+        config.nations.truncate(2);
+        config
     }
 
     /// Total clubs this config will generate.
@@ -138,20 +175,6 @@ impl WorldGenConfig {
     }
 }
 
-const COLOR_PALETTE: &[(&str, &str)] = &[
-    ("#dc2626", "#ffffff"),
-    ("#1d4ed8", "#ffffff"),
-    ("#16a34a", "#ffffff"),
-    ("#000000", "#ffffff"),
-    ("#eab308", "#1e3a5f"),
-    ("#7c3aed", "#fbbf24"),
-    ("#0ea5e9", "#1e3a5f"),
-    ("#b91c1c", "#fbbf24"),
-    ("#9f1239", "#1d4ed8"),
-    ("#1e3a5f", "#dc2626"),
-    ("#15803d", "#000000"),
-    ("#ea580c", "#1e3a5f"),
-];
 
 const PLAY_STYLES: &[&str] = &[
     "Possession",
@@ -273,12 +296,12 @@ fn club_names(nation: &NationGen, count: usize) -> Vec<(String, String)> {
     let mut seen = HashSet::new();
 
     'outer: for index in 0..count.saturating_mul(2) {
-        let city = nation.cities[index % nation.cities.len()];
+        let city = nation.cities[index % nation.cities.len()].as_str();
         let pattern = patterns[(index + index / nation.cities.len()) % patterns.len()];
         {
             let name = pattern.replace("{}", city);
             if seen.insert(name.clone()) {
-                out.push((name, (*city).to_string()));
+                out.push((name, city.to_string()));
                 if out.len() == count {
                     break 'outer;
                 }
@@ -289,10 +312,10 @@ fn club_names(nation: &NationGen, count: usize) -> Vec<(String, String)> {
     // Safety net for an over-large count: append numbered variants.
     let mut suffix = 2;
     while out.len() < count {
-        for city in nation.cities {
+        for city in &nation.cities {
             let name = format!("{} FC {}", city, suffix);
             if seen.insert(name.clone()) {
-                out.push((name, (*city).to_string()));
+                out.push((name, city.clone()));
                 if out.len() == count {
                     break;
                 }
@@ -331,7 +354,8 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
             let rep_hi = (center + 25).min(950).max(rep_lo + 1);
             let fin_lo = (center as i64) * 4_000;
             let fin_hi = (center as i64) * 9_000;
-            let (primary, secondary) = COLOR_PALETTE[rng.random_range(0..COLOR_PALETTE.len())];
+            let (primary, secondary) =
+                &config.color_palette[rng.random_range(0..config.color_palette.len())];
             let play_style = PLAY_STYLES[rng.random_range(0..PLAY_STYLES.len())];
 
             let base_code = short_code(&name);
@@ -365,184 +389,6 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
 // Standard nation content
 // ---------------------------------------------------------------------------
 
-/// Nations populated with curated city pools. Majors (tiers = 2) get a second
-/// division. Further confederations are added in a follow-up slice.
-pub const STANDARD_NATIONS: &[NationGen] = &[
-    NationGen {
-        code: "ENG",
-        style: NamingStyle::English,
-        tiers: 2,
-        strength: 5,
-        cities: &[
-            "London", "Manchester", "Liverpool", "Birmingham", "Leeds", "Newcastle", "Sheffield",
-            "Bristol", "Nottingham", "Leicester", "Southampton", "Brighton", "Sunderland",
-            "Norwich", "Portsmouth", "Hull", "Coventry", "Blackburn", "Wolverhampton", "Derby",
-        ],
-    },
-    NationGen {
-        code: "ES",
-        style: NamingStyle::Spanish,
-        tiers: 2,
-        strength: 5,
-        cities: &[
-            "Madrid", "Barcelona", "Valencia", "Seville", "Bilbao", "Málaga", "Zaragoza", "Vigo",
-            "Gijón", "Granada", "Murcia", "Valladolid", "Pamplona", "Cádiz", "Córdoba", "Almería",
-            "Getafe", "Elche", "Mallorca", "Las Palmas",
-        ],
-    },
-    NationGen {
-        code: "DE",
-        style: NamingStyle::German,
-        tiers: 2,
-        strength: 5,
-        cities: &[
-            "Munich", "Dortmund", "Berlin", "Hamburg", "Cologne", "Frankfurt", "Stuttgart",
-            "Leipzig", "Bremen", "Hannover", "Nuremberg", "Gladbach", "Leverkusen", "Wolfsburg",
-            "Freiburg", "Mainz", "Augsburg", "Bochum", "Hoffenheim", "Kiel",
-        ],
-    },
-    NationGen {
-        code: "IT",
-        style: NamingStyle::Italian,
-        tiers: 2,
-        strength: 5,
-        cities: &[
-            "Milan", "Rome", "Turin", "Naples", "Florence", "Genoa", "Bologna", "Verona",
-            "Bergamo", "Udine", "Cagliari", "Palermo", "Bari", "Parma", "Sassuolo", "Empoli",
-            "Lecce", "Venice", "Como", "Monza",
-        ],
-    },
-    NationGen {
-        code: "FR",
-        style: NamingStyle::French,
-        tiers: 2,
-        strength: 4,
-        cities: &[
-            "Paris", "Marseille", "Lyon", "Lille", "Monaco", "Nice", "Bordeaux", "Nantes",
-            "Rennes", "Lens", "Strasbourg", "Saint-Étienne", "Montpellier", "Toulouse", "Reims",
-            "Brest", "Angers", "Metz", "Nîmes", "Auxerre",
-        ],
-    },
-    NationGen {
-        code: "BR",
-        style: NamingStyle::Brazilian,
-        tiers: 2,
-        strength: 4,
-        cities: &[
-            "São Paulo", "Rio", "Belo Horizonte", "Porto Alegre", "Salvador", "Recife", "Curitiba",
-            "Fortaleza", "Goiânia", "Santos", "Campinas", "Belém", "Manaus", "Vitória", "Natal",
-            "Florianópolis", "Cuiabá", "Maceió", "Bragantino", "Juiz de Fora",
-        ],
-    },
-    NationGen {
-        code: "PT",
-        style: NamingStyle::Portuguese,
-        tiers: 1,
-        strength: 4,
-        cities: &[
-            "Lisbon", "Porto", "Braga", "Guimarães", "Coimbra", "Faro", "Funchal", "Setúbal",
-            "Aveiro", "Leiria", "Viseu", "Portimão", "Évora", "Famalicão", "Chaves", "Vizela",
-        ],
-    },
-    NationGen {
-        code: "NL",
-        style: NamingStyle::Dutch,
-        tiers: 1,
-        strength: 4,
-        cities: &[
-            "Amsterdam", "Rotterdam", "Eindhoven", "Utrecht", "Alkmaar", "Enschede", "Groningen",
-            "Tilburg", "Heerenveen", "Nijmegen", "Arnhem", "Breda", "Sittard", "Waalwijk",
-            "Almelo", "Zwolle",
-        ],
-    },
-    NationGen {
-        code: "BE",
-        style: NamingStyle::Generic,
-        tiers: 1,
-        strength: 3,
-        cities: &[
-            "Brussels", "Bruges", "Antwerp", "Ghent", "Liège", "Charleroi", "Genk", "Leuven",
-            "Mechelen", "Kortrijk", "Ostend", "Sint-Truiden", "Eupen", "Waregem", "Mouscron",
-            "Lokeren",
-        ],
-    },
-    NationGen {
-        code: "SCO",
-        style: NamingStyle::Scottish,
-        tiers: 1,
-        strength: 3,
-        cities: &[
-            "Glasgow", "Edinburgh", "Aberdeen", "Dundee", "Perth", "Inverness", "Kilmarnock",
-            "Motherwell", "Paisley", "Falkirk", "Hamilton", "Livingston", "Dingwall", "Stirling",
-            "Greenock", "Dunfermline",
-        ],
-    },
-    NationGen {
-        code: "AR",
-        style: NamingStyle::LatinAmerican,
-        tiers: 1,
-        strength: 4,
-        cities: &[
-            "Buenos Aires", "Rosario", "Córdoba", "La Plata", "Mendoza", "Avellaneda", "Santa Fe",
-            "Mar del Plata", "Tucumán", "Salta", "San Juan", "Bahía Blanca", "Quilmes", "Lanús",
-            "Banfield", "Tigre",
-        ],
-    },
-    NationGen {
-        code: "HR",
-        style: NamingStyle::Balkan,
-        tiers: 1,
-        strength: 3,
-        cities: &[
-            "Zagreb", "Split", "Rijeka", "Osijek", "Zadar", "Pula", "Varaždin", "Šibenik",
-            "Karlovac", "Dubrovnik", "Vinkovci", "Slavonski Brod", "Velika Gorica", "Koprivnica",
-            "Samobor", "Gorica",
-        ],
-    },
-    NationGen {
-        code: "SE",
-        style: NamingStyle::Nordic,
-        tiers: 1,
-        strength: 3,
-        cities: &[
-            "Stockholm", "Gothenburg", "Malmö", "Uppsala", "Norrköping", "Helsingborg", "Örebro",
-            "Linköping", "Västerås", "Sundsvall", "Kalmar", "Halmstad", "Gävle", "Borås",
-            "Trelleborg", "Falkenberg",
-        ],
-    },
-    NationGen {
-        code: "IE",
-        style: NamingStyle::English,
-        tiers: 1,
-        strength: 2,
-        cities: &[
-            "Dublin", "Cork", "Limerick", "Galway", "Waterford", "Sligo", "Drogheda", "Dundalk",
-            "Bray", "Athlone", "Wexford", "Longford", "Tallaght", "Finglas", "Cobh", "Derry",
-        ],
-    },
-    NationGen {
-        code: "WAL",
-        style: NamingStyle::English,
-        tiers: 1,
-        strength: 2,
-        cities: &[
-            "Cardiff", "Swansea", "Wrexham", "Newport", "Bangor", "Barry", "Merthyr", "Llanelli",
-            "Aberystwyth", "Caernarfon", "Haverfordwest", "Bala", "Penybont", "Flint", "Rhyl",
-            "Newtown",
-        ],
-    },
-    NationGen {
-        code: "NIR",
-        style: NamingStyle::English,
-        tiers: 1,
-        strength: 2,
-        cities: &[
-            "Belfast", "Derry", "Lisburn", "Ballymena", "Coleraine", "Portadown", "Newry",
-            "Larne", "Bangor", "Glenavon", "Carrick", "Dungannon", "Cliftonville", "Crusaders",
-            "Warrenpoint", "Loughgall",
-        ],
-    },
-];
 
 #[cfg(test)]
 mod tests {
@@ -557,8 +403,8 @@ mod tests {
             let mut rng = rand::rng();
             let defs = generate_club_defs(
                 &WorldGenConfig {
-                    clubs_per_division: config.clubs_per_division,
-                    nations: vec![*nation],
+                    nations: vec![nation.clone()],
+                    ..config.clone()
                 },
                 &mut rng,
             );
@@ -602,11 +448,20 @@ mod tests {
 
     #[test]
     fn every_standard_nation_is_in_the_catalog_with_a_region() {
-        for nation in STANDARD_NATIONS {
-            let region = nations::region_for_code(nation.code);
+        for nation in &WorldGenConfig::standard().nations {
+            let region = nations::region_for_code(&nation.code);
             assert!(
                 !region.is_empty(),
                 "{} has no region mapping",
+                nation.code
+            );
+            // Not merely non-empty: an uncatalogued code silently answers
+            // "europe", which is exactly how a newly added African or Asian
+            // nation would end up filed under Europe without anyone noticing.
+            assert!(
+                nations::nation_by_code(&nation.code).is_some(),
+                "{} is a generation nation but not in the nation catalog, so its \
+                 region would fall back to Europe",
                 nation.code
             );
         }
@@ -650,11 +505,18 @@ mod tests {
 
     #[test]
     fn brazilian_pyramid_uses_varied_local_names_and_unique_codes() {
-        let brazil = *STANDARD_NATIONS.iter().find(|nation| nation.code == "BR").unwrap();
+        let standard = WorldGenConfig::standard();
+        let brazil = standard
+            .nations
+            .iter()
+            .find(|nation| nation.code == "BR")
+            .expect("BR is a generation nation")
+            .clone();
         let mut rng = rand::rng();
         let defs = generate_club_defs(&WorldGenConfig {
             clubs_per_division: 20,
             nations: vec![brazil],
+            ..standard.clone()
         }, &mut rng);
         assert_eq!(defs.len(), 40);
         assert!(defs.iter().all(|club| !club.name.starts_with("Club ") && !club.name.ends_with(" FC")));

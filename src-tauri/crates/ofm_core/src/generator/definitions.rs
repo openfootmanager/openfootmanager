@@ -1,10 +1,90 @@
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
-use super::data::NATIONALITY_POOLS;
-#[cfg(test)]
-use super::data::TEAM_TEMPLATES;
+// ---------------------------------------------------------------------------
+// Where definition files come from
+// ---------------------------------------------------------------------------
+
+/// The definition files the engine ships, compiled in.
+///
+/// These are the *same files* that are bundled beside the installed game — one
+/// copy in the repository, delivered two ways. That is what makes drift
+/// impossible: there is no second, hand-maintained Rust table to fall out of
+/// step with the JSON, which is exactly what #454 was about.
+const EMBEDDED_NAMES: &str = include_str!("../../data/default_names.json");
+const EMBEDDED_NATIONS: &str = include_str!("../../data/default_nations.json");
+
+/// Directories searched for definition files, highest priority first.
+///
+/// Three tiers ship:
+///
+/// 1. the player's own `data/` directory under the app data dir — writable, so
+///    a definition file dropped there overrides the shipped one;
+/// 2. the `data/` directory bundled beside the game — read-only, but *visible*,
+///    which is the point: it gives a player a real file to read and copy;
+/// 3. the embedded copy above, which can never be missing.
+///
+/// Tier 3 means a broken install, a `--no-bundle` dev build, or a test degrades
+/// to correct behaviour rather than a world with no names. Tier 1 is what
+/// `docs/DEFINITIONS.md` has always promised and never delivered.
+#[derive(Debug, Clone, Default)]
+pub struct DefinitionSources {
+    dirs: Vec<PathBuf>,
+}
+
+impl DefinitionSources {
+    /// Only the compiled-in defaults. What tests and the CLI use.
+    pub fn embedded_only() -> Self {
+        Self::default()
+    }
+
+    /// Search `dirs` in order, then fall back to the embedded defaults.
+    pub fn searching(dirs: impl IntoIterator<Item = PathBuf>) -> Self {
+        Self {
+            dirs: dirs.into_iter().collect(),
+        }
+    }
+
+    /// The first file named `<stem>.{json,yaml,yml}` in any search directory.
+    fn find(&self, stem: &str) -> Option<PathBuf> {
+        self.dirs.iter().find_map(|dir| find_definition_file(dir, stem))
+    }
+
+    /// Load `stem`, preferring an on-disk override and falling back to `embedded`.
+    ///
+    /// A file that exists but does not parse is skipped rather than fatal: a
+    /// half-edited override must not stop the game starting, and the embedded
+    /// copy is always a correct answer.
+    fn load<T: DeserializeOwned>(&self, stem: &str, embedded: &str) -> T {
+        if let Some(path) = self.find(stem) {
+            match super::file_format::load_definition_file::<T>(&path) {
+                Some(value) => {
+                    log::info!("[generator] loaded {stem} from {path:?}");
+                    return value;
+                }
+                None => {
+                    log::warn!("[generator] {path:?} could not be parsed; using the built-in {stem}")
+                }
+            }
+        }
+        // Unwrap is safe and deliberate: `embedded` is compiled in, so a failure
+        // here is a build-time mistake, not a runtime condition. The
+        // `the_embedded_*` tests are what keep that true.
+        serde_json::from_str(embedded)
+            .unwrap_or_else(|e| panic!("built-in {stem} definition must parse: {e}"))
+    }
+}
+
+/// Find a data file by stem, accepting JSON or YAML (`.json`/`.yaml`/`.yml`).
+fn find_definition_file(dir: &Path, stem: &str) -> Option<PathBuf> {
+    ["json", "yaml", "yml"]
+        .iter()
+        .map(|ext| dir.join(format!("{stem}.{ext}")))
+        .find(|path| path.exists())
+}
 
 // ---------------------------------------------------------------------------
 // Definition file types (JSON-serialisable)
@@ -27,14 +107,41 @@ pub struct NamePool {
     pub last_names: Vec<String>,
 }
 
-/// Team templates definition file format.
+/// Per-nation inputs to procedural club generation.
+///
+/// This is the seed the generator grows a world from — which nations exist,
+/// what their cities are called, how deep their league pyramid runs, and how
+/// strong they are. It is deliberately *not* a list of clubs: a curated club
+/// list is hand-authored content and belongs in a `.ofm` package, where it
+/// stacks and merges. Adding a nation here used to mean editing Rust and
+/// recompiling.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TeamsDefinition {
+#[serde(rename_all = "camelCase")]
+pub struct NationsDefinition {
     #[serde(default)]
     pub version: u32,
     #[serde(default)]
     pub description: String,
-    pub teams: Vec<TeamDef>,
+    /// Clubs generated per division. 20 unless a file says otherwise.
+    #[serde(default = "default_clubs_per_division")]
+    pub clubs_per_division: usize,
+    /// Kit colour pairs drawn from at random.
+    #[serde(default)]
+    pub color_palette: Vec<ColorPairDef>,
+    /// City names used for clubs in a country with no curated pool of its own.
+    #[serde(default)]
+    pub generic_cities: Vec<String>,
+    pub nations: Vec<super::clubs::NationGen>,
+}
+
+fn default_clubs_per_division() -> usize {
+    20
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ColorPairDef {
+    pub primary: String,
+    pub secondary: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -87,68 +194,30 @@ pub fn load_names_definition(path: &std::path::Path) -> Option<NamesDefinition> 
     super::file_format::load_definition_file(path)
 }
 
-/// Try to load a teams definition from a JSON or YAML file, returning None on
-/// any error.
-pub fn load_teams_definition(path: &std::path::Path) -> Option<TeamsDefinition> {
-    super::file_format::load_definition_file(path)
+/// The name pools the generator draws from: an override if the player supplied
+/// one, otherwise the shipped file compiled in.
+pub(super) fn names_definition(sources: &DefinitionSources) -> NamesDefinition {
+    sources.load("default_names", EMBEDDED_NAMES)
 }
 
-/// Build the hardcoded names definition as fallback.
+/// The per-nation club-generation seed, resolved the same way.
+pub(super) fn nations_definition(sources: &DefinitionSources) -> NationsDefinition {
+    sources.load("default_nations", EMBEDDED_NATIONS)
+}
+
+/// The shipped name pools, ignoring any player override.
+///
+/// Used by the paths that generate a person *after* the world exists — a youth
+/// intake recruit, a synthesised national-team player, the free-agent staff
+/// market — none of which have a search path in scope, because nothing threads
+/// the player's data directory through mid-game turn processing.
+///
+/// So an override currently shapes the names a world *opens* with but not the
+/// ones generated later in a career. Closing that means carrying the resolved
+/// definitions on the game rather than re-reading them, which is follow-up work
+/// tracked with the rest of the data-driven epic.
 pub(super) fn default_names_definition() -> NamesDefinition {
-    let mut pools = HashMap::new();
-    for entry in NATIONALITY_POOLS {
-        pools.insert(
-            entry.nationality.to_string(),
-            NamePool {
-                first_names: entry.first_names.iter().map(|s| s.to_string()).collect(),
-                last_names: entry.last_names.iter().map(|s| s.to_string()).collect(),
-            },
-        );
-    }
-    NamesDefinition {
-        version: 1,
-        description: "Built-in default".to_string(),
-        pools,
-    }
-}
-
-/// Build the hardcoded teams definition. Retained as a test fixture now that
-/// the shipped world is generated procedurally.
-#[cfg(test)]
-pub(super) fn default_teams_definition() -> TeamsDefinition {
-    TeamsDefinition {
-        version: 1,
-        description: "Built-in default".to_string(),
-        teams: TEAM_TEMPLATES
-            .iter()
-            .map(|t| TeamDef {
-                id: String::new(),
-                name: t.name.to_string(),
-                short_name: t
-                    .name
-                    .split_whitespace()
-                    .filter_map(|w| w.chars().next())
-                    .collect::<String>()
-                    .to_uppercase()
-                    .chars()
-                    .take(3)
-                    .collect(),
-                city: t.city.to_string(),
-                country: t.country.to_string(),
-                colors: TeamColorsDef {
-                    primary: t.colors.0.to_string(),
-                    secondary: t.colors.1.to_string(),
-                },
-                play_style: t.play_style.to_string(),
-                stadium_name: format!("{} Arena", t.city),
-                reputation_range: Some([300, 900]),
-                finance_range: Some([500_000, 10_000_000]),
-                logo: None,
-                kit_pattern: None,
-                founded_year: None,
-            })
-            .collect(),
-    }
+    names_definition(&DefinitionSources::embedded_only())
 }
 
 /// Serialisable world database — can be saved to / loaded from JSON.

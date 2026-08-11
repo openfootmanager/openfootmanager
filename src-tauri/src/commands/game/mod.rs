@@ -240,9 +240,33 @@ fn apply_generated_past_history(game: &mut Game, startup_options: &StartupOption
     );
 }
 
-fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::WorldData, String> {
+/// Where the generator looks for definition files, in priority order.
+///
+/// The player's own `data/` directory under the app data dir wins, so a file
+/// dropped there overrides the shipped one; the bundled `data/` beside the
+/// installed game comes next, and gives the player a real file to read and
+/// copy. Both are `Option`s from the OS, and both may be absent — in a dev
+/// build there is no resource dir at all — which is exactly why the generator
+/// keeps a copy of the same files compiled in.
+pub(crate) fn definition_sources(
+    app_handle: &tauri::AppHandle,
+) -> ofm_core::generator::DefinitionSources {
+    use tauri::Manager;
+    let resolver = app_handle.path();
+    let dirs = [resolver.app_data_dir().ok(), resolver.resource_dir().ok()]
+        .into_iter()
+        .flatten()
+        .map(|dir| dir.join("data"))
+        .collect::<Vec<_>>();
+    ofm_core::generator::DefinitionSources::searching(dirs)
+}
+
+fn load_world_data(
+    world_source: Option<&str>,
+    sources: &ofm_core::generator::DefinitionSources,
+) -> Result<ofm_core::generator::WorldData, String> {
     match world_source {
-        None | Some("random") => Ok(ofm_core::generator::generate_world_data(None)),
+        None | Some("random") => Ok(ofm_core::generator::generate_world_data(sources)),
         Some(source) => {
             let raw = source.strip_prefix("file:").unwrap_or(source);
             if std::path::Path::new(raw).is_dir() {
@@ -1607,11 +1631,12 @@ fn validate_against_world(
 /// before the player commits.
 #[tauri::command]
 pub fn validate_competition_definitions(
+    app_handle: tauri::AppHandle,
     world_source: Option<String>,
     definitions_json: String,
 ) -> Result<Vec<CompetitionDefinitionIssue>, String> {
     let file = parse_competition_definitions(&definitions_json)?;
-    let world = load_world_data(world_source.as_deref())?;
+    let world = load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
     Ok(validate_against_world(&file, &world))
 }
 
@@ -1751,7 +1776,10 @@ pub async fn start_new_game(
                 asset_root.as_deref(),
             )?
         } else {
-            (load_world_data(world_source.as_deref())?, vec![])
+            (
+                load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?,
+                vec![],
+            )
         };
 
     // Layer a user-picked standalone definition file onto the world. It is
@@ -2492,7 +2520,7 @@ competitions:
         use std::time::Instant;
 
         let t = Instant::now();
-        let world = ofm_core::generator::generate_world_data(None);
+        let world = ofm_core::generator::generate_world_data(&ofm_core::generator::DefinitionSources::embedded_only());
         let gen = t.elapsed();
         let teams = world.teams.len();
         let players = world.players.len();
@@ -2556,8 +2584,11 @@ competitions:
         )
         .unwrap();
 
-        let world =
-            super::load_world_data(Some(dir.to_string_lossy().as_ref())).expect("package loads");
+        let world = super::load_world_data(
+            Some(dir.to_string_lossy().as_ref()),
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        )
+        .expect("package loads");
         assert!(world.teams.iter().any(|t| t.id == "zed-fc"));
         assert!(world.teams.iter().any(|t| t.id == "zed-utd"));
 
