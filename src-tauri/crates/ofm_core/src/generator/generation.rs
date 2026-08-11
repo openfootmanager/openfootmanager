@@ -59,18 +59,25 @@ pub(super) fn pick_nationality_from_def(
     available_codes: &[String],
     rng: &mut impl Rng,
 ) -> String {
-    let local_code = resolve_nationality_code(team_country);
-    let selected_code = match local_code {
-        Some(code) if available_codes.is_empty() || rng.random_range(0..100) < 60 => code,
-        Some(_) | None if !available_codes.is_empty() => {
-            available_codes[rng.random_range(0..available_codes.len())].clone()
-        }
-        // Nothing local and nothing to draw from: the caller has no nations at
-        // all. Better an obviously-unset value than a plausible wrong one.
-        _ => String::new(),
+    /// Share of a squad drawn from the club's own country.
+    const LOCAL_SHARE_PERCENT: u32 = 60;
+
+    let local = resolve_nationality_code(team_country);
+
+    // Nothing to draw from: the club's own country is the only answer available,
+    // and when that is unknown too there is genuinely none to give.
+    if available_codes.is_empty() {
+        return canonicalize_generated_nationality(local.as_deref().unwrap_or_default());
+    }
+
+    // An unresolvable country skips the local roll entirely rather than losing
+    // it — the whole draw comes from the wider pool.
+    let selected = match local {
+        Some(code) if rng.random_range(0..100) < LOCAL_SHARE_PERCENT => code,
+        _ => available_codes[rng.random_range(0..available_codes.len())].clone(),
     };
 
-    canonicalize_generated_nationality(&selected_code)
+    canonicalize_generated_nationality(&selected)
 }
 
 pub(super) fn canonicalize_generated_nationality(value: &str) -> String {
