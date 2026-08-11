@@ -1038,12 +1038,20 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         // identical line twice with nothing to tell them apart. Collapse exact
         // duplicates; two competitions with the same bad country still report
         // separately, because the `competition` param differs.
-        .fold(Vec::new(), |mut unique, error| {
-            if !unique.contains(&error) {
-                unique.push(error);
-            }
-            unique
-        })
+        //
+        // Kept on a seen-set rather than scanning the output for each error: a
+        // package is untrusted input, and one with many broken competitions
+        // would make a linear scan quadratic in the size of its own mistakes.
+        .fold(
+            (Vec::new(), HashSet::new()),
+            |(mut unique, mut seen), error| {
+                if seen.insert((error.code.clone(), error.file.clone(), error.params.clone())) {
+                    unique.push(error);
+                }
+                (unique, seen)
+            },
+        )
+        .0
 }
 
 // ---------------------------------------------------------------------------
