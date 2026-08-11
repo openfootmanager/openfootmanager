@@ -17,6 +17,14 @@ use ofm_core::state::StateManager;
 
 use crate::SaveManagerState;
 
+mod helpers;
+
+// A private glob, so a submodule's items need only `pub(super)` to be reachable
+// from here and from the tests below. The two names the rest of the crate calls
+// are re-exported explicitly, and they are the only promise this module makes.
+use helpers::*;
+pub(crate) use helpers::{default_save_name, first_package_error_message};
+
 fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::WorldData, String> {
     let path = world_source.strip_prefix("file:").unwrap_or(world_source);
     ofm_core::generator::load_world_from_path(std::path::Path::new(path))
@@ -33,71 +41,8 @@ fn load_world_data_from_package(dir: &str) -> Result<ofm_core::generator::WorldD
     ofm_core::generator::build_world_from_package(&package, None)
 }
 
-/// Surface the first concrete validation error (e.g. *which* country is unknown)
-/// rather than a generic "invalid package", so a failed import is diagnosable.
-/// Uses the `key?param=value` convention `resolveBackendError` understands (see
-/// `src/utils/backendI18n.ts`); the `country` param is localised frontend-side.
-pub(crate) fn first_package_error_message(errors: &[ofm_core::generator::PackageError]) -> String {
-    let Some(first) = errors.first() else {
-        return "be.error.package.invalid".to_string();
-    };
-    if first.params.is_empty() {
-        return first.code.clone();
-    }
-    let query = first
-        .params
-        .iter()
-        .map(|(key, value)| format!("{}={}", encode_error_param(key), encode_error_param(value)))
-        .collect::<Vec<_>>()
-        .join("&");
-    format!("{}?{}", first.code, query)
-}
-
-/// Minimal percent-encoding for error-message query params so the frontend's
-/// `URLSearchParams` parse stays intact for ids/names with reserved characters.
-fn encode_error_param(value: &str) -> String {
-    value
-        .chars()
-        .map(|c| match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
-            _ => c.to_string().bytes().map(|b| format!("%{b:02X}")).collect(),
-        })
-        .collect()
-}
-
-pub(crate) fn map_save_manager_lock_error<T>(
-    result: std::sync::LockResult<T>,
-) -> Result<T, String> {
-    result.map_err(|_| "be.error.saveManagerUnavailable".to_string())
-}
-
-fn require_active_stats_state(state: &StateManager) -> Result<StatsState, String> {
-    state
-        .get_stats_state(|stats| stats.clone())
-        .ok_or("be.error.noActiveStatsSession".to_string())
-}
-
-fn default_league_name() -> String {
-    ["Premier", "Division"].join(" ")
-}
-
 const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
 const MAX_GENERATED_HISTORY_DEPTH_YEARS: u32 = 24;
-
-fn long_date_format() -> String {
-    ['%', 'B', ' ', '%', 'd', ',', ' ', '%', 'Y']
-        .into_iter()
-        .collect()
-}
-
-pub(crate) fn default_save_name(manager_name: &str) -> String {
-    let mut save_name = manager_name.to_string();
-    save_name.push('\'');
-    save_name.push('s');
-    save_name.push(' ');
-    save_name.push_str("Career");
-    save_name
-}
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -2118,12 +2063,12 @@ mod tests {
         age_on_date, apply_generated_past_history, bootstrap_team_selection, brazil_state_region,
         build_foundation_competitions, build_game_from_world_data, create_new_save,
         current_date_for_phase, ensure_international_windows, game_clock_for_world,
-        load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        package_folder_name, parse_competition_definitions, preseason_league_year,
-        preseason_season_start, rebuild_competitions_for_management_date,
-        require_active_stats_state, resolve_simulation_scope, select_continental_entrants,
-        split_into_divisions, start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
-        DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS, MIN_START_YEAR,
+        load_world_data_from_path, normalize_startup_options, package_folder_name,
+        parse_competition_definitions, preseason_league_year, preseason_season_start,
+        rebuild_competitions_for_management_date, resolve_simulation_scope,
+        select_continental_entrants, split_into_divisions, start_date_for_year, RawStartupOptions,
+        StartPhase, StartupOptions, DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        MAX_GENERATED_HISTORY_DEPTH_YEARS, MIN_START_YEAR,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -2134,13 +2079,7 @@ mod tests {
         manager::Manager,
         news::NewsCategory,
     };
-    use ofm_core::{
-        clock::GameClock,
-        game::Game,
-        season_context::refresh_game_context,
-        state::StateManager,
-    };
-    use std::sync::Mutex;
+    use ofm_core::{clock::GameClock, game::Game, season_context::refresh_game_context};
 
     #[test]
     fn world_cup_summer_career_stages_and_surfaces_the_tournament() {
@@ -2268,7 +2207,6 @@ mod tests {
         // No usable component → a sensible default rather than an empty name.
         assert_eq!(package_folder_name(""), "World Package");
     }
-
 
     /// Characterization test: locks the STRUCTURE of the generated foundation
     /// world (kinds, scopes, regions, countries, priorities, participant and
@@ -2418,8 +2356,6 @@ mod tests {
             Some(BerthRule::CupWinner)
         ));
     }
-
-
 
     #[test]
     fn select_continental_entrants_takes_top_clubs_per_region_by_reputation() {
@@ -2937,21 +2873,6 @@ competitions:
             load_world_data_from_path("file:Z:/definitely-missing/openfootmanager-world.json");
 
         assert_eq!(result.unwrap_err(), "be.error.worldReadFileFailed");
-    }
-
-
-
-    #[test]
-    fn map_save_manager_lock_error_returns_backend_key_for_poisoned_mutex() {
-        let mutex = Mutex::new(());
-        let _ = std::panic::catch_unwind(|| {
-            let _guard = mutex.lock().unwrap();
-            panic!("poison save manager mutex for test");
-        });
-
-        let result = map_save_manager_lock_error(mutex.lock());
-
-        assert_eq!(result.unwrap_err(), "be.error.saveManagerUnavailable");
     }
 
     #[test]
@@ -3792,27 +3713,6 @@ competitions:
         assert_eq!(loaded_stats.team_matches[0].team_id, "team1");
 
         std::fs::remove_dir_all(&saves_dir).unwrap();
-    }
-
-    #[test]
-    fn require_active_stats_state_returns_backend_key_when_missing() {
-        let state = StateManager::new();
-
-        let result = require_active_stats_state(&state);
-
-        assert_eq!(result.unwrap_err(), "be.error.noActiveStatsSession");
-    }
-
-    #[test]
-    fn require_active_stats_state_clones_active_stats() {
-        let state = StateManager::new();
-        let stats = sample_stats_state();
-        state.set_stats_state(stats.clone());
-
-        let result = require_active_stats_state(&state).unwrap();
-
-        assert_eq!(result.team_matches.len(), stats.team_matches.len());
-        assert_eq!(result.player_matches.len(), stats.player_matches.len());
     }
 
     #[test]
