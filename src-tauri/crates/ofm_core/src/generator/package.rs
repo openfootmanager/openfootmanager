@@ -310,6 +310,12 @@ const UNKNOWN_SCHEMA: &str = "be.error.package.unknownSchema";
 const UNSUPPORTED_FORMAT_VERSION: &str = "be.error.package.unsupportedFormatVersion";
 const INVALID_ENTITY: &str = "be.error.package.invalidEntity";
 const MISSING_ID: &str = "be.error.package.missingId";
+/// A required manifest field the author left blank, named by a `field` param.
+/// One code rather than four so the locale files carry one sentence, and the
+/// param is the literal JSON field name — the message is rendered by passing
+/// params straight to `t()`, so anything else would leave an untranslated
+/// fragment inside a translated sentence.
+const MISSING_METADATA: &str = "be.error.package.missingMetadata";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
 const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
 const WORLD_EXPORT_NOT_PACKAGE: &str = "be.error.package.worldExportNotPackage";
@@ -723,21 +729,65 @@ pub fn is_valid_package_id(id: &str) -> bool {
         || id == RESERVED_PACKAGE_ID)
 }
 
-/// Reject a manifest that declares an id the installer could never accept.
+/// Check the manifest declares the metadata a package cannot work without, and
+/// that the id it declares is one the installer could accept.
 ///
-/// An **empty** id is deliberately not an error here: a package may omit it and
-/// the installer falls back to the archive's filename. Only an id the author
-/// actually wrote, and that cannot be used, is reported.
+/// Every `WorldMetaDef` field is `#[serde(default)]`, so deserialization can
+/// never fail on an absent one and `{"schema":"world"}` parses happily into an
+/// entirely blank manifest. Nothing downstream re-checked them, so such a
+/// package validated clean — while `id` is the install key *and* the packed
+/// filename, and `version` feeds compatibility checks. The author's only signal
+/// was `ofm-cli schema world`, which advertised these as required when nothing
+/// enforced it.
+///
+/// `packageType` is checked but effectively always present: it deserializes to
+/// `"database"` when omitted, so only an explicitly blanked value is reported.
 pub fn validate_manifest(package: &WorldPackage) -> Vec<PackageError> {
     let Some(meta) = package.meta.as_ref() else {
         return Vec::new();
     };
-    if !meta.id.is_empty() && !is_valid_package_id(&meta.id) {
-        return vec![
-            PackageError::new(INVALID_PACKAGE_ID, "package.json").with("id", meta.id.clone()),
-        ];
+    let mut errors = Vec::new();
+
+    // The id gets its own code: `missingId` already exists, is already
+    // translated, and `ofm-cli`'s own docs already show it emitted with
+    // `kind=world` — output the code could not previously produce.
+    if meta.id.trim().is_empty() {
+        errors.push(PackageError::new(MISSING_ID, "package.json").with("kind", "world"));
+    } else if !is_valid_package_id(&meta.id) {
+        errors
+            .push(PackageError::new(INVALID_PACKAGE_ID, "package.json").with("id", meta.id.clone()));
     }
-    Vec::new()
+
+    for (field, value) in [
+        ("name", &meta.name),
+        ("version", &meta.version),
+        ("license", &meta.license),
+        ("packageType", &meta.package_type),
+    ] {
+        if value.trim().is_empty() {
+            errors.push(PackageError::new(MISSING_METADATA, "package.json").with("field", field));
+        }
+    }
+
+    errors
+}
+
+/// Whether this error is about the manifest's *metadata* rather than the
+/// package's content.
+///
+/// The distinction matters to anything that refuses to open a package it could
+/// not read. A blank `license` says nothing about whether the entity files
+/// parsed — and the World Editor's Metadata section is precisely where an
+/// author fixes it, so treating it as unreadable would lock them out of the one
+/// screen that repairs it. Content problems still block; these are shown as
+/// issues and edited in place.
+pub fn is_manifest_metadata_error(error: &PackageError) -> bool {
+    error.code == MISSING_METADATA
+        || (error.code == MISSING_ID
+            && error
+                .params
+                .iter()
+                .any(|(key, value)| key == "kind" && value == "world"))
 }
 
 /// Whether a load produced nothing an editor could show.
@@ -1303,8 +1353,10 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     merged.competitions = competitions;
     merged.sources.insert("competition".to_string(), competitions_files);
 
-    let mut errors = validate_ids(&merged);
-    errors.extend(validate_references(&merged));
+    // The full set, not `validate_ids` + `validate_references`: running a subset
+    // here meant a merged stack skipped the manifest and format-version checks,
+    // so the same package could pass one entry point and fail the other.
+    let errors = validate_package(&merged);
     (merged, errors)
 }
 
@@ -1775,19 +1827,105 @@ mod tests {
     }
 
     #[test]
-    fn an_omitted_package_id_is_not_an_error() {
-        // An empty id is legal — the installer falls back to the archive filename,
-        // and procedurally generated packages rely on that. Only an id the author
-        // actually wrote, and that cannot be used, is a problem.
+    fn an_omitted_package_id_is_reported_as_missing_not_invalid() {
+        // An omitted id used to be accepted here, on the theory that the
+        // installer falls back to the archive filename. But `id` is the install
+        // key and the packed filename, so an absent one produced an unnamed
+        // artifact and an unkeyed install — and the author had no way to learn
+        // that. It is now required, and reported as *missing* rather than
+        // *invalid*: the author wrote nothing, they did not write something bad.
         let dir = temp_package();
         write(&dir, "package.json", r#"{"schema":"world","name":"Nameless"}"#);
 
         let (_pkg, errors) = load_world_package(&dir);
 
         assert!(
-            !errors.iter().any(|e| e.code == INVALID_PACKAGE_ID),
-            "an omitted id must not be reported, got {errors:?}"
+            errors
+                .iter()
+                .any(|e| e.code == MISSING_ID
+                    && e.params.contains(&("kind".to_string(), "world".to_string()))),
+            "an omitted id must be reported as missingId(kind=world), got {errors:?}"
         );
+        assert!(
+            !errors.iter().any(|e| e.code == INVALID_PACKAGE_ID),
+            "an omitted id is missing, not malformed: {errors:?}"
+        );
+    }
+
+    /// The `{"schema":"world"}` case from #457: every field defaulted, nothing
+    /// checked, so a package with no id, name, version or license validated
+    /// cleanly — and `pack` then wrote it to a hidden file named `.ofm`.
+    #[test]
+    fn a_manifest_with_no_metadata_is_rejected() {
+        let dir = temp_package();
+        write(&dir, "package.json", r#"{"schema":"world"}"#);
+
+        let (_pkg, errors) = load_world_package(&dir);
+
+        assert!(
+            errors.iter().any(|e| e.code == MISSING_ID),
+            "id must be required: {errors:?}"
+        );
+        for field in ["name", "version", "license"] {
+            assert!(
+                errors.iter().any(|e| e.code == MISSING_METADATA
+                    && e.params.contains(&("field".to_string(), field.to_string()))),
+                "{field} must be required: {errors:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_complete_manifest_passes() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"my-league","name":"My League","version":"1.0.0","license":"CC0-1.0","packageType":"database"}"#,
+        );
+
+        let (_pkg, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "a complete manifest must pass: {errors:?}");
+    }
+
+    /// `packageType` deserializes to `"database"` when omitted, so it is only
+    /// ever empty if the author explicitly blanked it — which is still wrong.
+    #[test]
+    fn an_omitted_package_type_defaults_rather_than_failing() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"my-league","name":"My League","version":"1.0.0","license":"CC0-1.0"}"#,
+        );
+
+        let (_pkg, errors) = load_world_package(&dir);
+
+        assert!(
+            !errors.iter().any(|e| e.code == MISSING_METADATA
+                && e.params.contains(&("field".to_string(), "packageType".to_string()))),
+            "an omitted packageType takes its default: {errors:?}"
+        );
+    }
+
+    /// `merge_world_packages` ran `validate_ids` + `validate_references`
+    /// directly, so a merged stack skipped the manifest and format-version
+    /// checks entirely — the two entry points disagreed about the same package.
+    #[test]
+    fn merging_a_stack_still_checks_the_manifest() {
+        let dir = temp_package();
+        write(&dir, "package.json", r#"{"schema":"world"}"#);
+        let (pkg, _errors) = load_world_package(&dir);
+
+        let (_merged, errors) = merge_world_packages(vec![pkg]);
+
+        assert!(
+            errors.iter().any(|e| e.code == MISSING_ID),
+            "the merge path must run the manifest checks too: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -2849,7 +2987,9 @@ colors:
         write(
             dir,
             "world.yaml",
-            &format!("schema: world\nname: Era World\nbaseYear: {base_year}\n"),
+            &format!(
+                "schema: world\nid: era-world\nname: Era World\nversion: 1.0.0\nlicense: CC0-1.0\nbaseYear: {base_year}\n"
+            ),
         );
         write(dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
         write(
@@ -2995,7 +3135,11 @@ colors:
     #[test]
     fn builds_a_playable_world_from_a_package() {
         let dir = temp_package();
-        write(&dir, "world.yaml", "schema: world\nname: Zed World\ndescription: A tiny world\n");
+        write(
+            &dir,
+            "world.yaml",
+            "schema: world\nid: zed-world\nname: Zed World\nversion: 1.0.0\nlicense: CC0-1.0\ndescription: A tiny world\n",
+        );
         write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
         write(
             &dir,
@@ -3158,13 +3302,21 @@ colors:
         // should surface a StackConflict warning. Last-wins still applies for
         // the merge, but the caller can show the user a conflict notice.
         let dir_a = temp_package();
-        write(&dir_a, "world.yaml", "schema: world\nid: pkg-a\nname: Pkg A\npackageType: database\n");
+        write(
+            &dir_a,
+            "world.yaml",
+            "schema: world\nid: pkg-a\nname: Pkg A\nversion: 1.0.0\nlicense: CC0-1.0\npackageType: database\n",
+        );
         write(&dir_a, "team.yaml", TEAM_A);
         let (pkg_a, errs_a) = load_world_package(&dir_a);
         assert!(errs_a.is_empty());
 
         let dir_b = temp_package();
-        write(&dir_b, "world.yaml", "schema: world\nid: pkg-b\nname: Pkg B\npackageType: database\n");
+        write(
+            &dir_b,
+            "world.yaml",
+            "schema: world\nid: pkg-b\nname: Pkg B\nversion: 1.0.0\nlicense: CC0-1.0\npackageType: database\n",
+        );
         write(&dir_b, "team.yaml", TEAM_A_ALT);
         let (pkg_b, errs_b) = load_world_package(&dir_b);
         assert!(errs_b.is_empty());

@@ -740,7 +740,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("names")).expect("temp dir");
         std::fs::write(
             dir.join("package.json"),
-            r#"{"schema":"world","id":"n","name":"N"}"#,
+            r#"{"schema":"world","id":"n","name":"N","version":"1.0.0","license":"CC0-1.0"}"#,
         )
         .expect("manifest written");
         let template = entity_template(EntityKind::Names, Some("Brazil"));

@@ -2592,6 +2592,7 @@
         "unknownSchema": "未知的 schema \"{{schema}}\"。",
         "invalidEntity": "\"{{schema}}\" 条目无效。",
         "missingId": "某个 {{kind}} 条目缺少 id。",
+        "missingMetadata": "包清单缺少必填字段“{{field}}”。",
         "duplicateId": "重复的 {{kind}} id \"{{id}}\"。",
         "unknownConfederation": "国家 \"{{country}}\" 引用了未知的足联 \"{{confederation}}\"。",
         "unknownCountry": "\"{{entity}}\" 引用了未知的国家 \"{{country}}\"。",

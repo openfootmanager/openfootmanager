@@ -2624,6 +2624,7 @@
         "unknownSchema": "Esquema desconocido \"{{schema}}\".",
         "invalidEntity": "Una entrada \"{{schema}}\" no es válida.",
         "missingId": "A una entrada {{kind}} le falta el id.",
+        "missingMetadata": "Al manifiesto del paquete le falta el campo obligatorio \"{{field}}\".",
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
         "unknownConfederation": "El país \"{{country}}\" hace referencia a una confederación desconocida \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" hace referencia a un país desconocido \"{{country}}\".",

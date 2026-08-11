@@ -114,11 +114,22 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     // package silently becomes a destroyed one. Refuse, and say why: the first
     // load error is the actual reason (an unsupported format version, an
     // unknown schema), which is far more useful than "nothing here".
-    if !errors.is_empty() && ofm_core::generator::is_unreadable(&pkg) {
+    //
+    // Manifest-metadata problems are excluded: a blank `version` or `license`
+    // says nothing about whether the entity files parsed, and the Metadata
+    // section is exactly where the author fixes one. Refusing on those would
+    // lock them out of the screen that repairs them — and would make a newly
+    // scaffolded, legitimately empty project impossible to open.
+    let blocking: Vec<ofm_core::generator::PackageError> = errors
+        .iter()
+        .filter(|error| !ofm_core::generator::is_manifest_metadata_error(error))
+        .cloned()
+        .collect();
+    if !blocking.is_empty() && ofm_core::generator::is_unreadable(&pkg) {
         // Carries the error's params too, in the `key?param=value` form
         // `resolveBackendError` understands, so the message can name the
         // offending version or schema rather than leaving blanks.
-        return Err(crate::commands::game::first_package_error_message(&errors));
+        return Err(crate::commands::game::first_package_error_message(&blocking));
     }
 
     // Nothing resolved *and* nothing went wrong: the directory is simply not a
@@ -490,7 +501,38 @@ mod tests {
 
         assert_eq!(data.meta.id, "fresh");
         assert!(data.teams.is_empty());
-        assert!(data.issues.is_empty(), "an empty scaffold has no issues");
+        // The manifest here omits `version` and `license`, which are required —
+        // so the project opens *with* those issues rather than being refused.
+        // Refusing would lock the author out of the Metadata section, which is
+        // the only place to fix them.
+        assert!(
+            data.issues
+                .iter()
+                .all(|issue| issue.code == "be.error.package.missingMetadata"),
+            "only the metadata gaps should be reported: {:?}",
+            data.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A package whose content is unreadable must still be refused — the guard
+    /// narrowed to ignore metadata, not to stop protecting the source.
+    #[test]
+    fn an_unreadable_package_is_still_refused() {
+        let dir = temp_project(
+            "unreadable",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"u","name":"U","version":"1.0.0","license":"CC0-1.0","formatVersion":99}"#,
+            )],
+        );
+
+        let result = read_package_project(dir.to_string_lossy().to_string());
+
+        assert!(
+            result.is_err(),
+            "a package written against a newer format must not open as a blank project"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -505,7 +547,7 @@ mod tests {
             &[
                 (
                     "package.json",
-                    r#"{"schema":"world","id":"brazil-1962","name":"Brazil 1962"}"#,
+                    r#"{"schema":"world","id":"brazil-1962","name":"Brazil 1962","version":"1.0.0","license":"CC0-1.0"}"#,
                 ),
                 (
                     "teams/teams.json",

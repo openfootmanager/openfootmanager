@@ -2592,6 +2592,7 @@
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
         "invalidEntity": "Uma entrada \"{{schema}}\" é inválida.",
         "missingId": "Falta o id em uma entrada {{kind}}.",
+        "missingMetadata": "Falta o campo obrigatório \"{{field}}\" no manifesto do pacote.",
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
         "unknownConfederation": "O país \"{{country}}\" referencia uma confederação desconhecida \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" referencia um país desconhecido \"{{country}}\".",

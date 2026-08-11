@@ -156,11 +156,12 @@ const SCHEMA_WORLD: &str = r##"// World manifest — save as package.json at the
   "name": "My Package",        // required: display name shown in-game
   "description": "",           // optional: short description
   "version": "1.0.0",          // required: semver string
-  "author": "Your Name",       // required
+  "author": "Your Name",       // optional: author or username
   "license": "CC-BY-4.0",      // required: SPDX identifier
   "packageType": "database",   // required: "database" | "patch" | "assets"
+                               //   (defaults to "database" when omitted)
   "gameMinVersion": "",        // optional: minimum game version, e.g. "0.3.0"
-  "formatVersion": 1,          // required: always 1
+  "formatVersion": 1,          // optional: defaults to 1, the only version
   "baseYear": null,             // optional: integer season year, e.g. 2024
   "defaultActiveRegions": [],  // optional: region IDs enabled by default
   "defaultActiveCompetitions": [], // optional: competition IDs enabled by default
@@ -563,6 +564,22 @@ fn cmd_validate(path: &Path) -> i32 {
     }
 }
 
+/// Where `pack` writes when `--output` is not given.
+///
+/// The package id names the artifact, falling back to the directory name. An
+/// **empty** id has to fall back too, not just an absent manifest: a
+/// present-but-blank `id` produced `format!("{}.ofm", "")` — a file literally
+/// named `.ofm`, hidden by default on Linux and macOS, so `pack` looked like it
+/// had silently produced nothing. Mirrors the frontend's guard in
+/// `src/pages/WorldEditor.tsx` (`${meta.id || "package"}.ofm`).
+fn default_pack_path(meta_id: Option<&str>, dir: &Path) -> PathBuf {
+    let id = meta_id.map(str::trim).filter(|id| !id.is_empty());
+    let name = id
+        .or_else(|| dir.file_name().and_then(|n| n.to_str()))
+        .unwrap_or("package");
+    PathBuf::from(format!("{name}.ofm"))
+}
+
 fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
     if !dir.exists() {
         eprintln!("{} Directory not found: {}", "error:".red().bold(), dir.display());
@@ -586,15 +603,9 @@ fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
         return 1;
     }
 
-    let id = pkg
-        .meta
-        .as_ref()
-        .map(|m| m.id.clone())
-        .unwrap_or_else(|| dir.file_name().and_then(|n| n.to_str()).unwrap_or("package").to_string());
-
     let out_path = output
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(format!("{}.ofm", id)));
+        .unwrap_or_else(|| default_pack_path(pkg.meta.as_ref().map(|m| m.id.as_str()), dir));
 
     println!("Packing → {}...", out_path.display());
     match export_directory_to_ofm(dir, &out_path) {
@@ -669,6 +680,35 @@ fn cmd_info(file: &Path) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pack_names_the_archive_after_the_package_id() {
+        assert_eq!(
+            default_pack_path(Some("my-league"), Path::new("/tmp/src")),
+            PathBuf::from("my-league.ofm")
+        );
+    }
+
+    /// A blank id used to produce a file literally named `.ofm` — a dotfile,
+    /// hidden by default, so `pack` read as having produced nothing at all.
+    #[test]
+    fn pack_never_writes_a_bare_dotfile_for_a_blank_id() {
+        for blank in ["", "   "] {
+            assert_eq!(
+                default_pack_path(Some(blank), Path::new("/tmp/my-package")),
+                PathBuf::from("my-package.ofm"),
+                "a blank id must fall back to the directory name"
+            );
+        }
+    }
+
+    #[test]
+    fn pack_falls_back_to_the_directory_when_there_is_no_manifest() {
+        assert_eq!(
+            default_pack_path(None, Path::new("/tmp/my-package")),
+            PathBuf::from("my-package.ofm")
+        );
+    }
 
     // Every authorable entity in the World Editor must round-trip through the CLI
     // helpers. This guards against adding a UI entity (e.g. staff) without wiring
