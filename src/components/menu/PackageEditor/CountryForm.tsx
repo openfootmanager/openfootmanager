@@ -83,8 +83,16 @@ export function CountryForm({
    */
   function selectNation(code: string) {
     const nation = nations?.find((entry) => entry.code === code);
-    updateField("id", code);
-    updateField("name", nation?.name ?? code);
+    // A code the catalog does not carry has no canonical name, and falling back
+    // to the code would store "BR" as the country's *name* — the one outcome
+    // this function exists to prevent. The picker is built from the same
+    // catalog, so this should not arise; refusing keeps that true here instead
+    // of trusting that it was.
+    if (!nation) {
+      return;
+    }
+    updateField("id", nation.code);
+    updateField("name", nation.name);
   }
 
   const labelClass =

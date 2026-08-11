@@ -29,4 +29,14 @@ describe("CountryFlag", () => {
     expect(screen.getByRole("img", { name: "Spain" })).toBeInTheDocument();
     expect(container.querySelector("svg")).not.toBeNull();
   });
+
+  it("says nothing at all when it is decoration", () => {
+    // Used beside the country's own name, the flag repeats it. Hiding the image
+    // but leaving a `title` puts the name straight back — a title is announced
+    // as well as shown — which is how the option read "EnglandEngland".
+    const { container } = render(<CountryFlag code="ENG" locale="en" decorative />);
+
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(container.querySelector("[title]")).toBeNull();
+  });
 });

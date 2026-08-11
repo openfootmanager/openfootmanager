@@ -23,7 +23,11 @@ export function useNations(): NationInfo[] | null {
       .then((list) => {
         if (!cancelled) setNations(list);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // Falling back is deliberate, but a failed call and a genuinely empty
+        // catalog are indistinguishable downstream — every country quietly
+        // drops to manual authoring either way. Leave a trace of which it was.
+        console.error("Could not load the nation catalog", error);
         if (!cancelled) setNations([]);
       });
     return () => {

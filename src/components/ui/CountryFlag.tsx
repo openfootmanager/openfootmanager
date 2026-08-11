@@ -54,13 +54,18 @@ export function CountryFlag({
     .filter(Boolean)
     .join(" ");
 
+  // A `title` is announced by screen readers and shown as a tooltip, so leaving
+  // one on a decorative flag puts back exactly the country name that hiding the
+  // flag was meant to keep out of the reading.
+  const describedLabel = decorative ? undefined : accessibleLabel;
+
   if (!FlagIcon) {
     return (
       <span
         role={decorative ? undefined : "img"}
         aria-hidden={decorative || undefined}
-        aria-label={decorative ? undefined : accessibleLabel}
-        title={accessibleLabel}
+        aria-label={describedLabel}
+        title={describedLabel}
         className={[
           classes,
           "rounded border border-white/15 bg-black/10 px-1 py-0.5 font-heading text-[0.65em] font-bold leading-none tracking-wide",
@@ -72,11 +77,11 @@ export function CountryFlag({
   }
 
   return (
-    <span className={classes} title={accessibleLabel}>
+    <span className={classes} title={describedLabel}>
       <FlagIcon
         role={decorative ? undefined : "img"}
         aria-hidden={decorative || undefined}
-        aria-label={decorative ? undefined : accessibleLabel}
+        aria-label={describedLabel}
         focusable="false"
         className="h-[1em] w-[1.5em] rounded-[2px] shadow-sm"
       />
