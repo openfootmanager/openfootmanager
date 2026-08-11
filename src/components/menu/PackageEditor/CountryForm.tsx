@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, PencilLine } from "lucide-react";
-import { LabeledInput } from "./primitives";
+import { LabeledInput, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
 import { Select } from "../../ui/Select";
 import { CountryCombobox } from "../../ui/CountryCombobox";
@@ -29,9 +29,6 @@ interface CountryFormProps {
  * is the only way to author a free-text id.
  */
 type IdentityMode = "builtin" | "custom";
-
-const labelClass =
-  "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";
 
 export function CountryForm({
   editing,
@@ -203,6 +200,7 @@ function ConfederationField({
 }: ConfederationFieldProps) {
   const { t } = useTranslation();
   const labelId = useId();
+  const controlId = useId();
 
   // A value that is neither built in nor defined by this package. It still has
   // to be selectable, or opening the country would show an empty field and
@@ -214,10 +212,16 @@ function ConfederationField({
 
   return (
     <div className="flex flex-col gap-1">
-      <label className={labelClass} id={labelId}>
+      {/*
+        `htmlFor` as well as the id: `Select` renders a button, which is a
+        labelable element, so this makes clicking the caption open the list the
+        way clicking the caption of a native select does.
+      */}
+      <label className={labelClass} id={labelId} htmlFor={controlId}>
         {t("worldEditor.countryConfederation")}
       </label>
       <Select
+        id={controlId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-labelledby={labelId}

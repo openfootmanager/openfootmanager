@@ -160,28 +160,33 @@ describe("Select", () => {
     // data has no way to guarantee the labels differ.
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    render(
-      <Select value="a" aria-label="Confederation">
-        <optgroup label="Built-in">
-          <option value="a">A</option>
-        </optgroup>
-        <optgroup label="In this package">
-          <option value="b">B</option>
-        </optgroup>
-        <optgroup label="Built-in">
-          <option value="c">C</option>
-        </optgroup>
-      </Select>,
-    );
+    // Restored in `finally`: an assertion that throws would otherwise leave the
+    // spy installed, and every later test in the file would silently lose real
+    // console-error reporting.
+    try {
+      render(
+        <Select value="a" aria-label="Confederation">
+          <optgroup label="Built-in">
+            <option value="a">A</option>
+          </optgroup>
+          <optgroup label="In this package">
+            <option value="b">B</option>
+          </optgroup>
+          <optgroup label="Built-in">
+            <option value="c">C</option>
+          </optgroup>
+        </Select>,
+      );
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
+      fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
 
-    expect(screen.getAllByRole("group")).toHaveLength(3);
-    expect(
-      errors.mock.calls.filter((call) => /same key|unique "key"/.test(String(call[0]))),
-    ).toEqual([]);
-
-    errors.mockRestore();
+      expect(screen.getAllByRole("group")).toHaveLength(3);
+      expect(
+        errors.mock.calls.filter((call) => /same key|unique "key"/.test(String(call[0]))),
+      ).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
   });
 
   it("selects a grouped option and reports its value", () => {
