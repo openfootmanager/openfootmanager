@@ -125,7 +125,7 @@ Defines a football club.
 | `country` | string | yes | — | Football country code. See [Country Codes](#country-codes) below. Example: `"ENG"`. |
 | `colors.primary` | string | yes | — | Primary kit color as a hex string. Example: `"#1c6bba"`. |
 | `colors.secondary` | string | yes | — | Secondary kit color as a hex string. Example: `"#ffffff"`. |
-| `playStyle` | string | no | `"Balanced"` | Team's tactical tendency. One of: `"Balanced"`, `"Attacking"`, `"Defensive"`, `"Counter"`, `"Pressing"`. |
+| `playStyle` | string | no | `"Balanced"` | Team's tactical tendency. One of: `"Balanced"`, `"Attacking"`, `"Defensive"`, `"Possession"`, `"Counter"`, `"HighPress"`. An unrecognised value is silently read as `"Balanced"`. |
 | `stadiumName` | string | no | `""` | Home stadium name. |
 | `reputationRange` | [integer, integer] or null | no | `null` | `[min, max]` reputation (0–1000). The game draws a random value in this range at world generation. Higher = more prestigious. |
 | `financeRange` | [integer, integer] or null | no | `null` | `[min, max]` budget in euros. The game draws a random value in this range at world generation. |
@@ -143,7 +143,7 @@ Defines a football club.
   "city": "Manchester",
   "country": "ENG",
   "colors": { "primary": "#1c6bba", "secondary": "#ffffff" },
-  "playStyle": "Pressing",
+  "playStyle": "HighPress",
   "stadiumName": "Etihad Stadium",
   "reputationRange": [850, 1000],
   "financeRange": [50000000, 200000000],

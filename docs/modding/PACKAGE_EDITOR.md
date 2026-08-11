@@ -119,7 +119,7 @@ Each team has the following fields:
 | **Founded Year** | Optional year the team was founded. If left empty, the engine draws a random year between 1880 and 1959 at world generation. Example: `2005`. |
 | **City** | City the team is based in. |
 | **Country** | Football country code. Must match a built-in code or a country defined in your package. |
-| **Play Style** | Team's tactical tendency. One of: `Balanced`, `Attacking`, `Defensive`, `Counter`, `Pressing`. |
+| **Play Style** | Team's tactical tendency. One of: `Balanced`, `Attacking`, `Defensive`, `Possession`, `Counter`, `HighPress`. |
 | **Stadium Name** | Optional home stadium name. |
 | **Primary Color** | Primary kit color as a hex string. A color swatch updates as you type. |
 | **Secondary Color** | Secondary kit color as a hex string. |

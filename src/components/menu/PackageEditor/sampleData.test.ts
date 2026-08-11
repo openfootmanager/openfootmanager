@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 
+import { PLAY_STYLES } from "./helpers";
 import {
   ACADEMY_SHOWCASE_SAMPLE,
   NAME_PACK_SAMPLE,
@@ -10,6 +11,17 @@ describe("bundled World Editor samples", () => {
   it("every sample has a unique package id", () => {
     const ids = SAMPLE_PACKAGES.map((s) => s.meta.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // The samples are what a modder copies first, so an unknown play style here
+  // teaches the wrong value. `play_style_from_str` degrades silently to
+  // Balanced, so nothing else would ever report it — this test is the report.
+  it("every sample team uses a play style the engine knows", () => {
+    for (const sample of SAMPLE_PACKAGES) {
+      for (const team of sample.teams) {
+        expect(PLAY_STYLES).toContain(team.playStyle);
+      }
+    }
   });
 
   it("each sample's references resolve within the same package", () => {
