@@ -101,7 +101,18 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
     setActiveIndex(0);
   }
 
-  /** Close and hand focus back, so the keyboard does not end up nowhere. */
+  /**
+   * Close and hand focus back to the trigger.
+   *
+   * Every close that the author drove from inside the picker goes through here.
+   * The popup holds the focused search field, so unmounting it without this
+   * drops focus to `<body>` and the next Tab starts from the top of the
+   * document rather than from the field they were on.
+   *
+   * A press *outside* the picker is the exception and closes directly: focus
+   * belongs to whatever they pressed, and pulling it back to the trigger would
+   * fight them.
+   */
   function close() {
     setIsOpen(false);
     triggerRef.current?.focus();
@@ -109,8 +120,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
 
   function select(code: string) {
     onChange(code);
-    setIsOpen(false);
-    triggerRef.current?.focus();
+    close();
   }
 
   const normSearch = normaliseSearch(search);
@@ -198,10 +208,10 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
           aria-controls={isOpen && resources ? listboxId : undefined}
           onMouseDown={(e) => {
             e.preventDefault();
-            isOpen ? setIsOpen(false) : open();
+            isOpen ? close() : open();
           }}
           onClick={(e) => {
-            if (e.detail === 0) isOpen ? setIsOpen(false) : open();
+            if (e.detail === 0) isOpen ? close() : open();
           }}
           className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-left transition focus:outline-none focus:ring-2 focus:ring-primary-400 min-h-[38px]"
         >

@@ -192,6 +192,24 @@ describe("CountryForm nation picker", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("gives focus back when the field itself is used to close the list", async () => {
+    // Closing from the trigger dropped focus to `<body>`: the press is
+    // `preventDefault`ed so it never lands on the button, and the popup being
+    // unmounted takes the focused search field with it. Escape restored focus
+    // and clicking the same control did not, which is the kind of difference
+    // nobody discovers until they are relying on the keyboard.
+    renderForm({});
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+    await screen.findByRole("listbox");
+
+    fireEvent.mouseDown(trigger);
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it("keeps the active option inside the list as it narrows", async () => {
     // Typing filters under the cursor, so an index that pointed at the third
     // match can be past the end of the next keystroke's one — and Enter would
