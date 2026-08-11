@@ -212,7 +212,7 @@ ofm-cli info my-league.ofm
 | `unknownSchema` | `schema` value is not recognized | `schema` |
 | `invalidEntity` | Entity body is malformed or missing required fields | `schema` |
 | `missingId` | Entity has an empty `id` field — `kind=world` means the package manifest itself | `kind` (entity type) |
-| `missingMetadata` | The package manifest is missing a required field (`name`, `version`, `license`, `packageType`) | `field` |
+| `missingMetadata` | The package manifest leaves a required field blank: `name`, `version`, `license`, or an explicitly empty `packageType` (omitting `packageType` resolves to `"database"`) | `field` |
 | `invalidPackageId` | `id` contains a character the installer cannot use (`/`, `\`, `..`, NUL) | `id` |
 | `unsupportedFormatVersion` | Package written against a newer `formatVersion` than this build understands | `version`, `supported` |
 | `duplicateId` | Two entities of the same type share an `id` | `kind`, `id` |

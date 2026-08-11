@@ -240,9 +240,33 @@ pub struct WorldPackage {
     /// Private: the alignment with the entity lists is the whole contract, so it
     /// is maintained here and read through [`WorldPackage::source_at`].
     sources: std::collections::HashMap<String, Vec<String>>,
+    /// The file the manifest was read from, empty when it was not read from one.
+    ///
+    /// Kept apart from `sources` rather than filed under a `"world"` key: that
+    /// map's contract is one entry per entity *in list order*, and `meta` is a
+    /// single `Option` that later files overwrite. A parallel vector would put
+    /// the first declaration's path beside the last declaration's data.
+    ///
+    /// It matters because the manifest is `package.json` only by convention —
+    /// any file with `schema: world` is one — so hardcoding that name sent an
+    /// author with a `world.yaml` to a file that does not exist.
+    manifest_file: String,
 }
 
 impl WorldPackage {
+    /// The file the manifest came from, falling back to the conventional name.
+    ///
+    /// The fallback covers packages assembled in memory (a merged stack, a test
+    /// fixture): there is no file to name, and `package.json` is where an author
+    /// would look first.
+    fn manifest_source(&self) -> &str {
+        if self.manifest_file.is_empty() {
+            "package.json"
+        } else {
+            &self.manifest_file
+        }
+    }
+
     /// Remember that the entity about to be appended to `schema`'s list was
     /// declared in `file`. Called exactly once per entity pushed and in the same
     /// order — that pairing is what makes an index a location.
@@ -447,6 +471,9 @@ fn classify_entity(
         "world" => {
             if let Some(def) = parse_entity::<WorldMetaDef>(value, file, schema, errors) {
                 package.meta = Some(def);
+                // Overwritten alongside `meta`, so the recorded path always
+                // belongs to the manifest that actually survived.
+                package.manifest_file = file.to_string();
             }
         }
         other => {
@@ -663,7 +690,8 @@ fn world_export_manifest(dir: &Path) -> Option<String> {
     None
 }
 
-/// Every check a package must pass, for callers that obtained one some other way.
+/// The checks a package must pass **once it has been read**, for callers that
+/// obtained one some other way.
 ///
 /// [`load_world_package`] runs exactly this after reading a directory. The
 /// archive loader deliberately does not — it is the runtime read path, and an
@@ -671,6 +699,12 @@ fn world_export_manifest(dir: &Path) -> Option<String> {
 /// validation calls this itself. Keeping the set in one place is the point: when
 /// it lived in two, `ofm-cli validate <dir>` and `ofm-cli validate <file>.ofm`
 /// disagreed about the same package.
+///
+/// **Not included: [`validate_ids`].** Id validation runs inside
+/// `load_world_package_files`, where each entity's source file is still known,
+/// so every read path gets it for free and none of them double-reports. A
+/// caller that assembles a package *without* a loader — `merge_world_packages`
+/// is the only one — has to run `validate_ids` itself.
 pub fn validate_package(package: &WorldPackage) -> Vec<PackageError> {
     let mut errors = validate_format_version(package);
     errors.extend(validate_manifest(package));
@@ -747,15 +781,15 @@ pub fn validate_manifest(package: &WorldPackage) -> Vec<PackageError> {
         return Vec::new();
     };
     let mut errors = Vec::new();
+    let file = package.manifest_source();
 
     // The id gets its own code: `missingId` already exists, is already
     // translated, and `ofm-cli`'s own docs already show it emitted with
     // `kind=world` — output the code could not previously produce.
     if meta.id.trim().is_empty() {
-        errors.push(PackageError::new(MISSING_ID, "package.json").with("kind", "world"));
+        errors.push(PackageError::new(MISSING_ID, file).with("kind", "world"));
     } else if !is_valid_package_id(&meta.id) {
-        errors
-            .push(PackageError::new(INVALID_PACKAGE_ID, "package.json").with("id", meta.id.clone()));
+        errors.push(PackageError::new(INVALID_PACKAGE_ID, file).with("id", meta.id.clone()));
     }
 
     for (field, value) in [
@@ -765,7 +799,7 @@ pub fn validate_manifest(package: &WorldPackage) -> Vec<PackageError> {
         ("packageType", &meta.package_type),
     ] {
         if value.trim().is_empty() {
-            errors.push(PackageError::new(MISSING_METADATA, "package.json").with("field", field));
+            errors.push(PackageError::new(MISSING_METADATA, file).with("field", field));
         }
     }
 
@@ -782,12 +816,22 @@ pub fn validate_manifest(package: &WorldPackage) -> Vec<PackageError> {
 /// screen that repairs it. Content problems still block; these are shown as
 /// issues and edited in place.
 pub fn is_manifest_metadata_error(error: &PackageError) -> bool {
-    error.code == MISSING_METADATA
-        || (error.code == MISSING_ID
-            && error
-                .params
-                .iter()
-                .any(|(key, value)| key == "kind" && value == "world"))
+    match error.code.as_str() {
+        MISSING_METADATA => true,
+        // An id that exists but cannot be used is the same kind of problem as
+        // one that is absent, and is repaired on the same screen. Leaving it
+        // out meant a package whose id contained a `/` still could not be
+        // opened — the author was told the id was wrong and denied the field
+        // that sets it.
+        INVALID_PACKAGE_ID => true,
+        // `missingId` is shared with entity validation, so only the manifest's
+        // own is metadata; a team with no id is a content problem.
+        MISSING_ID => error
+            .params
+            .iter()
+            .any(|(key, value)| key == "kind" && value == "world"),
+        _ => false,
+    }
 }
 
 /// Whether a load produced nothing an editor could show.
@@ -1353,10 +1397,17 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     merged.competitions = competitions;
     merged.sources.insert("competition".to_string(), competitions_files);
 
-    // The full set, not `validate_ids` + `validate_references`: running a subset
-    // here meant a merged stack skipped the manifest and format-version checks,
-    // so the same package could pass one entry point and fail the other.
-    let errors = validate_package(&merged);
+    // `validate_ids` *and* `validate_package`, not either alone.
+    //
+    // The merge used to run `validate_ids` + `validate_references`, which
+    // skipped the manifest and format-version checks — so the same package
+    // could pass one entry point and fail the other. But `validate_package`
+    // does not itself cover ids: the loader runs `validate_ids` as it reads,
+    // because that is where an entity's source file is known, and the archive
+    // read path depends on it staying there. Merging produces a package no
+    // loader has seen, so it has to ask for both.
+    let mut errors = validate_ids(&merged);
+    errors.extend(validate_package(&merged));
     (merged, errors)
 }
 
@@ -1873,6 +1924,31 @@ mod tests {
                 "{field} must be required: {errors:?}"
             );
         }
+    }
+
+    /// `package.json` is a convention, not a rule — any file with
+    /// `schema: world` is the manifest. Hardcoding the name sent an author with
+    /// a `world.yaml` to a file that does not exist.
+    #[test]
+    fn a_manifest_error_names_the_file_the_manifest_was_read_from() {
+        let dir = temp_package();
+        write(&dir, "world.yaml", "schema: world\nid: named\nname: Named\n");
+
+        let (_pkg, errors) = load_world_package(&dir);
+
+        let missing: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == MISSING_METADATA)
+            .collect();
+        assert!(!missing.is_empty(), "version and license are missing");
+        for error in missing {
+            assert_eq!(
+                error.file, "world.yaml",
+                "the error should point at the real manifest: {error:?}"
+            );
+        }
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -2778,11 +2854,15 @@ colors:
 
         let (base_pkg, _) = load_world_package_files(&base);
         let (overlay_pkg, _) = load_world_package_files(&overlay);
-        let (merged, _) = merge_world_packages(vec![base_pkg, overlay_pkg]);
+        let (merged, errors) = merge_world_packages(vec![base_pkg, overlay_pkg]);
 
         assert_eq!(merged.countries.len(), 1, "one blank id survives the merge");
-        let error = validate_ids(&merged)
-            .into_iter()
+        // Deliberately the errors the merge *returned*, not a fresh
+        // `validate_ids(&merged)`. Asserting on a direct call cannot notice the
+        // merge dropping a check — which is exactly how entity-id validation
+        // went missing from the merged stack once and nothing failed.
+        let error = errors
+            .iter()
             .find(|e| e.code == MISSING_ID)
             .expect("a country with no id is still an error after merging");
         assert_eq!(

@@ -505,11 +505,49 @@ mod tests {
         // so the project opens *with* those issues rather than being refused.
         // Refusing would lock the author out of the Metadata section, which is
         // the only place to fix them.
+        // Assert the issues are *present*, not merely that nothing else is:
+        // `Iterator::all` is true for an empty list, so an `all`-only check
+        // would keep passing if validation stopped reporting them entirely.
+        let missing_fields: Vec<&str> = data
+            .issues
+            .iter()
+            .filter(|issue| issue.code == "be.error.package.missingMetadata")
+            .filter_map(|issue| issue.params.get("field").map(String::as_str))
+            .collect();
+        assert!(
+            missing_fields.contains(&"version") && missing_fields.contains(&"license"),
+            "both gaps should be reported, got {missing_fields:?}"
+        );
         assert!(
             data.issues
                 .iter()
                 .all(|issue| issue.code == "be.error.package.missingMetadata"),
-            "only the metadata gaps should be reported: {:?}",
+            "and nothing else: {:?}",
+            data.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// An id the installer cannot use is repaired on the same screen as a
+    /// missing one, so it must not block opening either.
+    #[test]
+    fn a_project_with_an_unusable_id_still_opens_for_repair() {
+        let dir = temp_project(
+            "bad-id",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"a/b","name":"Slashed","version":"1.0.0","license":"CC0-1.0"}"#,
+            )],
+        );
+
+        let data = read_package_project(dir.to_string_lossy().to_string())
+            .expect("an unusable id must not lock the author out of the Metadata screen");
+
+        assert!(
+            data.issues
+                .iter()
+                .any(|issue| issue.code == "be.error.package.invalidPackageId"),
+            "the id problem should still be reported: {:?}",
             data.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
         );
         std::fs::remove_dir_all(&dir).ok();

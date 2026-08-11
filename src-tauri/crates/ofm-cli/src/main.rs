@@ -158,8 +158,8 @@ const SCHEMA_WORLD: &str = r##"// World manifest — save as package.json at the
   "version": "1.0.0",          // required: semver string
   "author": "Your Name",       // optional: author or username
   "license": "CC-BY-4.0",      // required: SPDX identifier
-  "packageType": "database",   // required: "database" | "patch" | "assets"
-                               //   (defaults to "database" when omitted)
+  "packageType": "database",   // optional: "database" | "patch" | "assets"
+                               //   (omitting it means "database"; "" is rejected)
   "gameMinVersion": "",        // optional: minimum game version, e.g. "0.3.0"
   "formatVersion": 1,          // optional: defaults to 1, the only version
   "baseYear": null,             // optional: integer season year, e.g. 2024
@@ -572,6 +572,11 @@ fn cmd_validate(path: &Path) -> i32 {
 /// named `.ofm`, hidden by default on Linux and macOS, so `pack` looked like it
 /// had silently produced nothing. Mirrors the frontend's guard in
 /// `src/pages/WorldEditor.tsx` (`${meta.id || "package"}.ofm`).
+///
+/// Belt and braces: `validate_manifest` now rejects a blank id, so `cmd_pack`
+/// refuses before reaching here. This stays because a package with *no*
+/// manifest at all is still legal to pack, and the fallback is what names that
+/// artifact. Removable only if packing ever requires a manifest outright.
 fn default_pack_path(meta_id: Option<&str>, dir: &Path) -> PathBuf {
     let id = meta_id.map(str::trim).filter(|id| !id.is_empty());
     let name = id
@@ -680,6 +685,53 @@ fn cmd_info(file: &Path) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The #457 reproduction at the command boundary.
+    ///
+    /// The `default_pack_path` tests below cover the naming rule in isolation;
+    /// this one runs `cmd_pack` itself, so it also proves the ordering that
+    /// actually protects the user — validation refuses first, and no artifact
+    /// (least of all a hidden `.ofm`) is written.
+    #[test]
+    fn pack_refuses_a_manifest_with_no_metadata_and_writes_nothing() {
+        let dir = scratch_dir("pack-incomplete-manifest");
+        std::fs::create_dir_all(dir.join("world")).expect("temp dir");
+        std::fs::write(dir.join("world").join("world.json"), r#"{"schema":"world"}"#)
+            .expect("manifest written");
+        let out = dir.join("out.ofm");
+
+        let code = cmd_pack(&dir, Some(&out));
+
+        assert_eq!(code, 1, "packing an incomplete manifest must fail");
+        assert!(!out.exists(), "no archive should be written");
+        assert!(
+            !dir.join(".ofm").exists(),
+            "and certainly not a hidden dotfile"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The other half: a package with no manifest at all is still legal to
+    /// pack, and takes its name from the directory.
+    #[test]
+    fn pack_writes_an_archive_named_after_the_directory_when_there_is_no_manifest() {
+        let dir = scratch_dir("pack-no-manifest");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        std::fs::write(
+            dir.join("teams.json"),
+            r##"{"schema":"team","items":[{"id":"a","name":"A","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+        )
+        .expect("teams written");
+        let out = dir.join("named.ofm");
+
+        let code = cmd_pack(&dir, Some(&out));
+
+        assert_eq!(code, 0, "a manifest-less package still packs");
+        assert!(out.exists(), "the archive should exist");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     #[test]
     fn pack_names_the_archive_after_the_package_id() {
