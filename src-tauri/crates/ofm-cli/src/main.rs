@@ -184,7 +184,8 @@ const SCHEMA_TEAM: &str = r##"// Team entity — place inside teams/*.json in th
     "primary": "#cc0000",     // required: hex color
     "secondary": "#ffffff"    // required: hex color
   },
-  "playStyle": "Balanced",    // optional: "Balanced" | "Attacking" | "Defensive" | "Counter" | "Pressing"
+  "playStyle": "Balanced",    // optional: "Balanced" | "Attacking" | "Defensive"
+                              //   | "Possession" | "Counter" | "HighPress"
   "stadiumName": "My Arena",  // optional
   "reputationRange": [300, 900],      // optional: [min, max] 0-1000
   "financeRange": [500000, 10000000], // optional: [min, max] budget in euros

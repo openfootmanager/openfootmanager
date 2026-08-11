@@ -504,9 +504,9 @@ mod tests {
             date_of_birth: Some("1995-01-01".into()),
             age: Some(30),
             overall: Some(70),
-            // Eleven of the twenty attributes carry a serde default; the rest are
-            // required, so name those and let the defaults fill the remainder.
-            // Only the presence of the `attributes` key matters here.
+            // Eight of the nineteen attributes carry a serde default; the other
+            // eleven are required, so name those and let the defaults fill the
+            // remainder. Only the presence of the `attributes` key matters here.
             attributes: Some(
                 serde_json::from_value::<PlayerAttributes>(json!({
                     "pace": 50, "stamina": 50, "strength": 50,
@@ -631,6 +631,48 @@ mod tests {
         }
     }
 
+
+    /// Naming every field correctly is not the same as filling them with values
+    /// the definition can parse, and the key-parity check above cannot tell the
+    /// difference. `ofm-cli add player` scaffolded `"position": "CM"`, which is
+    /// not a `Position` variant — so the very next `ofm-cli validate` rejected a
+    /// file the same CLI had just written, with an unknown-variant error naming a
+    /// vocabulary that appears nowhere else in the format.
+    #[test]
+    fn every_template_deserializes_into_its_definition() {
+        // Driven off `ALL` with an exhaustive match rather than a hand-listed set
+        // of calls: a ninth `EntityKind` would silently escape a list, which is
+        // the same way `position` escaped the key-parity check.
+        //
+        // Note what this can and cannot see. It catches a bad value in any field
+        // backed by an enum — `Position`, `StaffRole`, `CoachingSpecialization`,
+        // the competition type/scope/format. It cannot catch one in a field typed
+        // as `String`, so `playStyle`, `kitPattern`, `footedness` and
+        // `packageType` still rely on their annotated reference text being right.
+        for kind in EntityKind::ALL {
+            let value = entity_template(*kind, Some("Sample Name"));
+            let parsed = match kind {
+                EntityKind::World => serde_json::from_value::<WorldMetaDef>(value).map(drop),
+                EntityKind::Team => serde_json::from_value::<TeamDef>(value).map(drop),
+                EntityKind::Player => serde_json::from_value::<PlayerDef>(value).map(drop),
+                EntityKind::Staff => serde_json::from_value::<StaffDef>(value).map(drop),
+                EntityKind::Confederation => {
+                    serde_json::from_value::<ConfederationDef>(value).map(drop)
+                }
+                EntityKind::Country => serde_json::from_value::<CountryDef>(value).map(drop),
+                EntityKind::Competition => {
+                    serde_json::from_value::<CompetitionDefinition>(value).map(drop)
+                }
+                EntityKind::Names => serde_json::from_value::<NamesDefinition>(value).map(drop),
+            };
+            parsed.unwrap_or_else(|error| {
+                panic!(
+                    "the {} template does not deserialize into its definition: {error}",
+                    kind.schema_name()
+                )
+            });
+        }
+    }
 
     #[test]
     fn a_country_named_after_a_real_nation_scaffolds_as_that_nation() {
