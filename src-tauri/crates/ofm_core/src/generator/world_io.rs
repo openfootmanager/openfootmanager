@@ -206,8 +206,13 @@ pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
 pub fn build_world_from_package(
     package: &super::package::WorldPackage,
     opening_year: Option<u32>,
+    sources: &super::DefinitionSources,
 ) -> Result<WorldData, String> {
-    let world = normalize_world(super::build_world_data_from_package(package, opening_year));
+    let world = normalize_world(super::build_world_data_from_package(
+        package,
+        opening_year,
+        sources,
+    ));
     validate_embedded_definitions(&world)?;
     Ok(world)
 }

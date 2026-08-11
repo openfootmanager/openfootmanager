@@ -48,26 +48,37 @@ impl DefinitionSources {
         }
     }
 
-    /// The first file named `<stem>.{json,yaml,yml}` in any search directory.
-    fn find(&self, stem: &str) -> Option<PathBuf> {
-        self.dirs.iter().find_map(|dir| find_definition_file(dir, stem))
-    }
-
-    /// Load `stem`, preferring an on-disk override and falling back to `embedded`.
+    /// Load `stem` from the first tier that yields a *usable* definition,
+    /// falling back to `embedded`.
     ///
-    /// A file that exists but does not parse is skipped rather than fatal: a
-    /// half-edited override must not stop the game starting, and the embedded
-    /// copy is always a correct answer.
-    fn load<T: DeserializeOwned>(&self, stem: &str, embedded: &str) -> T {
-        if let Some(path) = self.find(stem) {
+    /// Every tier is tried in turn. A file that is missing, unparseable, or
+    /// parseable-but-unusable is skipped and the next one considered — a
+    /// half-edited override in the user's directory must not stop the game
+    /// starting, and it must not hide the bundled copy either. Trying only the
+    /// first file *found* would have done exactly that.
+    ///
+    /// "Unusable" is a real category, not pedantry: `serde` happily accepts a
+    /// nations file with no cities or an empty colour palette, and generation
+    /// then indexes those empty collections — a modulo by zero and an
+    /// out-of-bounds index. Rejecting them here keeps the failure at the
+    /// boundary, where there is a path to name in the log.
+    fn load<T: DeserializeOwned + UsableDefinition>(&self, stem: &str, embedded: &str) -> T {
+        for dir in &self.dirs {
+            let Some(path) = find_definition_file(dir, stem) else {
+                continue;
+            };
             match super::file_format::load_definition_file::<T>(&path) {
-                Some(value) => {
-                    log::info!("[generator] loaded {stem} from {path:?}");
-                    return value;
-                }
-                None => {
-                    log::warn!("[generator] {path:?} could not be parsed; using the built-in {stem}")
-                }
+                None => log::warn!("[generator] {path:?} could not be parsed; trying the next source"),
+                Some(value) => match value.unusable_reason() {
+                    None => {
+                        log::info!("[generator] loaded {stem} from {path:?}");
+                        return value;
+                    }
+                    Some(reason) => log::warn!(
+                        "[generator] {path:?} cannot drive generation ({reason}); \
+                         trying the next source"
+                    ),
+                },
             }
         }
         // Unwrap is safe and deliberate: `embedded` is compiled in, so a failure
@@ -75,6 +86,54 @@ impl DefinitionSources {
         // `the_embedded_*` tests are what keep that true.
         serde_json::from_str(embedded)
             .unwrap_or_else(|e| panic!("built-in {stem} definition must parse: {e}"))
+    }
+}
+
+/// A definition that can be rejected after it deserializes.
+///
+/// Parsing proves the shape; this proves the content can actually drive
+/// generation. Kept separate from `Deserialize` so the reason can be reported
+/// with the file that failed rather than swallowed as a parse error.
+trait UsableDefinition {
+    /// Why this definition cannot be used, or `None` when it can.
+    fn unusable_reason(&self) -> Option<&'static str>;
+}
+
+impl UsableDefinition for NamesDefinition {
+    fn unusable_reason(&self) -> Option<&'static str> {
+        // One usable pool is enough: a nationality with none of its own borrows
+        // a regional neighbour's. Zero usable pools leaves nothing to borrow.
+        if self
+            .pools
+            .values()
+            .any(|pool| !pool.first_names.is_empty() && !pool.last_names.is_empty())
+        {
+            None
+        } else {
+            Some("it declares no pool with both first and last names")
+        }
+    }
+}
+
+impl UsableDefinition for NationsDefinition {
+    fn unusable_reason(&self) -> Option<&'static str> {
+        if self.nations.is_empty() {
+            return Some("it declares no nations");
+        }
+        if self.clubs_per_division == 0 {
+            return Some("clubsPerDivision is zero");
+        }
+        if self.color_palette.is_empty() {
+            return Some("colorPalette is empty");
+        }
+        if let Some(nation) = self.nations.iter().find(|nation| nation.cities.is_empty()) {
+            // Not merely cosmetic: club naming takes `index % cities.len()`.
+            return Some(match nation.tiers {
+                0 => "a nation has no cities and no divisions",
+                _ => "a nation has no cities to name its clubs after",
+            });
+        }
+        None
     }
 }
 
@@ -348,4 +407,178 @@ pub struct WorldDatabaseInfo {
     pub source: String,
     /// Filesystem path (empty for built-in random)
     pub path: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A scratch directory to stand in for one tier of the search path.
+    fn tier(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("ofm-defs-{name}-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        dir
+    }
+
+    fn one_nation_json(code: &str) -> String {
+        format!(
+            r##"{{"clubsPerDivision":4,
+                "colorPalette":[{{"primary":"#ff0000","secondary":"#ffffff"}}],
+                "genericCities":["Testville"],
+                "nations":[{{"code":"{code}","style":"Generic","tiers":1,"strength":3,
+                             "cities":["Alpha","Beta","Gamma","Delta"]}}]}}"##
+        )
+    }
+
+    /// The compiled-in copies are the last line of defence — every other tier
+    /// can be missing. If one stops parsing the game cannot generate a world at
+    /// all, so this is the test that keeps `load`'s unwrap honest.
+    #[test]
+    fn the_embedded_definitions_parse_and_carry_the_shipped_data() {
+        let sources = DefinitionSources::embedded_only();
+
+        let names = names_definition(&sources);
+        assert_eq!(
+            names.pools.len(),
+            17,
+            "the shipped name pools moved out of Rust unchanged"
+        );
+
+        let nations = nations_definition(&sources);
+        assert_eq!(nations.nations.len(), 16, "the shipped generation nations");
+        assert_eq!(
+            nations.nations.iter().map(|n| n.cities.len()).sum::<usize>(),
+            280,
+            "every curated city survived the move out of Rust"
+        );
+        assert_eq!(nations.clubs_per_division, 20);
+        assert_eq!(nations.color_palette.len(), 12);
+        assert_eq!(nations.generic_cities.len(), 15);
+    }
+
+    #[test]
+    fn an_override_wins_over_the_embedded_definition() {
+        let dir = tier("override");
+        std::fs::write(dir.join("default_nations.json"), one_nation_json("TR")).unwrap();
+
+        let def = nations_definition(&DefinitionSources::searching([dir.clone()]));
+
+        assert_eq!(def.nations.len(), 1);
+        assert_eq!(def.nations[0].code, "TR");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The tiers are a *search path*, not a single lookup. Trying only the
+    /// first file found meant a broken file in the user's directory hid the
+    /// bundled copy entirely, which is not what the load order promises.
+    #[test]
+    fn a_broken_higher_tier_falls_through_to_the_next_one() {
+        let user = tier("user-broken");
+        let bundled = tier("bundled-good");
+        std::fs::write(user.join("default_nations.json"), "{ not valid json").unwrap();
+        std::fs::write(bundled.join("default_nations.json"), one_nation_json("JP")).unwrap();
+
+        let def = nations_definition(&DefinitionSources::searching([
+            user.clone(),
+            bundled.clone(),
+        ]));
+
+        assert_eq!(
+            def.nations[0].code, "JP",
+            "the bundled tier should be used, not the embedded one"
+        );
+
+        std::fs::remove_dir_all(&user).ok();
+        std::fs::remove_dir_all(&bundled).ok();
+    }
+
+    #[test]
+    fn an_unparseable_override_falls_back_to_the_shipped_definition() {
+        let dir = tier("unparseable");
+        std::fs::write(dir.join("default_nations.json"), "{ not valid json").unwrap();
+
+        let def = nations_definition(&DefinitionSources::searching([dir.clone()]));
+
+        assert_eq!(def.nations.len(), 16, "the shipped nations");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Parsing proves the shape, not that generation can run on it. `serde`
+    /// accepts every one of these, and each then panics or divides by zero
+    /// deep inside club generation.
+    #[test]
+    fn a_parseable_but_unusable_nations_override_is_rejected() {
+        let cases = [
+            (r##"{"nations":[]}"##, "no nations"),
+            (
+                r##"{"colorPalette":[{"primary":"#000","secondary":"#fff"}],
+                    "nations":[{"code":"TR","style":"Generic","tiers":1,"strength":3,"cities":[]}]}"##,
+                "a nation with no cities",
+            ),
+            (
+                r##"{"nations":[{"code":"TR","style":"Generic","tiers":1,"strength":3,
+                                "cities":["A"]}]}"##,
+                "an empty colour palette",
+            ),
+            (
+                r##"{"clubsPerDivision":0,
+                    "colorPalette":[{"primary":"#000","secondary":"#fff"}],
+                    "nations":[{"code":"TR","style":"Generic","tiers":1,"strength":3,
+                                "cities":["A"]}]}"##,
+                "zero clubs per division",
+            ),
+        ];
+
+        for (json, what) in cases {
+            let dir = tier("unusable");
+            std::fs::write(dir.join("default_nations.json"), json).unwrap();
+
+            let def = nations_definition(&DefinitionSources::searching([dir.clone()]));
+
+            assert_eq!(
+                def.nations.len(),
+                16,
+                "{what} should be rejected in favour of the shipped nations"
+            );
+            std::fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    #[test]
+    fn a_names_override_with_no_usable_pool_is_rejected() {
+        let dir = tier("empty-pools");
+        std::fs::write(
+            dir.join("default_names.json"),
+            r##"{"pools":{"TR":{"first_names":[],"last_names":[]}}}"##,
+        )
+        .unwrap();
+
+        let def = names_definition(&DefinitionSources::searching([dir.clone()]));
+
+        assert_eq!(def.pools.len(), 17, "the shipped pools");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A pool for one nationality is enough — everyone else borrows a regional
+    /// neighbour's — so this override must be *accepted*, not treated as the
+    /// empty case.
+    #[test]
+    fn a_names_override_with_a_single_usable_pool_is_accepted() {
+        let dir = tier("one-pool");
+        std::fs::write(
+            dir.join("default_names.json"),
+            r##"{"pools":{"TR":{"first_names":["Emre"],"last_names":["Yilmaz"]}}}"##,
+        )
+        .unwrap();
+
+        let def = names_definition(&DefinitionSources::searching([dir.clone()]));
+
+        assert_eq!(def.pools.len(), 1);
+        assert!(def.pools.contains_key("TR"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

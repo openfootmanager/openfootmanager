@@ -25,12 +25,15 @@ fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::
 
 /// Load a world from a modular package directory (recursively scanned, schema
 /// typed). Rejects an invalid package so a broken mod never loads half-applied.
-fn load_world_data_from_package(dir: &str) -> Result<ofm_core::generator::WorldData, String> {
+fn load_world_data_from_package(
+    dir: &str,
+    sources: &ofm_core::generator::DefinitionSources,
+) -> Result<ofm_core::generator::WorldData, String> {
     let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(dir));
     if !errors.is_empty() {
         return Err(first_package_error_message(&errors));
     }
-    ofm_core::generator::build_world_from_package(&package, None)
+    ofm_core::generator::build_world_from_package(&package, None, sources)
 }
 
 /// Surface the first concrete validation error (e.g. *which* country is unknown)
@@ -270,7 +273,7 @@ fn load_world_data(
         Some(source) => {
             let raw = source.strip_prefix("file:").unwrap_or(source);
             if std::path::Path::new(raw).is_dir() {
-                load_world_data_from_package(raw)
+                load_world_data_from_package(raw, sources)
             } else {
                 load_world_data_from_path(source)
             }
@@ -286,6 +289,7 @@ fn load_world_data_from_package_ids(
     package_ids: &[String],
     opening_year: Option<u32>,
     asset_root: Option<&std::path::Path>,
+    sources: &ofm_core::generator::DefinitionSources,
 ) -> Result<
     (
         ofm_core::generator::WorldData,
@@ -337,7 +341,7 @@ fn load_world_data_from_package_ids(
     if !errors.is_empty() {
         return Err(first_package_error_message(&errors));
     }
-    let world = ofm_core::generator::build_world_from_package(&merged, opening_year)?;
+    let world = ofm_core::generator::build_world_from_package(&merged, opening_year, sources)?;
     if world.teams.is_empty() {
         return Err("be.error.package.noDatabasePackage".to_string());
     }
@@ -1689,7 +1693,10 @@ fn package_folder_name(path: &str) -> String {
 /// validation problem the issues are returned (with a folder-name fallback) and
 /// the world isn't built; otherwise the built world's name and counts come back.
 #[tauri::command]
-pub fn inspect_world_package(path: String) -> Result<WorldPackageInspection, String> {
+pub fn inspect_world_package(
+    app_handle: tauri::AppHandle,
+    path: String,
+) -> Result<WorldPackageInspection, String> {
     let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(&path));
     let issues: Vec<PackageIssue> = errors
         .into_iter()
@@ -1710,7 +1717,11 @@ pub fn inspect_world_package(path: String) -> Result<WorldPackageInspection, Str
         });
     }
 
-    let world = ofm_core::generator::build_world_from_package(&package, None)?;
+    let world = ofm_core::generator::build_world_from_package(
+        &package,
+        None,
+        &definition_sources(&app_handle),
+    )?;
     let name = if world.name.trim().is_empty() {
         fallback_name
     } else {
@@ -1774,6 +1785,7 @@ pub async fn start_new_game(
                 ids,
                 opening_year,
                 asset_root.as_deref(),
+                &definition_sources(&app_handle),
             )?
         } else {
             (

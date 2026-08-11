@@ -291,6 +291,11 @@ fn unique_short_code(base_code: &str, used_codes: &HashSet<String>) -> String {
 /// across cities first so a league looks geographically diverse before reusing
 /// a city with a different pattern.
 fn club_names(nation: &NationGen, count: usize) -> Vec<(String, String)> {
+    assert!(
+        !nation.cities.is_empty(),
+        "nation {} has no cities to name clubs after",
+        nation.code
+    );
     let patterns = nation.style.patterns();
     let mut out = Vec::with_capacity(count);
     let mut seen = HashSet::new();
@@ -341,7 +346,22 @@ fn reputation_center(strength: u8, index: usize, total: usize) -> u32 {
 }
 
 /// Build the team definitions for a whole world from a config.
+/// Generate every club definition a config calls for.
+///
+/// # Panics
+///
+/// If `color_palette` is empty, or any nation has no cities — both are indexed
+/// per club (the latter as `index % cities.len()`). A definition file cannot
+/// reach here in that state: [`DefinitionSources`] rejects it and falls back to
+/// the shipped copy. A `WorldGenConfig` assembled in code can, so these are
+/// named rather than left to surface as an opaque index panic.
+///
+/// [`DefinitionSources`]: super::definitions::DefinitionSources
 pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<TeamDef> {
+    assert!(
+        !config.color_palette.is_empty(),
+        "WorldGenConfig.color_palette is empty; clubs cannot be given kits"
+    );
     let mut defs = Vec::with_capacity(config.total_clubs());
 
     for nation in &config.nations {

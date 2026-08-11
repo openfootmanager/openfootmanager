@@ -82,7 +82,7 @@ this file.
 {
   "version": 1,
   "description": "My custom generation nations",
-  "clubsPerDivision": 20,
+  "clubsPerDivision": 4,
   "colorPalette": [
     { "primary": "#dc2626", "secondary": "#ffffff" }
   ],

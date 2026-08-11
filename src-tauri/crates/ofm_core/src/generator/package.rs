@@ -1858,6 +1858,68 @@ mod tests {
         assert!(!serde_json::to_string(&bare).unwrap().contains("fallbackLeague"));
     }
 
+    /// Definition sources for tests: the shipped files, never a machine's own.
+    fn embedded() -> crate::generator::DefinitionSources {
+        crate::generator::DefinitionSources::embedded_only()
+    }
+
+    /// A package thin enough to be padded with procedural opponents must take
+    /// those opponents from the *resolved* definitions, not the embedded ones.
+    /// Filler clubs are still generation, so an author who redefined a nation's
+    /// cities should see them here too.
+    #[test]
+    fn filler_clubs_for_a_thin_package_honour_a_nations_override() {
+        let data_dir = temp_package();
+        write(
+            &data_dir,
+            "default_nations.json",
+            r##"{"clubsPerDivision":4,
+                 "colorPalette":[{"primary":"#123456","secondary":"#ffffff"}],
+                 "genericCities":["Overridden"],
+                 "nations":[{"code":"ZZ","style":"Generic","tiers":1,"strength":3,
+                             "cities":["Zedopolis","Zedhaven","Zedford","Zedmouth"]}]}"##,
+        );
+
+        let dir = temp_package();
+        write(
+            &dir,
+            "world.yaml",
+            "schema: world\nid: thin\nname: Thin\nversion: 1.0.0\nlicense: CC0-1.0\n",
+        );
+        write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
+        write(
+            &dir,
+            "country.yaml",
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        );
+        write(
+            &dir,
+            "teams.yaml",
+            "schema: team\nid: solo\nname: Solo FC\ncity: Zedopolis\ncountry: ZZ\ncolors:\n  primary: '#000000'\n  secondary: '#ffffff'\n",
+        );
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "fixture should be valid: {errors:?}");
+
+        let sources = crate::generator::DefinitionSources::searching([data_dir.clone()]);
+        let world = crate::generator::build_world_data_from_package(&package, None, &sources);
+
+        let filler: Vec<&str> = world
+            .teams
+            .iter()
+            .filter(|team| team.id != "solo")
+            .map(|team| team.city.as_str())
+            .collect();
+        assert!(!filler.is_empty(), "the thin package should be padded");
+        assert!(
+            filler.iter().all(|city| city.starts_with("Zed")),
+            "filler clubs should use the overridden cities, got {filler:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::remove_dir_all(&data_dir).ok();
+    }
+
     fn temp_package() -> PathBuf {
         let dir = std::env::temp_dir().join(format!("ofm-pkg-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -2316,7 +2378,7 @@ mod tests {
         // No opening year: this asserts badge resolution, not era ageing, so let
         // the package's own `baseYear` (absent here) pick the default.
         let world =
-            crate::generator::build_world_from_package(&package, None).expect("world builds");
+            crate::generator::build_world_from_package(&package, None, &embedded()).expect("world builds");
         let logo = world
             .teams
             .iter()
@@ -3165,7 +3227,7 @@ colors:
 
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
-        let world = crate::generator::build_world_data_from_package(&package, None);
+        let world = crate::generator::build_world_data_from_package(&package, None, &embedded());
 
         assert!(
             newest_birth_year(&world) < 1962,
@@ -3185,7 +3247,7 @@ colors:
 
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
-        let world = crate::generator::build_world_data_from_package(&package, None);
+        let world = crate::generator::build_world_data_from_package(&package, None, &embedded());
 
         // `baseYear: 5` resolves to the clamped floor, so every player must be
         // born at or before it. A loose range here would let a regression that
@@ -3215,7 +3277,7 @@ colors:
 
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
-        let world = crate::generator::build_world_data_from_package(&package, None);
+        let world = crate::generator::build_world_data_from_package(&package, None, &embedded());
 
         let floor = crate::generator::MIN_OPENING_YEAR as i32;
         assert!(
@@ -3235,7 +3297,7 @@ colors:
 
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
-        let world = crate::generator::build_world_data_from_package(&package, None);
+        let world = crate::generator::build_world_data_from_package(&package, None, &embedded());
 
         let ceiling = crate::generator::MAX_OPENING_YEAR as i32;
         for player in &world.players {
@@ -3260,7 +3322,7 @@ colors:
 
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
-        let world = crate::generator::build_world_data_from_package(&package, Some(1985));
+        let world = crate::generator::build_world_data_from_package(&package, Some(1985), &embedded());
 
         let newest = newest_birth_year(&world);
         assert!(
@@ -3302,7 +3364,7 @@ colors:
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "package should be valid: {errors:?}");
 
-        let world = crate::generator::build_world_data_from_package(&package, None);
+        let world = crate::generator::build_world_data_from_package(&package, None, &embedded());
         assert_eq!(world.name, "Zed World");
         let team_ids: Vec<&str> = world.teams.iter().map(|t| t.id.as_str()).collect();
         assert_eq!(team_ids, vec!["zed-fc", "zed-utd"], "stable authored ids are kept");
@@ -3348,7 +3410,7 @@ colors:
         let (package, errors) = load_world_package(&dir);
         assert!(errors.is_empty(), "{errors:?}");
 
-        let world = crate::generator::build_world_data_from_package(&package, None);
+        let world = crate::generator::build_world_data_from_package(&package, None, &embedded());
 
         let star = world
             .players
@@ -3852,7 +3914,7 @@ colors:
             ("d.yaml", "schema: team\nid: team-d\nname: Team D\ncity: City D\ncountry: ES\ncolors: { primary: \"#555\", secondary: \"#fff\" }\n"),
         ]);
         assert!(errors.is_empty());
-        let world = crate::generator::build_world_data_from_package(&pkg, None);
+        let world = crate::generator::build_world_data_from_package(&pkg, None, &embedded());
         assert_eq!(world.teams.len(), 4);
         // Fallback league must be generated.
         let defs = world.competition_definitions.as_ref()
@@ -3876,7 +3938,7 @@ colors:
         // totalling 8 teams, and a fallback league covering all of them.
         let (pkg, errors, dir) = package_from_files(&[("a.yaml", TEAM_A)]);
         assert!(errors.is_empty());
-        let world = crate::generator::build_world_data_from_package(&pkg, None);
+        let world = crate::generator::build_world_data_from_package(&pkg, None, &embedded());
         assert_eq!(world.teams.len(), 8, "should fill to THIN_PACKAGE_MIN_TEAMS");
         assert!(
             world.competition_definitions.is_some(),
@@ -4079,7 +4141,7 @@ colors:
         let dir = temp_package();
         write(&dir, "world.yaml", "schema: world\nid: empty\nname: Empty World\n");
         let (pkg, _) = load_world_package(&dir);
-        let world = crate::generator::build_world_data_from_package(&pkg, None);
+        let world = crate::generator::build_world_data_from_package(&pkg, None, &embedded());
         // The world builds but has no teams; game.rs rejects this as noDatabasePackage.
         assert!(world.teams.is_empty(), "OK: correctly produces 0 teams");
         std::fs::remove_dir_all(&dir).ok();

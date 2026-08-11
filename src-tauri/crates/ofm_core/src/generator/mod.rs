@@ -927,8 +927,16 @@ fn regions_from_package(
 /// Generate procedural filler club definitions for a given country code. Used
 /// to pad thin packages that have only one authored team. Matches the country's
 /// `NationGen` from the standard set when available; falls back to generic names.
-fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Vec<definitions::TeamDef> {
-    let standard = clubs::WorldGenConfig::standard();
+fn filler_club_defs(
+    country: &str,
+    count: usize,
+    sources: &definitions::DefinitionSources,
+    rng: &mut impl rand::Rng,
+) -> Vec<definitions::TeamDef> {
+    // From `sources`, not the embedded default: a player who redefined a
+    // nation's cities should see those cities in the clubs that pad a thin
+    // package from that country too, not only in a fully generated world.
+    let standard = clubs::WorldGenConfig::standard_from(sources);
     let known = standard.nations.iter().any(|n| n.code == country);
     let nation = standard
         .nations
@@ -1026,6 +1034,7 @@ fn build_fallback_competition(
 pub fn build_world_data_from_package(
     package: &package::WorldPackage,
     opening_year: Option<u32>,
+    sources: &definitions::DefinitionSources,
 ) -> WorldData {
     let opening_year = opening_year
         .or_else(|| {
@@ -1150,7 +1159,7 @@ pub fn build_world_data_from_package(
     if package.competitions.is_empty() && teams.len() == 1 {
         build_notices.push("be.error.notice.fallbackTeamsFilled".to_string());
         let country = teams[0].country.clone();
-        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, &mut rng) {
+        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, sources, &mut rng) {
             let (team, team_players, team_staff) =
                 build_club(def, &country_codes, opening_year, &names_def, &mut rng);
             teams.push(team);
@@ -2335,27 +2344,6 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    /// An override that does not parse must not stop the game starting: the
-    /// shipped definition is always a correct answer, so a half-edited file
-    /// degrades rather than bricking a new career.
-    #[test]
-    fn an_unparseable_override_falls_back_to_the_shipped_definition() {
-        let dir = std::env::temp_dir().join(format!("ofm-world-bad-{}", Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("default_nations.json"), "{ not valid json").unwrap();
-
-        let sources = definitions::DefinitionSources::searching([dir.clone()]);
-        let config = WorldGenConfig::standard_from(&sources);
-
-        assert_eq!(
-            config.nations.len(),
-            16,
-            "a broken override should fall through to the shipped nations"
-        );
-
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
     #[test]
     fn test_world_data_wrapper() {
         let world = generate_world_data(&definitions::DefinitionSources::embedded_only());
@@ -2396,32 +2384,6 @@ mod tests {
             assert_eq!(before.tiers, after.tiers, "{} tiers", before.code);
             assert_eq!(before.strength, after.strength, "{} strength", before.code);
         }
-    }
-
-    /// The compiled-in copies are the last line of defence — every other tier
-    /// can be missing. If one stops parsing the game cannot generate a world at
-    /// all, so this is the test that keeps `sources.load`'s unwrap honest.
-    #[test]
-    fn the_embedded_definitions_parse_and_carry_the_shipped_data() {
-        let sources = definitions::DefinitionSources::embedded_only();
-
-        let names = definitions::names_definition(&sources);
-        assert_eq!(
-            names.pools.len(),
-            17,
-            "the shipped name pools moved out of Rust unchanged"
-        );
-
-        let nations = definitions::nations_definition(&sources);
-        assert_eq!(nations.nations.len(), 16, "the shipped generation nations");
-        assert_eq!(
-            nations.nations.iter().map(|n| n.cities.len()).sum::<usize>(),
-            280,
-            "every curated city survived the move out of Rust"
-        );
-        assert_eq!(nations.clubs_per_division, 20);
-        assert_eq!(nations.color_palette.len(), 12);
-        assert_eq!(nations.generic_cities.len(), 15);
     }
 
     #[test]
