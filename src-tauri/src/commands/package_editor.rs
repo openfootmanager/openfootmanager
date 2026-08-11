@@ -318,12 +318,12 @@ mod tests {
             )],
         );
 
-        open_project_for_archive(&archive, &project, &legacy).unwrap();
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
         let edited = project.join("countries/added-by-the-author.json");
         std::fs::create_dir_all(edited.parent().unwrap()).unwrap();
         std::fs::write(&edited, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
 
-        open_project_for_archive(&archive, &project, &legacy).unwrap();
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
 
         assert!(
             edited.exists(),
@@ -345,7 +345,7 @@ mod tests {
                 r#"{"schema":"world","id":"same","name":"One"}"#,
             )],
         );
-        open_project_for_archive(&archive, &project, &legacy).unwrap();
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
         let authored = project.join("countries/mine.json");
         std::fs::create_dir_all(authored.parent().unwrap()).unwrap();
         std::fs::write(&authored, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
@@ -361,7 +361,7 @@ mod tests {
         std::fs::remove_file(&archive).unwrap();
         export_directory_to_ofm(&replacement, &archive).unwrap();
 
-        open_project_for_archive(&archive, &project, &legacy).unwrap();
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
 
         assert!(authored.exists(), "the author's work stays");
         let manifest = std::fs::read_to_string(project.join("package.json")).unwrap();
@@ -398,13 +398,71 @@ mod tests {
         )
         .unwrap();
 
-        open_project_for_archive(&archive, &project, &legacy).unwrap();
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
 
         assert!(
             project.join("countries/from-the-old-place.json").exists(),
             "work from the old temporary layout must come across"
         );
         assert!(!legacy.exists(), "and must not be left in two places");
+
+        std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn an_archive_whose_name_is_all_dots_stays_inside_the_projects_root() {
+        // `file_stem()` returns ".." for "...ofm" and "." for "..ofm", and either
+        // joined onto the projects root walks out of it — into the app-data
+        // directory itself, which is then what the archive extracts over.
+        for name in ["...ofm", "..ofm", ".ofm"] {
+            let derived = project_name_for(Path::new(name));
+            assert!(
+                is_safe_project_name(&derived),
+                "{name} produced the project name {derived:?}"
+            );
+            assert_eq!(
+                Path::new("/app/world-editor").join(&derived).parent().unwrap(),
+                Path::new("/app/world-editor"),
+                "{name} escaped the projects root"
+            );
+        }
+    }
+
+    #[test]
+    fn a_legacy_extract_of_a_different_package_is_left_alone() {
+        // The old layout was keyed on the filename. Two archives called
+        // `pkg.ofm` are two different packages, so adopting on the name alone
+        // would move one package's edits into the other one's project — the
+        // worse half of the bug this replaced.
+        let (archive, project, legacy) = archive_for(
+            "legacy-mismatch",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"mine","name":"Mine"}"#,
+            )],
+        );
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(
+            legacy.join("package.json"),
+            r#"{"schema":"world","id":"somebody-else","name":"Somebody Else"}"#,
+        )
+        .unwrap();
+        let theirs = legacy.join("countries/theirs.json");
+        std::fs::create_dir_all(theirs.parent().unwrap()).unwrap();
+        std::fs::write(&theirs, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+
+        open_project_for_archive(&archive, &project, &legacy, "mine").unwrap();
+
+        assert!(
+            theirs.exists(),
+            "another package's work must stay where it is"
+        );
+        assert!(
+            !project.join("countries/theirs.json").exists(),
+            "and must not be adopted into this package's project"
+        );
+        let manifest = std::fs::read_to_string(project.join("package.json")).unwrap();
+        assert!(manifest.contains("mine"), "the archive was extracted: {manifest}");
 
         std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
     }
@@ -923,19 +981,58 @@ mod tests {
 /// `install_package` renames them.
 fn project_name_for(ofm: &Path) -> String {
     let declared = ofm_core::generator::read_package_manifest_from_ofm(ofm).map(|meta| meta.id);
-    let stem = || {
-        ofm.file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("world")
-            .to_string()
-    };
-    // `sanitize_entity_id` rejects separators and traversal, which an authored
-    // id may well contain — a package id with a slash in it validates in the
-    // editor and the CLI today. Fall back rather than refuse to open.
-    match declared {
-        Some(id) if sanitize_entity_id(&id).is_ok() => id,
-        _ => stem(),
+    let stem = ofm
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_string();
+
+    // In order of how well it identifies the package, and every candidate has to
+    // clear `is_safe_project_name` — neither an authored id nor a filename is
+    // under our control, and both end up as a path segment.
+    for candidate in [declared.unwrap_or_default(), stem, slugify(ofm)] {
+        if is_safe_project_name(&candidate) {
+            return candidate;
+        }
     }
+    "package".to_string()
+}
+
+/// Whether `name` can be joined onto the projects root as a single directory.
+///
+/// Stricter than [`sanitize_entity_id`], which lets `.` through: `file_stem`
+/// returns `..` for `...ofm` and `.` for `..ofm`, and joining either walks *out*
+/// of the projects root — into the app-data directory itself, which is then what
+/// the archive extracts over.
+fn is_safe_project_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with('.')
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains("..")
+}
+
+/// A last-resort name from the archive's filename, with everything that could
+/// mean something to a path replaced. Deterministic, so the same archive keeps
+/// finding the same project.
+fn slugify(ofm: &Path) -> String {
+    ofm.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
+/// Whether the package in `dir` is the one `name` stands for.
+///
+/// Read from the manifest rather than from the folder name, because the folder
+/// name is exactly what cannot be trusted here.
+fn declares(dir: &Path, name: &str) -> bool {
+    let (pkg, _) = load_world_package(dir);
+    pkg.meta.map(|meta| meta.id == name).unwrap_or(false)
 }
 
 /// Open the editing project for `ofm`, extracting the archive the first time.
@@ -949,7 +1046,12 @@ fn project_name_for(ofm: &Path) -> String {
 /// The cost is deliberate: a package updated or reinstalled underneath does not
 /// refresh the project. Serving a stale copy is recoverable and visible in the
 /// manifest; replacing an afternoon's editing is neither.
-fn open_project_for_archive(ofm: &Path, project_dir: &Path, legacy_dir: &Path) -> Result<(), String> {
+fn open_project_for_archive(
+    ofm: &Path,
+    project_dir: &Path,
+    legacy_dir: &Path,
+    project_name: &str,
+) -> Result<(), String> {
     if project_dir.is_dir() && dir_is_nonempty(project_dir) {
         return Ok(());
     }
@@ -957,7 +1059,12 @@ fn open_project_for_archive(ofm: &Path, project_dir: &Path, legacy_dir: &Path) -
     // Adopt an extract left by the version of this that edited archives in
     // `world-editor-temp/`. It may hold work, and the author has no way to find
     // it once nothing points there any more.
-    if legacy_dir.is_dir() && dir_is_nonempty(legacy_dir) {
+    //
+    // Only when it is the same package, though. That layout was keyed on the
+    // *filename*, and two archives called `pkg.ofm` are two different packages —
+    // adopting on the name alone would move one package's edits into the other
+    // package's project, which is the worse half of the bug this replaced.
+    if legacy_dir.is_dir() && dir_is_nonempty(legacy_dir) && declares(legacy_dir, project_name) {
         if let Some(parent) = project_dir.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
@@ -989,11 +1096,14 @@ pub fn extract_ofm_for_editing(
     // Alongside projects made with "New package", because that is what it is
     // now — not under `world-editor-temp`, which said the opposite.
     let project_dir = base_dir.join("world-editor").join(&name);
+    // The old layout keyed on the filename, so that is where to look — but the
+    // same stem that was unsafe as a project name is unsafe here too.
+    let legacy_stem = ofm.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
     let legacy_dir = base_dir.join("world-editor-temp").join(
-        ofm.file_stem().and_then(|s| s.to_str()).unwrap_or("world"),
+        if is_safe_project_name(legacy_stem) { legacy_stem } else { &name },
     );
 
-    open_project_for_archive(ofm, &project_dir, &legacy_dir)?;
+    open_project_for_archive(ofm, &project_dir, &legacy_dir, &name)?;
 
     project_dir
         .to_str()
