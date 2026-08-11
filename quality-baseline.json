@@ -1,6 +1,6 @@
 {
   "oversizedAggregate": {
-    "rust": 65901,
+    "rust": 62266,
     "ts": 35970
   },
   "allowedOversized": {
@@ -31,7 +31,6 @@
     "src-tauri/crates/ofm_core/tests/transfers_tests.rs": 3779,
     "src-tauri/crates/ofm_core/tests/turn_tests.rs": 2005,
     "src-tauri/crates/ofm-cli/src/main.rs": 1118,
-    "src-tauri/src/commands/game/mod.rs": 3635,
     "src-tauri/src/commands/live_match.rs": 1040,
     "src-tauri/src/commands/package_editor.rs": 1392,
     "src-tauri/src/commands/squad.rs": 1257,
