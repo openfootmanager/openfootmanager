@@ -47,6 +47,18 @@ interface SelectOption {
   value: string;
   label: ReactNode;
   disabled?: boolean;
+  /**
+   * Label of the `<optgroup>` this option came from, if any.
+   *
+   * Options stay in one flat list so selection and keyboard movement are
+   * unaffected by grouping; the label only changes how they are rendered.
+   */
+  group?: string;
+}
+
+interface NativeOptgroupProps {
+  label?: string;
+  children?: ReactNode;
 }
 
 interface NativeOptionProps {
@@ -86,8 +98,20 @@ export function Select({
   const controlledValue = value !== undefined ? String(value) : undefined;
 
   const options = useMemo<SelectOption[]>(() => {
-    return Children.toArray(children).flatMap((child) => {
-      if (!isValidElement(child) || child.type !== "option") {
+    const read = (child: ReactNode, group?: string): SelectOption[] => {
+      if (!isValidElement(child)) {
+        return [];
+      }
+
+      if (child.type === "optgroup") {
+        const optgroup = child as ReactElement<NativeOptgroupProps>;
+        const label = optgroup.props.label;
+        return Children.toArray(optgroup.props.children).flatMap((nested) =>
+          read(nested, label),
+        );
+      }
+
+      if (child.type !== "option") {
         return [];
       }
 
@@ -98,10 +122,33 @@ export function Select({
           value: String(option.props.value ?? ""),
           label: option.props.children,
           disabled: option.props.disabled,
+          group,
         },
       ];
-    });
+    };
+
+    return Children.toArray(children).flatMap((child) => read(child));
   }, [children]);
+
+  /**
+   * The same options, split into runs that share an `optgroup` label.
+   *
+   * Derived rather than parsed separately so the flat `options` list stays the
+   * single source of truth for selection and keyboard movement — grouping is
+   * presentation, and must not be able to disagree about what is selectable.
+   */
+  const groupedOptions = useMemo(() => {
+    const sections: { label: string | undefined; options: SelectOption[] }[] = [];
+    for (const option of options) {
+      const last = sections[sections.length - 1];
+      if (last && last.label === option.group) {
+        last.options.push(option);
+      } else {
+        sections.push({ label: option.group, options: [option] });
+      }
+    }
+    return sections;
+  }, [options]);
 
   const [uncontrolledValue, setUncontrolledValue] = useState(() => {
     if (controlledValue !== undefined) {
@@ -401,7 +448,8 @@ export function Select({
             aria-required={required}
             className="max-h-60 overflow-y-auto p-1"
           >
-            {options.map((option) => {
+            {groupedOptions.map((section, sectionIndex) => {
+              const rendered = section.options.map((option) => {
               const isSelected = option.value === currentValue;
 
               return (
@@ -424,6 +472,28 @@ export function Select({
                     <Check className="ml-2 h-4 w-4 shrink-0" />
                   ) : null}
                 </button>
+              );
+              });
+
+              // Ungrouped options sit directly in the listbox, exactly as
+              // before — only a named `<optgroup>` adds a wrapper.
+              if (section.label === undefined) {
+                return rendered;
+              }
+
+              return (
+                // Keyed by position, not by label: two `optgroup`s may carry the
+                // same label without being adjacent, and keying on the label
+                // would give them the same key.
+                <div key={`group-${sectionIndex}`} role="group" aria-label={section.label}>
+                  <div
+                    aria-hidden="true"
+                    className="px-3 pb-1 pt-2 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500"
+                  >
+                    {section.label}
+                  </div>
+                  {rendered}
+                </div>
               );
             })}
           </div>

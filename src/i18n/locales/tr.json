@@ -340,6 +340,7 @@
       "central-america": "Orta Amerika",
       "south-america": "Güney Amerika",
       "europe": "Avrupa",
+      "africa": "Afrika",
       "asia": "Asya",
       "oceania": "Okyanusya"
     },
@@ -3780,6 +3781,9 @@
     "countryId": "ID",
     "countryName": "Ad",
     "countryConfederation": "Konfederasyon",
+    "confederationBuiltIn": "Yerleşik",
+    "confederationInPackage": "Bu pakette tanımlı",
+    "confederationUnrecognised": "Tanınmıyor",
     "countryNation": "Ülke",
     "countryNationPlaceholder": "Bir ülke seçin",
     "countryCustom": "Özel ülke",

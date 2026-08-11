@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, PencilLine } from "lucide-react";
-import { LabeledInput } from "./primitives";
+import { LabeledInput, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
 import { Select } from "../../ui/Select";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { useNations } from "../../../hooks/useNations";
+import { buildRegionLabel } from "../../../lib/teamRegions";
 import type { ConfederationDef, CountryDef } from "./types";
 
 interface CountryFormProps {
@@ -47,6 +48,15 @@ export function CountryForm({
   // so this starts empty for each record.
   const [chosenMode, setChosenMode] = useState<IdentityMode | null>(null);
 
+  // The regions the catalog itself uses, which are exactly the ids
+  // `is_builtin_region` accepts. Derived from the nation catalog rather than
+  // listed here, so the editor cannot come to disagree with the backend about
+  // which confederations exist.
+  const builtInRegions = useMemo(() => {
+    const seen = new Set((nations ?? []).map((nation) => nation.region));
+    return [...seen].sort();
+  }, [nations]);
+
   // `null` until the catalog resolves, for a new country as much as an existing
   // one. `CountryCombobox` loads its own copy of the name data, so offering the
   // picker early lets a nation be adopted before there is a catalog to read its
@@ -83,14 +93,18 @@ export function CountryForm({
    */
   function selectNation(code: string) {
     const nation = nations?.find((entry) => entry.code === code);
-    updateField("id", code);
-    updateField("name", nation?.name ?? code);
+    // A code the catalog does not carry has no canonical name, and falling back
+    // to the code would store "BR" as the country's *name* — the one outcome
+    // this function exists to prevent. The picker is built from the same
+    // catalog, so this should not arise; refusing keeps that true here instead
+    // of trusting that it was.
+    if (!nation) {
+      return;
+    }
+    updateField("id", nation.code);
+    updateField("name", nation.name);
   }
 
-  const labelClass =
-    "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";
-  const inputClass =
-    "w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition";
   const switchClass =
     "inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 dark:focus:ring-offset-navy-800 transition";
 
@@ -142,31 +156,103 @@ export function CountryForm({
           </button>
         </>
       )}
-      <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.countryConfederation")}</label>
-        {confederations.length > 0 ? (
-          <Select
-            value={editing.confederation}
-            onChange={(e) => updateField("confederation", e.target.value)}
-            fullWidth
-          >
-            <option value="">—</option>
+      {/*
+        Withheld until the catalog resolves, for the same reason the identity
+        field is: the built-in list is empty while it loads, so a perfectly good
+        `europe` would be filed under "not recognised" for as long as the
+        backend takes to answer, then jump to the built-in group.
+      */}
+      {mode !== null && (
+        <ConfederationField
+          value={editing.confederation}
+          builtInRegions={builtInRegions}
+          confederations={confederations}
+          onChange={(id) => updateField("confederation", id)}
+        />
+      )}
+    </EntityFormShell>
+  );
+}
+
+interface ConfederationFieldProps {
+  value: string;
+  /** Region ids the game already knows, in the order they should be offered. */
+  builtInRegions: string[];
+  /** Confederations this package defines itself. */
+  confederations: ConfederationDef[];
+  onChange: (id: string) => void;
+}
+
+/**
+ * Picks the confederation a country belongs to, grouped by who owns the value.
+ *
+ * Which of these the author controls is the distinction the field exists to
+ * make: a built-in region resolves without the package defining anything, and
+ * an author who cannot see that has no way to know whether they need to define
+ * a confederation at all — the question that sent one package to `uefa`, an id
+ * nothing resolves.
+ */
+function ConfederationField({
+  value,
+  builtInRegions,
+  confederations,
+  onChange,
+}: ConfederationFieldProps) {
+  const { t } = useTranslation();
+  const labelId = useId();
+  const controlId = useId();
+
+  // A value that is neither built in nor defined by this package. It still has
+  // to be selectable, or opening the country would show an empty field and
+  // saving would write that emptiness back over what the author wrote.
+  const unrecognised =
+    value && !builtInRegions.includes(value) && !confederations.some((c) => c.id === value)
+      ? value
+      : null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      {/*
+        `htmlFor` as well as the id: `Select` renders a button, which is a
+        labelable element, so this makes clicking the caption open the list the
+        way clicking the caption of a native select does.
+      */}
+      <label className={labelClass} id={labelId} htmlFor={controlId}>
+        {t("worldEditor.countryConfederation")}
+      </label>
+      <Select
+        id={controlId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-labelledby={labelId}
+        fullWidth
+      >
+        <option value="">—</option>
+        {/* Built-ins first, because most countries want one. */}
+        {builtInRegions.length > 0 && (
+          <optgroup label={t("worldEditor.confederationBuiltIn")}>
+            {builtInRegions.map((region) => (
+              <option key={region} value={region}>
+                {buildRegionLabel(t, region)}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {confederations.length > 0 && (
+          <optgroup label={t("worldEditor.confederationInPackage")}>
             {confederations.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name || c.id}
               </option>
             ))}
-          </Select>
-        ) : (
-          <input
-            type="text"
-            value={editing.confederation}
-            onChange={(e) => updateField("confederation", e.target.value)}
-            placeholder="europe"
-            className={inputClass}
-          />
+          </optgroup>
         )}
-      </div>
-    </EntityFormShell>
+        {unrecognised && (
+          <optgroup label={t("worldEditor.confederationUnrecognised")}>
+            <option value={unrecognised}>{unrecognised}</option>
+          </optgroup>
+        )}
+      </Select>
+    </div>
   );
 }

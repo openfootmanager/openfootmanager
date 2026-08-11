@@ -148,6 +148,85 @@ describe("CountryForm nation picker", () => {
     expect(trigger).toHaveAttribute("aria-controls", listbox.id);
   });
 
+  it("walks the list with the arrows and chooses with Enter", async () => {
+    // `role="listbox"` and `role="option"` promise a keyboard model: a screen
+    // reader announces "3 of 211" and expects the arrows to move through them.
+    // Without one, a keyboard user could open the list and not walk it.
+    const updateField = renderForm({});
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+    const search = await screen.findByRole("combobox", { name: /worldEditor\.countryNation/ });
+
+    // The catalog is sorted, so Argentina precedes Brazil precedes England.
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(search).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: "Brazil" }).id,
+    );
+
+    fireEvent.keyDown(search, { key: "End" });
+    expect(search).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: "England" }).id,
+    );
+
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(updateField).toHaveBeenCalledWith("id", "ENG");
+    expect(updateField).toHaveBeenCalledWith("name", "England");
+  });
+
+  it("closes on Escape and gives focus back to the field", async () => {
+    // Closing without restoring focus leaves the keyboard nowhere — the next
+    // Tab starts from the top of the document rather than from the field the
+    // author was on.
+    renderForm({});
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+    const search = await screen.findByRole("combobox", { name: /worldEditor\.countryNation/ });
+
+    fireEvent.keyDown(search, { key: "Escape" });
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("gives focus back when the field itself is used to close the list", async () => {
+    // Closing from the trigger dropped focus to `<body>`: the press is
+    // `preventDefault`ed so it never lands on the button, and the popup being
+    // unmounted takes the focused search field with it. Escape restored focus
+    // and clicking the same control did not, which is the kind of difference
+    // nobody discovers until they are relying on the keyboard.
+    renderForm({});
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+    await screen.findByRole("listbox");
+
+    fireEvent.mouseDown(trigger);
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("keeps the active option inside the list as it narrows", async () => {
+    // Typing filters under the cursor, so an index that pointed at the third
+    // match can be past the end of the next keystroke's one — and Enter would
+    // then read an entry that is not there.
+    const updateField = renderForm({});
+
+    const trigger = await screen.findByRole("button", { name: /worldEditor\.countryNation/ });
+    fireEvent.mouseDown(trigger);
+    const search = await screen.findByRole("combobox", { name: /worldEditor\.countryNation/ });
+
+    fireEvent.keyDown(search, { key: "End" });
+    fireEvent.change(search, { target: { value: "Brazil" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(updateField).toHaveBeenCalledWith("id", "BR");
+  });
+
   it("offers no free-text id while a built-in nation is being picked", async () => {
     // Typing an arbitrary id is what made countries untranslatable: a package
     // saying `br`/`BRA`/`brasil` cannot be matched to a flag or a name.

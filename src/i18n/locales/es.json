@@ -372,6 +372,7 @@
       "central-america": "Centroamérica",
       "south-america": "Sudamérica",
       "europe": "Europa",
+      "africa": "África",
       "asia": "Asia",
       "oceania": "Oceanía"
     },
@@ -3816,6 +3817,9 @@
     "countryId": "ID",
     "countryName": "Nombre",
     "countryConfederation": "Confederación",
+    "confederationBuiltIn": "Integradas",
+    "confederationInPackage": "Definidas en este paquete",
+    "confederationUnrecognised": "No reconocida",
     "countryNation": "Nación",
     "countryNationPlaceholder": "Elige una nación",
     "countryCustom": "País personalizado",

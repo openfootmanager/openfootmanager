@@ -124,4 +124,88 @@ describe("Select", () => {
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
+
+  it("groups options under an optgroup label", () => {
+    // Some lists mix values that come from different places — built-in ones a
+    // package may reference, and ones it defines itself. Without a group label
+    // the two are indistinguishable, which is the whole reason a caller reaches
+    // for `optgroup`.
+    render(
+      <Select value="europe" aria-label="Confederation">
+        <option value="">—</option>
+        <optgroup label="Built-in">
+          <option value="europe">Europe</option>
+          <option value="africa">Africa</option>
+        </optgroup>
+        <optgroup label="In this package">
+          <option value="fictland">Fictland Union</option>
+        </optgroup>
+      </Select>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
+
+    expect(screen.getByRole("group", { name: "Built-in" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "In this package" })).toBeInTheDocument();
+    // Grouping must not cost the options themselves.
+    expect(screen.getByRole("option", { name: "Africa" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Fictland Union" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "—" })).toBeInTheDocument();
+  });
+
+  it("keeps two groups that share a label apart", () => {
+    // Groups were keyed by their label, so two `optgroup`s carrying the same
+    // one collided — React warned about a duplicate key and was free to reuse
+    // the wrong subtree when the list changed. A caller building groups from
+    // data has no way to guarantee the labels differ.
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // Restored in `finally`: an assertion that throws would otherwise leave the
+    // spy installed, and every later test in the file would silently lose real
+    // console-error reporting.
+    try {
+      render(
+        <Select value="a" aria-label="Confederation">
+          <optgroup label="Built-in">
+            <option value="a">A</option>
+          </optgroup>
+          <optgroup label="In this package">
+            <option value="b">B</option>
+          </optgroup>
+          <optgroup label="Built-in">
+            <option value="c">C</option>
+          </optgroup>
+        </Select>,
+      );
+
+      fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
+
+      expect(screen.getAllByRole("group")).toHaveLength(3);
+      expect(
+        errors.mock.calls.filter((call) => /same key|unique "key"/.test(String(call[0]))),
+      ).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it("selects a grouped option and reports its value", () => {
+    const onChange = vi.fn();
+
+    render(
+      <Select value="" aria-label="Confederation" onChange={onChange}>
+        <option value="">—</option>
+        <optgroup label="Built-in">
+          <option value="africa">Africa</option>
+        </optgroup>
+      </Select>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Confederation" }));
+    fireEvent.click(screen.getByRole("option", { name: "Africa" }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ target: expect.objectContaining({ value: "africa" }) }),
+    );
+  });
 });
