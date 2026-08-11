@@ -110,6 +110,9 @@
     "packageStackErrors": "Package combination errors",
     "stackConflictWarnings": "{{count}} package conflict(s) — game will use last-in-stack version",
     "competitions": "{{count}} competitions",
+    "namePools": "{{count}} name pools",
+    "countries": "{{count}} countries",
+    "confederations": "{{count}} confederations",
     "packageAuthor": "by {{author}}",
     "packageVersion": "v{{version}}"
   },

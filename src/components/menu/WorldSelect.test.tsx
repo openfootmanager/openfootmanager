@@ -58,6 +58,9 @@ const dbPackage: PackageInfo = {
   teamCount: 20,
   playerCount: 480,
   competitionCount: 1,
+  namePoolCount: 0,
+  countryCount: 0,
+  confederationCount: 0,
   installedPath: "/path/to/pkg",
 };
 

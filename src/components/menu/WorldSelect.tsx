@@ -47,6 +47,9 @@ export interface PackageInfo {
   teamCount: number;
   playerCount: number;
   competitionCount: number;
+  namePoolCount: number;
+  countryCount: number;
+  confederationCount: number;
   installedPath: string;
   logoDataUrl?: string;
 }

@@ -217,6 +217,9 @@ fn package_info_from_path(
         team_count: package.teams.len(),
         player_count: package.players.len(),
         competition_count: package.competitions.len(),
+        name_pool_count: package.name_pool_count(),
+        country_count: package.countries.len(),
+        confederation_count: package.confederations.len(),
         installed_path: path.to_string_lossy().to_string(),
         logo_data_url,
     })
@@ -310,6 +313,9 @@ pub fn install_package(
         team_count: package.teams.len(),
         player_count: package.players.len(),
         competition_count: package.competitions.len(),
+        name_pool_count: package.name_pool_count(),
+        country_count: package.countries.len(),
+        confederation_count: package.confederations.len(),
         installed_path: dest.to_string_lossy().to_string(),
         logo_data_url,
     })
