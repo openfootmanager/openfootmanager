@@ -15,6 +15,15 @@ interface CountryFlagProps {
   locale?: string;
   className?: string;
   title?: string;
+  /**
+   * Render the flag as decoration, with no accessible name of its own.
+   *
+   * Use this wherever the country is already named in adjacent text. A flag
+   * that labels itself next to its own label reads out as "England England",
+   * which is noise: the flag adds nothing a screen reader user cannot already
+   * hear. Left off, the flag names itself — correct when it stands alone.
+   */
+  decorative?: boolean;
 }
 
 export function CountryFlag({
@@ -22,6 +31,7 @@ export function CountryFlag({
   locale = "en",
   className = "",
   title,
+  decorative = false,
 }: CountryFlagProps) {
   const normalisedCode = normaliseNationality(code).toUpperCase();
 
@@ -47,8 +57,9 @@ export function CountryFlag({
   if (!FlagIcon) {
     return (
       <span
-        role="img"
-        aria-label={accessibleLabel}
+        role={decorative ? undefined : "img"}
+        aria-hidden={decorative || undefined}
+        aria-label={decorative ? undefined : accessibleLabel}
         title={accessibleLabel}
         className={[
           classes,
@@ -63,8 +74,9 @@ export function CountryFlag({
   return (
     <span className={classes} title={accessibleLabel}>
       <FlagIcon
-        role="img"
-        aria-label={accessibleLabel}
+        role={decorative ? undefined : "img"}
+        aria-hidden={decorative || undefined}
+        aria-label={decorative ? undefined : accessibleLabel}
         focusable="false"
         className="h-[1em] w-[1.5em] rounded-[2px] shadow-sm"
       />

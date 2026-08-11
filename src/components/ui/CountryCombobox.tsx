@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
 import type { CountryFlag as CountryFlagType } from "./CountryFlag";
@@ -45,6 +45,9 @@ interface CountryComboboxProps {
 export function CountryCombobox({ label, value, onChange, placeholder }: CountryComboboxProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
+  const labelId = useId();
+  const buttonId = useId();
+  const listboxId = useId();
   const ref = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -80,6 +83,11 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
     setSearch("");
   }
 
+  function select(code: string) {
+    onChange(code);
+    setIsOpen(false);
+  }
+
   const normSearch = normaliseSearch(search);
   const options = useMemo(() => resources?.allNationalities(locale) ?? [], [resources, locale]);
   const filtered = useMemo(
@@ -96,12 +104,29 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
 
   return (
     <div className="flex flex-col gap-1" ref={ref}>
-      <label className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+      <label
+        id={labelId}
+        className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400"
+      >
         {label}
       </label>
       <div className="relative">
         <button
           type="button"
+          id={buttonId}
+          // The label sits above a button, not a form control, so `htmlFor`
+          // cannot reach it. Naming the button after both gives it the
+          // "<field>, <current value>" reading a native select has, instead of
+          // announcing a bare country name with nothing to say what it is.
+          aria-labelledby={`${labelId} ${buttonId}`}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          // Only once the listbox is actually on the page. The popup opens
+          // before the country data loads and shows a spinner in the meantime,
+          // so pointing at the listbox from the moment it opens would name an
+          // element that is not there yet — which assistive tech is told to
+          // treat as if the attribute were absent.
+          aria-controls={isOpen && resources ? listboxId : undefined}
           onMouseDown={(e) => {
             e.preventDefault();
             isOpen ? setIsOpen(false) : open();
@@ -113,7 +138,14 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
         >
           {selectedLabel ? (
             <span className="flex items-center gap-2 text-gray-900 dark:text-white">
-              {resources && <resources.CountryFlag code={value} locale={locale} className="text-base leading-none" />}
+              {resources && (
+                <resources.CountryFlag
+                  code={value}
+                  locale={locale}
+                  decorative
+                  className="text-base leading-none"
+                />
+              )}
               <span>{selectedLabel}</span>
             </span>
           ) : (
@@ -139,19 +171,39 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                   />
                 </div>
                 <div className="max-h-48 overflow-y-auto overscroll-contain">
-                  {filtered.length === 0 ? (
+                  {filtered.length === 0 && (
                     <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
                       {t("menu.noResults")}
                     </p>
-                  ) : (
-                    filtered.map((entry) => (
+                  )}
+                  {/*
+                    A real listbox, because the trigger promises one with
+                    `aria-haspopup="listbox"`. A screen reader told to expect
+                    options and handed plain buttons announces the wrong thing —
+                    no position, no count, no selected state. The "no matches"
+                    line sits outside it: a listbox holds options, not prose.
+                  */}
+                  <div role="listbox" id={listboxId} aria-label={label}>
+                    {filtered.map((entry) => (
                       <button
                         key={entry.code}
                         type="button"
+                        role="option"
+                        aria-selected={value === entry.code}
+                        // Pressing while the search field still has focus must
+                        // not blur it before the choice lands, hence mousedown
+                        // with the default prevented.
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          onChange(entry.code);
-                          setIsOpen(false);
+                          select(entry.code);
+                        }}
+                        // Enter and Space on a focused button fire a click and
+                        // no mousedown at all, so without this the list could be
+                        // reached by keyboard and never chosen from. `detail`
+                        // is 0 only for activation that did not come from a
+                        // pointer, which the mousedown above has already taken.
+                        onClick={(e) => {
+                          if (e.detail === 0) select(entry.code);
                         }}
                         className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${
                           value === entry.code
@@ -163,6 +215,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                           <resources.CountryFlag
                             code={entry.code}
                             locale={locale}
+                            decorative
                             className="text-base leading-none"
                           />
                           <span>{entry.name}</span>
@@ -171,13 +224,13 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                           <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />
                         )}
                       </button>
-                    ))
-                  )}
+                    ))}
+                  </div>
                 </div>
               </>
             ) : (
               <div className="flex min-h-16 items-center justify-center p-3">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+                <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
               </div>
             )}
           </div>
