@@ -194,8 +194,10 @@ impl<'a> WorldValidationContext<'a> {
             .collect();
         // Include builtin nations so competition selectors that reference them
         // pass validation here, matching what validate_competition_references
-        // uses at build/install time.
-        for nation in crate::nations::NATION_CATALOG {
+        // uses at build/install time. `all_nations()`, not the World Cup pool:
+        // being a World Cup entrant has nothing to do with being able to host a
+        // league, and entity validation already accepts all 211 (#458).
+        for nation in crate::nations::all_nations() {
             country_codes.insert(nation.code);
         }
         let mut region_ids: HashSet<&'a str> = world
@@ -203,7 +205,11 @@ impl<'a> WorldValidationContext<'a> {
             .iter()
             .map(|region| region.id.as_str())
             .collect();
-        for nation in crate::nations::NATION_CATALOG {
+        // Same source as the country loop above. Today this adds nothing —
+        // every `ADDITIONAL_NATIONS` region already appears in the World Cup
+        // pool — but keeping the two loops on one catalog means a nation added
+        // with a new region cannot leave region validation behind.
+        for nation in crate::nations::all_nations() {
             region_ids.insert(nation.region_id);
         }
         Self {

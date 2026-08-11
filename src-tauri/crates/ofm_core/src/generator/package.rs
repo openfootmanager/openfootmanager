@@ -987,7 +987,11 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         package.countries.iter().map(|c| c.id.as_str()).collect();
     let mut region_ids: HashSet<&str> =
         package.confederations.iter().map(|c| c.id.as_str()).collect();
-    for nation in crate::nations::NATION_CATALOG {
+    // Every selectable nation, not just the World Cup pool: a country that is
+    // valid as a team's country and a player's nationality must be valid as a
+    // competition's country too. Whether a nation enters the World Cup has
+    // nothing to do with whether it can host a domestic league (#458).
+    for nation in crate::nations::all_nations() {
         country_codes.insert(nation.code);
         region_ids.insert(nation.region_id);
     }
@@ -1028,7 +1032,18 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
                 params,
             }
         })
-        .collect()
+        // One competition can raise the same problem from more than one field —
+        // an unknown country reaches the validator once as `countryId` and again
+        // as the participant selector's `country`, and the author sees the
+        // identical line twice with nothing to tell them apart. Collapse exact
+        // duplicates; two competitions with the same bad country still report
+        // separately, because the `competition` param differs.
+        .fold(Vec::new(), |mut unique, error| {
+            if !unique.contains(&error) {
+                unique.push(error);
+            }
+            unique
+        })
 }
 
 // ---------------------------------------------------------------------------
@@ -3107,6 +3122,117 @@ colors:
         );
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The Malta case from #458: one nation used as a team's country, a
+    /// player's nationality *and* a competition's country, in a single package.
+    /// Entity validation resolves through `all_nations()` (211) while the
+    /// competition context used to seed from `NATION_CATALOG` (68), so the same
+    /// code was simultaneously known and unknown in one validation run.
+    #[test]
+    fn a_selectable_nation_is_accepted_by_competition_validation_too() {
+        let dir = temp_package();
+        // AM (Armenia) is in ADDITIONAL_NATIONS, not the World Cup catalog.
+        assert!(
+            crate::nations::ADDITIONAL_NATIONS
+                .iter()
+                .any(|n| n.code == "AM"),
+            "test premise: AM must be a merely-selectable nation"
+        );
+        write(
+            &dir,
+            "teams.yaml",
+            "schema: team\nid: yerevan\nname: Yerevan FC\nshortName: YER\ncity: Yerevan\ncountry: AM\ncolors:\n  primary: '#cc0000'\n  secondary: '#ffffff'\n",
+        );
+        write(
+            &dir,
+            "players.yaml",
+            "schema: player\nid: am-player-1\nname: Test Player\nclub: yerevan\nnationality: AM\nposition: CentralMidfielder\n",
+        );
+        write(
+            &dir,
+            "league.yaml",
+            "schema: competition\nid: am-premier\nname: Armenian Premier League\ntype: League\nscope: Domestic\ncountryId: AM\nformat:\n  kind: LeagueTable\n  legs: 2\nparticipants:\n  selector:\n    kind: allInCountry\n    country: AM\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        assert!(
+            errors.is_empty(),
+            "a nation valid for a team and a player must be valid for its league: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// An unknown country reaches the validator twice for one competition —
+    /// once as `countryId`, once as the selector's `country` — and used to be
+    /// reported twice, identically, with nothing to tell the two lines apart.
+    #[test]
+    fn one_competition_reports_an_unknown_country_once() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "league.yaml",
+            "schema: competition\nid: bad-1\nname: Bad League\ntype: League\nscope: Domestic\ncountryId: XX\nformat:\n  kind: LeagueTable\nparticipants:\n  selector:\n    kind: allInCountry\n    country: XX\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let unknown_country: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.unknownCountry")
+            .collect();
+        assert_eq!(
+            unknown_country.len(),
+            1,
+            "one competition, one bad country, one error: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Two competitions sharing one bad country are still two problems — the
+    /// dedup must collapse repeats of the same competition, not merge distinct
+    /// ones into a single line the author cannot act on.
+    #[test]
+    fn two_competitions_with_the_same_unknown_country_report_separately() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "leagues.yaml",
+            "schema: competition\nitems:\n  - id: bad-1\n    name: Bad One\n    type: League\n    scope: Domestic\n    countryId: XX\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: XX\n  - id: bad-2\n    name: Bad Two\n    type: League\n    scope: Domestic\n    countryId: XX\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: XX\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let unknown_country: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.unknownCountry")
+            .collect();
+        assert_eq!(
+            unknown_country.len(),
+            2,
+            "each competition keeps its own error: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The invariant that broke in #458, stated the way it can actually hold.
+    /// The two catalogs are deliberately different sizes (68 vs 211), so the
+    /// assertion is not "same set" but "competition validation accepts every
+    /// country entity validation accepts".
+    #[test]
+    fn competition_validation_knows_every_country_entity_validation_knows() {
+        let world = super::super::WorldData::default();
+        let ctx = super::super::WorldValidationContext::from_world(&world);
+
+        for nation in crate::nations::all_nations() {
+            assert!(
+                ctx.country_codes.contains(nation.code),
+                "{} ({}) is a valid nationality but unknown to competition validation",
+                nation.code,
+                nation.name
+            );
+        }
     }
 
     #[test]
