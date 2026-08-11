@@ -2588,6 +2588,7 @@
         "readFailed": "无法读取某个包文件。",
         "missingSchema": "某个包文件缺少 \"schema\" 字段。",
         "worldExportNotPackage": "此文件夹是导出的世界存档，而不是软件包项目。导出的世界使用不同的格式，无法在此处编辑。",
+        "notAProjectDirectory": "这不是数据包项目文件夹。请选择包含数据包 package.json 的文件夹；如果是已安装的 .ofm 数据包，请使用“打开 .ofm 文件”。",
         "unknownSchema": "未知的 schema \"{{schema}}\"。",
         "invalidEntity": "\"{{schema}}\" 条目无效。",
         "missingId": "某个 {{kind}} 条目缺少 id。",

@@ -588,6 +588,7 @@ export default function WorldEditor() {
         onOpenPackageFile={() => { void handleOpenPackageFile(); }}
         onOpenPackageFolder={() => { void handleOpenPackageFolder(); }}
         onOpenRecent={(path) => { void openFromPath(path, "folder"); }}
+        onOpenInstalled={(ofmPath) => { void openFromPath(ofmPath, "file"); }}
       />
     );
   }

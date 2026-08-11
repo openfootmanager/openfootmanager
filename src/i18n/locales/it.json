@@ -2588,6 +2588,7 @@
         "readFailed": "Impossibile leggere un file del pacchetto.",
         "missingSchema": "A un file del pacchetto manca il campo \"schema\".",
         "worldExportNotPackage": "Questa cartella è un mondo esportato, non un progetto di pacchetto. I mondi esportati usano un formato diverso e non possono essere modificati qui.",
+        "notAProjectDirectory": "Questa non è una cartella di progetto di un pacchetto. Scegli la cartella che contiene il package.json del pacchetto — oppure, per un pacchetto .ofm installato, usa «Apri file .ofm».",
         "unknownSchema": "Schema sconosciuto \"{{schema}}\".",
         "invalidEntity": "Una voce \"{{schema}}\" non è valida.",
         "missingId": "A una voce {{kind}} manca l’id.",

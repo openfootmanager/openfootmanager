@@ -46,6 +46,14 @@ interface WorldEditorHomeProps {
   onOpenPackageFile: () => void;
   onOpenPackageFolder: () => void;
   onOpenRecent: (path: string) => void;
+  /**
+   * Open an installed package. Deliberately separate from `onOpenRecent`: a
+   * recent project is a *directory*, an installed package is a `.ofm`
+   * *archive*, and they are opened by different means. Routing both through one
+   * callback is what made "Open in Editor" hand an archive path to the
+   * directory reader, which found no files and opened an empty editor.
+   */
+  onOpenInstalled: (ofmPath: string) => void;
 }
 
 export function WorldEditorHome({
@@ -56,6 +64,7 @@ export function WorldEditorHome({
   onOpenPackageFile,
   onOpenPackageFolder,
   onOpenRecent,
+  onOpenInstalled,
 }: WorldEditorHomeProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -385,7 +394,7 @@ export function WorldEditorHome({
                       </p>
                     </div>
                     <button
-                      onClick={() => onOpenRecent(pkg.installedPath)}
+                      onClick={() => onOpenInstalled(pkg.installedPath)}
                       disabled={isBusy}
                       className="text-xs font-semibold text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors disabled:opacity-60 flex-shrink-0"
                     >

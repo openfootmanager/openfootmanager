@@ -97,6 +97,15 @@ pub fn create_world_project(
 #[tauri::command]
 pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
     let path = Path::new(&dir);
+
+    // Anything that is not a directory cannot be walked for entity files, and
+    // walking it fails *silently* — the loader simply finds nothing. Naming the
+    // problem here is the difference between "that is not a package folder" and
+    // an editor that opens with every field blank.
+    if !path.is_dir() {
+        return Err("be.error.package.notAProjectDirectory".to_string());
+    }
+
     let (pkg, errors) = load_world_package(path);
 
     // A package that resolved to nothing must not open as a blank project.
@@ -110,6 +119,15 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
         // `resolveBackendError` understands, so the message can name the
         // offending version or schema rather than leaving blanks.
         return Err(crate::commands::game::first_package_error_message(&errors));
+    }
+
+    // Nothing resolved *and* nothing went wrong: the directory is simply not a
+    // package. The guard above cannot catch this — it needs an error to report,
+    // and finding no files to read is not an error. A newly scaffolded project
+    // is legitimately empty but always has its manifest, which is what tells the
+    // two apart.
+    if pkg.meta.is_none() && ofm_core::generator::is_unreadable(&pkg) {
+        return Err("be.error.package.notAProjectDirectory".to_string());
     }
 
     let issues = errors
@@ -229,6 +247,226 @@ mod tests {
         dir
     }
 
+    /// A `.ofm` archive built from `files`, plus the project and legacy paths
+    /// `extract_ofm_for_editing` would derive for it.
+    fn archive_for(
+        tag: &str,
+        files: &[(&str, &str)],
+    ) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+        let source = temp_project(&format!("{tag}-src"), files);
+        let root = std::env::temp_dir().join(format!("ofm-editor-open-{tag}-edit"));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).unwrap();
+        let archive = root.join("pkg.ofm");
+        export_directory_to_ofm(&source, &archive).unwrap();
+        std::fs::remove_dir_all(&source).ok();
+        let project = root.join("world-editor").join(project_name_for(&archive));
+        let legacy = root.join("world-editor-temp").join("pkg");
+        (archive, project, legacy)
+    }
+
+    #[test]
+    fn an_archive_opens_as_a_project_named_after_the_package() {
+        // Not after the file: "Open package file" takes any `.ofm` from anywhere
+        // on disk, and two of them called `pkg.ofm` are two different packages
+        // that must not be handed the same project.
+        let (_archive, project, _) = archive_for(
+            "named-by-id",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"brazil-1962","name":"Brazil 1962"}"#,
+            )],
+        );
+
+        assert_eq!(project.file_name().unwrap(), "brazil-1962");
+
+        std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn an_archive_with_an_unusable_id_falls_back_to_its_filename() {
+        // An authored id may contain a separator — one with a slash in it
+        // validates in the editor and the CLI today — and joining that onto a
+        // path would put the project somewhere else entirely. Fall back rather
+        // than refuse to open.
+        let (archive, project, _) = archive_for(
+            "unusable-id",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"../escape","name":"Escape"}"#,
+            )],
+        );
+
+        assert_eq!(project.file_name().unwrap(), "pkg");
+        assert!(project_name_for(&archive) == "pkg");
+
+        std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn reopening_an_installed_package_keeps_the_edits_made_to_it() {
+        // The project is the author's once it exists — it goes into recent
+        // projects and is saved into like any other. Re-extracting over it threw
+        // away every edit since, and only for the author who came back through
+        // the installed list instead of through recents: the same package,
+        // opened two ways, with different contents.
+        let (archive, project, legacy) = archive_for(
+            "keeps-edits",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"keep","name":"Keep"}"#,
+            )],
+        );
+
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+        let edited = project.join("countries/added-by-the-author.json");
+        std::fs::create_dir_all(edited.parent().unwrap()).unwrap();
+        std::fs::write(&edited, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+
+        assert!(
+            edited.exists(),
+            "reopening the same archive must not discard what was authored in it"
+        );
+        std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn a_package_replaced_on_disk_does_not_replace_the_project() {
+        // The whole point of the project being durable. A package updated or
+        // reinstalled underneath does not refresh what the author is working on:
+        // serving a stale copy is recoverable and visible in the manifest,
+        // replacing an afternoon's editing is neither.
+        let (archive, project, legacy) = archive_for(
+            "replaced",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"same","name":"One"}"#,
+            )],
+        );
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+        let authored = project.join("countries/mine.json");
+        std::fs::create_dir_all(authored.parent().unwrap()).unwrap();
+        std::fs::write(&authored, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+
+        // Same id, new contents — as an update or a reinstall would leave it.
+        let replacement = temp_project(
+            "replaced-v2",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"same","name":"Two"}"#,
+            )],
+        );
+        std::fs::remove_file(&archive).unwrap();
+        export_directory_to_ofm(&replacement, &archive).unwrap();
+
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+
+        assert!(authored.exists(), "the author's work stays");
+        let manifest = std::fs::read_to_string(project.join("package.json")).unwrap();
+        assert!(
+            manifest.contains("One"),
+            "the project keeps the version it was opened from: {manifest}"
+        );
+
+        std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
+        std::fs::remove_dir_all(&replacement).ok();
+    }
+
+    #[test]
+    fn an_extract_left_by_the_old_temporary_layout_is_adopted() {
+        // Editing used to happen in `world-editor-temp/<stem>`. Whatever an
+        // author had there is real work, and once nothing points at that folder
+        // any more they have no way to find it.
+        let (archive, project, legacy) = archive_for(
+            "adopts-legacy",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"legacy","name":"Legacy"}"#,
+            )],
+        );
+        std::fs::create_dir_all(legacy.join("countries")).unwrap();
+        std::fs::write(
+            legacy.join("package.json"),
+            r#"{"schema":"world","id":"legacy","name":"Legacy"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            legacy.join("countries/from-the-old-place.json"),
+            r#"{"schema":"country","id":"ES","name":"Spain"}"#,
+        )
+        .unwrap();
+
+        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+
+        assert!(
+            project.join("countries/from-the-old-place.json").exists(),
+            "work from the old temporary layout must come across"
+        );
+        assert!(!legacy.exists(), "and must not be left in two places");
+
+        std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn an_archive_whose_name_is_all_dots_stays_inside_the_projects_root() {
+        // `file_stem()` returns ".." for "...ofm" and "." for "..ofm", and either
+        // joined onto the projects root walks out of it — into the app-data
+        // directory itself, which is then what the archive extracts over.
+        for name in ["...ofm", "..ofm", ".ofm"] {
+            let derived = project_name_for(Path::new(name));
+            assert!(
+                is_safe_project_name(&derived),
+                "{name} produced the project name {derived:?}"
+            );
+            assert_eq!(
+                Path::new("/app/world-editor").join(&derived).parent().unwrap(),
+                Path::new("/app/world-editor"),
+                "{name} escaped the projects root"
+            );
+        }
+    }
+
+    #[test]
+    fn a_legacy_extract_of_a_different_package_is_left_alone() {
+        // The old layout was keyed on the filename. Two archives called
+        // `pkg.ofm` are two different packages, so adopting on the name alone
+        // would move one package's edits into the other one's project — the
+        // worse half of the bug this replaced.
+        let (archive, project, legacy) = archive_for(
+            "legacy-mismatch",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"mine","name":"Mine"}"#,
+            )],
+        );
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(
+            legacy.join("package.json"),
+            r#"{"schema":"world","id":"somebody-else","name":"Somebody Else"}"#,
+        )
+        .unwrap();
+        let theirs = legacy.join("countries/theirs.json");
+        std::fs::create_dir_all(theirs.parent().unwrap()).unwrap();
+        std::fs::write(&theirs, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+
+        open_project_for_archive(&archive, &project, &legacy, "mine").unwrap();
+
+        assert!(
+            theirs.exists(),
+            "another package's work must stay where it is"
+        );
+        assert!(
+            !project.join("countries/theirs.json").exists(),
+            "and must not be adopted into this package's project"
+        );
+        let manifest = std::fs::read_to_string(project.join("package.json")).unwrap();
+        assert!(manifest.contains("mine"), "the archive was extracted: {manifest}");
+
+        std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
+    }
+
     #[test]
     fn a_freshly_scaffolded_empty_project_still_opens() {
         // `ofm-cli new` and the editor's own "new project" both produce a
@@ -253,6 +491,95 @@ mod tests {
         assert_eq!(data.meta.id, "fresh");
         assert!(data.teams.is_empty());
         assert!(data.issues.is_empty(), "an empty scaffold has no issues");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_package_with_entities_in_subdirectories_opens_with_all_of_them() {
+        // The other half of the reported bug: refusing what is not a package is
+        // only useful if the real one still opens. Shaped like the package that
+        // was reported — a manifest at the root, entities spread across
+        // subdirectories, some files holding several entities.
+        let dir = temp_project(
+            "real-shape",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"brazil-1962","name":"Brazil 1962"}"#,
+                ),
+                (
+                    "teams/teams.json",
+                    r##"{"schema":"team","items":[
+                        {"id":"santos","name":"Santos","city":"Santos","country":"BR",
+                         "colors":{"primary":"#ffffff","secondary":"#000000"}},
+                        {"id":"palmeiras","name":"Palmeiras","city":"Sao Paulo","country":"BR",
+                         "colors":{"primary":"#00aa00","secondary":"#ffffff"}}
+                    ]}"##,
+                ),
+                (
+                    "players/santos.json",
+                    r#"{"schema":"player","items":[
+                        {"id":"pele","name":"Pele","firstName":"Edson","lastName":"Nascimento",
+                         "club":"santos","nationality":"BR","position":"Striker","overall":99}
+                    ]}"#,
+                ),
+            ],
+        );
+
+        let data = read_package_project(dir.to_string_lossy().to_string())
+            .expect("a package with real content must open");
+
+        assert_eq!(data.meta.id, "brazil-1962");
+        assert_eq!(data.teams.len(), 2);
+        assert_eq!(data.players.len(), 1);
+        assert!(data.issues.is_empty(), "unexpected issues: {}", data.issues.len());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn pointing_the_editor_at_an_ofm_archive_is_refused() {
+        // Reported from real use: "Open in Editor" on an installed package
+        // showed an empty editor, for a package that loads fine in the game.
+        // An installed package is a `.ofm` *file*, and this command takes a
+        // directory — walking a file finds no entity files, which produced an
+        // empty package and, because nothing failed, *no errors*. So the
+        // "must not open as a blank project" guard never fired.
+        let dir = temp_project("ofm-archive", &[]);
+        std::fs::create_dir_all(&dir).unwrap();
+        let archive = dir.join("brazil-1962.ofm");
+        std::fs::write(&archive, b"PK\x03\x04 not really a zip").unwrap();
+
+        let result = read_package_project(archive.to_string_lossy().to_string());
+
+        assert!(
+            result.is_err(),
+            "an archive is not a package directory and must not open as a blank project"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn opening_a_directory_that_is_not_there_is_refused() {
+        // A recent-projects entry outlives the directory it points at. Reading
+        // one that has been moved or deleted resolves to nothing at all, which
+        // is the same blank-project failure by another route.
+        let dir = std::env::temp_dir().join("ofm-editor-open-vanished");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let result = read_package_project(dir.to_string_lossy().to_string());
+
+        assert!(result.is_err(), "a missing directory must not open as a blank project");
+    }
+
+    #[test]
+    fn a_folder_with_no_package_in_it_is_refused() {
+        // Picking the wrong folder is easy to do and, before this, indistinguishable
+        // from opening a real package that happened to be empty.
+        let dir = temp_project("not-a-package", &[("notes.txt", "just some files")]);
+
+        let result = read_package_project(dir.to_string_lossy().to_string());
+
+        assert!(result.is_err(), "a folder with no manifest and no entities is not a package");
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -644,36 +971,141 @@ mod tests {
     }
 }
 
-/// Extract a `.ofm` archive to a temporary editing directory.
-/// Returns the path to the extracted directory.
+/// The project directory an archive is edited in, named after the package it
+/// declares rather than after the file.
+///
+/// The manifest id, because the filename is not an identity: "Open package
+/// file" takes any `.ofm` from anywhere on disk, and two of them called
+/// `pkg.ofm` are two different packages that must not share a project. Only
+/// installed archives are already named `<id>.ofm`, and only because
+/// `install_package` renames them.
+fn project_name_for(ofm: &Path) -> String {
+    let declared = ofm_core::generator::read_package_manifest_from_ofm(ofm).map(|meta| meta.id);
+    let stem = ofm
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_string();
+
+    // In order of how well it identifies the package, and every candidate has to
+    // clear `is_safe_project_name` — neither an authored id nor a filename is
+    // under our control, and both end up as a path segment.
+    for candidate in [declared.unwrap_or_default(), stem, slugify(ofm)] {
+        if is_safe_project_name(&candidate) {
+            return candidate;
+        }
+    }
+    "package".to_string()
+}
+
+/// Whether `name` can be joined onto the projects root as a single directory.
+///
+/// Stricter than [`sanitize_entity_id`], which lets `.` through: `file_stem`
+/// returns `..` for `...ofm` and `.` for `..ofm`, and joining either walks *out*
+/// of the projects root — into the app-data directory itself, which is then what
+/// the archive extracts over.
+fn is_safe_project_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with('.')
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains("..")
+}
+
+/// A last-resort name from the archive's filename, with everything that could
+/// mean something to a path replaced. Deterministic, so the same archive keeps
+/// finding the same project.
+fn slugify(ofm: &Path) -> String {
+    ofm.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
+/// Whether the package in `dir` is the one `name` stands for.
+///
+/// Read from the manifest rather than from the folder name, because the folder
+/// name is exactly what cannot be trusted here.
+fn declares(dir: &Path, name: &str) -> bool {
+    let (pkg, _) = load_world_package(dir);
+    pkg.meta.map(|meta| meta.id == name).unwrap_or(false)
+}
+
+/// Open the editing project for `ofm`, extracting the archive the first time.
+///
+/// The project is durable and it is the author's: once it exists, opening the
+/// same archive again opens what they have, never the archive. Re-extracting
+/// would discard every edit made since, and this directory is a project in
+/// every sense that matters — it is added to recent projects and saved into
+/// like any other, so nothing about it announces that it is disposable.
+///
+/// The cost is deliberate: a package updated or reinstalled underneath does not
+/// refresh the project. Serving a stale copy is recoverable and visible in the
+/// manifest; replacing an afternoon's editing is neither.
+fn open_project_for_archive(
+    ofm: &Path,
+    project_dir: &Path,
+    legacy_dir: &Path,
+    project_name: &str,
+) -> Result<(), String> {
+    if project_dir.is_dir() && dir_is_nonempty(project_dir) {
+        return Ok(());
+    }
+
+    // Adopt an extract left by the version of this that edited archives in
+    // `world-editor-temp/`. It may hold work, and the author has no way to find
+    // it once nothing points there any more.
+    //
+    // Only when it is the same package, though. That layout was keyed on the
+    // *filename*, and two archives called `pkg.ofm` are two different packages —
+    // adopting on the name alone would move one package's edits into the other
+    // package's project, which is the worse half of the bug this replaced.
+    if legacy_dir.is_dir() && dir_is_nonempty(legacy_dir) && declares(legacy_dir, project_name) {
+        if let Some(parent) = project_dir.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        if std::fs::rename(legacy_dir, project_dir).is_ok() {
+            return Ok(());
+        }
+    }
+
+    // extract_ofm_to_dir removes the destination on any entry error, so a
+    // rejected archive never leaves a partial tree behind.
+    extract_ofm_to_dir(ofm, project_dir)
+}
+
+/// Open an installed or picked `.ofm` archive as an editable project, returning
+/// the project directory. Extracts on first open and keeps the author's work on
+/// every open after that.
 #[tauri::command]
 pub fn extract_ofm_for_editing(
     app_handle: tauri::AppHandle,
     ofm_path: String,
 ) -> Result<String, String> {
     let ofm = Path::new(&ofm_path);
-    let stem = ofm
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("world");
+    let name = project_name_for(ofm);
 
     let base_dir = app_handle
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?;
-    let edit_dir = base_dir.join("world-editor-temp").join(stem);
+    // Alongside projects made with "New package", because that is what it is
+    // now — not under `world-editor-temp`, which said the opposite.
+    let project_dir = base_dir.join("world-editor").join(&name);
+    // The old layout keyed on the filename, so that is where to look — but the
+    // same stem that was unsafe as a project name is unsafe here too.
+    let legacy_stem = ofm.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let legacy_dir = base_dir.join("world-editor-temp").join(
+        if is_safe_project_name(legacy_stem) { legacy_stem } else { &name },
+    );
 
-    // Always start from a clean directory so stale files from a previous edit of
-    // a same-named archive can't leak into the freshly opened project.
-    if edit_dir.exists() {
-        std::fs::remove_dir_all(&edit_dir).map_err(|e| e.to_string())?;
-    }
+    open_project_for_archive(ofm, &project_dir, &legacy_dir, &name)?;
 
-    // extract_ofm_to_dir removes the destination on any entry error, so a
-    // rejected archive never leaves a partial tree in world-editor-temp.
-    extract_ofm_to_dir(ofm, &edit_dir)?;
-
-    edit_dir
+    project_dir
         .to_str()
         .map(|s: &str| s.to_string())
         .ok_or_else(|| "be.error.invalidPath".to_string())

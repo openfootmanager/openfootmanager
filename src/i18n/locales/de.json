@@ -2588,6 +2588,7 @@
         "readFailed": "Eine Paketdatei konnte nicht gelesen werden.",
         "missingSchema": "Einer Paketdatei fehlt das Feld \"schema\".",
         "worldExportNotPackage": "Dieser Ordner ist eine exportierte Weltspeicherung, kein Paketprojekt. Exportierte Welten verwenden ein anderes Format und können hier nicht bearbeitet werden.",
+        "notAProjectDirectory": "Dies ist kein Paketprojekt-Ordner. Wähle den Ordner, der die package.json des Pakets enthält — oder nutze für ein installiertes .ofm-Paket „.ofm-Datei öffnen“.",
         "unknownSchema": "Unbekanntes Schema \"{{schema}}\".",
         "invalidEntity": "Ein \"{{schema}}\"-Eintrag ist ungültig.",
         "missingId": "Einem {{kind}}-Eintrag fehlt die id.",
