@@ -109,7 +109,7 @@ Open `my-first-league/teams/teams.json` and replace it with:
       "city": "Eastgate",
       "country": "ENG",
       "colors": { "primary": "#0066cc", "secondary": "#ffcc00" },
-      "playStyle": "Pressing",
+      "playStyle": "HighPress",
       "stadiumName": "City Ground",
       "reputationRange": [300, 550],
       "financeRange": [500000, 2000000]
