@@ -273,7 +273,12 @@ pub fn generate_youth_academy_recruit_with_nationality(
     let country_codes = generation::nationality_distribution();
     let nationality = nationality_override
         .map(generation::canonicalize_generated_nationality)
-        .unwrap_or_else(|| pick_nationality_from_def(&team.country, country_codes, &mut rng));
+        .unwrap_or_else(|| {
+            // `team_local_nationality`, not `team.country`: a club carries both a
+            // location and a football identity, and where they differ the
+            // football identity is the one a youth intake should draw on.
+            pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng)
+        });
     let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
     let mut player =
@@ -335,7 +340,15 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_yea
         .max(weekly_wage_spend.saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
 }
 
-fn team_staff_seed_nationality(team: &Team) -> &str {
+/// The country a club's *people* should be drawn from.
+///
+/// `country` is where the club is; `football_nation` is the identity it plays
+/// under, and the two differ (a Welsh club in the English pyramid). Anyone
+/// generated for the club follows the football identity when it is set.
+///
+/// Named without `staff` because players use it too — the youth intake drew
+/// straight from `team.country` and quietly disagreed with every other path.
+fn team_local_nationality(team: &Team) -> &str {
     if team.football_nation.is_empty() {
         team.country.as_str()
     } else {
@@ -370,7 +383,7 @@ fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool
             }
 
             let nationality = pick_nationality_from_def(
-                team_staff_seed_nationality(team),
+                team_local_nationality(team),
                 &country_codes,
                 &mut rng,
             );
@@ -395,7 +408,7 @@ fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32
     let (names_def, country_codes) = create_staff_generator_context();
     let fallback_seed = teams
         .first()
-        .map(team_staff_seed_nationality)
+        .map(team_local_nationality)
         .unwrap_or("England");
 
     standard_available_staff_roles()
@@ -406,7 +419,7 @@ fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32
             } else {
                 let seed_country = teams
                     .get(rng.random_range(0..teams.len().max(1)))
-                    .map(team_staff_seed_nationality)
+                    .map(team_local_nationality)
                     .unwrap_or(fallback_seed);
                 pick_nationality_from_def(seed_country, &country_codes, &mut rng)
             };
@@ -2174,6 +2187,40 @@ mod tests {
             assert!(nat == "ES" || nat == "ENG", "unexpected nationality: {nat}");
             assert_ne!(nat, "GB");
         }
+    }
+
+    /// A club's location and its football identity can differ — a Welsh club in
+    /// the English pyramid. Every other generated person follows the football
+    /// identity; the youth intake read `team.country` directly and quietly
+    /// disagreed.
+    #[test]
+    fn a_youth_recruit_follows_the_clubs_football_nation_not_its_location() {
+        let mut team = domain::team::Team::new(
+            "team-1".to_string(),
+            "Wrexham".to_string(),
+            "WRX".to_string(),
+            "England".to_string(),
+            "Wrexham".to_string(),
+            "Ground".to_string(),
+            20000,
+        );
+        team.football_nation = "WAL".to_string();
+
+        let drawn: Vec<String> = (0..200)
+            .map(|_| {
+                generate_youth_academy_recruit_with_nationality(&team, None, None, TEST_OPENING_YEAR)
+                    .nationality
+            })
+            .collect();
+
+        let welsh = drawn.iter().filter(|code| *code == "WAL").count();
+        let english = drawn.iter().filter(|code| *code == "ENG").count();
+        // The local weight is 60%, so the football identity should dominate the
+        // location outright rather than merely edge it.
+        assert!(
+            welsh > english,
+            "the Welsh identity should drive the local draw: WAL {welsh}, ENG {english}"
+        );
     }
 
     #[test]
