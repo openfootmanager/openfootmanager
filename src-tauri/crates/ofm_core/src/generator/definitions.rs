@@ -126,12 +126,15 @@ impl UsableDefinition for NationsDefinition {
         if self.color_palette.is_empty() {
             return Some("colorPalette is empty");
         }
-        if let Some(nation) = self.nations.iter().find(|nation| nation.cities.is_empty()) {
+        if self.nations.iter().any(|nation| nation.cities.is_empty()) {
             // Not merely cosmetic: club naming takes `index % cities.len()`.
-            return Some(match nation.tiers {
-                0 => "a nation has no cities and no divisions",
-                _ => "a nation has no cities to name its clubs after",
-            });
+            return Some("a nation has no cities to name its clubs after");
+        }
+        if self.generic_cities.is_empty() {
+            // These name the filler clubs that pad a thin package whose country
+            // has no curated pool, so an empty list is the same modulo-by-zero
+            // one step removed.
+            return Some("genericCities is empty");
         }
         None
     }
@@ -525,9 +528,17 @@ mod tests {
             (
                 r##"{"clubsPerDivision":0,
                     "colorPalette":[{"primary":"#000","secondary":"#fff"}],
+                    "genericCities":["G"],
                     "nations":[{"code":"TR","style":"Generic","tiers":1,"strength":3,
                                 "cities":["A"]}]}"##,
                 "zero clubs per division",
+            ),
+            (
+                r##"{"colorPalette":[{"primary":"#000","secondary":"#fff"}],
+                    "genericCities":[],
+                    "nations":[{"code":"TR","style":"Generic","tiers":1,"strength":3,
+                                "cities":["A"]}]}"##,
+                "no generic cities to pad a thin package with",
             ),
         ];
 

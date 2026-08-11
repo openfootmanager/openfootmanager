@@ -1053,7 +1053,10 @@ pub fn build_world_data_from_package(
         .clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR);
     let mut rng = rand::rng();
     let names_def = {
-        let mut merged = default_names_definition();
+        // From `sources`, so a package's own pools layer on top of whatever the
+        // player resolved rather than on top of the embedded copy — the same
+        // definitions the rest of generation is using.
+        let mut merged = definitions::names_definition(sources);
         if let Some(pkg_names) = &package.names {
             for (key, pool) in &pkg_names.pools {
                 if !pool.first_names.is_empty() && !pool.last_names.is_empty() {
