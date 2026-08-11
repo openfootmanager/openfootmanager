@@ -48,18 +48,26 @@ fn compute_alternate_position(primary: &Position, attrs: &PlayerAttributes) -> O
     }
 }
 
-/// Pick a nationality code weighted 60% toward team country.
+/// Pick a nationality: 60% the club's own country, 40% from the wider draw.
+///
+/// When the club's country resolves to no known nation the local weight has
+/// nothing to apply to, so the whole draw comes from `available_codes`. That is
+/// the #453 fix: an unrecognised country used to mean England, specifically and
+/// silently, for 60% of the squad.
 pub(super) fn pick_nationality_from_def(
     team_country: &str,
     available_codes: &[String],
     rng: &mut impl Rng,
 ) -> String {
-    // Map team country name → ISO code for the 60% local weight
-    let local_code = country_to_iso(team_country);
-    let selected_code = if available_codes.is_empty() || rng.random_range(0..100) < 60 {
-        local_code.to_string()
-    } else {
-        available_codes[rng.random_range(0..available_codes.len())].clone()
+    let local_code = resolve_nationality_code(team_country);
+    let selected_code = match local_code {
+        Some(code) if available_codes.is_empty() || rng.random_range(0..100) < 60 => code,
+        Some(_) | None if !available_codes.is_empty() => {
+            available_codes[rng.random_range(0..available_codes.len())].clone()
+        }
+        // Nothing local and nothing to draw from: the caller has no nations at
+        // all. Better an obviously-unset value than a plausible wrong one.
+        _ => String::new(),
     };
 
     canonicalize_generated_nationality(&selected_code)
@@ -157,34 +165,98 @@ fn fallback_pool<'a>(
     Some(candidates[rng.random_range(0..candidates.len())].1)
 }
 
-pub(super) fn country_to_iso(country: &str) -> &str {
-    match country {
-        "England" | "ENG" => "ENG",
-        "Scotland" | "SCO" => "SCO",
-        "Wales" | "WAL" => "WAL",
-        "Northern Ireland" | "NIR" => "NIR",
-        "Ireland" | "Republic of Ireland" | "IE" => "IE",
-        "GB" => "GB",
-        "Spain" | "ES" => "ES",
-        "Germany" | "DE" => "DE",
-        "France" | "FR" => "FR",
-        "Italy" | "IT" => "IT",
-        "Netherlands" | "NL" => "NL",
-        "Portugal" | "PT" => "PT",
-        "Brazil" | "BR" => "BR",
-        "Argentina" | "AR" => "AR",
-        "Belgium" | "BE" => "BE",
-        "Croatia" | "HR" => "HR",
-        "Sweden" | "SE" => "SE",
-        other => {
-            // If already a short code, return as-is.
-            if other.len() == 2 || other.len() == 3 {
-                other
-            } else {
-                "ENG"
+/// Resolve a club's declared country to a nationality code, or `None` when it
+/// names no nation the game knows.
+///
+/// Replaces `country_to_iso`, which matched 17 country names by hand and
+/// answered `"ENG"` for everything else — so `"country": "Japan"` filled 60% of
+/// every Japanese club with English players, with nothing in the log or the UI
+/// to say so. Its length heuristic was a second wrong answer: any 2–3 character
+/// string was passed through as though it were a code.
+///
+/// `None` is the important part. An unresolvable country must stay explicitly
+/// unknown so the caller can draw from the whole distribution, rather than
+/// being handed a real, specific, wrong nationality.
+pub(super) fn resolve_nationality_code(country: &str) -> Option<String> {
+    let trimmed = country.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    // Football identities first: this is what maps "England"/"english"/"eng" —
+    // and the UK home nations generally — onto the codes the game uses.
+    let normalized = domain::identity::normalize_football_nation_code(trimmed);
+    if nations::nation_by_code(&normalized).is_some() {
+        return Some(normalized);
+    }
+    // `GB` is a real football identity but never a generated nationality; the
+    // caller canonicalises it to ENG.
+    if normalized == "GB" {
+        return Some(normalized);
+    }
+
+    // Then the catalog's own display names, which is what makes "Japan",
+    // "Nigeria" and the other 190-odd nations resolve at all.
+    nations::nation_by_name(trimmed).map(|nation| nation.code.to_string())
+}
+
+/// Every nationality a generated player can have, repeated in proportion to how
+/// often it should come up.
+///
+/// #452: this used to be `names_def.pools.keys()` — the 17 name-pool keys. A
+/// lookup table was doing the job of a population model, so a world contained
+/// at most ~16 nationalities (14 of them European) no matter how many countries
+/// it had, and no amount of catalog work could change that.
+///
+/// Weight comes from rank within region in [`nations::NATION_CATALOG`], which is
+/// already documented as "strongest footballing traditions first within each
+/// region" — so it is a signal the codebase already maintains rather than a new
+/// hand-authored table. [`nations::ADDITIONAL_NATIONS`] form a flat low-weight
+/// tail: reachable, but rare.
+///
+/// Deliberately *not* `NationGen.strength`: that exists for only the 16
+/// generation nations and is already spoken for by club reputation, so using it
+/// here would privilege exactly the nations this issue is about and couple two
+/// unrelated models.
+///
+/// Expanded into a plain `Vec` so callers keep drawing with a uniform index —
+/// the weighting lives here, once, instead of at every draw site. Built once:
+/// it derives purely from `&'static` catalogs, and the order must be stable or
+/// seeded generation stops reproducing.
+pub(super) fn nationality_distribution() -> &'static Vec<String> {
+    static DISTRIBUTION: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    DISTRIBUTION.get_or_init(|| {
+        /// Weight of the strongest nation in a region. Ranks below it step down
+        /// by one, so a region's top handful dominate its share without
+        /// shutting the rest out.
+        const TOP_WEIGHT: usize = 12;
+        /// Floor for a World Cup nation, and the flat weight of the tail. Two
+        /// tiers rather than one: Europe alone has 26 catalog nations, so a
+        /// single floor of 1 made everything past rank 11 exactly as likely as
+        /// a merely-selectable nation — Poland would have drawn as often as
+        /// Andorra. A qualifying nation should always outrank a non-entrant.
+        const CATALOG_FLOOR: usize = 2;
+        const TAIL_WEIGHT: usize = 1;
+
+        let mut pool = Vec::new();
+        let mut seen_in_region: std::collections::HashMap<&str, usize> =
+            std::collections::HashMap::new();
+
+        for nation in nations::NATION_CATALOG {
+            let rank = seen_in_region.entry(nation.region_id).or_insert(0);
+            let weight = TOP_WEIGHT.saturating_sub(*rank).max(CATALOG_FLOOR);
+            *rank += 1;
+            for _ in 0..weight {
+                pool.push(nation.code.to_string());
             }
         }
-    }
+        for nation in nations::ADDITIONAL_NATIONS {
+            for _ in 0..TAIL_WEIGHT {
+                pool.push(nation.code.to_string());
+            }
+        }
+        pool
+    })
 }
 
 pub(super) fn play_style_from_str(s: &str) -> PlayStyle {
@@ -840,4 +912,132 @@ pub(super) fn generate_random_unemployed_manager(
     mgr.satisfaction = 50;
     mgr.fan_approval = 50;
     mgr
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// #453: `country_to_iso` recognised 17 country names and answered `"ENG"`
+    /// for everything else, so a package with `"country": "Japan"` filled 60% of
+    /// every Japanese club with English players — silently.
+    #[test]
+    fn a_country_name_outside_the_old_hardcoded_list_resolves_to_its_own_code() {
+        for (name, expected) in [
+            ("Japan", "JP"),
+            ("Nigeria", "NG"),
+            ("Poland", "PL"),
+            ("Mexico", "MX"),
+            ("Serbia", "RS"),
+        ] {
+            assert_eq!(
+                resolve_nationality_code(name).as_deref(),
+                Some(expected),
+                "{name} should resolve to {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_country_names_the_old_list_did_know_still_resolve() {
+        for (name, expected) in [
+            ("England", "ENG"),
+            ("Scotland", "SCO"),
+            ("Republic of Ireland", "IE"),
+            ("Brazil", "BR"),
+            ("Sweden", "SE"),
+        ] {
+            assert_eq!(resolve_nationality_code(name).as_deref(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn a_code_resolves_to_itself() {
+        for code in ["JP", "BR", "ENG", "NIR", "GW"] {
+            assert_eq!(resolve_nationality_code(code).as_deref(), Some(code));
+        }
+    }
+
+    /// A package may declare its own country with a slug id (`scaffold` emits
+    /// one for any country outside the catalog). That is unresolvable — and the
+    /// answer must be "unknown", not a real, specific, wrong nationality.
+    #[test]
+    fn an_unresolvable_country_is_unknown_rather_than_england() {
+        for unknown in ["atlantis", "Fictland", "", "   "] {
+            assert_eq!(
+                resolve_nationality_code(unknown),
+                None,
+                "{unknown:?} must not resolve to a real nation"
+            );
+        }
+    }
+
+    /// The length heuristic passed any 2–3 character string straight through as
+    /// though it were a code — a different wrong answer for a different input.
+    #[test]
+    fn a_short_string_that_is_not_a_nation_code_is_not_treated_as_one() {
+        assert_eq!(resolve_nationality_code("zz"), None);
+        assert_eq!(resolve_nationality_code("xyz"), None);
+    }
+
+    #[test]
+    fn an_unresolvable_club_country_never_produces_an_english_squad() {
+        let mut rng = rand::rng();
+        let pool = nationality_distribution();
+
+        let drawn: Vec<String> = (0..400)
+            .map(|_| pick_nationality_from_def("atlantis", pool, &mut rng))
+            .collect();
+        let english = drawn.iter().filter(|code| *code == "ENG").count();
+
+        // With the old code every one of these was ENG. Drawn from the whole
+        // distribution, England is one nation among 211 — a handful is fine, a
+        // majority is the bug.
+        assert!(
+            english < drawn.len() / 4,
+            "{english}/{} drawn as English for an unresolvable country",
+            drawn.len()
+        );
+    }
+
+    /// #452: the draw used to be over the 17 name-pool keys, so a world could
+    /// only ever contain ~16 nationalities however many countries it held.
+    #[test]
+    fn the_nationality_distribution_spans_the_whole_catalog() {
+        let pool = nationality_distribution();
+        let distinct: std::collections::HashSet<&String> = pool.iter().collect();
+
+        assert!(
+            distinct.len() > 200,
+            "the draw should span the catalog, got {} nationalities",
+            distinct.len()
+        );
+        for code in ["JP", "NG", "PL", "MX", "RS"] {
+            assert!(
+                distinct.contains(&code.to_string()),
+                "{code} should be drawable"
+            );
+        }
+    }
+
+    /// Weighted, not uniform — the issue is explicit that "uniform across all
+    /// nations would be as wrong as today's behaviour, just differently".
+    #[test]
+    fn stronger_footballing_nations_are_drawn_more_often() {
+        let pool = nationality_distribution();
+        let count = |code: &str| pool.iter().filter(|entry| *entry == code).count();
+
+        // Top of its region beats a lower-ranked neighbour, which beats a
+        // merely-selectable nation.
+        assert!(count("FR") > count("PL"), "FR {} vs PL {}", count("FR"), count("PL"));
+        assert!(count("PL") > count("AD"), "PL {} vs AD {}", count("PL"), count("AD"));
+        assert!(count("BR") > count("BO"), "BR {} vs BO {}", count("BR"), count("BO"));
+    }
+
+    /// The pool is indexed with the RNG, so its order has to be stable or the
+    /// same seed stops producing the same world.
+    #[test]
+    fn the_distribution_is_stable_across_calls() {
+        assert_eq!(nationality_distribution(), nationality_distribution());
+    }
 }

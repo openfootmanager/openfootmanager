@@ -270,10 +270,10 @@ pub fn generate_youth_academy_recruit_with_nationality(
 
     let mut rng = rand::rng();
     let names_def = default_names_definition();
-    let country_codes = sorted_country_codes(&names_def);
+    let country_codes = generation::nationality_distribution();
     let nationality = nationality_override
         .map(generation::canonicalize_generated_nationality)
-        .unwrap_or_else(|| pick_nationality_from_def(&team.country, &country_codes, &mut rng));
+        .unwrap_or_else(|| pick_nationality_from_def(&team.country, country_codes, &mut rng));
     let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
     let mut player =
@@ -343,22 +343,9 @@ fn team_staff_seed_nationality(team: &Team) -> &str {
     }
 }
 
-/// Country codes from the name pools in a stable, sorted order.
-///
-/// `pools` is a `HashMap`, and Rust randomizes key-iteration order per
-/// instance. Generation indexes into these codes with the RNG, so without a
-/// stable order the same seed produces different worlds. Sorting is what makes
-/// seeded world generation actually reproducible.
-fn sorted_country_codes(names_def: &definitions::NamesDefinition) -> Vec<String> {
-    let mut codes: Vec<String> = names_def.pools.keys().cloned().collect();
-    codes.sort();
-    codes
-}
-
 fn create_staff_generator_context() -> (definitions::NamesDefinition, Vec<String>) {
     let names_def = default_names_definition();
-    let country_codes = sorted_country_codes(&names_def);
-    (names_def, country_codes)
+    (names_def, generation::nationality_distribution().clone())
 }
 
 fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool {
@@ -1058,7 +1045,7 @@ pub fn build_world_data_from_package(
     // unseeded `rand::rng()`, and a uniform draw over a set does not care about
     // order — but the codes are indexed with the RNG, so the sort is what the
     // helper exists for and what would matter if this build were ever seeded.
-    let country_codes: Vec<String> = sorted_country_codes(&names_def);
+    let country_codes = generation::nationality_distribution();
 
     // Group hand-authored players and staff by the club they belong to.
     let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
@@ -1095,7 +1082,7 @@ pub fn build_world_data_from_package(
             .map(Vec::as_slice)
             .unwrap_or(NO_AUTHORED_STAFF);
         let (team, team_players, mut team_staff) =
-            build_package_club(tdef, authored, &country_codes, opening_year, &names_def, &mut rng);
+            build_package_club(tdef, authored, country_codes, opening_year, &names_def, &mut rng);
         // Replace auto-generated staff with authored versions, consuming each slot
         // at most once so multiple authored staff of the same role all survive.
         let mut replaced_staff_slots = vec![false; team_staff.len()];
@@ -1149,7 +1136,7 @@ pub fn build_world_data_from_package(
         let country = teams[0].country.clone();
         for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, &mut rng) {
             let (team, team_players, team_staff) =
-                build_club(def, &country_codes, opening_year, &names_def, &mut rng);
+                build_club(def, country_codes, opening_year, &names_def, &mut rng);
             teams.push(team);
             players.extend(team_players);
             staff.extend(team_staff);
@@ -1278,11 +1265,11 @@ fn generate_world_with_rng(
         .map(|def| def.teams)
         .unwrap_or_else(|| clubs::generate_club_defs(config, &mut rng));
 
-    let country_codes = sorted_country_codes(&names_def);
+    let country_codes = generation::nationality_distribution();
 
     for tdef in &team_defs {
         let (team, team_players, team_staff) =
-            build_club(tdef, &country_codes, opening_year, &names_def, &mut rng);
+            build_club(tdef, country_codes, opening_year, &names_def, &mut rng);
         players.extend(team_players);
         staff.extend(team_staff);
         teams_out.push(team);
@@ -1537,13 +1524,13 @@ mod tests {
     ) -> Vec<Player> {
         let tdef = test_team_def();
         let names_def = default_names_definition();
-        let country_codes = sorted_country_codes(&names_def);
+        let country_codes = generation::nationality_distribution();
         let mut rng = StdRng::seed_from_u64(42);
         let refs: Vec<&package::PlayerDef> = authored.iter().collect();
         let (_team, players, _staff) = build_package_club(
             &tdef,
             &refs,
-            &country_codes,
+            country_codes,
             opening_year,
             &names_def,
             &mut rng,
@@ -1789,6 +1776,40 @@ mod tests {
         assert_eq!(player.position, Position::Defender, "slot 5 is a defender");
         assert!(player.ovr > 0, "derived ratings must be computed");
         assert_eq!(player.squad_role, SquadRole::Senior);
+    }
+
+    /// #452's headline: a generated world could only ever contain ~16
+    /// nationalities — 14 of them European — because the draw was over the 17
+    /// name-pool keys rather than over the nations that exist.
+    #[test]
+    fn a_generated_world_is_not_limited_to_the_name_pool_nationalities() {
+        let (_teams, players, staff) = generate_world_with(&WorldGenConfig::standard(), None);
+
+        let nationalities: std::collections::HashSet<&str> = players
+            .iter()
+            .map(|player| player.nationality.as_str())
+            .chain(staff.iter().map(|member| member.nationality.as_str()))
+            .collect();
+
+        assert!(
+            nationalities.len() > 40,
+            "a world should field far more than the 16 name-pool nationalities, got {}: {:?}",
+            nationalities.len(),
+            nationalities
+        );
+
+        // The old pool was 14 European nations plus BR and AR, so "some
+        // non-European nationality exists" is the assertion that actually
+        // distinguishes the fix from the bug.
+        let beyond_the_old_pool = nationalities.iter().any(|code| {
+            !matches!(*code, "BR" | "AR")
+                && crate::nations::region_for_code(code) != "europe"
+                && crate::nations::nation_by_code(code).is_some()
+        });
+        assert!(
+            beyond_the_old_pool,
+            "no nationality outside the old Europe+BR/AR pool: {nationalities:?}"
+        );
     }
 
     #[test]
