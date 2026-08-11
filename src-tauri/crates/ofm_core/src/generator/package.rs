@@ -198,10 +198,12 @@ pub struct PackageInfo {
     pub team_count: usize,
     pub player_count: usize,
     pub competition_count: usize,
-    /// Name pools the package supplies, one per country code. Pools union per
-    /// key across a package stack and decide the quality of generated names for
-    /// every nationality in the world, so "does my stack cover the nationalities
-    /// my teams use?" is answerable without unzipping the `.ofm`.
+    /// How many name pools the package supplies, one per country code.
+    ///
+    /// A breadth signal, not a coverage check: it says whether a package brings
+    /// name pools at all and roughly how many, which is what distinguishes two
+    /// otherwise identical-looking packages in a list. Whether the *specific*
+    /// nationalities a squad uses are covered needs the pool keys, not a count.
     #[serde(default)]
     pub name_pool_count: usize,
     #[serde(default)]

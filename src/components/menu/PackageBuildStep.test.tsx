@@ -52,24 +52,57 @@ const baseProps = {
   onClose: vi.fn(),
 };
 
+/** The card is a button named after the package — the accessible handle a
+ *  player actually uses, so tests reach for it the same way. */
+function cardFor(pkg: PackageInfo): HTMLElement {
+  return screen.getByRole("button", { name: new RegExp(pkg.name) });
+}
+
 describe("PackageBuildStep package card", () => {
   // Name pools are a first-class entity type that stacks per key across
-  // packages, so "does my stack cover the nationalities my teams use?" is a
-  // real question. Before this, two packages differing only in that one ships
-  // 40 name pools and the other none looked identical here.
+  // packages, so "does my stack bring name pools at all?" is a real question.
+  // Before this, two packages differing only in that one ships 40 name pools
+  // and the other none looked identical here.
   it("shows the name pool, country and confederation counts", () => {
     render(<PackageBuildStep {...baseProps} installedPackages={[namePack]} />);
 
-    expect(screen.getByText("worldSelect.namePools:40")).toBeInTheDocument();
-    expect(screen.getByText("worldSelect.countries:3")).toBeInTheDocument();
-    expect(screen.getByText("worldSelect.confederations:1")).toBeInTheDocument();
+    const card = cardFor(namePack);
+    expect(card).toHaveTextContent("worldSelect.namePools:40");
+    expect(card).toHaveTextContent("worldSelect.countries:3");
+    expect(card).toHaveTextContent("worldSelect.confederations:1");
   });
 
   it("still shows the team, player and competition counts", () => {
     render(<PackageBuildStep {...baseProps} installedPackages={[namePack]} />);
 
-    expect(screen.getByText("worldSelect.teams:0")).toBeInTheDocument();
-    expect(screen.getByText("worldSelect.players:0")).toBeInTheDocument();
-    expect(screen.getByText("worldSelect.competitions:0")).toBeInTheDocument();
+    const card = cardFor(namePack);
+    expect(card).toHaveTextContent("worldSelect.teams:0");
+    expect(card).toHaveTextContent("worldSelect.players:0");
+    expect(card).toHaveTextContent("worldSelect.competitions:0");
+  });
+
+  // The other half of the conditional: a plain club database should not carry
+  // three "0" badges it never had before. Without this the suppression branch
+  // was written but never exercised.
+  it("hides the three new counts when the package supplies none", () => {
+    const clubsOnly: PackageInfo = {
+      ...namePack,
+      id: "clubs-only",
+      name: "Clubs Only",
+      teamCount: 20,
+      playerCount: 480,
+      competitionCount: 1,
+      namePoolCount: 0,
+      countryCount: 0,
+      confederationCount: 0,
+    };
+
+    render(<PackageBuildStep {...baseProps} installedPackages={[clubsOnly]} />);
+
+    const card = cardFor(clubsOnly);
+    expect(card).toHaveTextContent("worldSelect.teams:20");
+    expect(card).not.toHaveTextContent("worldSelect.namePools");
+    expect(card).not.toHaveTextContent("worldSelect.countries");
+    expect(card).not.toHaveTextContent("worldSelect.confederations");
   });
 });

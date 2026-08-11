@@ -664,6 +664,7 @@ fn cmd_info(file: &Path) -> i32 {
     table.add_row(vec!["Teams", &pkg.teams.len().to_string()]);
     table.add_row(vec!["Players", &pkg.players.len().to_string()]);
     table.add_row(vec!["Competitions", &pkg.competitions.len().to_string()]);
+    table.add_row(vec!["Staff", &pkg.staff.len().to_string()]);
     table.add_row(vec!["Countries", &pkg.countries.len().to_string()]);
     table.add_row(vec!["Confederations", &pkg.confederations.len().to_string()]);
     table.add_row(vec!["Name Pools", &pkg.name_pool_count().to_string()]);

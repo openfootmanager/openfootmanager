@@ -197,7 +197,7 @@ ofm-cli info my-league.ofm
 |----------|-------------|
 | `file` | Path to a `.ofm` file |
 
-**Output:** A table with id, name, version, author, type, license, min game version, base year, description, and a count for each entity collection the package declares: teams, players, competitions, countries, confederations, and name pools.
+**Output:** A table with id, name, version, author, type, license, min game version, base year, description, and a count for each entity collection a package can declare: teams, players, staff, competitions, countries, confederations, and name pools.
 
 ---
 
