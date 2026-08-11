@@ -256,9 +256,10 @@ pub struct WorldPackage {
 impl WorldPackage {
     /// The file the manifest came from, falling back to the conventional name.
     ///
-    /// The fallback covers packages assembled in memory (a merged stack, a test
-    /// fixture): there is no file to name, and `package.json` is where an author
-    /// would look first.
+    /// The fallback covers packages assembled in memory with no file behind
+    /// them at all (a test fixture, a synthesised world): `package.json` is
+    /// where an author would look first. A merged stack carries the manifest of
+    /// whichever package supplied the surviving metadata.
     fn manifest_source(&self) -> &str {
         if self.manifest_file.is_empty() {
             "package.json"
@@ -1299,6 +1300,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let mut all_default_active_regions: Vec<String> = Vec::new();
     let mut all_default_active_regions_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut merged_meta_base: Option<WorldMetaDef> = None;
+    let mut merged_manifest_file = String::new();
     // Name pools are unioned per-key across packages (like every other entity
     // collection) rather than wholesale-replaced, so stacking packages that each
     // supply distinct pools keeps them all.
@@ -1335,6 +1337,12 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
             } else {
                 merged_meta_base = Some(meta);
             }
+            // Track the manifest alongside the metadata it carries, so an error
+            // about a merged stack names a file that exists. Last-wins, matching
+            // how the scalar fields above merge.
+            if !package.manifest_file.is_empty() {
+                merged_manifest_file = package.manifest_file.clone();
+            }
         }
         let sources = package.sources;
         let file_of = |schema: &str, index: usize| -> String {
@@ -1368,6 +1376,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
             meta.package_type = default_package_type();
         }
         merged.meta = Some(meta);
+        merged.manifest_file = merged_manifest_file;
     }
 
     if saw_names {
@@ -1946,6 +1955,28 @@ mod tests {
                 error.file, "world.yaml",
                 "the error should point at the real manifest: {error:?}"
             );
+        }
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A merged stack has no manifest of its own, so an error about one must
+    /// still name the file it came from rather than the conventional default.
+    #[test]
+    fn a_merged_stack_reports_manifest_errors_against_the_surviving_manifest() {
+        let dir = temp_package();
+        write(&dir, "world.yaml", "schema: world\nid: merged\nname: Merged\n");
+        let (pkg, _) = load_world_package_files(&dir);
+
+        let (_merged, errors) = merge_world_packages(vec![pkg]);
+
+        let missing: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == MISSING_METADATA)
+            .collect();
+        assert!(!missing.is_empty(), "version and license are missing");
+        for error in missing {
+            assert_eq!(error.file, "world.yaml", "{error:?}");
         }
 
         std::fs::remove_dir_all(&dir).ok();
