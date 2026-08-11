@@ -342,6 +342,52 @@ mod tests {
     }
 
     #[test]
+    fn something_blocking_the_supersede_slot_does_not_cost_the_author_their_edits() {
+        // The slot is expected to hold a previous supersede — a directory — but
+        // nothing guarantees it. A regular file there made `remove_dir_all` fail
+        // without removing it and the rename fail after that, and the fallback
+        // then deleted the editing directory: the one outcome this whole path
+        // exists to prevent, reached by the error handling meant to protect it.
+        let (first, edit_dir, marker) = archive_for(
+            "blocked-supersede",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"v1","name":"One"}"#,
+            )],
+        );
+        extract_ofm_for_editing_into(&first, &edit_dir, &marker).unwrap();
+        let authored = edit_dir.join("countries/mine.json");
+        std::fs::create_dir_all(authored.parent().unwrap()).unwrap();
+        std::fs::write(&authored, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+
+        // Not a directory: something else got to the name first.
+        std::fs::write(superseded_path(&edit_dir), b"not a directory").unwrap();
+
+        let replacement = temp_project(
+            "blocked-supersede-v2",
+            &[(
+                "package.json",
+                r#"{"schema":"world","id":"v2","name":"Two"}"#,
+            )],
+        );
+        std::fs::remove_file(&first).unwrap();
+        export_directory_to_ofm(&replacement, &first).unwrap();
+
+        extract_ofm_for_editing_into(&first, &edit_dir, &marker)
+            .expect("a blocked slot is clearable, so the open still succeeds");
+
+        assert!(
+            superseded_path(&edit_dir).join("countries/mine.json").exists(),
+            "the author's work must be moved aside, not destroyed by the blocked slot"
+        );
+        let manifest = std::fs::read_to_string(edit_dir.join("package.json")).unwrap();
+        assert!(manifest.contains("v2"), "the new archive's manifest: {manifest}");
+
+        std::fs::remove_dir_all(edit_dir.parent().unwrap()).ok();
+        std::fs::remove_dir_all(&replacement).ok();
+    }
+
+    #[test]
     fn a_freshly_scaffolded_empty_project_still_opens() {
         // `ofm-cli new` and the editor's own "new project" both produce a
         // manifest plus empty `items` lists. That is legitimately empty, not
@@ -895,12 +941,21 @@ fn extract_ofm_for_editing_into(
     // replaced — so this cannot grow without bound.
     if edit_dir.exists() {
         let superseded = superseded_path(edit_dir);
-        std::fs::remove_dir_all(&superseded).ok();
-        if std::fs::rename(edit_dir, &superseded).is_err() {
-            // Same-filesystem rename should not fail, but if it does the open
-            // still has to work, and a stale tree would be read as the package.
-            std::fs::remove_dir_all(edit_dir).map_err(|e| e.to_string())?;
+        // Clear the slot whichever shape it is in. A previous supersede leaves a
+        // directory, but nothing guarantees that is what is there — and a
+        // regular file would make `remove_dir_all` fail without removing it,
+        // and the rename fail after that.
+        if superseded.is_dir() {
+            std::fs::remove_dir_all(&superseded).map_err(|e| e.to_string())?;
+        } else if superseded.exists() {
+            std::fs::remove_file(&superseded).map_err(|e| e.to_string())?;
         }
+        // If the move cannot be made, stop here and leave the directory alone.
+        // There is no fallback that deletes it: that would discard exactly the
+        // work the move exists to keep, and a failed open the author can retry
+        // is a far better outcome than a successful one that costs them an
+        // afternoon's editing.
+        std::fs::rename(edit_dir, &superseded).map_err(|e| e.to_string())?;
     }
 
     // extract_ofm_to_dir removes the destination on any entry error, so a
