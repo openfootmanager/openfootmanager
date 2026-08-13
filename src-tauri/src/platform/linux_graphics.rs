@@ -318,6 +318,12 @@ mod tests {
     ///
     /// `survives` decides whether a launch lives long enough to clear the counter, which is the
     /// only way to exercise the interaction between escalation and reset.
+    ///
+    /// Caveat worth knowing before trusting a green run: this models the counter bookkeeping that
+    /// `configure_graphics` and `watch_startup` perform, rather than calling them — they touch
+    /// the real filesystem and process environment. It pins the *decision sequence*, so a change
+    /// to when the counter is written could drift from this model and still pass. Keep the two in
+    /// step by hand.
     fn replay(launches: usize, survives: impl Fn(Policy) -> bool) -> Vec<Policy> {
         let mut failures = 0;
         let mut chosen = Vec::new();
