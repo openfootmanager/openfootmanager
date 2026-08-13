@@ -151,6 +151,7 @@ Voici des choses qu'on connaît déjà — pas besoin de les signaler (mais n'h�
 - **Une partie du texte n'est pas traduite** — l'internationalisation est un travail en cours
 - **Les sauvegardes de cette bêta peuvent ne pas être compatibles** avec les versions futures. Ne t'attache pas trop à tes parties !
 - **Les performances** peuvent baisser légèrement quand tu simules beaucoup de jours d'affilée
+- **Linux avec une carte graphique NVIDIA** — si la fenêtre reste blanche ou que le jeu se ferme au démarrage, lance-le avec `OFM_GPU_PROFILE=safe`. Normalement le jeu le détecte tout seul et se rétablit au lancement suivant. Voir [Graphismes sous Linux](LINUX_GRAPHICS.md)
 
 ---
 

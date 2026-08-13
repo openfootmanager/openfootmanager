@@ -151,6 +151,7 @@ Aqui estão coisas que a gente já sabe — você não precisa reportar essas (m
 - **Parte do texto não está traduzido** — a internacionalização é um trabalho em progresso
 - **Saves deste beta podem não ser compatíveis** com versões futuras. Não se apegue muito aos seus saves!
 - **Performance** pode cair levemente ao simular muitos dias seguidos
+- **Linux com placa de vídeo NVIDIA** — se a janela ficar em branco ou o jogo fechar ao iniciar, rode com `OFM_GPU_PROFILE=safe`. Normalmente o jogo detecta isso sozinho e se recupera na próxima inicialização. Veja [Gráficos no Linux](LINUX_GRAPHICS.md)
 
 ---
 
