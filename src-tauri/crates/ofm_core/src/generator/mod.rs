@@ -1,6 +1,5 @@
 pub mod clubs;
 pub mod competition_def;
-pub(crate) mod data;
 pub mod definitions;
 pub mod file_format;
 mod generation;
@@ -579,14 +578,16 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
 // ---------------------------------------------------------------------------
 
 /// Generate a random world (raw tuple — used by `generate_world_data`).
-/// Loads definition files from `data_dir` if provided; otherwise procedurally
-/// generates the full standard world (every catalogued nation with a real
-/// league pyramid). Entropy-seeded — each call (e.g. each "New Game") produces
-/// a different world.
+/// Generates the full standard world — every generation nation with a real
+/// league pyramid — from the definition files `sources` resolves. Entropy-seeded,
+/// so each call (e.g. each "New Game") produces a different world.
 pub fn generate_world(
-    data_dir: Option<&std::path::Path>,
+    sources: &definitions::DefinitionSources,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
-    generate_world_with(&clubs::WorldGenConfig::standard(), data_dir)
+    // The config is built *from* the sources rather than before them: it now
+    // carries the nations list, so resolving it first is what lets a player's
+    // `default_nations` override actually reach generation.
+    generate_world_with(&clubs::WorldGenConfig::standard_from(sources), sources)
 }
 
 /// Build a club (without players) from a definition. Uses the definition's
@@ -855,7 +856,7 @@ fn build_package_club(
 }
 
 /// Human-readable name for the built-in confederations, falling back to the id.
-fn builtin_region_name(id: &str) -> String {
+pub(super) fn builtin_region_name(id: &str) -> String {
     match id {
         "europe" => "Europe",
         "south-america" => "South America",
@@ -926,30 +927,37 @@ fn regions_from_package(
 /// Generate procedural filler club definitions for a given country code. Used
 /// to pad thin packages that have only one authored team. Matches the country's
 /// `NationGen` from the standard set when available; falls back to generic names.
-fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Vec<definitions::TeamDef> {
-    const GENERIC_CITIES: &[&str] = &[
-        "Northtown", "Eastford", "Westbridge", "Southport", "Riverside",
-        "Hillside", "Lakewood", "Oakdale", "Greenfield", "Pinecrest",
-        "Fairview", "Clearwater", "Springfield", "Millbrook", "Stonehaven",
-    ];
-    let known = clubs::STANDARD_NATIONS.iter().any(|n| n.code == country);
-    let nation = clubs::STANDARD_NATIONS
+fn filler_club_defs(
+    country: &str,
+    count: usize,
+    sources: &definitions::DefinitionSources,
+    rng: &mut impl rand::Rng,
+) -> Vec<definitions::TeamDef> {
+    // From `sources`, not the embedded default: a player who redefined a
+    // nation's cities should see those cities in the clubs that pad a thin
+    // package from that country too, not only in a fully generated world.
+    let standard = clubs::WorldGenConfig::standard_from(sources);
+    let known = standard.nations.iter().any(|n| n.code == country);
+    let nation = standard
+        .nations
         .iter()
         .find(|n| n.code == country)
-        .map(|n| clubs::NationGen { tiers: 1, ..*n }) // force single-division
-        .unwrap_or(clubs::NationGen {
-            code: "??",
+        .map(|n| clubs::NationGen { tiers: 1, ..n.clone() }) // force single-division
+        .unwrap_or_else(|| clubs::NationGen {
+            code: "??".to_string(),
             style: clubs::NamingStyle::Generic,
             tiers: 1,
             strength: 3,
-            cities: GENERIC_CITIES,
+            cities: standard.generic_cities.clone(),
         });
     let config = clubs::WorldGenConfig {
         clubs_per_division: count,
         nations: vec![nation],
+        color_palette: standard.color_palette.clone(),
+        generic_cities: standard.generic_cities.clone(),
     };
     let mut defs = clubs::generate_club_defs(&config, rng);
-    // When the authored team's country isn't in STANDARD_NATIONS, the generator
+    // When the authored team's country isn't a generation nation, the generator
     // uses code "??" as a placeholder. Patch all generated defs to carry the
     // real country so filler clubs don't appear foreign in region lookups.
     if !known {
@@ -1026,6 +1034,7 @@ fn build_fallback_competition(
 pub fn build_world_data_from_package(
     package: &package::WorldPackage,
     opening_year: Option<u32>,
+    sources: &definitions::DefinitionSources,
 ) -> WorldData {
     let opening_year = opening_year
         .or_else(|| {
@@ -1044,7 +1053,10 @@ pub fn build_world_data_from_package(
         .clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR);
     let mut rng = rand::rng();
     let names_def = {
-        let mut merged = default_names_definition();
+        // From `sources`, so a package's own pools layer on top of whatever the
+        // player resolved rather than on top of the embedded copy — the same
+        // definitions the rest of generation is using.
+        let mut merged = definitions::names_definition(sources);
         if let Some(pkg_names) = &package.names {
             for (key, pool) in &pkg_names.pools {
                 if !pool.first_names.is_empty() && !pool.last_names.is_empty() {
@@ -1150,7 +1162,7 @@ pub fn build_world_data_from_package(
     if package.competitions.is_empty() && teams.len() == 1 {
         build_notices.push("be.error.notice.fallbackTeamsFilled".to_string());
         let country = teams[0].country.clone();
-        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, &mut rng) {
+        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, sources, &mut rng) {
             let (team, team_players, team_staff) =
                 build_club(def, &country_codes, opening_year, &names_def, &mut rng);
             teams.push(team);
@@ -1209,35 +1221,27 @@ pub fn build_world_data_from_package(
     world
 }
 
-/// Find a data file by stem, accepting JSON or YAML (`.json`/`.yaml`/`.yml`).
-fn find_definition_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
-    ["json", "yaml", "yml"]
-        .iter()
-        .map(|ext| dir.join(format!("{stem}.{ext}")))
-        .find(|path| path.exists())
-}
-
 /// Generate a world from an explicit generation config (entropy-seeded). The
 /// shipped game uses [`WorldGenConfig::standard`]; tests use a smaller config
 /// for speed.
 pub fn generate_world_with(
     config: &clubs::WorldGenConfig,
-    data_dir: Option<&std::path::Path>,
+    sources: &definitions::DefinitionSources,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
-    generate_world_with_rng(rand::rng(), config, data_dir)
+    generate_world_with_rng(rand::rng(), config, sources)
 }
 
 /// Generate a world deterministically from `seed`. The same seed always
 /// produces an identical world. Intended for reproducible tests/scenarios.
 pub fn generate_world_seeded(
     seed: u64,
-    data_dir: Option<&std::path::Path>,
+    sources: &definitions::DefinitionSources,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
     use rand::SeedableRng;
     generate_world_with_rng(
         rand::rngs::StdRng::seed_from_u64(seed),
-        &clubs::WorldGenConfig::standard(),
-        data_dir,
+        &clubs::WorldGenConfig::standard_from(sources),
+        sources,
     )
 }
 
@@ -1245,9 +1249,8 @@ pub fn generate_world_seeded(
 fn generate_world_with_rng(
     mut rng: impl rand::Rng,
     config: &clubs::WorldGenConfig,
-    data_dir: Option<&std::path::Path>,
+    sources: &definitions::DefinitionSources,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
-    info!("[generator] generate_world: data_dir={:?}", data_dir);
     // A procedurally generated world is contemporary, so it opens in the real
     // calendar year rather than a year baked in at build time.
     let opening_year = default_opening_year();
@@ -1255,31 +1258,15 @@ fn generate_world_with_rng(
     let mut players = Vec::new();
     let mut staff = Vec::new();
 
-    // Load name pools (external JSON/YAML file → hardcoded fallback)
-    let names_def = data_dir
-        .and_then(|dir| find_definition_file(dir, "default_names"))
-        .and_then(|path| {
-            let result = load_names_definition(&path);
-            if result.is_some() {
-                info!("[generator] loaded names from {:?}", path);
-            }
-            result
-        })
-        .unwrap_or_else(default_names_definition);
+    // Name pools: a player's override if there is one, else the shipped file.
+    let names_def = definitions::names_definition(sources);
 
-    // Clubs come from an external curated JSON/YAML file when present, otherwise
-    // from the procedural generator driven by `config`.
-    let team_defs: Vec<TeamDef> = data_dir
-        .and_then(|dir| find_definition_file(dir, "default_teams"))
-        .and_then(|path| {
-            let result = load_teams_definition(&path);
-            if result.is_some() {
-                info!("[generator] loaded teams from {:?}", path);
-            }
-            result
-        })
-        .map(|def| def.teams)
-        .unwrap_or_else(|| clubs::generate_club_defs(config, &mut rng));
+    // Clubs are always generated from `config`, which is itself built from the
+    // nations definition. A curated club list is hand-authored content and
+    // belongs in a `.ofm` package: as a definition file it *replaced*
+    // procedural generation outright, so shipping one would silently cut a
+    // ~440-club world down to whatever the file happened to hold.
+    let team_defs: Vec<TeamDef> = clubs::generate_club_defs(config, &mut rng);
 
     let country_codes = generation::nationality_distribution();
 
@@ -1310,7 +1297,6 @@ fn generate_world_with_rng(
 
 #[cfg(test)]
 mod tests {
-    use super::data::{NATIONALITY_POOLS, TEAM_TEMPLATES};
     use super::*;
     use crate::clock::GameClock;
     use crate::game::Game;
@@ -1799,7 +1785,8 @@ mod tests {
     /// name-pool keys rather than over the nations that exist.
     #[test]
     fn a_generated_world_is_not_limited_to_the_name_pool_nationalities() {
-        let (_teams, players, staff) = generate_world_with(&WorldGenConfig::standard(), None);
+        let sources = definitions::DefinitionSources::embedded_only();
+        let (_teams, players, staff) = generate_world_with(&WorldGenConfig::standard_from(&sources), &sources);
 
         let nationalities: std::collections::HashSet<&str> = players
             .iter()
@@ -1832,7 +1819,7 @@ mod tests {
     fn test_generate_world_team_count() {
         let config = WorldGenConfig::compact();
         let expected = config.total_clubs();
-        let (teams, players, staff) = generate_world_with(&config, None);
+        let (teams, players, staff) = generate_world_with(&config, &definitions::DefinitionSources::embedded_only());
         assert_eq!(teams.len(), expected);
         assert_eq!(players.len(), expected * 22);
         assert_eq!(staff.len(), expected * 4 + 12);
@@ -1841,7 +1828,7 @@ mod tests {
     #[test]
     fn standard_world_fills_every_nation_and_spans_confederations() {
         let config = WorldGenConfig::standard();
-        let (teams, _, _) = generate_world_with(&config, None);
+        let (teams, _, _) = generate_world_with(&config, &definitions::DefinitionSources::embedded_only());
         assert_eq!(teams.len(), config.total_clubs());
 
         // Every configured nation fields at least a full division.
@@ -1861,7 +1848,7 @@ mod tests {
 
     #[test]
     fn test_generate_world_all_players_assigned() {
-        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
         let team_ids: Vec<&str> = teams.iter().map(|t| t.id.as_str()).collect();
         for p in &players {
             assert!(p.team_id.is_some(), "Player {} has no team", p.full_name);
@@ -1874,7 +1861,7 @@ mod tests {
 
     #[test]
     fn test_generate_world_positions_per_team() {
-        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
         for team in &teams {
             let team_players: Vec<_> = players
                 .iter()
@@ -1892,7 +1879,7 @@ mod tests {
     #[test]
     fn test_generate_world_normalizes_opening_financials() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
+            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
             for team in &teams {
                 let annual_wages: i64 = players
                     .iter()
@@ -1926,7 +1913,7 @@ mod tests {
 
     #[test]
     fn test_generate_world_seeds_opening_youth_academies() {
-        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
 
         for team in &teams {
             let youth_players: Vec<_> = players
@@ -1963,7 +1950,7 @@ mod tests {
     #[test]
     fn test_generate_world_limits_immediate_contract_pressure() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
+            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
             for team in &teams {
                 let expiring_contracts = players
                     .iter()
@@ -2162,10 +2149,8 @@ mod tests {
     #[test]
     fn test_pick_nationality_weighted() {
         let mut rng = rand::rng();
-        let codes: Vec<String> = NATIONALITY_POOLS
-            .iter()
-            .map(|p| p.nationality.to_string())
-            .collect();
+        let codes: Vec<String> =
+            default_names_definition().pools.keys().cloned().collect();
         let mut eng_count = 0;
         for _ in 0..100 {
             let nat = pick_nationality_from_def("England", &codes, &mut rng);
@@ -2305,7 +2290,7 @@ mod tests {
 
     #[test]
     fn test_all_nationalities_use_short_uppercase_codes() {
-        let (_, players, staff) = generate_world_with(&WorldGenConfig::compact(), None);
+        let (_, players, staff) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
         for p in &players {
             assert!(
                 p.nationality.len() == 2 || p.nationality.len() == 3,
@@ -2330,54 +2315,92 @@ mod tests {
         }
     }
 
+    /// Tier 1 of the definition search path: a file the player dropped in their
+    /// own data directory beats the shipped one.
+    ///
+    /// This replaces `generate_world_loads_a_yaml_teams_file`, which pinned the
+    /// same mechanism for a curated *teams* file. That override is retired — it
+    /// replaced procedural generation outright, so a shipped one would have cut
+    /// a ~440-club world down to its own contents — and the capability now sits
+    /// where it belongs, on the nations that drive generation.
     #[test]
-    fn test_team_templates_have_unique_names() {
-        let names: Vec<&str> = TEAM_TEMPLATES.iter().map(|t| t.name).collect();
-        let unique: std::collections::HashSet<&str> = names.iter().cloned().collect();
-        assert_eq!(names.len(), unique.len(), "Duplicate team names found");
-    }
-
-    #[test]
-    fn generate_world_loads_a_yaml_teams_file() {
+    fn a_player_supplied_nations_file_overrides_the_shipped_one() {
         let dir = std::env::temp_dir().join(format!("ofm-world-yaml-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
-            dir.join("default_teams.yaml"),
-            "teams:\n  - name: Istanbul United\n    city: Istanbul\n    country: TR\n    colors:\n      primary: \"#ff0000\"\n      secondary: \"#ffffff\"\n",
+            dir.join("default_nations.yaml"),
+            "clubsPerDivision: 4\ncolorPalette:\n  - primary: \"#ff0000\"\n    secondary: \"#ffffff\"\ngenericCities: [Testville]\nnations:\n  - code: TR\n    style: Generic\n    tiers: 1\n    strength: 3\n    cities: [Istanbul, Ankara, Izmir, Bursa]\n",
         )
         .unwrap();
 
-        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), Some(&dir));
-        assert_eq!(
-            teams.len(),
-            1,
-            "the YAML teams file should drive generation"
+        let sources = definitions::DefinitionSources::searching([dir.clone()]);
+        let (teams, players, _) =
+            generate_world_with(&WorldGenConfig::standard_from(&sources), &sources);
+
+        assert_eq!(teams.len(), 4, "the override should drive generation");
+        assert!(
+            teams.iter().all(|team| team.country == "TR"),
+            "every club should come from the overridden nation: {:?}",
+            teams.iter().map(|t| &t.country).collect::<Vec<_>>()
         );
-        assert_eq!(teams[0].name, "Istanbul United");
-        assert_eq!(players.len(), 22);
+        assert_eq!(players.len(), 4 * 22);
 
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn test_world_data_wrapper() {
-        let world = generate_world_data(None);
+        let world = generate_world_data(&definitions::DefinitionSources::embedded_only());
         assert_eq!(world.teams.len(), WorldGenConfig::standard().total_clubs());
         assert!(!world.name.is_empty());
         assert!(!world.description.is_empty());
     }
 
+    /// A definition must survive serialize → deserialize *field for field*.
+    ///
+    /// This used to compare only `pools.len()` / `teams.len()`, which is why
+    /// nobody noticed that the shipped `default_teams.json` was written in
+    /// snake_case while `TeamDef` serializes camelCase — it parsed through
+    /// `#[serde(alias)]`, but re-serializing produced a different file than the
+    /// one checked in. A length check cannot see that; this can.
     #[test]
-    fn test_definition_file_roundtrip() {
+    fn a_definition_survives_a_serde_round_trip_field_for_field() {
         let names_def = default_names_definition();
         let json = serde_json::to_string(&names_def).unwrap();
         let parsed: NamesDefinition = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.pools.len(), names_def.pools.len());
 
-        let teams_def = default_teams_definition();
-        let json2 = serde_json::to_string(&teams_def).unwrap();
-        let parsed2: TeamsDefinition = serde_json::from_str(&json2).unwrap();
-        assert_eq!(parsed2.teams.len(), teams_def.teams.len());
+        assert_eq!(parsed.pools.len(), names_def.pools.len());
+        for (code, pool) in &names_def.pools {
+            let round_tripped = parsed.pools.get(code).expect("pool survives the round trip");
+            assert_eq!(&round_tripped.first_names, &pool.first_names, "{code} first names");
+            assert_eq!(&round_tripped.last_names, &pool.last_names, "{code} last names");
+        }
+
+        let nations_def = definitions::nations_definition(&definitions::DefinitionSources::embedded_only());
+        let json = serde_json::to_string(&nations_def).unwrap();
+        let parsed: definitions::NationsDefinition = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.nations.len(), nations_def.nations.len());
+        // The scalars beside the nation list, so this covers the whole struct
+        // rather than one field of it — a `skip_serializing_if` or an
+        // asymmetric impl that dropped the palette would otherwise pass.
+        //
+        // Deliberately *not* the guard against losing `rename_all`: this
+        // round-trip serialises and deserialises with the same struct, so both
+        // sides rename together and it stays green either way (verified by
+        // removing the attribute). What catches that is
+        // `the_embedded_definitions_parse_and_carry_the_shipped_data`, which
+        // parses the real camelCase file and fails on an empty palette.
+        assert_eq!(parsed.clubs_per_division, nations_def.clubs_per_division);
+        assert_eq!(parsed.color_palette, nations_def.color_palette);
+        assert_eq!(parsed.generic_cities, nations_def.generic_cities);
+        for (before, after) in nations_def.nations.iter().zip(&parsed.nations) {
+            assert_eq!(before.code, after.code);
+            assert_eq!(before.cities, after.cities, "{} cities", before.code);
+            assert_eq!(before.style, after.style, "{} style", before.code);
+            assert_eq!(before.tiers, after.tiers, "{} tiers", before.code);
+            assert_eq!(before.strength, after.strength, "{} strength", before.code);
+        }
     }
 
     #[test]

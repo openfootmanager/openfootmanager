@@ -1,0 +1,15 @@
+{
+  "schema": "world",
+  "id": "classic-sixteen",
+  "name": "Classic Sixteen",
+  "description": "Sixteen fictional clubs across eight European countries. Previously shipped as the engine's built-in default_teams.json; kept here as an example of hand-authored clubs, which is what .ofm packages are for.",
+  "version": "1.0.0",
+  "author": "OpenFoot Manager",
+  "license": "CC0-1.0",
+  "packageType": "database",
+  "gameMinVersion": "0.3.0",
+  "formatVersion": 1,
+  "baseYear": 2026,
+  "defaultActiveRegions": [],
+  "defaultActiveCompetitions": []
+}

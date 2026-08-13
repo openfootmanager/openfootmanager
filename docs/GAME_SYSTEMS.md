@@ -404,11 +404,15 @@ generate_world(data_dir)
 
 ### Definition Files
 
-Two external JSON files can customize generation:
-- `default_names.json` — Name pools keyed by ISO alpha-2 country code
-- `default_teams.json` — Team templates with name, city, country, colors, play style, reputation/finance ranges
+Two definition files drive generation, and either can be overridden by dropping
+your own copy in `<app-data>/data/`:
+- `default_names.json` — name pools keyed by country code
+- `default_nations.json` — the nations generation builds a world from: city
+  pools, naming style, division count and strength per nation
 
-If files are not found or have parse errors, the generator silently falls back to hardcoded defaults compiled into the binary.
+If neither an override nor the bundled copy is found — or a file has a parse
+error — the generator falls back to the same files compiled into the binary, so
+generation always has a working set. See [DEFINITIONS.md](DEFINITIONS.md).
 
 ---
 

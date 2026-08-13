@@ -34,6 +34,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "crates/ofm_core/data/default_names.json": "data/default_names.json",
+      "crates/ofm_core/data/default_nations.json": "data/default_nations.json"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -36,7 +36,7 @@ All gameplay systems beyond match simulation. Includes turn processing flow, the
 
 ### [DEFINITIONS.md](DEFINITIONS.md)
 
-Schema documentation for external definition files used by the world generator. Describes the JSON format for `default_names.json` (nationality-keyed name pools with ISO alpha-2 country codes) and `default_teams.json` (team templates with name, city, country, colors, play style, reputation and finance ranges). Includes a country codes reference table, the world database export format, and tips for creating custom definition files.
+Schema documentation for the definition files that drive world generation. Describes the JSON format for `default_names.json` (country-keyed name pools) and `default_nations.json` (the nations a generated world contains: city pools, naming style, division count and strength), the three-tier search path that lets you override either, and when to use a definition file rather than an `.ofm` package. Includes a country codes reference table and the world database export format.
 
 ### [MCP_SERVER.md](MCP_SERVER.md)
 

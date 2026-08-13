@@ -1,323 +1,338 @@
 {
-  "version": 1,
-  "description": "Default team templates for world generation",
-  "teams": [
+  "schema": "team",
+  "items": [
     {
+      "id": "london-fc",
       "name": "London FC",
-      "short_name": "LFC",
+      "shortName": "LFC",
       "city": "London",
       "country": "ENG",
       "colors": {
         "primary": "#dc2626",
         "secondary": "#ffffff"
       },
-      "play_style": "Possession",
-      "stadium_name": "London Arena",
-      "reputation_range": [
+      "playStyle": "Possession",
+      "stadiumName": "London Arena",
+      "reputationRange": [
         600,
         900
       ],
-      "finance_range": [
+      "financeRange": [
         3000000,
         10000000
       ]
     },
     {
+      "id": "manchester-city",
       "name": "Manchester City",
-      "short_name": "MCI",
+      "shortName": "MCI",
       "city": "Manchester",
       "country": "ENG",
       "colors": {
         "primary": "#60a5fa",
         "secondary": "#1e3a5f"
       },
-      "play_style": "Attacking",
-      "stadium_name": "Manchester Arena",
-      "reputation_range": [
+      "playStyle": "Attacking",
+      "stadiumName": "Manchester Arena",
+      "reputationRange": [
         600,
         900
       ],
-      "finance_range": [
+      "financeRange": [
         3000000,
         10000000
       ]
     },
     {
+      "id": "liverpool-athletic",
       "name": "Liverpool Athletic",
-      "short_name": "LIV",
+      "shortName": "LIV",
       "city": "Liverpool",
       "country": "ENG",
       "colors": {
         "primary": "#b91c1c",
         "secondary": "#fbbf24"
       },
-      "play_style": "HighPress",
-      "stadium_name": "Liverpool Arena",
-      "reputation_range": [
+      "playStyle": "HighPress",
+      "stadiumName": "Liverpool Arena",
+      "reputationRange": [
         500,
         850
       ],
-      "finance_range": [
+      "financeRange": [
         2000000,
         8000000
       ]
     },
     {
+      "id": "newcastle-town",
       "name": "Newcastle Town",
-      "short_name": "NEW",
+      "shortName": "NEW",
       "city": "Newcastle",
       "country": "ENG",
       "colors": {
         "primary": "#000000",
         "secondary": "#ffffff"
       },
-      "play_style": "Counter",
-      "stadium_name": "Newcastle Arena",
-      "reputation_range": [
+      "playStyle": "Counter",
+      "stadiumName": "Newcastle Arena",
+      "reputationRange": [
         400,
         750
       ],
-      "finance_range": [
+      "financeRange": [
         1000000,
         6000000
       ]
     },
     {
+      "id": "madrid-real",
       "name": "Madrid Real",
-      "short_name": "MAD",
+      "shortName": "MAD",
       "city": "Madrid",
       "country": "ES",
       "colors": {
         "primary": "#ffffff",
         "secondary": "#d4af37"
       },
-      "play_style": "Possession",
-      "stadium_name": "Madrid Arena",
-      "reputation_range": [
+      "playStyle": "Possession",
+      "stadiumName": "Madrid Arena",
+      "reputationRange": [
         700,
         900
       ],
-      "finance_range": [
+      "financeRange": [
         5000000,
         10000000
       ]
     },
     {
+      "id": "barcelona-fc",
       "name": "Barcelona FC",
-      "short_name": "BAR",
+      "shortName": "BAR",
       "city": "Barcelona",
       "country": "ES",
       "colors": {
         "primary": "#9f1239",
         "secondary": "#1d4ed8"
       },
-      "play_style": "Attacking",
-      "stadium_name": "Barcelona Arena",
-      "reputation_range": [
+      "playStyle": "Attacking",
+      "stadiumName": "Barcelona Arena",
+      "reputationRange": [
         700,
         900
       ],
-      "finance_range": [
+      "financeRange": [
         5000000,
         10000000
       ]
     },
     {
+      "id": "munich-bayern",
       "name": "Munich Bayern",
-      "short_name": "MUN",
+      "shortName": "MUN",
       "city": "Munich",
       "country": "DE",
       "colors": {
         "primary": "#dc2626",
         "secondary": "#1e3a5f"
       },
-      "play_style": "HighPress",
-      "stadium_name": "Munich Arena",
-      "reputation_range": [
+      "playStyle": "HighPress",
+      "stadiumName": "Munich Arena",
+      "reputationRange": [
         700,
         900
       ],
-      "finance_range": [
+      "financeRange": [
         5000000,
         10000000
       ]
     },
     {
+      "id": "dortmund-bv",
       "name": "Dortmund BV",
-      "short_name": "DOR",
+      "shortName": "DOR",
       "city": "Dortmund",
       "country": "DE",
       "colors": {
         "primary": "#eab308",
         "secondary": "#000000"
       },
-      "play_style": "Counter",
-      "stadium_name": "Dortmund Arena",
-      "reputation_range": [
+      "playStyle": "Counter",
+      "stadiumName": "Dortmund Arena",
+      "reputationRange": [
         500,
         800
       ],
-      "finance_range": [
+      "financeRange": [
         2000000,
         7000000
       ]
     },
     {
+      "id": "paris-toile",
       "name": "Paris Étoile",
-      "short_name": "PAR",
+      "shortName": "PAR",
       "city": "Paris",
       "country": "FR",
       "colors": {
         "primary": "#1e3a5f",
         "secondary": "#dc2626"
       },
-      "play_style": "Attacking",
-      "stadium_name": "Paris Arena",
-      "reputation_range": [
+      "playStyle": "Attacking",
+      "stadiumName": "Paris Arena",
+      "reputationRange": [
         700,
         900
       ],
-      "finance_range": [
+      "financeRange": [
         5000000,
         10000000
       ]
     },
     {
+      "id": "lyon-olympique",
       "name": "Lyon Olympique",
-      "short_name": "LYO",
+      "shortName": "LYO",
       "city": "Lyon",
       "country": "FR",
       "colors": {
         "primary": "#1d4ed8",
         "secondary": "#ffffff"
       },
-      "play_style": "Balanced",
-      "stadium_name": "Lyon Arena",
-      "reputation_range": [
+      "playStyle": "Balanced",
+      "stadiumName": "Lyon Arena",
+      "reputationRange": [
         400,
         700
       ],
-      "finance_range": [
+      "financeRange": [
         1000000,
         5000000
       ]
     },
     {
+      "id": "milan-rossoneri",
       "name": "Milan Rossoneri",
-      "short_name": "MIL",
+      "shortName": "MIL",
       "city": "Milan",
       "country": "IT",
       "colors": {
         "primary": "#dc2626",
         "secondary": "#000000"
       },
-      "play_style": "Defensive",
-      "stadium_name": "Milan Arena",
-      "reputation_range": [
+      "playStyle": "Defensive",
+      "stadiumName": "Milan Arena",
+      "reputationRange": [
         600,
         850
       ],
-      "finance_range": [
+      "financeRange": [
         3000000,
         8000000
       ]
     },
     {
+      "id": "rome-gladiators",
       "name": "Rome Gladiators",
-      "short_name": "ROM",
+      "shortName": "ROM",
       "city": "Rome",
       "country": "IT",
       "colors": {
         "primary": "#eab308",
         "secondary": "#7c2d12"
       },
-      "play_style": "Counter",
-      "stadium_name": "Rome Arena",
-      "reputation_range": [
+      "playStyle": "Counter",
+      "stadiumName": "Rome Arena",
+      "reputationRange": [
         400,
         700
       ],
-      "finance_range": [
+      "financeRange": [
         1500000,
         6000000
       ]
     },
     {
+      "id": "amsterdam-united",
       "name": "Amsterdam United",
-      "short_name": "AMS",
+      "shortName": "AMS",
       "city": "Amsterdam",
       "country": "NL",
       "colors": {
         "primary": "#dc2626",
         "secondary": "#ffffff"
       },
-      "play_style": "Attacking",
-      "stadium_name": "Amsterdam Arena",
-      "reputation_range": [
+      "playStyle": "Attacking",
+      "stadiumName": "Amsterdam Arena",
+      "reputationRange": [
         500,
         800
       ],
-      "finance_range": [
+      "financeRange": [
         2000000,
         7000000
       ]
     },
     {
+      "id": "lisbon-sporting",
       "name": "Lisbon Sporting",
-      "short_name": "LIS",
+      "shortName": "LIS",
       "city": "Lisbon",
       "country": "PT",
       "colors": {
         "primary": "#16a34a",
         "secondary": "#ffffff"
       },
-      "play_style": "Possession",
-      "stadium_name": "Lisbon Arena",
-      "reputation_range": [
+      "playStyle": "Possession",
+      "stadiumName": "Lisbon Arena",
+      "reputationRange": [
         500,
         800
       ],
-      "finance_range": [
+      "financeRange": [
         2000000,
         7000000
       ]
     },
     {
+      "id": "porto-drag-es",
       "name": "Porto Dragões",
-      "short_name": "POR",
+      "shortName": "POR",
       "city": "Porto",
       "country": "PT",
       "colors": {
         "primary": "#1d4ed8",
         "secondary": "#ffffff"
       },
-      "play_style": "Defensive",
-      "stadium_name": "Porto Arena",
-      "reputation_range": [
+      "playStyle": "Defensive",
+      "stadiumName": "Porto Arena",
+      "reputationRange": [
         500,
         800
       ],
-      "finance_range": [
+      "financeRange": [
         2000000,
         7000000
       ]
     },
     {
+      "id": "brussels-royal",
       "name": "Brussels Royal",
-      "short_name": "BRU",
+      "shortName": "BRU",
       "city": "Brussels",
       "country": "BE",
       "colors": {
         "primary": "#7c3aed",
         "secondary": "#fbbf24"
       },
-      "play_style": "Balanced",
-      "stadium_name": "Brussels Arena",
-      "reputation_range": [
+      "playStyle": "Balanced",
+      "stadiumName": "Brussels Arena",
+      "reputationRange": [
         400,
         700
       ],
-      "finance_range": [
+      "financeRange": [
         1000000,
         5000000
       ]

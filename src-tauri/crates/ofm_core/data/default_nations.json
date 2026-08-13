@@ -1,0 +1,482 @@
+{
+  "version": 1,
+  "description": "Per-nation inputs to procedural club generation.",
+  "clubsPerDivision": 20,
+  "colorPalette": [
+    {
+      "primary": "#dc2626",
+      "secondary": "#ffffff"
+    },
+    {
+      "primary": "#1d4ed8",
+      "secondary": "#ffffff"
+    },
+    {
+      "primary": "#16a34a",
+      "secondary": "#ffffff"
+    },
+    {
+      "primary": "#000000",
+      "secondary": "#ffffff"
+    },
+    {
+      "primary": "#eab308",
+      "secondary": "#1e3a5f"
+    },
+    {
+      "primary": "#7c3aed",
+      "secondary": "#fbbf24"
+    },
+    {
+      "primary": "#0ea5e9",
+      "secondary": "#1e3a5f"
+    },
+    {
+      "primary": "#b91c1c",
+      "secondary": "#fbbf24"
+    },
+    {
+      "primary": "#9f1239",
+      "secondary": "#1d4ed8"
+    },
+    {
+      "primary": "#1e3a5f",
+      "secondary": "#dc2626"
+    },
+    {
+      "primary": "#15803d",
+      "secondary": "#000000"
+    },
+    {
+      "primary": "#ea580c",
+      "secondary": "#1e3a5f"
+    }
+  ],
+  "genericCities": [
+    "Northtown",
+    "Eastford",
+    "Westbridge",
+    "Southport",
+    "Riverside",
+    "Hillside",
+    "Lakewood",
+    "Oakdale",
+    "Greenfield",
+    "Pinecrest",
+    "Fairview",
+    "Clearwater",
+    "Springfield",
+    "Millbrook",
+    "Stonehaven"
+  ],
+  "nations": [
+    {
+      "code": "ENG",
+      "style": "English",
+      "tiers": 2,
+      "strength": 5,
+      "cities": [
+        "London",
+        "Manchester",
+        "Liverpool",
+        "Birmingham",
+        "Leeds",
+        "Newcastle",
+        "Sheffield",
+        "Bristol",
+        "Nottingham",
+        "Leicester",
+        "Southampton",
+        "Brighton",
+        "Sunderland",
+        "Norwich",
+        "Portsmouth",
+        "Hull",
+        "Coventry",
+        "Blackburn",
+        "Wolverhampton",
+        "Derby"
+      ]
+    },
+    {
+      "code": "ES",
+      "style": "Spanish",
+      "tiers": 2,
+      "strength": 5,
+      "cities": [
+        "Madrid",
+        "Barcelona",
+        "Valencia",
+        "Seville",
+        "Bilbao",
+        "Málaga",
+        "Zaragoza",
+        "Vigo",
+        "Gijón",
+        "Granada",
+        "Murcia",
+        "Valladolid",
+        "Pamplona",
+        "Cádiz",
+        "Córdoba",
+        "Almería",
+        "Getafe",
+        "Elche",
+        "Mallorca",
+        "Las Palmas"
+      ]
+    },
+    {
+      "code": "DE",
+      "style": "German",
+      "tiers": 2,
+      "strength": 5,
+      "cities": [
+        "Munich",
+        "Dortmund",
+        "Berlin",
+        "Hamburg",
+        "Cologne",
+        "Frankfurt",
+        "Stuttgart",
+        "Leipzig",
+        "Bremen",
+        "Hannover",
+        "Nuremberg",
+        "Gladbach",
+        "Leverkusen",
+        "Wolfsburg",
+        "Freiburg",
+        "Mainz",
+        "Augsburg",
+        "Bochum",
+        "Hoffenheim",
+        "Kiel"
+      ]
+    },
+    {
+      "code": "IT",
+      "style": "Italian",
+      "tiers": 2,
+      "strength": 5,
+      "cities": [
+        "Milan",
+        "Rome",
+        "Turin",
+        "Naples",
+        "Florence",
+        "Genoa",
+        "Bologna",
+        "Verona",
+        "Bergamo",
+        "Udine",
+        "Cagliari",
+        "Palermo",
+        "Bari",
+        "Parma",
+        "Sassuolo",
+        "Empoli",
+        "Lecce",
+        "Venice",
+        "Como",
+        "Monza"
+      ]
+    },
+    {
+      "code": "FR",
+      "style": "French",
+      "tiers": 2,
+      "strength": 4,
+      "cities": [
+        "Paris",
+        "Marseille",
+        "Lyon",
+        "Lille",
+        "Monaco",
+        "Nice",
+        "Bordeaux",
+        "Nantes",
+        "Rennes",
+        "Lens",
+        "Strasbourg",
+        "Saint-Étienne",
+        "Montpellier",
+        "Toulouse",
+        "Reims",
+        "Brest",
+        "Angers",
+        "Metz",
+        "Nîmes",
+        "Auxerre"
+      ]
+    },
+    {
+      "code": "BR",
+      "style": "Brazilian",
+      "tiers": 2,
+      "strength": 4,
+      "cities": [
+        "São Paulo",
+        "Rio",
+        "Belo Horizonte",
+        "Porto Alegre",
+        "Salvador",
+        "Recife",
+        "Curitiba",
+        "Fortaleza",
+        "Goiânia",
+        "Santos",
+        "Campinas",
+        "Belém",
+        "Manaus",
+        "Vitória",
+        "Natal",
+        "Florianópolis",
+        "Cuiabá",
+        "Maceió",
+        "Bragantino",
+        "Juiz de Fora"
+      ]
+    },
+    {
+      "code": "PT",
+      "style": "Portuguese",
+      "tiers": 1,
+      "strength": 4,
+      "cities": [
+        "Lisbon",
+        "Porto",
+        "Braga",
+        "Guimarães",
+        "Coimbra",
+        "Faro",
+        "Funchal",
+        "Setúbal",
+        "Aveiro",
+        "Leiria",
+        "Viseu",
+        "Portimão",
+        "Évora",
+        "Famalicão",
+        "Chaves",
+        "Vizela"
+      ]
+    },
+    {
+      "code": "NL",
+      "style": "Dutch",
+      "tiers": 1,
+      "strength": 4,
+      "cities": [
+        "Amsterdam",
+        "Rotterdam",
+        "Eindhoven",
+        "Utrecht",
+        "Alkmaar",
+        "Enschede",
+        "Groningen",
+        "Tilburg",
+        "Heerenveen",
+        "Nijmegen",
+        "Arnhem",
+        "Breda",
+        "Sittard",
+        "Waalwijk",
+        "Almelo",
+        "Zwolle"
+      ]
+    },
+    {
+      "code": "BE",
+      "style": "Generic",
+      "tiers": 1,
+      "strength": 3,
+      "cities": [
+        "Brussels",
+        "Bruges",
+        "Antwerp",
+        "Ghent",
+        "Liège",
+        "Charleroi",
+        "Genk",
+        "Leuven",
+        "Mechelen",
+        "Kortrijk",
+        "Ostend",
+        "Sint-Truiden",
+        "Eupen",
+        "Waregem",
+        "Mouscron",
+        "Lokeren"
+      ]
+    },
+    {
+      "code": "SCO",
+      "style": "Scottish",
+      "tiers": 1,
+      "strength": 3,
+      "cities": [
+        "Glasgow",
+        "Edinburgh",
+        "Aberdeen",
+        "Dundee",
+        "Perth",
+        "Inverness",
+        "Kilmarnock",
+        "Motherwell",
+        "Paisley",
+        "Falkirk",
+        "Hamilton",
+        "Livingston",
+        "Dingwall",
+        "Stirling",
+        "Greenock",
+        "Dunfermline"
+      ]
+    },
+    {
+      "code": "AR",
+      "style": "LatinAmerican",
+      "tiers": 1,
+      "strength": 4,
+      "cities": [
+        "Buenos Aires",
+        "Rosario",
+        "Córdoba",
+        "La Plata",
+        "Mendoza",
+        "Avellaneda",
+        "Santa Fe",
+        "Mar del Plata",
+        "Tucumán",
+        "Salta",
+        "San Juan",
+        "Bahía Blanca",
+        "Quilmes",
+        "Lanús",
+        "Banfield",
+        "Tigre"
+      ]
+    },
+    {
+      "code": "HR",
+      "style": "Balkan",
+      "tiers": 1,
+      "strength": 3,
+      "cities": [
+        "Zagreb",
+        "Split",
+        "Rijeka",
+        "Osijek",
+        "Zadar",
+        "Pula",
+        "Varaždin",
+        "Šibenik",
+        "Karlovac",
+        "Dubrovnik",
+        "Vinkovci",
+        "Slavonski Brod",
+        "Velika Gorica",
+        "Koprivnica",
+        "Samobor",
+        "Gorica"
+      ]
+    },
+    {
+      "code": "SE",
+      "style": "Nordic",
+      "tiers": 1,
+      "strength": 3,
+      "cities": [
+        "Stockholm",
+        "Gothenburg",
+        "Malmö",
+        "Uppsala",
+        "Norrköping",
+        "Helsingborg",
+        "Örebro",
+        "Linköping",
+        "Västerås",
+        "Sundsvall",
+        "Kalmar",
+        "Halmstad",
+        "Gävle",
+        "Borås",
+        "Trelleborg",
+        "Falkenberg"
+      ]
+    },
+    {
+      "code": "IE",
+      "style": "English",
+      "tiers": 1,
+      "strength": 2,
+      "cities": [
+        "Dublin",
+        "Cork",
+        "Limerick",
+        "Galway",
+        "Waterford",
+        "Sligo",
+        "Drogheda",
+        "Dundalk",
+        "Bray",
+        "Athlone",
+        "Wexford",
+        "Longford",
+        "Tallaght",
+        "Finglas",
+        "Cobh",
+        "Derry"
+      ]
+    },
+    {
+      "code": "WAL",
+      "style": "English",
+      "tiers": 1,
+      "strength": 2,
+      "cities": [
+        "Cardiff",
+        "Swansea",
+        "Wrexham",
+        "Newport",
+        "Bangor",
+        "Barry",
+        "Merthyr",
+        "Llanelli",
+        "Aberystwyth",
+        "Caernarfon",
+        "Haverfordwest",
+        "Bala",
+        "Penybont",
+        "Flint",
+        "Rhyl",
+        "Newtown"
+      ]
+    },
+    {
+      "code": "NIR",
+      "style": "English",
+      "tiers": 1,
+      "strength": 2,
+      "cities": [
+        "Belfast",
+        "Derry",
+        "Lisburn",
+        "Ballymena",
+        "Coleraine",
+        "Portadown",
+        "Newry",
+        "Larne",
+        "Bangor",
+        "Glenavon",
+        "Carrick",
+        "Dungannon",
+        "Cliftonville",
+        "Crusaders",
+        "Warrenpoint",
+        "Loughgall"
+      ]
+    }
+  ]
+}
