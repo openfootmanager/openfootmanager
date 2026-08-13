@@ -79,9 +79,12 @@ pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> 
         lines.join("\n")
     };
 
+    // Report what was delivered, not what was asked for. A step stops early at half time, before
+    // penalties and at full time, so an agent asking for 90 can legitimately get 45 — and telling
+    // it otherwise would make it believe the match had advanced further than it has.
     Ok(format!(
         "## Match Advanced {} Minutes\n\n**Minute**: {}\n**Score**: {} - {}\n\n### Events\n{}",
-        minutes,
+        results.len(),
         snapshot.current_minute,
         snapshot.home_score,
         snapshot.away_score,

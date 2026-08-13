@@ -21,6 +21,10 @@ use engine::{
 
 const LIVE_MATCH_NO_LEAGUE_ERROR: &str = "be.error.liveMatch.noLeague";
 
+/// Upper bound on minutes a single match can run: 120 of extra time plus generous stoppage.
+/// Used only to keep a caller-supplied step count from over-reserving.
+const MAX_MATCH_MINUTES: usize = 140;
+
 /// Phases a fast-forward has to stop at, because the manager is owed a decision:
 /// a team talk at either interval, or the shootout order before penalties.
 fn phase_needs_manager(phase: MatchPhase) -> bool {
@@ -148,7 +152,10 @@ impl LiveMatchSession {
     ///
     /// Use [`Self::run_to_completion`] to simulate a whole match without stopping.
     pub fn step_many(&mut self, count: u16) -> Vec<MinuteResult> {
-        let mut results = Vec::with_capacity(count as usize);
+        // Callers include MCP tools, where the count comes from a model and can be any u16.
+        // Reserving for the request rather than for a plausible match would let `match_step(65535)`
+        // allocate ~65k slots to return about 45.
+        let mut results = Vec::with_capacity((count as usize).min(MAX_MATCH_MINUTES));
         let starting_phase = self.match_state.phase();
         for _ in 0..count {
             let result = self.step();

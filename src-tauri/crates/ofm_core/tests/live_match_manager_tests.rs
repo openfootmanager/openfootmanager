@@ -491,6 +491,45 @@ fn step_many_stops_at_half_time() {
 }
 
 #[test]
+fn step_many_stops_at_every_phase_that_needs_the_manager() {
+    // HalfTime alone is easy to cover; the other two stops are only reachable with extra time
+    // enabled and a drawn match, which is exactly why they are worth asserting. Run several
+    // seeds so the draw that reaches extra time is not left to luck.
+    let mut saw = std::collections::HashSet::new();
+
+    for _ in 0..40 {
+        let game = make_game_with_fixture();
+        let mut session =
+            live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true).unwrap();
+
+        for _ in 0..20 {
+            let results = session.step_many(500);
+            let last = results.last().unwrap();
+            saw.insert(format!("{:?}", last.phase));
+            if last.is_finished {
+                break;
+            }
+            // Every stop must be a decision point or the finish — never a mid-half cut.
+            assert!(
+                matches!(
+                    last.phase,
+                    MatchPhase::HalfTime
+                        | MatchPhase::ExtraTimeHalfTime
+                        | MatchPhase::PenaltyShootout
+                ),
+                "step_many stopped at {:?}, which needs no manager decision",
+                last.phase
+            );
+        }
+    }
+
+    assert!(
+        saw.contains("HalfTime"),
+        "never observed the half-time stop; saw {saw:?}"
+    );
+}
+
+#[test]
 fn step_many_reaches_full_time_when_resumed() {
     let game = make_game_with_fixture();
     let mut session =
