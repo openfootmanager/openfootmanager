@@ -67,8 +67,10 @@ export default function MatchLive({
 
   const isFinished = snapshot.phase === "Finished";
 
-  // Step the match forward. `minutes` is taken as an argument rather than read from `speed` so
-  // the callback identity stays stable across speed changes.
+  // Reads only `lastResult` for phase transitions, which is sound because step_many stops on
+  // entering any phase that needs the manager — so a half time, shootout or finish is always the
+  // last entry of a batch, never buried in the middle. See `phase_needs_manager` in
+  // ofm_core/live_match_manager.rs; MINUTES_PER_TICK on this side is what makes batches possible.
   const stepMatch = useCallback(async (minutes: number) => {
     try {
       const results = await invoke<MinuteResult[]>("step_live_match", { minutes });
@@ -139,7 +141,7 @@ export default function MatchLive({
 
     if (isRunning && speed !== "paused" && !isFinished && !showSubPanel) {
       timerRef.current = setTimeout(async () => {
-        await stepMatch(MINUTES_PER_TICK[speed] || 1);
+        await stepMatch(MINUTES_PER_TICK[speed]);
       }, SPEED_MS[speed]);
     }
 

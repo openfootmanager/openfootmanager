@@ -272,9 +272,9 @@ export default function MatchSimulation() {
     setStage("press");
   }, []);
 
-  // Deliberately unlogged: this fires once per simulated minute, and the two effects that used
-  // to log here ran on every tick for the whole match. The lifecycle logs below are the ones
-  // worth keeping — they fire once each.
+  // Deliberately unlogged: this fires once per simulated minute, and the effect that used to log
+  // here ran on every tick for the whole match. The remaining logs are the low-frequency ones —
+  // stage transitions and match lifecycle — not the per-minute path.
   const handleSnapshotUpdate = useCallback((snap: MatchSnapshot) => {
     setSnapshot(snap);
   }, []);
