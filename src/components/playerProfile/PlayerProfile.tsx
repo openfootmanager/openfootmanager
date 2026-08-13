@@ -13,6 +13,7 @@ import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow"
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
 import { getPlayerAge, getPlayerTeamName } from "./PlayerProfile.helpers";
+import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import {
   buildPlayerAttributeGroups,
@@ -101,29 +102,14 @@ export default function PlayerProfile({
         ? t("finances.contractRiskWarning")
         : t("finances.contractRiskStable");
   const attrGroups = buildPlayerAttributeGroups(player, t);
-  const hasLetExpireIntent =
-    player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
-  const isFreeAgent = player.team_id === null && !player.retired;
-  const managerTeamId = gameState.manager.team_id;
-  const contractOwnerTeamId =
-    player.active_loan?.parent_team_id ?? player.team_id ?? null;
-  const isContractOwnerClub = Boolean(
-    managerTeamId && contractOwnerTeamId === managerTeamId,
-  );
-  const isManagerOwnedProfile = player.active_loan
-    ? isContractOwnerClub
-    : isOwnClub || isContractOwnerClub;
-  const isManagerLoanClub = Boolean(
-    managerTeamId && player.active_loan?.loan_team_id === managerTeamId,
-  );
-  const isManagerSquadProfile =
-    isManagerOwnedProfile || isOwnClub || isManagerLoanClub;
-  const hasAssistantManager = managerTeamId
-    ? gameState.staff.some(
-        (staff) =>
-          staff.team_id === managerTeamId && staff.role === "AssistantManager",
-      )
-    : false;
+  const {
+    managerTeamId,
+    isManagerOwnedProfile,
+    isManagerSquadProfile,
+    isFreeAgent,
+    hasLetExpireIntent,
+    hasAssistantManager,
+  } = buildPlayerProfileRelationship(player, gameState, isOwnClub);
 
   const {
     freeAgentTarget,
