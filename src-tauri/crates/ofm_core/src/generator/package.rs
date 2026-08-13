@@ -10,7 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use domain::league::CompetitionScope;
@@ -1006,6 +1006,14 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         competitions: package.competitions.clone(),
     };
 
+    // How many competitions answer to each id, so the dedup below can tell an
+    // id that names one competition from one that names several (or none, for
+    // the package-wide errors that carry no id at all).
+    let mut occurrences: HashMap<&str, usize> = HashMap::new();
+    for competition in &package.competitions {
+        *occurrences.entry(competition.id.as_str()).or_default() += 1;
+    }
+
     super::validate_definitions(&file, &ctx)
         .into_iter()
         .map(|error| {
@@ -1039,13 +1047,33 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         // duplicates; two competitions with the same bad country still report
         // separately, because the `competition` param differs.
         //
-        // Kept on a seen-set rather than scanning the output for each error: a
+        // How far to collapse depends on how many competitions the id names. A
+        // blank or repeated id makes two of them indistinguishable to the key,
+        // so collapsing to one line would hide a broken competition outright —
+        // the author fixes what is shown, revalidates, and meets a problem
+        // validation never mentioned. Each error therefore gets a budget of one
+        // line per competition its id could stand for: one for a unique id,
+        // which is the plain dedup above, and N for an id shared by N. That is
+        // the most precision available here, since the definition validator
+        // reports an id and not an occurrence.
+        //
+        // Kept on a counter rather than scanning the output for each error: a
         // package is untrusted input, and one with many broken competitions
         // would make a linear scan quadratic in the size of its own mistakes.
         .fold(
-            (Vec::new(), HashSet::new()),
+            (Vec::new(), HashMap::new()),
             |(mut unique, mut seen), error| {
-                if seen.insert((error.code.clone(), error.file.clone(), error.params.clone())) {
+                let competition_id = error
+                    .params
+                    .iter()
+                    .find(|(key, _)| key == "competition")
+                    .map(|(_, value)| value.as_str())
+                    .unwrap_or_default();
+                let budget = occurrences.get(competition_id).copied().unwrap_or(1).max(1);
+                let key = (error.code.clone(), error.file.clone(), error.params.clone());
+                let seen_so_far = seen.entry(key).or_insert(0usize);
+                *seen_so_far += 1;
+                if *seen_so_far <= budget {
                     unique.push(error);
                 }
                 (unique, seen)
@@ -3219,6 +3247,74 @@ colors:
             unknown_country.len(),
             2,
             "each competition keeps its own error: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Two unnamed competitions are two problems. Neither can be told from the
+    /// other by id, so the dedup key cannot tell them apart either — and must
+    /// therefore not collapse them, or the author fixes one blank id and is
+    /// surprised by a second that validation never mentioned.
+    #[test]
+    fn two_competitions_without_ids_report_separately() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "leagues.yaml",
+            "schema: competition\nitems:\n  - id: \"\"\n    name: Bad One\n    type: League\n    scope: Domestic\n    countryId: XX\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: XX\n  - id: \"\"\n    name: Bad Two\n    type: League\n    scope: Domestic\n    countryId: XX\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: XX\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let empty_id: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.emptyId")
+            .collect();
+        assert_eq!(
+            empty_id.len(),
+            2,
+            "each unnamed competition keeps its own error: {errors:?}"
+        );
+        let unknown_country: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.unknownCountry")
+            .collect();
+        assert_eq!(
+            unknown_country.len(),
+            2,
+            "an unidentifiable competition still reports its own bad country: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Two competitions sharing one id are two problems too. The shared id is
+    /// itself an error, but until the author fixes it every other error it
+    /// carries must still be reported per competition rather than merged.
+    #[test]
+    fn two_competitions_sharing_an_id_report_separately() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "leagues.yaml",
+            "schema: competition\nitems:\n  - id: clash\n    name: Bad One\n    type: League\n    scope: Domestic\n    countryId: XX\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: XX\n  - id: clash\n    name: Bad Two\n    type: League\n    scope: Domestic\n    countryId: XX\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: XX\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.code == "be.error.competitionDef.duplicateId"),
+            "the shared id is reported: {errors:?}"
+        );
+        let unknown_country: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.unknownCountry")
+            .collect();
+        assert_eq!(
+            unknown_country.len(),
+            2,
+            "each competition keeps its own bad country: {errors:?}"
         );
 
         std::fs::remove_dir_all(&dir).ok();
