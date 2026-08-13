@@ -404,6 +404,51 @@ fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool
     changed
 }
 
+/// A manager for a club that has none, invented rather than taken from its staff.
+///
+/// Clubs used to get their manager by copying the identity of their assistant
+/// manager, which left one person holding two jobs and — where that assistant
+/// was hand-authored — put a package author's work in a role they never wrote.
+/// A club without a manager now gets a new person, and its staff are left alone.
+///
+/// The context is cached because this is called one club at a time, unlike the
+/// bulk staff generators below which build it once and loop.
+pub(crate) fn generated_manager_for(
+    team: &Team,
+    opening_year: u32,
+) -> domain::manager::Manager {
+    static CONTEXT: std::sync::OnceLock<(definitions::NamesDefinition, Vec<String>)> =
+        std::sync::OnceLock::new();
+    let (names_def, country_codes) = CONTEXT.get_or_init(create_staff_generator_context);
+
+    // A private, club-seeded RNG rather than `rand::rng()`. Two reasons, and the
+    // second is the one that bites: drawing from the thread RNG here would shift
+    // the stream for everything that follows on the same thread — including the
+    // matches `generate_past_world_history` simulates — so seeding a manager
+    // would silently change the world's history. Keying on the club id also
+    // makes the same world produce the same managers twice running.
+    use rand::SeedableRng;
+    let mut rng = rand::rngs::StdRng::seed_from_u64(stable_seed(&team.id));
+
+    let nationality =
+        pick_nationality_from_def(team_staff_seed_nationality(team), country_codes, &mut rng);
+    generate_random_unemployed_manager(&nationality, names_def, opening_year, &mut rng)
+}
+
+/// FNV-1a over the bytes, for turning a club id into an RNG seed.
+///
+/// Hand-rolled rather than `DefaultHasher`, whose output std does not promise to
+/// keep stable between releases — a world would then generate different managers
+/// purely because it was built with a different compiler.
+fn stable_seed(text: &str) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in text.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
 fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32) -> Vec<Staff> {
     let mut rng = rand::rng();
     let (names_def, country_codes) = create_staff_generator_context();

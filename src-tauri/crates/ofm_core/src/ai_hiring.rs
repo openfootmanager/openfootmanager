@@ -1,5 +1,5 @@
 use crate::game::Game;
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use domain::manager::{Manager, ManagerCareerEntry};
 use domain::staff::{Staff, StaffRole};
 
@@ -8,6 +8,17 @@ const AI_MANAGER_REPLACEMENT_DELAY_DAYS: u32 = 7;
 const USER_RIVALRY_SATISFACTION_PENALTY: i32 = 10;
 const USER_RIVALRY_LOOKBACK_DAYS: i64 = 14;
 
+/// The staff member who steps up when an AI club is left without a manager.
+///
+/// Only ever consulted for a club that has actually fallen vacant mid-career —
+/// never at world start, where clubs get a newly invented manager instead. An
+/// assistant manager exists to be an assistant manager; promoting one at setup
+/// simply because the club had no manager yet took a hand-authored person and
+/// put them in a job the author never wrote.
+///
+/// The stand-in keeps their staff record. They are covering the post, not
+/// vacating their own, so the same person appears as both — deliberately, and
+/// as one record referenced twice rather than a copy.
 fn manager_seed_staff<'a>(staff: &'a [Staff], team_id: &str) -> Option<&'a Staff> {
     staff
         .iter()
@@ -37,6 +48,56 @@ fn next_seeded_manager_id(game: &Game, team_id: &str, source_staff: &Staff) -> S
     }
 }
 
+/// A stand-in's standing, derived from the stand-in.
+///
+/// Deliberately not the club's reputation, which is what this used to take: a
+/// manager carried a standing they had not earned, and being at a big club was
+/// itself what made them well regarded. `coaching` is the attribute that most
+/// directly says "can run a football team", mapped onto the same `200..=700`
+/// band `generate_random_unemployed_manager` draws from so that a stand-in and
+/// a manager off the market are comparable.
+fn stand_in_manager_reputation(source_staff: &Staff) -> u32 {
+    const FLOOR: u32 = 200;
+    const PER_POINT: u32 = 5;
+    FLOOR + u32::from(source_staff.attributes.coaching.min(100)) * PER_POINT
+}
+
+/// A stable id for a club's invented manager, in the shape of the stand-in ids.
+fn next_generated_manager_id(game: &Game, team_id: &str) -> String {
+    let base_id = format!("mgr_{}", team_id);
+    if !game.managers.iter().any(|manager| manager.id == base_id) {
+        return base_id;
+    }
+
+    let mut sequence = 2;
+    loop {
+        let candidate = format!("{}_{}", base_id, sequence);
+        if !game.managers.iter().any(|manager| manager.id == candidate) {
+            return candidate;
+        }
+        sequence += 1;
+    }
+}
+
+/// Invent a manager for a club that has none, leaving its staff untouched.
+fn create_generated_manager(game: &Game, team_id: &str) -> Option<Manager> {
+    let team = game.teams.iter().find(|team| team.id == team_id)?;
+    let opening_year = game.clock.current_date.year().max(0) as u32;
+
+    let mut manager = crate::generator::generated_manager_for(team, opening_year);
+    // The generator mints a v4 UUID, which no seed controls — and a manager id
+    // reaches `season_awards`, so leaving it random made `generate_past_world_history`
+    // non-reproducible. Derived from the club instead: stable, unique, readable.
+    manager.id = next_generated_manager_id(game, team_id);
+    manager.hire(team.id.clone());
+    manager.career_history.push(ManagerCareerEntry::open(
+        team.id.clone(),
+        team.name.clone(),
+        game.clock.current_date.format("%Y-%m-%d").to_string(),
+    ));
+    Some(manager)
+}
+
 fn create_seeded_manager(
     game: &Game,
     team_id: &str,
@@ -57,7 +118,7 @@ fn create_seeded_manager(
         source_staff.date_of_birth.clone(),
         nationality,
     );
-    manager.reputation = team.reputation;
+    manager.reputation = stand_in_manager_reputation(source_staff);
     manager.satisfaction = BASE_AI_MANAGER_SATISFACTION as u8;
     manager.fan_approval = 50;
     manager.hire(team.id.clone());
@@ -180,11 +241,7 @@ pub fn seed_ai_managers(game: &mut Game) {
         .collect();
 
     for team_id in team_ids_to_seed {
-        let Some(source_staff) = manager_seed_staff(&game.staff, &team_id) else {
-            continue;
-        };
-        let manager_id = next_seeded_manager_id(game, &team_id, source_staff);
-        let Some(manager) = create_seeded_manager(game, &team_id, source_staff, manager_id) else {
+        let Some(manager) = create_generated_manager(game, &team_id) else {
             continue;
         };
         if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
@@ -384,9 +441,124 @@ mod tests {
         let rival_team = game.teams.iter().find(|team| team.id == "team2").unwrap();
         assert!(rival_team.manager_id.is_some());
         assert_eq!(game.managers.len(), 2);
-        assert!(game.managers.iter().any(|manager| {
-            manager.team_id.as_deref() == Some("team2") && manager.full_name() == "Marco Rossi"
-        }));
+    }
+
+    /// A club without a manager gets a new person, not its assistant manager.
+    ///
+    /// Clubs used to be given a manager copied from the identity of their
+    /// assistant, which left one person holding two jobs — and where the
+    /// assistant was hand-authored, handed a package author's work to a role
+    /// they never wrote.
+    #[test]
+    fn world_start_invents_a_manager_instead_of_promoting_the_assistant() {
+        let mut game = make_game();
+
+        seed_ai_managers(&mut game);
+
+        let manager = game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("team2 has a manager");
+        assert_ne!(
+            manager.full_name(),
+            "Marco Rossi",
+            "the assistant manager was promoted instead of a manager being generated"
+        );
+    }
+
+    #[test]
+    fn an_authored_assistant_manager_is_untouched_by_world_start() {
+        let mut game = make_game();
+        let before = game.staff.len();
+
+        seed_ai_managers(&mut game);
+
+        assert_eq!(before, game.staff.len(), "staff were added or removed");
+        let assistant = game
+            .staff
+            .iter()
+            .find(|member| member.id == "staff2")
+            .expect("the authored assistant is still on the staff list");
+        assert_eq!(assistant.role, StaffRole::AssistantManager);
+        assert_eq!(assistant.team_id.as_deref(), Some("team2"));
+    }
+
+    /// A manager's standing is their own. Taking the club's meant a manager
+    /// carried a reputation they had not earned.
+    #[test]
+    fn a_generated_managers_reputation_is_not_the_clubs() {
+        let mut game = make_game();
+        if let Some(team) = game.teams.iter_mut().find(|team| team.id == "team2") {
+            team.reputation = 913;
+        }
+
+        seed_ai_managers(&mut game);
+
+        let manager = game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("team2 has a manager");
+        assert_ne!(manager.reputation, 913, "the club's reputation was copied");
+        assert!(
+            (200..=700).contains(&manager.reputation),
+            "outside the band the manager market draws from: {}",
+            manager.reputation
+        );
+    }
+
+    /// The one case where a stand-in is right: an AI club left without a
+    /// manager. The assistant covers the post and keeps their own job.
+    #[test]
+    fn an_assistant_steps_up_when_an_ai_club_falls_vacant_and_stays_on_staff() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+
+        if let Some(team) = game.teams.iter_mut().find(|team| team.id == "team2") {
+            team.manager_id = None;
+        }
+        game.managers
+            .retain(|manager| manager.team_id.as_deref() != Some("team2"));
+        game.vacant_team_days.insert(
+            "team2".to_string(),
+            super::AI_MANAGER_REPLACEMENT_DELAY_DAYS - 1,
+        );
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert!(
+            game.managers
+                .iter()
+                .any(|manager| manager.full_name() == "Marco Rossi"),
+            "the assistant did not step up for the vacant club"
+        );
+        assert!(
+            game.staff.iter().any(|member| member.id == "staff2"),
+            "the stand-in was taken off the staff list"
+        );
+    }
+
+    /// Taking over a club fires its manager to make room for the player, so the
+    /// post is filled. The assistant must not be handed a job the user holds.
+    #[test]
+    fn the_users_own_club_is_never_given_another_manager() {
+        let mut game = make_game();
+
+        seed_ai_managers(&mut game);
+
+        let user_team = game.teams.iter().find(|team| team.id == "team1").unwrap();
+        assert_eq!(
+            user_team.manager_id.as_deref(),
+            Some("mgr1"),
+            "the user's club was given a different manager"
+        );
+        assert!(
+            !game.managers.iter().any(|manager| {
+                manager.team_id.as_deref() == Some("team1") && manager.id != "mgr1"
+            }),
+            "a second manager was created for the user's club"
+        );
     }
 
     #[test]
