@@ -17,6 +17,14 @@
 
 set -euo pipefail
 
+# Linux-only by construction: every row sets WebKitGTK or GPU-driver environment variables, and
+# the hardware probe reads /sys/class/drm. Windows renders through WebView2 and macOS through
+# WKWebView, so there is no equivalent ladder to walk there.
+if [ "$(uname -s)" != "Linux" ]; then
+  echo "run-matrix.sh measures the WebKitGTK rendering path and only applies to Linux." >&2
+  exit 1
+fi
+
 cd "$(dirname "$0")/../.."
 
 RESULTS_DIR="${RESULTS_DIR:-scripts/perf/results}"
