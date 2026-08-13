@@ -1,5 +1,6 @@
 import { HelpCircle } from "lucide-react";
 import { useState, useRef, useEffect, useId } from "react";
+import { useTranslation } from "react-i18next";
 import { Select } from "../../../components/ui/Select";
 
 export const inputClass =
@@ -89,6 +90,7 @@ interface InlineHelpProps {
 }
 
 export function InlineHelp({ text }: InlineHelpProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -107,7 +109,7 @@ export function InlineHelp({ text }: InlineHelpProps) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="text-gray-400 dark:text-gray-500 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-        aria-label="Help"
+        aria-label={t("worldEditor.helpLabel")}
       >
         <HelpCircle className="w-3.5 h-3.5" />
       </button>

@@ -3988,6 +3988,8 @@
       "Scout": "Ojeador",
       "Physio": "Fisioterapeuta"
     },
+    "staffRoleHelp": "El entrenador de un club se crea a partir de su segundo entrenador al iniciarse el mundo. La reputación proviene del club, y la nacionalidad recurre al país del club si el miembro no tiene ninguna. Si un club tiene personal pero ningún segundo entrenador, se usa aquel cuyo ID vaya primero.",
+    "helpLabel": "Ayuda",
     "staffSpecialization": {
       "label": "Especialización",
       "none": "Ninguna",

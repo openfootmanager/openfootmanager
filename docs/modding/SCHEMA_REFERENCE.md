@@ -257,6 +257,42 @@ Defines a non-playing staff member (manager assistant, coach, scout, or physio).
 }
 ```
 
+### How a club gets its manager
+
+There is no `manager` schema. A club's manager is created at world start from its staff, so
+`role: "AssistantManager"` is how you author who manages a club — which is what the example
+above is really doing.
+
+For each club that does not already have a manager, the game looks for a staff member at that
+club with `role: "AssistantManager"` and builds the club's manager from their `firstName`,
+`lastName`, `dateOfBirth` and `nationality`.
+
+Four consequences worth knowing before you rely on it:
+
+- **Reputation is not yours to set.** The new manager's reputation is taken from the *club*, not
+  from the staff member. There is currently no way to author a manager's standing.
+- **An empty `nationality` becomes the club's `country`.** Only `firstName`, `lastName` and
+  `dateOfBirth` are carried across unconditionally; leave `nationality` off and the manager is
+  given the value of the club's `country` field verbatim.
+- **Any staff member can be promoted.** If a club has staff but *no* `AssistantManager`, the
+  staff member whose `id` sorts first is used instead — which can hand a club to its physio. If
+  you author staff for a club, author an `AssistantManager` too.
+- **The staff entry stays.** The manager is built *from* those details, not moved out of them, so
+  whoever was promoted also remains on the club's staff in their original role.
+
+**Your own club is not exempt.** Managers are seeded while the world is generated, which happens
+*before* you choose a club — so the club you go on to take over has a manager promoted out of its
+staff exactly like every other club, by the same selection rule. When you take charge, that
+manager is dismissed: it moves into the unemployed manager pool, and the world's news carries a
+managerial-change story naming them. The staff member they were built from is untouched and stays
+at the club, because the two are separate records.
+
+The practical effect is that the person you authored ends up in the world **twice**: once as the
+staff member you wrote, still doing their original job at the club, and once as an unemployed
+manager carrying the career record they built up during the generated history — free for a rival
+to hire. If you are authoring the club you expect players to start at, that is the surprise to
+plan for.
+
 ---
 
 ## `confederation` — Region Definition
