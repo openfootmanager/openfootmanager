@@ -3956,7 +3956,7 @@
       "Scout": "Observador",
       "Physio": "Fisioterapeuta"
     },
-    "staffRoleHelp": "O treinador de um clube é criado a partir do seu treinador adjunto quando o mundo é iniciado. A reputação vem do clube e a nacionalidade recai sobre o país do clube se o membro não tiver nenhuma. Se um clube tiver equipa técnica mas nenhum treinador adjunto, é usado aquele cujo ID vier primeiro.",
+    "staffRoleHelp": "Um treinador adjunto é apenas isso. Os clubes recebem o seu próprio treinador, que os pacotes ainda não podem definir. Um adjunto só assume o comando se um clube da IA perder o treinador a meio da carreira, mantendo o seu próprio cargo enquanto o faz.",
     "helpLabel": "Ajuda",
     "staffSpecialization": {
       "label": "Especialização",

@@ -257,41 +257,32 @@ Defines a non-playing staff member (manager assistant, coach, scout, or physio).
 }
 ```
 
-### How a club gets its manager
+### Managers, and why you cannot author one yet
 
-There is no `manager` schema. A club's manager is created at world start from its staff, so
-`role: "AssistantManager"` is how you author who manages a club — which is what the example
-above is really doing.
+There is no `manager` schema, and **an assistant manager is not a way to author one**. A staff
+member you write with `role: "AssistantManager"` is exactly that: the club's assistant manager.
+The Ferguson example above authors an assistant, nothing more.
 
-For each club that does not already have a manager, the game looks for a staff member at that
-club with `role: "AssistantManager"` and builds the club's manager from their `firstName`,
-`lastName`, `dateOfBirth` and `nationality`.
+Every club that has no manager of its own is given a newly invented one when the world is built.
+That manager is a separate person from anyone on the club's staff, with their own name, their own
+nationality and their own reputation — a manager's standing is never taken from the club they
+happen to work for.
 
-Four consequences worth knowing before you rely on it:
+Your authored staff are left exactly as you wrote them. Nothing is promoted out of the staff list,
+renamed, or replaced.
 
-- **Reputation is not yours to set.** The new manager's reputation is taken from the *club*, not
-  from the staff member. There is currently no way to author a manager's standing.
-- **An empty `nationality` becomes the club's `country`.** Only `firstName`, `lastName` and
-  `dateOfBirth` are carried across unconditionally; leave `nationality` off and the manager is
-  given the value of the club's `country` field verbatim.
-- **Any staff member can be promoted.** If a club has staff but *no* `AssistantManager`, the
-  staff member whose `id` sorts first is used instead — which can hand a club to its physio. If
-  you author staff for a club, author an `AssistantManager` too.
-- **The staff entry stays.** The manager is built *from* those details, not moved out of them, so
-  whoever was promoted also remains on the club's staff in their original role.
+An earlier version of the game did build a club's manager by copying its assistant manager's
+details. If you have a package that relied on that to name a club's manager, it no longer will —
+the person you wrote stays an assistant, and the club gets a manager of its own. Authoring
+managers directly is planned; until then, a club's manager is not yours to set.
 
-**Your own club is not exempt.** Managers are seeded while the world is generated, which happens
-*before* you choose a club — so the club you go on to take over has a manager promoted out of its
-staff exactly like every other club, by the same selection rule. When you take charge, that
-manager is dismissed: it moves into the unemployed manager pool, and the world's news carries a
-managerial-change story naming them. The staff member they were built from is untouched and stays
-at the club, because the two are separate records.
+**The one exception is mid-career.** If an AI club is left without a manager — its manager sacked,
+say — its assistant manager steps up to cover the post, and keeps their own job while doing it.
+That is a stand-in, not a rewrite: the same person holds both roles for as long as the club is
+without a permanent manager, and their staff record is untouched throughout.
 
-The practical effect is that the person you authored ends up in the world **twice**: once as the
-staff member you wrote, still doing their original job at the club, and once as an unemployed
-manager carrying the career record they built up during the generated history — free for a rival
-to hire. If you are authoring the club you expect players to start at, that is the surprise to
-plan for.
+The club *you* take over is never affected. Taking charge dismisses the incumbent to make room for
+you, so there is no vacancy for anyone to step into.
 
 ---
 

@@ -3956,7 +3956,7 @@
       "Scout": "Scout",
       "Physio": "Fisioterapista"
     },
-    "staffRoleHelp": "L'allenatore di un club viene creato dal suo vice allenatore all'avvio del mondo. La reputazione proviene dal club e la nazionalità ripiega sul paese del club se il membro non ne ha una. Se un club ha uno staff ma nessun vice allenatore, viene usato quello il cui ID viene per primo.",
+    "staffRoleHelp": "Un vice allenatore è solo questo. I club ricevono un proprio allenatore, che i pacchetti non possono ancora definire. Un vice prende il comando solo se un club dell'IA perde l'allenatore durante la carriera, e mantiene il proprio ruolo nel frattempo.",
     "helpLabel": "Aiuto",
     "staffSpecialization": {
       "label": "Specializzazione",
