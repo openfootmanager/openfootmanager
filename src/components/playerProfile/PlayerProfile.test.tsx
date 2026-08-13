@@ -1375,6 +1375,51 @@ describe("PlayerProfile contract surfaces", () => {
     });
   });
 
+  // The four contract actions share one `submitting` flag, and it is what
+  // disables the buttons. Without it a second action could be started on top of
+  // the first, so no termination preview may be requested while an exit intent
+  // is still in flight.
+  it("locks the contract actions while one of them is in flight", async () => {
+    let releaseExitIntent: (() => void) | undefined;
+
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "set_contract_exit_intent") {
+        await new Promise<void>((resolve) => {
+          releaseExitIntent = resolve;
+        });
+        return { game: createGameState(createPlayer()) };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(<RenewalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        playerId: "player-1",
+        reason: "manager_profile_action",
+      });
+    });
+
+    const terminate = screen.getByRole("button", { name: "Terminate Now" });
+    expect(terminate).toBeDisabled();
+
+    fireEvent.click(terminate);
+    expect(invoke).not.toHaveBeenCalledWith(
+      "preview_contract_termination",
+      expect.anything(),
+    );
+
+    releaseExitIntent?.();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Terminate Now" }),
+      ).toBeEnabled();
+    });
+  });
+
   it("previews and confirms immediate contract termination", async () => {
     const releasedPlayer = createPlayer({
       team_id: null,

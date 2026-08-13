@@ -5,13 +5,6 @@ import { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
-import {
-  clearContractExitIntent,
-  previewContractTermination,
-  setContractExitIntent,
-  terminateContractNow,
-  type ContractTerminationPreviewData,
-} from "../../services/contractService";
 import { Select } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
 import { getDeployedPosition } from "../squad/SquadTab.helpers";
@@ -50,6 +43,7 @@ import {
   getScoutAvailability,
   type PlayerProfileScoutStatus,
 } from "./PlayerProfile.scouting";
+import { useContractActionsFlow } from "./useContractActionsFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 
 interface PlayerProfileProps {
@@ -92,14 +86,6 @@ export default function PlayerProfile({
   const [scoutStatus, setScoutStatus] =
     useState<PlayerProfileScoutStatus>("idle");
   const [scoutError, setScoutError] = useState<string | null>(null);
-  const [contractActionSubmitting, setContractActionSubmitting] =
-    useState(false);
-  const [contractActionError, setContractActionError] = useState<string | null>(
-    null,
-  );
-  const [terminationPreview, setTerminationPreview] =
-    useState<ContractTerminationPreviewData | null>(null);
-  const [showTerminationModal, setShowTerminationModal] = useState(false);
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);
   const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>(
@@ -240,6 +226,19 @@ export default function PlayerProfile({
     onGameUpdate,
   });
 
+  const {
+    contractActionSubmitting,
+    contractActionError,
+    setContractActionError,
+    terminationPreview,
+    showTerminationModal,
+    handleMarkLetExpire,
+    handleClearLetExpire,
+    openTerminationModal,
+    closeTerminationModal,
+    handleTerminateContract,
+  } = useContractActionsFlow({ player, onGameUpdate });
+
   useEffect(() => {
     setHasConsumedInitialRenewalIntent(false);
     setHasConsumedInitialTerminationIntent(false);
@@ -376,65 +375,6 @@ export default function PlayerProfile({
     };
   }, [player.id, player.stats.appearances]);
 
-  async function handleMarkLetExpire(): Promise<void> {
-    if (contractActionSubmitting) {
-      return;
-    }
-
-    setContractActionSubmitting(true);
-    setContractActionError(null);
-
-    try {
-      const result = await setContractExitIntent(
-        player.id,
-        "manager_profile_action",
-      );
-      onGameUpdate?.(result.game);
-    } catch (error) {
-      setContractActionError(resolveTranslatedErrorMessage(error, t));
-    } finally {
-      setContractActionSubmitting(false);
-    }
-  }
-
-  async function handleClearLetExpire(): Promise<void> {
-    if (contractActionSubmitting) {
-      return;
-    }
-
-    setContractActionSubmitting(true);
-    setContractActionError(null);
-
-    try {
-      const result = await clearContractExitIntent(player.id);
-      onGameUpdate?.(result.game);
-    } catch (error) {
-      setContractActionError(resolveTranslatedErrorMessage(error, t));
-    } finally {
-      setContractActionSubmitting(false);
-    }
-  }
-
-  async function openTerminationModal(): Promise<void> {
-    if (contractActionSubmitting) {
-      return;
-    }
-
-    setContractActionSubmitting(true);
-    setContractActionError(null);
-    setTerminationPreview(null);
-    setShowTerminationModal(true);
-
-    try {
-      const result = await previewContractTermination(player.id);
-      setTerminationPreview(result.preview);
-    } catch (error) {
-      setContractActionError(resolveTranslatedErrorMessage(error, t));
-    } finally {
-      setContractActionSubmitting(false);
-    }
-  }
-
   async function handleTacticalRoleChange(role: PlayerRole): Promise<void> {
     if (!onGameUpdate) return;
     try {
@@ -442,26 +382,6 @@ export default function PlayerProfile({
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set player role:", error);
-    }
-  }
-
-  async function handleTerminateContract(): Promise<void> {
-    if (contractActionSubmitting || !terminationPreview) {
-      return;
-    }
-
-    setContractActionSubmitting(true);
-    setContractActionError(null);
-
-    try {
-      const result = await terminateContractNow(player.id);
-      onGameUpdate?.(result.game);
-      setShowTerminationModal(false);
-      setTerminationPreview(null);
-    } catch (error) {
-      setContractActionError(resolveTranslatedErrorMessage(error, t));
-    } finally {
-      setContractActionSubmitting(false);
     }
   }
 
@@ -708,10 +628,7 @@ export default function PlayerProfile({
         preview={terminationPreview}
         errorMessage={contractActionError}
         submitting={contractActionSubmitting}
-        onCancel={() => {
-          setShowTerminationModal(false);
-          setTerminationPreview(null);
-        }}
+        onCancel={closeTerminationModal}
         onConfirm={() => void handleTerminateContract()}
       />
     </div>
