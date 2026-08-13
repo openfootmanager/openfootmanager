@@ -349,7 +349,7 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_yea
 ///
 /// Named without `staff` because players use it too — the youth intake drew
 /// straight from `team.country` and quietly disagreed with every other path.
-fn team_local_nationality(team: &Team) -> &str {
+pub(crate) fn team_local_nationality(team: &Team) -> &str {
     if team.football_nation.is_empty() {
         team.country.as_str()
     } else {
@@ -431,7 +431,7 @@ pub(crate) fn generated_manager_for(
     let mut rng = rand::rngs::StdRng::seed_from_u64(stable_seed(&team.id));
 
     let nationality =
-        pick_nationality_from_def(team_staff_seed_nationality(team), country_codes, &mut rng);
+        pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng);
     generate_random_unemployed_manager(&nationality, names_def, opening_year, &mut rng)
 }
 

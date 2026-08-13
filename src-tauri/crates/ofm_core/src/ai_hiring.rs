@@ -106,7 +106,10 @@ fn create_seeded_manager(
 ) -> Option<Manager> {
     let team = game.teams.iter().find(|team| team.id == team_id)?;
     let nationality = if source_staff.nationality.is_empty() {
-        team.country.clone()
+        // The club's footballing nation where it has one, matching every other
+        // path that derives a person's nationality from their club; `country`
+        // alone would quietly disagree with them.
+        crate::generator::team_local_nationality(team).to_string()
     } else {
         source_staff.nationality.clone()
     };
