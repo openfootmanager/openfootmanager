@@ -51,18 +51,28 @@ Reproduce with `scripts/perf/run-matrix.sh`; the harness is `src/dev/benchUi.ts`
 `src/dev/benchUi.ts` runs three phases, chosen because they fail differently:
 
 - **scroll** — layout and raster.
-- **hover** — many small repaints (the app has ~294 `transition-colors` elements).
+- **repaint** — many small repaints, by recolouring every visible control each frame.
 - **composite** — transform and opacity only on a full-viewport layer. A working compositor
   handles this on the GPU without repainting anything, so it should be the *cheapest* phase.
 
-That last phase is the whole diagnostic. Raster and layout were healthy in every configuration
-that ran at all — 16 ms, zero dropped frames, indistinguishable across rows. **Only compositing
-collapsed.** A renderer that paints fine but cannot composite is a renderer doing its compositing
-on the CPU, and that is exactly what disabling the DMABuf renderer leaves you with.
+That last phase is the whole diagnostic. **Only compositing collapsed** — a renderer that paints
+fine but cannot composite is a renderer doing its compositing on the CPU, and that is exactly what
+disabling the DMABuf renderer leaves you with.
+
+> **Read the scroll and repaint columns with care.** In the run that produced the table below,
+> both phases were weaker than intended: `phaseHover` (as it then was) dispatched synthetic
+> pointer events, which cannot trigger CSS `:hover` in any engine, and the scroll phase could
+> select a non-scrolling ancestor and silently record an idle baseline. Both are fixed in the
+> harness now, but the numbers here predate the fix, so treat those two columns as *"nothing
+> anomalous"* rather than as positive evidence that raster is healthy. **The composite column is
+> unaffected** — it drives its own animation and needs no input — and it is where the 13× sits.
+> Also note the benchmark runs on whatever screen is showing a few seconds after launch, in
+> practice the main menu, so it compares configurations against each other rather than measuring
+> the app's heaviest screens.
 
 ## Full results
 
-| configuration | scroll p50 | hover p50 | composite p50 | composite drop | outcome |
+| configuration | scroll p50 | hover p50 † | composite p50 | composite drop | outcome |
 |---|---|---|---|---|---|
 | `baseline` — nothing set | — | — | — | — | **`Error 71 (Protocol error) dispatching to Wayland display`**, app exits |
 | `explicit-sync` — `__NV_DISABLE_EXPLICIT_SYNC=1` | 16 ms | 16 ms | **17 ms** | 1 | ✅ accelerated, stable |
@@ -70,10 +80,13 @@ on the CPU, and that is exactly what disabling the DMABuf renderer leaves you wi
 | `disable-gbm` — `WEBKIT_DMABUF_RENDERER_DISABLE_GBM=1` | — | — | — | — | Error 71, app exits |
 | `shipped` — `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 16 ms | 16 ms | **224 ms** | 14 | ⚠️ stable, compositing on the CPU |
 
-Figures are run 1. Not run: `force-shm`, `no-compositing`, `xwayland`, the second-display axis,
-and `WEBKIT_DMABUF_RENDERER_BUFFER_FORMAT` (its accepted tokens were not established — a wrong
-value is silently ignored with `Invalid format ... ignoring`, which would look like a result). The
-table is therefore **not exhaustive**; it is enough to pick a default.
+Figures are run 1. † The `hover` phase has since been replaced by `repaint` — see the note above;
+its column, and `scroll`, carry no positive evidence in this run.
+
+Not run: `force-shm`, `no-compositing`, `xwayland`, the second-display axis, and
+`WEBKIT_DMABUF_RENDERER_BUFFER_FORMAT` (its accepted tokens were not established — a wrong value
+is silently ignored with `Invalid format ... ignoring`, which would look like a result). The table
+is therefore **not exhaustive**; it is enough to pick a default.
 
 ### Three things worth extracting
 
@@ -84,9 +97,12 @@ table is therefore **not exhaustive**; it is enough to pick a default.
    iGPU still hits Error 71 — the protocol error comes from the Wayland/NVIDIA explicit-sync
    handshake, not from which GPU allocates buffers. Neither does `DISABLE_GBM`. Both were
    plausible on paper; both are dead ends here.
-3. **Only compositing was ever broken.** This is why the app felt slow "everywhere" — every
+3. **Compositing is where the collapse is.** 224 ms against 17 ms for the same work is the one
+   unambiguous signal in the table, and it explains why the app felt slow "everywhere" — every
    modal, dropdown, hover lift and page transition composites — while profiling the React side
-   would have shown nothing wrong.
+   would have shown nothing wrong. Note this is a claim about compositing being *broken*, not a
+   claim that raster is *healthy*: the two phases that would have shown raster problems were not
+   measuring properly in this run (see the note above), so they rule nothing in or out.
 
 ---
 

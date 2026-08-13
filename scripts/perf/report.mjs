@@ -31,8 +31,6 @@ const LADDER = [
   "shipped",
   "no-compositing",
   "xwayland",
-  "chromium",
-  "firefox",
 ];
 
 const files = (await readdir(inDir)).filter((name) => name.endsWith(".json"));
@@ -87,7 +85,7 @@ if (missing.length > 0) {
 for (const result of results) {
   const budget = result.frameBudgetMs;
   console.log(
-    `- \`${result.label}\`: idle frame budget ${budget} ms (~${Math.round(1000 / budget)} Hz), ` +
+    `- \`${result.label}\`: frame budget ${budget} ms (~${Math.round(1000 / budget)} Hz), ` +
       `viewport ${result.viewport.width}x${result.viewport.height}, dpr ${result.devicePixelRatio}` +
       (result.longAnimationFrames >= 0 ? `, ${result.longAnimationFrames} long animation frames` : ""),
   );

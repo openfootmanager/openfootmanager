@@ -12,10 +12,15 @@
  * Three phases, chosen because they fail differently:
  *
  * - `scroll`    — layout and raster. Slow here means painting is expensive.
- * - `hover`     — many small repaints (the app has ~294 `transition-colors` elements).
+ * - `repaint`   — many small repaints, by recolouring every visible control each frame.
  * - `composite` — transform/opacity only, which a working compositor handles on the GPU without
  *                 repainting anything. Slow *here specifically* is the signature of a broken or
  *                 software compositing path, which is exactly the WebKitGTK/NVIDIA failure mode.
+ *
+ * Known limitation: the run starts a few seconds after mount, so it measures whatever screen is
+ * showing — in practice the main menu, which is lighter than a squad list or a live match. That
+ * is fine for comparing two rendering configurations against each other, which is what this is
+ * for, and misleading if read as "how heavy is the app".
  */
 
 export interface PhaseResult {
@@ -164,23 +169,32 @@ function inferFrameBudget(allDeltas: number[]): number {
   return Math.max(4, quantile(sorted, 0.1));
 }
 
-/** The largest vertically scrollable element, falling back to the document. */
+/**
+ * The largest element that actually scrolls, falling back to the document.
+ *
+ * The computed-overflow check is essential, not defensive. Overflowing ancestors nest, so an
+ * `overflow: visible` wrapper always reports *more* overflow than the real scroll container
+ * inside it and would win a naive size comparison — and writing `scrollTop` to it is silently
+ * discarded, so the phase would record an idle baseline under the label "scroll".
+ */
 function findScrollTarget(): Element {
-  const candidates = Array.from(document.querySelectorAll("*")).filter((element) => {
-    const { scrollHeight, clientHeight } = element;
-    return scrollHeight > clientHeight + 200;
-  });
+  const scrolls = (element: Element) => {
+    const overflowY = getComputedStyle(element).overflowY;
+    return overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
+  };
 
   let best: Element | null = null;
   let bestOverflow = 0;
-  for (const element of candidates) {
+  for (const element of document.querySelectorAll("*")) {
     const overflow = element.scrollHeight - element.clientHeight;
-    if (overflow > bestOverflow) {
+    if (overflow > bestOverflow && overflow > 200 && scrolls(element)) {
       bestOverflow = overflow;
       best = element;
     }
   }
-  return best ?? document.scrollingElement ?? document.documentElement;
+
+  const root = document.scrollingElement ?? document.documentElement;
+  return best ?? root;
 }
 
 /** A phase's raw frame deltas, summarised once the whole run has established a frame budget. */
@@ -215,9 +229,18 @@ async function phaseScroll(): Promise<RawPhase> {
   return { name: "scroll", deltas: recorder.stop() };
 }
 
-async function phaseHover(): Promise<RawPhase> {
+/**
+ * Force many small repaints across the visible UI.
+ *
+ * This started out dispatching synthetic `pointerover`/`pointerenter` at each control to emulate
+ * hovering. That measured nothing: CSS `:hover` is driven by real input and no engine updates it
+ * from a scripted event, so the app's Tailwind `hover:` styling never applied and the phase
+ * recorded an idle baseline. Changing an inline colour is the honest way to make the renderer
+ * repaint a lot of small boxes, which is what the phase was always meant to cost.
+ */
+async function phaseRepaint(): Promise<RawPhase> {
   const controls = Array.from(
-    document.querySelectorAll<HTMLElement>("button, a, [role='button'], [role='tab']"),
+    document.querySelectorAll<HTMLElement>("button, a, [role='button'], [role='tab'], input"),
   ).filter((element) => {
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
@@ -226,31 +249,38 @@ async function phaseHover(): Promise<RawPhase> {
   const recorder = recordFrames();
 
   if (controls.length === 0) {
-    // Nothing to hover on this screen — still record an idle baseline so the row is comparable.
     await wait(2000);
-    return { name: "hover", deltas: recorder.stop() };
+    return { name: "repaint", deltas: recorder.stop() };
   }
 
+  const original = controls.map((element) => element.style.backgroundColor);
   const durationMs = 3000;
   const start = performance.now();
-  let index = 0;
-  while (performance.now() - start < durationMs) {
-    const element = controls[index % controls.length];
-    const rect = element.getBoundingClientRect();
-    const eventInit: PointerEventInit = {
-      bubbles: true,
-      clientX: rect.left + rect.width / 2,
-      clientY: rect.top + rect.height / 2,
-    };
-    element.dispatchEvent(new PointerEvent("pointerover", eventInit));
-    element.dispatchEvent(new PointerEvent("pointerenter", eventInit));
-    await wait(30);
-    element.dispatchEvent(new PointerEvent("pointerout", eventInit));
-    element.dispatchEvent(new PointerEvent("pointerleave", eventInit));
-    index += 1;
-  }
 
-  return { name: "hover", deltas: recorder.stop() };
+  try {
+    await new Promise<void>((resolve) => {
+      const step = () => {
+        const elapsed = performance.now() - start;
+        if (elapsed >= durationMs) {
+          resolve();
+          return;
+        }
+        // Alternate every element's background each frame — a genuine repaint, no layout.
+        const on = Math.floor(elapsed / 16) % 2 === 0;
+        for (const element of controls) {
+          element.style.backgroundColor = on ? "rgba(16,185,129,0.25)" : "rgba(255,214,10,0.25)";
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    return { name: "repaint", deltas: recorder.stop() };
+  } finally {
+    recorder.stop();
+    controls.forEach((element, index) => {
+      element.style.backgroundColor = original[index];
+    });
+  }
 }
 
 /**
@@ -275,27 +305,31 @@ async function phaseComposite(): Promise<RawPhase> {
   const durationMs = 3000;
   const start = performance.now();
 
-  await new Promise<void>((resolve) => {
-    const step = () => {
-      const elapsed = performance.now() - start;
-      const progress = elapsed / durationMs;
-      if (progress >= 1) {
-        resolve();
-        return;
-      }
-      const angle = progress * Math.PI * 4;
-      overlay.style.transform = `translate3d(${Math.sin(angle) * 40}px, ${
-        Math.cos(angle) * 40
-      }px, 0) scale(${1 + Math.sin(angle) * 0.05})`;
-      overlay.style.opacity = String(0.4 + Math.sin(angle) * 0.3);
+  try {
+    await new Promise<void>((resolve) => {
+      const step = () => {
+        const elapsed = performance.now() - start;
+        const progress = elapsed / durationMs;
+        if (progress >= 1) {
+          resolve();
+          return;
+        }
+        const angle = progress * Math.PI * 4;
+        overlay.style.transform = `translate3d(${Math.sin(angle) * 40}px, ${
+          Math.cos(angle) * 40
+        }px, 0) scale(${1 + Math.sin(angle) * 0.05})`;
+        overlay.style.opacity = String(0.4 + Math.sin(angle) * 0.3);
+        requestAnimationFrame(step);
+      };
       requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  });
-
-  const deltas = recorder.stop();
-  overlay.remove();
-  return { name: "composite", deltas };
+    });
+    return { name: "composite", deltas: recorder.stop() };
+  } finally {
+    // A full-viewport overlay at the top of the stacking order is not something to leave behind
+    // if this throws — it would sit over the app, invisible to the user as a benchmark artefact.
+    recorder.stop();
+    overlay.remove();
+  }
 }
 
 /** Counts long-animation-frame entries, where the API exists. Absent in WebKit; that is fine. */
@@ -330,7 +364,7 @@ export async function runBench(label: string): Promise<BenchResult> {
   const raw: RawPhase[] = [];
   raw.push(await phaseScroll());
   await wait(250);
-  raw.push(await phaseHover());
+  raw.push(await phaseRepaint());
   await wait(250);
   raw.push(await phaseComposite());
 
@@ -365,7 +399,17 @@ export async function autoRunBench(label: string): Promise<void> {
   });
 
   status.set(`ofm-bench "${label}" — running, do not touch the window (~11s)`);
-  const result = await runBench(label);
+
+  let result: BenchResult;
+  try {
+    result = await runBench(label);
+  } catch (error) {
+    // Without this the banner sits on "running…" forever and nothing is posted, which is
+    // indistinguishable from a hang — and a hang is one of the things being investigated.
+    status.set(`ofm-bench "${label}" FAILED — ${String(error)}`);
+    console.error("[ofm-bench] failed:", error);
+    return;
+  }
 
   (window as unknown as { __ofmBenchResult?: BenchResult }).__ofmBenchResult = result;
   console.info("[ofm-bench]", JSON.stringify(result));
