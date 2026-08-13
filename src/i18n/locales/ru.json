@@ -110,6 +110,9 @@
     "packageStackErrors": "Ошибки объединения пакетов",
     "stackConflictWarnings": "{{count}} конфликт(ов) пакетов — будет использована версия последнего пакета",
     "competitions": "{{count}} турниров",
+    "namePools": "{{count}} пулов имён",
+    "countries": "{{count}} стран",
+    "confederations": "{{count}} конфедераций",
     "packageAuthor": "от {{author}}",
     "packageVersion": "v{{version}}"
   },

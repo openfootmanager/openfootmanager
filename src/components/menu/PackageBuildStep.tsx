@@ -11,6 +11,9 @@ import {
   Globe,
   Users,
   Trophy,
+  Type,
+  Flag,
+  Layers,
   Shuffle,
   AlertTriangle,
   AlertCircle,
@@ -105,7 +108,7 @@ function PackageCard({ pkg, isActive, onToggle, onUninstall }: PackageCardProps)
           {pkg.version && t("worldSelect.packageVersion", { version: pkg.version })}
           {pkg.license && ` · ${pkg.license}`}
         </p>
-        <div className="flex items-center gap-3 mt-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
             <Globe className="w-3 h-3" />{t("worldSelect.teams", { count: pkg.teamCount })}
           </span>
@@ -115,6 +118,25 @@ function PackageCard({ pkg, isActive, onToggle, onUninstall }: PackageCardProps)
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
             <Trophy className="w-3 h-3" />{t("worldSelect.competitions", { count: pkg.competitionCount })}
           </span>
+          {/* Shown only when the package actually supplies them. A stack is
+              usually clubs and competitions, and six badges on every card would
+              bury the three that always matter — while a package that ships
+              name pools still stops looking identical to one that does not. */}
+          {pkg.namePoolCount > 0 && (
+            <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <Type className="w-3 h-3" />{t("worldSelect.namePools", { count: pkg.namePoolCount })}
+            </span>
+          )}
+          {pkg.countryCount > 0 && (
+            <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <Flag className="w-3 h-3" />{t("worldSelect.countries", { count: pkg.countryCount })}
+            </span>
+          )}
+          {pkg.confederationCount > 0 && (
+            <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <Layers className="w-3 h-3" />{t("worldSelect.confederations", { count: pkg.confederationCount })}
+            </span>
+          )}
         </div>
       </div>
 

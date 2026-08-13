@@ -110,6 +110,9 @@
     "packageStackErrors": "包组合错误",
     "stackConflictWarnings": "{{count}} 个包冲突——将使用最后加载的版本",
     "competitions": "{{count}} 场赛事",
+    "namePools": "{{count}} 个名字池",
+    "countries": "{{count}} 个国家",
+    "confederations": "{{count}} 个联合会",
     "packageAuthor": "作者：{{author}}",
     "packageVersion": "v{{version}}"
   },

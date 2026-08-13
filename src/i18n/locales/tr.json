@@ -110,6 +110,9 @@
     "packageStackErrors": "Paket kombinasyonu hataları",
     "stackConflictWarnings": "{{count}} paket çakışması — oyun yığındaki son sürümü kullanacak",
     "competitions": "{{count}} turnuva",
+    "namePools": "{{count}} isim havuzu",
+    "countries": "{{count}} ülke",
+    "confederations": "{{count}} konfederasyon",
     "packageAuthor": "{{author}} tarafından",
     "packageVersion": "v{{version}}"
   },

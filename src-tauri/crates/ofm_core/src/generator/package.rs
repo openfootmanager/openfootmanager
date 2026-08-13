@@ -198,6 +198,18 @@ pub struct PackageInfo {
     pub team_count: usize,
     pub player_count: usize,
     pub competition_count: usize,
+    /// How many name pools the package supplies, one per country code.
+    ///
+    /// A breadth signal, not a coverage check: it says whether a package brings
+    /// name pools at all and roughly how many, which is what distinguishes two
+    /// otherwise identical-looking packages in a list. Whether the *specific*
+    /// nationalities a squad uses are covered needs the pool keys, not a count.
+    #[serde(default)]
+    pub name_pool_count: usize,
+    #[serde(default)]
+    pub country_count: usize,
+    #[serde(default)]
+    pub confederation_count: usize,
     /// Absolute path to the installed `.ofm` file.
     pub installed_path: String,
     /// Logo encoded as a data URL (`data:<mime>;base64,...`), if available.
@@ -266,6 +278,17 @@ impl WorldPackage {
         } else {
             &self.manifest_file
         }
+    }
+
+    /// How many name pools the package supplies, one per country code.
+    ///
+    /// Unlike the other entity collections this is not a plain `Vec::len`: name
+    /// pools arrive as an optional `NamesDefinition` whose `pools` map is keyed
+    /// by country code, and a package that declares no `names` file at all has
+    /// none rather than zero. Both summary call sites want the same number, so
+    /// it lives here rather than being spelled out twice.
+    pub fn name_pool_count(&self) -> usize {
+        self.names.as_ref().map_or(0, |names| names.pools.len())
     }
 
     /// Remember that the entity about to be appended to `schema`'s list was
@@ -3371,6 +3394,40 @@ colors:
             .filter(|p| p.team_id.as_deref() == Some("zed-fc"))
             .count();
         assert_eq!(squad, 22);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn name_pool_count_counts_one_pool_per_country_code() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names.yaml",
+            "schema: names\npools:\n  BR:\n    first_names: [Joao, Pedro]\n    last_names: [Silva, Santos]\n  AR:\n    first_names: [Diego]\n    last_names: [Maradona]\n",
+        );
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "names-only package should be valid: {errors:?}");
+        assert_eq!(package.name_pool_count(), 2);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A package that declares no `names` file has no pools rather than an
+    /// absent count — the summary shows 0, which is the honest answer and the
+    /// whole point of surfacing it.
+    #[test]
+    fn a_package_without_a_names_file_has_no_name_pools() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams.yaml",
+            "schema: team\nid: solo\nname: Solo FC\ncity: Nowhere\ncountry: ENG\ncolors:\n  primary: '#000000'\n  secondary: '#ffffff'\n",
+        );
+
+        let (package, _errors) = load_world_package(&dir);
+        assert_eq!(package.name_pool_count(), 0);
 
         std::fs::remove_dir_all(&dir).ok();
     }

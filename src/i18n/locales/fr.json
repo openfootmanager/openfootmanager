@@ -110,6 +110,9 @@
     "packageStackErrors": "Erreurs de combinaison de paquets",
     "stackConflictWarnings": "{{count}} conflit(s) de paquet — la version du dernier paquet est utilisée",
     "competitions": "{{count}} compétitions",
+    "namePools": "{{count}} groupes de noms",
+    "countries": "{{count}} pays",
+    "confederations": "{{count}} confédérations",
     "packageAuthor": "par {{author}}",
     "packageVersion": "v{{version}}"
   },
