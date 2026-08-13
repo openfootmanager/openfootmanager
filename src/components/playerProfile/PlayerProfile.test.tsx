@@ -1116,6 +1116,109 @@ describe("PlayerProfile contract surfaces", () => {
     });
   });
 
+  // The delegated-renewal report has three outcomes and each maps to a
+  // different terminal-ness: only `stalled` leaves the negotiation open for the
+  // manager to take over by hand. Covered here because the two non-successful
+  // branches had no test at all.
+  it("leaves renewal talks open when the assistant reports a stalled case", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "delegate_renewals") {
+        return {
+          game: createGameState(createPlayer()),
+          report: {
+            success_count: 0,
+            failure_count: 0,
+            stalled_count: 1,
+            cases: [
+              {
+                player_id: "player-1",
+                player_name: "John Smith",
+                status: "stalled",
+                note: "They want to see how the season goes before signing.",
+              },
+            ],
+          },
+        };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={createPlayer()}
+        gameState={createGameState(createPlayer(), [createStaff()])}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delegate to Assistant" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Offer rejected")).toBeInTheDocument();
+    });
+
+    // Not terminal: the manager can still put an offer in themselves.
+    expect(
+      screen.getByRole("button", { name: "Submit Offer" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
+  });
+
+  it("closes renewal talks when the assistant reports a failed case", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "delegate_renewals") {
+        return {
+          game: createGameState(createPlayer()),
+          report: {
+            success_count: 0,
+            failure_count: 1,
+            stalled_count: 0,
+            cases: [
+              {
+                player_id: "player-1",
+                player_name: "John Smith",
+                status: "failed",
+                note: "They have already decided to move on.",
+              },
+            ],
+          },
+        };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={createPlayer()}
+        gameState={createGameState(createPlayer(), [createStaff()])}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delegate to Assistant" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Talks are blocked after your earlier decision"),
+      ).toBeInTheDocument();
+    });
+
+    // Terminal: nothing left for the manager to offer.
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
   it("disables renewal delegation when no assistant manager is assigned", async () => {
     render(<RenewalHarness />);
 
