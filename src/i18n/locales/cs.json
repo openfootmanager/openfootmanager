@@ -110,7 +110,7 @@
     "packageStackErrors": "Chyby v kombinaci balíčků",
     "stackConflictWarnings": "{{count}} konfliktů mezi balíčky — hra použije verzi, která je v pořadí jako poslední",
     "competitions": "{{count}} soutěží",
-    "namePools": "{{count}} sad jmen",
+    "namePools": "{{count}} databází jmen",
     "countries": "{{count}} zemí",
     "confederations": "{{count}} konfederací",
     "packageAuthor": "by {{author}}",
