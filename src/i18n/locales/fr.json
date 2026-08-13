@@ -3373,7 +3373,7 @@
       },
       "roundup": {
         "headline0": "Résumé de la journée {{matchday}} : {{totalGoals}} buts dans une journée chargée",
-        "headline1": "Division Premier Journée {{matchday}} : Tous les résultats",
+        "headline1": "Première Division Journée {{matchday}} : Tous les résultats",
         "headline2": "Buts en pagaille à la journée {{matchday}}",
         "body": "La journée {{matchday}} est dans les livres. Voici tous les résultats :\n\n{{results}}\n\n{{totalGoals}} buts en {{matchCount}} matchs.{{biggestWinnerLine}}",
         "resultLine": "  {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
@@ -3381,16 +3381,16 @@
       },
       "standings": {
         "headline0": "{{leader}} en tête après la journée {{matchday}}",
-        "headline1": "Classement Division Premier : {{leader}} en tête",
+        "headline1": "Classement Première Division : {{leader}} en tête",
         "headline2": "Mise à jour du classement — Journée {{matchday}}",
-        "body": "Après la journée {{matchday}}, {{leader}} trône en tête de la Division Premier.\n\nClassement :\n{{standings}}",
+        "body": "Après la journée {{matchday}}, {{leader}} trône en tête de la Première Division.\n\nClassement :\n{{standings}}",
         "entry": "  {{rank}}. {{team}} — {{points}} pts (DB : {{goalDifference}})"
       },
       "seasonPreview": {
         "headline0": "Avant-saison : {{teamCount}} équipes en lice pour le titre",
-        "headline1": "La saison de Division Premier va commencer",
+        "headline1": "La saison de Première Division va commencer",
         "headline2": "{{favourite}} peut-il décrocher le titre ? Avant-saison",
-        "body": "La Division Premier s'apprête à démarrer avec {{teamCount}} équipes en lice pour le titre.\n\nLes pronostics d'avant-saison voient {{favourite}} comme le grand favori, mais {{darkHorse}} pourrait être la surprise de la campagne.\n\nAvec de nouveaux entraîneurs à certains clubs, cette saison promet d'être l'une des plus compétitives ces dernières années. Chaque point comptera dans la course au titre.\n\nÉquipes : {{teamList}}"
+        "body": "La Première Division s'apprête à démarrer avec {{teamCount}} équipes en lice pour le titre.\n\nLes pronostics d'avant-saison voient {{favourite}} comme le grand favori, mais {{darkHorse}} pourrait être la surprise de la campagne.\n\nAvec de nouveaux entraîneurs à certains clubs, cette saison promet d'être l'une des plus compétitives ces dernières années. Chaque point comptera dans la course au titre.\n\nÉquipes : {{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}} limoge {{manager}}",

@@ -562,6 +562,7 @@
     "nations.gh",
     "worldEditor.competitionSelectorRegion",
     "worldEditor.staffRole.label",
-    "worldSelect.packageAuthor"
+    "worldSelect.packageAuthor",
+    "tournaments.competitions.premierDivision"
   ]
 }

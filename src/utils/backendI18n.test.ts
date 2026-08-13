@@ -998,6 +998,43 @@ describe("resolveBackendText", () => {
     expect(result).toBe("Kicks off on August 1, 2026");
   });
 
+  // The English assertion above passes even if the locale never reaches
+  // `formatDate`, since en-US is the default. This one does not.
+  it("formats the `start` param in the player's own locale", async () => {
+    const previousLanguage = i18n.language;
+    i18n.addResourceBundle("de", "translation", {
+      "test.kickoff": "Beginnt am {{start}}",
+    }, true, true);
+
+    await i18n.changeLanguage("de");
+    try {
+      const result = resolveBackendText(
+        "test.kickoff?start=2026-08-01",
+        "fallback",
+      );
+
+      expect(result).toBe("Beginnt am 1. August 2026");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // `parseDateInput` builds the date at *local* noon (no `Z`), so the calendar
+  // day survives whatever offset the machine is in — a date-only value must
+  // never shift by a day.
+  it("keeps the calendar day of a date-only param", () => {
+    i18n.addResourceBundle("en", "translation", {
+      "test.kickoff": "Kicks off on {{start}}",
+    }, true, true);
+
+    expect(
+      resolveBackendText("test.kickoff?start=2026-01-01", "fallback"),
+    ).toBe("Kicks off on January 1, 2026");
+    expect(
+      resolveBackendText("test.kickoff?start=2026-12-31", "fallback"),
+    ).toBe("Kicks off on December 31, 2026");
+  });
+
   it("leaves a `start` param that is not a date alone", () => {
     i18n.addResourceBundle("en", "translation", {
       "test.kickoff": "Kicks off on {{start}}",

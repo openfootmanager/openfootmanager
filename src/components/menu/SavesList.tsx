@@ -62,7 +62,12 @@ export default function SavesList({ saves, isLoading, loadingSaveId, confirmDele
             <div key={save.id} className="group relative flex flex-col gap-2 w-full p-4 bg-white dark:bg-navy-700 hover:bg-primary-50 dark:hover:bg-navy-600 text-left rounded-xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500 shadow-sm">
               {confirmDeleteId === save.id ? (
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm text-gray-700 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: t('menu.deleteConfirm', { name: saveDisplayName(save.name) }) }} />
+                  {/* The string carries its own <strong> markup, so it has to
+                      go through the HTML parser — but the save name is player
+                      text and must not. `escapeValue` is globally false
+                      (src/i18n/index.ts), so it is re-enabled for this one
+                      interpolation. */}
+                  <p className="text-sm text-gray-700 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: t('menu.deleteConfirm', { name: saveDisplayName(save.name), interpolation: { escapeValue: true } }) }} />
                   <div className="flex gap-2">
                     <button
                       onClick={() => onDelete(save.id)}
