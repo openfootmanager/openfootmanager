@@ -44,6 +44,22 @@ pub fn upsert_staff_list(conn: &Connection, staff: &[Staff]) -> Result<(), Strin
     Ok(())
 }
 
+/// Make the stored staff exactly `staff`, dropping anyone no longer in the game.
+///
+/// Upserting alone cannot express a removal, so anyone dropped from `game.staff`
+/// in memory reappeared on the next load. The visible cost is the free-agent
+/// staff market: `generator::replace_available_staff_market` clears it and draws
+/// a fresh batch every 30 days, but the clear never reached disk, so a loaded
+/// save listed every candidate the market had ever offered.
+///
+/// Clearing first is the shape `replace_national_teams` and the competition and
+/// league repositories already use for a table the game owns outright.
+pub fn replace_staff_list(conn: &Connection, staff: &[Staff]) -> Result<(), String> {
+    conn.execute("DELETE FROM staff", [])
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    upsert_staff_list(conn, staff)
+}
+
 fn parse_role(s: &str) -> StaffRole {
     match s {
         "AssistantManager" => StaffRole::AssistantManager,

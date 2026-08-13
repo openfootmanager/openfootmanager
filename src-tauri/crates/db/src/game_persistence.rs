@@ -139,7 +139,7 @@ fn write_game_to_connection(
     }
     team_repo::upsert_teams(conn, &game.teams)?;
     player_repo::upsert_players(conn, &game.players)?;
-    staff_repo::upsert_staff_list(conn, &game.staff)?;
+    staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::upsert_messages(conn, &game.messages)?;
     news_repo::upsert_news_list(conn, &game.news)?;
 
