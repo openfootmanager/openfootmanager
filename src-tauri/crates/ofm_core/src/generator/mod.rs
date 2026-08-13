@@ -271,10 +271,15 @@ pub fn generate_youth_academy_recruit_with_nationality(
 
     let mut rng = rand::rng();
     let names_def = default_names_definition();
-    let country_codes = sorted_country_codes(&names_def);
+    let country_codes = generation::nationality_distribution();
     let nationality = nationality_override
         .map(generation::canonicalize_generated_nationality)
-        .unwrap_or_else(|| pick_nationality_from_def(&team.country, &country_codes, &mut rng));
+        .unwrap_or_else(|| {
+            // `team_local_nationality`, not `team.country`: a club carries both a
+            // location and a football identity, and where they differ the
+            // football identity is the one a youth intake should draw on.
+            pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng)
+        });
     let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
     let mut player =
@@ -336,7 +341,15 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_yea
         .max(weekly_wage_spend.saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
 }
 
-fn team_staff_seed_nationality(team: &Team) -> &str {
+/// The country a club's *people* should be drawn from.
+///
+/// `country` is where the club is; `football_nation` is the identity it plays
+/// under, and the two differ (a Welsh club in the English pyramid). Anyone
+/// generated for the club follows the football identity when it is set.
+///
+/// Named without `staff` because players use it too — the youth intake drew
+/// straight from `team.country` and quietly disagreed with every other path.
+fn team_local_nationality(team: &Team) -> &str {
     if team.football_nation.is_empty() {
         team.country.as_str()
     } else {
@@ -344,22 +357,9 @@ fn team_staff_seed_nationality(team: &Team) -> &str {
     }
 }
 
-/// Country codes from the name pools in a stable, sorted order.
-///
-/// `pools` is a `HashMap`, and Rust randomizes key-iteration order per
-/// instance. Generation indexes into these codes with the RNG, so without a
-/// stable order the same seed produces different worlds. Sorting is what makes
-/// seeded world generation actually reproducible.
-fn sorted_country_codes(names_def: &definitions::NamesDefinition) -> Vec<String> {
-    let mut codes: Vec<String> = names_def.pools.keys().cloned().collect();
-    codes.sort();
-    codes
-}
-
 fn create_staff_generator_context() -> (definitions::NamesDefinition, Vec<String>) {
     let names_def = default_names_definition();
-    let country_codes = sorted_country_codes(&names_def);
-    (names_def, country_codes)
+    (names_def, generation::nationality_distribution().clone())
 }
 
 fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool {
@@ -384,7 +384,7 @@ fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool
             }
 
             let nationality = pick_nationality_from_def(
-                team_staff_seed_nationality(team),
+                team_local_nationality(team),
                 &country_codes,
                 &mut rng,
             );
@@ -409,7 +409,7 @@ fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32
     let (names_def, country_codes) = create_staff_generator_context();
     let fallback_seed = teams
         .first()
-        .map(team_staff_seed_nationality)
+        .map(team_local_nationality)
         .unwrap_or("England");
 
     standard_available_staff_roles()
@@ -420,7 +420,7 @@ fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32
             } else {
                 let seed_country = teams
                     .get(rng.random_range(0..teams.len().max(1)))
-                    .map(team_staff_seed_nationality)
+                    .map(team_local_nationality)
                     .unwrap_or(fallback_seed);
                 pick_nationality_from_def(seed_country, &country_codes, &mut rng)
             };
@@ -1054,12 +1054,14 @@ pub fn build_world_data_from_package(
         }
         merged
     };
-    // Via the helper the other three call sites use, rather than a fourth copy of
-    // its body. Nothing observable changes today — this path draws from an
-    // unseeded `rand::rng()`, and a uniform draw over a set does not care about
-    // order — but the codes are indexed with the RNG, so the sort is what the
-    // helper exists for and what would matter if this build were ever seeded.
-    let country_codes: Vec<String> = sorted_country_codes(&names_def);
+    // The catalog distribution plus whatever countries this package declares.
+    // A package exists to describe a world the catalog does not contain, so its
+    // own countries have to be drawable — otherwise a club in one of them is
+    // squadded entirely from elsewhere, and the country it declared is a label
+    // no player ever carries.
+    let country_codes = generation::nationality_distribution_including(
+        package.countries.iter().map(|country| country.id.as_str()),
+    );
 
     // Group hand-authored players and staff by the club they belong to.
     let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
@@ -1279,11 +1281,11 @@ fn generate_world_with_rng(
         .map(|def| def.teams)
         .unwrap_or_else(|| clubs::generate_club_defs(config, &mut rng));
 
-    let country_codes = sorted_country_codes(&names_def);
+    let country_codes = generation::nationality_distribution();
 
     for tdef in &team_defs {
         let (team, team_players, team_staff) =
-            build_club(tdef, &country_codes, opening_year, &names_def, &mut rng);
+            build_club(tdef, country_codes, opening_year, &names_def, &mut rng);
         players.extend(team_players);
         staff.extend(team_staff);
         teams_out.push(team);
@@ -1538,13 +1540,13 @@ mod tests {
     ) -> Vec<Player> {
         let tdef = test_team_def();
         let names_def = default_names_definition();
-        let country_codes = sorted_country_codes(&names_def);
+        let country_codes = generation::nationality_distribution();
         let mut rng = StdRng::seed_from_u64(42);
         let refs: Vec<&package::PlayerDef> = authored.iter().collect();
         let (_team, players, _staff) = build_package_club(
             &tdef,
             &refs,
-            &country_codes,
+            country_codes,
             opening_year,
             &names_def,
             &mut rng,
@@ -1790,6 +1792,40 @@ mod tests {
         assert_eq!(player.position, Position::Defender, "slot 5 is a defender");
         assert!(player.ovr > 0, "derived ratings must be computed");
         assert_eq!(player.squad_role, SquadRole::Senior);
+    }
+
+    /// #452's headline: a generated world could only ever contain ~16
+    /// nationalities — 14 of them European — because the draw was over the 17
+    /// name-pool keys rather than over the nations that exist.
+    #[test]
+    fn a_generated_world_is_not_limited_to_the_name_pool_nationalities() {
+        let (_teams, players, staff) = generate_world_with(&WorldGenConfig::standard(), None);
+
+        let nationalities: std::collections::HashSet<&str> = players
+            .iter()
+            .map(|player| player.nationality.as_str())
+            .chain(staff.iter().map(|member| member.nationality.as_str()))
+            .collect();
+
+        assert!(
+            nationalities.len() > 40,
+            "a world should field far more than the 16 name-pool nationalities, got {}: {:?}",
+            nationalities.len(),
+            nationalities
+        );
+
+        // The old pool was 14 European nations plus BR and AR, so "some
+        // non-European nationality exists" is the assertion that actually
+        // distinguishes the fix from the bug.
+        let beyond_the_old_pool = nationalities.iter().any(|code| {
+            !matches!(*code, "BR" | "AR")
+                && crate::nations::region_for_code(code) != "europe"
+                && crate::nations::nation_by_code(code).is_some()
+        });
+        assert!(
+            beyond_the_old_pool,
+            "no nationality outside the old Europe+BR/AR pool: {nationalities:?}"
+        );
     }
 
     #[test]
@@ -2154,6 +2190,40 @@ mod tests {
             assert!(nat == "ES" || nat == "ENG", "unexpected nationality: {nat}");
             assert_ne!(nat, "GB");
         }
+    }
+
+    /// A club's location and its football identity can differ — a Welsh club in
+    /// the English pyramid. Every other generated person follows the football
+    /// identity; the youth intake read `team.country` directly and quietly
+    /// disagreed.
+    #[test]
+    fn a_youth_recruit_follows_the_clubs_football_nation_not_its_location() {
+        let mut team = domain::team::Team::new(
+            "team-1".to_string(),
+            "Wrexham".to_string(),
+            "WRX".to_string(),
+            "England".to_string(),
+            "Wrexham".to_string(),
+            "Ground".to_string(),
+            20000,
+        );
+        team.football_nation = "WAL".to_string();
+
+        let drawn: Vec<String> = (0..200)
+            .map(|_| {
+                generate_youth_academy_recruit_with_nationality(&team, None, None, TEST_OPENING_YEAR)
+                    .nationality
+            })
+            .collect();
+
+        let welsh = drawn.iter().filter(|code| *code == "WAL").count();
+        let english = drawn.iter().filter(|code| *code == "ENG").count();
+        // The local weight is 60%, so the football identity should dominate the
+        // location outright rather than merely edge it.
+        assert!(
+            welsh > english,
+            "the Welsh identity should drive the local draw: WAL {welsh}, ENG {english}"
+        );
     }
 
     #[test]
