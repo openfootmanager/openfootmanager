@@ -22,6 +22,7 @@ const inDir = resolve(readFlag("--in", "scripts/perf/results"));
 // Same order as run-matrix.sh, with the acceleration boundary marked.
 const LADDER = [
   "baseline",
+  "auto",
   "explicit-sync",
   "render-intel",
   "render-nvidia",

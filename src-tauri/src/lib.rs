@@ -41,6 +41,12 @@ pub fn run() {
         .manage(state_manager.clone())
         .setup(move |app| {
             use tauri::Manager as TauriManager;
+
+            // Clears the marker `linux_graphics::configure` wrote, once this launch has clearly
+            // survived. A launch that dies the way the NVIDIA failures do never gets here.
+            #[cfg(target_os = "linux")]
+            platform::linux_graphics::watch_startup();
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()

@@ -28,6 +28,7 @@ TIMEOUT_SECS="${TIMEOUT_SECS:-90}"
 # ones in play. Without it, row 0 is unreachable — which was the whole reason for that flag.
 declare -A ROWS=(
   [baseline]="OFM_GPU_PROFILE=off"
+  [auto]="OFM_GPU_PROFILE=auto"
   [explicit-sync]="OFM_GPU_PROFILE=off __NV_DISABLE_EXPLICIT_SYNC=1"
   [render-intel]="OFM_GPU_PROFILE=off WEBKIT_WEB_RENDER_DEVICE_FILE=/dev/dri/renderD128"
   [render-nvidia]="OFM_GPU_PROFILE=off WEBKIT_WEB_RENDER_DEVICE_FILE=/dev/dri/renderD129"
@@ -38,7 +39,12 @@ declare -A ROWS=(
   [xwayland]="OFM_GPU_PROFILE=off GDK_BACKEND=x11"
 )
 
-ROW_ORDER=(baseline explicit-sync render-intel render-nvidia disable-gbm force-shm shipped no-compositing xwayland)
+ROW_ORDER=(baseline auto explicit-sync render-intel render-nvidia disable-gbm force-shm shipped no-compositing xwayland)
+
+# Every row is killed as soon as its result lands, which is sooner than the app's startup grace
+# period — so each run leaves the "did not survive startup" marker behind. Left in place it would
+# push the next `auto` row onto the conservative fallback and silently measure the wrong thing.
+SENTINEL="${XDG_CACHE_HOME:-$HOME/.cache}/openfootmanager/startup-incomplete"
 
 requested=("$@")
 if [ ${#requested[@]} -eq 0 ]; then
@@ -64,6 +70,8 @@ for row in "${requested[@]}"; do
 
   echo "== row: $row =="
   echo "   env: $env_spec"
+
+  rm -f "$SENTINEL"
 
   # `tauri dev` starts its own Vite via beforeDevCommand and aborts the whole row if 1420 is
   # taken, so make sure the previous row's server is really gone before starting.
