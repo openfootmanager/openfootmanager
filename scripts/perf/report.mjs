@@ -76,6 +76,14 @@ console.log(toRow(divider));
 for (const row of rows) console.log(toRow(row));
 console.log();
 
+// A table only shows the rows that were actually run, which reads as complete to anyone who did
+// not run it. Name the gaps explicitly.
+const missing = LADDER.filter((label) => !results.some((r) => r.label === label));
+if (missing.length > 0) {
+  console.log(`**Not run:** ${missing.map((label) => `\`${label}\``).join(", ")}.`);
+  console.log();
+}
+
 for (const result of results) {
   const budget = result.frameBudgetMs;
   console.log(
