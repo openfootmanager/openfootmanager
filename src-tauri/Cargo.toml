@@ -62,6 +62,18 @@ opt-level = 1
 [profile.dev.package."*"]
 opt-level = 3
 
+# Release builds had no profile at all, so they shipped Cargo's defaults: 16 codegen units, no
+# LTO, and full symbols. The simulation is the hot path in a game that runs thousands of matches
+# per season, and it is exactly the kind of cross-crate call graph that thin LTO helps. `strip`
+# roughly halves the shipped binary.
+#
+# Deliberately not `panic = "abort"`: it changes runtime behaviour and interacts with the test
+# harness, for no benefit we can point at.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
 [features]
 mcp = ["dep:rmcp", "dep:axum", "dep:tower", "dep:tokio", "dep:tokio-util"]
 # Forwards to `db/save-snapshots`. Enable with `tauri dev -f save-snapshots`
