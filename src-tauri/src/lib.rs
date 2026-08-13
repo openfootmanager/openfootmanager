@@ -17,10 +17,10 @@ pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Must run before the webview is built: WebKitGTK reads these variables when the web
-    // process starts. See `platform::linux_graphics` and `docs/LINUX_GRAPHICS.md`.
-    #[cfg(target_os = "linux")]
-    platform::linux_graphics::configure();
+    // Must run before the webview is built: on Linux, WebKitGTK and the graphics driver read the
+    // variables this sets when the web process starts. A no-op on Windows and macOS.
+    // See `platform` and `docs/LINUX_GRAPHICS.md`.
+    platform::configure_graphics();
 
     let state_manager = Arc::new(StateManager::new());
 
@@ -42,10 +42,9 @@ pub fn run() {
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
-            // Clears the marker `linux_graphics::configure` wrote, once this launch has clearly
-            // survived. A launch that dies the way the NVIDIA failures do never gets here.
-            #[cfg(target_os = "linux")]
-            platform::linux_graphics::watch_startup();
+            // Clears the marker `configure_graphics` wrote, once this launch has clearly
+            // survived. A launch that dies the way the Linux NVIDIA failures do never gets here.
+            platform::watch_startup();
 
             let app_data_dir = app
                 .path()

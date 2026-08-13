@@ -188,7 +188,7 @@ const STARTUP_GRACE: std::time::Duration = std::time::Duration::from_secs(8);
 ///
 /// Must be called before Tauri builds the webview — WebKitGTK and the NVIDIA driver read these
 /// variables when the web process starts, so setting them later has no effect.
-pub fn configure() {
+pub fn configure_graphics() {
     let raw = std::env::var("OFM_GPU_PROFILE").unwrap_or_default();
     let profile = GpuProfile::parse(&raw);
 
