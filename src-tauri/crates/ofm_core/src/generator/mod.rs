@@ -2381,6 +2381,19 @@ mod tests {
         let parsed: definitions::NationsDefinition = serde_json::from_str(&json).unwrap();
 
         assert_eq!(parsed.nations.len(), nations_def.nations.len());
+        // The scalars beside the nation list, so this covers the whole struct
+        // rather than one field of it — a `skip_serializing_if` or an
+        // asymmetric impl that dropped the palette would otherwise pass.
+        //
+        // Deliberately *not* the guard against losing `rename_all`: this
+        // round-trip serialises and deserialises with the same struct, so both
+        // sides rename together and it stays green either way (verified by
+        // removing the attribute). What catches that is
+        // `the_embedded_definitions_parse_and_carry_the_shipped_data`, which
+        // parses the real camelCase file and fails on an empty palette.
+        assert_eq!(parsed.clubs_per_division, nations_def.clubs_per_division);
+        assert_eq!(parsed.color_palette, nations_def.color_palette);
+        assert_eq!(parsed.generic_cities, nations_def.generic_cities);
         for (before, after) in nations_def.nations.iter().zip(&parsed.nations) {
             assert_eq!(before.code, after.code);
             assert_eq!(before.cities, after.cities, "{} cities", before.code);
