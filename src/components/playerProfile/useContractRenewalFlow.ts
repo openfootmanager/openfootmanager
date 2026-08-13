@@ -222,7 +222,7 @@ export function useContractRenewalFlow({
       }
     };
 
-    loadProjection();
+    void loadProjection();
 
     return () => {
       cancelled = true;

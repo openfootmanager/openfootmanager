@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
@@ -39,6 +39,14 @@ export function useScoutPlayerFlow({
   const [scoutStatus, setScoutStatus] =
     useState<PlayerProfileScoutStatus>("idle");
   const [scoutError, setScoutError] = useState<string | null>(null);
+
+  // The profile is not remounted when the manager moves to another player, so
+  // without this the last player's "sent" status carries over and the new
+  // profile claims a scout is already watching them.
+  useEffect(() => {
+    setScoutStatus("idle");
+    setScoutError(null);
+  }, [player.id]);
 
   const scoutAvailability = getScoutAvailability({
     staff: gameState.staff,

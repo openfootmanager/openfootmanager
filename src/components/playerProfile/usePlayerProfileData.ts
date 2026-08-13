@@ -112,8 +112,12 @@ export function usePlayerProfileData({
   ]);
 
   useEffect(() => {
+    // Clear first, the way the advanced-stats effect above does. The profile is
+    // not remounted when the manager moves to another player, so holding the
+    // old list until the new one arrives shows it under the wrong name.
+    setRecentMatches((current) => (current.length === 0 ? current : []));
+
     if (player.stats.appearances <= 0) {
-      setRecentMatches([]);
       return;
     }
 

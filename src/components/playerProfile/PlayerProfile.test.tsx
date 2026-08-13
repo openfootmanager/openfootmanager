@@ -1588,6 +1588,129 @@ describe("PlayerProfile contract surfaces", () => {
   });
 });
 
+// `DashboardWorkspaceContent` renders `<PlayerProfile />` without a `key`, so
+// switching player reuses the component instance and every piece of hook state
+// survives. Anything scoped to one player has to reset on `player.id` itself.
+describe("PlayerProfile switching between players", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+    vi.mocked(invoke).mockImplementation(async (command: string) =>
+      defaultInvokeResponse(command),
+    );
+  });
+
+  function scoutStaff(): StaffData {
+    return createStaff({ id: "scout-1", role: "Scout" as StaffData["role"] });
+  }
+
+  // Scouting is offered for players the manager does *not* have, so both of
+  // these sit at another club.
+  it("re-enables scouting for the next player after one has been scouted", async () => {
+    const first = createPlayer({ team_id: "team-2" });
+    const gameState = createGameState(first, [scoutStaff()]);
+
+    const { rerender } = render(
+      <PlayerProfile
+        player={first}
+        gameState={gameState}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Scout" }));
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("send_scout", {
+        scoutId: "scout-1",
+        playerId: "player-1",
+      });
+    });
+
+    const second = createPlayer({
+      id: "player-2",
+      full_name: "Sam Other",
+      team_id: "team-2",
+    });
+    rerender(
+      <PlayerProfile
+        player={second}
+        gameState={createGameState(second, [scoutStaff()])}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    // The scout was sent to look at player-1, so player-2 is not being
+    // scouted and must still be offered.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Scout" })).toBeEnabled();
+    });
+    expect(screen.queryByText("Scouting in progress")).toBeNull();
+  });
+
+  it("drops the previous player's recent matches on arrival", async () => {
+    const first = createPlayer({ stats: { ...createPlayer().stats, appearances: 3 } });
+
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_player_match_history") {
+        const playerId = (args as { playerId: string }).playerId;
+        if (playerId === "player-1") {
+          return [
+            {
+              fixture_id: "fixture-1",
+              opponent_name: "Rivals FC",
+              date: "2026-07-20",
+              is_home: true,
+              goals: 1,
+              assists: 0,
+              rating: 7.5,
+              minutes_played: 90,
+            },
+          ];
+        }
+        return [];
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    const { rerender } = render(
+      <PlayerProfile
+        player={first}
+        gameState={createGameState(first)}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Rivals FC")).toBeInTheDocument();
+    });
+
+    const second = createPlayer({
+      id: "player-2",
+      full_name: "Sam Other",
+      stats: { ...createPlayer().stats, appearances: 3 },
+    });
+    rerender(
+      <PlayerProfile
+        player={second}
+        gameState={createGameState(second)}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Rivals FC")).toBeNull();
+    });
+  });
+});
+
 describe("PlayerProfile free agent signing", () => {
   beforeEach(() => {
     vi.mocked(invoke).mockReset();
