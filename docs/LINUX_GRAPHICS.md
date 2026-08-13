@@ -159,6 +159,14 @@ WEBKIT_DISABLE_COMPOSITING_MODE=1 openfootmanager
   `WEBKIT_SKIA_ENABLE_CPU_RENDERING`, `WEBKIT_SKIA_{CPU,GPU}_PAINTING_THREADS`,
   `WEBKIT_FORCE_COMPOSITING_MODE`, `WEBKIT_FORCE_VBLANK_TIMER`. None of them helped here, but
   they are the search space for the next machine that misbehaves.
+- **The default is chosen from one machine.** Everything above is a single GPU, one driver
+  (580.173.02), one compositor (KWin/Wayland) and one WebKitGTK (2.52.5).
+  `__NV_DISABLE_EXPLICIT_SYNC=1` turns off the mechanism Wayland compositors use to avoid
+  frame-pacing glitches on NVIDIA; Tauri describes it as "often" free, which is a weaker claim
+  than "always". It is clearly better *here* than CPU compositing, and that is the comparison the
+  default turns on — but if you are on newer hardware or a newer driver, re-run the matrix rather
+  than trusting this table. The cost of the default being wrong elsewhere is an app that does not
+  start, which the startup marker catches and downgrades on the next launch.
 - **This is not a kernel problem** and there is nothing to send upstream to Linux. The layers with
   agency are the app's env-var policy, packaging, and bug reports to WebKitGTK and Tauri.
 - **Re-run the matrix after any WebKitGTK or NVIDIA driver update.** The right default is a

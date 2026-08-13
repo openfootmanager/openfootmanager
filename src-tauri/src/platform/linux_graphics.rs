@@ -93,6 +93,20 @@ fn policy_for(profile: GpuProfile, env: &GraphicsEnvironment) -> Policy {
     }
 }
 
+/// Whether this launch should record a "did not survive startup" marker.
+///
+/// Only `auto` gets to fall back, and only when it is attempting a path that might not start.
+/// Two cases must stay out of it:
+///
+/// - `off` and `safe` are explicit user choices. `off` in particular is the measurement baseline
+///   and is *expected* to crash on this hardware; letting it plant a marker would push the next
+///   `auto` launch onto the slow path because of a deliberate experiment.
+/// - `auto` that already resolved to `DisableDmabuf` **is** the fallback, so there is nothing
+///   further to fall back to.
+fn should_track_startup(profile: GpuProfile, policy: Policy) -> bool {
+    profile == GpuProfile::Auto && policy != Policy::DisableDmabuf
+}
+
 fn vars_for(policy: Policy) -> &'static [(&'static str, &'static str)] {
     match policy {
         Policy::Nothing => &[],
@@ -205,11 +219,13 @@ pub fn configure() {
     }
     let _ = DECISION.set(decision);
 
-    if let Some(path) = sentinel {
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+    if should_track_startup(profile, policy) {
+        if let Some(path) = sentinel {
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&path, b"");
         }
-        let _ = std::fs::write(&path, b"");
     }
 }
 
@@ -348,6 +364,33 @@ mod tests {
     #[test]
     fn off_sets_nothing_at_all() {
         assert!(vars_to_set(GpuProfile::Off, &env_with(&["nvidia"]), nothing_set).is_empty());
+    }
+
+    #[test]
+    fn only_auto_records_a_startup_attempt() {
+        // `off` is expected to crash on NVIDIA -- it is the measurement baseline. If it planted
+        // the marker, running the benchmark matrix would force the next `auto` launch onto the
+        // slow path because of a deliberate experiment.
+        assert!(!should_track_startup(GpuProfile::Off, Policy::Nothing));
+        assert!(!should_track_startup(GpuProfile::Safe, Policy::DisableDmabuf));
+    }
+
+    #[test]
+    fn the_fallback_path_does_not_track_itself() {
+        // Nothing left to fall back to, so recording a failure would achieve nothing.
+        assert!(!should_track_startup(
+            GpuProfile::Auto,
+            Policy::DisableDmabuf
+        ));
+    }
+
+    #[test]
+    fn auto_tracks_the_paths_that_might_not_start() {
+        assert!(should_track_startup(
+            GpuProfile::Auto,
+            Policy::NvidiaExplicitSyncOff
+        ));
+        assert!(should_track_startup(GpuProfile::Auto, Policy::Nothing));
     }
 
     #[test]

@@ -41,9 +41,10 @@ declare -A ROWS=(
 
 ROW_ORDER=(baseline auto explicit-sync render-intel render-nvidia disable-gbm force-shm shipped no-compositing xwayland)
 
-# Every row is killed as soon as its result lands, which is sooner than the app's startup grace
-# period — so each run leaves the "did not survive startup" marker behind. Left in place it would
-# push the next `auto` row onto the conservative fallback and silently measure the wrong thing.
+# Belt and braces. Only the `auto` rows record a startup attempt, and each row is killed as soon
+# as its result lands — sooner than the app's startup grace period — so an `auto` row leaves the
+# "did not survive startup" marker behind. Left in place it would push the next `auto` row onto
+# the conservative fallback and silently measure the wrong thing.
 SENTINEL="${XDG_CACHE_HOME:-$HOME/.cache}/openfootmanager/startup-incomplete"
 
 requested=("$@")
