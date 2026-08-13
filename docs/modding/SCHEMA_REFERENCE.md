@@ -277,7 +277,11 @@ manager is dismissed: it moves into the unemployed manager pool, and the world's
 managerial-change story naming them. The staff member they were built from is untouched and stays
 at the club, because the two are separate records.
 
-If you are authoring a club you expect players to start at, that is the surprise to plan for.
+The practical effect is that the person you authored ends up in the world **twice**: once as the
+staff member you wrote, still doing their original job at the club, and once as an unemployed
+manager carrying the career record they built up during the generated history — free for a rival
+to hire. If you are authoring the club you expect players to start at, that is the surprise to
+plan for.
 
 ---
 
