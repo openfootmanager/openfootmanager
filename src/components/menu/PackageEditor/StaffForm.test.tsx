@@ -15,7 +15,6 @@ vi.mock("react-i18next", () => ({
 }));
 
 function renderForm(staff: Partial<StaffDef> = {}) {
-  const updateField = vi.fn();
   render(
     <StaffForm
       editing={{ ...emptyStaff(), ...staff }}
@@ -24,10 +23,9 @@ function renderForm(staff: Partial<StaffDef> = {}) {
       teams={[]}
       onBack={() => {}}
       onSave={() => {}}
-      updateField={updateField}
+      updateField={vi.fn()}
     />,
   );
-  return updateField;
 }
 
 describe("StaffForm", () => {

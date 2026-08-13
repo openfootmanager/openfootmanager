@@ -253,7 +253,7 @@ There is no `manager` schema. A club's manager is created at world start from it
 `role: "AssistantManager"` is how you author who manages a club — which is what the example
 above is really doing.
 
-For each AI club that does not already have a manager, the game looks for a staff member at that
+For each club that does not already have a manager, the game looks for a staff member at that
 club with `role: "AssistantManager"` and builds the club's manager from their `firstName`,
 `lastName`, `dateOfBirth` and `nationality`.
 
@@ -270,8 +270,14 @@ Four consequences worth knowing before you rely on it:
 - **The staff entry stays.** The manager is built *from* those details, not moved out of them, so
   the club keeps the assistant manager as a staff member as well.
 
-The club you take over yourself is exempt: you are its manager, and any authored assistant stays
-an assistant.
+**Your own club is not exempt.** Managers are seeded while the world is generated, which happens
+*before* you choose a club — so the assistant manager at the club you go on to take over is
+promoted along with everyone else's. When you take charge, the manager built from them is
+dismissed — it moves into the unemployed manager pool, and the world's news carries a
+managerial-change story naming them. Your authored staff member is untouched by this and stays
+at the club, because the two are separate records.
+
+If you are authoring a club you expect players to start at, that is the surprise to plan for.
 
 ---
 
