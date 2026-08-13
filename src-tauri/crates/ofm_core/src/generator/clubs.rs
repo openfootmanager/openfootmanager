@@ -167,11 +167,20 @@ impl WorldGenConfig {
     }
 
     /// Total clubs this config will generate.
+    ///
+    /// Saturating rather than wrapping: a definition file cannot reach here with
+    /// factors this large ([`DefinitionSources`] bounds both), but a
+    /// `WorldGenConfig` assembled in code can, and the two build profiles
+    /// disagree about what `*` then means — debug panics on overflow, release
+    /// wraps, so `Vec::with_capacity` would be handed a small nonsense number
+    /// while the loop that fills it still ran to the real count.
+    ///
+    /// [`DefinitionSources`]: super::definitions::DefinitionSources
     pub fn total_clubs(&self) -> usize {
         self.nations
             .iter()
-            .map(|nation| self.clubs_per_division * nation.tiers)
-            .sum()
+            .map(|nation| self.clubs_per_division.saturating_mul(nation.tiers))
+            .fold(0usize, |total, clubs| total.saturating_add(clubs))
     }
 }
 

@@ -115,6 +115,14 @@ impl UsableDefinition for NamesDefinition {
     }
 }
 
+/// Ceilings for the two factors of the club count. Deliberately far above any
+/// plausible world — the largest shipped nation runs 2 divisions of 20 — so they
+/// only ever catch a typo or a hostile file, never an ambitious one.
+const MAX_CLUBS_PER_DIVISION: usize = 1_000;
+const MAX_TIERS: usize = 20;
+/// Top of the documented `strength` range on [`super::clubs::NationGen`].
+const MAX_NATION_STRENGTH: u8 = 5;
+
 impl UsableDefinition for NationsDefinition {
     fn unusable_reason(&self) -> Option<&'static str> {
         if self.nations.is_empty() {
@@ -122,6 +130,35 @@ impl UsableDefinition for NationsDefinition {
         }
         if self.clubs_per_division == 0 {
             return Some("clubsPerDivision is zero");
+        }
+        // The club count is `clubs_per_division * tiers`, so guarding one factor
+        // guards nothing: zero divisions generates zero clubs just as surely,
+        // and a career that opens with no teams reports no error on the way in.
+        if self.nations.iter().any(|nation| nation.tiers == 0) {
+            return Some("a nation has no divisions to fill");
+        }
+        // Both factors bounded, because the product is an allocation. This runs
+        // inside `start_new_game`, an async command: a multi-gigabyte
+        // `Vec::with_capacity` there does not fail cleanly, it leaves the player
+        // watching a spinner that never resolves (#441). The ceilings are far
+        // above any sane world and exist only to keep a typo from becoming one.
+        if self.clubs_per_division > MAX_CLUBS_PER_DIVISION {
+            return Some("clubsPerDivision is implausibly large");
+        }
+        if self.nations.iter().any(|nation| nation.tiers > MAX_TIERS) {
+            return Some("a nation has implausibly many divisions");
+        }
+        // `strength` seeds the reputation band and is documented 1-5. Out of
+        // range it walks past the clamp that bounds reputation, because the
+        // `.max(rep_lo + 1)` that keeps the range non-empty undoes the
+        // `.min(950)` that caps it -- so a single bad digit mints a world of
+        // clubs with reputations in the tens of thousands.
+        if self
+            .nations
+            .iter()
+            .any(|nation| nation.strength == 0 || nation.strength > MAX_NATION_STRENGTH)
+        {
+            return Some("a nation's strength is outside the 1-5 range");
         }
         if self.color_palette.is_empty() {
             return Some("colorPalette is empty");
@@ -539,6 +576,36 @@ mod tests {
                     "nations":[{"code":"TR","style":"Generic","tiers":1,"strength":3,
                                 "cities":["A"]}]}"##,
                 "no generic cities to pad a thin package with",
+            ),
+            (
+                r##"{"clubsPerDivision":20,
+                    "colorPalette":[{"primary":"#000","secondary":"#fff"}],
+                    "genericCities":["G"],
+                    "nations":[{"code":"TR","style":"Generic","tiers":0,"strength":3,
+                                "cities":["A"]}]}"##,
+                // `clubs_per_division * tiers` is the club count, and only one
+                // factor was guarded. Zero tiers generates zero clubs, and the
+                // random path has no emptiness check, so this is a career that
+                // starts with no teams and no error.
+                "a nation with no divisions",
+            ),
+            (
+                r##"{"clubsPerDivision":100000000,
+                    "colorPalette":[{"primary":"#000","secondary":"#fff"}],
+                    "genericCities":["G"],
+                    "nations":[{"code":"TR","style":"Generic","tiers":1,"strength":3,
+                                "cities":["A"]}]}"##,
+                "an absurd number of clubs per division",
+            ),
+            (
+                r##"{"clubsPerDivision":20,
+                    "colorPalette":[{"primary":"#000","secondary":"#fff"}],
+                    "genericCities":["G"],
+                    "nations":[{"code":"TR","style":"Generic","tiers":1,"strength":255,
+                                "cities":["A"]}]}"##,
+                // `strength` is documented 1-5 and seeds the reputation band.
+                // Out of range it walks straight past the 950 clamp.
+                "a strength outside the documented range",
             ),
         ];
 
