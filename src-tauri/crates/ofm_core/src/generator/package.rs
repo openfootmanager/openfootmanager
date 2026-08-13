@@ -10,7 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use domain::league::CompetitionScope;
@@ -1006,39 +1006,30 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         competitions: package.competitions.clone(),
     };
 
-    // How many competitions answer to each id, so the dedup below can tell an
-    // id that names one competition from one that names several (or none, for
-    // the package-wide errors that carry no id at all).
-    let mut occurrences: HashMap<&str, usize> = HashMap::new();
-    for competition in &package.competitions {
-        *occurrences.entry(competition.id.as_str()).or_default() += 1;
-    }
-
     super::validate_definitions(&file, &ctx)
         .into_iter()
         .map(|error| {
             let mut params = error.params;
-            // The definition validator reasons over the whole competition list
-            // and has no idea about files, so the id is the only handle back to
-            // one — it carries no occurrence, so a repeated id resolves to its
-            // first declaration. Errors it raises about the package as a whole
-            // carry no id and stay unlocated, which is honest: they are not
-            // about one entity. A blank id matches nothing on purpose, so such
-            // an error is not pinned to whichever competition went unnamed.
-            let file = package
-                .competitions
-                .iter()
-                .position(|c| !c.id.is_empty() && c.id == error.competition_id)
+            // Located by occurrence, which is what `source_at` is keyed on and
+            // what every other error path in this file uses. An error the
+            // validator raises about the package as a whole carries no
+            // occurrence and stays unlocated, which is honest: it is not about
+            // one entity.
+            let file = error
+                .competition_index
                 .map(|index| package.source_at("competition", index))
                 .unwrap_or_default();
             if !error.competition_id.is_empty() {
                 params.push(("competition".to_string(), error.competition_id));
             }
-            PackageError {
-                code: error.code,
-                file,
-                params,
-            }
+            (
+                error.competition_index,
+                PackageError {
+                    code: error.code,
+                    file,
+                    params,
+                },
+            )
         })
         // One competition can raise the same problem from more than one field —
         // an unknown country reaches the validator once as `countryId` and again
@@ -1047,33 +1038,22 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         // duplicates; two competitions with the same bad country still report
         // separately, because the `competition` param differs.
         //
-        // How far to collapse depends on how many competitions the id names. A
-        // blank or repeated id makes two of them indistinguishable to the key,
-        // so collapsing to one line would hide a broken competition outright —
-        // the author fixes what is shown, revalidates, and meets a problem
-        // validation never mentioned. Each error therefore gets a budget of one
-        // line per competition its id could stand for: one for a unique id,
-        // which is the plain dedup above, and N for an id shared by N. That is
-        // the most precision available here, since the definition validator
-        // reports an id and not an occurrence.
+        // Keyed on the occurrence, so one competition raising the same problem
+        // from two fields — an unknown country reaches the validator once as
+        // `countryId` and again as the participant selector's `country` —
+        // collapses to one line, while two competitions each raising it stay
+        // two. Keying on the id instead cannot separate those two cases: a
+        // blank or repeated id makes distinct competitions indistinguishable,
+        // and every scheme built on it either hides a broken competition or
+        // prints one problem twice.
         //
-        // Kept on a counter rather than scanning the output for each error: a
+        // Kept on a seen-set rather than scanning the output for each error: a
         // package is untrusted input, and one with many broken competitions
         // would make a linear scan quadratic in the size of its own mistakes.
         .fold(
-            (Vec::new(), HashMap::new()),
-            |(mut unique, mut seen), error| {
-                let competition_id = error
-                    .params
-                    .iter()
-                    .find(|(key, _)| key == "competition")
-                    .map(|(_, value)| value.as_str())
-                    .unwrap_or_default();
-                let budget = occurrences.get(competition_id).copied().unwrap_or(1).max(1);
-                let key = (error.code.clone(), error.file.clone(), error.params.clone());
-                let seen_so_far = seen.entry(key).or_insert(0usize);
-                *seen_so_far += 1;
-                if *seen_so_far <= budget {
+            (Vec::new(), HashSet::new()),
+            |(mut unique, mut seen), (index, error)| {
+                if seen.insert((index, error.code.clone(), error.params.clone())) {
                     unique.push(error);
                 }
                 (unique, seen)
@@ -3315,6 +3295,65 @@ colors:
             unknown_country.len(),
             2,
             "each competition keeps its own bad country: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Two files declare the same competition id and only the second is broken.
+    /// Locating by id would send the author to the first file, whose
+    /// competition is fine — worse than no location at all, because it reads as
+    /// authoritative. Locating by occurrence names the file that is wrong.
+    #[test]
+    fn a_shared_id_still_names_the_file_that_holds_the_broken_one() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "good.yaml",
+            "schema: competition\nid: clash\nname: Fine One\ntype: League\nscope: Domestic\ncountryId: AR\nformat:\n  kind: LeagueTable\nparticipants:\n  selector:\n    kind: allInCountry\n    country: AR\n",
+        );
+        write(
+            &dir,
+            "broken.yaml",
+            "schema: competition\nid: clash\nname: Bad Two\ntype: League\nscope: Domestic\ncountryId: XX\nformat:\n  kind: LeagueTable\nparticipants:\n  selector:\n    kind: allInCountry\n    country: XX\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let unknown_country: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.unknownCountry")
+            .collect();
+        assert_eq!(unknown_country.len(), 1, "one broken country: {errors:?}");
+        assert_eq!(
+            unknown_country[0].file, "broken.yaml",
+            "the file named must be the one that is wrong: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The asymmetric case: two competitions share an id, but only one of them
+    /// is broken. The budget is two, and one competition raises the same error
+    /// from both `countryId` and its selector — so a key-and-budget scheme with
+    /// no notion of *which* competition spoke prints one problem twice.
+    #[test]
+    fn one_broken_competition_among_id_twins_reports_once() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "leagues.yaml",
+            "schema: competition\nitems:\n  - id: clash\n    name: Bad One\n    type: League\n    scope: Domestic\n    countryId: XX\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: XX\n  - id: clash\n    name: Fine Two\n    type: League\n    scope: Domestic\n    countryId: AR\n    format:\n      kind: LeagueTable\n    participants:\n      selector:\n        kind: allInCountry\n        country: AR\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let unknown_country: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.unknownCountry")
+            .collect();
+        assert_eq!(
+            unknown_country.len(),
+            1,
+            "one competition is broken, so one line: {errors:?}"
         );
 
         std::fs::remove_dir_all(&dir).ok();
