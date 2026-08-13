@@ -149,10 +149,18 @@ pub enum SelectorKind {
 /// A single validation problem. `code` is an i18n key; `params` fills its
 /// placeholders. `competition_id` locates the offending entry (empty for
 /// file-level problems).
+///
+/// `competition_index` is the *occurrence* that raised it, and is what callers
+/// should locate by. An id cannot do that job: two competitions may declare the
+/// same one, and every competition missing an id shares the blank — so keyed by
+/// id, an error has to guess which declaration it meant. The index never has to
+/// guess. It is `None` only for problems that belong to the file rather than to
+/// one entry, such as an unsupported format version or a selector cycle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DefinitionError {
     pub code: String,
     pub competition_id: String,
+    pub competition_index: Option<usize>,
     pub params: Vec<(String, String)>,
 }
 
@@ -161,6 +169,7 @@ impl DefinitionError {
         Self {
             code: code.to_string(),
             competition_id: competition_id.to_string(),
+            competition_index: None,
             params: Vec::new(),
         }
     }
@@ -194,8 +203,10 @@ impl<'a> WorldValidationContext<'a> {
             .collect();
         // Include builtin nations so competition selectors that reference them
         // pass validation here, matching what validate_competition_references
-        // uses at build/install time.
-        for nation in crate::nations::NATION_CATALOG {
+        // uses at build/install time. `all_nations()`, not the World Cup pool:
+        // being a World Cup entrant has nothing to do with being able to host a
+        // league, and entity validation already accepts all 211 (#458).
+        for nation in crate::nations::all_nations() {
             country_codes.insert(nation.code);
         }
         let mut region_ids: HashSet<&'a str> = world
@@ -203,7 +214,11 @@ impl<'a> WorldValidationContext<'a> {
             .iter()
             .map(|region| region.id.as_str())
             .collect();
-        for nation in crate::nations::NATION_CATALOG {
+        // Same source as the country loop above. Today this adds nothing —
+        // every `ADDITIONAL_NATIONS` region already appears in the World Cup
+        // pool — but keeping the two loops on one catalog means a nation added
+        // with a new region cannot leave region validation behind.
+        for nation in crate::nations::all_nations() {
             region_ids.insert(nation.region_id);
         }
         Self {
@@ -233,7 +248,12 @@ pub fn validate_definitions(
     let known_ids: HashSet<&str> = file.competitions.iter().map(|c| c.id.as_str()).collect();
     let mut seen_ids: HashSet<&str> = HashSet::new();
 
-    for competition in &file.competitions {
+    for (index, competition) in file.competitions.iter().enumerate() {
+        // Stamp the occurrence onto whatever this iteration raises, rather than
+        // threading an index through all six validators and every constructor
+        // in them. The errors a competition produces are exactly the ones
+        // appended while it is being checked.
+        let raised_before = errors.len();
         let id = competition.id.as_str();
         if id.is_empty() {
             errors.push(DefinitionError::new("be.error.competitionDef.emptyId", ""));
@@ -253,6 +273,10 @@ pub fn validate_definitions(
         validate_format(competition, &mut errors);
         validate_participants(competition, ctx, &known_ids, &mut errors);
         validate_berths(competition, &known_ids, &mut errors);
+
+        for error in &mut errors[raised_before..] {
+            error.competition_index = Some(index);
+        }
     }
 
     detect_selector_cycles(file, &mut errors);
