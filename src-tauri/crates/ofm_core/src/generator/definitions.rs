@@ -99,18 +99,34 @@ trait UsableDefinition {
     fn unusable_reason(&self) -> Option<&'static str>;
 }
 
+/// Whether a name-pool key is a country code, and so can ever be looked up.
+///
+/// A key is not a label. `pick_name_from_def` resolves a player's nationality
+/// against these keys, and a nationality is always a code — so a pool keyed
+/// `"ENGLAND"` is not merely untidy, it is unreachable: no player will ever
+/// carry that string, and the names filed under it can only ever be drawn by
+/// accident, as somebody else's borrowed fallback.
+fn is_pool_key_usable_as_nationality(key: &str) -> bool {
+    (2..=3).contains(&key.len()) && key.chars().all(|c| c.is_ascii_uppercase())
+}
+
 impl UsableDefinition for NamesDefinition {
     fn unusable_reason(&self) -> Option<&'static str> {
         // One usable pool is enough: a nationality with none of its own borrows
         // a regional neighbour's. Zero usable pools leaves nothing to borrow.
-        if self
-            .pools
-            .values()
-            .any(|pool| !pool.first_names.is_empty() && !pool.last_names.is_empty())
-        {
+        //
+        // "Usable" has to include the key, not just the two name lists. A file
+        // keyed by country names parses and reads perfectly well to its author,
+        // while every pool in it is unreachable by lookup — so it is no more
+        // usable than one with no names in it at all.
+        if self.pools.iter().any(|(code, pool)| {
+            is_pool_key_usable_as_nationality(code)
+                && !pool.first_names.is_empty()
+                && !pool.last_names.is_empty()
+        }) {
             None
         } else {
-            Some("it declares no pool with both first and last names")
+            Some("it declares no pool with both first and last names under a country code")
         }
     }
 }
@@ -693,6 +709,50 @@ mod tests {
         let def = names_definition(&DefinitionSources::searching([dir.clone()]));
 
         assert_eq!(def.pools.len(), 17, "the shipped pools");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A pool key is not just a label: it becomes a player's nationality, and
+    /// from there a flag lookup, a country filter and a saved field. A file
+    /// whose keys are country *names* parses and reads sensibly to its author,
+    /// then mints players whose nationality is "ENGLAND".
+    #[test]
+    fn a_names_override_keyed_by_country_names_is_rejected() {
+        let dir = tier("named-pools");
+        std::fs::write(
+            dir.join("default_names.json"),
+            r##"{"pools":{"ENGLAND":{"first_names":["A"],"last_names":["B"]}}}"##,
+        )
+        .unwrap();
+
+        let def = names_definition(&DefinitionSources::searching([dir.clone()]));
+
+        assert_eq!(
+            def.pools.len(),
+            17,
+            "a file with no well-formed code key falls back to the shipped pools"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A stray key does not condemn the file: one well-formed pool is enough to
+    /// keep the override, and the rest of its names stay reachable by borrowing.
+    #[test]
+    fn a_stray_pool_key_does_not_reject_an_otherwise_usable_file() {
+        let dir = tier("mixed-pools");
+        std::fs::write(
+            dir.join("default_names.json"),
+            r##"{"pools":{"BR":{"first_names":["A"],"last_names":["B"]},
+                         "ENGLAND":{"first_names":["C"],"last_names":["D"]},
+                         "":{"first_names":["E"],"last_names":["F"]}}}"##,
+        )
+        .unwrap();
+
+        let def = names_definition(&DefinitionSources::searching([dir.clone()]));
+        assert!(def.pools.contains_key("BR"), "the usable override is kept");
+        assert_ne!(def.pools.len(), 17, "and it is the override, not the shipped set");
 
         std::fs::remove_dir_all(&dir).ok();
     }

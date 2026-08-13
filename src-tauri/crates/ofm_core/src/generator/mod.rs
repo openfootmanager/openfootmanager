@@ -1785,7 +1785,8 @@ mod tests {
     /// name-pool keys rather than over the nations that exist.
     #[test]
     fn a_generated_world_is_not_limited_to_the_name_pool_nationalities() {
-        let (_teams, players, staff) = generate_world_with(&WorldGenConfig::standard(), None);
+        let sources = definitions::DefinitionSources::embedded_only();
+        let (_teams, players, staff) = generate_world_with(&WorldGenConfig::standard_from(&sources), &sources);
 
         let nationalities: std::collections::HashSet<&str> = players
             .iter()
