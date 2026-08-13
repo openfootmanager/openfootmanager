@@ -8,8 +8,10 @@ function translate(
   key: string,
   params?: Record<string, string | number>,
 ): string {
+  // Deliberately distinct from the confirm button's label, so a query for
+  // either one cannot match both.
   if (key === "playerProfile.terminateContractTitle")
-    return "Terminate Contract";
+    return "Terminate Contract?";
   if (key === "playerProfile.terminateContractBody")
     return `Release ${params?.name} immediately.`;
   if (key === "playerProfile.terminationSeverance") return "Severance";
@@ -73,7 +75,8 @@ describe("PlayerProfileTerminationModal", () => {
   it("renders nothing when hidden", () => {
     renderModal({ show: false });
 
-    expect(screen.queryByText("Terminate Contract")).toBeNull();
+    expect(screen.queryByText("Terminate Contract?")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
   it("shows the severance cost and squad impact once the preview arrives", () => {

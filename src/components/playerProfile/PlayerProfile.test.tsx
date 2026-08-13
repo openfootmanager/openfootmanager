@@ -405,6 +405,105 @@ describe("PlayerProfile contract surfaces", () => {
     );
   });
 
+  // The dashboard opens a profile straight into one of these modals when the
+  // player arrives from an inbox action. Both are driven by effects, so nothing
+  // is clicked and no other test in this file reaches them.
+  it("opens the renewal modal on arrival when asked to", async () => {
+    const player = createPlayer();
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub
+        startWithRenewalModal
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Submit Offer" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("opens the termination modal on arrival when asked to", async () => {
+    const player = createPlayer();
+
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "preview_contract_termination") {
+        return {
+          preview: {
+            player_id: "player-1",
+            player_name: "J. Smith",
+            severance_cost: 132000,
+            squad_safety: {
+              team_id: "team-1",
+              projected_roster_size: 11,
+              healthy_players: 11,
+              healthy_goalkeepers: 1,
+              effective_xi_size: 11,
+              can_field_matchday_squad: true,
+              missing_reasons: [],
+            },
+          },
+        };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub
+        startWithTerminationModal
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("preview_contract_termination", {
+        playerId: "player-1",
+      });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Severance")).toBeInTheDocument();
+    });
+  });
+
+  // `isOwnClub={false}` alone is not enough: the manager still owns the
+  // contract whenever the player's club is theirs. Only a player at another
+  // club is genuinely not theirs to renew or release.
+  it("leaves both modals shut for a player at another club", async () => {
+    const player = createPlayer({ team_id: "team-2" });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub={false}
+        startWithRenewalModal
+        startWithTerminationModal
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Contract Info")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Submit Offer" })).toBeNull();
+    expect(invoke).not.toHaveBeenCalledWith(
+      "preview_contract_termination",
+      expect.anything(),
+    );
+  });
+
   it("renders expiry date, years remaining, and contract risk for the selected player", () => {
     const player = createPlayer();
     const gameState = createGameState(player);
