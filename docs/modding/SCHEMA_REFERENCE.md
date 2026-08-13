@@ -247,6 +247,29 @@ Defines a non-playing staff member (manager assistant, coach, scout, or physio).
 }
 ```
 
+### How a club gets its manager
+
+There is no `manager` schema. A club's manager is created at world start from its staff, so
+`role: "AssistantManager"` is how you author who manages a club — which is what the example
+above is really doing.
+
+For each AI club that does not already have a manager, the game looks for a staff member at that
+club with `role: "AssistantManager"` and builds the club's manager from their `firstName`,
+`lastName`, `dateOfBirth` and `nationality`.
+
+Three consequences worth knowing before you rely on it:
+
+- **Reputation is not yours to set.** The new manager's reputation is taken from the *club*, not
+  from the staff member. There is currently no way to author a manager's standing.
+- **Any staff member can be promoted.** If a club has staff but *no* `AssistantManager`, the
+  staff member whose `id` sorts first is used instead — which can hand a club to its physio. If
+  you author staff for a club, author an `AssistantManager` too.
+- **The staff entry stays.** The manager is built *from* those details, not moved out of them, so
+  the club keeps the assistant manager as a staff member as well.
+
+The club you take over yourself is exempt: you are its manager, and any authored assistant stays
+an assistant.
+
 ---
 
 ## `confederation` — Region Definition
