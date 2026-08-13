@@ -72,7 +72,10 @@ opt-level = 3
 [profile.release]
 lto = "thin"
 codegen-units = 1
-strip = true
+# `debuginfo`, not `true`: stripping symbols too would leave release panics with address-only
+# backtraces, which works against the diagnosability this release is trying to improve. Dropping
+# debuginfo alone gets most of the size win and keeps function names in the trace.
+strip = "debuginfo"
 
 [features]
 mcp = ["dep:rmcp", "dep:axum", "dep:tower", "dep:tokio", "dep:tokio-util"]

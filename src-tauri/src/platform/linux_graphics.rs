@@ -58,9 +58,21 @@ enum Policy {
 pub struct GraphicsEnvironment {
     /// DRM driver names, e.g. `["nvidia", "i915"]`.
     pub gpu_drivers: Vec<String>,
-    /// Whether the previous launch failed to survive startup. See [`startup_sentinel_path`].
-    pub previous_launch_failed: bool,
+    /// How many launches in a row failed to survive startup. See [`startup_state_path`].
+    pub consecutive_failures: u32,
 }
+
+/// Failed launches tolerated before giving up on the accelerated path.
+///
+/// A count rather than a flag, because a single failure is not good evidence. The process can die
+/// young for reasons that have nothing to do with rendering — the user closing a mistakenly
+/// launched app, a `kill`, an OOM, a panic elsewhere in startup — and a flag would read all of
+/// those as "the GPU path is broken" and impose the 13x compositing penalty on hardware that was
+/// never faulty.
+///
+/// With a count, one spurious failure costs nothing: the next launch retries the fast path and,
+/// on surviving, clears the counter. Only a genuinely repeatable failure reaches the threshold.
+const ESCALATE_AFTER: u32 = 2;
 
 impl GraphicsEnvironment {
     fn has_nvidia(&self) -> bool {
@@ -85,24 +97,27 @@ fn policy_for(profile: GpuProfile, env: &GraphicsEnvironment) -> Policy {
     match profile {
         GpuProfile::Off => Policy::Nothing,
         GpuProfile::Safe => Policy::DisableDmabuf,
-        // A launch that did not survive startup is evidence the accelerated path does not work
+        // Repeated failures to survive startup are evidence the accelerated path does not work
         // here, whatever the hardware claims. Drop to the configuration that always starts.
-        GpuProfile::Auto if env.previous_launch_failed => Policy::DisableDmabuf,
+        GpuProfile::Auto if env.consecutive_failures >= ESCALATE_AFTER => Policy::DisableDmabuf,
         GpuProfile::Auto if env.has_nvidia() => Policy::NvidiaExplicitSyncOff,
         GpuProfile::Auto => Policy::Nothing,
     }
 }
 
-/// Whether this launch should record a "did not survive startup" marker.
+/// Whether this launch should be counted if it fails to survive startup.
 ///
 /// Only `auto` gets to fall back, and only when it is attempting a path that might not start.
 /// Two cases must stay out of it:
 ///
 /// - `off` and `safe` are explicit user choices. `off` in particular is the measurement baseline
-///   and is *expected* to crash on this hardware; letting it plant a marker would push the next
+///   and is *expected* to crash on this hardware; letting it record a failure would push the next
 ///   `auto` launch onto the slow path because of a deliberate experiment.
 /// - `auto` that already resolved to `DisableDmabuf` **is** the fallback, so there is nothing
-///   further to fall back to.
+///   further to fall back to. Crucially this also means the fallback never touches the counter,
+///   so it cannot erase the evidence that put it there — an earlier version cleared the marker on
+///   every successful launch, which made a permanently broken machine alternate crash/works/crash
+///   forever instead of settling on the path that works.
 fn should_track_startup(profile: GpuProfile, policy: Policy) -> bool {
     profile == GpuProfile::Auto && policy != Policy::DisableDmabuf
 }
@@ -164,25 +179,38 @@ fn detect_gpu_drivers() -> Vec<String> {
     drivers
 }
 
-/// Marker file proving a launch got past startup.
+/// Counter file recording consecutive launches that did not survive startup.
 ///
-/// Written before the webview exists and removed once the app has been alive long enough to have
-/// rendered. If a launch dies the way the NVIDIA failures do — quickly, before anything is
-/// painted — the marker survives and the next launch sees it.
-fn startup_sentinel_path() -> Option<PathBuf> {
+/// Incremented before the webview exists and deleted once the app has been alive long enough to
+/// have rendered. A launch that dies the way the NVIDIA failures do — quickly, before anything is
+/// painted — leaves the increment behind for the next launch to see.
+///
+/// Deleting this file by hand is the documented way to retry the accelerated path after the app
+/// has settled on the conservative one.
+fn startup_state_path() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))?;
-    Some(base.join("openfootmanager").join("startup-incomplete"))
+    Some(base.join("openfootmanager").join("startup-failures"))
+}
+
+fn read_consecutive_failures() -> u32 {
+    startup_state_path()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|raw| raw.trim().parse().ok())
+        .unwrap_or(0)
 }
 
 /// How long the app must stay up before a launch counts as successful.
 ///
 /// The failures this guards against kill the process in well under a second, so this only needs
-/// to clear that by a wide margin — not to be long enough for a human to finish anything. Erring
-/// long is the expensive direction: quitting sooner than this leaves a stale marker, which costs
-/// one slow launch before it clears itself.
+/// to clear that by a wide margin — not to be long enough for a human to finish anything. A quit
+/// inside the window costs one increment, which the next successful launch clears.
 const STARTUP_GRACE: std::time::Duration = std::time::Duration::from_secs(8);
+
+/// Whether this launch is counting itself, so `watch_startup` knows whether the counter is its
+/// to clear. A launch that already fell back must leave it alone.
+static TRACKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Apply the rendering policy for this machine.
 ///
@@ -192,39 +220,48 @@ pub fn configure_graphics() {
     let raw = std::env::var("OFM_GPU_PROFILE").unwrap_or_default();
     let profile = GpuProfile::parse(&raw);
 
-    let sentinel = startup_sentinel_path();
-    let previous_launch_failed = sentinel.as_ref().is_some_and(|path| path.exists());
-
     let env = GraphicsEnvironment {
         gpu_drivers: detect_gpu_drivers(),
-        previous_launch_failed,
+        consecutive_failures: read_consecutive_failures(),
     };
 
     let policy = policy_for(profile, &env);
-    let to_set = vars_to_set(profile, &env, |name| std::env::var(name).is_ok());
+    // `var_os`, not `var`: a variable set to a non-UTF-8 value is still set, and overriding it
+    // would contradict the promise that a user's own choice always wins.
+    let to_set = vars_to_set(profile, &env, |name| std::env::var_os(name).is_some());
     for (name, value) in &to_set {
         std::env::set_var(name, value);
     }
+
+    let tracking = should_track_startup(profile, policy);
+    TRACKING.store(tracking, std::sync::atomic::Ordering::Relaxed);
 
     let mut decision = format!(
         "Linux graphics: profile={profile:?} policy={policy:?} gpus={:?} (OFM_GPU_PROFILE={}), set {to_set:?}",
         env.gpu_drivers,
         if raw.is_empty() { "<unset>" } else { &raw },
     );
-    if previous_launch_failed {
-        decision.push_str(
-            " — previous launch did not survive startup, so the conservative path was chosen; \
-             see docs/LINUX_GRAPHICS.md",
-        );
+    if policy == Policy::DisableDmabuf && profile == GpuProfile::Auto {
+        decision.push_str(&format!(
+            " — {} launches in a row failed to survive startup, so the conservative path was \
+             chosen. Delete {} to retry the accelerated path; see docs/LINUX_GRAPHICS.md",
+            env.consecutive_failures,
+            startup_state_path()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "the startup-failures file".to_owned()),
+        ));
     }
     let _ = DECISION.set(decision);
 
-    if should_track_startup(profile, policy) {
-        if let Some(path) = sentinel {
+    // Pessimistic: record the failure up front and let a launch that survives take it back. The
+    // alternative — writing on the way down — cannot work, because the failures this guards
+    // against kill the process without unwinding.
+    if tracking {
+        if let Some(path) = startup_state_path() {
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
-            let _ = std::fs::write(&path, b"");
+            let _ = std::fs::write(&path, (env.consecutive_failures + 1).to_string());
         }
     }
 }
@@ -239,7 +276,14 @@ pub fn watch_startup() {
         None => log::warn!("Linux graphics policy was never configured"),
     }
 
-    let Some(path) = startup_sentinel_path() else {
+    // Only a launch that is counting itself may clear the counter. A launch that already fell
+    // back to the conservative path must not, or it would erase the very evidence that sent it
+    // there and the next launch would retry the path that just failed — forever.
+    if !TRACKING.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+
+    let Some(path) = startup_state_path() else {
         return;
     };
     std::thread::spawn(move || {
@@ -259,8 +303,37 @@ mod tests {
     fn env_with(drivers: &[&str]) -> GraphicsEnvironment {
         GraphicsEnvironment {
             gpu_drivers: drivers.iter().map(|d| (*d).to_owned()).collect(),
-            previous_launch_failed: false,
+            consecutive_failures: 0,
         }
+    }
+
+    fn env_failing(drivers: &[&str], failures: u32) -> GraphicsEnvironment {
+        GraphicsEnvironment {
+            consecutive_failures: failures,
+            ..env_with(drivers)
+        }
+    }
+
+    /// Replays consecutive launches, returning the policy each one chose.
+    ///
+    /// `survives` decides whether a launch lives long enough to clear the counter, which is the
+    /// only way to exercise the interaction between escalation and reset.
+    fn replay(launches: usize, survives: impl Fn(Policy) -> bool) -> Vec<Policy> {
+        let mut failures = 0;
+        let mut chosen = Vec::new();
+        for _ in 0..launches {
+            let env = env_failing(&["nvidia"], failures);
+            let policy = policy_for(GpuProfile::Auto, &env);
+            let tracking = should_track_startup(GpuProfile::Auto, policy);
+            if tracking {
+                failures += 1; // written up front, before the webview exists
+            }
+            if survives(policy) && tracking {
+                failures = 0; // the launch lived; take the increment back
+            }
+            chosen.push(policy);
+        }
+        chosen
     }
 
     #[test]
@@ -327,13 +400,19 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_previous_launch_drops_to_the_conservative_path() {
-        // The safety net for the new default: if the accelerated path did not survive startup
-        // here, stop trying it. Applies regardless of hardware.
-        let env = GraphicsEnvironment {
-            gpu_drivers: vec!["nvidia".to_owned()],
-            previous_launch_failed: true,
-        };
+    fn one_failure_is_not_enough_to_give_up_the_fast_path() {
+        // A process can die young for reasons that have nothing to do with rendering. Treating a
+        // single failure as proof would impose the 13x compositing penalty on healthy hardware.
+        let env = env_failing(&["nvidia"], 1);
+        assert_eq!(
+            policy_for(GpuProfile::Auto, &env),
+            Policy::NvidiaExplicitSyncOff
+        );
+    }
+
+    #[test]
+    fn repeated_failures_drop_to_the_conservative_path() {
+        let env = env_failing(&["nvidia"], ESCALATE_AFTER);
         assert_eq!(policy_for(GpuProfile::Auto, &env), Policy::DisableDmabuf);
         assert_eq!(
             vars_to_set(GpuProfile::Auto, &env, nothing_set),
@@ -342,13 +421,52 @@ mod tests {
     }
 
     #[test]
-    fn explicit_profiles_ignore_the_failure_marker() {
+    fn a_permanently_broken_machine_settles_instead_of_alternating() {
+        // The bug this guards: the fallback used to clear the counter when it survived, so the
+        // next launch retried the path that had just crashed. Users saw crash / works / crash /
+        // works forever. The fallback must stay put once chosen.
+        let chosen = replay(6, |policy| policy == Policy::DisableDmabuf);
+        assert_eq!(
+            chosen,
+            vec![
+                Policy::NvidiaExplicitSyncOff, // crashes
+                Policy::NvidiaExplicitSyncOff, // crashes again — now we believe it
+                Policy::DisableDmabuf,
+                Policy::DisableDmabuf,
+                Policy::DisableDmabuf,
+                Policy::DisableDmabuf,
+            ],
+        );
+    }
+
+    #[test]
+    fn healthy_hardware_never_degrades_however_often_it_is_relaunched() {
+        // Every launch survives, so the counter is taken back each time and the fast path is
+        // kept indefinitely.
+        let chosen = replay(6, |_| true);
+        assert!(chosen.iter().all(|p| *p == Policy::NvidiaExplicitSyncOff));
+    }
+
+    #[test]
+    fn a_single_quick_quit_costs_nothing() {
+        // Closing a mistakenly launched app leaves one increment behind. The next launch must
+        // still take the fast path, and on surviving must clear it.
+        let mut failures = 1; // the quick quit
+        let env = env_failing(&["nvidia"], failures);
+        let policy = policy_for(GpuProfile::Auto, &env);
+        assert_eq!(policy, Policy::NvidiaExplicitSyncOff);
+        failures += 1;
+        if should_track_startup(GpuProfile::Auto, policy) {
+            failures = 0; // survives
+        }
+        assert_eq!(failures, 0);
+    }
+
+    #[test]
+    fn explicit_profiles_ignore_the_failure_counter() {
         // `off` is the measurement baseline and must stay inert, or the matrix silently
         // measures the fallback instead of the row it claims to.
-        let env = GraphicsEnvironment {
-            gpu_drivers: vec!["nvidia".to_owned()],
-            previous_launch_failed: true,
-        };
+        let env = env_failing(&["nvidia"], 99);
         assert_eq!(policy_for(GpuProfile::Off, &env), Policy::Nothing);
         assert_eq!(policy_for(GpuProfile::Safe, &env), Policy::DisableDmabuf);
     }
