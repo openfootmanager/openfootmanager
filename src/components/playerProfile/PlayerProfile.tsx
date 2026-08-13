@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
 import { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Select } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
 import { getDeployedPosition } from "../squad/SquadTab.helpers";
@@ -15,12 +12,7 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
-import {
-  buildPlayerAdvancedStats,
-  getPlayerAge,
-  getPlayerTeamName,
-  type PlayerAdvancedStatsSummary,
-} from "./PlayerProfile.helpers";
+import { getPlayerAge, getPlayerTeamName } from "./PlayerProfile.helpers";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import {
   buildPlayerAttributeGroups,
@@ -33,17 +25,14 @@ import PlayerProfileHeroCard from "./PlayerProfileHeroCard";
 import PlayerProfileInjuryBanner from "./PlayerProfileInjuryBanner";
 import PlayerProfileLoanStatusBanner from "./PlayerProfileLoanStatusBanner";
 import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
-import PlayerProfileRecentMatchesCard, {
-  type PlayerRecentMatchEntry,
-} from "./PlayerProfileRecentMatchesCard";
+import PlayerProfileRecentMatchesCard from "./PlayerProfileRecentMatchesCard";
 import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
 import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
-import {
-  getScoutAvailability,
-  type PlayerProfileScoutStatus,
-} from "./PlayerProfile.scouting";
 import { useContractActionsFlow } from "./useContractActionsFlow";
+import { useInitialModalIntent } from "./useInitialModalIntent";
+import { usePlayerProfileData } from "./usePlayerProfileData";
+import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 
 interface PlayerProfileProps {
@@ -55,13 +44,6 @@ interface PlayerProfileProps {
   onClose: () => void;
   onSelectTeam?: (id: string) => void;
   onGameUpdate?: (g: GameStateData) => void;
-}
-
-function areAdvancedStatsEqual(
-  left: PlayerAdvancedStatsSummary,
-  right: PlayerAdvancedStatsSummary,
-): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export default function PlayerProfile({
@@ -83,20 +65,12 @@ export default function PlayerProfile({
   );
   const weakFootValue = player.weak_foot ?? 2;
 
-  const [scoutStatus, setScoutStatus] =
-    useState<PlayerProfileScoutStatus>("idle");
-  const [scoutError, setScoutError] = useState<string | null>(null);
-  const [advancedStatsOverride, setAdvancedStatsOverride] =
-    useState<PlayerAdvancedStatsSummary | null>(null);
-  const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>(
-    [],
-  );
-  const [hasConsumedInitialRenewalIntent, setHasConsumedInitialRenewalIntent] =
-    useState(false);
-  const [
-    hasConsumedInitialTerminationIntent,
-    setHasConsumedInitialTerminationIntent,
-  ] = useState(false);
+  const { advancedStats, recentMatches } = usePlayerProfileData({
+    player,
+    gameState,
+  });
+  const { scoutAvailability, scoutStatus, scoutError, sendScout } =
+    useScoutPlayerFlow({ player, gameState, onGameUpdate });
   const ovr = getPlayerOvr(player);
   const age = getPlayerAge(player.date_of_birth);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
@@ -126,20 +100,7 @@ export default function PlayerProfile({
       : contractRiskLevel === "warning"
         ? t("finances.contractRiskWarning")
         : t("finances.contractRiskStable");
-  const scoutAvailability = getScoutAvailability({
-    staff: gameState.staff,
-    scoutingAssignments: gameState.scouting_assignments || [],
-    youthScoutingAssignments: gameState.youth_scouting_assignments || [],
-    managerTeamId: gameState.manager.team_id,
-    playerId: player.id,
-    scoutStatus,
-  });
   const attrGroups = buildPlayerAttributeGroups(player, t);
-  const fallbackAdvancedStats = buildPlayerAdvancedStats(
-    player,
-    gameState.players,
-  );
-  const advancedStats = advancedStatsOverride ?? fallbackAdvancedStats;
   const hasLetExpireIntent =
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
   const isFreeAgent = player.team_id === null && !player.retired;
@@ -239,141 +200,26 @@ export default function PlayerProfile({
     handleTerminateContract,
   } = useContractActionsFlow({ player, onGameUpdate });
 
-  useEffect(() => {
-    setHasConsumedInitialRenewalIntent(false);
-    setHasConsumedInitialTerminationIntent(false);
-  }, [player.id, startWithRenewalModal, startWithTerminationModal]);
+  // Both modals can be asked for on arrival, when the player reaches this
+  // profile from an inbox action. One shared reset key, so switching player
+  // re-arms both.
+  const modalIntentResetKey = `${player.id}|${startWithRenewalModal}|${startWithTerminationModal}`;
 
-  useEffect(() => {
-    if (
-      !isManagerOwnedProfile ||
-      !startWithRenewalModal ||
-      showRenewalModal ||
-      hasConsumedInitialRenewalIntent
-    ) {
-      return;
-    }
+  useInitialModalIntent({
+    requested: startWithRenewalModal,
+    allowed: isManagerOwnedProfile,
+    isOpen: showRenewalModal,
+    open: openRenewalModal,
+    resetKey: modalIntentResetKey,
+  });
 
-    setHasConsumedInitialRenewalIntent(true);
-    openRenewalModal();
-  }, [
-    hasConsumedInitialRenewalIntent,
-    isManagerOwnedProfile,
-    showRenewalModal,
-    startWithRenewalModal,
-  ]);
-
-  useEffect(() => {
-    if (
-      !isManagerOwnedProfile ||
-      !startWithTerminationModal ||
-      showTerminationModal ||
-      hasConsumedInitialTerminationIntent
-    ) {
-      return;
-    }
-
-    setHasConsumedInitialTerminationIntent(true);
-    void openTerminationModal();
-  }, [
-    hasConsumedInitialTerminationIntent,
-    isManagerOwnedProfile,
-    showTerminationModal,
-    startWithTerminationModal,
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setAdvancedStatsOverride((current) => (current === null ? current : null));
-
-    const loadAdvancedStats = async (): Promise<void> => {
-      try {
-        const result = await invoke<PlayerAdvancedStatsSummary>(
-          "get_player_stats_overview",
-          {
-            playerId: player.id,
-          },
-        );
-
-        if (
-          !cancelled &&
-          !areAdvancedStatsEqual(result, fallbackAdvancedStats)
-        ) {
-          setAdvancedStatsOverride(result);
-        }
-      } catch {
-        if (!cancelled) {
-          setAdvancedStatsOverride((current) =>
-            current === null ? current : null,
-          );
-        }
-      }
-    };
-
-    void loadAdvancedStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    player.id,
-    player.stats.minutes_played,
-    player.stats.shots,
-    player.stats.shots_on_target,
-    player.stats.passes_completed,
-    player.stats.passes_attempted,
-    player.stats.tackles_won,
-    player.stats.interceptions,
-    player.stats.fouls_committed,
-  ]);
-
-  useEffect(() => {
-    if (player.stats.appearances <= 0) {
-      setRecentMatches([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadRecentMatches = async (): Promise<void> => {
-      try {
-        const result = await invoke<PlayerRecentMatchEntry[]>(
-          "get_player_match_history",
-          {
-            playerId: player.id,
-            limit: 5,
-          },
-        );
-
-        if (!cancelled) {
-          setRecentMatches((current) => {
-            if (
-              current.length === result.length &&
-              current.every(
-                (entry, index) =>
-                  entry.fixture_id === result[index]?.fixture_id,
-              )
-            ) {
-              return current;
-            }
-
-            return result;
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setRecentMatches((current) => (current.length === 0 ? current : []));
-        }
-      }
-    };
-
-    void loadRecentMatches();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [player.id, player.stats.appearances]);
+  useInitialModalIntent({
+    requested: startWithTerminationModal,
+    allowed: isManagerOwnedProfile,
+    isOpen: showTerminationModal,
+    open: () => void openTerminationModal(),
+    resetKey: modalIntentResetKey,
+  });
 
   async function handleTacticalRoleChange(role: PlayerRole): Promise<void> {
     if (!onGameUpdate) return;
@@ -432,29 +278,7 @@ export default function PlayerProfile({
         scoutAvailability={scoutAvailability}
         scoutStatus={scoutStatus}
         scoutError={scoutError}
-        onScout={() => {
-          const availableScout = scoutAvailability.availableScout;
-          if (!availableScout || !onGameUpdate) {
-            return;
-          }
-
-          void (async () => {
-            setScoutStatus("sending");
-            setScoutError(null);
-
-            try {
-              const updated = await invoke<GameStateData>("send_scout", {
-                scoutId: availableScout.id,
-                playerId: player.id,
-              });
-              onGameUpdate(updated);
-              setScoutStatus("sent");
-            } catch (err) {
-              setScoutError(resolveTranslatedErrorMessage(err, t));
-              setScoutStatus("error");
-            }
-          })();
-        }}
+        onScout={sendScout}
         onSelectTeam={onSelectTeam}
         team={playerTeam}
         t={t}
