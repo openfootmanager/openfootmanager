@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  formatExactMoney,
-  getContractRiskLevel,
-  getPlayerOvr,
-} from "../../lib/helpers";
+import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
 import { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -16,8 +12,7 @@ import {
   terminateContractNow,
   type ContractTerminationPreviewData,
 } from "../../services/contractService";
-import DashboardModalFrame from "../dashboard/DashboardModalFrame";
-import { Button, Select } from "../ui";
+import { Select } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
 import { getDeployedPosition } from "../squad/SquadTab.helpers";
 import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
@@ -50,6 +45,7 @@ import PlayerProfileRecentMatchesCard, {
 } from "./PlayerProfileRecentMatchesCard";
 import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
 import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
+import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
 import {
   getScoutAvailability,
   type PlayerProfileScoutStatus,
@@ -705,82 +701,19 @@ export default function PlayerProfile({
         onSubmit={() => void handleRenewalSubmit()}
       />
 
-      {showTerminationModal ? (
-        <DashboardModalFrame maxWidthClassName="max-w-lg">
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-heading text-lg font-bold text-gray-900 dark:text-gray-100">
-                {t("playerProfile.terminateContractTitle")}
-              </h2>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                {t("playerProfile.terminateContractBody", {
-                  name: player.full_name,
-                })}
-              </p>
-            </div>
-
-            {terminationPreview ? (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-navy-600 dark:bg-navy-700/60">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    {t("playerProfile.terminationSeverance")}
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {formatExactMoney(terminationPreview.severance_cost)}
-                  </span>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    {t("playerProfile.projectedHealthyPlayers")}
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {terminationPreview.squad_safety.healthy_players}/11
-                  </span>
-                </div>
-                {!terminationPreview.squad_safety.can_field_matchday_squad ? (
-                  <p className="mt-3 text-red-600 dark:text-red-300">
-                    {t("playerProfile.terminationUnsafe")}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {t("common.loading")}
-              </p>
-            )}
-
-            {contractActionError ? (
-              <p className="text-sm text-red-600 dark:text-red-300">
-                {contractActionError}
-              </p>
-            ) : null}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setShowTerminationModal(false);
-                  setTerminationPreview(null);
-                }}
-                disabled={contractActionSubmitting}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="outline"
-                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                disabled={
-                  contractActionSubmitting ||
-                  !terminationPreview?.squad_safety.can_field_matchday_squad
-                }
-                onClick={() => void handleTerminateContract()}
-              >
-                {t("playerProfile.confirmTerminateContract")}
-              </Button>
-            </div>
-          </div>
-        </DashboardModalFrame>
-      ) : null}
+      <PlayerProfileTerminationModal
+        show={showTerminationModal}
+        playerName={player.full_name}
+        t={t}
+        preview={terminationPreview}
+        errorMessage={contractActionError}
+        submitting={contractActionSubmitting}
+        onCancel={() => {
+          setShowTerminationModal(false);
+          setTerminationPreview(null);
+        }}
+        onConfirm={() => void handleTerminateContract()}
+      />
     </div>
   );
 }
