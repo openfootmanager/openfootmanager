@@ -48,23 +48,31 @@ pub(super) fn require_active_stats_state(state: &StateManager) -> Result<StatsSt
         .ok_or("be.error.noActiveStatsSession".to_string())
 }
 
-pub(super) fn default_league_name() -> String {
-    ["Premier", "Division"].join(" ")
-}
+/// Stored on the generated league as its locale-neutral `name`, and shown only
+/// when a client cannot resolve [`DEFAULT_LEAGUE_NAME_KEY`].
+pub(super) const DEFAULT_LEAGUE_NAME: &str = "Premier Division";
 
-pub(super) fn long_date_format() -> String {
-    ['%', 'B', ' ', '%', 'd', ',', ' ', '%', 'Y']
-        .into_iter()
-        .collect()
-}
+/// What the UI actually displays, via `League::name_key` and the `league`
+/// message param. Mirrors `division_tier_name` / `division_tier_name_key`.
+pub(super) const DEFAULT_LEAGUE_NAME_KEY: &str = "tournaments.competitions.premierDivision";
 
+/// The date format for backend-generated dates handed to the frontend: an
+/// unambiguous, locale-neutral ISO day. `src/lib/dateFormatting.ts` renders it
+/// in the player's own locale — a `%B` month name here would be English
+/// whatever language they picked.
+pub(super) const ISO_DATE_FORMAT: &str = "%Y-%m-%d";
+
+/// The name a new career's save file gets, as a translation key plus the
+/// manager's name — the same `key?param=value` convention
+/// [`first_package_error_message`] uses, resolved by `src/utils/backendI18n.ts`.
+///
+/// A save the player has renamed is plain text and simply falls back to itself,
+/// which is also what every save written before this existed does.
 pub(crate) fn default_save_name(manager_name: &str) -> String {
-    let mut save_name = manager_name.to_string();
-    save_name.push('\'');
-    save_name.push('s');
-    save_name.push(' ');
-    save_name.push_str("Career");
-    save_name
+    format!(
+        "be.save.defaultName?manager={}",
+        encode_error_param(manager_name)
+    )
 }
 
 #[cfg(test)]
@@ -92,6 +100,24 @@ mod tests {
 
         assert_eq!(result.team_matches.len(), stats.team_matches.len());
         assert_eq!(result.player_matches.len(), stats.player_matches.len());
+    }
+
+    #[test]
+    fn default_save_name_emits_a_translation_key_with_the_manager_name() {
+        assert_eq!(
+            default_save_name("Jane Doe"),
+            "be.save.defaultName?manager=Jane%20Doe"
+        );
+    }
+
+    #[test]
+    fn default_save_name_encodes_names_that_would_break_the_query() {
+        // `&` and `=` would otherwise split into extra params, and an
+        // apostrophe is common enough in real names to be worth pinning.
+        assert_eq!(
+            default_save_name("A&B=C's"),
+            "be.save.defaultName?manager=A%26B%3DC%27s"
+        );
     }
 
     #[test]

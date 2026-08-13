@@ -1,5 +1,6 @@
 import i18n from '../i18n';
 import { formatExactMoney, formatVal } from "../lib/helpers";
+import { formatDate } from "../lib/dateFormatting";
 import { countryName } from "../lib/countries";
 import { useSettingsStore } from "../store/settingsStore";
 import type {
@@ -145,6 +146,15 @@ const COUNTRY_PARAM_KEYS = new Set([
   "nationality",
 ]);
 
+/**
+ * Params the backend sends as a locale-neutral ISO day (`2026-08-01`), for us
+ * to render in the player's own locale. The backend cannot do this itself —
+ * a month name formatted there would be English whatever language they picked.
+ */
+const DATE_PARAM_KEYS = new Set([
+  "start",
+]);
+
 function parseMoneyValue(value: string): { amount: number; compact: boolean } | null {
   const trimmed = value.trim();
   const match = trimmed.match(
@@ -212,6 +222,16 @@ function resolveCountryParamValue(key: string, value: string): string {
   return localizedCountry || value;
 }
 
+function resolveDateParamValue(key: string, value: string): string {
+  if (!DATE_PARAM_KEYS.has(key)) {
+    return value;
+  }
+
+  // `formatDate` returns its input unchanged when it cannot parse it, so a
+  // param that is not actually a date passes through untouched.
+  return formatDate(value, i18n.resolvedLanguage || i18n.language || "en");
+}
+
 function resolveParamValues(params?: Record<string, string>): Record<string, string> | undefined {
   if (!params) return params;
   const resolved = { ...params };
@@ -224,9 +244,12 @@ function resolveParamValues(params?: Record<string, string>): Record<string, str
       }
     }
 
-    resolved[key] = resolveCountryParamValue(
+    resolved[key] = resolveDateParamValue(
       key,
-      resolveMoneyParamValue(key, resolved[key]),
+      resolveCountryParamValue(
+        key,
+        resolveMoneyParamValue(key, resolved[key]),
+      ),
     );
   }
   return resolved;

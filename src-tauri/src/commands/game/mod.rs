@@ -1374,13 +1374,13 @@ fn bootstrap_season_start(game: &mut Game, team_id: &str) -> Result<StatsState, 
 
     let season_start = preseason_season_start(&game.clock);
     let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
-    let league_name = default_league_name();
     let mut league = ofm_core::schedule::generate_league(
-        &league_name,
+        DEFAULT_LEAGUE_NAME,
         preseason_league_year(&game.clock),
         &team_ids,
         season_start,
     );
+    league.name_key = Some(DEFAULT_LEAGUE_NAME_KEY.to_string());
     let friendlies = ofm_core::schedule::generate_preseason_friendlies(&team_ids, season_start, 4);
     ofm_core::schedule::append_fixtures(&mut league, friendlies);
     game.league = Some(league);
@@ -1390,9 +1390,11 @@ fn bootstrap_season_start(game: &mut Game, team_id: &str) -> Result<StatsState, 
     let welcome_msg = ofm_core::messages::welcome_message(&team_name, team_id, &date_str);
     game.messages.push(welcome_msg);
 
+    // Both params are resolved frontend-side: the league name is a translation
+    // key, and the ISO date is formatted in the player's locale.
     let season_msg = ofm_core::messages::season_schedule_message(
-        &league_name,
-        &season_start.format(&long_date_format()).to_string(),
+        DEFAULT_LEAGUE_NAME_KEY,
+        &season_start.format(ISO_DATE_FORMAT).to_string(),
         &date_str,
     );
     game.messages.push(season_msg);
@@ -1455,14 +1457,15 @@ fn bootstrap_midseason_takeover(game: &mut Game, team_id: &str) -> Result<StatsS
     ofm_core::ai_hiring::seed_ai_managers(game);
 
     let season_start = preseason_season_start(&game.clock);
-    let league_name = default_league_name();
     let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
-    game.league = Some(ofm_core::schedule::generate_league(
-        &league_name,
+    let mut league = ofm_core::schedule::generate_league(
+        DEFAULT_LEAGUE_NAME,
         preseason_league_year(&game.clock),
         &team_ids,
         season_start,
-    ));
+    );
+    league.name_key = Some(DEFAULT_LEAGUE_NAME_KEY.to_string());
+    game.league = Some(league);
     game.clock.current_date = season_start;
     ofm_core::season_context::refresh_game_context(game);
 

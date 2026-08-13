@@ -1544,7 +1544,8 @@
       "firstDivision": "{{country}} Erste Division",
       "secondDivision": "{{country}} Zweite Division",
       "nationalCup": "{{country}} Pokal",
-      "continentalChampionsCup": "Kontinentaler Meisterpokal"
+      "continentalChampionsCup": "Kontinentaler Meisterpokal",
+      "premierDivision": "Erste Liga"
     }
   },
   "news": {
@@ -3500,6 +3501,9 @@
     },
     "competition": {
       "fallbackLeagueName": "Standardliga"
+    },
+    "save": {
+      "defaultName": "Karriere von {{manager}}"
     }
   },
   "traits": {

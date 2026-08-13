@@ -1544,7 +1544,8 @@
       "firstDivision": "{{country}} — 1. liga",
       "secondDivision": "{{country}} — 2. liga",
       "nationalCup": "{{country}} — pohár",
-      "continentalChampionsCup": "Kontinentální Liga mistrů"
+      "continentalChampionsCup": "Kontinentální Liga mistrů",
+      "premierDivision": "První liga"
     }
   },
   "news": {
@@ -3497,6 +3498,9 @@
     },
     "competition": {
       "fallbackLeagueName": "Výchozí liga"
+    },
+    "save": {
+      "defaultName": "Kariéra {{manager}}"
     }
   },
   "traits": {

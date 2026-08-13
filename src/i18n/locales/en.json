@@ -1544,7 +1544,8 @@
       "firstDivision": "{{country}} First Division",
       "secondDivision": "{{country}} Second Division",
       "nationalCup": "{{country}} Cup",
-      "continentalChampionsCup": "Continental Champions Cup"
+      "continentalChampionsCup": "Continental Champions Cup",
+      "premierDivision": "Premier Division"
     }
   },
   "news": {
@@ -3496,6 +3497,9 @@
     },
     "competition": {
       "fallbackLeagueName": "Default League"
+    },
+    "save": {
+      "defaultName": "{{manager}}'s Career"
     }
   },
   "traits": {
