@@ -1,5 +1,6 @@
 mod application;
 mod commands;
+mod platform;
 use commands::*;
 
 #[cfg(feature = "mcp")]
@@ -16,13 +17,10 @@ pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Workaround for WebKitGTK DMABuf rendering issues on Wayland (Linux)
+    // Must run before the webview is built: WebKitGTK reads these variables when the web
+    // process starts. See `platform::linux_graphics` and `docs/LINUX_GRAPHICS.md`.
     #[cfg(target_os = "linux")]
-    {
-        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        }
-    }
+    platform::linux_graphics::configure();
 
     let state_manager = Arc::new(StateManager::new());
 
