@@ -101,15 +101,6 @@ export default function MatchSimulation() {
     });
   }, [gameState, snapshot?.home_team.id, snapshot?.away_team.id, matchMode]);
 
-  useEffect(() => {
-    console.info("[MatchSimulation] stage", {
-      hasSnapshot: !!snapshot,
-      isSpectator,
-      stage,
-      userSide,
-    });
-  }, [isSpectator, snapshot, stage, userSide]);
-
   // Fetch initial snapshot
   useEffect(() => {
     // Don't refetch after finalize — finish_live_match has cleared the backend
@@ -281,13 +272,10 @@ export default function MatchSimulation() {
     setStage("press");
   }, []);
 
+  // Deliberately unlogged: this fires once per simulated minute, and the two effects that used
+  // to log here ran on every tick for the whole match. The lifecycle logs below are the ones
+  // worth keeping — they fire once each.
   const handleSnapshotUpdate = useCallback((snap: MatchSnapshot) => {
-    console.info("[MatchSimulation] handleSnapshotUpdate", {
-      awayPlayers: snap.away_team.players.length,
-      currentMinute: snap.current_minute,
-      homePlayers: snap.home_team.players.length,
-      phase: snap.phase,
-    });
     setSnapshot(snap);
   }, []);
 

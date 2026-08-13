@@ -3,6 +3,7 @@ use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, Standin
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
+use engine::MatchPhase;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
@@ -471,16 +472,43 @@ fn snapshot_returns_valid_state() {
 }
 
 #[test]
-fn step_many_stops_at_finish() {
+fn step_many_stops_at_half_time() {
     let game = make_game_with_fixture();
     let mut session =
         live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
 
-    // Request way more steps than a match has
+    // Far more minutes than a half. Fast-forward must still surrender at the interval, or the
+    // half-time team talk is silently skipped for anyone playing at instant speed.
     let results = session.step_many(500);
-    assert!(results.last().unwrap().is_finished);
-    // Should have stopped early
+    let last = results.last().unwrap();
+    assert_eq!(
+        last.phase,
+        MatchPhase::HalfTime,
+        "step_many ran past the interval"
+    );
+    assert!(!last.is_finished);
     assert!(results.len() < 500);
+}
+
+#[test]
+fn step_many_reaches_full_time_when_resumed() {
+    let game = make_game_with_fixture();
+    let mut session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+
+    // Stopping at each decision point must not prevent a match from ever finishing.
+    let mut total = 0;
+    let mut finished = false;
+    for _ in 0..20 {
+        let results = session.step_many(500);
+        total += results.len();
+        if results.last().unwrap().is_finished {
+            finished = true;
+            break;
+        }
+    }
+    assert!(finished, "match never reached full time after {total} minutes");
+    assert!(session.is_finished());
 }
 
 // ---------------------------------------------------------------------------

@@ -15,9 +15,20 @@ use domain::league::StandingEntry;
 use domain::manager::Manager;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
-use engine::{LiveMatchState, MatchCommand, MatchConfig, MatchSnapshot, MinuteResult, Side};
+use engine::{
+    LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchSnapshot, MinuteResult, Side,
+};
 
 const LIVE_MATCH_NO_LEAGUE_ERROR: &str = "be.error.liveMatch.noLeague";
+
+/// Phases a fast-forward has to stop at, because the manager is owed a decision:
+/// a team talk at either interval, or the shootout order before penalties.
+fn phase_needs_manager(phase: MatchPhase) -> bool {
+    matches!(
+        phase,
+        MatchPhase::HalfTime | MatchPhase::ExtraTimeHalfTime | MatchPhase::PenaltyShootout
+    )
+}
 const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
 
 fn resolve_match_role_assignment(
@@ -128,13 +139,23 @@ impl LiveMatchSession {
     }
 
     /// Step multiple minutes at once (for fast-forward / instant sim).
+    ///
+    /// Stops early at full time **and when the match reaches a phase that needs the manager**.
+    /// Callers decide what to do from the last result, so batching straight through half time
+    /// would leave the last result reading "second half" and the half-time team talk would never
+    /// be offered. Stopping on the transition means a caller sees the same sequence of decision
+    /// points it would have seen stepping a minute at a time.
+    ///
+    /// Use [`Self::run_to_completion`] to simulate a whole match without stopping.
     pub fn step_many(&mut self, count: u16) -> Vec<MinuteResult> {
         let mut results = Vec::with_capacity(count as usize);
+        let starting_phase = self.match_state.phase();
         for _ in 0..count {
             let result = self.step();
             let finished = result.is_finished;
+            let needs_manager = result.phase != starting_phase && phase_needs_manager(result.phase);
             results.push(result);
-            if finished {
+            if finished || needs_manager {
                 break;
             }
         }

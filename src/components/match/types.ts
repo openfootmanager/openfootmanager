@@ -238,6 +238,24 @@ export const SPEED_MS: Record<SimSpeed, number> = {
   slow: 2000,
   normal: 800,
   fast: 200,
+  // 100ms, not 10ms. Each tick is two IPC round trips plus a full React render, which cannot
+  // finish in 10ms — so the old value did not simulate faster, it just queued ticks back to back
+  // and left the compositor no idle frames. Speed comes from MINUTES_PER_TICK instead.
+  instant: 100,
+};
+
+/**
+ * How many match minutes each tick advances.
+ *
+ * Simulating several minutes per round trip is much cheaper than several round trips: the backend
+ * returns one `MinuteResult` per minute either way, but the expensive part — fetching the full
+ * snapshot and re-rendering — happens once per tick rather than once per minute.
+ */
+export const MINUTES_PER_TICK: Record<SimSpeed, number> = {
+  paused: 0,
+  slow: 1,
+  normal: 1,
+  fast: 1,
   instant: 10,
 };
 

@@ -122,6 +122,13 @@ function manualChunks(id: string): string | undefined {
     return "icons";
   }
 
+  // Charts are used by six lazily-loaded routes (finances, team profile, manager career, player
+  // profile, post-match). Without this they are duplicated into whichever route chunk pulls them
+  // in first, making the dashboard and match chunks much larger than they need to be.
+  if (matchesAnyPackage(id, ["recharts", "d3-shape", "d3-scale", "victory-vendor"])) {
+    return "charts";
+  }
+
   if (matchesAnyPackage(id, ["@tauri-apps/api", "@tauri-apps/plugin-opener"])) {
     return "tauri";
   }
