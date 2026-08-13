@@ -116,12 +116,20 @@ export function StaffForm({
 
       {/* Role + Specialization */}
       <div className="grid grid-cols-2 gap-3">
+        {/*
+          There is no `manager` role, and no manager entity at all — a club's
+          manager is built from its Assistant Manager at world start (ofm_core
+          `ai_hiring.rs`). Without saying so here, an author looking for the
+          head coach finds "Asst. Manager" and concludes managers cannot be
+          authored, which is the reported complaint.
+        */}
         <LabeledSelect
           label={t("worldEditor.staffRole.label")}
           value={editing.role}
           options={[...STAFF_ROLES]}
           optionLabels={roleLabels}
           onChange={(v) => updateField("role", v as StaffDef["role"])}
+          help={t("worldEditor.staffRoleHelp")}
         />
         <LabeledSelect
           label={t("worldEditor.staffSpecialization.label")}

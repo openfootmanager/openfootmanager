@@ -3955,6 +3955,7 @@
       "Scout": "Scout",
       "Physio": "Fisioterapista"
     },
+    "staffRoleHelp": "L'allenatore di un club viene creato dal suo vice allenatore all'avvio del mondo. La reputazione proviene dal club. Se un club ha uno staff ma nessun vice allenatore, viene usato un altro membro.",
     "staffSpecialization": {
       "label": "Specializzazione",
       "none": "Nessuna",

@@ -3955,6 +3955,7 @@
       "Scout": "Scout",
       "Physio": "Physiotherapeut"
     },
+    "staffRoleHelp": "Der Trainer eines Vereins wird beim Start der Welt aus seinem Co-Trainer erstellt. Die Reputation stammt vom Verein. Hat ein Verein Mitarbeiter, aber keinen Co-Trainer, wird stattdessen ein anderes Mitglied verwendet.",
     "staffSpecialization": {
       "label": "Spezialisierung",
       "none": "Keine",

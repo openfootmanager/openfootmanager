@@ -3952,6 +3952,7 @@
       "Scout": "Gözlemci",
       "Physio": "Fizyoterapist"
     },
+    "staffRoleHelp": "Bir kulübün teknik direktörü, dünya başlatıldığında yardımcı antrenöründen oluşturulur. İtibar kulüpten gelir. Bir kulüpte personel varsa ancak yardımcı antrenör yoksa, diğerlerinden biri kullanılır.",
     "staffSpecialization": {
       "label": "Uzmanlık",
       "none": "Yok",

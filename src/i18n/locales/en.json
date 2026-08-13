@@ -3952,6 +3952,7 @@
       "Scout": "Scout",
       "Physio": "Physio"
     },
+    "staffRoleHelp": "A club's manager is created from its Assistant Manager when the world starts. Reputation comes from the club. If a club has staff but no Assistant Manager, one of the others is used instead.",
     "staffSpecialization": {
       "label": "Specialization",
       "none": "None",

@@ -3955,6 +3955,7 @@
       "Scout": "Observador",
       "Physio": "Fisioterapeuta"
     },
+    "staffRoleHelp": "O treinador de um clube é criado a partir do seu treinador adjunto quando o mundo é iniciado. A reputação vem do clube. Se um clube tiver equipa técnica mas nenhum treinador adjunto, é usado outro membro.",
     "staffSpecialization": {
       "label": "Especialização",
       "none": "Nenhuma",

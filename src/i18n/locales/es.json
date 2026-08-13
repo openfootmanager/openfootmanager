@@ -3987,6 +3987,7 @@
       "Scout": "Ojeador",
       "Physio": "Fisioterapeuta"
     },
+    "staffRoleHelp": "El entrenador de un club se crea a partir de su segundo entrenador al iniciarse el mundo. La reputación proviene del club. Si un club tiene personal pero ningún segundo entrenador, se usa otro miembro en su lugar.",
     "staffSpecialization": {
       "label": "Especialización",
       "none": "Ninguna",

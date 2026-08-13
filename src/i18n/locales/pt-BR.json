@@ -3955,6 +3955,7 @@
       "Scout": "Olheiro",
       "Physio": "Fisioterapeuta"
     },
+    "staffRoleHelp": "O técnico de um clube é criado a partir do seu auxiliar técnico quando o mundo é iniciado. A reputação vem do clube. Se um clube tiver comissão técnica mas nenhum auxiliar técnico, outro membro é usado no lugar.",
     "staffSpecialization": {
       "label": "Especialização",
       "none": "Nenhuma",
