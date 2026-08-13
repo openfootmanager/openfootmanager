@@ -144,7 +144,7 @@ OFM_GPU_PROFILE=safe openfootmanager
 ```
 
 The UI will be noticeably less smooth, but it will start. Please open an issue with the log line
-beginning `Linux graphics profile:` — that tells us exactly what was detected.
+beginning `Linux graphics:` — that tells us exactly what was detected.
 
 **The UI is sluggish — animations stutter, menus feel heavy.**
 You are probably on the conservative path. Try:

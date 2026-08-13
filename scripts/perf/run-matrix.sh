@@ -49,11 +49,15 @@ declare -A ROWS=(
 
 ROW_ORDER=(baseline auto explicit-sync render-intel render-nvidia disable-gbm force-shm shipped no-compositing xwayland)
 
-# Belt and braces. Only the `auto` rows record a startup attempt, and each row is killed as soon
-# as its result lands — sooner than the app's startup grace period — so an `auto` row leaves the
-# "did not survive startup" marker behind. Left in place it would push the next `auto` row onto
-# the conservative fallback and silently measure the wrong thing.
-SENTINEL="${XDG_CACHE_HOME:-$HOME/.cache}/openfootmanager/startup-incomplete"
+# Only the `auto` rows record a startup attempt, and each row is killed as soon as its result
+# lands — sooner than the app's startup grace period — so an `auto` row leaves its failure count
+# behind. Left in place it would push the next `auto` row onto the conservative fallback and
+# silently measure the wrong configuration.
+#
+# Globbed rather than named exactly: this file lives in Rust (`startup_state_path` in
+# src-tauri/src/platform/linux_graphics.rs) and the two drifted apart once already when it was
+# renamed, which turned this cleanup into a silent no-op.
+STATE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/openfootmanager"
 
 requested=("$@")
 if [ ${#requested[@]} -eq 0 ]; then
@@ -80,7 +84,7 @@ for row in "${requested[@]}"; do
   echo "== row: $row =="
   echo "   env: $env_spec"
 
-  rm -f "$SENTINEL"
+  rm -f "$STATE_DIR"/startup-*
 
   # `tauri dev` starts its own Vite via beforeDevCommand and aborts the whole row if 1420 is
   # taken, so make sure the previous row's server is really gone before starting.
