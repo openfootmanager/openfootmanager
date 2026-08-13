@@ -31,7 +31,7 @@ static DECISION: OnceLock<String> = OnceLock::new();
 
 /// What the user asked for, via `OFM_GPU_PROFILE`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GpuProfile {
+enum GpuProfile {
     /// Choose based on the hardware present. The default.
     Auto,
     /// Force the conservative workaround. Slow, but starts on hardware where nothing else does.
@@ -55,11 +55,11 @@ enum Policy {
 /// The facts the policy is derived from. Passed in rather than read inside, so the decision is
 /// testable on a machine with no GPU at all.
 #[derive(Debug, Clone, Default)]
-pub struct GraphicsEnvironment {
+struct GraphicsEnvironment {
     /// DRM driver names, e.g. `["nvidia", "i915"]`.
-    pub gpu_drivers: Vec<String>,
+    gpu_drivers: Vec<String>,
     /// How many launches in a row failed to survive startup. See [`startup_state_path`].
-    pub consecutive_failures: u32,
+    consecutive_failures: u32,
 }
 
 /// Failed launches tolerated before giving up on the accelerated path.
@@ -83,7 +83,7 @@ impl GraphicsEnvironment {
 impl GpuProfile {
     /// Parse the `OFM_GPU_PROFILE` value. Unrecognised values fall back to [`GpuProfile::Auto`]
     /// so a typo degrades to the supported path rather than to no workaround at all.
-    pub fn parse(raw: &str) -> Self {
+    fn parse(raw: &str) -> Self {
         match raw.trim().to_ascii_lowercase().as_str() {
             "safe" => Self::Safe,
             "off" | "none" => Self::Off,

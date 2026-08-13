@@ -33,15 +33,38 @@ const LADDER = [
   "xwayland",
 ];
 
-const files = (await readdir(inDir)).filter((name) => name.endsWith(".json"));
+let files;
+try {
+  files = (await readdir(inDir)).filter((name) => name.endsWith(".json"));
+} catch {
+  console.error(`No results directory at ${inDir}. Run scripts/perf/run-matrix.sh first.`);
+  process.exit(1);
+}
+
 if (files.length === 0) {
   console.error(`No results in ${inDir}. Run scripts/perf/run-matrix.sh first.`);
   process.exit(1);
 }
 
-const results = await Promise.all(
-  files.map(async (name) => JSON.parse(await readFile(resolve(inDir, name), "utf8"))),
-);
+// A row killed mid-write leaves a truncated file. Skip it loudly rather than taking the whole
+// report down — the other rows are still worth reading, and silence would hide the gap.
+const results = [];
+for (const name of files) {
+  try {
+    const parsed = JSON.parse(await readFile(resolve(inDir, name), "utf8"));
+    if (!parsed?.label || !Array.isArray(parsed.phases)) {
+      throw new Error("missing label or phases");
+    }
+    results.push(parsed);
+  } catch (error) {
+    console.error(`Skipping unreadable result ${name}: ${error.message}`);
+  }
+}
+
+if (results.length === 0) {
+  console.error(`No usable results in ${inDir}.`);
+  process.exit(1);
+}
 
 results.sort((a, b) => {
   const rank = (label) => {

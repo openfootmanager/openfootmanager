@@ -17,6 +17,12 @@
 
 set -euo pipefail
 
+# Job control, so every background job below lands in its own process group. That is what lets
+# cleanup kill a whole `npm -> cargo -> app` tree by group id instead of by name: matching on
+# names (`pkill -f vite`) would also take down a dev server you happened to be running in another
+# terminal.
+set -m
+
 # Linux-only by construction: every row sets WebKitGTK or GPU-driver environment variables, and
 # the hardware probe reads /sys/class/drm. Windows renders through WebView2 and macOS through
 # WKWebView, so there is no equivalent ladder to walk there.
@@ -87,12 +93,17 @@ for row in "${requested[@]}"; do
   rm -f "$STATE_DIR"/startup-*
 
   # `tauri dev` starts its own Vite via beforeDevCommand and aborts the whole row if 1420 is
-  # taken, so make sure the previous row's server is really gone before starting.
-  pkill -f 'node_modules/.bin/vite' 2>/dev/null || true
-  for _ in $(seq 10); do
+  # taken, so wait for the previous row's server to let go. Nothing is killed by name here: if
+  # something outside this script is holding the port, that is worth failing loudly for rather
+  # than silently terminating someone's work.
+  for _ in $(seq 15); do
     ss -ltn 2>/dev/null | grep -q ':1420 ' || break
     sleep 1
   done
+  if ss -ltn 2>/dev/null | grep -q ':1420 '; then
+    echo "   !! port 1420 is still in use — stop whatever is holding it, then re-run" >&2
+    exit 1
+  fi
 
   # One collector per row, so a stale result cannot be mistaken for this row's.
   node scripts/perf/collector.mjs --out "$RESULTS_DIR" --expect 1 --label "$row" &
@@ -116,12 +127,10 @@ for row in "${requested[@]}"; do
     waited=$((waited + 2))
   done
 
-  # `npm run tauri dev` spawns cargo, which spawns the app; kill the whole group.
-  pkill -P "$app_pid" 2>/dev/null || true
-  kill "$app_pid" 2>/dev/null || true
+  # `npm run tauri dev` spawns cargo, which spawns vite and the app. `set -m` put them all in one
+  # process group led by $app_pid, so a negative pid takes the whole tree down — and nothing else.
+  kill -TERM -- -"$app_pid" 2>/dev/null || kill -TERM "$app_pid" 2>/dev/null || true
   wait "$app_pid" 2>/dev/null || true
-  pkill -f 'target/debug/openfootmanager' 2>/dev/null || true
-  pkill -f 'node_modules/.bin/vite' 2>/dev/null || true
 
   if [ ! -f "$RESULTS_DIR/$row.json" ]; then
     echo "   !! no result recorded for $row — see $log" >&2

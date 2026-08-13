@@ -151,7 +151,7 @@ Hier sind Dinge, die wir bereits kennen — du musst sie nicht melden (aber komm
 - **Ein Teil des Textes ist nicht übersetzt** — Internationalisierung ist in Arbeit
 - **Speicherdateien aus dieser Beta sind möglicherweise nicht kompatibel** mit zukünftigen Versionen. Häng nicht zu sehr an deinen Spielständen!
 - **Die Performance** kann leicht abnehmen, wenn viele Tage hintereinander simuliert werden
-- **Linux mit einer NVIDIA-Grafikkarte** — falls das Fenster leer bleibt oder das Spiel beim Start abstürzt, starte es mit `OFM_GPU_PROFILE=safe`. Normalerweise erkennt das Spiel das selbst und behebt es beim nächsten Start. Siehe [Linux-Grafik](LINUX_GRAPHICS.md)
+- **Linux mit einer NVIDIA-Grafikkarte** — falls das Fenster leer bleibt oder das Spiel beim Start abstürzt, starte es mit `OFM_GPU_PROFILE=safe`. Nach zwei fehlgeschlagenen Starts in Folge erkennt das Spiel das selbst und wechselt automatisch auf den sicheren Pfad. Siehe [Linux-Grafik](LINUX_GRAPHICS.md)
 
 ---
 

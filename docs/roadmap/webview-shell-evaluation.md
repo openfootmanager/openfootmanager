@@ -15,10 +15,14 @@ bad enough experience — and a broad enough class of hardware — to ask whethe
 is the problem.
 
 It is worth being precise about what was actually wrong, because it changes the answer:
-**WebKitGTK's rendering was fine.** Raster and layout measured 16 ms with zero dropped frames in
-every configuration that started at all. What was broken was one environment-variable choice that
-pushed compositing onto the CPU. Fixing that restored 60 fps. The engine was never the
-bottleneck; our configuration of it was.
+**the collapse was in compositing, and it was ours to fix.** One environment-variable choice was
+pushing compositing onto the CPU — 224 ms per composited frame against 17 ms with it corrected.
+Changing it restored 60 fps without touching the engine.
+
+Note this is narrower than "WebKitGTK's rendering was fine". The two phases that would have shown
+raster or layout problems were not measuring properly in that run (see the note in
+`docs/LINUX_GRAPHICS.md`), so they rule nothing in or out. What the data supports is that the
+problem we had was a configuration problem, not that the engine is blameless everywhere.
 
 That does not clear WebKitGTK — the underlying NVIDIA fragility is real, poorly documented, and
 ours to keep working around — but it means "replace the webview" is not the lowest-cost fix, and

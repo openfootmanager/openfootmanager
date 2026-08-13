@@ -52,9 +52,18 @@ export interface BenchResult {
 
 const QUANTILES = { p50: 0.5, p95: 0.95, p99: 0.99 } as const;
 
-function quantile(sorted: number[], q: number): number {
+/**
+ * Nearest-rank quantile: the smallest value at or below which at least `q` of the sample falls.
+ *
+ * `floor(q * len)` looks equivalent and is off by one at the bottom of the range — for q=0.1 over
+ * 100 samples it reads index 10, the first value *outside* the fastest decile. That matters
+ * because `inferFrameBudget` reads p10: a budget one rank too slow raises the dropped-frame
+ * threshold and under-reports drops, on exactly the runs this exists to diagnose.
+ */
+export function quantile(sorted: number[], q: number): number {
   if (sorted.length === 0) return 0;
-  const index = Math.min(sorted.length - 1, Math.floor(q * sorted.length));
+  const rank = Math.ceil(q * sorted.length) - 1;
+  const index = Math.min(sorted.length - 1, Math.max(0, rank));
   return Math.round(sorted[index] * 100) / 100;
 }
 
@@ -80,7 +89,7 @@ function recordFrames(): { stop: () => number[] } {
   };
 }
 
-function summarise(name: string, deltas: number[], frameBudgetMs: number): PhaseResult {
+export function summarise(name: string, deltas: number[], frameBudgetMs: number): PhaseResult {
   // The first delta straddles the setup work rather than the interaction, so drop it.
   const samples = deltas.slice(1);
   const sorted = [...samples].sort((a, b) => a - b);
@@ -162,7 +171,7 @@ function statusBanner() {
  * decile across the whole run is a far better proxy for the refresh interval: whatever else the
  * renderer struggles with, the frames it *does* deliver on time reveal the display's cadence.
  */
-function inferFrameBudget(allDeltas: number[]): number {
+export function inferFrameBudget(allDeltas: number[]): number {
   if (allDeltas.length === 0) return 16.67;
   const sorted = [...allDeltas].sort((a, b) => a - b);
   // Floor at 4 ms so a burst of coalesced callbacks cannot imply a 500 Hz display.

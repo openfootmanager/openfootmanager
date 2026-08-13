@@ -25,9 +25,23 @@ const readFlag = (name, fallback) => {
 };
 
 const outDir = resolve(readFlag("--out", "scripts/perf/results"));
-const expected = Number(readFlag("--expect", "0"));
-const port = Number(readFlag("--port", "1421"));
 const onlyLabel = readFlag("--label", "");
+
+// A flag given without a value (`--expect` at the end of the line) reads as undefined, and
+// Number(undefined) is NaN — which would make `received >= expected` never true and hang the row
+// until the runner's timeout. Fail on the bad input instead of on its symptom.
+function numericFlag(name, fallback) {
+  const raw = readFlag(name, fallback);
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    console.error(`[collector] ${name} needs a non-negative number, got: ${raw}`);
+    process.exit(2);
+  }
+  return value;
+}
+
+const expected = numericFlag("--expect", "0");
+const port = numericFlag("--port", "1421");
 
 await mkdir(outDir, { recursive: true });
 
