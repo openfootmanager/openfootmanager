@@ -38,11 +38,7 @@ describe("StaffForm", () => {
     // as the wrong slot and concluded managers could not be authored at all.
     renderForm({ role: "AssistantManager" });
 
-    // `InlineHelp` labels its trigger "Help" — hardcoded English, a
-    // pre-existing i18n gap shared by all 13 help buttons in the editor and
-    // deliberately not fixed here. Queried as-is so this test does not depend
-    // on that being resolved.
-    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    fireEvent.click(screen.getByRole("button", { name: "worldEditor.helpLabel" }));
 
     expect(screen.getByText("worldEditor.staffRoleHelp")).toBeInTheDocument();
   });

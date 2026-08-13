@@ -3953,7 +3953,8 @@
       "Scout": "Skaut",
       "Physio": "Fyzioterapeut"
     },
-    "staffRoleHelp": "Trenér klubu se při spuštění světa vytvoří z jeho asistenta trenéra. Reputace pochází z klubu. Pokud má klub realizační tým, ale žádného asistenta trenéra, použije se jiný člen.",
+    "staffRoleHelp": "Trenér klubu se při spuštění světa vytvoří z jeho asistenta trenéra. Reputace pochází z klubu a národnost se převezme ze země klubu, pokud ji člen nemá. Pokud má klub realizační tým, ale žádného asistenta trenéra, použije se ten, jehož ID je první.",
+    "helpLabel": "Nápověda",
     "staffSpecialization": {
       "label": "Specializace",
       "none": "Žádná",

@@ -261,6 +261,9 @@ Three consequences worth knowing before you rely on it:
 
 - **Reputation is not yours to set.** The new manager's reputation is taken from the *club*, not
   from the staff member. There is currently no way to author a manager's standing.
+- **An empty `nationality` becomes the club's country.** Only `firstName`, `lastName` and
+  `dateOfBirth` are carried across unconditionally; leave `nationality` off and the manager is
+  given the country of the club they manage.
 - **Any staff member can be promoted.** If a club has staff but *no* `AssistantManager`, the
   staff member whose `id` sorts first is used instead — which can hand a club to its physio. If
   you author staff for a club, author an `AssistantManager` too.

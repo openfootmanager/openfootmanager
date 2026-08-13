@@ -3955,7 +3955,8 @@
       "Scout": "Recruteur",
       "Physio": "Kiné"
     },
-    "staffRoleHelp": "L'entraîneur d'un club est créé à partir de son entraîneur adjoint au démarrage du monde. La réputation provient du club. Si un club a du personnel mais aucun entraîneur adjoint, un autre membre est utilisé.",
+    "staffRoleHelp": "L'entraîneur d'un club est créé à partir de son entraîneur adjoint au démarrage du monde. La réputation provient du club, et la nationalité se rabat sur le pays du club si le membre n'en a aucune. Si un club a du personnel mais aucun entraîneur adjoint, celui dont l'ID vient en premier est utilisé.",
+    "helpLabel": "Aide",
     "staffSpecialization": {
       "label": "Spécialisation",
       "none": "Aucune",
