@@ -1053,12 +1053,14 @@ pub fn build_world_data_from_package(
         }
         merged
     };
-    // Via the helper the other three call sites use, rather than a fourth copy of
-    // its body. Nothing observable changes today — this path draws from an
-    // unseeded `rand::rng()`, and a uniform draw over a set does not care about
-    // order — but the codes are indexed with the RNG, so the sort is what the
-    // helper exists for and what would matter if this build were ever seeded.
-    let country_codes = generation::nationality_distribution();
+    // The catalog distribution plus whatever countries this package declares.
+    // A package exists to describe a world the catalog does not contain, so its
+    // own countries have to be drawable — otherwise a club in one of them is
+    // squadded entirely from elsewhere, and the country it declared is a label
+    // no player ever carries.
+    let country_codes = generation::nationality_distribution_including(
+        package.countries.iter().map(|country| country.id.as_str()),
+    );
 
     // Group hand-authored players and staff by the club they belong to.
     let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
@@ -1095,7 +1097,7 @@ pub fn build_world_data_from_package(
             .map(Vec::as_slice)
             .unwrap_or(NO_AUTHORED_STAFF);
         let (team, team_players, mut team_staff) =
-            build_package_club(tdef, authored, country_codes, opening_year, &names_def, &mut rng);
+            build_package_club(tdef, authored, &country_codes, opening_year, &names_def, &mut rng);
         // Replace auto-generated staff with authored versions, consuming each slot
         // at most once so multiple authored staff of the same role all survive.
         let mut replaced_staff_slots = vec![false; team_staff.len()];
@@ -1149,7 +1151,7 @@ pub fn build_world_data_from_package(
         let country = teams[0].country.clone();
         for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, &mut rng) {
             let (team, team_players, team_staff) =
-                build_club(def, country_codes, opening_year, &names_def, &mut rng);
+                build_club(def, &country_codes, opening_year, &names_def, &mut rng);
             teams.push(team);
             players.extend(team_players);
             staff.extend(team_staff);

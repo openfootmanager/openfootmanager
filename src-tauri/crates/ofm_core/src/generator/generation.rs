@@ -62,7 +62,12 @@ pub(super) fn pick_nationality_from_def(
     /// Share of a squad drawn from the club's own country.
     const LOCAL_SHARE_PERCENT: u32 = 60;
 
-    let local = resolve_nationality_code(team_country);
+    // The catalog first, then the world's own list. A package may declare
+    // countries the catalog has never heard of — that is the point of authoring
+    // one — and for a club in such a country the id *is* the nationality. Only a
+    // country neither the catalog nor this world recognises is unresolvable.
+    let local = resolve_nationality_code(team_country)
+        .or_else(|| declared_code(team_country, available_codes));
 
     // Nothing to draw from: the club's own country is the only answer available,
     // and when that is unknown too there is genuinely none to give.
@@ -78,6 +83,25 @@ pub(super) fn pick_nationality_from_def(
     };
 
     canonicalize_generated_nationality(&selected)
+}
+
+/// Match a club's country against the nationalities this world actually draws
+/// from, for countries the shipped catalog does not contain.
+///
+/// `available_codes` is the world's own nationality list, so a package country
+/// reaches here only if [`super::build_world_data_from_package`] put it there —
+/// which it does for every country the package declares. Comparing against that
+/// list rather than accepting any unknown string keeps an outright typo
+/// unresolvable, which is what #453 was about.
+fn declared_code(team_country: &str, available_codes: &[String]) -> Option<String> {
+    let trimmed = team_country.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    available_codes
+        .iter()
+        .find(|code| code.eq_ignore_ascii_case(trimmed))
+        .cloned()
 }
 
 pub(super) fn canonicalize_generated_nationality(value: &str) -> String {
@@ -215,11 +239,23 @@ pub(super) fn resolve_nationality_code(country: &str) -> Option<String> {
 /// at most ~16 nationalities (14 of them European) no matter how many countries
 /// it had, and no amount of catalog work could change that.
 ///
-/// Weight comes from rank within region in [`nations::NATION_CATALOG`], which is
-/// already documented as "strongest footballing traditions first within each
-/// region" — so it is a signal the codebase already maintains rather than a new
-/// hand-authored table. [`nations::ADDITIONAL_NATIONS`] form a flat low-weight
-/// tail: reachable, but rare.
+/// Weight has two factors, because a nation's standing has two parts and the
+/// catalog only records one of them.
+///
+/// *Rank within region* comes from [`nations::NATION_CATALOG`], already
+/// documented as "strongest footballing traditions first within each region" —
+/// a signal the codebase maintains anyway.
+///
+/// *Region depth* has to be declared, and [`REGION_WEIGHT`] declares it. Rank
+/// alone is a **rank among unequal fields**: it makes the top of every region
+/// equal, so Costa Rica draws as often as Brazil and France, New Zealand
+/// outranks Spain, and a world ends up with more Central American players than
+/// South American ones. Multiplying restores the comparison the catalog cannot
+/// express, and keeps the ordering rank already gets right inside a region.
+///
+/// [`nations::ADDITIONAL_NATIONS`] form a flat low-weight tail: reachable, but
+/// rare, and deliberately not region-scaled — they are outside the World Cup
+/// pool, which is the only claim being made about them.
 ///
 /// Deliberately *not* `NationGen.strength`: that exists for only the 16
 /// generation nations and is already spoken for by club reputation, so using it
@@ -251,7 +287,8 @@ pub(super) fn nationality_distribution() -> &'static Vec<String> {
 
         for nation in nations::NATION_CATALOG {
             let rank = seen_in_region.entry(nation.region_id).or_insert(0);
-            let weight = TOP_WEIGHT.saturating_sub(*rank).max(CATALOG_FLOOR);
+            let within_region = TOP_WEIGHT.saturating_sub(*rank).max(CATALOG_FLOOR);
+            let weight = within_region * region_weight(nation.region_id);
             *rank += 1;
             for _ in 0..weight {
                 pool.push(nation.code.to_string());
@@ -264,6 +301,67 @@ pub(super) fn nationality_distribution() -> &'static Vec<String> {
         }
         pool
     })
+}
+
+/// The catalog distribution, plus the countries a world declares for itself.
+///
+/// A package country is absent from both catalogs by definition, so the static
+/// pool cannot contain it and a club in one used to draw its whole squad from
+/// elsewhere. Declared countries are appended at [`DECLARED_WEIGHT`] — heavy
+/// enough that they actually appear in neighbouring squads, light enough that
+/// declaring a handful does not drown out the rest of the world.
+///
+/// A declared id that *is* already a catalog code (a package covering real
+/// nations, the common case) is skipped rather than added twice: it is already
+/// in the pool at its proper weight, and appending would quietly promote it.
+pub(super) fn nationality_distribution_including<'a>(
+    declared: impl Iterator<Item = &'a str>,
+) -> Vec<String> {
+    /// Pool entries per declared country. Matches a mid-table catalog nation:
+    /// present and drawable, not dominant.
+    const DECLARED_WEIGHT: usize = 12;
+
+    let mut pool = nationality_distribution().clone();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for id in declared {
+        let code = canonicalize_generated_nationality(id);
+        if code.is_empty() || nations::nation_by_code(&code).is_some() || !seen.insert(code.clone())
+        {
+            continue;
+        }
+        for _ in 0..DECLARED_WEIGHT {
+            pool.push(code.clone());
+        }
+    }
+    pool
+}
+
+/// How much of the world's football a region accounts for, as a multiplier on
+/// rank within it.
+///
+/// Hand-authored on purpose: no existing field carries it. `NationDef` records
+/// a code, a name and a region, and the catalog's ordering is explicitly
+/// *within* each region — so there is nothing to derive a cross-region
+/// comparison from, and inventing one from list length would say only that
+/// Africa has many federations, not that it supplies many players.
+///
+/// The numbers are deliberately coarse. They are a first approximation of where
+/// professional players come from, not a ranking of national teams, and they
+/// should be tuned against generated worlds rather than argued about in the
+/// abstract.
+fn region_weight(region_id: &str) -> usize {
+    match region_id {
+        "europe" => 6,
+        "south-america" => 5,
+        "africa" => 3,
+        "asia" => 2,
+        "north-america" | "central-america" => 2,
+        "oceania" => 1,
+        // `region_for_code` defaults unknown codes to europe, so an unrecognised
+        // region here means the catalog gained one this table has not been told
+        // about. Weight it as a modest region rather than silently as Europe.
+        _ => 2,
+    }
 }
 
 pub(super) fn play_style_from_str(s: &str) -> PlayStyle {
@@ -981,6 +1079,11 @@ mod tests {
 
     /// The length heuristic passed any 2–3 character string straight through as
     /// though it were a code — a different wrong answer for a different input.
+    ///
+    /// This is about the *catalog* resolver alone: `zz` names no real nation, so
+    /// on its own it is unresolvable. It is emphatically not a statement that a
+    /// two-letter id can never be a nationality — a package declaring `ZZ` makes
+    /// it one, which `a_package_declared_country_supplies_its_own_clubs` covers.
     #[test]
     fn a_short_string_that_is_not_a_nation_code_is_not_treated_as_one() {
         assert_eq!(resolve_nationality_code("zz"), None);
@@ -1005,6 +1108,47 @@ mod tests {
             "{english}/{} drawn as English for an unresolvable country",
             drawn.len()
         );
+    }
+
+    /// A package declares its own country, and its clubs must be staffed with
+    /// people from it. This is the whole point of authoring a package, and the
+    /// catalog cannot help: `ZZ` is in neither list, so drawing from the static
+    /// distribution alone leaves a Zedlandian club with no Zedlandians at all.
+    #[test]
+    fn a_package_declared_country_supplies_its_own_clubs() {
+        let mut rng = rand::rng();
+        let pool = nationality_distribution_including(["ZZ"].into_iter());
+
+        assert!(
+            pool.iter().any(|code| code == "ZZ"),
+            "a declared country must be drawable"
+        );
+
+        let drawn: Vec<String> = (0..400)
+            .map(|_| pick_nationality_from_def("ZZ", &pool, &mut rng))
+            .collect();
+        let local = drawn.iter().filter(|code| *code == "ZZ").count();
+
+        // The local share is 60%; allow generous slack for the draw. The bug
+        // being guarded is zero, not a few points either way.
+        assert!(
+            local > drawn.len() / 3,
+            "{local}/{} drawn from the club's own declared country",
+            drawn.len()
+        );
+    }
+
+    /// A declared id that is already a catalog code must not be appended a
+    /// second time — it is in the pool at its proper weight already, and
+    /// stacking would quietly promote whichever real nations a package happens
+    /// to name.
+    #[test]
+    fn declaring_a_country_the_catalog_already_has_does_not_promote_it() {
+        let baseline = nationality_distribution().iter().filter(|c| *c == "BR").count();
+        let pool = nationality_distribution_including(["BR", "br"].into_iter());
+        let after = pool.iter().filter(|c| *c == "BR").count();
+
+        assert_eq!(after, baseline, "Brazil must keep its catalog weight");
     }
 
     /// #452: the draw used to be over the 17 name-pool keys, so a world could
@@ -1041,10 +1185,70 @@ mod tests {
         assert!(count("BR") > count("BO"), "BR {} vs BO {}", count("BR"), count("BO"));
     }
 
+    /// Rank is only meaningful inside a region, so the assertions above cannot
+    /// see the failure that matters most: with no region factor, the top of
+    /// every region weighs the same and Costa Rica draws as often as Brazil.
+    #[test]
+    fn a_regions_depth_counts_not_just_rank_within_it() {
+        let pool = nationality_distribution();
+        let count = |code: &str| pool.iter().filter(|entry| *entry == code).count();
+
+        // Each pair is top-of-region against top-of-region, so rank alone ties
+        // them and only the region factor can separate them.
+        assert!(count("BR") > count("CR"), "BR {} vs CR {}", count("BR"), count("CR"));
+        assert!(count("FR") > count("CR"), "FR {} vs CR {}", count("FR"), count("CR"));
+        assert!(count("BR") > count("NZ"), "BR {} vs NZ {}", count("BR"), count("NZ"));
+
+        // And a mid-table European outranks the best of a shallow region.
+        assert!(count("IT") > count("NZ"), "IT {} vs NZ {}", count("IT"), count("NZ"));
+
+        // South America must out-supply Central America overall, which was
+        // inverted while rank was the only factor.
+        let region_share = |region: &str| {
+            pool.iter()
+                .filter(|code| nations::region_for_code(code) == region)
+                .count()
+        };
+        assert!(
+            region_share("south-america") > region_share("central-america"),
+            "south-america {} vs central-america {}",
+            region_share("south-america"),
+            region_share("central-america")
+        );
+    }
+
     /// The pool is indexed with the RNG, so its order has to be stable or the
     /// same seed stops producing the same world.
+    ///
+    /// Built from scratch rather than compared against the memoised copy:
+    /// `nationality_distribution()` returns the same `&'static` reference every
+    /// time, so asserting it equals itself passes even if the builder iterated
+    /// a `HashMap` and produced a different order on every run.
     #[test]
-    fn the_distribution_is_stable_across_calls() {
-        assert_eq!(nationality_distribution(), nationality_distribution());
+    fn the_distribution_is_stable_across_builds() {
+        let build = || {
+            let mut pool = Vec::new();
+            let mut seen_in_region: std::collections::HashMap<&str, usize> =
+                std::collections::HashMap::new();
+            for nation in nations::NATION_CATALOG {
+                let rank = seen_in_region.entry(nation.region_id).or_insert(0);
+                let weight = 12usize.saturating_sub(*rank).max(2) * region_weight(nation.region_id);
+                *rank += 1;
+                for _ in 0..weight {
+                    pool.push(nation.code.to_string());
+                }
+            }
+            for nation in nations::ADDITIONAL_NATIONS {
+                pool.push(nation.code.to_string());
+            }
+            pool
+        };
+
+        assert_eq!(build(), build(), "two independent builds must agree");
+        assert_eq!(
+            &build(),
+            nationality_distribution(),
+            "and must agree with the memoised pool"
+        );
     }
 }
