@@ -268,13 +268,13 @@ Four consequences worth knowing before you rely on it:
   staff member whose `id` sorts first is used instead — which can hand a club to its physio. If
   you author staff for a club, author an `AssistantManager` too.
 - **The staff entry stays.** The manager is built *from* those details, not moved out of them, so
-  the club keeps the assistant manager as a staff member as well.
+  whoever was promoted also remains on the club's staff in their original role.
 
 **Your own club is not exempt.** Managers are seeded while the world is generated, which happens
-*before* you choose a club — so the assistant manager at the club you go on to take over is
-promoted along with everyone else's. When you take charge, the manager built from them is
-dismissed — it moves into the unemployed manager pool, and the world's news carries a
-managerial-change story naming them. Your authored staff member is untouched by this and stays
+*before* you choose a club — so the club you go on to take over has a manager promoted out of its
+staff exactly like every other club, by the same selection rule. When you take charge, that
+manager is dismissed: it moves into the unemployed manager pool, and the world's news carries a
+managerial-change story naming them. The staff member they were built from is untouched and stays
 at the club, because the two are separate records.
 
 If you are authoring a club you expect players to start at, that is the surprise to plan for.
