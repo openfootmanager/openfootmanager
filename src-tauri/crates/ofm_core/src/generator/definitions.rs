@@ -120,6 +120,11 @@ impl UsableDefinition for NamesDefinition {
 /// only ever catch a typo or a hostile file, never an ambitious one.
 const MAX_CLUBS_PER_DIVISION: usize = 1_000;
 const MAX_TIERS: usize = 20;
+/// Ceiling on the whole world, which is the number that actually gets
+/// allocated. The shipped definition builds 440 clubs and roughly 9,700
+/// players, so this allows a world some twenty times larger while keeping the
+/// squad count (~220,000 players) inside what a desktop game can hold.
+const MAX_TOTAL_CLUBS: usize = 10_000;
 /// Top of the documented `strength` range on [`super::clubs::NationGen`].
 const MAX_NATION_STRENGTH: u8 = 5;
 
@@ -147,6 +152,23 @@ impl UsableDefinition for NationsDefinition {
         }
         if self.nations.iter().any(|nation| nation.tiers > MAX_TIERS) {
             return Some("a nation has implausibly many divisions");
+        }
+        // Bounding each factor does not bound the product. The nation list has
+        // no length limit of its own, so forty nations each sitting exactly on
+        // the per-nation ceilings still sums to 800,000 clubs — every one of
+        // them individually legal. The total is what gets allocated, so the
+        // total is what has to be checked.
+        //
+        // This also puts `unique_short_code`'s three-letter space out of reach:
+        // it panics once a single nation needs more than 26^3 codes, and no
+        // nation can exceed the aggregate.
+        let total_clubs = self
+            .nations
+            .iter()
+            .map(|nation| self.clubs_per_division.saturating_mul(nation.tiers))
+            .fold(0usize, |total, clubs| total.saturating_add(clubs));
+        if total_clubs > MAX_TOTAL_CLUBS {
+            return Some("the nations add up to more clubs than a world can hold");
         }
         // `strength` seeds the reputation band and is documented 1-5. Out of
         // range it walks past the clamp that bounds reputation, because the
@@ -622,6 +644,41 @@ mod tests {
             );
             std::fs::remove_dir_all(&dir).ok();
         }
+    }
+
+    /// Bounding each factor does not bound their product: the nation list has no
+    /// length limit of its own, so a file whose every nation sits inside the
+    /// per-nation ceilings still adds up to a world nothing can build.
+    #[test]
+    fn a_nations_override_that_sums_to_an_impossible_world_is_rejected() {
+        // Each nation is individually legal — 1000 clubs a division, 20 tiers,
+        // both exactly at the ceiling — and there are 40 of them.
+        let nations: Vec<String> = (0..40)
+            .map(|index| {
+                format!(
+                    r##"{{"code":"N{index}","style":"Generic","tiers":20,"strength":3,"cities":["A"]}}"##
+                )
+            })
+            .collect();
+        let json = format!(
+            r##"{{"clubsPerDivision":1000,
+                 "colorPalette":[{{"primary":"#000","secondary":"#fff"}}],
+                 "genericCities":["G"],
+                 "nations":[{}]}}"##,
+            nations.join(",")
+        );
+
+        let dir = tier("aggregate");
+        std::fs::write(dir.join("default_nations.json"), &json).unwrap();
+
+        let def = nations_definition(&DefinitionSources::searching([dir.clone()]));
+
+        assert_eq!(
+            def.nations.len(),
+            16,
+            "800,000 clubs across 40 legal-looking nations should be rejected"
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
