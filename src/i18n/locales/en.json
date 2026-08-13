@@ -2605,6 +2605,7 @@
         "unknownSchema": "Unknown schema \"{{schema}}\".",
         "invalidEntity": "A \"{{schema}}\" entry is invalid.",
         "missingId": "A {{kind}} entry is missing its id.",
+        "missingMetadata": "The package manifest is missing the required field \"{{field}}\".",
         "duplicateId": "Duplicate {{kind}} id \"{{id}}\".",
         "unknownConfederation": "Country \"{{country}}\" references unknown confederation \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" references unknown country \"{{country}}\".",

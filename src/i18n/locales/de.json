@@ -2592,6 +2592,7 @@
         "unknownSchema": "Unbekanntes Schema \"{{schema}}\".",
         "invalidEntity": "Ein \"{{schema}}\"-Eintrag ist ungültig.",
         "missingId": "Einem {{kind}}-Eintrag fehlt die id.",
+        "missingMetadata": "Im Paketmanifest fehlt das erforderliche Feld „{{field}}“.",
         "duplicateId": "Doppelte {{kind}}-id \"{{id}}\".",
         "unknownConfederation": "Land \"{{country}}\" verweist auf unbekannten Verband \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" verweist auf unbekanntes Land \"{{country}}\".",

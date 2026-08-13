@@ -156,11 +156,12 @@ const SCHEMA_WORLD: &str = r##"// World manifest — save as package.json at the
   "name": "My Package",        // required: display name shown in-game
   "description": "",           // optional: short description
   "version": "1.0.0",          // required: semver string
-  "author": "Your Name",       // required
+  "author": "Your Name",       // optional: author or username
   "license": "CC-BY-4.0",      // required: SPDX identifier
-  "packageType": "database",   // required: "database" | "patch" | "assets"
+  "packageType": "database",   // optional: "database" | "patch" | "assets"
+                               //   (omitting it means "database"; "" is rejected)
   "gameMinVersion": "",        // optional: minimum game version, e.g. "0.3.0"
-  "formatVersion": 1,          // required: always 1
+  "formatVersion": 1,          // optional: defaults to 1, the only version
   "baseYear": null,             // optional: integer season year, e.g. 2024
   "defaultActiveRegions": [],  // optional: region IDs enabled by default
   "defaultActiveCompetitions": [], // optional: competition IDs enabled by default
@@ -563,6 +564,27 @@ fn cmd_validate(path: &Path) -> i32 {
     }
 }
 
+/// Where `pack` writes when `--output` is not given.
+///
+/// The package id names the artifact, falling back to the directory name. An
+/// **empty** id has to fall back too, not just an absent manifest: a
+/// present-but-blank `id` produced `format!("{}.ofm", "")` — a file literally
+/// named `.ofm`, hidden by default on Linux and macOS, so `pack` looked like it
+/// had silently produced nothing. Mirrors the frontend's guard in
+/// `src/pages/WorldEditor.tsx` (`${meta.id || "package"}.ofm`).
+///
+/// Belt and braces: `validate_manifest` now rejects a blank id, so `cmd_pack`
+/// refuses before reaching here. This stays because a package with *no*
+/// manifest at all is still legal to pack, and the fallback is what names that
+/// artifact. Removable only if packing ever requires a manifest outright.
+fn default_pack_path(meta_id: Option<&str>, dir: &Path) -> PathBuf {
+    let id = meta_id.map(str::trim).filter(|id| !id.is_empty());
+    let name = id
+        .or_else(|| dir.file_name().and_then(|n| n.to_str()))
+        .unwrap_or("package");
+    PathBuf::from(format!("{name}.ofm"))
+}
+
 fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
     if !dir.exists() {
         eprintln!("{} Directory not found: {}", "error:".red().bold(), dir.display());
@@ -586,15 +608,9 @@ fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
         return 1;
     }
 
-    let id = pkg
-        .meta
-        .as_ref()
-        .map(|m| m.id.clone())
-        .unwrap_or_else(|| dir.file_name().and_then(|n| n.to_str()).unwrap_or("package").to_string());
-
     let out_path = output
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(format!("{}.ofm", id)));
+        .unwrap_or_else(|| default_pack_path(pkg.meta.as_ref().map(|m| m.id.as_str()), dir));
 
     println!("Packing → {}...", out_path.display());
     match export_directory_to_ofm(dir, &out_path) {
@@ -669,6 +685,82 @@ fn cmd_info(file: &Path) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The #457 reproduction at the command boundary.
+    ///
+    /// The `default_pack_path` tests below cover the naming rule in isolation;
+    /// this one runs `cmd_pack` itself, so it also proves the ordering that
+    /// actually protects the user — validation refuses first, and no artifact
+    /// (least of all a hidden `.ofm`) is written.
+    #[test]
+    fn pack_refuses_a_manifest_with_no_metadata_and_writes_nothing() {
+        let dir = scratch_dir("pack-incomplete-manifest");
+        std::fs::create_dir_all(dir.join("world")).expect("temp dir");
+        std::fs::write(dir.join("world").join("world.json"), r#"{"schema":"world"}"#)
+            .expect("manifest written");
+        let out = dir.join("out.ofm");
+
+        let code = cmd_pack(&dir, Some(&out));
+
+        assert_eq!(code, 1, "packing an incomplete manifest must fail");
+        assert!(!out.exists(), "no archive should be written");
+        assert!(
+            !dir.join(".ofm").exists(),
+            "and certainly not a hidden dotfile"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The other half: a package with no manifest at all is still legal to
+    /// pack, and takes its name from the directory.
+    #[test]
+    fn pack_writes_an_archive_named_after_the_directory_when_there_is_no_manifest() {
+        let dir = scratch_dir("pack-no-manifest");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        std::fs::write(
+            dir.join("teams.json"),
+            r##"{"schema":"team","items":[{"id":"a","name":"A","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+        )
+        .expect("teams written");
+        let out = dir.join("named.ofm");
+
+        let code = cmd_pack(&dir, Some(&out));
+
+        assert_eq!(code, 0, "a manifest-less package still packs");
+        assert!(out.exists(), "the archive should exist");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn pack_names_the_archive_after_the_package_id() {
+        assert_eq!(
+            default_pack_path(Some("my-league"), Path::new("/tmp/src")),
+            PathBuf::from("my-league.ofm")
+        );
+    }
+
+    /// A blank id used to produce a file literally named `.ofm` — a dotfile,
+    /// hidden by default, so `pack` read as having produced nothing at all.
+    #[test]
+    fn pack_never_writes_a_bare_dotfile_for_a_blank_id() {
+        for blank in ["", "   "] {
+            assert_eq!(
+                default_pack_path(Some(blank), Path::new("/tmp/my-package")),
+                PathBuf::from("my-package.ofm"),
+                "a blank id must fall back to the directory name"
+            );
+        }
+    }
+
+    #[test]
+    fn pack_falls_back_to_the_directory_when_there_is_no_manifest() {
+        assert_eq!(
+            default_pack_path(None, Path::new("/tmp/my-package")),
+            PathBuf::from("my-package.ofm")
+        );
+    }
 
     // Every authorable entity in the World Editor must round-trip through the CLI
     // helpers. This guards against adding a UI entity (e.g. staff) without wiring

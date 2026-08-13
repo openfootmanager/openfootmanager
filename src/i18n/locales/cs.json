@@ -2606,6 +2606,7 @@
         "unknownSchema": "Neznámé schéma „{{schema}}“.",
         "invalidEntity": "Záznam „{{schema}}“ je neplatný.",
         "missingId": "Záznamu typu {{kind}} chybí ID.",
+        "missingMetadata": "V manifestu balíčku chybí povinné pole „{{field}}“.",
         "duplicateId": "Duplicitní ID typu {{kind}}: „{{id}}“.",
         "unknownConfederation": "Země „{{country}}“ odkazuje na neznámou konfederaci „{{confederation}}“.",
         "unknownCountry": "„{{entity}}“ odkazuje na neznámou zemi „{{country}}“.",

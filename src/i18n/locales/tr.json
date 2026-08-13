@@ -2605,6 +2605,7 @@
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
         "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz.",
         "missingId": "Bir {{kind}} kaydında id eksik.",
+        "missingMetadata": "Paket bildiriminde zorunlu \"{{field}}\" alanı eksik.",
         "duplicateId": "Yinelenen {{kind}} id'si \"{{id}}\".",
         "unknownConfederation": "\"{{country}}\" ülkesi bilinmeyen \"{{confederation}}\" konfederasyonuna atıfta bulunuyor.",
         "unknownCountry": "\"{{entity}}\", bilinmeyen \"{{country}}\" ülkesine atıfta bulunuyor.",

@@ -75,8 +75,8 @@ The package manifest. Place this in `package.json` (or any file with `"schema": 
 | `description` | string | no | `""` | Short description shown in the world selector. |
 | `version` | string | yes | — | Semantic version. Example: `"1.0.0"`. Increment on each update. |
 | `author` | string | no | `""` | Author name or username. |
-| `license` | string | no | `""` | [SPDX license identifier](https://spdx.org/licenses/). Examples: `"CC-BY-4.0"`, `"CC0-1.0"`, `"MIT"`. |
-| `packageType` | string | no | `"database"` | One of: `"database"`, `"patch"`, `"assets"`. |
+| `license` | string | yes | — | [SPDX license identifier](https://spdx.org/licenses/). Examples: `"CC-BY-4.0"`, `"CC0-1.0"`, `"MIT"`. |
+| `packageType` | string | no | `"database"` | One of: `"database"`, `"patch"`, `"assets"`. Omitting it is fine — it resolves to `"database"`. Only an explicitly empty value (`""`) is rejected. |
 | `gameMinVersion` | string | no | `""` | Minimum OFM version required. Semver string. Example: `"0.3.0"`. Empty = no requirement. |
 | `formatVersion` | integer | no | `1` | Schema format version. Always `1` for the current release. |
 | `baseYear` | integer or null | no | `null` | Season year displayed in the world selector. Example: `2026`. |
@@ -105,10 +105,20 @@ You do not have to write this by hand — the World Editor exposes all three fie
   "id": "my-league-2026",
   "name": "My League 2026",
   "version": "1.0.0",
-  "packageType": "database",
-  "gameMinVersion": "0.3.0"
+  "license": "CC-BY-4.0",
+  "packageType": "database"
 }
 ```
+
+`id`, `name`, `version` and `license` are enforced by validation: a manifest
+missing any of them is reported as `be.error.package.missingId` (for `id`) or
+`be.error.package.missingMetadata` (for the rest), in `ofm-cli validate` and in
+the World Editor alike. `packageType` is checked too, but omitting it resolves
+to `"database"`, so only an explicitly empty value fails.
+
+`id` in particular is the install key *and* the packed filename. `ofm-cli pack`
+runs validation first and refuses to build an archive while any of these are
+missing, so a package can no longer be written to an unnamed file.
 
 ---
 

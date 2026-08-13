@@ -13,7 +13,8 @@ pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
-    extract_package_assets, hash_package_file, is_unreadable, is_valid_package_id,
+    extract_package_assets, hash_package_file, is_manifest_metadata_error, is_unreadable,
+    is_valid_package_id,
     load_world_package, load_world_package_files, load_world_package_from_ofm,
     qualify_package_asset_paths, merge_world_packages, read_logo_from_ofm,
     read_package_manifest_from_ofm, validate_manifest, validate_package,

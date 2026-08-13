@@ -2592,6 +2592,7 @@
         "unknownSchema": "Schéma inconnu « {{schema}} ».",
         "invalidEntity": "Une entrée « {{schema}} » est invalide.",
         "missingId": "Une entrée {{kind}} n’a pas d’id.",
+        "missingMetadata": "Le champ obligatoire « {{field}} » est absent du manifeste du paquet.",
         "duplicateId": "Id {{kind}} en double « {{id}} ».",
         "unknownConfederation": "Le pays « {{country}} » référence une confédération inconnue « {{confederation}} ».",
         "unknownCountry": "« {{entity}} » référence un pays inconnu « {{country}} ».",

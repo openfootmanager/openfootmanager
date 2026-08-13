@@ -2605,6 +2605,7 @@
         "unknownSchema": "Неизвестная схема «{{schema}}».",
         "invalidEntity": "Запись «{{schema}}» недействительна.",
         "missingId": "У записи {{kind}} отсутствует id.",
+        "missingMetadata": "В манифесте пакета отсутствует обязательное поле «{{field}}».",
         "duplicateId": "Повторяющийся id {{kind}} «{{id}}».",
         "unknownConfederation": "Страна «{{country}}» ссылается на неизвестную конфедерацию «{{confederation}}».",
         "unknownCountry": "«{{entity}}» ссылается на неизвестную страну «{{country}}».",
