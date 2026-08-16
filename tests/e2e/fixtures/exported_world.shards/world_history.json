@@ -1,0 +1,200 @@
+{
+  "rivalries": [],
+  "season_awards": [],
+  "world_cup_champions": [],
+  "national_team_ranking": [
+    {
+      "nation_code": "CI",
+      "points": 1736.3636363636365
+    },
+    {
+      "nation_code": "CM",
+      "points": 1723.6363636363635
+    },
+    {
+      "nation_code": "DZ",
+      "points": 1712.7272727272725
+    },
+    {
+      "nation_code": "EG",
+      "points": 1728.181818181818
+    },
+    {
+      "nation_code": "GH",
+      "points": 1689.090909090909
+    },
+    {
+      "nation_code": "MA",
+      "points": 1714.5454545454545
+    },
+    {
+      "nation_code": "NG",
+      "points": 1719.090909090909
+    },
+    {
+      "nation_code": "AE",
+      "points": 1708.181818181818
+    },
+    {
+      "nation_code": "CN",
+      "points": 1726.3636363636365
+    },
+    {
+      "nation_code": "IQ",
+      "points": 1724.5454545454545
+    },
+    {
+      "nation_code": "IR",
+      "points": 1723.6363636363635
+    },
+    {
+      "nation_code": "JP",
+      "points": 1717.2727272727275
+    },
+    {
+      "nation_code": "KR",
+      "points": 1708.181818181818
+    },
+    {
+      "nation_code": "CR",
+      "points": 1740.0
+    },
+    {
+      "nation_code": "GT",
+      "points": 1743.6363636363635
+    },
+    {
+      "nation_code": "HN",
+      "points": 1710.909090909091
+    },
+    {
+      "nation_code": "JM",
+      "points": 1700.909090909091
+    },
+    {
+      "nation_code": "IT",
+      "points": 1831.818181818182
+    },
+    {
+      "nation_code": "ENG",
+      "points": 1826.3636363636365
+    },
+    {
+      "nation_code": "FR",
+      "points": 1823.6363636363635
+    },
+    {
+      "nation_code": "BE",
+      "points": 1822.7272727272725
+    },
+    {
+      "nation_code": "DE",
+      "points": 1820.0
+    },
+    {
+      "nation_code": "HR",
+      "points": 1820.0
+    },
+    {
+      "nation_code": "PT",
+      "points": 1819.090909090909
+    },
+    {
+      "nation_code": "SCO",
+      "points": 1819.090909090909
+    },
+    {
+      "nation_code": "WAL",
+      "points": 1819.090909090909
+    },
+    {
+      "nation_code": "ES",
+      "points": 1818.181818181818
+    },
+    {
+      "nation_code": "IE",
+      "points": 1817.2727272727275
+    },
+    {
+      "nation_code": "NIR",
+      "points": 1815.4545454545455
+    },
+    {
+      "nation_code": "SE",
+      "points": 1809.090909090909
+    },
+    {
+      "nation_code": "NL",
+      "points": 1808.181818181818
+    },
+    {
+      "nation_code": "AT",
+      "points": 1720.909090909091
+    },
+    {
+      "nation_code": "CH",
+      "points": 1733.6363636363635
+    },
+    {
+      "nation_code": "CZ",
+      "points": 1726.3636363636365
+    },
+    {
+      "nation_code": "DK",
+      "points": 1720.909090909091
+    },
+    {
+      "nation_code": "GR",
+      "points": 1740.0
+    },
+    {
+      "nation_code": "CA",
+      "points": 1713.6363636363635
+    },
+    {
+      "nation_code": "MX",
+      "points": 1714.5454545454545
+    },
+    {
+      "nation_code": "AU",
+      "points": 1746.3636363636365
+    },
+    {
+      "nation_code": "NZ",
+      "points": 1726.3636363636365
+    },
+    {
+      "nation_code": "BR",
+      "points": 1835.4545454545455
+    },
+    {
+      "nation_code": "AR",
+      "points": 1821.818181818182
+    },
+    {
+      "nation_code": "BO",
+      "points": 1710.909090909091
+    },
+    {
+      "nation_code": "CL",
+      "points": 1728.181818181818
+    },
+    {
+      "nation_code": "CO",
+      "points": 1733.6363636363635
+    },
+    {
+      "nation_code": "EC",
+      "points": 1731.818181818182
+    },
+    {
+      "nation_code": "PE",
+      "points": 1733.6363636363635
+    },
+    {
+      "nation_code": "US",
+      "points": 1697.2727272727275
+    }
+  ],
+  "world_cup_hosts": []
+}

@@ -1,0 +1,41 @@
+{
+  "formatVersion": 2,
+  "worldId": "world-export-mgr_user-1767312000",
+  "name": "be.msg.world.exportedName",
+  "description": "be.msg.world.exportedDescription?teamCount=20",
+  "regions": [
+    {
+      "id": "south-america",
+      "name": "South America",
+      "countryCodes": [
+        "AR"
+      ]
+    }
+  ],
+  "defaultActiveRegions": [
+    "south-america"
+  ],
+  "defaultActiveCompetitions": [
+    "ar-d1-apertura",
+    "ar-d1-clausura",
+    "ar-cup"
+  ],
+  "shards": {
+    "teams": "exported_world.shards/teams.json",
+    "players": "exported_world.shards/players.json",
+    "staff": "exported_world.shards/staff.json",
+    "managers": "exported_world.shards/managers.json",
+    "competitions": "exported_world.shards/competitions.json",
+    "nationalTeams": "exported_world.shards/national_teams.json",
+    "news": "exported_world.shards/news.json",
+    "stats": "exported_world.shards/stats.json",
+    "worldHistory": "exported_world.shards/world_history.json"
+  },
+  "compatibility": {
+    "format_version": 2,
+    "world_id": "world-export-mgr_user-1767312000",
+    "kind": "historicalSnapshot",
+    "base_year": 2026,
+    "snapshot_date": "2026-01-02T00:00:00+00:00"
+  }
+}

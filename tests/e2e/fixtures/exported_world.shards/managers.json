@@ -1,0 +1,702 @@
+[
+  {
+    "id": "mgr_user",
+    "first_name": "Testing",
+    "last_name": "Tester",
+    "date_of_birth": "1996-03-31",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 500,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "dda1d67c-3bca-47c4-8c78-e5bd19d00886",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "dda1d67c-3bca-47c4-8c78-e5bd19d00886",
+        "team_name": "Club Buenos Aires",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_d2deaa52-f423-4a4c-8953-0ec871a31806_a6e75b6d-5134-4a57-9728-838a6d07f520",
+    "first_name": "Leandro",
+    "last_name": "Gutierrez",
+    "date_of_birth": "1970-08-26",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 694,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "d2deaa52-f423-4a4c-8953-0ec871a31806",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "d2deaa52-f423-4a4c-8953-0ec871a31806",
+        "team_name": "Rosario FC",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_b935030d-3189-44d8-b642-754a94e73b09_071c933e-1b27-4d38-95f0-fb0f062babaa",
+    "first_name": "Mauro",
+    "last_name": "Rodriguez",
+    "date_of_birth": "1986-12-24",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 686,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "b935030d-3189-44d8-b642-754a94e73b09",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "b935030d-3189-44d8-b642-754a94e73b09",
+        "team_name": "Atlético Córdoba",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_ce14d49d-1c74-4595-be4a-e611dac89458_edfa5266-b1f0-4f56-9eac-5e0c23e8c872",
+    "first_name": "Franco",
+    "last_name": "Alvarez",
+    "date_of_birth": "1968-08-01",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 666,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "ce14d49d-1c74-4595-be4a-e611dac89458",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "ce14d49d-1c74-4595-be4a-e611dac89458",
+        "team_name": "Racing La Plata",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_d7a918cc-9de7-46ee-997e-18b833a0e438_ec571544-e3ab-4553-9572-f14548df435c",
+    "first_name": "Leandro",
+    "last_name": "Lopez",
+    "date_of_birth": "1971-09-19",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 653,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "d7a918cc-9de7-46ee-997e-18b833a0e438",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "d7a918cc-9de7-46ee-997e-18b833a0e438",
+        "team_name": "Deportivo Mendoza",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_1b9a1125-3c16-48d1-915a-79affe527b3f_cdf0d870-8882-47d2-bcd4-7024c0227509",
+    "first_name": "Lionel",
+    "last_name": "Diaz",
+    "date_of_birth": "1979-04-07",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 612,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "1b9a1125-3c16-48d1-915a-79affe527b3f",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "1b9a1125-3c16-48d1-915a-79affe527b3f",
+        "team_name": "Unión Avellaneda",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_245a2b26-1551-4c34-abe4-7f75730913da_38c42b31-dd84-4230-a608-a8c5004bc878",
+    "first_name": "Jason",
+    "last_name": "Stevens",
+    "date_of_birth": "1979-09-14",
+    "nationality": "BE",
+    "football_nation": "BE",
+    "birth_country": "BE",
+    "reputation": 626,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "245a2b26-1551-4c34-abe4-7f75730913da",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "245a2b26-1551-4c34-abe4-7f75730913da",
+        "team_name": "Independiente Santa Fe",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_86613109-1219-463b-aa0d-625235a33188_330ac12d-7f8f-41a0-ab43-3075cf82c682",
+    "first_name": "Stuart",
+    "last_name": "Murray",
+    "date_of_birth": "1985-02-15",
+    "nationality": "SCO",
+    "football_nation": "SCO",
+    "birth_country": "SCO",
+    "reputation": 589,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "86613109-1219-463b-aa0d-625235a33188",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "86613109-1219-463b-aa0d-625235a33188",
+        "team_name": "Nacional Mar del Plata",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_737916a6-19d6-4a49-bc93-926457637aa3_ef023a4a-373b-4518-b09b-2e069cee3ac2",
+    "first_name": "Rory",
+    "last_name": "McAllister",
+    "date_of_birth": "1991-11-07",
+    "nationality": "NIR",
+    "football_nation": "NIR",
+    "birth_country": "NIR",
+    "reputation": 557,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "737916a6-19d6-4a49-bc93-926457637aa3",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "737916a6-19d6-4a49-bc93-926457637aa3",
+        "team_name": "Club Tucumán",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_be62641d-d3cb-46d6-9c3d-4c9aa8f7f7de_ef58534b-5099-46bf-83f1-dd5b31b45546",
+    "first_name": "Sean",
+    "last_name": "Quinn",
+    "date_of_birth": "1971-02-06",
+    "nationality": "NIR",
+    "football_nation": "NIR",
+    "birth_country": "NIR",
+    "reputation": 520,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "be62641d-d3cb-46d6-9c3d-4c9aa8f7f7de",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "be62641d-d3cb-46d6-9c3d-4c9aa8f7f7de",
+        "team_name": "Salta FC",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_4910d66e-c703-4a86-a75e-f0a77bc1dbad_ab024fec-2ba2-4fb8-8a24-14fa29e6db0a",
+    "first_name": "Leandro",
+    "last_name": "Ruiz",
+    "date_of_birth": "1979-07-07",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 499,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "4910d66e-c703-4a86-a75e-f0a77bc1dbad",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "4910d66e-c703-4a86-a75e-f0a77bc1dbad",
+        "team_name": "Atlético San Juan",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_ae8abe5a-0874-474d-81c7-edc37a99164f_4ae833bb-129c-4d36-977e-ef318db99547",
+    "first_name": "Cristian",
+    "last_name": "Sanchez",
+    "date_of_birth": "1981-04-04",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 475,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "ae8abe5a-0874-474d-81c7-edc37a99164f",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "ae8abe5a-0874-474d-81c7-edc37a99164f",
+        "team_name": "Racing Bahía Blanca",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_fc14c17b-e718-41ab-8510-cfbc2d82f769_9b38836d-6392-41bb-9dd3-ae0fcad98429",
+    "first_name": "Ignacio",
+    "last_name": "Acosta",
+    "date_of_birth": "1986-11-15",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 454,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "fc14c17b-e718-41ab-8510-cfbc2d82f769",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "fc14c17b-e718-41ab-8510-cfbc2d82f769",
+        "team_name": "Deportivo Quilmes",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_c4ec3772-033f-4e02-97e1-1b01b6ee3fd3_22eb4fea-086e-47c2-9443-9a563d8fc9bd",
+    "first_name": "Marcos",
+    "last_name": "Rodriguez",
+    "date_of_birth": "1981-08-22",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 432,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "c4ec3772-033f-4e02-97e1-1b01b6ee3fd3",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "c4ec3772-033f-4e02-97e1-1b01b6ee3fd3",
+        "team_name": "Unión Lanús",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_08981138-3210-4118-bc0b-34e5a1608100_5dc15962-59c8-48ca-b819-85a580b7e7b6",
+    "first_name": "Rodrigo",
+    "last_name": "Romero",
+    "date_of_birth": "1972-08-21",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 450,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "08981138-3210-4118-bc0b-34e5a1608100",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "08981138-3210-4118-bc0b-34e5a1608100",
+        "team_name": "Independiente Banfield",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_e237d1c7-70ee-479c-8e25-30e6668c8c2a_963012cc-83fc-43a1-bbc5-670223e40ae6",
+    "first_name": "Agustin",
+    "last_name": "Herrera",
+    "date_of_birth": "1993-05-12",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 393,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "e237d1c7-70ee-479c-8e25-30e6668c8c2a",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "e237d1c7-70ee-479c-8e25-30e6668c8c2a",
+        "team_name": "Nacional Tigre",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_3f34d7dc-f6e6-4c86-aa83-0d82a123c28d_b5c65d9c-7d3a-43aa-b0e9-a2af528d3cb7",
+    "first_name": "Matteo",
+    "last_name": "Russo",
+    "date_of_birth": "1979-02-26",
+    "nationality": "IT",
+    "football_nation": "IT",
+    "birth_country": "IT",
+    "reputation": 368,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "3f34d7dc-f6e6-4c86-aa83-0d82a123c28d",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "3f34d7dc-f6e6-4c86-aa83-0d82a123c28d",
+        "team_name": "Buenos Aires FC",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_91736875-e861-42e6-bc0f-e8ca167eab89_fd089bfb-9ead-4cda-b65d-118da9d4469a",
+    "first_name": "Vitor",
+    "last_name": "Goncalves",
+    "date_of_birth": "1967-08-04",
+    "nationality": "PT",
+    "football_nation": "PT",
+    "birth_country": "PT",
+    "reputation": 364,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "91736875-e861-42e6-bc0f-e8ca167eab89",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "91736875-e861-42e6-bc0f-e8ca167eab89",
+        "team_name": "Atlético Rosario",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_64151069-e32c-43c2-be1c-6fd88fdf2420_5b55b317-8a33-415a-ab9e-1c70b66da3ca",
+    "first_name": "Yannick",
+    "last_name": "Hermans",
+    "date_of_birth": "1993-10-01",
+    "nationality": "BE",
+    "football_nation": "BE",
+    "birth_country": "BE",
+    "reputation": 325,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "64151069-e32c-43c2-be1c-6fd88fdf2420",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "64151069-e32c-43c2-be1c-6fd88fdf2420",
+        "team_name": "Racing Córdoba",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  },
+  {
+    "id": "mgr_3bf08760-6d02-4533-8a0c-965ed74c643e_34621e6c-013f-4c00-9123-f19901803536",
+    "first_name": "Sergio",
+    "last_name": "Aguero",
+    "date_of_birth": "1989-01-06",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "reputation": 344,
+    "satisfaction": 50,
+    "fan_approval": 50,
+    "team_id": "3bf08760-6d02-4533-8a0c-965ed74c643e",
+    "warning_stage": 0,
+    "career_stats": {
+      "matches_managed": 0,
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "trophies": 0,
+      "best_finish": null
+    },
+    "career_history": [
+      {
+        "team_id": "3bf08760-6d02-4533-8a0c-965ed74c643e",
+        "team_name": "Deportivo La Plata",
+        "start_date": "2026-01-02",
+        "end_date": null,
+        "matches": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "best_league_position": null
+      }
+    ]
+  }
+]

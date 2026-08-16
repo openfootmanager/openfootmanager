@@ -1,0 +1,1871 @@
+[
+  {
+    "id": "nt-ae",
+    "name": "United Arab Emirates National Team",
+    "football_nation": "AE",
+    "region_id": "asia",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-ae-nt-iq",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-ae",
+        "away_team_id": "nt-iq",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-ae-nt-br",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-ae",
+        "away_team_id": "nt-br",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-ae-nt-ir",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ae",
+        "away_team_id": "nt-ir",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ae-nt-dz",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ae",
+        "away_team_id": "nt-dz",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-ae-nt-iq",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-ae",
+        "away_team_id": "nt-iq",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ar",
+    "name": "Argentina National Team",
+    "football_nation": "AR",
+    "region_id": "south-america",
+    "squad_player_ids": [
+      "1405e40f-d218-4436-8238-2f3eb63d0d94",
+      "c6b2a2e7-e6f9-4ff5-bcba-bec3f80e0025",
+      "05bb4cac-f188-4d39-8dd8-a19ad7ac7fc2",
+      "56e29885-c6e9-47c3-9e84-3c83483d071a",
+      "30a0c68c-e574-46e3-86d3-6b9e609b8f06",
+      "c6d7406d-0553-4c75-a27d-2202cf1d6930",
+      "e2f07235-166e-45c6-b3d1-f376f3d90870",
+      "9f14efd2-def4-463b-863d-bf8c13551593",
+      "7c8069c3-679e-4264-9687-6febb17240f2",
+      "cf27ad9c-c26c-468a-a793-be7d1f3f80d8",
+      "9d1b21fc-8573-441c-b889-81aaae758400",
+      "4e1c92a0-8ec4-417c-95ce-97e192af56bd",
+      "faecdd26-369c-4e06-a5e0-a285f2819dea"
+    ],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-ar-nt-hn",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-ar",
+        "away_team_id": "nt-hn",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-ar-nt-jp",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ar",
+        "away_team_id": "nt-jp",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ar-nt-de",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ar",
+        "away_team_id": "nt-de",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-ar-nt-es",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-ar",
+        "away_team_id": "nt-es",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-at",
+    "name": "Austria National Team",
+    "football_nation": "AT",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-4-nt-at-nt-jm",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-at",
+        "away_team_id": "nt-jm",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-au",
+    "name": "Australia National Team",
+    "football_nation": "AU",
+    "region_id": "oceania",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-au-nt-cr",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-au",
+        "away_team_id": "nt-cr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-au-nt-jm",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-au",
+        "away_team_id": "nt-jm",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-au-nt-eng",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-au",
+        "away_team_id": "nt-eng",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-be",
+    "name": "Belgium National Team",
+    "football_nation": "BE",
+    "region_id": "europe",
+    "squad_player_ids": [
+      "ba33a30d-94bc-4d87-95f0-254461c4732a"
+    ],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-be-nt-ca",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-be",
+        "away_team_id": "nt-ca",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-be-nt-hr",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-be",
+        "away_team_id": "nt-hr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-be-nt-gt",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-be",
+        "away_team_id": "nt-gt",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-bo",
+    "name": "Bolivia National Team",
+    "football_nation": "BO",
+    "region_id": "south-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": []
+  },
+  {
+    "id": "nt-br",
+    "name": "Brazil National Team",
+    "football_nation": "BR",
+    "region_id": "south-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-br-nt-ir",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-br",
+        "away_team_id": "nt-ir",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ca",
+    "name": "Canada National Team",
+    "football_nation": "CA",
+    "region_id": "north-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-ca-nt-it",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-ca",
+        "away_team_id": "nt-it",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-ca-nt-nz",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ca",
+        "away_team_id": "nt-nz",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ch",
+    "name": "Switzerland National Team",
+    "football_nation": "CH",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-ch-nt-cn",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-ch",
+        "away_team_id": "nt-cn",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-ch-nt-hn",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-ch",
+        "away_team_id": "nt-hn",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-ch-nt-jm",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ch",
+        "away_team_id": "nt-jm",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ch-nt-cm",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ch",
+        "away_team_id": "nt-cm",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ci",
+    "name": "Ivory Coast National Team",
+    "football_nation": "CI",
+    "region_id": "africa",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-ci-nt-gt",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-ci",
+        "away_team_id": "nt-gt",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-ci-nt-at",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-ci",
+        "away_team_id": "nt-at",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-ci-nt-au",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ci",
+        "away_team_id": "nt-au",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ci-nt-sco",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ci",
+        "away_team_id": "nt-sco",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-ci-nt-cn",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-ci",
+        "away_team_id": "nt-cn",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-cl",
+    "name": "Chile National Team",
+    "football_nation": "CL",
+    "region_id": "south-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-cl-nt-se",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-cl",
+        "away_team_id": "nt-se",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-cl-nt-kr",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-cl",
+        "away_team_id": "nt-kr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-cm",
+    "name": "Cameroon National Team",
+    "football_nation": "CM",
+    "region_id": "africa",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-cm-nt-de",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-cm",
+        "away_team_id": "nt-de",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-cm-nt-mx",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-cm",
+        "away_team_id": "nt-mx",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-cn",
+    "name": "China National Team",
+    "football_nation": "CN",
+    "region_id": "asia",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-2-nt-cn-nt-pe",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-cn",
+        "away_team_id": "nt-pe",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-cn-nt-se",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-cn",
+        "away_team_id": "nt-se",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-co",
+    "name": "Colombia National Team",
+    "football_nation": "CO",
+    "region_id": "south-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-co-nt-gh",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-co",
+        "away_team_id": "nt-gh",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-cr",
+    "name": "Costa Rica National Team",
+    "football_nation": "CR",
+    "region_id": "central-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-3-nt-cr-nt-mx",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-cr",
+        "away_team_id": "nt-mx",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-cr-nt-cl",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-cr",
+        "away_team_id": "nt-cl",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-cz",
+    "name": "Czechia National Team",
+    "football_nation": "CZ",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-cz-nt-bo",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-cz",
+        "away_team_id": "nt-bo",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-cz-nt-kr",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-cz",
+        "away_team_id": "nt-kr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-cz-nt-es",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-cz",
+        "away_team_id": "nt-es",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-de",
+    "name": "Germany National Team",
+    "football_nation": "DE",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-de-nt-nz",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-de",
+        "away_team_id": "nt-nz",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-de-nt-pt",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-de",
+        "away_team_id": "nt-pt",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-de-nt-hr",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-de",
+        "away_team_id": "nt-hr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-dk",
+    "name": "Denmark National Team",
+    "football_nation": "DK",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-dk-nt-nl",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-dk",
+        "away_team_id": "nt-nl",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-dk-nt-br",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-dk",
+        "away_team_id": "nt-br",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-dk-nt-au",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-dk",
+        "away_team_id": "nt-au",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-dk-nt-cm",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-dk",
+        "away_team_id": "nt-cm",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-dz",
+    "name": "Algeria National Team",
+    "football_nation": "DZ",
+    "region_id": "africa",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-dz-nt-jm",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-dz",
+        "away_team_id": "nt-jm",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-dz-nt-gr",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-dz",
+        "away_team_id": "nt-gr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-dz-nt-wal",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-dz",
+        "away_team_id": "nt-wal",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ec",
+    "name": "Ecuador National Team",
+    "football_nation": "EC",
+    "region_id": "south-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-ec-nt-sco",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-ec",
+        "away_team_id": "nt-sco",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ec-nt-jp",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ec",
+        "away_team_id": "nt-jp",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-eg",
+    "name": "Egypt National Team",
+    "football_nation": "EG",
+    "region_id": "africa",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-eg-nt-pe",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-eg",
+        "away_team_id": "nt-pe",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-eg-nt-gt",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-eg",
+        "away_team_id": "nt-gt",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-eng",
+    "name": "England National Team",
+    "football_nation": "ENG",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-eng-nt-wal",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-eng",
+        "away_team_id": "nt-wal",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-eng-nt-ng",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-eng",
+        "away_team_id": "nt-ng",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-eng-nt-mx",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-eng",
+        "away_team_id": "nt-mx",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-eng-nt-it",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-eng",
+        "away_team_id": "nt-it",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-es",
+    "name": "Spain National Team",
+    "football_nation": "ES",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-es-nt-se",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-es",
+        "away_team_id": "nt-se",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-es-nt-cn",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-es",
+        "away_team_id": "nt-cn",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-es-nt-cl",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-es",
+        "away_team_id": "nt-cl",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-fr",
+    "name": "France National Team",
+    "football_nation": "FR",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-fr-nt-ec",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-fr",
+        "away_team_id": "nt-ec",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-fr-nt-eg",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-fr",
+        "away_team_id": "nt-eg",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-fr-nt-pe",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-fr",
+        "away_team_id": "nt-pe",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-fr-nt-dz",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-fr",
+        "away_team_id": "nt-dz",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-gh",
+    "name": "Ghana National Team",
+    "football_nation": "GH",
+    "region_id": "africa",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-gh-nt-gr",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-gh",
+        "away_team_id": "nt-gr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-gh-nt-co",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-gh",
+        "away_team_id": "nt-co",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-gh-nt-br",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-gh",
+        "away_team_id": "nt-br",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-gr",
+    "name": "Greece National Team",
+    "football_nation": "GR",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-3-nt-gr-nt-ca",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-gr",
+        "away_team_id": "nt-ca",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-gr-nt-bo",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-gr",
+        "away_team_id": "nt-bo",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-gt",
+    "name": "Guatemala National Team",
+    "football_nation": "GT",
+    "region_id": "central-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-gt-nt-ie",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-gt",
+        "away_team_id": "nt-ie",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-hn",
+    "name": "Honduras National Team",
+    "football_nation": "HN",
+    "region_id": "central-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-2-nt-hn-nt-cr",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-hn",
+        "away_team_id": "nt-cr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-hn-nt-iq",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-hn",
+        "away_team_id": "nt-iq",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-hr",
+    "name": "Croatia National Team",
+    "football_nation": "HR",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-2-nt-hr-nt-gr",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-hr",
+        "away_team_id": "nt-gr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ie",
+    "name": "Ireland National Team",
+    "football_nation": "IE",
+    "region_id": "europe",
+    "squad_player_ids": [
+      "916121b2-82f6-4ae6-a6e5-3b2d9a34ed4d"
+    ],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-ie-nt-ng",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-ie",
+        "away_team_id": "nt-ng",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-ie-nt-co",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ie",
+        "away_team_id": "nt-co",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-ie-nt-gt",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-ie",
+        "away_team_id": "nt-gt",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-iq",
+    "name": "Iraq National Team",
+    "football_nation": "IQ",
+    "region_id": "asia",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-iq-nt-pt",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-iq",
+        "away_team_id": "nt-pt",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-iq-nt-eg",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-iq",
+        "away_team_id": "nt-eg",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ir",
+    "name": "Iran National Team",
+    "football_nation": "IR",
+    "region_id": "asia",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-ir-nt-ma",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-ir",
+        "away_team_id": "nt-ma",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ir-nt-bo",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ir",
+        "away_team_id": "nt-bo",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-ir-nt-eg",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-ir",
+        "away_team_id": "nt-eg",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-it",
+    "name": "Italy National Team",
+    "football_nation": "IT",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-2-nt-it-nt-bo",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-it",
+        "away_team_id": "nt-bo",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-it-nt-us",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-it",
+        "away_team_id": "nt-us",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-jm",
+    "name": "Jamaica National Team",
+    "football_nation": "JM",
+    "region_id": "central-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-3-nt-jm-nt-br",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-jm",
+        "away_team_id": "nt-br",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-jp",
+    "name": "Japan National Team",
+    "football_nation": "JP",
+    "region_id": "asia",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-jp-nt-cl",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-jp",
+        "away_team_id": "nt-cl",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-jp-nt-wal",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-jp",
+        "away_team_id": "nt-wal",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-kr",
+    "name": "South Korea National Team",
+    "football_nation": "KR",
+    "region_id": "asia",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-kr-nt-cz",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-kr",
+        "away_team_id": "nt-cz",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-kr-nt-jp",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-kr",
+        "away_team_id": "nt-jp",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-kr-nt-cz",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-kr",
+        "away_team_id": "nt-cz",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ma",
+    "name": "Morocco National Team",
+    "football_nation": "MA",
+    "region_id": "africa",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-ma-nt-dk",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-ma",
+        "away_team_id": "nt-dk",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-ma-nt-at",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ma",
+        "away_team_id": "nt-at",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ma-nt-nl",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ma",
+        "away_team_id": "nt-nl",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-mx",
+    "name": "Mexico National Team",
+    "football_nation": "MX",
+    "region_id": "north-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-mx-nt-co",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-mx",
+        "away_team_id": "nt-co",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-mx-nt-ec",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-mx",
+        "away_team_id": "nt-ec",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-ng",
+    "name": "Nigeria National Team",
+    "football_nation": "NG",
+    "region_id": "africa",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-2-nt-ng-nt-ec",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-ng",
+        "away_team_id": "nt-ec",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-ng-nt-ie",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-ng",
+        "away_team_id": "nt-ie",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-ng-nt-nz",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-ng",
+        "away_team_id": "nt-nz",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-nir",
+    "name": "Northern Ireland National Team",
+    "football_nation": "NIR",
+    "region_id": "europe",
+    "squad_player_ids": [
+      "0c679a8e-e383-436d-a60c-52f883a02279"
+    ],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-nir-nt-bo",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-nir",
+        "away_team_id": "nt-bo",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-1-nt-nir-nt-cr",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-nir",
+        "away_team_id": "nt-cr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-nir-nt-se",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-nir",
+        "away_team_id": "nt-se",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-nir-nt-be",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-nir",
+        "away_team_id": "nt-be",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-nir-nt-co",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-nir",
+        "away_team_id": "nt-co",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-nl",
+    "name": "Netherlands National Team",
+    "football_nation": "NL",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-nl-nt-at",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-nl",
+        "away_team_id": "nt-at",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-nl-nt-cm",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-nl",
+        "away_team_id": "nt-cm",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-nl-nt-ma",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-nl",
+        "away_team_id": "nt-ma",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-nz",
+    "name": "New Zealand National Team",
+    "football_nation": "NZ",
+    "region_id": "oceania",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-nz-nt-it",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-nz",
+        "away_team_id": "nt-it",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-nz-nt-hr",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-nz",
+        "away_team_id": "nt-hr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-pe",
+    "name": "Peru National Team",
+    "football_nation": "PE",
+    "region_id": "south-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-4-nt-pe-nt-ca",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-pe",
+        "away_team_id": "nt-ca",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-pt",
+    "name": "Portugal National Team",
+    "football_nation": "PT",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-pt-nt-hr",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-pt",
+        "away_team_id": "nt-hr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-pt-nt-at",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-pt",
+        "away_team_id": "nt-at",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-pt-nt-hn",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-pt",
+        "away_team_id": "nt-hn",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-sco",
+    "name": "Scotland National Team",
+    "football_nation": "SCO",
+    "region_id": "europe",
+    "squad_player_ids": [
+      "bbf58325-9f1d-415c-85b2-d6b8e2e4d1e7"
+    ],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-0-nt-sco-nt-us",
+        "competition_id": "international-friendlies",
+        "matchday": 1,
+        "date": "2026-09-09",
+        "home_team_id": "nt-sco",
+        "away_team_id": "nt-us",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-sco-nt-gh",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-sco",
+        "away_team_id": "nt-gh",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-4-nt-sco-nt-ch",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-sco",
+        "away_team_id": "nt-ch",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-se",
+    "name": "Sweden National Team",
+    "football_nation": "SE",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-4-nt-se-nt-be",
+        "competition_id": "international-friendlies",
+        "matchday": 5,
+        "date": "2027-06-09",
+        "home_team_id": "nt-se",
+        "away_team_id": "nt-be",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-us",
+    "name": "United States National Team",
+    "football_nation": "US",
+    "region_id": "north-america",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-us-nt-ar",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-us",
+        "away_team_id": "nt-ar",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-2-nt-us-nt-fr",
+        "competition_id": "international-friendlies",
+        "matchday": 3,
+        "date": "2026-11-18",
+        "home_team_id": "nt-us",
+        "away_team_id": "nt-fr",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  },
+  {
+    "id": "nt-wal",
+    "name": "Wales National Team",
+    "football_nation": "WAL",
+    "region_id": "europe",
+    "squad_player_ids": [],
+    "manager_name": null,
+    "reputation": 500,
+    "fixtures": [
+      {
+        "id": "ntf-1-nt-wal-nt-pe",
+        "competition_id": "international-friendlies",
+        "matchday": 2,
+        "date": "2026-10-14",
+        "home_team_id": "nt-wal",
+        "away_team_id": "nt-pe",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      },
+      {
+        "id": "ntf-3-nt-wal-nt-us",
+        "competition_id": "international-friendlies",
+        "matchday": 4,
+        "date": "2027-03-24",
+        "home_team_id": "nt-wal",
+        "away_team_id": "nt-us",
+        "competition": "InternationalNation",
+        "status": "Scheduled",
+        "result": null
+      }
+    ]
+  }
+]

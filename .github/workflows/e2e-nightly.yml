@@ -1,0 +1,94 @@
+name: e2e-nightly
+
+# End-to-end suite (WebdriverIO + tauri-driver) driving the real Tauri
+# WebView. It boots a debug build with the `mcp` feature and the
+# `--mcp-auto-start` hook against tests/e2e/fixtures/baseline.json.
+#
+# Run nightly rather than per-PR: the debug tauri build dominates wall
+# time and the WebKitGTK WebView needs a headless X server (xvfb), so it
+# is too heavy for the fast PR path in build-check.yml.
+on:
+  schedule:
+    # 02:30 UTC every day.
+    - cron: "30 2 * * *"
+  # Manual trigger from the Actions UI / `gh workflow run` on any branch.
+  workflow_dispatch:
+
+# A newer nightly (or a manual re-run) supersedes an in-flight one.
+concurrency:
+  group: e2e-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    # Test-only job — it reads the repo and runs; it never writes back.
+    permissions:
+      contents: read
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # No pushes from this job, so don't leave the token in .git/config.
+          persist-credentials: false
+
+      - name: Install Linux build + e2e dependencies
+        run: |
+          sudo apt-get update
+          # Build deps mirror build-check.yml; the e2e job additionally
+          # needs webkit2gtk-driver (WebKitWebDriver, spawned by
+          # tauri-driver) and xvfb (headless display for the WebView).
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+            patchelf xdg-utils \
+            webkit2gtk-driver xvfb \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Cache tauri-driver
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/tauri-driver
+          key: tauri-driver-0.1.4-${{ runner.os }}
+
+      - name: Install tauri-driver
+        # Version pinned to match shell.nix. Skipped when restored from cache.
+        run: command -v tauri-driver || cargo install tauri-driver --version 0.1.4 --locked
+
+      - name: Build debug binary with MCP feature
+        # --features mcp compiles in --mcp-auto-start; without it the flag is
+        # silently ignored and the app never boots into the dashboard.
+        # beforeBuildCommand builds the frontend, and frontendDist embeds it
+        # so no Vite dev server is needed at test time.
+        run: npx tauri build --debug --no-bundle --ci --features mcp
+
+      - name: Run e2e suite
+        # 24-bit screen: xvfb-run's default 8-bit depth breaks WebKit rendering.
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" npm run test:e2e
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: tests/e2e/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14

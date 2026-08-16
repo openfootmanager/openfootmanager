@@ -1,0 +1,1602 @@
+[
+  {
+    "id": "eab367f4-5fba-4616-bf7b-4adc33f03537",
+    "first_name": "Matias",
+    "last_name": "Fernandez",
+    "date_of_birth": "1996-06-17",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 57,
+      "judgingAbility": 59,
+      "judgingPotential": 69,
+      "physiotherapy": 31
+    },
+    "team_id": "dda1d67c-3bca-47c4-8c78-e5bd19d00886",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "beca30be-26dd-4b78-bb9f-f5a2fd891f52",
+    "first_name": "Nicolas",
+    "last_name": "Medina",
+    "date_of_birth": "1978-12-26",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 75,
+      "judgingAbility": 57,
+      "judgingPotential": 62,
+      "physiotherapy": 30
+    },
+    "team_id": "dda1d67c-3bca-47c4-8c78-e5bd19d00886",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "d11658cc-4c50-4fb9-839e-44c4acfa8610",
+    "first_name": "Luke",
+    "last_name": "Jones",
+    "date_of_birth": "1985-05-25",
+    "nationality": "ENG",
+    "football_nation": "ENG",
+    "birth_country": "ENG",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 22,
+      "judgingAbility": 66,
+      "judgingPotential": 64,
+      "physiotherapy": 11
+    },
+    "team_id": "dda1d67c-3bca-47c4-8c78-e5bd19d00886",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "cae69d78-a310-4889-8e6f-01e83099640b",
+    "first_name": "Leandro",
+    "last_name": "Fernandez",
+    "date_of_birth": "1988-05-28",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 22,
+      "judgingAbility": 46,
+      "judgingPotential": 16,
+      "physiotherapy": 93
+    },
+    "team_id": "dda1d67c-3bca-47c4-8c78-e5bd19d00886",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "a6e75b6d-5134-4a57-9728-838a6d07f520",
+    "first_name": "Leandro",
+    "last_name": "Gutierrez",
+    "date_of_birth": "1970-08-26",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 71,
+      "judgingAbility": 69,
+      "judgingPotential": 79,
+      "physiotherapy": 39
+    },
+    "team_id": "d2deaa52-f423-4a4c-8953-0ec871a31806",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "c9d07017-6cdd-40bc-bb08-7341ea43206c",
+    "first_name": "Lionel",
+    "last_name": "Rodriguez",
+    "date_of_birth": "1991-07-01",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 62,
+      "judgingAbility": 43,
+      "judgingPotential": 68,
+      "physiotherapy": 40
+    },
+    "team_id": "d2deaa52-f423-4a4c-8953-0ec871a31806",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "b37986a7-2f99-48ba-b764-2cc42e91df8d",
+    "first_name": "Angel",
+    "last_name": "Pereyra",
+    "date_of_birth": "1978-01-24",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 22,
+      "judgingAbility": 85,
+      "judgingPotential": 66,
+      "physiotherapy": 23
+    },
+    "team_id": "d2deaa52-f423-4a4c-8953-0ec871a31806",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "8b259161-5497-4e8e-99e8-b8327f3ea5fb",
+    "first_name": "Franco",
+    "last_name": "Alvarez",
+    "date_of_birth": "1986-05-15",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 23,
+      "judgingAbility": 36,
+      "judgingPotential": 18,
+      "physiotherapy": 72
+    },
+    "team_id": "d2deaa52-f423-4a4c-8953-0ec871a31806",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "071c933e-1b27-4d38-95f0-fb0f062babaa",
+    "first_name": "Mauro",
+    "last_name": "Rodriguez",
+    "date_of_birth": "1986-12-24",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 54,
+      "judgingAbility": 69,
+      "judgingPotential": 78,
+      "physiotherapy": 34
+    },
+    "team_id": "b935030d-3189-44d8-b642-754a94e73b09",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "08b8e9dd-1287-4d2f-a974-796b5a787c40",
+    "first_name": "Cian",
+    "last_name": "Carroll",
+    "date_of_birth": "1984-03-06",
+    "nationality": "IE",
+    "football_nation": "IE",
+    "birth_country": "IE",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 78,
+      "judgingAbility": 66,
+      "judgingPotential": 34,
+      "physiotherapy": 22
+    },
+    "team_id": "b935030d-3189-44d8-b642-754a94e73b09",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "7d0e1676-5439-4521-810c-11fd0ca26213",
+    "first_name": "Rodrigo",
+    "last_name": "Pereyra",
+    "date_of_birth": "1980-04-24",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 41,
+      "judgingAbility": 82,
+      "judgingPotential": 82,
+      "physiotherapy": 22
+    },
+    "team_id": "b935030d-3189-44d8-b642-754a94e73b09",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "07c5f411-4469-4450-9a80-2b8b1b39b230",
+    "first_name": "Luuk",
+    "last_name": "Jansen",
+    "date_of_birth": "1993-07-09",
+    "nationality": "NL",
+    "football_nation": "NL",
+    "birth_country": "NL",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 15,
+      "judgingAbility": 47,
+      "judgingPotential": 43,
+      "physiotherapy": 83
+    },
+    "team_id": "b935030d-3189-44d8-b642-754a94e73b09",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "edfa5266-b1f0-4f56-9eac-5e0c23e8c872",
+    "first_name": "Franco",
+    "last_name": "Alvarez",
+    "date_of_birth": "1968-08-01",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 71,
+      "judgingAbility": 53,
+      "judgingPotential": 64,
+      "physiotherapy": 40
+    },
+    "team_id": "ce14d49d-1c74-4595-be4a-e611dac89458",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "a557a3fa-02cf-425f-8d6d-e01cefabdcf2",
+    "first_name": "Pablo",
+    "last_name": "Aguero",
+    "date_of_birth": "1983-06-12",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 69,
+      "judgingAbility": 40,
+      "judgingPotential": 31,
+      "physiotherapy": 41
+    },
+    "team_id": "ce14d49d-1c74-4595-be4a-e611dac89458",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "e0d240bd-8d88-4421-a5ed-24b493398319",
+    "first_name": "Lionel",
+    "last_name": "Aguero",
+    "date_of_birth": "1977-11-01",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 38,
+      "judgingAbility": 64,
+      "judgingPotential": 64,
+      "physiotherapy": 13
+    },
+    "team_id": "ce14d49d-1c74-4595-be4a-e611dac89458",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "57762185-677c-47bd-a9ed-2b13e06465eb",
+    "first_name": "Ethan",
+    "last_name": "Young",
+    "date_of_birth": "1968-02-19",
+    "nationality": "ENG",
+    "football_nation": "ENG",
+    "birth_country": "ENG",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 31,
+      "judgingAbility": 47,
+      "judgingPotential": 21,
+      "physiotherapy": 87
+    },
+    "team_id": "ce14d49d-1c74-4595-be4a-e611dac89458",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "ec571544-e3ab-4553-9572-f14548df435c",
+    "first_name": "Leandro",
+    "last_name": "Lopez",
+    "date_of_birth": "1971-09-19",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 69,
+      "judgingAbility": 64,
+      "judgingPotential": 67,
+      "physiotherapy": 40
+    },
+    "team_id": "d7a918cc-9de7-46ee-997e-18b833a0e438",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "0d43e27d-41e4-4e85-a46c-2010929f1afc",
+    "first_name": "Darijo",
+    "last_name": "Pasalic",
+    "date_of_birth": "1989-04-27",
+    "nationality": "HR",
+    "football_nation": "HR",
+    "birth_country": "HR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 67,
+      "judgingAbility": 57,
+      "judgingPotential": 32,
+      "physiotherapy": 24
+    },
+    "team_id": "d7a918cc-9de7-46ee-997e-18b833a0e438",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "4bf51bef-f776-40c8-a329-afc51dead810",
+    "first_name": "Yannick",
+    "last_name": "Goossens",
+    "date_of_birth": "1981-03-09",
+    "nationality": "BE",
+    "football_nation": "BE",
+    "birth_country": "BE",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 29,
+      "judgingAbility": 92,
+      "judgingPotential": 93,
+      "physiotherapy": 27
+    },
+    "team_id": "d7a918cc-9de7-46ee-997e-18b833a0e438",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "a10d4ef9-5446-4b58-974b-a99eb798df98",
+    "first_name": "Mauro",
+    "last_name": "Garcia",
+    "date_of_birth": "1989-12-24",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 39,
+      "judgingAbility": 33,
+      "judgingPotential": 32,
+      "physiotherapy": 68
+    },
+    "team_id": "d7a918cc-9de7-46ee-997e-18b833a0e438",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "cdf0d870-8882-47d2-bcd4-7024c0227509",
+    "first_name": "Lionel",
+    "last_name": "Diaz",
+    "date_of_birth": "1979-04-07",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 59,
+      "judgingAbility": 51,
+      "judgingPotential": 43,
+      "physiotherapy": 43
+    },
+    "team_id": "1b9a1125-3c16-48d1-915a-79affe527b3f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "526e1c6b-7999-435e-a3a4-82f6e5b5a79e",
+    "first_name": "Matias",
+    "last_name": "Torres",
+    "date_of_birth": "1992-06-11",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 86,
+      "judgingAbility": 58,
+      "judgingPotential": 50,
+      "physiotherapy": 44
+    },
+    "team_id": "1b9a1125-3c16-48d1-915a-79affe527b3f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "2ffcde0b-b46c-4a20-b1d4-17df1b75457d",
+    "first_name": "Federico",
+    "last_name": "Garcia",
+    "date_of_birth": "1992-12-01",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 27,
+      "judgingAbility": 70,
+      "judgingPotential": 68,
+      "physiotherapy": 26
+    },
+    "team_id": "1b9a1125-3c16-48d1-915a-79affe527b3f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "43f7659a-adfe-4a69-8d15-7dcab47a9877",
+    "first_name": "Matias",
+    "last_name": "Gonzalez",
+    "date_of_birth": "1988-02-14",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 29,
+      "judgingAbility": 41,
+      "judgingPotential": 33,
+      "physiotherapy": 77
+    },
+    "team_id": "1b9a1125-3c16-48d1-915a-79affe527b3f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "38c42b31-dd84-4230-a608-a8c5004bc878",
+    "first_name": "Jason",
+    "last_name": "Stevens",
+    "date_of_birth": "1979-09-14",
+    "nationality": "BE",
+    "football_nation": "BE",
+    "birth_country": "BE",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 59,
+      "judgingAbility": 53,
+      "judgingPotential": 61,
+      "physiotherapy": 42
+    },
+    "team_id": "245a2b26-1551-4c34-abe4-7f75730913da",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "bed7c9fe-c803-4be1-9ec3-8347768223a4",
+    "first_name": "Federico",
+    "last_name": "Sanchez",
+    "date_of_birth": "1977-02-05",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 81,
+      "judgingAbility": 60,
+      "judgingPotential": 61,
+      "physiotherapy": 27
+    },
+    "team_id": "245a2b26-1551-4c34-abe4-7f75730913da",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "c65357ca-a6f1-4f68-a6e1-094a99f41d56",
+    "first_name": "Agustin",
+    "last_name": "Torres",
+    "date_of_birth": "1967-09-11",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 22,
+      "judgingAbility": 90,
+      "judgingPotential": 90,
+      "physiotherapy": 18
+    },
+    "team_id": "245a2b26-1551-4c34-abe4-7f75730913da",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "1333c7af-2fc5-45ad-83ed-55a369d4236a",
+    "first_name": "Gonzalo",
+    "last_name": "Martinez",
+    "date_of_birth": "1974-09-27",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 38,
+      "judgingAbility": 32,
+      "judgingPotential": 27,
+      "physiotherapy": 62
+    },
+    "team_id": "245a2b26-1551-4c34-abe4-7f75730913da",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "330ac12d-7f8f-41a0-ab43-3075cf82c682",
+    "first_name": "Stuart",
+    "last_name": "Murray",
+    "date_of_birth": "1985-02-15",
+    "nationality": "SCO",
+    "football_nation": "SCO",
+    "birth_country": "SCO",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 58,
+      "judgingAbility": 71,
+      "judgingPotential": 76,
+      "physiotherapy": 49
+    },
+    "team_id": "86613109-1219-463b-aa0d-625235a33188",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "092d97b6-f349-4b98-885e-a21fdbad1bec",
+    "first_name": "Eoin",
+    "last_name": "Morrow",
+    "date_of_birth": "1977-10-07",
+    "nationality": "NIR",
+    "football_nation": "NIR",
+    "birth_country": "NIR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 75,
+      "judgingAbility": 43,
+      "judgingPotential": 39,
+      "physiotherapy": 37
+    },
+    "team_id": "86613109-1219-463b-aa0d-625235a33188",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "a76f8c73-c76f-4fdb-8fb8-4a0c42871081",
+    "first_name": "Rodrigo",
+    "last_name": "Pereyra",
+    "date_of_birth": "1983-02-22",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 32,
+      "judgingAbility": 72,
+      "judgingPotential": 94,
+      "physiotherapy": 29
+    },
+    "team_id": "86613109-1219-463b-aa0d-625235a33188",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "9029f5df-641b-49fb-ad9c-aea8ec07faa9",
+    "first_name": "Ignacio",
+    "last_name": "Torres",
+    "date_of_birth": "1982-01-11",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 16,
+      "judgingAbility": 29,
+      "judgingPotential": 28,
+      "physiotherapy": 85
+    },
+    "team_id": "86613109-1219-463b-aa0d-625235a33188",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "ef023a4a-373b-4518-b09b-2e069cee3ac2",
+    "first_name": "Rory",
+    "last_name": "McAllister",
+    "date_of_birth": "1991-11-07",
+    "nationality": "NIR",
+    "football_nation": "NIR",
+    "birth_country": "NIR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 66,
+      "judgingAbility": 53,
+      "judgingPotential": 51,
+      "physiotherapy": 22
+    },
+    "team_id": "737916a6-19d6-4a49-bc93-926457637aa3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "9733d252-f7fe-4743-a447-23da2b067e59",
+    "first_name": "Odhran",
+    "last_name": "Campbell",
+    "date_of_birth": "1991-02-25",
+    "nationality": "NIR",
+    "football_nation": "NIR",
+    "birth_country": "NIR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 66,
+      "judgingAbility": 45,
+      "judgingPotential": 58,
+      "physiotherapy": 36
+    },
+    "team_id": "737916a6-19d6-4a49-bc93-926457637aa3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "970f67ff-bb96-418d-90b3-946234fc89aa",
+    "first_name": "Angel",
+    "last_name": "Herrera",
+    "date_of_birth": "1982-01-21",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 38,
+      "judgingAbility": 83,
+      "judgingPotential": 83,
+      "physiotherapy": 17
+    },
+    "team_id": "737916a6-19d6-4a49-bc93-926457637aa3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "62013cfa-65b6-42ac-8c77-323b4ead0c41",
+    "first_name": "Cristian",
+    "last_name": "Aguero",
+    "date_of_birth": "1991-05-25",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 31,
+      "judgingAbility": 22,
+      "judgingPotential": 16,
+      "physiotherapy": 79
+    },
+    "team_id": "737916a6-19d6-4a49-bc93-926457637aa3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "ef58534b-5099-46bf-83f1-dd5b31b45546",
+    "first_name": "Sean",
+    "last_name": "Quinn",
+    "date_of_birth": "1971-02-06",
+    "nationality": "NIR",
+    "football_nation": "NIR",
+    "birth_country": "NIR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 70,
+      "judgingAbility": 61,
+      "judgingPotential": 49,
+      "physiotherapy": 32
+    },
+    "team_id": "be62641d-d3cb-46d6-9c3d-4c9aa8f7f7de",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "11ff00e7-7fcf-4852-a365-17a9d8b43811",
+    "first_name": "Sergio",
+    "last_name": "Garcia",
+    "date_of_birth": "1995-08-23",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 82,
+      "judgingAbility": 72,
+      "judgingPotential": 40,
+      "physiotherapy": 38
+    },
+    "team_id": "be62641d-d3cb-46d6-9c3d-4c9aa8f7f7de",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "a348733a-142c-4067-87f3-4895347a6599",
+    "first_name": "Julian",
+    "last_name": "Flores",
+    "date_of_birth": "1979-04-09",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 26,
+      "judgingAbility": 60,
+      "judgingPotential": 85,
+      "physiotherapy": 25
+    },
+    "team_id": "be62641d-d3cb-46d6-9c3d-4c9aa8f7f7de",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "ec298a90-b638-4ed6-84bd-f6c47e9c113d",
+    "first_name": "Lionel",
+    "last_name": "Diaz",
+    "date_of_birth": "1968-05-06",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 11,
+      "judgingAbility": 27,
+      "judgingPotential": 26,
+      "physiotherapy": 92
+    },
+    "team_id": "be62641d-d3cb-46d6-9c3d-4c9aa8f7f7de",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "ab024fec-2ba2-4fb8-8a24-14fa29e6db0a",
+    "first_name": "Leandro",
+    "last_name": "Ruiz",
+    "date_of_birth": "1979-07-07",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 55,
+      "judgingAbility": 56,
+      "judgingPotential": 46,
+      "physiotherapy": 45
+    },
+    "team_id": "4910d66e-c703-4a86-a75e-f0a77bc1dbad",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "608e57c0-b726-43c4-9413-059803cf82fc",
+    "first_name": "Lionel",
+    "last_name": "Ruiz",
+    "date_of_birth": "1992-07-16",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 94,
+      "judgingAbility": 51,
+      "judgingPotential": 40,
+      "physiotherapy": 34
+    },
+    "team_id": "4910d66e-c703-4a86-a75e-f0a77bc1dbad",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "64e35c1f-3b95-4650-a6b4-b65c29c7895b",
+    "first_name": "Nicolas",
+    "last_name": "Acosta",
+    "date_of_birth": "1967-05-04",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 44,
+      "judgingAbility": 88,
+      "judgingPotential": 88,
+      "physiotherapy": 16
+    },
+    "team_id": "4910d66e-c703-4a86-a75e-f0a77bc1dbad",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "c4793fae-07c9-4632-af35-5c0c1250bd24",
+    "first_name": "Diogo",
+    "last_name": "Oliveira",
+    "date_of_birth": "1980-07-13",
+    "nationality": "PT",
+    "football_nation": "PT",
+    "birth_country": "PT",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 37,
+      "judgingAbility": 29,
+      "judgingPotential": 20,
+      "physiotherapy": 88
+    },
+    "team_id": "4910d66e-c703-4a86-a75e-f0a77bc1dbad",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "4ae833bb-129c-4d36-977e-ef318db99547",
+    "first_name": "Cristian",
+    "last_name": "Sanchez",
+    "date_of_birth": "1981-04-04",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 69,
+      "judgingAbility": 57,
+      "judgingPotential": 75,
+      "physiotherapy": 37
+    },
+    "team_id": "ae8abe5a-0874-474d-81c7-edc37a99164f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "9277380e-3f0e-4c65-94de-d465f118f7fd",
+    "first_name": "Marcos",
+    "last_name": "Ruiz",
+    "date_of_birth": "1972-01-15",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 72,
+      "judgingAbility": 73,
+      "judgingPotential": 50,
+      "physiotherapy": 24
+    },
+    "team_id": "ae8abe5a-0874-474d-81c7-edc37a99164f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "363cfb45-1688-44cf-ae30-dbba1d8c9879",
+    "first_name": "Agustin",
+    "last_name": "Medina",
+    "date_of_birth": "1970-07-28",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 30,
+      "judgingAbility": 94,
+      "judgingPotential": 57,
+      "physiotherapy": 27
+    },
+    "team_id": "ae8abe5a-0874-474d-81c7-edc37a99164f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "43fdb0cf-6818-480f-bcea-973decba6b04",
+    "first_name": "Sergio",
+    "last_name": "Romero",
+    "date_of_birth": "1968-02-16",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 36,
+      "judgingAbility": 39,
+      "judgingPotential": 31,
+      "physiotherapy": 67
+    },
+    "team_id": "ae8abe5a-0874-474d-81c7-edc37a99164f",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "9b38836d-6392-41bb-9dd3-ae0fcad98429",
+    "first_name": "Ignacio",
+    "last_name": "Acosta",
+    "date_of_birth": "1986-11-15",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 80,
+      "judgingAbility": 62,
+      "judgingPotential": 70,
+      "physiotherapy": 28
+    },
+    "team_id": "fc14c17b-e718-41ab-8510-cfbc2d82f769",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "3ce73d18-020b-44a7-a1af-df746ae8c5cd",
+    "first_name": "Gonzalo",
+    "last_name": "Martinez",
+    "date_of_birth": "1993-05-16",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 59,
+      "judgingAbility": 59,
+      "judgingPotential": 36,
+      "physiotherapy": 27
+    },
+    "team_id": "fc14c17b-e718-41ab-8510-cfbc2d82f769",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "635f1a81-8146-4437-923e-5ec5e4862fe0",
+    "first_name": "Cristian",
+    "last_name": "Ruiz",
+    "date_of_birth": "1971-03-20",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 26,
+      "judgingAbility": 86,
+      "judgingPotential": 56,
+      "physiotherapy": 21
+    },
+    "team_id": "fc14c17b-e718-41ab-8510-cfbc2d82f769",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "097297f1-ac23-4fa4-88e1-38fc7a653b54",
+    "first_name": "Leandro",
+    "last_name": "Acosta",
+    "date_of_birth": "1987-04-08",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 31,
+      "judgingAbility": 32,
+      "judgingPotential": 18,
+      "physiotherapy": 93
+    },
+    "team_id": "fc14c17b-e718-41ab-8510-cfbc2d82f769",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "22eb4fea-086e-47c2-9443-9a563d8fc9bd",
+    "first_name": "Marcos",
+    "last_name": "Rodriguez",
+    "date_of_birth": "1981-08-22",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 61,
+      "judgingAbility": 73,
+      "judgingPotential": 70,
+      "physiotherapy": 47
+    },
+    "team_id": "c4ec3772-033f-4e02-97e1-1b01b6ee3fd3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "2c238a31-79b6-4dcd-bdfc-9a8012b63eae",
+    "first_name": "Simon",
+    "last_name": "Jansson",
+    "date_of_birth": "1972-11-03",
+    "nationality": "SE",
+    "football_nation": "SE",
+    "birth_country": "SE",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 81,
+      "judgingAbility": 57,
+      "judgingPotential": 63,
+      "physiotherapy": 28
+    },
+    "team_id": "c4ec3772-033f-4e02-97e1-1b01b6ee3fd3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "0c33d8ef-299d-4870-a755-b01ae4df0d78",
+    "first_name": "Lucas",
+    "last_name": "Garcia",
+    "date_of_birth": "1968-01-19",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 35,
+      "judgingAbility": 65,
+      "judgingPotential": 76,
+      "physiotherapy": 15
+    },
+    "team_id": "c4ec3772-033f-4e02-97e1-1b01b6ee3fd3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "6e3ab45a-4c8e-4e31-8e85-7c0a70b17a62",
+    "first_name": "Henrik",
+    "last_name": "Karlsson",
+    "date_of_birth": "1970-10-15",
+    "nationality": "SE",
+    "football_nation": "SE",
+    "birth_country": "SE",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 33,
+      "judgingAbility": 29,
+      "judgingPotential": 26,
+      "physiotherapy": 74
+    },
+    "team_id": "c4ec3772-033f-4e02-97e1-1b01b6ee3fd3",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "5dc15962-59c8-48ca-b819-85a580b7e7b6",
+    "first_name": "Rodrigo",
+    "last_name": "Romero",
+    "date_of_birth": "1972-08-21",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 87,
+      "judgingAbility": 62,
+      "judgingPotential": 58,
+      "physiotherapy": 43
+    },
+    "team_id": "08981138-3210-4118-bc0b-34e5a1608100",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "9639655c-3acf-49c2-a1b6-c16564eb1235",
+    "first_name": "Lionel",
+    "last_name": "Castro",
+    "date_of_birth": "1979-07-13",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 62,
+      "judgingAbility": 64,
+      "judgingPotential": 61,
+      "physiotherapy": 40
+    },
+    "team_id": "08981138-3210-4118-bc0b-34e5a1608100",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "ec268dd4-3764-4392-a1c4-c84ed20fd236",
+    "first_name": "Bryn",
+    "last_name": "Rees",
+    "date_of_birth": "1993-03-06",
+    "nationality": "WAL",
+    "football_nation": "WAL",
+    "birth_country": "WAL",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 36,
+      "judgingAbility": 82,
+      "judgingPotential": 90,
+      "physiotherapy": 11
+    },
+    "team_id": "08981138-3210-4118-bc0b-34e5a1608100",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "da0326ed-cc31-4532-af20-c851a5b21a49",
+    "first_name": "Agustin",
+    "last_name": "Romero",
+    "date_of_birth": "1983-07-28",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 27,
+      "judgingAbility": 26,
+      "judgingPotential": 31,
+      "physiotherapy": 64
+    },
+    "team_id": "08981138-3210-4118-bc0b-34e5a1608100",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "963012cc-83fc-43a1-bbc5-670223e40ae6",
+    "first_name": "Agustin",
+    "last_name": "Herrera",
+    "date_of_birth": "1993-05-12",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 54,
+      "judgingAbility": 82,
+      "judgingPotential": 42,
+      "physiotherapy": 28
+    },
+    "team_id": "e237d1c7-70ee-479c-8e25-30e6668c8c2a",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "4c7b13bd-8f9c-40d2-a6b1-da4e3200f883",
+    "first_name": "Davide",
+    "last_name": "Bianchi",
+    "date_of_birth": "1971-04-18",
+    "nationality": "IT",
+    "football_nation": "IT",
+    "birth_country": "IT",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 87,
+      "judgingAbility": 53,
+      "judgingPotential": 63,
+      "physiotherapy": 37
+    },
+    "team_id": "e237d1c7-70ee-479c-8e25-30e6668c8c2a",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "4b617bb5-957b-405e-96a1-16b44bb6d2f3",
+    "first_name": "Ruairi",
+    "last_name": "Doyle",
+    "date_of_birth": "1974-05-16",
+    "nationality": "IE",
+    "football_nation": "IE",
+    "birth_country": "IE",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 25,
+      "judgingAbility": 62,
+      "judgingPotential": 60,
+      "physiotherapy": 14
+    },
+    "team_id": "e237d1c7-70ee-479c-8e25-30e6668c8c2a",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "7bef9904-5651-4b07-806a-4ec88c54ef0c",
+    "first_name": "Agustin",
+    "last_name": "Castro",
+    "date_of_birth": "1968-12-13",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 25,
+      "judgingAbility": 27,
+      "judgingPotential": 44,
+      "physiotherapy": 89
+    },
+    "team_id": "e237d1c7-70ee-479c-8e25-30e6668c8c2a",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "b5c65d9c-7d3a-43aa-b0e9-a2af528d3cb7",
+    "first_name": "Matteo",
+    "last_name": "Russo",
+    "date_of_birth": "1979-02-26",
+    "nationality": "IT",
+    "football_nation": "IT",
+    "birth_country": "IT",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 70,
+      "judgingAbility": 83,
+      "judgingPotential": 45,
+      "physiotherapy": 43
+    },
+    "team_id": "3f34d7dc-f6e6-4c86-aa83-0d82a123c28d",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "1f3d5564-21f7-4203-aaee-1fd6f0d1da4f",
+    "first_name": "Ciaran",
+    "last_name": "Murphy",
+    "date_of_birth": "1996-04-17",
+    "nationality": "NIR",
+    "football_nation": "NIR",
+    "birth_country": "NIR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 64,
+      "judgingAbility": 69,
+      "judgingPotential": 60,
+      "physiotherapy": 37
+    },
+    "team_id": "3f34d7dc-f6e6-4c86-aa83-0d82a123c28d",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "cfcbc87c-2e96-44ea-81f1-186514fe4852",
+    "first_name": "Nicolas",
+    "last_name": "Lopez",
+    "date_of_birth": "1976-08-04",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 22,
+      "judgingAbility": 76,
+      "judgingPotential": 58,
+      "physiotherapy": 14
+    },
+    "team_id": "3f34d7dc-f6e6-4c86-aa83-0d82a123c28d",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "783686da-9987-46da-8cf8-7cc8cfc56d6e",
+    "first_name": "Rhys",
+    "last_name": "Lewis",
+    "date_of_birth": "1995-12-09",
+    "nationality": "WAL",
+    "football_nation": "WAL",
+    "birth_country": "WAL",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 39,
+      "judgingAbility": 39,
+      "judgingPotential": 40,
+      "physiotherapy": 88
+    },
+    "team_id": "3f34d7dc-f6e6-4c86-aa83-0d82a123c28d",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "fd089bfb-9ead-4cda-b65d-118da9d4469a",
+    "first_name": "Vitor",
+    "last_name": "Goncalves",
+    "date_of_birth": "1967-08-04",
+    "nationality": "PT",
+    "football_nation": "PT",
+    "birth_country": "PT",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 77,
+      "judgingAbility": 82,
+      "judgingPotential": 46,
+      "physiotherapy": 49
+    },
+    "team_id": "91736875-e861-42e6-bc0f-e8ca167eab89",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "efe5b3b3-62ae-4cdc-9f93-8c131a4be874",
+    "first_name": "Nicolas",
+    "last_name": "Aguero",
+    "date_of_birth": "1972-05-27",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 65,
+      "judgingAbility": 61,
+      "judgingPotential": 58,
+      "physiotherapy": 21
+    },
+    "team_id": "91736875-e861-42e6-bc0f-e8ca167eab89",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "8ae4332c-8eac-4618-8d1f-98a2fc65bc21",
+    "first_name": "Emil",
+    "last_name": "Eriksson",
+    "date_of_birth": "1968-06-11",
+    "nationality": "SE",
+    "football_nation": "SE",
+    "birth_country": "SE",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 36,
+      "judgingAbility": 76,
+      "judgingPotential": 92,
+      "physiotherapy": 21
+    },
+    "team_id": "91736875-e861-42e6-bc0f-e8ca167eab89",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "5db74bf6-f17d-44cf-b262-991a8d6d4a82",
+    "first_name": "Lucas",
+    "last_name": "Ruiz",
+    "date_of_birth": "1971-02-16",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 24,
+      "judgingAbility": 46,
+      "judgingPotential": 16,
+      "physiotherapy": 82
+    },
+    "team_id": "91736875-e861-42e6-bc0f-e8ca167eab89",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "5b55b317-8a33-415a-ab9e-1c70b66da3ca",
+    "first_name": "Yannick",
+    "last_name": "Hermans",
+    "date_of_birth": "1993-10-01",
+    "nationality": "BE",
+    "football_nation": "BE",
+    "birth_country": "BE",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 82,
+      "judgingAbility": 82,
+      "judgingPotential": 46,
+      "physiotherapy": 25
+    },
+    "team_id": "64151069-e32c-43c2-be1c-6fd88fdf2420",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "a37c6b61-92d4-47f8-9e6b-c1b3942fd642",
+    "first_name": "Gonzalo",
+    "last_name": "Medina",
+    "date_of_birth": "1984-02-28",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 76,
+      "judgingAbility": 48,
+      "judgingPotential": 65,
+      "physiotherapy": 34
+    },
+    "team_id": "64151069-e32c-43c2-be1c-6fd88fdf2420",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "bb59aad5-a7fc-4138-b001-c603667eea78",
+    "first_name": "Leandro",
+    "last_name": "Fernandez",
+    "date_of_birth": "1975-12-16",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 35,
+      "judgingAbility": 65,
+      "judgingPotential": 75,
+      "physiotherapy": 20
+    },
+    "team_id": "64151069-e32c-43c2-be1c-6fd88fdf2420",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "d42c1150-16e5-4eea-81f3-0cba22ec703c",
+    "first_name": "Pablo",
+    "last_name": "Martinez",
+    "date_of_birth": "1996-10-04",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 28,
+      "judgingAbility": 42,
+      "judgingPotential": 17,
+      "physiotherapy": 94
+    },
+    "team_id": "64151069-e32c-43c2-be1c-6fd88fdf2420",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "34621e6c-013f-4c00-9123-f19901803536",
+    "first_name": "Sergio",
+    "last_name": "Aguero",
+    "date_of_birth": "1989-01-06",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "AssistantManager",
+    "attributes": {
+      "coaching": 81,
+      "judgingAbility": 61,
+      "judgingPotential": 64,
+      "physiotherapy": 40
+    },
+    "team_id": "3bf08760-6d02-4533-8a0c-965ed74c643e",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "d71d31b8-3213-4041-b642-40316d808915",
+    "first_name": "Federico",
+    "last_name": "Herrera",
+    "date_of_birth": "1983-07-23",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Coach",
+    "attributes": {
+      "coaching": 81,
+      "judgingAbility": 54,
+      "judgingPotential": 33,
+      "physiotherapy": 30
+    },
+    "team_id": "3bf08760-6d02-4533-8a0c-965ed74c643e",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "35415833-4245-41b8-b0bc-c197c5e7bbd3",
+    "first_name": "Cristian",
+    "last_name": "Ruiz",
+    "date_of_birth": "1986-10-08",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Scout",
+    "attributes": {
+      "coaching": 22,
+      "judgingAbility": 76,
+      "judgingPotential": 92,
+      "physiotherapy": 10
+    },
+    "team_id": "3bf08760-6d02-4533-8a0c-965ed74c643e",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  },
+  {
+    "id": "4c7110b2-8ef5-4cd6-af10-c4d1e6382302",
+    "first_name": "Cristian",
+    "last_name": "Castro",
+    "date_of_birth": "1978-11-05",
+    "nationality": "AR",
+    "football_nation": "AR",
+    "birth_country": "AR",
+    "role": "Physio",
+    "attributes": {
+      "coaching": 25,
+      "judgingAbility": 40,
+      "judgingPotential": 16,
+      "physiotherapy": 61
+    },
+    "team_id": "3bf08760-6d02-4533-8a0c-965ed74c643e",
+    "specialization": null,
+    "wage": 0,
+    "contract_end": null
+  }
+]
