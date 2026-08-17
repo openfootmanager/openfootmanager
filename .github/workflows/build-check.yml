@@ -13,6 +13,19 @@ permissions:
   contents: read
 
 jobs:
+  # Its own job rather than a step inside `backend`: this needs no toolchain, no apt and no npm,
+  # so it goes red in seconds with an unambiguous check name instead of being buried in a job
+  # whose failures are usually about something else entirely.
+  toolchain-pin:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Rust toolchain pins agree
+        run: ./scripts/check-toolchain-pin.sh
+
   frontend:
     runs-on: ubuntu-latest
 
@@ -79,10 +92,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
 
+      # Keep this version equal to `rust-toolchain.toml`'s channel; scripts/check-toolchain-pin.sh
+      # fails the build if they drift. `rustfmt` is installed alongside clippy so the components
+      # match what the toolchain file declares, and so the pending repo-wide format sweep has a
+      # formatter from the same compiler CI uses.
       - name: Install Rust 1.95.0
         uses: dtolnay/rust-toolchain@1.95.0
         with:
-          components: clippy
+          components: clippy, rustfmt
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
