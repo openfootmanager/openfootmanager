@@ -9,22 +9,32 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
 ## 1. Crate boundaries — the rule that matters most
 
 ```text
-        Tauri commands (src/commands/, src/application/, src/mcp_server/)
-                              │
-                          ofm_core            game logic, state, turn processing
-                          ╱      ╲
-                    engine        db          simulation │ persistence
-                        │
-                     domain                   pure data types
+  Tauri commands   src/commands/, src/application/, src/mcp_server/
+                   → domain, engine, ofm_core, db
+
+  db               SQLite persistence        → domain, ofm_core
+  ofm_core         game logic, state, turn   → domain, engine
+  engine           match simulation          → nothing in this workspace
+  domain           pure data types           → nothing in this workspace
+
+  ofm-cli          standalone CLI binary     → ofm_core
+  sim-bench        balance benchmark harness → engine
 ```
 
-- **`domain`** — structs and enums only. No game logic. Everything else may depend on it.
+- **`domain`** — structs and enums only. No game logic. Everything else may depend on it; it
+  depends on nothing here.
 - **`engine`** — the match simulation. It **does not depend on `domain`**. It defines its own
   mirror types (`PlayerData`, `TeamData`, `Position`, `PlayStyle`) so it can be tested with
   synthetic data and evolved independently. `ofm_core/turn/` performs the conversion, and it is
   the *only* place that conversion is allowed to live.
-- **`ofm_core`** — game logic and the `StateManager`. Depends on `domain`, `engine`, `db`.
-- **`db`** — SQLite persistence. Depends on `domain`.
+- **`ofm_core`** — game logic and the `StateManager`. Depends on `domain` and `engine`.
+- **`db`** — SQLite persistence. Depends on `domain` **and `ofm_core`** — persistence sits *above*
+  game logic in this workspace, which is a real layering inversion rather than the intended design.
+
+> This section used to say `ofm_core` depends on `db`, and drew `engine` sitting on `domain`. Both
+> were wrong, and survived because the only thing checking the crate graph was a reviewer reading
+> this file. `src-tauri/tests/architecture.rs` now asserts the two leaf crates mechanically, so a
+> future edit here cannot quietly disagree with the manifests.
 
 Adding `domain = { path = "../domain" }` to `crates/engine/Cargo.toml` "to avoid duplication"
 looks like a cleanup and is actually the single most damaging change you can make to this
