@@ -1151,6 +1151,47 @@ fn a_session_far_from_the_next_match_still_costs_condition() {
     }
 }
 
+/// The taper must be a window, not a permanent state. With one fixture a week a
+/// Balanced club should load on Monday and Tuesday and taper on Thursday and
+/// Friday — if every training day tapers, condition stops being a constraint.
+#[test]
+fn only_the_two_days_before_a_fixture_taper() {
+    // Balanced trains Mon, Tue, Thu, Fri. The fixture is the coming Saturday.
+    let expected_to_recover = [(0, false), (1, false), (3, true), (4, true)];
+
+    for (weekday, should_recover) in expected_to_recover {
+        let mut game = make_game();
+        // Monday is weekday 0, so the Saturday fixture is (5 - weekday) days out.
+        schedule_user_fixture_in(&mut game, 5 - i64::from(weekday));
+        let before = game
+            .players
+            .iter()
+            .find(|p| p.id == "p2")
+            .unwrap()
+            .condition;
+
+        training::process_training(&mut game, weekday);
+
+        let after = game
+            .players
+            .iter()
+            .find(|p| p.id == "p2")
+            .unwrap()
+            .condition;
+        if should_recover {
+            assert!(
+                after > before,
+                "weekday {weekday} is inside the taper and should recover ({before} → {after})"
+            );
+        } else {
+            assert!(
+                after < before,
+                "weekday {weekday} is outside the taper and should cost condition ({before} → {after})"
+            );
+        }
+    }
+}
+
 #[test]
 fn the_taper_reaches_the_user_team_and_the_ai_team_alike() {
     let mut game = make_game();

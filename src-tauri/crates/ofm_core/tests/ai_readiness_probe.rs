@@ -137,30 +137,45 @@ fn make_squad(team_id: &str) -> Vec<Player> {
     players
 }
 
+/// Physio quality, which multiplies **every** recovery base by
+/// `1.0 + physiotherapy/100 × 0.4`. It is the single largest lever on the whole
+/// ledger and worth sweeping: with one fixture a week, a club whose physio rates
+/// 60 (×1.24) sits pegged at condition 100, while the same club with a physio
+/// rating 0 settles around 60. Override with `OFM_PROBE_PHYSIO`.
+fn physio_rating() -> u8 {
+    std::env::var("OFM_PROBE_PHYSIO")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(60)
+}
+
 /// Generated worlds give every club a full staff, so a probe without one would
 /// measure the 0.8 no-coaching penalty that no real club ever pays.
 fn make_staff(team_id: &str) -> Vec<Staff> {
-    [(StaffRole::Coach, 60u8, 20u8), (StaffRole::Physio, 20, 60)]
-        .into_iter()
-        .map(|(role, coaching, physiotherapy)| {
-            let mut staff = Staff::new(
-                format!("{team_id}_{role:?}"),
-                "Staff".to_string(),
-                format!("{role:?}"),
-                "1980-01-01".to_string(),
-                role,
-                StaffAttributes {
-                    coaching,
-                    judging_ability: 50,
-                    judging_potential: 50,
-                    physiotherapy,
-                },
-            );
-            staff.nationality = "England".to_string();
-            staff.team_id = Some(team_id.to_string());
-            staff
-        })
-        .collect()
+    [
+        (StaffRole::Coach, 60u8, 20u8),
+        (StaffRole::Physio, 20, physio_rating()),
+    ]
+    .into_iter()
+    .map(|(role, coaching, physiotherapy)| {
+        let mut staff = Staff::new(
+            format!("{team_id}_{role:?}"),
+            "Staff".to_string(),
+            format!("{role:?}"),
+            "1980-01-01".to_string(),
+            role,
+            StaffAttributes {
+                coaching,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy,
+            },
+        );
+        staff.nationality = "England".to_string();
+        staff.team_id = Some(team_id.to_string());
+        staff
+    })
+    .collect()
 }
 
 /// One fixture per club per week, every club playing every week — the load a
@@ -324,9 +339,10 @@ fn report_pre_match_readiness_over_a_season() {
 
     println!();
     println!(
-        "Pre-match condition, {CLUBS} clubs × {SQUAD_SIZE} players, {} fixture(s) per week, {} weeks.",
+        "Pre-match condition, {CLUBS} clubs × {SQUAD_SIZE} players, {} fixture(s) per week, {} weeks, physio {}.",
         matches_per_week(),
-        weeks()
+        weeks(),
+        physio_rating()
     );
     println!("'squad' is what ai_training's intensity bands read; 'XI' is who actually plays.");
     println!();
