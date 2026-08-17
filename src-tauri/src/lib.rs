@@ -42,10 +42,6 @@ pub fn run() {
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
-            // Clears the marker `configure_graphics` wrote, once this launch has clearly
-            // survived. A launch that dies the way the Linux NVIDIA failures do never gets here.
-            platform::watch_startup();
-
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -183,6 +179,13 @@ pub fn run() {
                     );
                 }
             }
+
+            // Last, deliberately: everything above can abort startup for reasons that have
+            // nothing to do with rendering — an unreadable save directory, a failed migration, a
+            // bad MCP config. Clearing the graphics marker only once past all of them keeps those
+            // failures from being counted as evidence that the GPU path is broken and eventually
+            // dropping the player onto CPU compositing for a save-system fault.
+            platform::watch_startup();
 
             Ok(())
         })

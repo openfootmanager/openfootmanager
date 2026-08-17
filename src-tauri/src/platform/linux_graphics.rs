@@ -185,8 +185,8 @@ fn detect_gpu_drivers() -> Vec<String> {
 /// have rendered. A launch that dies the way the NVIDIA failures do — quickly, before anything is
 /// painted — leaves the increment behind for the next launch to see.
 ///
-/// Deleting this file by hand is the documented way to retry the accelerated path after the app
-/// has settled on the conservative one.
+/// Deleting this file by hand retries the accelerated path immediately; an app upgrade does the
+/// same thing automatically (see [`read_consecutive_failures`]).
 fn startup_state_path() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
@@ -194,10 +194,35 @@ fn startup_state_path() -> Option<PathBuf> {
     Some(base.join("openfootmanager").join("startup-failures"))
 }
 
+/// The file's contents: the app version that recorded the failures, then the count.
+///
+/// Stamping the version is what stops an escalation being permanent. Once the counter reaches
+/// the threshold the fallback is chosen, and the fallback deliberately never touches the counter
+/// — that is what keeps a genuinely broken machine from oscillating. But it also means nothing
+/// ever clears it, so two unlucky launches (a mistaken double-click, an unrelated startup crash)
+/// would pin a perfectly healthy machine to CPU compositing forever, with no route back that a
+/// player would ever find.
+///
+/// A version stamp bounds that: any upgrade is a plausible reason for the accelerated path to
+/// behave differently, so a new version starts from zero and re-earns the verdict. The cost of a
+/// wrong escalation becomes "until the next update" instead of "forever".
+fn format_state(failures: u32) -> String {
+    format!("{} {}", env!("CARGO_PKG_VERSION"), failures)
+}
+
+fn parse_state(raw: &str) -> u32 {
+    let mut parts = raw.split_whitespace();
+    match (parts.next(), parts.next()) {
+        // Written by a different version: the verdict was about different code, so start over.
+        (Some(env!("CARGO_PKG_VERSION")), Some(count)) => count.parse().unwrap_or(0),
+        _ => 0,
+    }
+}
+
 fn read_consecutive_failures() -> u32 {
     startup_state_path()
         .and_then(|path| std::fs::read_to_string(path).ok())
-        .and_then(|raw| raw.trim().parse().ok())
+        .map(|raw| parse_state(&raw))
         .unwrap_or(0)
 }
 
@@ -208,9 +233,13 @@ fn read_consecutive_failures() -> u32 {
 /// inside the window costs one increment, which the next successful launch clears.
 const STARTUP_GRACE: std::time::Duration = std::time::Duration::from_secs(8);
 
-/// Whether this launch is counting itself, so `watch_startup` knows whether the counter is its
-/// to clear. A launch that already fell back must leave it alone.
-static TRACKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Exactly what this launch wrote to the state file, or `None` if it wrote nothing.
+///
+/// `watch_startup` clears the counter only when the file still holds this — a cheap ownership
+/// check. Two instances started close together otherwise let the survivor delete the record of
+/// the one that actually crashed, and the crash goes unnoticed. Not a lock, and it does not make
+/// the read-modify-write atomic; it just stops the most damaging of the interleavings.
+static WROTE: OnceLock<String> = OnceLock::new();
 
 /// Apply the rendering policy for this machine.
 ///
@@ -234,7 +263,6 @@ pub fn configure_graphics() {
     }
 
     let tracking = should_track_startup(profile, policy);
-    TRACKING.store(tracking, std::sync::atomic::Ordering::Relaxed);
 
     let mut decision = format!(
         "Linux graphics: profile={profile:?} policy={policy:?} gpus={:?} (OFM_GPU_PROFILE={}), set {to_set:?}",
@@ -244,7 +272,8 @@ pub fn configure_graphics() {
     if policy == Policy::DisableDmabuf && profile == GpuProfile::Auto {
         decision.push_str(&format!(
             " — {} launches in a row failed to survive startup, so the conservative path was \
-             chosen. Delete {} to retry the accelerated path; see docs/LINUX_GRAPHICS.md",
+             chosen. It will retry by itself after the next update, or delete {} to retry now; \
+             see docs/LINUX_GRAPHICS.md",
             env.consecutive_failures,
             startup_state_path()
                 .map(|p| p.display().to_string())
@@ -261,7 +290,13 @@ pub fn configure_graphics() {
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
-            let _ = std::fs::write(&path, (env.consecutive_failures + 1).to_string());
+            // Saturating is defence in depth rather than a live fix: any count at or above
+            // ESCALATE_AFTER resolves to the fallback, which is not tracked, so only 0 and 1 can
+            // reach here today. It costs nothing and survives someone raising the threshold.
+            let contents = format_state(env.consecutive_failures.saturating_add(1));
+            if std::fs::write(&path, &contents).is_ok() {
+                let _ = WROTE.set(contents);
+            }
         }
     }
 }
@@ -276,19 +311,26 @@ pub fn watch_startup() {
         None => log::warn!("Linux graphics policy was never configured"),
     }
 
-    // Only a launch that is counting itself may clear the counter. A launch that already fell
-    // back to the conservative path must not, or it would erase the very evidence that sent it
-    // there and the next launch would retry the path that just failed — forever.
-    if !TRACKING.load(std::sync::atomic::Ordering::Relaxed) {
+    // Only a launch that recorded an attempt may clear it. A launch that already fell back to the
+    // conservative path wrote nothing, and must not delete the evidence that sent it there — the
+    // next launch would otherwise retry the path that just failed, forever.
+    let Some(ours) = WROTE.get().cloned() else {
         return;
-    }
-
+    };
     let Some(path) = startup_state_path() else {
         return;
     };
+
     std::thread::spawn(move || {
         std::thread::sleep(STARTUP_GRACE);
-        let _ = std::fs::remove_file(&path);
+        // Clear only our own record. If another instance has written since, the file is now its
+        // attempt to account for, and deleting it would hide a crash that really happened.
+        match std::fs::read_to_string(&path) {
+            Ok(current) if current == ours => {
+                let _ = std::fs::remove_file(&path);
+            }
+            _ => {}
+        }
     });
 }
 
@@ -466,6 +508,41 @@ mod tests {
             failures = 0; // survives
         }
         assert_eq!(failures, 0);
+    }
+
+    #[test]
+    fn an_escalation_does_not_outlive_the_version_that_earned_it() {
+        // Without this the fallback is permanent: once escalated, `auto` resolves to
+        // DisableDmabuf, which is not tracked, so nothing ever writes or clears the counter
+        // again. Two unlucky launches would pin a healthy machine to CPU compositing forever,
+        // with no route back a player would find. An upgrade re-earns the verdict.
+        let stamped = format_state(ESCALATE_AFTER);
+        assert_eq!(parse_state(&stamped), ESCALATE_AFTER);
+
+        let from_an_older_build = format!("0.0.1-old {ESCALATE_AFTER}");
+        assert_eq!(parse_state(&from_an_older_build), 0);
+    }
+
+    #[test]
+    fn unreadable_state_counts_as_no_failures() {
+        // Fail toward the fast path: a corrupt or truncated file must not strand anyone on the
+        // slow one, and must not panic.
+        for raw in ["", "   ", "garbage", "1.2.3", "not a version 4", "\0"] {
+            assert_eq!(parse_state(raw), 0, "input: {raw:?}");
+        }
+    }
+
+    #[test]
+    fn an_absurd_counter_still_resolves_to_the_fallback() {
+        // The file is user-writable, so a huge value has to be handled. It round-trips, and it
+        // reaches the fallback rather than the increment — which is why the saturating add is
+        // defence in depth rather than the thing preventing an overflow panic.
+        let raw = format_state(u32::MAX);
+        assert_eq!(parse_state(&raw), u32::MAX);
+
+        let env = env_failing(&["nvidia"], u32::MAX);
+        assert_eq!(policy_for(GpuProfile::Auto, &env), Policy::DisableDmabuf);
+        assert!(!should_track_startup(GpuProfile::Auto, Policy::DisableDmabuf));
     }
 
     #[test]

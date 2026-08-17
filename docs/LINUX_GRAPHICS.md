@@ -147,11 +147,19 @@ The UI will be noticeably less smooth, but it will start. Please open an issue w
 beginning `Linux graphics:` — that tells us exactly what was detected.
 
 **The UI is sluggish — animations stutter, menus feel heavy.**
-You are probably on the conservative path. Try:
+You are probably on the conservative path. The game moves itself there after two launches in a
+row that fail to start, and it stays there until it has reason to think something changed — so if
+those two failures were a fluke (you closed the game quickly twice, or an unrelated crash), it can
+be stuck for no good reason.
+
+To send it back to the fast path right now, delete the file that records those failures:
 
 ```sh
-OFM_GPU_PROFILE=auto openfootmanager
+rm ~/.cache/openfootmanager/startup-failures
 ```
+
+It also clears itself whenever you update the game, so a wrong guess never outlives your current
+version. The log line beginning `Linux graphics:` says which path was chosen and why.
 
 **Neither works.** Last resort, disables accelerated compositing entirely:
 
