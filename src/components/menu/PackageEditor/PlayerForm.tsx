@@ -236,6 +236,21 @@ export function PlayerForm({
         />
       )}
 
+      {/*
+        Outside both branches on purpose: a ceiling is independent of whether
+        ability was given as an overall or a full attribute block, and gating it
+        on the toggle would hide it from exactly the authors exercising the most
+        precise control. Clamped to 1-99 only — never up to the player's ability,
+        which would silently repair a mistake the package validator reports.
+      */}
+      <LabeledInput
+        label={t("worldEditor.playerPotential")}
+        help={t("worldEditor.playerPotentialHelp")}
+        value={editing.potential?.toString() ?? ""}
+        type="number"
+        onChange={(v) => updateField("potential", v === "" ? null : Math.min(99, Math.max(1, parseInt(v, 10) || 1)))}
+      />
+
       {useAttributes && (
         <div className="flex flex-col gap-3">
           {PLAYER_ATTR_GROUPS.map(({ groupKey, keys }) => (

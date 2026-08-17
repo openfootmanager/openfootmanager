@@ -2648,6 +2648,10 @@
         "unknownRegion": "\"{{field}}\" hace referencia a una región desconocida \"{{id}}\".",
         "reversedRange": "El equipo \"{{team}}\" tiene un {{field}} invertido (mín > máx).",
         "outOfRange": "El equipo \"{{team}}\" tiene valores de {{field}} fuera de rango (reputación 0–1000, finanzas ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" tiene un potencial de {{potential}}. El potencial debe estar entre 1 y 99.",
+        "potentialBelowOverall": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a su media de {{ability}}. El techo de un jugador no puede quedar por debajo de su capacidad actual.",
+        "potentialBelowAttributes": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a los {{ability}} que dan sus atributos. El techo de un jugador no puede quedar por debajo de su capacidad actual.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a la capacidad predeterminada de {{ability}} que se usa cuando no se indica ni media ni atributos.",
         "unsupportedFormatVersion": "Este paquete se creó con una versión más reciente del juego (formato {{version}}; esta versión admite {{supported}}). Actualiza el juego para abrirlo."
       },
       "competitionDef": {
@@ -3854,6 +3858,8 @@
     "playerDateOfBirth": "Fecha de nacimiento",
     "playerAge": "Edad",
     "playerOverall": "Global (1–99)",
+    "playerPotential": "Potencial (1–99)",
+    "playerPotentialHelp": "Hasta dónde puede llegar este jugador. Déjalo en blanco y el motor genera un techo a partir de su capacidad y su edad. No puede ser inferior a su capacidad actual, y un jugador que ya lo ha alcanzado deja de mejorar.",
     "playerUseAttributes": "Usar atributos detallados",
     "savePlayer": "Guardar Jugador",
     "names": "Nombres",

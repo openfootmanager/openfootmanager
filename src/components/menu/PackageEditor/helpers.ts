@@ -191,6 +191,7 @@ export function emptyPlayer(): PlayerDef {
     position: "Goalkeeper",
     dateOfBirth: null,
     overall: null,
+    potential: null,
     attributes: null,
     footedness: null,
   };

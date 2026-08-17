@@ -214,6 +214,9 @@ const SCHEMA_PLAYER: &str = r##"// Player entity — place inside players/*.json
   "youth": false,             // optional: true places the player in the club's youth/academy squad
   "photo": null,              // optional: relative path to a player photo asset
   "overall": 70,              // optional: 1-99 overall rating
+  "potential": null,          // optional: 1-99 career ceiling. Omit and the engine rolls one
+                              //   from the player's ability and age. Cannot be below current
+                              //   ability, and a player who has reached it stops improving.
   "attributes": null          // optional: detailed attribute object
 }"##;
 

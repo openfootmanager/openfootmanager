@@ -247,6 +247,11 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
                 "age": null,
                 "youth": false,
                 "overall": 70,
+                // The career ceiling, independent of how ability above was
+                // expressed. Null so the template shows the field while leaving
+                // the engine's age-based roll in charge, which is what a
+                // scaffolded player should default to.
+                "potential": null,
                 // Either `overall` or `attributes` may drive ability; an authored
                 // attribute block wins. Null here so the template shows the field
                 // without implying both must be filled in.

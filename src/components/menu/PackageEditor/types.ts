@@ -133,6 +133,13 @@ export interface PlayerDef {
    */
   age?: number | null;
   overall: number | null;
+  /**
+   * Career ceiling, independent of whether ability was given as `overall` or an
+   * `attributes` block — which is why it sits outside the choice between them.
+   * Null hands it back to the engine's age-based roll, as every package written
+   * before the field existed does.
+   */
+  potential: number | null;
   attributes: PlayerAttributesDef | null;
   photo?: string | null;
   footedness?: Footedness | null;

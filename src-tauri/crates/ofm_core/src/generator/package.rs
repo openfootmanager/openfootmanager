@@ -381,6 +381,18 @@ const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
 const UNKNOWN_REGION: &str = "be.error.package.unknownRegion";
 const REVERSED_RANGE: &str = "be.error.package.reversedRange";
 const OUT_OF_RANGE: &str = "be.error.package.outOfRange";
+// Deliberately not `OUT_OF_RANGE`: that message is written about teams in every
+// locale — it names `{{team}}` and quotes the reputation and finance bounds — so
+// reusing it for a player would render an empty club and the wrong legal range.
+const POTENTIAL_OUT_OF_RANGE: &str = "be.error.package.potentialOutOfRange";
+// One code per source of the ability the ceiling was measured against, rather
+// than one code carrying the source as a parameter: `IssueList` renders
+// `t(code, params)`, so a parameter would drop the bare English word
+// "attributes" into a Czech sentence. Separate keys stay translatable, and let
+// the no-ability case explain where its number came from at all.
+const POTENTIAL_BELOW_ATTRIBUTES: &str = "be.error.package.potentialBelowAttributes";
+const POTENTIAL_BELOW_OVERALL: &str = "be.error.package.potentialBelowOverall";
+const POTENTIAL_BELOW_DEFAULT: &str = "be.error.package.potentialBelowDefaultAbility";
 
 /// Maximum team reputation. Reputation is a `u32`, so it cannot go below 0.
 const MAX_REPUTATION: u32 = 1000;
@@ -955,6 +967,56 @@ fn check_ids<'a>(
 /// confederation/country catalog, so a package may reference (e.g.) `europe` or
 /// `ES` without redefining them. Empty (unspecified) references are left for the
 /// world-build step to default.
+/// The ability an authored player's ceiling has to clear, and where it came from.
+///
+/// Mirrors `generate_player_from_def`'s precedence exactly — an explicit
+/// attribute block wins over `overall`, which wins over the engine's default —
+/// because a ceiling that validates under one ability mode and is then floored
+/// under the other is the silent rewrite this whole check exists to prevent.
+///
+/// The message code travels with the number so the author is told where it came
+/// from. Without that, someone who declared no ability at all would be told
+/// their ceiling is below a value that appears nowhere in their file.
+fn effective_authored_ability(player: &PlayerDef) -> (u8, &'static str) {
+    if let Some(attributes) = player.attributes.as_ref() {
+        let ovr = crate::player_rating::ovr_from_attributes(attributes, &player.position);
+        return (ovr.round() as u8, POTENTIAL_BELOW_ATTRIBUTES);
+    }
+    match player.overall {
+        Some(overall) => (overall, POTENTIAL_BELOW_OVERALL),
+        None => (
+            crate::generator::generation::DEFAULT_AUTHORED_OVERALL,
+            POTENTIAL_BELOW_DEFAULT,
+        ),
+    }
+}
+
+fn player_potential_errors(player: &PlayerDef, source: &str) -> Vec<PackageError> {
+    let Some(potential) = player.potential else {
+        return Vec::new();
+    };
+
+    if !(1..=99).contains(&potential) {
+        return vec![
+            PackageError::new(POTENTIAL_OUT_OF_RANGE, source)
+                .with("entity", &player.id)
+                .with("potential", potential.to_string()),
+        ];
+    }
+
+    let (ability, code) = effective_authored_ability(player);
+    if potential < ability {
+        return vec![
+            PackageError::new(code, source)
+                .with("entity", &player.id)
+                .with("potential", potential.to_string())
+                .with("ability", ability.to_string()),
+        ];
+    }
+
+    Vec::new()
+}
+
 pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     let mut errors = Vec::new();
 
@@ -1003,6 +1065,7 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                     .with("country", &player.nationality),
             );
         }
+        errors.extend(player_potential_errors(player, &package.source_at("player", index)));
     }
 
     for (index, staff) in package.staff.iter().enumerate() {
@@ -2901,6 +2964,174 @@ colors:
             .find(|e| e.code == UNKNOWN_COUNTRY)
             .expect("`ZZ` is not a known country");
         assert_eq!(country.file, "teams/ghosts.json", "{country:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn is_potential_error(code: &str) -> bool {
+        [
+            POTENTIAL_OUT_OF_RANGE,
+            POTENTIAL_BELOW_ATTRIBUTES,
+            POTENTIAL_BELOW_OVERALL,
+            POTENTIAL_BELOW_DEFAULT,
+        ]
+        .contains(&code)
+    }
+
+    /// Build a one-club package whose single player carries `player_fields`.
+    fn package_with_player(player_fields: &str) -> (PathBuf, Vec<PackageError>) {
+        let dir = temp_package();
+        write(
+            &dir,
+            "world.yaml",
+            "schema: world\nid: pot\nname: Potential\nversion: 1.0.0\nlicense: CC0-1.0\n",
+        );
+        write(
+            &dir,
+            "teams/clubs.json",
+            r##"{"schema":"team","items":[{"id":"c1","name":"Club","city":"Town","country":"ENG","colors":{"primary":"#000","secondary":"#fff"}}]}"##,
+        );
+        write(
+            &dir,
+            "players/squad.json",
+            &format!(
+                r#"{{"schema":"player","items":[{{"id":"p1","name":"P One","club":"c1","nationality":"ENG","position":"Striker",{player_fields}}}]}}"#
+            ),
+        );
+        let (_package, errors) = load_world_package(&dir);
+        (dir, errors)
+    }
+
+    /// A ceiling outside 1–99 is an authoring mistake, not a value to clamp.
+    #[test]
+    fn a_potential_outside_the_legal_range_is_reported() {
+        for bad in ["0", "100"] {
+            let (dir, errors) = package_with_player(&format!(r#""overall":70,"potential":{bad}"#));
+            let hit = errors
+                .iter()
+                .find(|e| e.code == POTENTIAL_OUT_OF_RANGE)
+                .unwrap_or_else(|| panic!("potential {bad} should be reported: {errors:?}"));
+            assert_eq!(
+                hit.file, "players/squad.json",
+                "the error must name the file the player was declared in"
+            );
+            std::fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    /// A ceiling below current ability is a mistake the author can act on.
+    ///
+    /// Reported rather than fixed: `refresh_player_derived` would silently raise
+    /// it to the player's ovr, and an authoring format that quietly rewrites what
+    /// you wrote is worse than one that tells you.
+    #[test]
+    fn a_potential_below_the_authored_overall_is_reported() {
+        let (dir, errors) = package_with_player(r#""overall":70,"potential":60"#);
+
+        let hit = errors
+            .iter()
+            .find(|e| e.code == POTENTIAL_BELOW_OVERALL)
+            .unwrap_or_else(|| panic!("a ceiling under the floor should be reported: {errors:?}"));
+        assert_eq!(hit.file, "players/squad.json", "{hit:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Attributes win over `overall` in generation, so validation compares
+    /// against the same thing — otherwise a file validates under one ability
+    /// mode and generates under the other.
+    #[test]
+    fn a_potential_below_the_attribute_derived_ability_is_reported() {
+        let (dir, errors) = package_with_player(
+            r#""potential":40,"attributes":{"pace":80,"stamina":80,"strength":80,"passing":80,"shooting":80,"tackling":80,"dribbling":80,"defending":80,"positioning":80,"vision":80,"decisions":80}"#,
+        );
+
+        assert!(
+            errors.iter().any(|e| e.code == POTENTIAL_BELOW_ATTRIBUTES),
+            "an attributes-only player's ceiling must be checked too: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A player who declares no ability at all is still generated against a
+    /// default, so a ceiling under it is still wrong — but the author cannot see
+    /// that number anywhere in their file, which is why this case gets its own
+    /// message rather than being told it is "below 65".
+    #[test]
+    fn a_potential_below_the_default_ability_names_the_default() {
+        let (dir, errors) = package_with_player(r#""potential":40"#);
+
+        assert!(
+            errors.iter().any(|e| e.code == POTENTIAL_BELOW_DEFAULT),
+            "a ceiling under the default ability should be reported: {errors:?}"
+        );
+        assert!(
+            !errors.iter().any(|e| e.code == POTENTIAL_BELOW_OVERALL),
+            "nothing was authored to be 'below overall' of: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Equality is legal — a finished player with no growth left is a real thing
+    /// to author, even though it means they never improve again.
+    #[test]
+    fn a_potential_equal_to_ability_is_accepted() {
+        let (dir, errors) = package_with_player(r#""overall":70,"potential":70"#);
+
+        assert!(
+            !errors
+                .iter()
+                .any(|e| is_potential_error(&e.code)),
+            "{errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The back-compat guarantee: every package written before the field existed.
+    #[test]
+    fn a_player_without_a_potential_is_not_reported() {
+        let (dir, errors) = package_with_player(r#""overall":70"#);
+
+        assert!(
+            !errors
+                .iter()
+                .any(|e| is_potential_error(&e.code)),
+            "an omitted ceiling is not an error: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Validation reports; it never edits what the author wrote.
+    #[test]
+    fn validation_leaves_an_invalid_potential_as_the_author_wrote_it() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "world.yaml",
+            "schema: world\nid: pot\nname: Potential\nversion: 1.0.0\nlicense: CC0-1.0\n",
+        );
+        write(
+            &dir,
+            "teams/clubs.json",
+            r##"{"schema":"team","items":[{"id":"c1","name":"Club","city":"Town","country":"ENG","colors":{"primary":"#000","secondary":"#fff"}}]}"##,
+        );
+        write(
+            &dir,
+            "players/squad.json",
+            r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"c1","nationality":"ENG","position":"Striker","overall":70,"potential":60}]}"#,
+        );
+
+        let (package, _errors) = load_world_package(&dir);
+
+        assert_eq!(
+            package.players[0].potential,
+            Some(60),
+            "the authored value must survive validation untouched"
+        );
 
         std::fs::remove_dir_all(&dir).ok();
     }

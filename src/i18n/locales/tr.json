@@ -2629,6 +2629,10 @@
         "unknownRegion": "\"{{field}}\", bilinmeyen \"{{id}}\" bölgesine atıfta bulunuyor.",
         "reversedRange": "\"{{team}}\" takımının {{field}} aralığı ters (min > maks).",
         "outOfRange": "\"{{team}}\" takımının {{field}} değerleri aralık dışında (itibar 0–1000, finans ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}. Potansiyel 1 ile 99 arasında olmalıdır.",
+        "potentialBelowOverall": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, genel gücü olan {{ability}} değerinin altında. Bir oyuncunun tavanı mevcut gücünün altında olamaz.",
+        "potentialBelowAttributes": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, özelliklerinden çıkan {{ability}} değerinin altında. Bir oyuncunun tavanı mevcut gücünün altında olamaz.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, genel güç ve özellikler verilmediğinde kullanılan varsayılan {{ability}} değerinin altında.",
         "unsupportedFormatVersion": "Bu paket oyunun daha yeni bir sürümüyle oluşturuldu (biçim {{version}}; bu sürüm {{supported}} destekliyor). Açmak için oyunu güncelleyin."
       },
       "conflict": {
@@ -3818,6 +3822,8 @@
     "playerDateOfBirth": "Doğum Tarihi",
     "playerAge": "Yaş",
     "playerOverall": "Genel (1–99)",
+    "playerPotential": "Potansiyel (1–99)",
+    "playerPotentialHelp": "Bu oyuncunun ne kadar iyi olabileceği. Boş bırakırsanız motor, gücüne ve yaşına göre bir tavan belirler. Mevcut gücünün altında olamaz ve tavana ulaşan oyuncu gelişmeyi bırakır.",
     "playerUseAttributes": "Ayrıntılı nitelikleri kullan",
     "savePlayer": "Oyuncuyu Kaydet",
     "names": "İsimler",

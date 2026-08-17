@@ -890,6 +890,15 @@ fn resolve_birth_year(
 /// player for `team_id`. Ability comes from an explicit `attributes` block or is
 /// generated around `overall`; identity falls back to the name pools when not
 /// given.
+/// The ability an authored player gets when they declare neither `overall` nor
+/// an `attributes` block.
+///
+/// Shared with `package`'s potential validation on purpose: that check has to
+/// compare against the ability generation will actually use, and a second copy
+/// of this number would let a package validate and then be generated against a
+/// different floor.
+pub(super) const DEFAULT_AUTHORED_OVERALL: u8 = 65;
+
 pub(super) fn generate_player_from_def(
     def: &super::package::PlayerDef,
     team_id: &str,
@@ -917,7 +926,13 @@ pub(super) fn generate_player_from_def(
     let attributes = def
         .attributes
         .clone()
-        .unwrap_or_else(|| attributes_for_overall(def.overall.unwrap_or(65), &def.position, rng));
+        .unwrap_or_else(|| {
+            attributes_for_overall(
+                def.overall.unwrap_or(DEFAULT_AUTHORED_OVERALL),
+                &def.position,
+                rng,
+            )
+        });
 
     let approx_ovr =
         crate::player_rating::ovr_from_attributes(&attributes, &def.position).round() as u32;
