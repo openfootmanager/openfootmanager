@@ -252,8 +252,14 @@ const STARTUP_GRACE: std::time::Duration = std::time::Duration::from_secs(8);
 /// read the same count and one increment is lost. That is the mild failure — escalation is delayed
 /// by one launch and the next real failure still reaches the threshold. The severe failure, a
 /// survivor deleting a crashed instance's record so the crash is never counted at all, is what the
-/// ownership check removes. File locking for a single-player desktop game would cost more than the
-/// remaining race does.
+/// ownership check removes.
+///
+/// **Replace this with a lock or a compare-and-swap** as soon as the exact count starts to matter:
+/// if escalation ever has to happen on precisely the Nth failure, if `ESCALATE_AFTER` is raised far
+/// enough that a lost increment meaningfully delays recovery, or if the app stops being a
+/// single-player desktop game that is launched once at a time. Until then a dropped increment costs
+/// one extra launch on the fast path and nothing else, which is cheaper than the machinery to
+/// prevent it.
 static WROTE: OnceLock<String> = OnceLock::new();
 
 /// Apply the rendering policy for this machine.
