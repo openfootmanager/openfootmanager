@@ -8,7 +8,7 @@ const AI_MANAGER_REPLACEMENT_DELAY_DAYS: u32 = 7;
 const USER_RIVALRY_SATISFACTION_PENALTY: i32 = 10;
 const USER_RIVALRY_LOOKBACK_DAYS: i64 = 14;
 
-/// The staff member who steps up when an AI club is left without a manager.
+/// The club's assistant manager, who steps up when an AI club falls vacant.
 ///
 /// Only ever consulted for a club that has actually fallen vacant mid-career —
 /// never at world start, where clubs get a newly invented manager instead. An
@@ -16,20 +16,19 @@ const USER_RIVALRY_LOOKBACK_DAYS: i64 = 14;
 /// simply because the club had no manager yet took a hand-authored person and
 /// put them in a job the author never wrote.
 ///
+/// The assistant and nobody else. This used to fall back to whichever staff
+/// member's id sorted first, which put a physio in the dugout — a promotion the
+/// role never implies, and one both the modding docs and the editor's help text
+/// say does not happen. A club with staff but no assistant gets an invented
+/// manager instead, the same as a club with no staff at all.
+///
 /// The stand-in keeps their staff record. They are covering the post, not
 /// vacating their own, so the same person appears as both — deliberately, and
 /// as one record referenced twice rather than a copy.
 fn manager_seed_staff<'a>(staff: &'a [Staff], team_id: &str) -> Option<&'a Staff> {
-    staff
-        .iter()
-        .filter(|member| member.team_id.as_deref() == Some(team_id))
-        .find(|member| member.role == StaffRole::AssistantManager)
-        .or_else(|| {
-            staff
-                .iter()
-                .filter(|member| member.team_id.as_deref() == Some(team_id))
-                .min_by(|left, right| left.id.cmp(&right.id))
-        })
+    staff.iter().find(|member| {
+        member.team_id.as_deref() == Some(team_id) && member.role == StaffRole::AssistantManager
+    })
 }
 
 fn next_seeded_manager_id(game: &Game, team_id: &str, source_staff: &Staff) -> String {
@@ -84,11 +83,16 @@ fn create_generated_manager(game: &Game, team_id: &str) -> Option<Manager> {
     let team = game.teams.iter().find(|team| team.id == team_id)?;
     let opening_year = game.clock.current_date.year().max(0) as u32;
 
-    let mut manager = crate::generator::generated_manager_for(team, opening_year);
     // The generator mints a v4 UUID, which no seed controls — and a manager id
     // reaches `season_awards`, so leaving it random made `generate_past_world_history`
     // non-reproducible. Derived from the club instead: stable, unique, readable.
-    manager.id = next_generated_manager_id(game, team_id);
+    //
+    // The id is also what seeds the person, rather than the club: a club that
+    // falls vacant twice in one year would otherwise be handed a byte-identical
+    // twin of the manager it just sacked, differing only in the `_2` suffix.
+    let manager_id = next_generated_manager_id(game, team_id);
+    let mut manager = crate::generator::generated_manager_for(team, &manager_id, opening_year);
+    manager.id = manager_id;
     manager.hire(team.id.clone());
     manager.career_history.push(ManagerCareerEntry::open(
         team.id.clone(),
@@ -286,11 +290,18 @@ pub fn process_vacant_ai_clubs(game: &mut Game) {
             continue;
         }
 
-        let Some(source_staff) = manager_seed_staff(&game.staff, &team_id) else {
-            continue;
+        // The assistant covers the post if the club has one; otherwise the club
+        // appoints someone new. Never a coach or a physio moved sideways into the
+        // dugout, and never left vacant either — nothing else fills an AI club's
+        // post today (issue #477), so returning early here would strand it.
+        let appointment = match manager_seed_staff(&game.staff, &team_id) {
+            Some(source_staff) => {
+                let manager_id = next_seeded_manager_id(game, &team_id, source_staff);
+                create_seeded_manager(game, &team_id, source_staff, manager_id)
+            }
+            None => create_generated_manager(game, &team_id),
         };
-        let manager_id = next_seeded_manager_id(game, &team_id, source_staff);
-        let Some(manager) = create_seeded_manager(game, &team_id, source_staff, manager_id) else {
+        let Some(manager) = appointment else {
             continue;
         };
         let team_name = game
@@ -395,6 +406,28 @@ mod tests {
         staff
     }
 
+    /// Sack a club's manager, one day short of the replacement delay.
+    ///
+    /// Through the real firing path rather than by emptying `game.managers`: a
+    /// sacked manager's record *stays*, unemployed, and that is what makes the
+    /// club's next invented manager id collide and so be a different person.
+    /// A fixture that deleted the record would hide the collision entirely.
+    ///
+    /// `process_vacant_ai_clubs` does nothing until a club has been vacant for
+    /// `AI_MANAGER_REPLACEMENT_DELAY_DAYS`, and it counts the current day itself —
+    /// so priming the count is what makes a single call actually appoint someone.
+    fn vacate_club(game: &mut Game, team_id: &str) {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        assert!(
+            crate::firing::fire_ai_manager_for_team(game, team_id, &today),
+            "the fixture's club had no manager to sack"
+        );
+        game.vacant_team_days.insert(
+            team_id.to_string(),
+            super::AI_MANAGER_REPLACEMENT_DELAY_DAYS - 1,
+        );
+    }
+
     fn make_game() -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
         let mut manager = Manager::new(
@@ -452,9 +485,21 @@ mod tests {
     /// assistant, which left one person holding two jobs — and where the
     /// assistant was hand-authored, handed a package author's work to a role
     /// they never wrote.
+    ///
+    /// Asserted field by field against the assistant read out of `game.staff`,
+    /// not against a name literal: the old code copied name *and* date of birth,
+    /// so a check that only one of them differs would pass a half-regression.
+    /// Nationality is deliberately not asserted — an English club's invented
+    /// manager may legitimately also be English.
     #[test]
     fn world_start_invents_a_manager_instead_of_promoting_the_assistant() {
         let mut game = make_game();
+        let assistant = game
+            .staff
+            .iter()
+            .find(|member| member.id == "staff2")
+            .cloned()
+            .expect("team2 has an authored assistant");
 
         seed_ai_managers(&mut game);
 
@@ -464,9 +509,13 @@ mod tests {
             .find(|manager| manager.team_id.as_deref() == Some("team2"))
             .expect("team2 has a manager");
         assert_ne!(
-            manager.full_name(),
-            "Marco Rossi",
-            "the assistant manager was promoted instead of a manager being generated"
+            (&manager.first_name, &manager.last_name),
+            (&assistant.first_name, &assistant.last_name),
+            "the manager took the assistant's name"
+        );
+        assert_ne!(
+            manager.date_of_birth, assistant.date_of_birth,
+            "the manager took the assistant's date of birth"
         );
     }
 
@@ -517,28 +566,116 @@ mod tests {
     fn an_assistant_steps_up_when_an_ai_club_falls_vacant_and_stays_on_staff() {
         let mut game = make_game();
         seed_ai_managers(&mut game);
+        let assistant = game
+            .staff
+            .iter()
+            .find(|member| member.id == "staff2")
+            .cloned()
+            .expect("team2 has an authored assistant");
 
-        if let Some(team) = game.teams.iter_mut().find(|team| team.id == "team2") {
-            team.manager_id = None;
-        }
-        game.managers
-            .retain(|manager| manager.team_id.as_deref() != Some("team2"));
-        game.vacant_team_days.insert(
-            "team2".to_string(),
-            super::AI_MANAGER_REPLACEMENT_DELAY_DAYS - 1,
-        );
+        vacate_club(&mut game, "team2");
 
         process_vacant_ai_clubs(&mut game);
 
-        assert!(
-            game.managers
-                .iter()
-                .any(|manager| manager.full_name() == "Marco Rossi"),
+        let stand_in = game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("the vacant club has a manager again");
+        assert_eq!(
+            (&stand_in.first_name, &stand_in.last_name),
+            (&assistant.first_name, &assistant.last_name),
             "the assistant did not step up for the vacant club"
         );
         assert!(
             game.staff.iter().any(|member| member.id == "staff2"),
             "the stand-in was taken off the staff list"
+        );
+    }
+
+    /// A vacant club with staff but no assistant appoints someone new.
+    ///
+    /// The stand-in lookup used to fall back to whichever staff member's id
+    /// sorted first, so a club whose only employee was a physio put the physio in
+    /// the dugout. Returning nothing instead is no better: nothing else fills an
+    /// AI club's post (issue #477), so the club would stay vacant for good.
+    #[test]
+    fn a_vacant_club_with_no_assistant_appoints_a_new_manager_rather_than_its_physio() {
+        let mut game = make_game();
+        game.staff
+            .retain(|member| member.team_id.as_deref() != Some("team2"));
+        game.staff.push(make_staff(
+            "staff-physio",
+            "team2",
+            StaffRole::Physio,
+            "Pat",
+            "Physio",
+        ));
+        seed_ai_managers(&mut game);
+
+        vacate_club(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        let manager = game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("the vacant club has a manager again");
+        assert_ne!(
+            (&manager.first_name, &manager.last_name),
+            (&"Pat".to_string(), &"Physio".to_string()),
+            "the physio was moved sideways into the dugout"
+        );
+        let physio = game
+            .staff
+            .iter()
+            .find(|member| member.id == "staff-physio")
+            .expect("the physio is still on the staff list");
+        assert_eq!(physio.role, StaffRole::Physio, "the physio's role changed");
+    }
+
+    /// Two spells at one club must be two people, not the same one twice.
+    ///
+    /// An invented manager is seeded so the world reproduces, and seeding on the
+    /// club id meant a club that went through two managers in a year was handed a
+    /// byte-identical twin of the one it had just lost.
+    #[test]
+    fn a_club_that_falls_vacant_twice_gets_two_different_managers() {
+        let mut game = make_game();
+        game.staff
+            .retain(|member| member.team_id.as_deref() != Some("team2"));
+        seed_ai_managers(&mut game);
+        let first = game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .cloned()
+            .expect("team2 has a manager");
+
+        vacate_club(&mut game, "team2");
+        process_vacant_ai_clubs(&mut game);
+
+        let second = game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .expect("team2 has a manager again");
+        assert_ne!(first.id, second.id, "the same manager record was reused");
+        assert_ne!(
+            (
+                &first.first_name,
+                &first.last_name,
+                &first.date_of_birth,
+                first.reputation
+            ),
+            (
+                &second.first_name,
+                &second.last_name,
+                &second.date_of_birth,
+                second.reputation
+            ),
+            "the replacement is a twin of the manager the club just lost"
         );
     }
 

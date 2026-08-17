@@ -413,29 +413,34 @@ fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool
 ///
 /// The context is cached because this is called one club at a time, unlike the
 /// bulk staff generators below which build it once and loop.
+///
+/// `manager_id` is what the caller is about to give the manager, and seeds them.
+/// It is per-appointment rather than per-club, so a club that goes through two
+/// managers gets two different people rather than the same person twice.
 pub(crate) fn generated_manager_for(
     team: &Team,
+    manager_id: &str,
     opening_year: u32,
 ) -> domain::manager::Manager {
     static CONTEXT: std::sync::OnceLock<(definitions::NamesDefinition, Vec<String>)> =
         std::sync::OnceLock::new();
     let (names_def, country_codes) = CONTEXT.get_or_init(create_staff_generator_context);
 
-    // A private, club-seeded RNG rather than `rand::rng()`. Two reasons, and the
+    // A private, seeded RNG rather than `rand::rng()`. Two reasons, and the
     // second is the one that bites: drawing from the thread RNG here would shift
     // the stream for everything that follows on the same thread — including the
     // matches `generate_past_world_history` simulates — so seeding a manager
-    // would silently change the world's history. Keying on the club id also
+    // would silently change the world's history. Keying on the appointment also
     // makes the same world produce the same managers twice running.
     use rand::SeedableRng;
-    let mut rng = rand::rngs::StdRng::seed_from_u64(stable_seed(&team.id));
+    let mut rng = rand::rngs::StdRng::seed_from_u64(stable_seed(manager_id));
 
     let nationality =
         pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng);
     generate_random_unemployed_manager(&nationality, names_def, opening_year, &mut rng)
 }
 
-/// FNV-1a over the bytes, for turning a club id into an RNG seed.
+/// FNV-1a over the bytes, for turning an id into an RNG seed.
 ///
 /// Hand-rolled rather than `DefaultHasher`, whose output std does not promise to
 /// keep stable between releases — a world would then generate different managers

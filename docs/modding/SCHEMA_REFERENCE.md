@@ -281,6 +281,9 @@ say — its assistant manager steps up to cover the post, and keeps their own jo
 That is a stand-in, not a rewrite: the same person holds both roles for as long as the club is
 without a permanent manager, and their staff record is untouched throughout.
 
+The assistant and nobody else. A club with staff but no assistant manager appoints a new person
+instead; a coach, a scout or a physio is never moved sideways into the dugout.
+
 The club *you* take over is never affected. Taking charge dismisses the incumbent to make room for
 you, so there is no vacancy for anyone to step into.
 

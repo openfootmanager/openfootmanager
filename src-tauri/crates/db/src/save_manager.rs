@@ -1657,10 +1657,22 @@ mod tests {
             .iter()
             .find(|manager| manager.team_id.as_deref() == Some("team-003"))
             .expect("the club was left without a manager");
-        assert_ne!(manager.full_name(), "Marco Rossi");
-        assert!(
-            loaded.staff.iter().any(|member| member.id == "staff-ai"),
-            "the assistant was taken off the staff list"
+        let assistant = loaded
+            .staff
+            .iter()
+            .find(|member| member.id == "staff-ai")
+            .expect("the assistant was taken off the staff list");
+        // Compared field by field against the assistant rather than to a name
+        // literal: the promotion copied name *and* date of birth, so checking
+        // only one of them would pass a half-regression.
+        assert_ne!(
+            (&manager.first_name, &manager.last_name),
+            (&assistant.first_name, &assistant.last_name),
+            "the manager took the assistant's name"
+        );
+        assert_ne!(
+            manager.date_of_birth, assistant.date_of_birth,
+            "the manager took the assistant's date of birth"
         );
         assert!(
             loaded
