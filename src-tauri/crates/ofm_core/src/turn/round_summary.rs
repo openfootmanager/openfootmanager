@@ -298,7 +298,9 @@ fn scorer_ranks(
     scorers: &[ScorerSnapshot],
     goals_for_rank: fn(&ScorerSnapshot) -> u32,
 ) -> HashMap<String, u32> {
-    let mut sorted = scorers.to_vec();
+    // Sort references: `to_vec` deep-cloned three `String`s per scorer only to
+    // rank them, and the ranking never outlives this function.
+    let mut sorted: Vec<&ScorerSnapshot> = scorers.iter().collect();
     sorted.sort_by(|left, right| {
         goals_for_rank(right)
             .cmp(&goals_for_rank(left))

@@ -112,8 +112,13 @@ fn simulate_competition_day_with_capture<F>(
         return;
     }
 
-    let competition = game.competitions[competition_index].clone();
-    game.league = Some(competition);
+    // Move the competition into the legacy working slot rather than cloning it.
+    // A `League` owns its fixtures, standings, transfer log and tournament
+    // state, and the clone was discarded a few lines later anyway. Nothing
+    // reachable from `simulate_matchday_with_capture` reads `game.competitions`
+    // — the dormant path that does is driven separately from `process_day` — so
+    // the vacated slot is never observed before it is filled back in.
+    game.league = Some(std::mem::take(&mut game.competitions[competition_index]));
     simulate_matchday_with_capture(game, today, on_capture);
     if let Some(updated_competition) = game.league.take() {
         game.competitions[competition_index] = updated_competition;

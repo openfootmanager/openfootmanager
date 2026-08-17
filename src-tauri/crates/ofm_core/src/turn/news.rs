@@ -254,6 +254,14 @@ fn rumour_candidates(game: &Game) -> Vec<(String, String, String, String)> {
 
     let current_date = game.clock.current_date.date_naive();
 
+    // `team_name` scans every team, and this runs once per surviving candidate.
+    // One borrowed index turns a players × teams sweep into two linear passes.
+    let team_names: std::collections::HashMap<&str, &str> = game
+        .teams
+        .iter()
+        .map(|team| (team.id.as_str(), team.name.as_str()))
+        .collect();
+
     game.players
         .iter()
         .filter(|p| {
@@ -281,12 +289,13 @@ fn rumour_candidates(game: &Game) -> Vec<(String, String, String, String)> {
         })
         .filter_map(|p| {
             let tid = p.team_id.as_deref()?;
-            let team_name = team_name(game, tid);
+            // Matches the old `team_name` fallback: unknown club → empty name.
+            let team_name = team_names.get(tid).copied().unwrap_or_default();
             Some((
                 p.id.clone(),
                 p.match_name.clone(),
                 tid.to_string(),
-                team_name,
+                team_name.to_string(),
             ))
         })
         .collect()
