@@ -118,14 +118,37 @@ The gain is **probabilistic**: a gain of 0.3 means a 30% chance of +1 to that at
 ### Condition & Recovery
 
 - **Training days**: condition depleted by cost, then partially recovered (base 3, boosted by physio)
-- **Rest days**: no cost, generous recovery (base 10, boosted by physio)
-- **Recovery focus**: no cost, highest recovery (base 12, boosted by physio)
+- **Rest days**: no cost, generous recovery (base 7, boosted by physio)
+- **Recovery focus**: no cost, highest recovery (base 9, boosted by physio)
 - **Injured players**: receive 50% of base recovery, skip training
 
 Recovery is further modified by each player's stamina attribute:
 ```
 recovery = base × (0.5 + stamina/100 × 0.5)
 ```
+
+### The near-match taper
+
+No squad does a full session two days before a game, so this is not left to the
+manager. A club within `MATCH_TAPER_DAYS` (2) of its next fixture — in *any*
+competition — or facing two or more fixtures inside a week runs today's session
+one step lighter than its standing intensity, and a tapered session that lands on
+Low counts as recovery work rather than a load.
+
+The club's stored focus, intensity and schedule are **not** rewritten: the plan on
+the Training tab stays the manager's, and the taper is applied on top of it, per
+day. It applies to every club, the player's included.
+
+### The fatigue guard
+
+Below `FATIGUE_GUARD_CONDITION` (40) an individual player is rested regardless of
+the team's plan. Team intensity is one setting for a whole squad but the condition
+cost is per player, so without this an individually exhausted player in an
+otherwise-healthy squad keeps net-losing condition and never climbs out.
+
+This applies to every club too. It was AI-only until it turned out to be the
+difference between a squad that stabilises and one that reaches condition 2 within
+two months of the season starting.
 
 ### Fitness Warnings
 

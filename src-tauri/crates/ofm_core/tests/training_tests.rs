@@ -1006,27 +1006,39 @@ fn injured_player_loses_fitness_over_time() {
 }
 
 // ---------------------------------------------------------------------------
-// AI fatigue guard
+// Fatigue guard
 // ---------------------------------------------------------------------------
 
-/// Reproduces the fatigue spiral and verifies the AI-only guard breaks it.
-///
-/// An individually exhausted player on a team training at Medium intensity with a
-/// non-recovery focus pays a flat condition cost (6) that exceeds their diminished
-/// recovery — so without intervention they keep losing condition every training
-/// day and never climb out. The AI fatigue guard auto-rests such players on AI
-/// teams. The user's team is exempt (manual agency), so an identical exhausted
-/// player on the user's side keeps spiralling down.
-#[test]
-fn ai_fatigue_guard_rests_exhausted_ai_player_but_not_user_team() {
-    let mut game = make_game(); // manager is hired to "team1" (the user team)
-
-    // Add an AI-controlled team that trains hard (Medium, non-recovery focus).
+/// An AI club matching the user's club on everything `process_training` reads:
+/// training settings and staff. Only the manager differs.
+fn add_mirror_ai_team(game: &mut Game) {
     let mut team2 = make_team("team2", "AI FC");
     team2.training_focus = TrainingFocus::Physical;
     team2.training_intensity = TrainingIntensity::Medium;
     team2.training_schedule = TrainingSchedule::Balanced;
     game.teams.push(team2);
+    game.staff
+        .push(make_staff("coach2", "team2", StaffRole::Coach, 80, 30));
+    game.staff
+        .push(make_staff("physio2", "team2", StaffRole::Physio, 30, 80));
+}
+
+/// Reproduces the fatigue spiral and verifies the guard breaks it for everyone.
+///
+/// An individually exhausted player on a team training at Medium intensity with a
+/// non-recovery focus pays a flat condition cost (6) that exceeds their diminished
+/// recovery — so without intervention they keep losing condition every training
+/// day and never climb out. The guard used to auto-rest such players on AI teams
+/// only; it now covers the user's club too, because being too tired to train is
+/// not something a manager can decide their way out of.
+#[test]
+fn the_fatigue_guard_rests_an_exhausted_player_on_any_team() {
+    let mut game = make_game(); // manager is hired to "team1" (the user team)
+
+    // An AI club that is the user's club in every respect that training reads —
+    // same settings and the same staff, so any divergence is the guard and not
+    // a coaching or physio bonus.
+    add_mirror_ai_team(&mut game);
 
     // Two identical exhausted players: one on the user team, one on the AI team.
     let mut user_tired = make_player("user_tired", "UserTired", "team1", "1998-06-10");
@@ -1041,33 +1053,146 @@ fn ai_fatigue_guard_rests_exhausted_ai_player_but_not_user_team() {
         training::process_training(&mut game, 0);
     }
 
+    let condition_of = |id: &str| game.players.iter().find(|p| p.id == id).unwrap().condition;
+
+    // An exhausted player physically cannot take a hard session. That is not an
+    // AI concession, so both climb out of the spiral and they climb at the same rate.
+    assert!(
+        condition_of("ai_tired") > 22,
+        "AI exhausted player should recover, got {}",
+        condition_of("ai_tired")
+    );
+    assert!(
+        condition_of("user_tired") > 22,
+        "the user's exhausted player should recover too, got {}",
+        condition_of("user_tired")
+    );
+    assert_eq!(
+        condition_of("user_tired"),
+        condition_of("ai_tired"),
+        "identical players on identical settings must not diverge by who manages them"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// process_training — the near-match taper
+//
+// No squad trains at full load two days before a game. That is a property of
+// training, not a decision an AI manager makes, so it applies to every club.
+// Without it the user's club, on the settings a new career starts with, loses
+// about 26 condition a week and is on the floor inside two months.
+// ---------------------------------------------------------------------------
+
+/// Give the user's club a single fixture `days` from the clock's current date.
+fn schedule_user_fixture_in(game: &mut Game, days: i64) {
+    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
+
+    let date = (game.clock.current_date + chrono::Duration::days(days))
+        .format("%Y-%m-%d")
+        .to_string();
+    game.league = Some(League {
+        id: "league1".to_string(),
+        name: "Test League".to_string(),
+        season: 1,
+        fixtures: vec![Fixture {
+            id: "fix1".to_string(),
+            matchday: 1,
+            date,
+            home_team_id: "team1".to_string(),
+            away_team_id: "team2".to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            result: None,
+            ..Default::default()
+        }],
+        standings: vec![
+            StandingEntry::new("team1".to_string()),
+            StandingEntry::new("team2".to_string()),
+        ],
+        ..Default::default()
+    });
+}
+
+#[test]
+fn a_session_two_days_before_a_match_restores_condition_on_the_user_team() {
+    let mut game = make_game(); // team1 is the user's, Physical / Medium / Balanced
+    schedule_user_fixture_in(&mut game, 2);
+    let before: Vec<u8> = game.players.iter().map(|p| p.condition).collect();
+
+    training::process_training(&mut game, 0); // Monday, a training day under Balanced
+
+    for (player, was) in game.players.iter().zip(before) {
+        assert!(
+            player.condition > was,
+            "{} should finish a tapered session fresher than it started ({} → {})",
+            player.id,
+            was,
+            player.condition
+        );
+    }
+}
+
+#[test]
+fn a_session_far_from_the_next_match_still_costs_condition() {
+    let mut game = make_game();
+    schedule_user_fixture_in(&mut game, 6);
+    let before: Vec<u8> = game.players.iter().map(|p| p.condition).collect();
+
+    training::process_training(&mut game, 0);
+
+    for (player, was) in game.players.iter().zip(before) {
+        assert!(
+            player.condition < was,
+            "{} is nowhere near a fixture and should pay for the session ({} → {})",
+            player.id,
+            was,
+            player.condition
+        );
+    }
+}
+
+#[test]
+fn the_taper_reaches_the_user_team_and_the_ai_team_alike() {
+    let mut game = make_game();
+    add_mirror_ai_team(&mut game);
+    game.players
+        .push(make_player("ai_p", "AiPlayer", "team2", "1998-06-10"));
+    // The fixture is team1 vs team2, so it is two days away for both clubs.
+    schedule_user_fixture_in(&mut game, 2);
+
+    let user_before = game
+        .players
+        .iter()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .condition;
+    let ai_before = game
+        .players
+        .iter()
+        .find(|p| p.id == "ai_p")
+        .unwrap()
+        .condition;
+    assert_eq!(user_before, ai_before, "helper players must start level");
+
+    training::process_training(&mut game, 0);
+
     let user_after = game
         .players
         .iter()
-        .find(|p| p.id == "user_tired")
+        .find(|p| p.id == "p2")
         .unwrap()
         .condition;
     let ai_after = game
         .players
         .iter()
-        .find(|p| p.id == "ai_tired")
+        .find(|p| p.id == "ai_p")
         .unwrap()
         .condition;
-
-    // Guard active: the AI's exhausted player recovers out of the spiral.
-    assert!(
-        ai_after > 22,
-        "AI exhausted player should recover under the fatigue guard, got {ai_after}"
+    assert_eq!(
+        user_after, ai_after,
+        "the taper is physics, so the same fixture must taper both clubs equally"
     );
-    // Exempt: the user's identical player keeps net-losing condition at Medium.
-    assert!(
-        user_after < 22,
-        "user-team exhausted player should not be auto-rested, got {user_after}"
-    );
-    assert!(
-        ai_after > user_after,
-        "guarded AI player ({ai_after}) should end fresher than the user player ({user_after})"
-    );
+    assert!(user_after > user_before, "both should have recovered");
 }
 
 // ---------------------------------------------------------------------------
