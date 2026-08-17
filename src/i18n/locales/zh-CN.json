@@ -1547,7 +1547,8 @@
       "firstDivision": "{{country}}甲级联赛",
       "secondDivision": "{{country}}乙级联赛",
       "nationalCup": "{{country}}杯",
-      "continentalChampionsCup": "洲际冠军杯"
+      "continentalChampionsCup": "洲际冠军杯",
+      "premierDivision": "超级联赛"
     }
   },
   "news": {
@@ -3500,6 +3501,9 @@
     },
     "competition": {
       "fallbackLeagueName": "默认联赛"
+    },
+    "save": {
+      "defaultName": "{{manager}} 的生涯"
     }
   },
   "traits": {

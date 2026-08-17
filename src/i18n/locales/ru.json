@@ -1547,7 +1547,8 @@
       "firstDivision": "{{country}} Первый дивизион",
       "secondDivision": "{{country}} Второй дивизион",
       "nationalCup": "{{country}} Кубок",
-      "continentalChampionsCup": "Континентальный кубок чемпионов"
+      "continentalChampionsCup": "Континентальный кубок чемпионов",
+      "premierDivision": "Премьер-дивизион"
     }
   },
   "news": {
@@ -3499,6 +3500,9 @@
     },
     "competition": {
       "fallbackLeagueName": "Лига по умолчанию"
+    },
+    "save": {
+      "defaultName": "Карьера {{manager}}"
     }
   },
   "traits": {

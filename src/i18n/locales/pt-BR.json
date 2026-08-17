@@ -1547,7 +1547,8 @@
       "firstDivision": "Primeira Divisão de {{country}}",
       "secondDivision": "Segunda Divisão de {{country}}",
       "nationalCup": "Copa de {{country}}",
-      "continentalChampionsCup": "Copa Continental de Campeões"
+      "continentalChampionsCup": "Copa Continental de Campeões",
+      "premierDivision": "Primeira Divisão"
     }
   },
   "news": {
@@ -3503,6 +3504,9 @@
     },
     "competition": {
       "fallbackLeagueName": "Liga padrão"
+    },
+    "save": {
+      "defaultName": "Carreira de {{manager}}"
     }
   },
   "traits": {

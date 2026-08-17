@@ -1,6 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { formatDate } from "../../lib/helpers";
+import { resolveBackendText } from "../../utils/backendI18n";
 import { Play, Clock, Trash2, X, Loader2 } from "lucide-react";
+
+/**
+ * A save created by the game stores its name as a translation key plus the
+ * manager's name; one the player renamed is plain text and resolves to itself,
+ * as does every save written before the key existed.
+ */
+function saveDisplayName(name: string): string {
+  return resolveBackendText(name, name);
+}
 
 interface SaveEntry {
   id: string;
@@ -52,7 +62,12 @@ export default function SavesList({ saves, isLoading, loadingSaveId, confirmDele
             <div key={save.id} className="group relative flex flex-col gap-2 w-full p-4 bg-white dark:bg-navy-700 hover:bg-primary-50 dark:hover:bg-navy-600 text-left rounded-xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500 shadow-sm">
               {confirmDeleteId === save.id ? (
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm text-gray-700 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: t('menu.deleteConfirm', { name: save.name }) }} />
+                  {/* The string carries its own <strong> markup, so it has to
+                      go through the HTML parser — but the save name is player
+                      text and must not. `escapeValue` is globally false
+                      (src/i18n/index.ts), so it is re-enabled for this one
+                      interpolation. */}
+                  <p className="text-sm text-gray-700 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: t('menu.deleteConfirm', { name: saveDisplayName(save.name), interpolation: { escapeValue: true } }) }} />
                   <div className="flex gap-2">
                     <button
                       onClick={() => onDelete(save.id)}
@@ -75,7 +90,7 @@ export default function SavesList({ saves, isLoading, loadingSaveId, confirmDele
                     className="flex flex-col gap-2 flex-1 text-left min-w-0"
                   >
                     <div className="flex justify-between items-center w-full">
-                      <span className="font-heading font-bold text-gray-900 dark:text-white text-lg uppercase tracking-wide truncate">{save.name}</span>
+                      <span className="font-heading font-bold text-gray-900 dark:text-white text-lg uppercase tracking-wide truncate">{saveDisplayName(save.name)}</span>
                       {loadingSaveId === save.id ? <Loader2 className="w-4 h-4 text-primary-500 animate-spin flex-shrink-0" /> : <Play className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />}
                     </div>
                     <div className="flex justify-between items-center w-full text-sm text-gray-500 dark:text-gray-400">

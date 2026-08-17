@@ -1547,7 +1547,8 @@
       "firstDivision": "{{country}} 1. Ligi",
       "secondDivision": "{{country}} 2. Ligi",
       "nationalCup": "{{country}} Kupası",
-      "continentalChampionsCup": "Kıtasal Şampiyonlar Kupası"
+      "continentalChampionsCup": "Kıtasal Şampiyonlar Kupası",
+      "premierDivision": "Premier Lig"
     }
   },
   "news": {
@@ -3499,6 +3500,9 @@
     },
     "competition": {
       "fallbackLeagueName": "Varsayılan Lig"
+    },
+    "save": {
+      "defaultName": "{{manager}} Kariyeri"
     }
   },
   "traits": {

@@ -1579,7 +1579,8 @@
       "firstDivision": "Primera División de {{country}}",
       "secondDivision": "Segunda División de {{country}}",
       "nationalCup": "Copa de {{country}}",
-      "continentalChampionsCup": "Copa Continental de Campeones"
+      "continentalChampionsCup": "Copa Continental de Campeones",
+      "premierDivision": "Primera División"
     }
   },
   "news": {
@@ -3535,6 +3536,9 @@
     },
     "competition": {
       "fallbackLeagueName": "Liga predeterminada"
+    },
+    "save": {
+      "defaultName": "Carrera de {{manager}}"
     }
   },
   "traits": {
