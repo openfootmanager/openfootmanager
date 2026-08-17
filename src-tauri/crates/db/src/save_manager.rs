@@ -1682,6 +1682,37 @@ mod tests {
                 .and_then(|team| team.manager_id.clone())
                 .is_some()
         );
+
+        // `load_game` seeds on every load and only resaves when something
+        // changed, so everything above holds whether the backfill reached disk
+        // or is quietly re-invented on each load. Loading a second time does not
+        // separate those either: generation is deterministic, so a regenerated
+        // manager comes back identical down to the id. Reading the file settles
+        // it — the save itself has to carry the manager.
+        let manager_id = manager.id.clone();
+        let db =
+            crate::game_database::GameDatabase::open(&saves_dir.join(format!("{save_id}.db")))
+                .unwrap();
+        let stored = crate::repositories::manager_repo::load_all_managers(db.conn()).unwrap();
+        assert!(
+            stored.iter().any(|candidate| candidate.id == manager_id),
+            "the backfilled manager was never written to the save"
+        );
+        let stored_staff = crate::repositories::staff_repo::load_all_staff(db.conn()).unwrap();
+        let stored_assistant = stored_staff
+            .iter()
+            .find(|member| member.id == "staff-ai")
+            .expect("the assistant is missing from the save");
+        assert_eq!(
+            stored_assistant.role,
+            StaffRole::AssistantManager,
+            "the stored assistant's role changed"
+        );
+        assert_eq!(
+            stored_assistant.team_id.as_deref(),
+            Some("team-003"),
+            "the stored assistant left the club"
+        );
     }
 
     #[test]

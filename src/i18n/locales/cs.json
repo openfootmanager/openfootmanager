@@ -3954,7 +3954,7 @@
       "Scout": "Skaut",
       "Physio": "Fyzioterapeut"
     },
-    "staffRoleHelp": "Asistent trenéra je právě jen to. Kluby dostanou vlastního trenéra, kterého balíčky zatím nemohou určit. Asistent převezme vedení jen tehdy, když klub AI přijde během kariéry o trenéra, a přitom si ponechá vlastní pozici.",
+    "staffRoleHelp": "Asistent manažera je právě jen to. Kluby dostanou vlastního manažera, kterého balíčky zatím nemohou určit. Asistent převezme vedení jen tehdy, když klub AI přijde během kariéry o manažera, a přitom si ponechá vlastní pozici.",
     "helpLabel": "Nápověda",
     "staffSpecialization": {
       "label": "Specializace",

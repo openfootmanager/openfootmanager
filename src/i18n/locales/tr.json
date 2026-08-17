@@ -3953,7 +3953,7 @@
       "Scout": "Gözlemci",
       "Physio": "Fizyoterapist"
     },
-    "staffRoleHelp": "Yardımcı antrenör tam olarak odur. Kulüpler kendi teknik direktörünü alır ve paketler bunu henüz belirleyemez. Bir yardımcı antrenör yalnızca yapay zekâ kulübü kariyer sırasında teknik direktörünü kaybederse görevi devralır ve bu sırada kendi işini de korur.",
+    "staffRoleHelp": "Yardımcı antrenör tam olarak odur. Kulüpler kendi menajerini alır ve paketler bunu henüz belirleyemez. Bir yardımcı antrenör yalnızca yapay zekâ kulübü kariyer sırasında menajerini kaybederse görevi devralır ve bu sırada kendi işini de korur.",
     "helpLabel": "Yardım",
     "staffSpecialization": {
       "label": "Uzmanlık",
