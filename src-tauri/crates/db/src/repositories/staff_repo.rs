@@ -195,6 +195,46 @@ mod tests {
         assert_eq!(all.len(), 4);
     }
 
+    /// The whole point of the function: an upsert has no way to say "gone".
+    #[test]
+    fn replace_staff_list_drops_anyone_the_new_list_omits() {
+        let db = test_db();
+        upsert_staff_list(
+            db.conn(),
+            &[
+                sample_staff("s-001", StaffRole::Coach),
+                sample_staff("s-002", StaffRole::Scout),
+            ],
+        )
+        .unwrap();
+
+        replace_staff_list(db.conn(), &[sample_staff("s-002", StaffRole::Scout)]).unwrap();
+
+        let all = load_all_staff(db.conn()).unwrap();
+        assert_eq!(all.len(), 1, "the omitted staff member survived the replace");
+        assert_eq!(all[0].id, "s-002");
+    }
+
+    /// What the free-agent market's 30-day clear does before drawing a batch.
+    #[test]
+    fn replace_staff_list_empties_the_table_when_given_nothing() {
+        let db = test_db();
+        upsert_staff_list(db.conn(), &[sample_staff("s-001", StaffRole::Coach)]).unwrap();
+
+        replace_staff_list(db.conn(), &[]).unwrap();
+
+        assert!(load_all_staff(db.conn()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_replace_staff_list_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = replace_staff_list(&conn, &[sample_staff("s-001", StaffRole::Coach)]);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
     #[test]
     fn test_upsert_staff_returns_backend_key_when_schema_is_missing() {
         let conn = Connection::open_in_memory().unwrap();

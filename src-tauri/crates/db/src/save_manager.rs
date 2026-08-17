@@ -1201,7 +1201,7 @@ mod tests {
             StaffRole::AssistantManager,
             attributes.clone(),
         );
-        promoted.team_id = Some("team1".to_string());
+        promoted.team_id = Some("team-001".to_string());
         let mut kept = Staff::new(
             "staff-kept".to_string(),
             "Amy".to_string(),
@@ -1210,7 +1210,7 @@ mod tests {
             StaffRole::Coach,
             attributes,
         );
-        kept.team_id = Some("team1".to_string());
+        kept.team_id = Some("team-001".to_string());
 
         let mut game = sample_game();
         game.staff = vec![promoted, kept];
