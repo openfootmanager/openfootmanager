@@ -1,5 +1,6 @@
 mod application;
 mod commands;
+mod platform;
 use commands::*;
 
 #[cfg(feature = "mcp")]
@@ -16,13 +17,10 @@ pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Workaround for WebKitGTK DMABuf rendering issues on Wayland (Linux)
-    #[cfg(target_os = "linux")]
-    {
-        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        }
-    }
+    // Must run before the webview is built: on Linux, WebKitGTK and the graphics driver read the
+    // variables this sets when the web process starts. A no-op on Windows and macOS.
+    // See `platform` and `docs/LINUX_GRAPHICS.md`.
+    platform::configure_graphics();
 
     let state_manager = Arc::new(StateManager::new());
 
@@ -43,6 +41,7 @@ pub fn run() {
         .manage(state_manager.clone())
         .setup(move |app| {
             use tauri::Manager as TauriManager;
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -180,6 +179,13 @@ pub fn run() {
                     );
                 }
             }
+
+            // Last, deliberately: everything above can abort startup for reasons that have
+            // nothing to do with rendering — an unreadable save directory, a failed migration, a
+            // bad MCP config. Clearing the graphics marker only once past all of them keeps those
+            // failures from being counted as evidence that the GPU path is broken and eventually
+            // dropping the player onto CPU compositing for a save-system fault.
+            platform::watch_startup();
 
             Ok(())
         })

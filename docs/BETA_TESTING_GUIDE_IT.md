@@ -154,6 +154,7 @@ Ecco alcune cose che già conosciamo — non serve segnalarle (ma sentiti libero
 - **Parte del testo non è ancora tradotta** — l'internazionalizzazione è ancora in corso
 - **I salvataggi di questa beta potrebbero non essere compatibili** con versioni future. Non affezionarti troppo alle tue partite!
 - **Le prestazioni** potrebbero calare leggermente simulando molti giorni di fila
+- **Linux con una scheda grafica NVIDIA** — se la finestra resta bianca o il gioco si chiude all'avvio, avvialo con `OFM_GPU_PROFILE=safe`. Dopo due avvii falliti di fila il gioco se ne accorge da solo e passa automaticamente alla modalità sicura. Vedi [Grafica su Linux](LINUX_GRAPHICS.md)
 
 ---
 

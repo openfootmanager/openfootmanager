@@ -154,6 +154,7 @@ Here are things we already know about — you don't need to report these (but fe
 - **Some text is not translated** — i18n is a work in progress
 - **Save files from this beta may not be compatible** with future versions. Don't get too attached to your saves!
 - **Performance** may slow down slightly when simulating many days in a row
+- **Linux with an NVIDIA graphics card** — if the window stays blank or the game closes on startup, launch it with `OFM_GPU_PROFILE=safe`. After two failed launches in a row the game detects this and switches to the safe path by itself. See [Linux graphics](LINUX_GRAPHICS.md)
 
 ---
 

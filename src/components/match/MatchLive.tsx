@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS, FORMATIONS, isPersistableSpeed } from "./types";
+import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS, MINUTES_PER_TICK, FORMATIONS, isPersistableSpeed } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
 import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -67,10 +67,13 @@ export default function MatchLive({
 
   const isFinished = snapshot.phase === "Finished";
 
-  // Step the match forward one minute
-  const stepMatch = useCallback(async () => {
+  // Reads only `lastResult` for phase transitions, which is sound because step_many stops on
+  // entering any phase that needs the manager — so a half time, shootout or finish is always the
+  // last entry of a batch, never buried in the middle. See `phase_needs_manager` in
+  // ofm_core/live_match_manager.rs; MINUTES_PER_TICK on this side is what makes batches possible.
+  const stepMatch = useCallback(async (minutes: number) => {
     try {
-      const results = await invoke<MinuteResult[]>("step_live_match", { minutes: 1 });
+      const results = await invoke<MinuteResult[]>("step_live_match", { minutes });
       if (results.length > 0) {
         const lastResult = results[results.length - 1];
 
@@ -138,7 +141,7 @@ export default function MatchLive({
 
     if (isRunning && speed !== "paused" && !isFinished && !showSubPanel) {
       timerRef.current = setTimeout(async () => {
-        await stepMatch();
+        await stepMatch(MINUTES_PER_TICK[speed]);
       }, SPEED_MS[speed]);
     }
 
@@ -345,7 +348,7 @@ export default function MatchLive({
             </div>
             {speed === "paused" && (
               <button
-                onClick={stepMatch}
+                onClick={() => stepMatch(1)}
                 className="w-full mt-2 flex items-center justify-center gap-2 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />

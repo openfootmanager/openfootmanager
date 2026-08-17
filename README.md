@@ -83,6 +83,13 @@ Run the development desktop app:
 npm run tauri dev
 ```
 
+### Linux graphics
+
+Linux renders through WebKitGTK, which has known trouble with NVIDIA's proprietary driver. The
+app detects your GPUs at startup and picks a rendering path automatically; if you get a blank
+window or a sluggish UI, [docs/LINUX_GRAPHICS.md](docs/LINUX_GRAPHICS.md) explains the
+`OFM_GPU_PROFILE` override and records the measurements behind the default.
+
 ## CONTRIBUTING
 
 Contributions are welcome. For full guidelines, read [CONTRIBUTING](CONTRIBUTING.md).

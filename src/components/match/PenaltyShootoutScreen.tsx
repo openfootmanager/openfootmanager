@@ -57,6 +57,8 @@ export default function PenaltyShootoutScreen({
 
   const stepMatch = useCallback(async () => {
     try {
+      // Always one at a time, never batched like the live match: here a "minute" is a single
+      // penalty, and the whole point of the screen is watching each one.
       const results = await invoke<MinuteResult[]>("step_live_match", {
         minutes: 1,
       });

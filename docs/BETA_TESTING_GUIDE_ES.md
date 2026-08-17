@@ -151,6 +151,7 @@ Estas son cosas que ya sabemos — no necesitas reportarlas (pero siéntete libr
 - **Parte del texto no está traducido** — la internacionalización es un trabajo en progreso
 - **Los archivos de guardado de este beta pueden no ser compatibles** con versiones futuras. ¡No te encariñes demasiado con tus partidas!
 - **El rendimiento** puede bajar levemente al simular muchos días seguidos
+- **Linux con una tarjeta gráfica NVIDIA** — si la ventana se queda en blanco o el juego se cierra al arrancar, ejecútalo con `OFM_GPU_PROFILE=safe`. Tras dos arranques fallidos seguidos, el juego lo detecta solo y cambia al modo seguro automáticamente. Consulta [Gráficos en Linux](LINUX_GRAPHICS.md)
 
 ---
 

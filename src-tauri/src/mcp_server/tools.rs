@@ -798,7 +798,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         });
 
     // match_step
-    custom_tool!("match_step", "Advance live match by N minutes",
+    custom_tool!("match_step", "Advance live match by up to N minutes. Stops early at half time, before a penalty shootout, and at full time, so fewer minutes may pass than requested; the response says how many did.",
         build_schema(&[("minutes", "integer", "Number of minutes to advance")], &["minutes"]),
         ctx, args, {
             let minutes = match require_u32_param(args, "minutes") { Ok(v) => v as u16, Err(e) => return Ok(e) };

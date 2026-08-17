@@ -51,3 +51,6 @@ test-world.json
 # trigger the file watcher and restart the app)
 /src-tauri/data/*.ofm
 /src-tauri/databases/*.ofm
+
+# Benchmark output from scripts/perf/run-matrix.sh (machine-specific measurements)
+/scripts/perf/results/

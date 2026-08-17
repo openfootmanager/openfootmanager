@@ -238,6 +238,28 @@ export const SPEED_MS: Record<SimSpeed, number> = {
   slow: 2000,
   normal: 800,
   fast: 200,
+  // 100ms, not 10ms. Each tick is two IPC round trips plus a full React render, which cannot
+  // finish in 10ms — so the old value did not simulate faster, it just queued ticks back to back
+  // and left the compositor no idle frames. In the live match, speed comes from MINUTES_PER_TICK
+  // instead. A penalty shootout steps one kick per tick and so is genuinely paced by this value;
+  // 100ms per kick is fast without being a blur.
+  instant: 100,
+};
+
+/**
+ * How many match minutes each tick advances.
+ *
+ * Simulating several minutes per round trip is much cheaper than several round trips: the backend
+ * returns one `MinuteResult` per minute either way, but the expensive part — fetching the full
+ * snapshot and re-rendering — happens once per tick rather than once per minute.
+ *
+ * Live match only. A penalty shootout must show every kick, so it always steps one at a time.
+ */
+export const MINUTES_PER_TICK: Record<SimSpeed, number> = {
+  paused: 0,
+  slow: 1,
+  normal: 1,
+  fast: 1,
   instant: 10,
 };
 
