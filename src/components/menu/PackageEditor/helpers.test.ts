@@ -245,6 +245,9 @@ describe("emptyPlayer", () => {
     expect(p.dateOfBirth).toBeNull();
     expect(p.overall).toBeNull();
     expect(p.attributes).toBeNull();
+    // Null, not absent: a new player hands their ceiling back to the engine's
+    // age-based roll, which is what every package did before the field existed.
+    expect(p.potential).toBeNull();
   });
 
   it("uses the backend-aligned `footedness` key (not `foot`)", () => {

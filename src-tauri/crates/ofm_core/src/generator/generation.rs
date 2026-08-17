@@ -1149,6 +1149,73 @@ mod tests {
         );
     }
 
+    /// Authoring a generational talent also authors the badge.
+    ///
+    /// `refresh_player_derived` awards Wonderkid from age, ceiling and headroom,
+    /// so it follows from the ceiling rather than being set separately. The
+    /// modding reference promises this; without a test the promise is unbacked.
+    #[test]
+    fn an_authored_ceiling_can_earn_the_wonderkid_trait() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "generational",
+                "firstName": "Gene", "lastName": "Rational",
+                "club": "club-id", "nationality": "ENG", "position": "Striker",
+                "dateOfBirth": "2009-01-01",
+                "overall": 55,
+                "potential": 92,
+            }),
+            2026,
+        );
+
+        assert!(
+            player.traits.contains(&domain::player::PlayerTrait::Wonderkid),
+            "17, ceiling 92, ovr {} — that is a wonderkid: {:?}",
+            player.ovr,
+            player.traits
+        );
+    }
+
+    /// And only then. Otherwise every authored ceiling would earn the badge.
+    #[test]
+    fn an_authored_ceiling_alone_does_not_earn_the_wonderkid_trait() {
+        // Old enough that the age gate refuses regardless of the ceiling.
+        let veteran = generate_from_json(
+            serde_json::json!({
+                "id": "late-bloomer",
+                "firstName": "Late", "lastName": "Bloomer",
+                "club": "club-id", "nationality": "ENG", "position": "Striker",
+                "dateOfBirth": "1996-01-01",
+                "overall": 70,
+                "potential": 95,
+            }),
+            2026,
+        );
+        assert!(
+            !veteran.traits.contains(&domain::player::PlayerTrait::Wonderkid),
+            "a 30-year-old is not a wonderkid whatever his ceiling: {:?}",
+            veteran.traits
+        );
+
+        // Young, but the ceiling is nowhere near the elite threshold.
+        let ordinary = generate_from_json(
+            serde_json::json!({
+                "id": "ordinary-prospect",
+                "firstName": "Ordinary", "lastName": "Prospect",
+                "club": "club-id", "nationality": "ENG", "position": "Striker",
+                "dateOfBirth": "2009-01-01",
+                "overall": 55,
+                "potential": 70,
+            }),
+            2026,
+        );
+        assert!(
+            !ordinary.traits.contains(&domain::player::PlayerTrait::Wonderkid),
+            "a ceiling of 70 is not wonderkid territory: {:?}",
+            ordinary.traits
+        );
+    }
+
     /// #453: `country_to_iso` recognised 17 country names and answered `"ENG"`
     /// for everything else, so a package with `"country": "Japan"` filled 60% of
     /// every Japanese club with English players — silently.

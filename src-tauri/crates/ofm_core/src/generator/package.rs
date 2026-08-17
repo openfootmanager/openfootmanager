@@ -3054,6 +3054,31 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// When both are written, the attribute block is the one that counts.
+    ///
+    /// Generation ignores `overall` outright once an attribute block is present,
+    /// so validation has to ignore it too. Measuring against the wrong one is how
+    /// a package validates under one ability mode and is generated under the
+    /// other — which is the whole failure this check exists to close.
+    #[test]
+    fn attributes_outrank_a_present_overall_when_checking_the_ceiling() {
+        let (dir, errors) = package_with_player(
+            r#""overall":40,"potential":50,"attributes":{"pace":80,"stamina":80,"strength":80,"passing":80,"shooting":80,"tackling":80,"dribbling":80,"defending":80,"positioning":80,"vision":80,"decisions":80}"#,
+        );
+
+        assert!(
+            errors.iter().any(|e| e.code == POTENTIAL_BELOW_ATTRIBUTES),
+            "a ceiling of 50 is under what these attributes are worth: {errors:?}"
+        );
+        assert!(
+            !errors.iter().any(|e| e.code == POTENTIAL_BELOW_OVERALL),
+            "the authored overall of 40 must not be what the ceiling was judged \
+             against — generation would never have used it: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     /// A player who declares no ability at all is still generated against a
     /// default, so a ceiling under it is still wrong — but the author cannot see
     /// that number anywhere in their file, which is why this case gets its own
@@ -3092,13 +3117,33 @@ colors:
 
     /// The back-compat guarantee: every package written before the field existed.
     #[test]
-    fn a_player_without_a_potential_is_not_reported() {
-        let (dir, errors) = package_with_player(r#""overall":70"#);
+    fn a_player_without_a_potential_loads_as_none_and_is_not_reported() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "world.yaml",
+            "schema: world\nid: pot\nname: Potential\nversion: 1.0.0\nlicense: CC0-1.0\n",
+        );
+        write(
+            &dir,
+            "teams/clubs.json",
+            r##"{"schema":"team","items":[{"id":"c1","name":"Club","city":"Town","country":"ENG","colors":{"primary":"#000","secondary":"#fff"}}]}"##,
+        );
+        write(
+            &dir,
+            "players/squad.json",
+            r#"{"schema":"player","items":[{"id":"p1","name":"P One","club":"c1","nationality":"ENG","position":"Striker","overall":70}]}"#,
+        );
 
+        let (package, errors) = load_world_package(&dir);
+
+        assert_eq!(
+            package.players[0].potential, None,
+            "an absent ceiling must stay absent, not become a zero the engine \
+             would read as 'unset' by accident"
+        );
         assert!(
-            !errors
-                .iter()
-                .any(|e| is_potential_error(&e.code)),
+            !errors.iter().any(|e| is_potential_error(&e.code)),
             "an omitted ceiling is not an error: {errors:?}"
         );
 
