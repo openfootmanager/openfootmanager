@@ -93,6 +93,12 @@ fn create_generated_manager(game: &Game, team_id: &str) -> Option<Manager> {
     let manager_id = next_generated_manager_id(game, team_id);
     let mut manager = crate::generator::generated_manager_for(team, &manager_id, opening_year);
     manager.id = manager_id;
+    // From the constant rather than left at the generator's own 50, which is the
+    // same number today. Both ways of appointing an AI manager have to start them
+    // at the same standing with the board: this is the vacancy path now too, and
+    // a manager appointed below the sacking threshold would be dismissed by the
+    // club that had just hired them.
+    manager.satisfaction = BASE_AI_MANAGER_SATISFACTION as u8;
     manager.hire(team.id.clone());
     manager.career_history.push(ManagerCareerEntry::open(
         team.id.clone(),
