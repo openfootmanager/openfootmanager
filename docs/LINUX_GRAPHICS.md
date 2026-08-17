@@ -155,7 +155,7 @@ be stuck for no good reason.
 To send it back to the fast path right now, delete the file that records those failures:
 
 ```sh
-rm ~/.cache/openfootmanager/startup-failures
+rm "${XDG_CACHE_HOME:-$HOME/.cache}/openfootmanager/startup-failures"
 ```
 
 It also clears itself whenever you update the game, so a wrong guess never outlives your current

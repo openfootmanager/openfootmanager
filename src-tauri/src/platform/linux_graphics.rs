@@ -194,7 +194,8 @@ fn startup_state_path() -> Option<PathBuf> {
     Some(base.join("openfootmanager").join("startup-failures"))
 }
 
-/// The file's contents: the app version that recorded the failures, then the count.
+/// The file's contents: the app version that recorded the failures, the pid that wrote them, and
+/// the count.
 ///
 /// Stamping the version is what stops an escalation being permanent. Once the counter reaches
 /// the threshold the fallback is chosen, and the fallback deliberately never touches the counter
@@ -206,15 +207,24 @@ fn startup_state_path() -> Option<PathBuf> {
 /// A version stamp bounds that: any upgrade is a plausible reason for the accelerated path to
 /// behave differently, so a new version starts from zero and re-earns the verdict. The cost of a
 /// wrong escalation becomes "until the next update" instead of "forever".
+/// The pid makes the record unique to this launch, which is what lets `watch_startup` tell its own
+/// record apart from another instance's. Comparing contents alone is not enough: two launches
+/// started together write byte-identical text, so a survivor would happily delete the record left
+/// by the one that actually crashed — erasing the very evidence the fallback depends on.
 fn format_state(failures: u32) -> String {
-    format!("{} {}", env!("CARGO_PKG_VERSION"), failures)
+    format!(
+        "{} {} {}",
+        env!("CARGO_PKG_VERSION"),
+        std::process::id(),
+        failures
+    )
 }
 
 fn parse_state(raw: &str) -> u32 {
     let mut parts = raw.split_whitespace();
-    match (parts.next(), parts.next()) {
+    match (parts.next(), parts.next(), parts.next()) {
         // Written by a different version: the verdict was about different code, so start over.
-        (Some(env!("CARGO_PKG_VERSION")), Some(count)) => count.parse().unwrap_or(0),
+        (Some(env!("CARGO_PKG_VERSION")), Some(_pid), Some(count)) => count.parse().unwrap_or(0),
         _ => 0,
     }
 }
@@ -236,9 +246,14 @@ const STARTUP_GRACE: std::time::Duration = std::time::Duration::from_secs(8);
 /// Exactly what this launch wrote to the state file, or `None` if it wrote nothing.
 ///
 /// `watch_startup` clears the counter only when the file still holds this — a cheap ownership
-/// check. Two instances started close together otherwise let the survivor delete the record of
-/// the one that actually crashed, and the crash goes unnoticed. Not a lock, and it does not make
-/// the read-modify-write atomic; it just stops the most damaging of the interleavings.
+/// check, made meaningful by the pid in [`format_state`].
+///
+/// This is not a lock, and the read-modify-write is still not atomic: two launches racing can both
+/// read the same count and one increment is lost. That is the mild failure — escalation is delayed
+/// by one launch and the next real failure still reaches the threshold. The severe failure, a
+/// survivor deleting a crashed instance's record so the crash is never counted at all, is what the
+/// ownership check removes. File locking for a single-player desktop game would cost more than the
+/// remaining race does.
 static WROTE: OnceLock<String> = OnceLock::new();
 
 /// Apply the rendering policy for this machine.
@@ -524,10 +539,33 @@ mod tests {
     }
 
     #[test]
+    fn a_launchs_record_is_distinguishable_from_another_launchs() {
+        // Without the pid, two instances started together write byte-identical text, and the one
+        // that survives deletes the record belonging to the one that crashed — so the crash is
+        // never counted and the fallback never engages. The count must still be readable.
+        let ours = format_state(1);
+        let theirs = format!("{} {} {}", env!("CARGO_PKG_VERSION"), std::process::id() + 1, 1);
+
+        assert_ne!(ours, theirs, "records from two launches must not collide");
+        assert_eq!(parse_state(&ours), 1);
+        assert_eq!(parse_state(&theirs), 1, "any launch's count is still readable");
+    }
+
+    #[test]
     fn unreadable_state_counts_as_no_failures() {
         // Fail toward the fast path: a corrupt or truncated file must not strand anyone on the
         // slow one, and must not panic.
-        for raw in ["", "   ", "garbage", "1.2.3", "not a version 4", "\0"] {
+        // Includes the two-field shape written before the pid was added, so an upgrade over a
+        // pre-existing file starts clean rather than misreading the pid as a count.
+        for raw in [
+            "",
+            "   ",
+            "garbage",
+            "1.2.3",
+            "not a version 4",
+            "\0",
+            concat!(env!("CARGO_PKG_VERSION"), " 2"),
+        ] {
             assert_eq!(parse_state(raw), 0, "input: {raw:?}");
         }
     }
