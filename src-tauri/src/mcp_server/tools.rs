@@ -1011,3 +1011,173 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ("help_list_categories", "List all tool categories with tool counts", "Help"),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    /// This module's own source. The router is built from closures capturing an
+    /// `Arc<McpContext>`, which owns a `tauri::AppHandle`, so building a real router in a unit
+    /// test would mean standing up a mock Tauri application just to read a list of names. The
+    /// registrations are plain, regular source text, so they are read from there instead.
+    ///
+    /// The hazard with any textual check is that it quietly stops matching and passes on an empty
+    /// parse. `router_registrations_are_all_recognised` exists to make that impossible.
+    const FULL_SOURCE: &str = include_str!("tools.rs");
+
+    /// Everything above this test module.
+    ///
+    /// Necessary because the tests below quote the very patterns they count: the first draft
+    /// counted ten route registrations where the router has six, having matched its own comments.
+    /// Anything after the module marker is this test's text, not a registration.
+    fn source() -> &'static str {
+        FULL_SOURCE
+            .split_once("\n#[cfg(test)]\n")
+            .map(|(production_code, _)| production_code)
+            .expect("this test module is introduced by a #[cfg(test)] line")
+    }
+
+    /// The macros every bulk registration goes through.
+    const REGISTRATION_MACROS: &[&str] = &["real_tool!(", "id_tool!(", "custom_tool!("];
+
+    /// Route registrations that live inside a `macro_rules!` definition rather than being a
+    /// registration in their own right — one per macro above.
+    const REGISTRATIONS_INSIDE_MACRO_DEFINITIONS: usize = REGISTRATION_MACROS.len();
+
+    fn first_string_literal(line: &str) -> Option<&str> {
+        let after_quote = line.find('"')? + 1;
+        let rest = &line[after_quote..];
+        let closing = rest.find('"')?;
+        Some(&rest[..closing])
+    }
+
+    fn is_macro_invocation(line: &str) -> bool {
+        REGISTRATION_MACROS
+            .iter()
+            .any(|macro_name| line.starts_with(macro_name))
+    }
+
+    /// Tools registered through one of the registration macros.
+    fn macro_registered_names() -> Vec<String> {
+        source()
+            .lines()
+            .map(str::trim)
+            .filter(|line| is_macro_invocation(line))
+            .filter_map(|line| first_string_literal(line).map(String::from))
+            .collect()
+    }
+
+    fn macro_invocation_line_count() -> usize {
+        source()
+            .lines()
+            .map(str::trim)
+            .filter(|line| is_macro_invocation(line))
+            .count()
+    }
+
+    /// Tools registered by hand rather than through a macro. Each is guarded by a literal
+    /// `if !disabled.contains(&"name".to_string())`; inside the macro definitions that same guard
+    /// reads `$name`, so it does not match here.
+    fn hand_rolled_names() -> Vec<String> {
+        source()
+            .lines()
+            .map(str::trim)
+            .filter(|line| line.starts_with("if !disabled.contains(&\""))
+            .filter_map(|line| first_string_literal(line).map(String::from))
+            .collect()
+    }
+
+    fn routed_names() -> BTreeSet<String> {
+        macro_registered_names()
+            .into_iter()
+            .chain(hand_rolled_names())
+            .collect()
+    }
+
+    fn catalogued_names() -> BTreeSet<String> {
+        tool_catalog()
+            .into_iter()
+            .map(|(name, _, _)| String::from(name))
+            .collect()
+    }
+
+    /// Guards every other test in this module against parsing nothing and passing anyway.
+    ///
+    /// A registration written in a style the parser does not recognise still adds a route, so
+    /// pinning those two counts against each other turns an unrecognised style into a loud
+    /// failure rather than a silently uncounted tool.
+    #[test]
+    fn router_registrations_are_all_recognised() {
+        let registrations = source().matches("add_route(").count();
+        let hand_rolled = hand_rolled_names().len();
+
+        assert_eq!(
+            registrations,
+            REGISTRATIONS_INSIDE_MACRO_DEFINITIONS + hand_rolled,
+            "found {registrations} route registrations but recognised {hand_rolled} hand-rolled \
+             ones plus {REGISTRATIONS_INSIDE_MACRO_DEFINITIONS} inside macro definitions. A tool \
+             was registered in a style this test cannot see — teach it the new style rather than \
+             deleting the assertion, or the catalog checks below start passing for tools they \
+             never examined.",
+        );
+
+        assert_eq!(
+            macro_registered_names().len(),
+            macro_invocation_line_count(),
+            "a registration macro was invoked without a string literal on the same line, so its \
+             tool name could not be extracted",
+        );
+    }
+
+    /// `help_find_tool` searches only the catalog, so a routed tool missing from it is callable
+    /// but undiscoverable. Until now this was prevented only by a ⚠️ in a comment.
+    #[test]
+    fn every_routed_tool_is_in_the_catalog() {
+        let catalogued = catalogued_names();
+        let missing: Vec<String> = routed_names()
+            .into_iter()
+            .filter(|name| !catalogued.contains(name))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "registered in build_tool_router() but absent from tool_catalog():\n\n  {missing:?}\n\n\
+             help_find_tool searches only the catalog, so an agent can never discover these. Add a \
+             (name, description, category) entry — see the checklist above tool_catalog().",
+        );
+    }
+
+    /// The reverse direction, which is worse: a catalogued tool with no route is advertised to
+    /// agents and then fails when called.
+    #[test]
+    fn every_catalogued_tool_has_a_route() {
+        let routed = routed_names();
+        let missing: Vec<String> = catalogued_names()
+            .into_iter()
+            .filter(|name| !routed.contains(name))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "listed in tool_catalog() but never registered in build_tool_router():\n\n  \
+             {missing:?}\n\n\
+             Agents will find these via help_find_tool and get an unknown-tool error on call.",
+        );
+    }
+
+    #[test]
+    fn the_catalog_has_no_duplicate_entries() {
+        let catalog = tool_catalog();
+        let unique: BTreeSet<&str> = catalog.iter().map(|(name, _, _)| *name).collect();
+
+        assert_eq!(
+            catalog.len(),
+            unique.len(),
+            "tool_catalog() lists {} entries but only {} distinct names; a duplicate makes \
+             help_find_tool report the same tool twice",
+            catalog.len(),
+            unique.len(),
+        );
+    }
+}
