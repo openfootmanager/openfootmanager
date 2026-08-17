@@ -3963,7 +3963,7 @@
       "Scout": "Scout",
       "Physio": "Physiotherapeut"
     },
-    "staffRoleHelp": "Der Trainer eines Vereins wird beim Start der Welt aus seinem Co-Trainer erstellt. Die Reputation stammt vom Verein, und die Nationalität fällt auf das Land des Vereins zurück, wenn das Mitglied keine hat. Hat ein Verein Mitarbeiter, aber keinen Co-Trainer, wird derjenige mit der ersten ID verwendet.",
+    "staffRoleHelp": "Ein Co-Trainer ist genau das. Vereine erhalten ihren eigenen Trainer, den Pakete noch nicht festlegen können. Ein Co-Trainer übernimmt nur, wenn ein KI-Verein während der Karriere seinen Trainer verliert, und behält dabei seine eigene Stelle.",
     "helpLabel": "Hilfe",
     "staffSpecialization": {
       "label": "Spezialisierung",

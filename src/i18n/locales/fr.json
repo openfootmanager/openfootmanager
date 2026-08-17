@@ -3963,7 +3963,7 @@
       "Scout": "Recruteur",
       "Physio": "Kiné"
     },
-    "staffRoleHelp": "L'entraîneur d'un club est créé à partir de son entraîneur adjoint au démarrage du monde. La réputation provient du club, et la nationalité se rabat sur le pays du club si le membre n'en a aucune. Si un club a du personnel mais aucun entraîneur adjoint, celui dont l'ID vient en premier est utilisé.",
+    "staffRoleHelp": "Un entraîneur adjoint n'est rien de plus. Les clubs reçoivent leur propre entraîneur, que les paquets ne peuvent pas encore définir. Un adjoint ne prend les commandes que si un club de l'IA perd son entraîneur en cours de carrière, et conserve son poste pendant l'intérim.",
     "helpLabel": "Aide",
     "staffSpecialization": {
       "label": "Spécialisation",

@@ -3960,7 +3960,7 @@
       "Scout": "Scout",
       "Physio": "Physio"
     },
-    "staffRoleHelp": "A club's manager is created from its Assistant Manager when the world starts. Reputation comes from the club, and nationality falls back to the club's country if the staff member has none. If a club has staff but no Assistant Manager, the one whose ID comes first is used instead.",
+    "staffRoleHelp": "An Assistant Manager is exactly that. Clubs are given their own manager, which packages cannot author yet. An assistant only takes charge if an AI club loses its manager mid-career, and keeps their own job while covering.",
     "helpLabel": "Help",
     "staffSpecialization": {
       "label": "Specialization",

@@ -1652,7 +1652,10 @@ mod tests {
         let save_id = sm.create_save(&game, "Manager World").unwrap();
         let loaded = sm.load_game(&save_id).unwrap();
 
-        assert_eq!(loaded.managers.len(), 2);
+        // Not an exact count: clubs without a manager are now given a
+        // generated one, so the total depends on how many teams the fixture
+        // has. What matters here is that the authored manager round-trips.
+        assert!(loaded.managers.len() >= 2);
         assert!(
             loaded
                 .managers
@@ -1665,7 +1668,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_game_backfills_missing_ai_managers_from_staff() {
+    fn test_load_game_backfills_missing_ai_managers() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
 
@@ -1704,9 +1707,31 @@ mod tests {
         let loaded = sm.load_game(&save_id).unwrap();
 
         assert!(loaded.managers.len() >= 2);
-        assert!(loaded.managers.iter().any(|manager| {
-            manager.team_id.as_deref() == Some("team-003") && manager.full_name() == "Marco Rossi"
-        }));
+        // The club gets a manager, but not by promoting its assistant: an
+        // assistant manager stays an assistant, and a hand-authored one must
+        // never be handed a job the author did not write.
+        let manager = loaded
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team-003"))
+            .expect("the club was left without a manager");
+        let assistant = loaded
+            .staff
+            .iter()
+            .find(|member| member.id == "staff-ai")
+            .expect("the assistant was taken off the staff list");
+        // Compared field by field against the assistant rather than to a name
+        // literal: the promotion copied name *and* date of birth, so checking
+        // only one of them would pass a half-regression.
+        assert_ne!(
+            (&manager.first_name, &manager.last_name),
+            (&assistant.first_name, &assistant.last_name),
+            "the manager took the assistant's name"
+        );
+        assert_ne!(
+            manager.date_of_birth, assistant.date_of_birth,
+            "the manager took the assistant's date of birth"
+        );
         assert!(
             loaded
                 .teams
@@ -1714,6 +1739,37 @@ mod tests {
                 .find(|team| team.id == "team-003")
                 .and_then(|team| team.manager_id.clone())
                 .is_some()
+        );
+
+        // `load_game` seeds on every load and only resaves when something
+        // changed, so everything above holds whether the backfill reached disk
+        // or is quietly re-invented on each load. Loading a second time does not
+        // separate those either: generation is deterministic, so a regenerated
+        // manager comes back identical down to the id. Reading the file settles
+        // it — the save itself has to carry the manager.
+        let manager_id = manager.id.clone();
+        let db =
+            crate::game_database::GameDatabase::open(&saves_dir.join(format!("{save_id}.db")))
+                .unwrap();
+        let stored = crate::repositories::manager_repo::load_all_managers(db.conn()).unwrap();
+        assert!(
+            stored.iter().any(|candidate| candidate.id == manager_id),
+            "the backfilled manager was never written to the save"
+        );
+        let stored_staff = crate::repositories::staff_repo::load_all_staff(db.conn()).unwrap();
+        let stored_assistant = stored_staff
+            .iter()
+            .find(|member| member.id == "staff-ai")
+            .expect("the assistant is missing from the save");
+        assert_eq!(
+            stored_assistant.role,
+            StaffRole::AssistantManager,
+            "the stored assistant's role changed"
+        );
+        assert_eq!(
+            stored_assistant.team_id.as_deref(),
+            Some("team-003"),
+            "the stored assistant left the club"
         );
     }
 

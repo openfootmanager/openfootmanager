@@ -3995,7 +3995,7 @@
       "Scout": "Ojeador",
       "Physio": "Fisioterapeuta"
     },
-    "staffRoleHelp": "El entrenador de un club se crea a partir de su segundo entrenador al iniciarse el mundo. La reputación proviene del club, y la nacionalidad recurre al país del club si el miembro no tiene ninguna. Si un club tiene personal pero ningún segundo entrenador, se usa aquel cuyo ID vaya primero.",
+    "staffRoleHelp": "Un segundo entrenador es solo eso. Los clubes reciben su propio entrenador, que los paquetes aún no pueden definir. Un segundo entrenador solo asume el cargo si un club de la IA pierde a su entrenador durante la carrera, y conserva su propio puesto mientras tanto.",
     "helpLabel": "Ayuda",
     "staffSpecialization": {
       "label": "Especialización",
