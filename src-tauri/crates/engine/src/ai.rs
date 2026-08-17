@@ -325,10 +325,9 @@ fn consider_tactic_change<R: Rng>(
         Side::Home => [Zone::HomeBox, Zone::HomeDefense],
         Side::Away => [Zone::AwayBox, Zone::AwayDefense],
     };
-    let recent = match_state.recent_zones();
-    let pressure_ticks = recent
-        .iter()
-        .filter(|z| defensive_zones_for_side.contains(z))
+    let pressure_ticks = match_state
+        .recent_zones()
+        .filter(|zone| defensive_zones_for_side.contains(zone))
         .count();
     // 6+ of the last 10 minutes under defensive pressure → consider going defensive.
     // Guard: only when not already losing (a losing team should be attacking, not absorbing).
