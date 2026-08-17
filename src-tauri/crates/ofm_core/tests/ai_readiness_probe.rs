@@ -21,6 +21,21 @@
 //! position quotas), not a call into the production selector — `ai_select_starting_xi`
 //! is private to `live_match_manager`. It is a measuring stick, not an assertion
 //! about which players the game would pick.
+//!
+//! # What this models, and what it does not
+//!
+//! Every day here goes through `turn::process_day`. A real career takes the same
+//! route on ordinary days, and on the day the player watches or delegates its own
+//! fixture it takes `turn::finish_live_match_day` instead — which also runs no
+//! training, so the recovery ledger below is faithful either way.
+//!
+//! The **XI** columns are therefore representative. The **squad** columns are
+//! pessimistic for the user's club: this probe drives every match through the
+//! instant path, which charges a full match to every squad member, whereas the
+//! player's own fixture is simulated live and only charges the eleven who played
+//! plus the substitutes. Read the user's squad column as "what the instant path
+//! does to a squad", not as a shipped number — until slice 1 lands, at which
+//! point the two agree.
 
 use chrono::{TimeZone, Utc};
 use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
