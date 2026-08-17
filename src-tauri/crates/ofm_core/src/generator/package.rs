@@ -70,6 +70,13 @@ pub struct PlayerDef {
     pub age: Option<u32>,
     #[serde(default)]
     pub overall: Option<u8>,
+    /// Career ceiling (1–99), independent of how current ability was expressed.
+    ///
+    /// Omit it and the engine rolls one from the player's ability and age, as it
+    /// always has — which is why every package written before this field existed
+    /// keeps generating exactly the same players.
+    #[serde(default)]
+    pub potential: Option<u8>,
     #[serde(default)]
     pub attributes: Option<PlayerAttributes>,
     /// Optional path to a profile photo, relative to the package root.

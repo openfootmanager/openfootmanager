@@ -504,6 +504,7 @@ mod tests {
             date_of_birth: Some("1995-01-01".into()),
             age: Some(30),
             overall: Some(70),
+            potential: Some(90),
             // Eight of the nineteen attributes carry a serde default; the other
             // eleven are required, so name those and let the defaults fill the
             // remainder. Only the presence of the `attributes` key matters here.

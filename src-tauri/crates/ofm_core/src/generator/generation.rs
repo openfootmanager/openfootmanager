@@ -982,7 +982,12 @@ pub(super) fn generate_player_from_def(
         use crate::player_rating::natural_ovr;
         natural_ovr(&player).round() as u8
     };
-    player.potential = generate_potential(temp_ovr, age);
+    // An authored ceiling is the author's to set; only roll one when they did
+    // not. `refresh_player_derived` then leaves a non-zero potential alone,
+    // floored at current ovr — so nothing further is needed to make it stick.
+    player.potential = def
+        .potential
+        .unwrap_or_else(|| generate_potential(temp_ovr, age));
     refresh_player_derived(&mut player, current_year);
     player
 }
@@ -1022,6 +1027,112 @@ pub(super) fn generate_random_unemployed_manager(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Build a `PlayerDef` from JSON rather than a struct literal.
+    ///
+    /// Deliberate: `potential` is new, so a struct literal naming it would not
+    /// compile on a tree that predates the field — and this project requires a
+    /// regression test to be *run* against the unfixed code. `PlayerDef` has no
+    /// `deny_unknown_fields`, so the old tree ignores the key and these tests
+    /// fail on behaviour rather than failing to build.
+    fn player_def_from_json(value: serde_json::Value) -> super::super::package::PlayerDef {
+        serde_json::from_value(value).expect("the fixture deserializes")
+    }
+
+    fn generate_from_json(value: serde_json::Value, opening_year: u32) -> Player {
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rng();
+        generate_player_from_def(
+            &player_def_from_json(value),
+            "club-id",
+            opening_year,
+            &names_def,
+            &mut rng,
+        )
+    }
+
+    /// An authored ceiling is the author's to set.
+    ///
+    /// A package could set a player's current ability but never their ceiling —
+    /// it was always rolled from `ovr` and age, so a modder could write a
+    /// 17-year-old at 55 but not say that he becomes a 92.
+    #[test]
+    fn an_authored_potential_is_kept() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "wonder-kid",
+                "firstName": "Wonder",
+                "lastName": "Kid",
+                "club": "club-id",
+                "nationality": "ENG",
+                "position": "Striker",
+                "dateOfBirth": "2009-01-01",
+                "overall": 55,
+                "potential": 92,
+            }),
+            2026,
+        );
+
+        assert_eq!(player.potential, 92, "the authored ceiling was overwritten");
+    }
+
+    /// The same, for the author who specifies attributes rather than an overall.
+    #[test]
+    fn an_authored_potential_is_kept_in_attributes_mode() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "precise-kid",
+                "firstName": "Precise",
+                "lastName": "Kid",
+                "club": "club-id",
+                "nationality": "ENG",
+                "position": "CentralMidfielder",
+                "dateOfBirth": "2009-01-01",
+                "attributes": {
+                    "pace": 50, "stamina": 50, "strength": 50,
+                    "passing": 50, "shooting": 50, "tackling": 50,
+                    "dribbling": 50, "defending": 50,
+                    "positioning": 50, "vision": 50, "decisions": 50,
+                },
+                "potential": 88,
+            }),
+            2026,
+        );
+
+        assert_eq!(player.potential, 88, "the authored ceiling was overwritten");
+    }
+
+    /// Omitting it keeps the roll. The back-compat guarantee for every package
+    /// already in the wild.
+    ///
+    /// Asserted against the age bonus band rather than "non-zero and >= ovr",
+    /// which a regression that simply set `potential = ovr` would also pass.
+    #[test]
+    fn an_omitted_potential_is_still_rolled() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "ordinary-kid",
+                "firstName": "Ordinary",
+                "lastName": "Kid",
+                "club": "club-id",
+                "nationality": "ENG",
+                "position": "Striker",
+                "dateOfBirth": "2009-01-01",
+                "overall": 55,
+            }),
+            2026,
+        );
+
+        // `generate_potential` gives an under-18 a 15..=30 bonus over ovr,
+        // capped at 99.
+        let floor = player.ovr.saturating_add(15).min(99);
+        let ceiling = player.ovr.saturating_add(30).min(99);
+        assert!(
+            (floor..=ceiling).contains(&player.potential),
+            "a 17-year-old's rolled ceiling should sit {floor}..={ceiling}, got {}",
+            player.potential
+        );
+    }
 
     /// #453: `country_to_iso` recognised 17 country names and answered `"ENG"`
     /// for everything else, so a package with `"country": "Japan"` filled 60% of
