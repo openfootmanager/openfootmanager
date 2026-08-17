@@ -79,13 +79,17 @@ pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> 
         lines.join("\n")
     };
 
-    // Report what was delivered, not what was asked for. A step stops early at half time, before
-    // penalties and at full time, so an agent asking for 90 can legitimately get 45 — and telling
-    // it otherwise would make it believe the match had advanced further than it has.
+    // No minute count in the header. It reported the *requested* minutes, which a step that stops
+    // early at half time or full time does not deliver; counting the returned results is no better,
+    // because a MinuteResult is also produced for phase transitions that play no minute (kick-off,
+    // the restart after an interval). Both numbers contradicted the `Minute:` line directly below.
+    //
+    // The snapshot's own minute is the truth an agent needs, and the phase tells it why the step
+    // stopped — which is the actionable part, since a stop means the match is waiting on a decision.
     Ok(format!(
-        "## Match Advanced {} Minutes\n\n**Minute**: {}\n**Score**: {} - {}\n\n### Events\n{}",
-        results.len(),
+        "## Match Advanced\n\n**Minute**: {}\n**Phase**: {:?}\n**Score**: {} - {}\n\n### Events\n{}",
         snapshot.current_minute,
+        snapshot.phase,
         snapshot.home_score,
         snapshot.away_score,
         events_text
