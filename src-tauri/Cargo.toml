@@ -17,6 +17,31 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [workspace]
 members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "crates/sim-bench", "crates/ofm-cli"]
 
+# Lint levels live here so a plain `cargo clippy` reproduces what CI enforces, instead of only
+# doing so when someone remembers to append `-- -D warnings`. Every member opts in with
+# `[lints] workspace = true`; a member that forgets is silently unlinted, which is why the root
+# package below opts in too.
+#
+# Scope note: this buys *clippy* parity, not warning parity. CI's trailing `-D warnings` also
+# denies ordinary rustc warnings, and the tempting fix — `warnings = "deny"` here — is deliberately
+# not taken: workspace lints apply to every cargo invocation, so it would turn an unused variable
+# into a hard error during `cargo build` and `cargo test` while you are still mid-edit. Being
+# stricter than CI in the one place that hurts most is a worse trade than the residual gap.
+[workspace.lints.rust]
+# There is no `unsafe` in this workspace and no reason for any to appear: the crates are game
+# logic, persistence and simulation. `forbid` rather than `deny` so it cannot be switched off with
+# a local `#[allow]` — if a genuine need ever arrives, removing this line is the conversation.
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+# `priority = -1` so this sets a floor for the whole group while still allowing a specific lint to
+# be configured individually at the default priority. Without it, cargo rejects the combination as
+# ambiguous the first time a single lint is added below.
+all = { level = "deny", priority = -1 }
+
+[lints]
+workspace = true
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
