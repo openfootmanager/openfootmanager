@@ -99,6 +99,88 @@ mod tests {
     use super::*;
     use rusqlite::Connection;
 
+    /// Every `vNNN_*.sql` file in `src/sql/`, as (version number, file name).
+    fn sql_files_on_disk() -> Vec<(usize, String)> {
+        let sql_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/sql");
+
+        let mut files: Vec<(usize, String)> = std::fs::read_dir(sql_dir)
+            .expect("src/sql should be readable")
+            .map(|entry| entry.expect("readable directory entry").file_name())
+            .map(|name| name.to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".sql"))
+            .map(|name| {
+                let version = name
+                    .strip_prefix('v')
+                    .and_then(|rest| rest.split('_').next())
+                    .and_then(|digits| digits.parse::<usize>().ok())
+                    .unwrap_or_else(|| {
+                        panic!("migration file `{name}` does not follow the vNNN_description.sql naming")
+                    });
+                (version, name)
+            })
+            .collect();
+
+        files.sort();
+        files
+    }
+
+    /// `MIGRATION_COUNT` and the length of the `all_migrations()` vec are already tied together by
+    /// `test_schema_version_after_migration`, which checks the `user_version` the migrations
+    /// actually write. What nothing checked was the third side of the triangle: the `src/sql`
+    /// directory. Adding `v043_something.sql` and forgetting to register it left the constant, the
+    /// vec and the directory disagreeing with no test to say so — the file simply never ran.
+    #[test]
+    fn test_migration_count_matches_sql_directory() {
+        let files = sql_files_on_disk();
+
+        assert_eq!(
+            files.len(),
+            MIGRATION_COUNT,
+            "src/sql holds {} migration files but MIGRATION_COUNT is {}. Every .sql file must be \
+             registered in all_migrations() and counted here.",
+            files.len(),
+            MIGRATION_COUNT,
+        );
+    }
+
+    /// A registered-but-absent or present-but-unregistered file is the failure this catches; the
+    /// count test alone would pass if someone added one file and deleted another.
+    #[test]
+    fn test_every_sql_file_is_registered_exactly_once() {
+        // This module's own source is the registration list.
+        let source = include_str!("migrations.rs");
+
+        for (_, name) in sql_files_on_disk() {
+            let needle = format!("sql/{name}");
+            let occurrences = source.matches(&needle).count();
+
+            assert_eq!(
+                occurrences, 1,
+                "`{name}` is referenced {occurrences} times in all_migrations(); it must appear \
+                 exactly once. A file with no reference never runs against any database.",
+            );
+        }
+    }
+
+    /// Versions must be contiguous from 1. A gap means a migration was deleted after shipping —
+    /// which silently changes what `user_version` means for every existing save — and a duplicate
+    /// means two files claim the same slot.
+    #[test]
+    fn test_sql_versions_are_contiguous_from_one() {
+        let files = sql_files_on_disk();
+
+        for (index, (version, name)) in files.iter().enumerate() {
+            let expected = index + 1;
+            assert_eq!(
+                *version, expected,
+                "expected migration v{expected:03} at this position but found `{name}`. \
+                 Migration versions must run 1..={MIGRATION_COUNT} with no gaps or duplicates: \
+                 rusqlite_migration stores the applied count as the schema version, so renumbering \
+                 or removing one reinterprets every existing save file.",
+            );
+        }
+    }
+
     #[test]
     fn test_migrations_are_valid() {
         let migrations = all_migrations();
