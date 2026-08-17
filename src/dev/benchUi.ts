@@ -35,6 +35,11 @@ export interface PhaseResult {
   max: number;
   /** Frames that took longer than 1.5x the measured display frame budget. */
   dropped: number;
+  /**
+   * Set when the phase could not do its work — nothing on the screen scrolled, no controls to
+   * repaint. Its numbers are then an idle baseline and must not be read as a measurement.
+   */
+  skipped?: string;
 }
 
 export interface BenchResult {
@@ -186,7 +191,7 @@ export function inferFrameBudget(allDeltas: number[]): number {
  * inside it and would win a naive size comparison — and writing `scrollTop` to it is silently
  * discarded, so the phase would record an idle baseline under the label "scroll".
  */
-function findScrollTarget(): Element {
+function findScrollTarget(): Element | null {
   const scrolls = (element: Element) => {
     const overflowY = getComputedStyle(element).overflowY;
     return overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
@@ -201,20 +206,32 @@ function findScrollTarget(): Element {
       best = element;
     }
   }
+  if (best) return best;
 
+  // The document itself only counts if it genuinely overflows. Returning it unconditionally is
+  // how this phase used to report an idle baseline as a scroll measurement: on a screen that
+  // fits the viewport — the main menu, which is where the benchmark actually runs — there is
+  // nothing to scroll, and three seconds of untouched frames look exactly like a fast scroll.
   const root = document.scrollingElement ?? document.documentElement;
-  return best ?? root;
+  return root.scrollHeight - root.clientHeight > 200 ? root : null;
 }
 
 /** A phase's raw frame deltas, summarised once the whole run has established a frame budget. */
 interface RawPhase {
   name: string;
   deltas: number[];
+  /** Why the phase could not run. Absent when it did. */
+  skipped?: string;
 }
 
 async function phaseScroll(): Promise<RawPhase> {
   const target = findScrollTarget();
-  const distance = Math.max(1, target.scrollHeight - target.clientHeight);
+  if (!target) {
+    // Better to report nothing than to report the idle frame cadence as a scroll measurement.
+    return { name: "scroll", deltas: [], skipped: "nothing on this screen scrolls" };
+  }
+
+  const distance = target.scrollHeight - target.clientHeight;
   const durationMs = 3000;
 
   const recorder = recordFrames();
@@ -258,8 +275,8 @@ async function phaseRepaint(): Promise<RawPhase> {
   const recorder = recordFrames();
 
   if (controls.length === 0) {
-    await wait(2000);
-    return { name: "repaint", deltas: recorder.stop() };
+    recorder.stop();
+    return { name: "repaint", deltas: [], skipped: "no visible controls to repaint" };
   }
 
   const original = controls.map((element) => element.style.backgroundColor);
@@ -378,7 +395,10 @@ export async function runBench(label: string): Promise<BenchResult> {
   raw.push(await phaseComposite());
 
   const frameBudgetMs = inferFrameBudget(raw.flatMap((phase) => phase.deltas.slice(1)));
-  const phases = raw.map((phase) => summarise(phase.name, phase.deltas, frameBudgetMs));
+  const phases = raw.map((phase) => ({
+    ...summarise(phase.name, phase.deltas, frameBudgetMs),
+    ...(phase.skipped ? { skipped: phase.skipped } : {}),
+  }));
 
   return {
     label,

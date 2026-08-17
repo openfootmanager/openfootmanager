@@ -79,11 +79,19 @@ const phaseNames = [...new Set(results.flatMap((r) => r.phases.map((p) => p.name
 const header = ["configuration", ...phaseNames.flatMap((n) => [`${n} p50`, `${n} p95`, `${n} drop`])];
 const divider = header.map(() => "---");
 
+// A phase that could not do its work records an idle baseline. Printing those numbers would be
+// worse than printing nothing — they look like a fast result.
+const skipped = [];
 const rows = results.map((result) => {
   const cells = [`\`${result.label}\``];
   for (const name of phaseNames) {
     const phase = result.phases.find((p) => p.name === name);
-    cells.push(phase ? `${phase.p50}` : "—", phase ? `${phase.p95}` : "—", phase ? `${phase.dropped}` : "—");
+    if (!phase || phase.skipped) {
+      if (phase?.skipped) skipped.push(`\`${result.label}\` / ${name}: ${phase.skipped}`);
+      cells.push("n/a", "n/a", "n/a");
+      continue;
+    }
+    cells.push(`${phase.p50}`, `${phase.p95}`, `${phase.dropped}`);
   }
   return cells;
 });
@@ -102,6 +110,14 @@ console.log();
 const missing = LADDER.filter((label) => !results.some((r) => r.label === label));
 if (missing.length > 0) {
   console.log(`**Not run:** ${missing.map((label) => `\`${label}\``).join(", ")}.`);
+  console.log();
+}
+
+if (skipped.length > 0) {
+  console.log(`**Not measured** (\`n/a\` above — the phase had nothing to do, so its timings`);
+  console.log(`would be an idle baseline rather than a result):`);
+  console.log();
+  for (const note of skipped) console.log(`- ${note}`);
   console.log();
 }
 

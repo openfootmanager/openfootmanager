@@ -92,6 +92,12 @@ for row in "${requested[@]}"; do
 
   rm -f "$STATE_DIR"/startup-*
 
+  # Drop this row's previous result before running it. Without this, a row that fails to produce
+  # a measurement — collector cannot bind, app crashes, row times out — still passes the
+  # existence check below against a file from an earlier run, and report.mjs presents that stale
+  # measurement as this configuration's evidence.
+  rm -f "$RESULTS_DIR/$row.json"
+
   # `tauri dev` starts its own Vite via beforeDevCommand and aborts the whole row if 1420 is
   # taken, so wait for the previous row's server to let go. Nothing is killed by name here: if
   # something outside this script is holding the port, that is worth failing loudly for rather
@@ -112,7 +118,10 @@ for row in "${requested[@]}"; do
 
   log="$RESULTS_DIR/$row.log"
   # shellcheck disable=SC2086
-  env $env_spec VITE_OFM_BENCH="$row" npm run tauri dev >"$log" 2>&1 &
+  # stdin from /dev/null, not inherited: `set -m` means a background job that reads the terminal
+  # is sent SIGTTIN and *stopped* rather than killed. npm, cargo and tauri dev can all touch
+  # stdin, and a stopped row looks exactly like a hang — a normal startup log, then nothing.
+  env $env_spec VITE_OFM_BENCH="$row" npm run tauri dev >"$log" 2>&1 </dev/null &
   app_pid=$!
 
   # Wait for the collector to exit, which it does as soon as the result lands.
