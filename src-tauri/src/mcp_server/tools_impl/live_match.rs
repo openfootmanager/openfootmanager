@@ -173,14 +173,15 @@ pub fn match_team_talk(
     tone: String,
     context: String,
 ) -> Result<String, String> {
-    let mut game = require_game(&ctx.state_manager)?;
-
     let seed = rand::random::<u64>();
-    let results = crate::commands::live_match::apply_team_talk_internal(
-        &mut game, &tone, &context, seed,
-    )?;
-
-    ctx.state_manager.set_game(game);
+    // Resolves the manager's team before the loop that adjusts morale, so an
+    // error path never leaves a half-applied team talk behind.
+    let results = ctx
+        .state_manager
+        .update_game(|game| {
+            crate::commands::live_match::apply_team_talk_internal(game, &tone, &context, seed)
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
 
     {
         use tauri::Emitter;
@@ -333,8 +334,10 @@ pub fn match_press_conference(
     .with_players(mentioned_player_ids)
     .with_i18n(headline_key, body_key, "be.source.sportsDaily", i18n_params);
 
-    game.news.push(article);
-    ctx.state_manager.set_game(game);
+    // Everything above only reads, to compose the article. Appending it is the
+    // single mutation, so it goes in on its own rather than writing back a whole
+    // game that was cloned before any of this ran.
+    ctx.state_manager.update_game(|game| game.news.push(article));
 
     {
         use tauri::Emitter;
