@@ -15,8 +15,6 @@
 //! 9. V1 safety rule: Physical + High → downgrade intensity to Medium.
 
 use crate::game::Game;
-use chrono::NaiveDate;
-use domain::league::FixtureStatus;
 use domain::team::{PlayStyle, TrainingFocus, TrainingIntensity};
 
 // ---------------------------------------------------------------------------
@@ -29,10 +27,6 @@ const RECOVERY_CRISIS_THRESHOLD: f64 = 10.0;
 const LOW_INTENSITY_MAX: f64 = 40.0;
 /// Above this avg condition: High intensity band (40–70 inclusive is Medium).
 const HIGH_INTENSITY_MIN: f64 = 70.0;
-/// Fixture within this many days is considered "near match".
-const NEAR_MATCH_DAYS: i64 = 2;
-/// This many fixtures in the next 7 days counts as congested.
-const CONGESTION_FIXTURE_THRESHOLD: usize = 2;
 
 // ---------------------------------------------------------------------------
 // Style-biased weekly cycle
@@ -98,21 +92,12 @@ fn style_weekly_cycle(play_style: &PlayStyle) -> [TrainingFocus; 5] {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn downgrade_intensity(intensity: TrainingIntensity) -> TrainingIntensity {
-    match intensity {
-        TrainingIntensity::High => TrainingIntensity::Medium,
-        TrainingIntensity::Medium | TrainingIntensity::Low => TrainingIntensity::Low,
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Per-team snapshot (immutable read, no borrows retained)
 // ---------------------------------------------------------------------------
 
 struct TeamSnapshot {
     avg_condition: f64,
-    days_to_next_fixture: i64,
-    fixtures_in_next_7: usize,
     play_style: PlayStyle,
     is_training_day: bool,
 }
@@ -144,32 +129,8 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
             / available_players.len() as f64
     };
 
-    let today = game.clock.current_date.date_naive();
-    let (days_to_next, fixtures_in_next_7) = match &game.league {
-        None => (i64::MAX, 0),
-        Some(league) => {
-            let upcoming: Vec<i64> = league
-                .fixtures
-                .iter()
-                .filter(|f| {
-                    f.status == FixtureStatus::Scheduled
-                        && (f.home_team_id == team_id || f.away_team_id == team_id)
-                })
-                .filter_map(|f| NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
-                .filter(|d| *d >= today)
-                .map(|d| (d - today).num_days())
-                .collect();
-
-            let days_to_next = upcoming.iter().copied().min().unwrap_or(i64::MAX);
-            let fixtures_in_next_7 = upcoming.iter().filter(|&&d| d <= 7).count();
-            (days_to_next, fixtures_in_next_7)
-        }
-    };
-
     TeamSnapshot {
         avg_condition,
-        days_to_next_fixture: days_to_next,
-        fixtures_in_next_7,
         play_style,
         is_training_day,
     }
@@ -221,27 +182,22 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
             TrainingIntensity::High
         };
 
-        let near_match = snap.days_to_next_fixture <= NEAR_MATCH_DAYS;
-        let congested = snap.fixtures_in_next_7 >= CONGESTION_FIXTURE_THRESHOLD;
-        let congestion_active = near_match || congested;
-
-        let intensity = if congestion_active {
-            downgrade_intensity(base_intensity)
-        } else {
-            base_intensity
-        };
+        // The near-match / congestion taper used to live here. It now lives in
+        // `training::is_tapering`, which applies it to every club — the human's
+        // included — because reducing load before a game is a property of
+        // training, not a manager's insight. What stays here is what a manager
+        // genuinely decides: how hard to work when there is room to, and on what.
+        let intensity = base_intensity;
 
         // Style-biased weekly cycle; slot is based on weekday mod 5.
         let cycle = style_weekly_cycle(&snap.play_style);
         let slot = (weekday_num as usize) % 5;
         let rotation_focus = cycle[slot].clone();
 
-        // Focus override based on effective intensity / congestion.
+        // Focus override based on effective intensity.
         let focus = match &intensity {
-            // Low intensity (fatigue or congestion-downgraded) → recovery-first.
+            // Low intensity band (a tired squad) → recovery-first.
             TrainingIntensity::Low => TrainingFocus::Recovery,
-            // Medium + congestion active → pre-match tactical work.
-            TrainingIntensity::Medium if congestion_active => TrainingFocus::Tactical,
             // Healthy band → follow style-biased rotation.
             _ => rotation_focus,
         };
@@ -598,11 +554,15 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Congestion → Tactical focus + downgraded intensity
+    // Fixture proximity is no longer this module's business
+    //
+    // The near-match / congestion taper moved to `training::is_tapering`, which
+    // applies it to every club. What this planner writes is the club's standing
+    // plan; the taper is applied on top of it, per day, without rewriting it.
     // -----------------------------------------------------------------------
 
     #[test]
-    fn congestion_downgrades_intensity_and_sets_tactical_focus() {
+    fn a_congested_fixture_list_does_not_change_the_standing_plan() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
 
         // Add 2 fixtures in the next 7 days for the AI team
@@ -637,8 +597,16 @@ mod tests {
         apply_ai_training_policies(&mut game, 0); // Mon, healthy squad, but congested
 
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
-        // High base → downgraded to Medium due to congestion, Tactical focus
-        assert_eq!(ai.training_focus, TrainingFocus::Tactical);
+        // The fixture list no longer reaches into the standing plan: a condition-80
+        // squad follows its style's Monday slot, which for Balanced is Physical, and
+        // lands on Medium only because of the Physical-and-High safety rule.
+        // `training_tests` covers what those fixtures actually do — taper the session.
+        assert_eq!(ai.training_focus, TrainingFocus::Physical);
         assert_eq!(ai.training_intensity, TrainingIntensity::Medium);
+        assert_eq!(
+            style_weekly_cycle(&PlayStyle::Balanced)[0],
+            TrainingFocus::Physical,
+            "this test reads the Monday slot; if the cycle changes, so must it"
+        );
     }
 }
