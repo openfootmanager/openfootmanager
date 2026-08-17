@@ -165,13 +165,22 @@ mod tests {
 
     #[test]
     fn normalize_startup_options_defaults_to_current_year_and_season_start() {
-        let options = normalize_startup_options(None).unwrap();
-
         use chrono::Datelike;
+
+        // Bracket the call rather than reading the clock a second time
+        // afterwards: `default_start_year` has its own `Utc::now()`, so a run
+        // that straddles a UTC new year would otherwise fail with no defect.
+        let before = chrono::Utc::now().year();
+        let options = normalize_startup_options(None).unwrap();
+        let after = chrono::Utc::now().year();
 
         // Defaulting still means "today", not the floor — a fresh career should
         // open in the current year even though historical years are now legal.
-        assert_eq!(options.start_year, chrono::Utc::now().year());
+        assert!(
+            options.start_year == before || options.start_year == after,
+            "expected the current year ({before} or {after}), got {}",
+            options.start_year
+        );
         assert_eq!(options.start_phase, StartPhase::SeasonStart);
         assert_eq!(
             options.history_depth_years,
