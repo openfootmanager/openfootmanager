@@ -44,6 +44,22 @@ pub fn upsert_staff_list(conn: &Connection, staff: &[Staff]) -> Result<(), Strin
     Ok(())
 }
 
+/// Make the stored staff exactly `staff`, dropping anyone no longer in the game.
+///
+/// Upserting alone cannot express a removal, so anyone dropped from `game.staff`
+/// in memory reappeared on the next load. The visible cost is the free-agent
+/// staff market: `generator::replace_available_staff_market` clears it and draws
+/// a fresh batch every 30 days, but the clear never reached disk, so a loaded
+/// save listed every candidate the market had ever offered.
+///
+/// Clearing first is the shape `replace_national_teams` and the competition and
+/// league repositories already use for a table the game owns outright.
+pub fn replace_staff_list(conn: &Connection, staff: &[Staff]) -> Result<(), String> {
+    conn.execute("DELETE FROM staff", [])
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    upsert_staff_list(conn, staff)
+}
+
 fn parse_role(s: &str) -> StaffRole {
     match s {
         "AssistantManager" => StaffRole::AssistantManager,
@@ -177,6 +193,46 @@ mod tests {
         upsert_staff_list(db.conn(), &list).unwrap();
         let all = load_all_staff(db.conn()).unwrap();
         assert_eq!(all.len(), 4);
+    }
+
+    /// The whole point of the function: an upsert has no way to say "gone".
+    #[test]
+    fn replace_staff_list_drops_anyone_the_new_list_omits() {
+        let db = test_db();
+        upsert_staff_list(
+            db.conn(),
+            &[
+                sample_staff("s-001", StaffRole::Coach),
+                sample_staff("s-002", StaffRole::Scout),
+            ],
+        )
+        .unwrap();
+
+        replace_staff_list(db.conn(), &[sample_staff("s-002", StaffRole::Scout)]).unwrap();
+
+        let all = load_all_staff(db.conn()).unwrap();
+        assert_eq!(all.len(), 1, "the omitted staff member survived the replace");
+        assert_eq!(all[0].id, "s-002");
+    }
+
+    /// What the free-agent market's 30-day clear does before drawing a batch.
+    #[test]
+    fn replace_staff_list_empties_the_table_when_given_nothing() {
+        let db = test_db();
+        upsert_staff_list(db.conn(), &[sample_staff("s-001", StaffRole::Coach)]).unwrap();
+
+        replace_staff_list(db.conn(), &[]).unwrap();
+
+        assert!(load_all_staff(db.conn()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_replace_staff_list_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = replace_staff_list(&conn, &[sample_staff("s-001", StaffRole::Coach)]);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
     }
 
     #[test]

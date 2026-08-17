@@ -1172,6 +1172,64 @@ mod tests {
         Game::new(clock, manager, vec![team], players, vec![], vec![])
     }
 
+    /// Removing someone from `game.staff` has to survive the save.
+    ///
+    /// Staff were written with `INSERT OR REPLACE` and read back whole, with no
+    /// delete anywhere in `db/`, so anyone removed in memory was resurrected by
+    /// the next load. The free-agent market is where that showed: it is cleared
+    /// and redrawn every 30 days, but the clear never reached disk, so a loaded
+    /// save listed every candidate ever generated and the list only ever grew.
+    #[test]
+    fn a_staff_member_removed_from_the_game_stays_removed_after_a_reload() {
+        use domain::staff::{Staff, StaffAttributes, StaffRole};
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let attributes = StaffAttributes {
+            coaching: 60,
+            judging_ability: 60,
+            judging_potential: 60,
+            physiotherapy: 20,
+        };
+        let mut promoted = Staff::new(
+            "staff-departed".to_string(),
+            "Marco".to_string(),
+            "Rossi".to_string(),
+            "1980-01-01".to_string(),
+            StaffRole::AssistantManager,
+            attributes.clone(),
+        );
+        promoted.team_id = Some("team-001".to_string());
+        let mut kept = Staff::new(
+            "staff-kept".to_string(),
+            "Amy".to_string(),
+            "Coach".to_string(),
+            "1985-01-01".to_string(),
+            StaffRole::Coach,
+            attributes,
+        );
+        kept.team_id = Some("team-001".to_string());
+
+        let mut game = sample_game();
+        game.staff = vec![promoted, kept];
+        let save_id = sm.create_save(&game, "Career").unwrap();
+
+        game.staff.retain(|member| member.id != "staff-departed");
+        sm.save_game(&game, &save_id).unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        assert!(
+            !loaded
+                .staff
+                .iter()
+                .any(|member| member.id == "staff-departed"),
+            "the removed staff member came back on load"
+        );
+        assert_eq!(loaded.staff.len(), 1, "staff list grew across the save");
+    }
+
     #[test]
     fn test_load_saves_backfills_legacy_index_missing_team_name() {
         let dir = tempfile::tempdir().unwrap();
