@@ -1,16 +1,17 @@
 //! A/B comparison of the two paths a match can take through the engine.
 //!
-//! **A — instant.** What every fixture the player is not watching gets today:
-//! the whole squad is handed to `engine::simulate` in one shot. There is no
-//! starting XI, no bench, and no AI manager on either touchline.
+//! **A — one shot.** The whole squad is handed to `engine::simulate` at once.
+//! There is no starting XI, no bench, and no AI manager on either touchline.
+//! This is the shape every unwatched fixture had before `ofm_core` learned to
+//! build an XI for the instant path; it is kept as the control arm.
 //!
 //! **B — live.** What the player's own fixture gets: eleven starters, a real
 //! bench, and `ai_decide` consulted every minute for both sides.
 //!
 //! The interesting column is `burn` — the condition the *production* wear
 //! formula would charge this squad for the match, projected onto each path's
-//! minutes. That number is what turns "the instant path fields the whole squad"
-//! from a code observation into a gameplay consequence.
+//! minutes. That is what turns "the engine credits everyone it is handed" from
+//! a code observation into a gameplay consequence.
 
 use std::time::{Duration, Instant};
 
@@ -369,11 +370,12 @@ mod tests {
         assert_eq!(shape(&team.players), shape(&bench));
     }
 
-    /// The regression this whole slice exists to expose: the instant path hands
-    /// the engine every squad member, and the report then credits every one of
-    /// them a full match.
+    /// The engine property that made the instant path's whole-squad hand-off
+    /// so expensive: whoever is handed in gets credited a full match. The fix
+    /// had to be upstream, in who `ofm_core` hands over — the engine still
+    /// behaves this way, and this test holds it to it.
     #[test]
-    fn the_instant_path_credits_the_whole_squad_a_full_match() {
+    fn the_engine_credits_every_player_it_is_handed_a_full_match() {
         let mut team_rng = StdRng::seed_from_u64(3);
         let (home_xi, home_bench) = build_squad_with_bench(
             "home",
@@ -408,7 +410,7 @@ mod tests {
 
         assert_eq!(
             totals.participants, 44,
-            "today every squad member is credited with minutes; when slice 1 lands this drops to 22"
+            "hand the engine 22 a side and all 44 are credited minutes — hence the XI filter upstream"
         );
         assert!(
             totals.condition_burn > 1_000,

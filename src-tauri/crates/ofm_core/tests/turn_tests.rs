@@ -316,6 +316,112 @@ fn process_day_routes_world_cup_fixtures_to_the_national_team_engine() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Instant simulation fields an eleven, not a squad list
+//
+// Every fixture the player is not watching goes through `build_engine_team`,
+// which used to hand the engine every player on the books — injured included —
+// and the report then credited each of them a full match. A squad was charged
+// roughly twice the condition it should have been, every fixture, and reserves
+// banked appearances for games they never played.
+// ---------------------------------------------------------------------------
+
+/// A 22-man squad: two players for each slot of a 4-4-2, so there is a real
+/// bench to leave out.
+fn make_deep_squad(team_id: &str, prefix: &str) -> Vec<Player> {
+    let shape = [
+        (Position::Goalkeeper, 1),
+        (Position::Defender, 4),
+        (Position::Midfielder, 4),
+        (Position::Forward, 2),
+    ];
+    let mut players = Vec::with_capacity(22);
+    for tier in ["a", "b"] {
+        for (position, count) in &shape {
+            for i in 0..*count {
+                players.push(make_player(
+                    &format!("{prefix}_{tier}_{position:?}{i}"),
+                    &format!("{prefix} {tier}{position:?}{i}"),
+                    team_id,
+                    position.clone(),
+                ));
+            }
+        }
+    }
+    players
+}
+
+fn game_with_deep_squads() -> Game {
+    let mut game = make_game_with_match();
+    game.players = make_deep_squad("team1", "t1");
+    game.players.extend(make_deep_squad("team2", "t2"));
+    game
+}
+
+#[test]
+fn an_instant_match_charges_eleven_players_a_side_not_the_whole_squad() {
+    let mut game = game_with_deep_squads();
+    let before: HashMap<String, u8> = game
+        .players
+        .iter()
+        .map(|p| (p.id.clone(), p.condition))
+        .collect();
+
+    turn::process_day(&mut game);
+
+    for team_id in ["team1", "team2"] {
+        let played = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some(team_id))
+            .filter(|p| p.condition < before[&p.id])
+            .count();
+        assert_eq!(
+            played, 11,
+            "{team_id} should have charged exactly its eleven starters, not {played} players"
+        );
+    }
+}
+
+#[test]
+fn an_instant_match_never_fields_an_injured_player() {
+    let mut game = game_with_deep_squads();
+    // Injure one first-choice player per slot group on team1.
+    let injured_ids: Vec<String> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team1"))
+        .take(3)
+        .map(|p| p.id.clone())
+        .collect();
+    for player in game.players.iter_mut() {
+        if injured_ids.contains(&player.id) {
+            player.injury = Some(Injury {
+                name: "common.injuries.calfStrain".to_string(),
+                days_remaining: 10,
+            });
+        }
+    }
+    let before: HashMap<String, u8> = game
+        .players
+        .iter()
+        .map(|p| (p.id.clone(), p.condition))
+        .collect();
+
+    turn::process_day(&mut game);
+
+    for id in &injured_ids {
+        let player = game.players.iter().find(|p| &p.id == id).unwrap();
+        assert!(
+            player.condition >= before[id],
+            "injured {id} must not be charged for a match it could not play \
+             ({} → {})",
+            before[id],
+            player.condition
+        );
+    }
+}
+
 fn make_game_without_match_today() -> Game {
     let mut game = make_game_with_match();
     if let Some(league) = &mut game.league {
