@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 // Domain → Engine conversion with starting XI / bench split
 // ---------------------------------------------------------------------------
 
-pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
+pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (name, formation, play_style, tactics, saved_xi_ids) = match team {
         Some(t) => (
