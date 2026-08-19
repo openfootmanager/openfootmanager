@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::require_game;
 use crate::mcp_server::formatting::translate_error;
 
 /// Format a match event as a readable string.
@@ -208,56 +207,94 @@ pub fn match_team_talk(
     ))
 }
 
-/// Submit press conference answers after a match.
-/// Derives team names, scores, and user team from the current game state
-/// to prevent fabrication of match results.
-pub fn match_press_conference(
-    ctx: Arc<McpContext>,
-    answers_json: String,
-) -> Result<String, String> {
-    #[derive(serde::Deserialize)]
-    struct PressAnswer {
-        question_id: String,
-        response_id: String,
-        response_text: String,
-        #[serde(default)]
-        player_id: String,
-    }
+/// One press conference answer, as the agent submits it.
+#[derive(serde::Deserialize)]
+struct PressAnswer {
+    question_id: String,
+    response_id: String,
+    response_text: String,
+    #[serde(default)]
+    player_id: String,
+}
 
-    let answers: Vec<PressAnswer> = serde_json::from_str(&answers_json)
-        .map_err(|e| format!("Invalid answers JSON: {}", e))?;
+/// What a press conference did, once applied: the squad morale it moved and the match it was about.
+struct PressConferenceOutcome {
+    squad_morale_delta: i16,
+    home_team_name: String,
+    away_team_name: String,
+    home_score: u8,
+    away_score: u8,
+}
 
-    let mut game = require_game(&ctx.state_manager)?;
+/// Applies a press conference to the game — individual morale, squad morale, and the news article.
+///
+/// Every failure is resolved before the first mutation. `update_game` cannot roll back a closure
+/// that returns `Err`, so a check placed after a morale change would leave the squad's mood moved
+/// with no article to explain it.
+fn apply_press_conference(
+    game: &mut ofm_core::game::Game,
+    answers: &[PressAnswer],
+) -> Result<PressConferenceOutcome, String> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
     // Derive user team and last match result from game state
-    let user_team_id = game.manager.team_id.clone()
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
         .ok_or("No team assigned to manager")?;
-    let user_team_name = game.teams.iter()
+    let user_team_name = game
+        .teams
+        .iter()
         .find(|t| t.id == user_team_id)
         .map(|t| t.name.clone())
         .unwrap_or_else(|| user_team_id.clone());
 
-    // Find the most recent completed fixture involving the user's team
-    let last_match = game.league.as_ref()
-        .and_then(|league| league.fixtures.iter()
-            .filter(|f| f.result.is_some() && (f.home_team_id == user_team_id || f.away_team_id == user_team_id))
-            .max_by(|a, b| a.date.cmp(&b.date)))
-        .ok_or("No completed match found for your team")?;
-
-    let (home_team_name, away_team_name) = {
-        let home = game.teams.iter().find(|t| t.id == last_match.home_team_id).map(|t| t.name.clone()).unwrap_or_else(|| last_match.home_team_id.clone());
-        let away = game.teams.iter().find(|t| t.id == last_match.away_team_id).map(|t| t.name.clone()).unwrap_or_else(|| last_match.away_team_id.clone());
-        (home, away)
+    // Find the most recent completed fixture involving the user's team. Copied out of the league
+    // borrow here so the morale loops below can take `game` mutably.
+    let (home_team_id, away_team_id, home_score, away_score) = {
+        let last_match = game
+            .league
+            .as_ref()
+            .and_then(|league| {
+                league
+                    .fixtures
+                    .iter()
+                    .filter(|f| {
+                        f.result.is_some()
+                            && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
+                    })
+                    .max_by(|a, b| a.date.cmp(&b.date))
+            })
+            .ok_or("No completed match found for your team")?;
+        let result = last_match
+            .result
+            .as_ref()
+            .expect("filtered to fixtures with a result");
+        (
+            last_match.home_team_id.clone(),
+            last_match.away_team_id.clone(),
+            result.home_goals,
+            result.away_goals,
+        )
     };
-    let home_score = last_match.result.as_ref().unwrap().home_goals;
-    let away_score = last_match.result.as_ref().unwrap().away_goals;
+
+    let team_name = |id: &str| {
+        game.teams
+            .iter()
+            .find(|t| t.id == id)
+            .map(|t| t.name.clone())
+            .unwrap_or_else(|| id.to_string())
+    };
+    let home_team_name = team_name(&home_team_id);
+    let away_team_name = team_name(&away_team_id);
 
     let mut morale_delta: i16 = 0;
     let mut mentioned_player_ids: Vec<String> = Vec::new();
     let mut quotes: Vec<String> = Vec::new();
 
-    for answer in &answers {
+    // Past this point nothing returns `Err` — see the note above.
+    for answer in answers {
         if !answer.response_text.is_empty() {
             quotes.push(format!("\"{}\"", answer.response_text));
         }
@@ -267,7 +304,8 @@ pub fn match_press_conference(
 
         let rid = answer.response_id.as_str();
         match rid {
-            "humble" | "fair" | "positive" | "focused" | "grateful" | "patience" | "appreciate" | "understand" => morale_delta += 2,
+            "humble" | "fair" | "positive" | "focused" | "grateful" | "patience" | "appreciate"
+            | "understand" => morale_delta += 2,
             "confident" | "ambitious" | "shared" => morale_delta += 3,
             "defiant" | "frustrated" => morale_delta += 0,
             "curt" | "evasive" => morale_delta -= 1,
@@ -300,7 +338,10 @@ pub fn match_press_conference(
         }
     }
 
-    let result_str = format!("{} {} - {} {}", home_team_name, home_score, away_score, away_team_name);
+    let result_str = format!(
+        "{} {} - {} {}",
+        home_team_name, home_score, away_score, away_team_name
+    );
     let headline_key = if quotes.is_empty() {
         "be.news.pressConference.headlinePostMatch"
     } else {
@@ -334,19 +375,272 @@ pub fn match_press_conference(
     .with_players(mentioned_player_ids)
     .with_i18n(headline_key, body_key, "be.source.sportsDaily", i18n_params);
 
-    // Everything above only reads, to compose the article. Appending it is the
-    // single mutation, so it goes in on its own rather than writing back a whole
-    // game that was cloned before any of this ran.
-    ctx.state_manager.update_game(|game| game.news.push(article));
+    game.news.push(article);
+
+    Ok(PressConferenceOutcome {
+        squad_morale_delta: morale_delta,
+        home_team_name,
+        away_team_name,
+        home_score,
+        away_score,
+    })
+}
+
+/// Submit press conference answers after a match.
+/// Derives team names, scores, and user team from the current game state
+/// to prevent fabrication of match results.
+pub fn match_press_conference(
+    ctx: Arc<McpContext>,
+    answers_json: String,
+) -> Result<String, String> {
+    let answers: Vec<PressAnswer> =
+        serde_json::from_str(&answers_json).map_err(|e| format!("Invalid answers JSON: {}", e))?;
+
+    // The morale it moves and the article it files are one press conference, so they go in under
+    // a single lock rather than being computed against a clone that only partly makes it back.
+    let outcome = ctx
+        .state_manager
+        .update_game(|game| apply_press_conference(game, &answers))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let emoji = if morale_delta > 0 { "📈" } else if morale_delta < 0 { "📉" } else { "➡️" };
+    let emoji = if outcome.squad_morale_delta > 0 {
+        "📈"
+    } else if outcome.squad_morale_delta < 0 {
+        "📉"
+    } else {
+        "➡️"
+    };
     Ok(format!(
         "## Press Conference Complete\n\n{} Squad morale: {:+}\n**Match**: {} {} - {} {}",
-        emoji, morale_delta, home_team_name, home_score, away_score, away_team_name
+        emoji,
+        outcome.squad_morale_delta,
+        outcome.home_team_name,
+        outcome.home_score,
+        outcome.away_score,
+        outcome.away_team_name
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    fn attributes() -> domain::player::PlayerAttributes {
+        domain::player::PlayerAttributes {
+            pace: 70,
+            stamina: 72,
+            strength: 65,
+            agility: 68,
+            passing: 74,
+            shooting: 61,
+            tackling: 58,
+            dribbling: 69,
+            defending: 56,
+            positioning: 67,
+            vision: 73,
+            decisions: 71,
+            composure: 66,
+            aggression: 54,
+            teamwork: 76,
+            leadership: 49,
+            handling: 20,
+            reflexes: 24,
+            aerial: 44,
+        }
+    }
+
+    fn player(id: &str, team_id: &str) -> domain::player::Player {
+        let mut p = domain::player::Player::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            "1998-04-02".to_string(),
+            "England".to_string(),
+            domain::player::Position::Midfielder,
+            attributes(),
+        );
+        p.team_id = Some(team_id.to_string());
+        p.morale = 50;
+        p
+    }
+
+    fn team(id: &str, name: &str) -> domain::team::Team {
+        domain::team::Team::new(
+            id.to_string(),
+            name.to_string(),
+            name.to_string(),
+            "England".to_string(),
+            "Somewhere".to_string(),
+            "The Ground".to_string(),
+            10_000,
+        )
+    }
+
+    /// A game whose user team has just played — the precondition every press conference needs.
+    fn game_after_a_match() -> ofm_core::game::Game {
+        let clock = ofm_core::clock::GameClock::new(
+            chrono::Utc.with_ymd_and_hms(2026, 3, 14, 12, 0, 0).unwrap(),
+        );
+        let mut manager = domain::manager::Manager::new(
+            "mgr1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+
+        let players = vec![
+            player("p1", "team1"),
+            player("p2", "team1"),
+            player("p3", "team2"),
+        ];
+
+        let fixture = domain::league::Fixture {
+            id: "fix1".to_string(),
+            matchday: 1,
+            date: "2026-03-13".to_string(),
+            home_team_id: "team1".to_string(),
+            away_team_id: "team2".to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            status: domain::league::FixtureStatus::Completed,
+            result: Some(domain::league::MatchResult {
+                home_goals: 2,
+                away_goals: 1,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let league = domain::league::League {
+            id: "league1".to_string(),
+            name: "Test League".to_string(),
+            season: 1,
+            fixtures: vec![fixture],
+            ..Default::default()
+        };
+
+        let mut game = ofm_core::game::Game::new(
+            clock,
+            manager,
+            vec![team("team1", "Test FC"), team("team2", "Rival FC")],
+            players,
+            vec![],
+            vec![],
+        );
+        game.league = Some(league);
+        game
+    }
+
+    fn answer(question_id: &str, response_id: &str, player_id: &str) -> PressAnswer {
+        PressAnswer {
+            question_id: question_id.to_string(),
+            response_id: response_id.to_string(),
+            response_text: "We go again.".to_string(),
+            player_id: player_id.to_string(),
+        }
+    }
+
+    /// The regression this module exists for: morale used to be applied to a clone of the game
+    /// that was then thrown away, so only the news article survived the tool call.
+    #[test]
+    fn squad_morale_survives_the_press_conference() {
+        let mut game = game_after_a_match();
+
+        let outcome = apply_press_conference(&mut game, &[answer("mood", "confident", "")])
+            .expect("the user team has a completed fixture");
+
+        assert_eq!(outcome.squad_morale_delta, 3);
+        let moved: Vec<u8> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+            .map(|p| p.morale)
+            .collect();
+        assert_eq!(
+            moved,
+            vec![53, 53],
+            "every player in the user's squad should carry the morale change"
+        );
+    }
+
+    #[test]
+    fn only_the_user_squad_takes_the_morale_change() {
+        let mut game = game_after_a_match();
+
+        apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        let rival = game.players.iter().find(|p| p.id == "p3").unwrap();
+        assert_eq!(rival.morale, 50, "the opposition hears no team talk");
+    }
+
+    /// A `player_focus` answer moves that player on top of the squad-wide change.
+    #[test]
+    fn naming_a_player_moves_that_player_further() {
+        let mut game = game_after_a_match();
+
+        apply_press_conference(&mut game, &[answer("player_focus", "praise", "p1")]).unwrap();
+
+        let named = game.players.iter().find(|p| p.id == "p1").unwrap();
+        let unnamed = game.players.iter().find(|p| p.id == "p2").unwrap();
+        assert_eq!(named.morale, 59, "50 + 5 individual + 4 squad-wide");
+        assert_eq!(unnamed.morale, 54, "50 + 4 squad-wide");
+    }
+
+    #[test]
+    fn the_conference_files_one_news_article() {
+        let mut game = game_after_a_match();
+
+        apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        assert_eq!(game.news.len(), 1);
+        assert_eq!(game.news[0].id, "press_conf_2026-03-14");
+    }
+
+    /// Nothing may be half-applied: `update_game` cannot roll back, so a rejected conference has
+    /// to leave the game exactly as it found it.
+    #[test]
+    fn a_manager_without_a_team_changes_nothing() {
+        let mut game = game_after_a_match();
+        game.manager.team_id = None;
+
+        let result = apply_press_conference(&mut game, &[answer("mood", "confident", "")]);
+
+        assert!(result.is_err());
+        assert!(game.players.iter().all(|p| p.morale == 50));
+        assert!(game.news.is_empty());
+    }
+
+    #[test]
+    fn a_team_that_has_not_played_changes_nothing() {
+        let mut game = game_after_a_match();
+        if let Some(league) = game.league.as_mut() {
+            league.fixtures[0].result = None;
+        }
+
+        let result = apply_press_conference(&mut game, &[answer("mood", "confident", "")]);
+
+        assert!(result.is_err());
+        assert!(game.players.iter().all(|p| p.morale == 50));
+        assert!(game.news.is_empty());
+    }
+
+    #[test]
+    fn the_outcome_reports_the_match_it_covered() {
+        let mut game = game_after_a_match();
+
+        let outcome =
+            apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        assert_eq!(outcome.home_team_name, "Test FC");
+        assert_eq!(outcome.away_team_name, "Rival FC");
+        assert_eq!(outcome.home_score, 2);
+        assert_eq!(outcome.away_score, 1);
+    }
 }
