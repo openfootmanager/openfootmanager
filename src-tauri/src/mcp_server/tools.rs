@@ -1024,6 +1024,9 @@ mod tests {
     ///
     /// The hazard with any textual check is that it quietly stops matching and passes on an empty
     /// parse. `router_registrations_are_all_recognised` exists to make that impossible.
+    ///
+    /// This parser goes away when the router can report its registered names without a constructed
+    /// `McpContext` — that is, without a `tauri::AppHandle`.
     const FULL_SOURCE: &str = include_str!("tools.rs");
 
     /// Everything above this test module.
