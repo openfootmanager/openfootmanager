@@ -1032,10 +1032,13 @@ mod tests {
     /// counted ten route registrations where the router has six, having matched its own comments.
     /// Anything after the module marker is this test's text, not a registration.
     fn source() -> &'static str {
+        // Split on the *last* such marker, and name `mod tests {` in it: a `#[cfg(test)]` helper
+        // added higher up the file would otherwise cut production code short, and every check
+        // below would start reporting on registrations it never read.
         FULL_SOURCE
-            .split_once("\n#[cfg(test)]\n")
+            .rsplit_once("\n#[cfg(test)]\nmod tests {")
             .map(|(production_code, _)| production_code)
-            .expect("this test module is introduced by a #[cfg(test)] line")
+            .expect("this test module is introduced by `#[cfg(test)] mod tests {`")
     }
 
     /// The macros every bulk registration goes through.
