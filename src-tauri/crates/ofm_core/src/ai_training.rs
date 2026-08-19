@@ -146,12 +146,20 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
 /// chosen focus and intensity are in effect when training effects are applied.
 pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
     let user_team_id = game.manager.team_id.clone();
+    // A club playing today is not training today, so there is no session for a
+    // plan to describe. Skipping it also keeps the daily write off the record for
+    // clubs that would only have it overwritten unread.
+    let playing_today = crate::training::teams_playing_on(
+        game,
+        &game.clock.current_date.format("%Y-%m-%d").to_string(),
+    );
 
     // Collect AI team IDs up front to avoid borrow conflicts.
     let team_ids: Vec<String> = game
         .teams
         .iter()
         .filter(|t| Some(&t.id) != user_team_id.as_ref())
+        .filter(|t| !playing_today.contains(&t.id))
         .map(|t| t.id.clone())
         .collect();
 
