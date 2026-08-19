@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import TournamentsFixturesView from "./TournamentsFixturesView";
+import { formatMatchDate } from "../../lib/helpers";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import type { FixtureData } from "../../store/gameStore";
 
@@ -71,24 +72,45 @@ describe("TournamentsFixturesView", () => {
       ],
     ]);
 
-    expect(screen.getByTestId("tournaments-fixture-f1")).toBeInTheDocument();
-    expect(screen.getByTestId("tournaments-fixture-f2")).toBeInTheDocument();
-    expect(screen.getByText("Name of third")).toBeInTheDocument();
+    // Each club side renders as a button named for the team, so the two rows are
+    // countable without reaching for a test id.
+    expect(
+      screen.getByRole("button", { name: "Name of home" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Name of third" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Name of away" }),
+    ).toHaveLength(2);
   });
 
   // Every fixture in a round shares a date, so the header takes the first one's.
+  // The second fixture carries a different date on purpose: with only one
+  // fixture rendered, "takes the first one's date" and "takes any date" look the
+  // same, and the test would pass either way.
   it("dates the matchday from its first fixture", () => {
-    renderView([[4, [fixture({ id: "f1", date: "2026-09-12" })]]]);
+    renderView([
+      [
+        4,
+        [
+          fixture({ id: "f1", date: "2026-09-12" }),
+          fixture({ id: "f2", date: "2026-09-13" }),
+        ],
+      ],
+    ]);
 
     const heading = screen.getByRole("heading");
-    expect(heading.textContent).toContain("Matchday 4");
-    expect(heading.textContent).not.toBe("Matchday 4 — ");
+    expect(heading).toHaveTextContent(
+      `Matchday 4 — ${formatMatchDate("2026-09-12")}`,
+    );
+    expect(heading.textContent).not.toContain(formatMatchDate("2026-09-13"));
   });
 
   it("renders nothing when the competition has no fixtures yet", () => {
     const { container } = renderView([]);
 
     expect(screen.queryByRole("heading")).toBeNull();
-    expect(within(container).queryByTestId(/tournaments-fixture-/)).toBeNull();
+    expect(within(container).queryByRole("button")).toBeNull();
   });
 });
