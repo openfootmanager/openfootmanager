@@ -125,9 +125,17 @@ fn simulate_competition_day_with_capture<F>(
     // be a borrow, because simulation needs the rest of `game` mutably too.
     game.league = Some(std::mem::take(&mut game.competitions[competition_index]));
     simulate_matchday_with_capture(game, today, on_capture);
-    if let Some(updated_competition) = game.league.take() {
-        game.competitions[competition_index] = updated_competition;
-    }
+    // Unconditional on purpose. While this cloned, an empty slot here meant the restore was
+    // skipped and `game.competitions[index]` still held the original — harmless. Now the
+    // competition is only in `game.league`, so skipping the restore would leave the slot holding
+    // `League::default()` and lose that competition's fixtures, standings, transfer log and
+    // tournament state, silently and permanently. Nothing on this path clears `game.league`, so
+    // this cannot fire; if it ever does, failing loudly beats emptying a competition.
+    let updated_competition = game
+        .league
+        .take()
+        .expect("simulate_matchday must leave the competition in the legacy slot");
+    game.competitions[competition_index] = updated_competition;
     game.sync_legacy_league();
 }
 
