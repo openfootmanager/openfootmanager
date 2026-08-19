@@ -10,7 +10,7 @@ import {
 import { useSeasonAwards } from "./useSeasonAwards";
 import { useTournamentsData } from "./useTournamentsData";
 import { GameStateData } from "../../store/gameStore";
-import TournamentsFixtureRow from "./TournamentsFixtureRow";
+import TournamentsFixturesView from "./TournamentsFixturesView";
 import TournamentsLeagueHeader from "./TournamentsLeagueHeader";
 import TournamentsOverview from "./TournamentsOverview";
 import TournamentsStandingsView from "./TournamentsStandingsView";
@@ -201,30 +201,10 @@ export default function TournamentsTab({
 
       {/* Fixtures */}
       {view === "fixtures" && (
-        <div className="flex flex-col gap-4">
-          {sortedMatchdays.map(([md, fixtures]) => (
-            <Card key={md}>
-              <div className="px-5 py-3 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 rounded-t-xl">
-                <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                  {t("schedule.matchday", { number: md })} —{" "}
-                  {formatMatchDate(fixtures[0].date)}
-                </h4>
-              </div>
-              <CardBody className="p-0">
-                <div className="divide-y divide-gray-100 dark:divide-navy-600">
-                  {fixtures.map((f) => (
-                    <TournamentsFixtureRow
-                      key={f.id}
-                      fixture={f}
-                      testId={`tournaments-fixture-${f.id}`}
-                      teams={teams}
-                    />
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
-          ))}
-        </div>
+        <TournamentsFixturesView
+          sortedMatchdays={sortedMatchdays}
+          teams={teams}
+        />
       )}
       {/* Awards */}
       {view === "awards" && (
