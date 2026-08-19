@@ -1119,15 +1119,29 @@ mod tests {
     /// check while the router serves a name the catalog has never heard of.
     ///
     /// Inside the macro definitions the same guard reads `$name`, so it does not match here.
-    fn hand_rolled_guard_and_registered_names_in(source: &str) -> Vec<(String, Option<String>)> {
-        // The `Tool` sits within a few lines of its guard — at most guard, `let ctx = …`,
-        // `router.add_route(ToolRoute::new_dyn(`, then the name. Searching further would let a
-        // guard that wraps no registration at all pair up with the *next* block's tool, which
-        // reads as a name mismatch somewhere it isn't.
+    /// The literal opening a hand-rolled registration's disable guard.
+    const GUARD: &str = "if !disabled.contains(&\"";
+
+    /// The name a hand-rolled block registers, read from the `Tool` beneath its guard at `start`.
+    ///
+    /// Bounded to the guard's own block — guard, an optional `let ctx = …`,
+    /// `router.add_route(ToolRoute::new_dyn(`, then the name. Searching further would let a guard
+    /// that wraps no registration pair up with the *next* block's tool, reporting a mismatch
+    /// against a block that is perfectly correct while the recognition count stays balanced.
+    fn registered_name_below(lines: &[&str], start: usize) -> Option<String> {
         const BLOCK: usize = 4;
-        const GUARD: &str = "if !disabled.contains(&\"";
         const REGISTRARS: &[&str] = &["simple_tool(", "Tool::new("];
 
+        lines
+            .iter()
+            .enumerate()
+            .skip(start)
+            .take(BLOCK + 1)
+            .find(|(_, below)| REGISTRARS.iter().any(|start| below.starts_with(start)))
+            .and_then(|(at, _)| literal_at_or_after(lines, at))
+    }
+
+    fn hand_rolled_guard_and_registered_names_in(source: &str) -> Vec<(String, Option<String>)> {
         let lines: Vec<&str> = source.lines().map(str::trim).collect();
 
         lines
@@ -1136,16 +1150,32 @@ mod tests {
             .filter(|(_, line)| line.starts_with(GUARD))
             .filter_map(|(index, line)| {
                 let guard = String::from(first_string_literal(line)?);
+                Some((guard, registered_name_below(&lines, index)))
+            })
+            .collect()
+    }
 
-                let registered = lines
-                    .iter()
-                    .enumerate()
-                    .skip(index)
-                    .take(BLOCK + 1)
-                    .find(|(_, below)| REGISTRARS.iter().any(|start| below.starts_with(start)))
-                    .and_then(|(at, _)| literal_at_or_after(&lines, at));
+    /// Every routed name, in the order `build_tool_router` registers them, including repeats.
+    ///
+    /// One pass over the source rather than "all macro registrations, then all hand-rolled ones":
+    /// the router interleaves the two forms, so concatenating them produces a plausible list in
+    /// the wrong order. Nothing asserts on position today — `no_tool_is_routed_twice` reports
+    /// which names repeat, not which registration won — but a list that claims an order it does
+    /// not have is a trap for whatever asks next.
+    fn routed_names_in_order_of(source: &str) -> Vec<String> {
+        let lines: Vec<&str> = source.lines().map(str::trim).collect();
 
-                Some((guard, registered))
+        lines
+            .iter()
+            .enumerate()
+            .filter_map(|(index, line)| {
+                if is_macro_invocation(line) {
+                    literal_at_or_after(&lines, index)
+                } else if line.starts_with(GUARD) {
+                    registered_name_below(&lines, index)
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -1161,15 +1191,10 @@ mod tests {
             .collect()
     }
 
-    /// Every routed name, in registration order and including any repeats.
-    ///
     /// `routed_names` collapses these into a set, which is what the catalog comparisons need but
     /// is also exactly what hides a name registered twice.
     fn routed_names_in_order() -> Vec<String> {
-        macro_registered_names()
-            .into_iter()
-            .chain(hand_rolled_names())
-            .collect()
+        routed_names_in_order_of(source())
     }
 
     fn routed_names() -> BTreeSet<String> {
@@ -1322,6 +1347,22 @@ mod tests {
                 (String::from("stray"), None),
                 (String::from("ping"), Some(String::from("ping"))),
             ],
+        );
+    }
+
+    /// The two registration forms are interleaved in `build_tool_router`, so the ordered list has
+    /// to be read in one pass rather than assembled form by form.
+    #[test]
+    fn routed_names_follow_the_order_the_router_registers_them() {
+        let source = format!(
+            "real_tool!(\"first\", \"desc\", path);\n{}real_tool!(\"third\", \"desc\", path);\n",
+            hand_rolled_block("second", "second"),
+        );
+
+        assert_eq!(
+            routed_names_in_order_of(&source),
+            vec!["first", "second", "third"],
+            "a macro registration between two hand-rolled ones must keep its place",
         );
     }
 
