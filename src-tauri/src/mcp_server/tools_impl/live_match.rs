@@ -303,16 +303,22 @@ fn apply_press_conference(
         }
 
         let rid = answer.response_id.as_str();
+        // Saturating, because the answer list is agent-supplied and unbounded. Plain `+=` on an
+        // i16 overflows after roughly 10,900 positive answers, and this loop runs while the game
+        // mutex is held — a panic here would poison it and take the session down, after some
+        // morale had already moved. The final clamp to ±8 puts the saturation point out of reach
+        // for any input that is not already nonsense.
         match rid {
             "humble" | "fair" | "positive" | "focused" | "grateful" | "patience" | "appreciate"
-            | "understand" => morale_delta += 2,
-            "confident" | "ambitious" | "shared" => morale_delta += 3,
-            "defiant" | "frustrated" => morale_delta += 0,
-            "curt" | "evasive" => morale_delta -= 1,
-            "accept" | "detailed" | "apologize" => morale_delta += 1,
+            | "understand" => morale_delta = morale_delta.saturating_add(2),
+            "confident" | "ambitious" | "shared" => morale_delta = morale_delta.saturating_add(3),
+            // Deliberately neutral rather than unhandled.
+            "defiant" | "frustrated" => {}
+            "curt" | "evasive" => morale_delta = morale_delta.saturating_sub(1),
+            "accept" | "detailed" | "apologize" => morale_delta = morale_delta.saturating_add(1),
             "deflect" => {}
-            "praise" => morale_delta += 4,
-            "demanding" => morale_delta += 1,
+            "praise" => morale_delta = morale_delta.saturating_add(4),
+            "demanding" => morale_delta = morale_delta.saturating_add(1),
             _ => {}
         }
 
@@ -629,6 +635,26 @@ mod tests {
         assert!(result.is_err());
         assert!(game.players.iter().all(|p| p.morale == 50));
         assert!(game.news.is_empty());
+    }
+
+    /// The answer list arrives from an agent and is unbounded. `i16` accumulation overflows after
+    /// roughly 10,900 positive answers, and this runs while the game mutex is held — an overflow
+    /// panic would poison it and end the session, after some morale had already moved.
+    #[test]
+    fn an_absurd_number_of_answers_saturates_instead_of_overflowing() {
+        let mut game = game_after_a_match();
+        let answers: Vec<PressAnswer> = (0..20_000)
+            .map(|_| answer("mood", "confident", ""))
+            .collect();
+
+        let outcome = apply_press_conference(&mut game, &answers)
+            .expect("a long answer list is still a valid conference");
+
+        assert_eq!(
+            outcome.squad_morale_delta, 8,
+            "clamped, not wrapped negative"
+        );
+        assert!(game.players.iter().all(|p| p.morale <= 100));
     }
 
     #[test]
