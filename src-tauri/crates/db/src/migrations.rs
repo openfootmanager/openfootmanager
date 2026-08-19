@@ -101,9 +101,9 @@ mod tests {
 
     /// Every `vNNN_*.sql` file in `src/sql/`, as (version number, file name).
     fn sql_files_on_disk() -> Vec<(usize, String)> {
-        let sql_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/sql");
+        let sql_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/sql");
 
-        let mut files: Vec<(usize, String)> = std::fs::read_dir(sql_dir)
+        let mut files: Vec<(usize, String)> = std::fs::read_dir(&sql_dir)
             .expect("src/sql should be readable")
             .map(|entry| entry.expect("readable directory entry").file_name())
             .map(|name| name.to_string_lossy().into_owned())
@@ -148,6 +148,8 @@ mod tests {
     #[test]
     fn test_every_sql_file_is_registered_exactly_once() {
         // This module's own source is the registration list.
+        // `include_str!` resolves relative to this file, so the bare name is required:
+        // `include_str!(file!())` expands to a crate-root-relative path and does not compile.
         let source = include_str!("migrations.rs");
 
         for (_, name) in sql_files_on_disk() {
