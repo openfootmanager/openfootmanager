@@ -218,6 +218,7 @@ struct PressAnswer {
 }
 
 /// What a press conference did, once applied: the squad morale it moved and the match it was about.
+#[derive(Debug)]
 struct PressConferenceOutcome {
     squad_morale_delta: i16,
     home_team_name: String,
@@ -401,6 +402,23 @@ fn apply_press_conference(
     })
 }
 
+/// Runs a press conference against the active game.
+///
+/// The morale it moves and the article it files are one press conference, so they go in under a
+/// single lock rather than being computed against a clone that only partly makes it back.
+///
+/// Split from the tool wrapper so the write-back itself is reachable from a test: the wrapper
+/// needs a Tauri `AppHandle`, this needs only a `StateManager`. Testing `apply_press_conference`
+/// alone leaves the persistence — the part that actually regressed — uncovered.
+fn press_conference_on(
+    state: &ofm_core::state::StateManager,
+    answers: &[PressAnswer],
+) -> Result<PressConferenceOutcome, String> {
+    state
+        .update_game(|game| apply_press_conference(game, answers))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+}
+
 /// Submit press conference answers after a match.
 /// Derives team names, scores, and user team from the current game state
 /// to prevent fabrication of match results.
@@ -411,12 +429,7 @@ pub fn match_press_conference(
     let answers: Vec<PressAnswer> =
         serde_json::from_str(&answers_json).map_err(|e| format!("Invalid answers JSON: {}", e))?;
 
-    // The morale it moves and the article it files are one press conference, so they go in under
-    // a single lock rather than being computed against a clone that only partly makes it back.
-    let outcome = ctx
-        .state_manager
-        .update_game(|game| apply_press_conference(game, &answers))
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
+    let outcome = press_conference_on(&ctx.state_manager, &answers)?;
 
     {
         use tauri::Emitter;
@@ -697,6 +710,49 @@ mod tests {
             .expect("a new day is a new conference");
 
         assert_eq!(game.news.len(), 2);
+    }
+
+    /// Covers the write-back, not just the arithmetic. Every other test here drives
+    /// `apply_press_conference` against a game it owns, which cannot tell whether the tool
+    /// persists anything — the exact thing that regressed. This one goes through a real
+    /// `StateManager` and reads the stored game back out.
+    #[test]
+    fn the_conference_reaches_the_stored_game() {
+        let state = ofm_core::state::StateManager::new();
+        state.set_game(game_after_a_match());
+
+        let outcome = press_conference_on(&state, &[answer("mood", "confident", "")])
+            .expect("the stored game has a completed fixture");
+
+        assert_eq!(outcome.squad_morale_delta, 3);
+        let (morale, articles) = state
+            .get_game(|g| {
+                (
+                    g.players
+                        .iter()
+                        .filter(|p| p.team_id.as_deref() == Some("team1"))
+                        .map(|p| p.morale)
+                        .collect::<Vec<u8>>(),
+                    g.news.len(),
+                )
+            })
+            .expect("a game is active");
+
+        assert_eq!(
+            morale,
+            vec![53, 53],
+            "morale must survive in the stored game"
+        );
+        assert_eq!(articles, 1, "the article must survive in the stored game");
+    }
+
+    #[test]
+    fn a_conference_without_an_active_game_is_rejected() {
+        let state = ofm_core::state::StateManager::new();
+
+        let result = press_conference_on(&state, &[answer("mood", "confident", "")]);
+
+        assert_eq!(result.unwrap_err(), "be.error.noActiveGameSession");
     }
 
     #[test]
