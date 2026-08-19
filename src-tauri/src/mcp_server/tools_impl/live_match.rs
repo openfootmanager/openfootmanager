@@ -237,6 +237,16 @@ fn apply_press_conference(
 ) -> Result<PressConferenceOutcome, String> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
+    // One conference per game day. The id is derived from the date alone, so a second call files
+    // an article sharing the first one's id — the id the news list keys on and selects by, which
+    // makes the later article unreachable — and re-applies the whole squad delta, walking every
+    // player to maximum morale. This is the guard every other generator of a date-derived article
+    // id already uses; see `turn/news.rs`.
+    let article_id = format!("press_conf_{}", today);
+    if game.news.iter().any(|article| article.id == article_id) {
+        return Err("A press conference has already been held today.".to_string());
+    }
+
     // Derive user team and last match result from game state
     let user_team_id = game
         .manager
@@ -368,7 +378,6 @@ fn apply_press_conference(
         i18n_params.insert("quote".to_string(), quotes[0].trim_matches('"').to_string());
     }
 
-    let article_id = format!("press_conf_{}", today);
     let article = domain::news::NewsArticle::new(
         article_id,
         String::new(),
@@ -655,6 +664,39 @@ mod tests {
             "clamped, not wrapped negative"
         );
         assert!(game.players.iter().all(|p| p.morale <= 100));
+    }
+
+    /// A second conference on the same day would file an article sharing the first one's id — the
+    /// id the news list keys on — and re-apply the squad delta.
+    #[test]
+    fn a_second_conference_on_the_same_day_is_rejected() {
+        let mut game = game_after_a_match();
+        apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        let result = apply_press_conference(&mut game, &[answer("mood", "confident", "")]);
+
+        assert!(result.is_err());
+        assert_eq!(game.news.len(), 1, "no second article");
+        assert!(
+            game.players
+                .iter()
+                .filter(|p| p.team_id.as_deref() == Some("team1"))
+                .all(|p| p.morale == 53),
+            "morale must not stack on a rejected repeat"
+        );
+    }
+
+    /// The guard is keyed on the game date, so advancing the clock allows another one.
+    #[test]
+    fn the_next_day_allows_another_conference() {
+        let mut game = game_after_a_match();
+        apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        game.clock.current_date = chrono::Utc.with_ymd_and_hms(2026, 3, 15, 12, 0, 0).unwrap();
+        apply_press_conference(&mut game, &[answer("mood", "confident", "")])
+            .expect("a new day is a new conference");
+
+        assert_eq!(game.news.len(), 2);
     }
 
     #[test]
