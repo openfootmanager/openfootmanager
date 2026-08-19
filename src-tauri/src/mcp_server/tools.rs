@@ -1094,11 +1094,19 @@ mod tests {
             .collect()
     }
 
-    fn routed_names() -> BTreeSet<String> {
+    /// Every routed name, in registration order and including any repeats.
+    ///
+    /// `routed_names` collapses these into a set, which is what the catalog comparisons need but
+    /// is also exactly what hides a name registered twice.
+    fn routed_names_in_order() -> Vec<String> {
         macro_registered_names()
             .into_iter()
             .chain(hand_rolled_names())
             .collect()
+    }
+
+    fn routed_names() -> BTreeSet<String> {
+        routed_names_in_order().into_iter().collect()
     }
 
     fn catalogued_names() -> BTreeSet<String> {
@@ -1138,6 +1146,30 @@ mod tests {
 
     /// `help_find_tool` searches only the catalog, so a routed tool missing from it is callable
     /// but undiscoverable. Until now this was prevented only by a ⚠️ in a comment.
+    /// `ToolRouter::add_route` stores routes with `HashMap::insert` (rmcp 1.7,
+    /// `handler/server/router/tool.rs`), so registering a name twice does not fail — the second
+    /// registration silently replaces the first handler, and the tool starts answering with
+    /// another tool's implementation.
+    ///
+    /// Nothing else here can see that. The set comparisons below dedupe, and the recognition
+    /// count rises consistently because both the invocation count and the extracted-name count go
+    /// up together.
+    #[test]
+    fn no_tool_is_routed_twice() {
+        let mut seen = BTreeSet::new();
+        let duplicates: Vec<String> = routed_names_in_order()
+            .into_iter()
+            .filter(|name| !seen.insert(name.clone()))
+            .collect();
+
+        assert!(
+            duplicates.is_empty(),
+            "these tools are registered more than once: {duplicates:?}. The router keeps the last \
+             registration, so the earlier handler is unreachable and the tool answers as whatever \
+             was registered after it.",
+        );
+    }
+
     #[test]
     fn every_routed_tool_is_in_the_catalog() {
         let catalogued = catalogued_names();
