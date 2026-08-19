@@ -3,20 +3,27 @@ use rusqlite_migration::{M, Migrations};
 /// Number of migrations defined.
 pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 
-/// The highest migration version ever shipped in a release.
+/// The number of migrations, pinned.
 ///
-/// **Never lower this.** A save written by an older build carries `user_version = N`; deleting
-/// migration N leaves the program's set shorter than a database it still has to open, and the
-/// column that migration added simply will not be there. Raise it when a migration is added.
-const HIGHEST_SHIPPED_MIGRATION: usize = 42;
+/// Adding a migration breaks the build here until this is raised, which is the point: the pin is
+/// what makes *lowering* it a deliberate act. Every other check in this module compares the
+/// registration list, the count and the `src/sql` directory against each other, so deleting a
+/// migration from all three at once leaves them agreeing — only a number that does not move
+/// notices, and a `>=` floor nobody is forced to maintain would quietly stop covering anything
+/// added after it.
+///
+/// **Lowering this is almost always wrong.** A save written by a release with N migrations
+/// reports `user_version = N` and expects every column those migrations added; a build with
+/// fewer can neither open it nor recreate it.
+const EXPECTED_MIGRATION_COUNT: usize = 42;
 
-// Deliberately a compile-time assertion rather than a test: removing a shipped migration should
-// fail the build, not merely turn a suite red. Every other check here compares the registration
-// list, the count and the directory against each other, so deleting a migration from all three at
-// once leaves them agreeing — only a floor that cannot move notices.
+// Compile-time rather than a test: adding or removing a migration should fail the build, not
+// merely turn a suite red.
 const _: () = assert!(
-    MIGRATION_COUNT >= HIGHEST_SHIPPED_MIGRATION,
-    "a shipped migration has been removed: saves written by that release report a higher user_version than this build can produce, and expect columns it never creates. Restore the migration rather than lowering HIGHEST_SHIPPED_MIGRATION."
+    MIGRATION_COUNT == EXPECTED_MIGRATION_COUNT,
+    "the migration count changed. If you added a migration, raise EXPECTED_MIGRATION_COUNT to \
+     match. If you removed one, put it back: saves written by the release that shipped it report \
+     a higher user_version than this build can produce, and expect columns it never creates."
 );
 
 /// Every migration, in the order `rusqlite_migration` applies them.
