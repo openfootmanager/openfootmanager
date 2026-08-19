@@ -64,19 +64,20 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     // load management. Gate on the user team explicitly, NOT on "saved XI empty",
     // so the human's early-career auto-built XI stays reputation-independent.
     let is_user_team = game.manager.team_id.as_deref() == Some(team_id);
-    let starting_players = if is_user_team {
+    let mut starting_players = if is_user_team {
         select_starting_xi(saved_xi_ids, &available_players, &formation)
     } else {
         let quality = team_management_quality(game, team);
         ai_select_starting_xi(&available_players, &formation, quality)
     };
+    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
+    // (entry i plays formation slot i), so the list index is the deployed slot.
+    let slots = formation_slots(&formation);
+    fill_from_the_treatment_room(game, team_id, &slots, &mut starting_players);
     let used_ids: HashSet<String> = starting_players
         .iter()
         .map(|player| player.id.clone())
         .collect();
-    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
-    // (entry i plays formation slot i), so the list index is the deployed slot.
-    let slots = formation_slots(&formation);
     let starting_xi = starting_players
         .into_iter()
         .enumerate()
@@ -107,6 +108,60 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     };
 
     (team_data, bench)
+}
+
+/// Make a short XI up to the number of slots the formation asks for, drawing on
+/// players who are carrying an injury.
+///
+/// Selection proper only ever considers fit players, so this runs on what it
+/// leaves behind: it can add nobody a manager would have picked anyway. It
+/// exists because a side has to be put out. Handed a side with nobody in it the
+/// engine indexes a player who is not there and brings the whole day down; and
+/// handed a short one it never counts the missing men, since an absent position
+/// group falls back to a fixed rating and absent roles borrow whoever is left.
+/// So neither fielding nobody nor fielding four is a thing the simulation can
+/// be trusted to punish. A club that cannot name eleven fit players plays its
+/// walking wounded instead, least serious knock first.
+///
+/// A club with no registered players at all still comes back empty. That is a
+/// broken save rather than an injury crisis, and papering over it here would
+/// only hide it.
+fn fill_from_the_treatment_room<'a>(
+    game: &'a Game,
+    team_id: &str,
+    slots: &[DomainPosition],
+    starting_players: &mut Vec<&'a domain::player::Player>,
+) {
+    let wanted = slots.len().min(11);
+    if starting_players.len() >= wanted {
+        return;
+    }
+
+    let mut used: HashSet<&str> = starting_players.iter().map(|p| p.id.as_str()).collect();
+    let already_named = starting_players.len();
+    for slot in slots.iter().take(wanted).skip(already_named) {
+        let best = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some(team_id))
+            .filter(|p| p.injury.is_some() && !used.contains(p.id.as_str()))
+            .min_by(|left, right| {
+                let days = |p: &domain::player::Player| {
+                    p.injury.as_ref().map_or(0, |injury| injury.days_remaining)
+                };
+                days(left).cmp(&days(right)).then_with(|| {
+                    effective_rating_for_assignment(right, slot)
+                        .partial_cmp(&effective_rating_for_assignment(left, slot))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+            });
+
+        let Some(player) = best else {
+            break; // The treatment room is empty too — field what we have.
+        };
+        used.insert(player.id.as_str());
+        starting_players.push(player);
+    }
 }
 
 fn select_starting_xi<'a>(

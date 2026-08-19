@@ -422,6 +422,76 @@ fn an_instant_match_never_fields_an_injured_player() {
     }
 }
 
+/// The eleven a club actually put out, by the field that records it.
+fn fielded_count(game: &Game, team_id: &str) -> usize {
+    game.players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.stats.appearances > 0)
+        .count()
+}
+
+/// team2 is an AI club, so this covers the `ai_select_starting_xi` branch; the
+/// short-squad test below runs the same top-up through the user's own club.
+#[test]
+fn an_instant_match_still_fields_a_side_when_every_player_is_injured() {
+    let mut game = game_with_deep_squads();
+    for player in game.players.iter_mut() {
+        if player.team_id.as_deref() == Some("team2") {
+            player.injury = Some(Injury {
+                name: "common.injuries.calfStrain".to_string(),
+                days_remaining: 10,
+            });
+        }
+    }
+
+    // Must not panic: an empty side makes the engine index a player that is not
+    // there. A club with bodies puts a side out, however sore.
+    turn::process_day(&mut game);
+
+    assert_eq!(
+        fielded_count(&game, "team2"),
+        11,
+        "a club with no fit players must still field eleven"
+    );
+}
+
+/// team1 is the manager's own club, so this runs the top-up behind
+/// `select_starting_xi` rather than the AI policy.
+#[test]
+fn a_squad_too_short_to_field_eleven_is_topped_up_from_the_injured() {
+    let mut game = game_with_deep_squads();
+    let fit_ids: Vec<String> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team1"))
+        .take(7)
+        .map(|p| p.id.clone())
+        .collect();
+    for player in game.players.iter_mut() {
+        if player.team_id.as_deref() == Some("team1") && !fit_ids.contains(&player.id) {
+            player.injury = Some(Injury {
+                name: "common.injuries.calfStrain".to_string(),
+                days_remaining: 10,
+            });
+        }
+    }
+
+    turn::process_day(&mut game);
+
+    assert_eq!(
+        fielded_count(&game, "team1"),
+        11,
+        "seven fit players must be made up to eleven, not fielded as a short side"
+    );
+    for id in &fit_ids {
+        let player = game.players.iter().find(|p| &p.id == id).unwrap();
+        assert!(
+            player.stats.appearances > 0,
+            "fit {id} must start ahead of any injured player"
+        );
+    }
+}
+
 fn make_game_without_match_today() -> Game {
     let mut game = make_game_with_match();
     if let Some(league) = &mut game.league {
