@@ -1,97 +1,129 @@
 use rusqlite_migration::{M, Migrations};
 
-/// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 42;
+/// Number of migrations defined.
+pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
+
+/// The highest migration version ever shipped in a release.
+///
+/// **Never lower this.** A save written by an older build carries `user_version = N`; deleting
+/// migration N leaves the program's set shorter than a database it still has to open, and the
+/// column that migration added simply will not be there. Raise it when a migration is added.
+const HIGHEST_SHIPPED_MIGRATION: usize = 42;
+
+// Deliberately a compile-time assertion rather than a test: removing a shipped migration should
+// fail the build, not merely turn a suite red. Every other check here compares the registration
+// list, the count and the directory against each other, so deleting a migration from all three at
+// once leaves them agreeing — only a floor that cannot move notices.
+const _: () = assert!(
+    MIGRATION_COUNT >= HIGHEST_SHIPPED_MIGRATION,
+    "a shipped migration has been removed: saves written by that release report a higher user_version than this build can produce, and expect columns it never creates. Restore the migration rather than lowering HIGHEST_SHIPPED_MIGRATION."
+);
+
+/// Every migration, in the order `rusqlite_migration` applies them.
+///
+/// The order *is* the schema version: the applied count is stored as `user_version`, so entry
+/// N is what "version N" means for every save file already written. Append only — reordering
+/// or removing an entry after release points existing databases at a different script, and no
+/// already-written save can be corrected afterwards.
+///
+/// The file name is carried beside the SQL rather than left implicit in the `include_str!`
+/// path so the tests can check the registration list against `src/sql` as data. They used to
+/// recover it by parsing this file as text, which could not tell a real registration from one
+/// inside a block comment.
+// One line per migration on purpose: this is a table, and rustfmt's four-line-per-entry form
+// makes it four times longer and much harder to scan for a version number.
+#[rustfmt::skip]
+const MIGRATIONS: &[(&str, &str)] = &[
+    // V1: Initial schema — all game entity tables
+    ("v001_initial_schema.sql", include_str!("sql/v001_initial_schema.sql")),
+    // V2: Training groups per team
+    ("v002_training_groups.sql", include_str!("sql/v002_training_groups.sql")),
+    // V3: Alternate positions per player
+    ("v003_alternate_positions.sql", include_str!("sql/v003_alternate_positions.sql")),
+    // V4: Natural/preferred position per player
+    ("v004_natural_position.sql", include_str!("sql/v004_natural_position.sql")),
+    // V5: Per-player training focus override
+    ("v005_player_training_focus.sql", include_str!("sql/v005_player_training_focus.sql")),
+    // V6: Team match roles defaults
+    ("v006_team_match_roles.sql", include_str!("sql/v006_team_match_roles.sql")),
+    // V7: Team financial ledger
+    ("v007_team_financial_ledger.sql", include_str!("sql/v007_team_financial_ledger.sql")),
+    // V8: Team sponsorship state
+    ("v008_team_sponsorship.sql", include_str!("sql/v008_team_sponsorship.sql")),
+    // V9: Team facilities state
+    ("v009_team_facilities.sql", include_str!("sql/v009_team_facilities.sql")),
+    // V10: Hidden per-player morale architecture state
+    ("v010_player_morale_core.sql", include_str!("sql/v010_player_morale_core.sql")),
+    // V11: Player footedness identity fields
+    ("v011_player_footedness.sql", include_str!("sql/v011_player_footedness.sql")),
+    // V12: Fixture competition metadata
+    ("v012_fixture_competition.sql", include_str!("sql/v012_fixture_competition.sql")),
+    // V13: Player long-term fitness value
+    ("v013_player_fitness.sql", include_str!("sql/v013_player_fitness.sql")),
+    // V14: Explicit football identity fields for teams and people
+    ("v014_football_identity.sql", include_str!("sql/v014_football_identity.sql")),
+    // V15: Historical player and team match stats
+    ("v015_match_stats_history.sql", include_str!("sql/v015_match_stats_history.sql")),
+    // V16: Manager board-warning stage tracking (per-club, resets on hire)
+    ("v016_manager_warning_stage.sql", include_str!("sql/v016_manager_warning_stage.sql")),
+    // V17: Persist vacancy-age tracking for delayed AI manager replacements
+    ("v017_vacant_team_days.sql", include_str!("sql/v017_vacant_team_days.sql")),
+    // V18: Completed transfer log for world transfer-centre views
+    ("v018_transfer_log.sql", include_str!("sql/v018_transfer_log.sql")),
+    // V19: Explicit senior versus youth squad assignment for players
+    ("v019_player_squad_role.sql", include_str!("sql/v019_player_squad_role.sql")),
+    // V20: Persist computed OVR and potential so they survive save/load
+    ("v020_player_ovr_potential.sql", include_str!("sql/v020_player_ovr_potential.sql")),
+    // V21: Persist youth recruitment scouting assignments separately from player scouting
+    ("v021_youth_scouting_assignments.sql", include_str!("sql/v021_youth_scouting_assignments.sql")),
+    // V22: Persist target position for youth recruitment scouting assignments
+    ("v022_youth_scouting_target_position.sql", include_str!("sql/v022_youth_scouting_target_position.sql")),
+    // V23: Persist region and objective for youth recruitment scouting assignments
+    ("v023_youth_scouting_search_profile.sql", include_str!("sql/v023_youth_scouting_search_profile.sql")),
+    // V24: Persist structured transfer rumours for the world transfer centre
+    ("v024_transfer_rumours.sql", include_str!("sql/v024_transfer_rumours.sql")),
+    // V25: Persist retired player state for seasonal aging and hall-of-fame work
+    ("v025_player_retired.sql", include_str!("sql/v025_player_retired.sql")),
+    // V26: Persist world-history archives for rivalries and historical season awards
+    ("v026_world_history_archive.sql", include_str!("sql/v026_world_history_archive.sql")),
+    // V27: Persist available staff market activity for monthly rotation
+    ("v027_available_staff_market_activity.sql", include_str!("sql/v027_available_staff_market_activity.sql")),
+    // V28: Persist optional local media paths for teams and players
+    ("v028_entity_media.sql", include_str!("sql/v028_entity_media.sql")),
+    // V29: Save metadata for world package versions and active simulation scope
+    ("v029_competition_save_metadata.sql", include_str!("sql/v029_competition_save_metadata.sql")),
+    // V30: Persist multi-competition and national-team state
+    ("v030_competitions_and_national_teams.sql", include_str!("sql/v030_competitions_and_national_teams.sql")),
+    // V31: Persist group stages for group-and-knockout competitions
+    ("v031_competition_groups.sql", include_str!("sql/v031_competition_groups.sql")),
+    // V32: Persist qualification berths on competitions
+    ("v032_competition_berths.sql", include_str!("sql/v032_competition_berths.sql")),
+    // V33: Season start month and day per competition for hemisphere-aware scheduling
+    ("v033_competition_season_start.sql", include_str!("sql/v033_competition_season_start.sql")),
+    // V34: Optional jersey/squad number per player (1-99, NULL = unassigned)
+    ("v034_player_jersey_number.sql", include_str!("sql/v034_player_jersey_number.sql")),
+    // V35: Kit pattern for team jersey visual (Solid, Stripes, Hoops, HalfAndHalf, Diagonal)
+    ("v035_team_kit_pattern.sql", include_str!("sql/v035_team_kit_pattern.sql")),
+    // V36: Enforce per-team jersey number uniqueness at DB level
+    ("v036_player_jersey_number_unique.sql", include_str!("sql/v036_player_jersey_number_unique.sql")),
+    // V37: Per-player tactical roles and phase blueprint settings
+    ("v037_team_tactics.sql", include_str!("sql/v037_team_tactics.sql")),
+    // V38: i18n name key for national teams
+    ("v038_national_team_name_key.sql", include_str!("sql/v038_national_team_name_key.sql")),
+    // V39: Persist extra translations bundle from world packages
+    ("v039_game_extra_translations.sql", include_str!("sql/v039_game_extra_translations.sql")),
+    // V40: Persist loan offer history and active loan contracts
+    ("v040_player_loan_state.sql", include_str!("sql/v040_player_loan_state.sql")),
+    // V41: Persist per-player transfer and loan movement history
+    ("v041_player_movement_history.sql", include_str!("sql/v041_player_movement_history.sql")),
+    // V42: Persist installed-package lockfile (id, version, hash) for save reproducibility
+    ("v042_game_package_lockfile.sql", include_str!("sql/v042_game_package_lockfile.sql")),
+];
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
 pub fn all_migrations() -> Migrations<'static> {
-    Migrations::new(vec![
-        // V1: Initial schema — all game entity tables
-        M::up(include_str!("sql/v001_initial_schema.sql")),
-        // V2: Training groups per team
-        M::up(include_str!("sql/v002_training_groups.sql")),
-        // V3: Alternate positions per player
-        M::up(include_str!("sql/v003_alternate_positions.sql")),
-        // V4: Natural/preferred position per player
-        M::up(include_str!("sql/v004_natural_position.sql")),
-        // V5: Per-player training focus override
-        M::up(include_str!("sql/v005_player_training_focus.sql")),
-        // V6: Team match roles defaults
-        M::up(include_str!("sql/v006_team_match_roles.sql")),
-        // V7: Team financial ledger
-        M::up(include_str!("sql/v007_team_financial_ledger.sql")),
-        // V8: Team sponsorship state
-        M::up(include_str!("sql/v008_team_sponsorship.sql")),
-        // V9: Team facilities state
-        M::up(include_str!("sql/v009_team_facilities.sql")),
-        // V10: Hidden per-player morale architecture state
-        M::up(include_str!("sql/v010_player_morale_core.sql")),
-        // V11: Player footedness identity fields
-        M::up(include_str!("sql/v011_player_footedness.sql")),
-        // V12: Fixture competition metadata
-        M::up(include_str!("sql/v012_fixture_competition.sql")),
-        // V13: Player long-term fitness value
-        M::up(include_str!("sql/v013_player_fitness.sql")),
-        // V14: Explicit football identity fields for teams and people
-        M::up(include_str!("sql/v014_football_identity.sql")),
-        // V15: Historical player and team match stats
-        M::up(include_str!("sql/v015_match_stats_history.sql")),
-        // V16: Manager board-warning stage tracking (per-club, resets on hire)
-        M::up(include_str!("sql/v016_manager_warning_stage.sql")),
-        // V17: Persist vacancy-age tracking for delayed AI manager replacements
-        M::up(include_str!("sql/v017_vacant_team_days.sql")),
-        // V18: Completed transfer log for world transfer-centre views
-        M::up(include_str!("sql/v018_transfer_log.sql")),
-        // V19: Explicit senior versus youth squad assignment for players
-        M::up(include_str!("sql/v019_player_squad_role.sql")),
-        // V20: Persist computed OVR and potential so they survive save/load
-        M::up(include_str!("sql/v020_player_ovr_potential.sql")),
-        // V21: Persist youth recruitment scouting assignments separately from player scouting
-        M::up(include_str!("sql/v021_youth_scouting_assignments.sql")),
-        // V22: Persist target position for youth recruitment scouting assignments
-        M::up(include_str!("sql/v022_youth_scouting_target_position.sql")),
-        // V23: Persist region and objective for youth recruitment scouting assignments
-        M::up(include_str!("sql/v023_youth_scouting_search_profile.sql")),
-        // V24: Persist structured transfer rumours for the world transfer centre
-        M::up(include_str!("sql/v024_transfer_rumours.sql")),
-        // V25: Persist retired player state for seasonal aging and hall-of-fame work
-        M::up(include_str!("sql/v025_player_retired.sql")),
-        // V26: Persist world-history archives for rivalries and historical season awards
-        M::up(include_str!("sql/v026_world_history_archive.sql")),
-        // V27: Persist available staff market activity for monthly rotation
-        M::up(include_str!("sql/v027_available_staff_market_activity.sql")),
-        // V28: Persist optional local media paths for teams and players
-        M::up(include_str!("sql/v028_entity_media.sql")),
-        // V29: Save metadata for world package versions and active simulation scope
-        M::up(include_str!("sql/v029_competition_save_metadata.sql")),
-        // V30: Persist multi-competition and national-team state
-        M::up(include_str!("sql/v030_competitions_and_national_teams.sql")),
-        // V31: Persist group stages for group-and-knockout competitions
-        M::up(include_str!("sql/v031_competition_groups.sql")),
-        // V32: Persist qualification berths on competitions
-        M::up(include_str!("sql/v032_competition_berths.sql")),
-        // V33: Season start month and day per competition for hemisphere-aware scheduling
-        M::up(include_str!("sql/v033_competition_season_start.sql")),
-        // V34: Optional jersey/squad number per player (1-99, NULL = unassigned)
-        M::up(include_str!("sql/v034_player_jersey_number.sql")),
-        // V35: Kit pattern for team jersey visual (Solid, Stripes, Hoops, HalfAndHalf, Diagonal)
-        M::up(include_str!("sql/v035_team_kit_pattern.sql")),
-        // V36: Enforce per-team jersey number uniqueness at DB level
-        M::up(include_str!("sql/v036_player_jersey_number_unique.sql")),
-        // V37: Per-player tactical roles and phase blueprint settings
-        M::up(include_str!("sql/v037_team_tactics.sql")),
-        // V38: i18n name key for national teams
-        M::up(include_str!("sql/v038_national_team_name_key.sql")),
-        // V39: Persist extra translations bundle from world packages
-        M::up(include_str!("sql/v039_game_extra_translations.sql")),
-        // V40: Persist loan offer history and active loan contracts
-        M::up(include_str!("sql/v040_player_loan_state.sql")),
-        // V41: Persist per-player transfer and loan movement history
-        M::up(include_str!("sql/v041_player_movement_history.sql")),
-        // V42: Persist installed-package lockfile (id, version, hash) for save reproducibility
-        M::up(include_str!("sql/v042_game_package_lockfile.sql")),
-    ])
+    Migrations::new(MIGRATIONS.iter().map(|(_, sql)| M::up(sql)).collect())
 }
 
 #[cfg(test)]
@@ -147,40 +179,32 @@ mod tests {
         );
     }
 
-    /// The file names registered in `all_migrations()`, in the order they are registered.
-    ///
-    /// Read out of this module's own source because `Migrations` does not expose its scripts.
-    /// Only `M::up(include_str!("sql/…"))` is matched, so a name mentioned in a comment — or in
-    /// this very test — is not mistaken for a registration.
+    /// The file names registered in `MIGRATIONS`, in the order they are registered.
     fn registered_file_names() -> Vec<String> {
-        // `include_str!` resolves relative to this file, so the bare name is required:
-        // `include_str!(file!())` expands to a crate-root-relative path and does not compile.
-        let source = include_str!("migrations.rs");
-        const OPENING: &str = "M::up(include_str!(\"sql/";
-
-        source
-            .lines()
-            .map(str::trim)
-            .filter_map(|line| line.strip_prefix(OPENING))
-            .filter_map(|rest| rest.split('"').next())
-            .map(String::from)
+        MIGRATIONS
+            .iter()
+            .map(|(name, _)| String::from(*name))
             .collect()
     }
 
-    /// Guards the parser below: if the registration style changes, this stops matching and every
-    /// name silently disappears. Pinning the count against `MIGRATION_COUNT` turns that into a
-    /// failure rather than a vacuous pass over an empty list.
+    /// The name in each entry is what ties a registration to a file on disk, so it has to be the
+    /// file that entry actually embeds — otherwise the ordering test below compares labels while
+    /// the SQL underneath them says something else.
     #[test]
-    fn test_registrations_are_all_recognised() {
-        assert_eq!(
-            registered_file_names().len(),
-            MIGRATION_COUNT,
-            "recognised {} `M::up(include_str!(\"sql/…\"))` registrations but MIGRATION_COUNT is \
-             {MIGRATION_COUNT}. A migration was registered in a style this test cannot read — \
-             teach it the new style rather than deleting the assertion, or the ordering check \
-             below starts passing for migrations it never examined.",
-            registered_file_names().len(),
-        );
+    fn test_each_registration_embeds_the_file_it_names() {
+        let sql_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/sql");
+
+        for (name, embedded) in MIGRATIONS {
+            let on_disk = std::fs::read_to_string(sql_dir.join(name))
+                .unwrap_or_else(|e| panic!("migration `{name}` is registered but unreadable: {e}"));
+
+            assert_eq!(
+                *embedded, on_disk,
+                "the entry named `{name}` does not embed `src/sql/{name}`. The name is what every \
+                 other check in this module matches against, so a mismatched pair makes them all \
+                 agree about the wrong thing.",
+            );
+        }
     }
 
     /// The registration order **is** the schema version: `rusqlite_migration` applies the vec in
