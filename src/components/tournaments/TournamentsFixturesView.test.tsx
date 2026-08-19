@@ -42,9 +42,17 @@ function fixture(overrides: Partial<FixtureData> = {}): FixtureData {
 }
 
 function renderView(matchdays: Array<[number, FixtureData[]]>) {
-  return render(
+  const view = render(
     <TournamentsFixturesView sortedMatchdays={matchdays} teams={teamLookup()} />,
   );
+  return {
+    ...view,
+    // Re-renders the same mounted instance, which is what makes a changing hook count observable.
+    rerenderWith: (next: Array<[number, FixtureData[]]>) =>
+      view.rerender(
+        <TournamentsFixturesView sortedMatchdays={next} teams={teamLookup()} />,
+      ),
+  };
 }
 
 describe("TournamentsFixturesView", () => {
@@ -59,6 +67,28 @@ describe("TournamentsFixturesView", () => {
       expect.stringContaining("Matchday 1"),
       expect.stringContaining("Matchday 2"),
     ]);
+    // Without this the test is about headings, not cards: dropping the <Card> wrapper entirely
+    // leaves both headings in place and the assertion above still passes.
+    expect(
+      headings.map((h) => h.closest("[class*='rounded-xl']")).filter(Boolean),
+    ).toHaveLength(2);
+  });
+
+  // The mock keeps a hook inside `useTranslation` so a Rules-of-Hooks violation surfaces here
+  // rather than in the app. That only bites if the hook *count* can change between renders of one
+  // mounted instance — moving `useTranslation()` inside the matchday map is invisible to any
+  // number of separate first renders.
+  it("survives the matchday count changing under it", () => {
+    const { rerenderWith } = renderView([[1, [fixture({ id: "f1" })]]]);
+
+    expect(() =>
+      rerenderWith([
+        [1, [fixture({ id: "f1" })]],
+        [2, [fixture({ id: "f2" })]],
+      ]),
+    ).not.toThrow();
+
+    expect(screen.getAllByRole("heading")).toHaveLength(2);
   });
 
   it("lists every fixture in a matchday", () => {
