@@ -138,6 +138,54 @@ mod tests {
     use super::*;
     use rusqlite::Connection;
 
+    /// The version a `vNNN_description.sql` file name claims, or `None` if it is not that shape.
+    ///
+    /// The three-digit rule matters: `v1_x.sql` and `v01_x.sql` both parse as 1, so a looser
+    /// reading would let the directory hold two files claiming one version while the contiguity
+    /// check still agreed. The description must be non-empty because `v001.sql` and `v001_.sql`
+    /// carry no hint of what they do, and the naming is the only documentation a migration has.
+    fn migration_version(name: &str) -> Option<usize> {
+        let (digits, description) = name
+            .strip_suffix(".sql")?
+            .strip_prefix('v')?
+            .split_once('_')?;
+
+        if digits.len() != 3
+            || !digits.bytes().all(|b| b.is_ascii_digit())
+            || description.is_empty()
+        {
+            return None;
+        }
+
+        digits.parse::<usize>().ok()
+    }
+
+    #[test]
+    fn test_migration_version_requires_the_documented_shape() {
+        assert_eq!(migration_version("v001_initial_schema.sql"), Some(1));
+        assert_eq!(
+            migration_version("v042_game_package_lockfile.sql"),
+            Some(42)
+        );
+
+        for rejected in [
+            "v1_short.sql",      // one digit: would collide with v001
+            "v01_short.sql",     // two digits: likewise
+            "v0001_long.sql",    // four digits
+            "v001.sql",          // no description
+            "v001_.sql",         // empty description
+            "vabc_letters.sql",  // not a number
+            "001_no_prefix.sql", // no `v`
+            "v001_no_extension", // not a .sql file
+        ] {
+            assert_eq!(
+                migration_version(rejected),
+                None,
+                "should reject `{rejected}`"
+            );
+        }
+    }
+
     /// Every `vNNN_*.sql` file in `src/sql/`, as (version number, file name).
     fn sql_files_on_disk() -> Vec<(usize, String)> {
         let sql_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/sql");
@@ -148,17 +196,11 @@ mod tests {
             .map(|name| name.to_string_lossy().into_owned())
             .filter(|name| name.ends_with(".sql"))
             .map(|name| {
-                let version = name
-                    .strip_prefix('v')
-                    .and_then(|rest| rest.split('_').next())
-                    // Exactly three digits: `v1_x.sql` and `v01_x.sql` both parse as 1, so
-                    // without this the directory could hold two files claiming one version and
-                    // the contiguity check below would still be satisfied.
-                    .filter(|digits| digits.len() == 3 && digits.bytes().all(|b| b.is_ascii_digit()))
-                    .and_then(|digits| digits.parse::<usize>().ok())
-                    .unwrap_or_else(|| {
-                        panic!("migration file `{name}` does not follow the vNNN_description.sql naming")
-                    });
+                let version = migration_version(&name).unwrap_or_else(|| {
+                    panic!(
+                        "migration file `{name}` does not follow the vNNN_description.sql naming"
+                    )
+                });
                 (version, name)
             })
             .collect();
