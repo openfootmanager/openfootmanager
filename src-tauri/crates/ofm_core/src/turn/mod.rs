@@ -112,12 +112,17 @@ fn simulate_competition_day_with_capture<F>(
         return;
     }
 
-    // Move the competition into the legacy working slot rather than cloning it.
-    // A `League` owns its fixtures, standings, transfer log and tournament
-    // state, and the clone was discarded a few lines later anyway. Nothing
-    // reachable from `simulate_matchday_with_capture` reads `game.competitions`
-    // — the dormant path that does is driven separately from `process_day` — so
-    // the vacated slot is never observed before it is filled back in.
+    // Simulation still reads the competition out of the legacy `game.league`
+    // slot, so it has to be put there; move it rather than cloning it. A
+    // `League` owns its fixtures, standings, transfer log and tournament state,
+    // and the clone was discarded a few lines later anyway. Nothing reachable
+    // from `simulate_matchday_with_capture` reads `game.competitions` — the
+    // dormant path that does is driven separately from `process_day` — so the
+    // vacated slot is never observed before it is filled back in.
+    //
+    // The move goes away once simulation takes the competition directly, or
+    // once the legacy slot does; until then the borrow checker will not let it
+    // be a borrow, because simulation needs the rest of `game` mutably too.
     game.league = Some(std::mem::take(&mut game.competitions[competition_index]));
     simulate_matchday_with_capture(game, today, on_capture);
     if let Some(updated_competition) = game.league.take() {
