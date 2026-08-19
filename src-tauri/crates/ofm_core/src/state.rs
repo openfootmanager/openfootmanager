@@ -39,11 +39,18 @@ fn cloned_option<T: Clone>(mutex: &Mutex<Option<T>>) -> Option<T> {
     lock.clone()
 }
 
+/// The active session, behind mutexes.
+///
+/// The fields are private on purpose: the whole point of `get_game` /
+/// `update_game` is that callers never hold a guard themselves, because a
+/// `get` → mutate clone → `set` sequence loses updates when the GUI and an MCP
+/// agent act concurrently. Handing out the `Mutex` would let a caller do
+/// exactly that, or hold a lock across an `.await`.
 pub struct StateManager {
-    pub active_game: Mutex<Option<Game>>,
-    pub active_stats: Mutex<Option<StatsState>>,
-    pub live_match: Mutex<Option<LiveMatchSession>>,
-    pub active_save_id: Mutex<Option<String>>,
+    active_game: Mutex<Option<Game>>,
+    active_stats: Mutex<Option<StatsState>>,
+    live_match: Mutex<Option<LiveMatchSession>>,
+    active_save_id: Mutex<Option<String>>,
 }
 
 impl Default for StateManager {

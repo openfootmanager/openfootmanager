@@ -410,9 +410,13 @@ impl LiveMatchState {
         self.current_minute
     }
 
-    /// Rolling window of the last ≤10 ball_zone values (oldest first)
-    pub fn recent_zones(&self) -> &VecDeque<Zone> {
-        &self.recent_zones
+    /// Rolling window of the last ≤10 ball_zone values (oldest first).
+    ///
+    /// Crate-private and iterator-shaped: only the AI reads this, and only to
+    /// count zones. Handing out the `VecDeque` published a container choice
+    /// that nothing outside the engine has any business depending on.
+    pub(crate) fn recent_zones(&self) -> impl Iterator<Item = Zone> + '_ {
+        self.recent_zones.iter().copied()
     }
 
     /// Get the bench for a side
