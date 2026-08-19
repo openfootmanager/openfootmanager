@@ -306,10 +306,16 @@ The `ofm_core/turn/` bridge is the only place the conversion is allowed to live 
 `engine` never imports `domain`, so every domain type is translated here.
 
 1. **`turn/squad.rs`** — the single domain→engine squad builder, shared by both match
-   paths. `build_team_with_bench()` excludes injured players, picks eleven slot-aligned
-   starters via `ai_select_starting_xi()`, and returns the bench separately, so only
-   actual participants are handed to the engine. It also maps positions, play styles,
-   roles, the nine tactical dials, and all 19 attributes + traits.
+   paths. `build_team_with_bench()` picks eleven slot-aligned starters from the club's fit
+   players and returns the bench separately, so only actual participants are handed to the
+   engine. Who picks them depends on whose club it is: the user's own club goes through
+   `select_starting_xi()`, which honours the saved XI and rebuilds one only when fewer than
+   eight saved starters are still available; every other club goes through
+   `ai_select_starting_xi()`, a reputation-driven policy that rotates for freshness. A club
+   with too few fit players to fill the formation makes the shortfall up from its injured
+   list rather than fielding a short side — the engine has no forfeit, and an empty side
+   would crash it. The builder also maps positions, play styles, roles, the nine tactical
+   dials, and all 19 attributes + traits.
 2. **`simulate_matchday()`** — for each fixture on a match day, builds both squads through
    `turn/squad.rs` and calls `engine::simulate()`. The bench is discarded on this path:
    `simulate()` is one-shot with no command loop, so an instant match has no substitutions.

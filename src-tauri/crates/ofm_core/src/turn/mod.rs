@@ -424,8 +424,9 @@ where
     };
 
     // The same builder the live path uses, so both answer "who is playing" the
-    // same way: eleven fit players in slot order, chosen by the user's saved XI
-    // or the AI's selection policy. The bench is discarded — `engine::simulate`
+    // same way: eleven players in slot order, chosen by the user's saved XI or
+    // the AI's selection policy, fit ones first and the walking wounded only to
+    // make up a shortfall. The bench is discarded — `engine::simulate`
     // is a one-shot with no command loop, so nobody can come off it. That means
     // no substitutions in an instant match, which is a real gap and a later
     // slice's job; what matters here is that reserves are no longer credited
