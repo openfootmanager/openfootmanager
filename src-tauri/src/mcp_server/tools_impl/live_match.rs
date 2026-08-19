@@ -207,6 +207,17 @@ pub fn match_team_talk(
     ))
 }
 
+/// The most answers one press conference may carry.
+///
+/// The screen asks five questions. The ceiling is not about that — it is about the loop below
+/// running with the game mutex held, so an agent that posts a million answers would otherwise
+/// stall every other game operation while they are copied, and persist the whole pile into the
+/// article's player list.
+const MAX_PRESS_CONFERENCE_ANSWERS: usize = 32;
+
+/// The longest quote that can be attributed to the manager. Real responses are a sentence.
+const MAX_RESPONSE_TEXT_CHARS: usize = 500;
+
 /// One press conference answer, as the agent submits it.
 #[derive(serde::Deserialize)]
 struct PressAnswer {
@@ -302,12 +313,15 @@ fn apply_press_conference(
 
     let mut morale_delta: i16 = 0;
     let mut mentioned_player_ids: Vec<String> = Vec::new();
-    let mut quotes: Vec<String> = Vec::new();
+    // Only the first quote is ever rendered; the rest only decide singular vs plural wording.
+    let mut first_quote: Option<String> = None;
+    let mut quote_count: usize = 0;
 
     // Past this point nothing returns `Err` — see the note above.
     for answer in answers {
         if !answer.response_text.is_empty() {
-            quotes.push(format!("\"{}\"", answer.response_text));
+            quote_count += 1;
+            first_quote.get_or_insert_with(|| answer.response_text.clone());
         }
         if !answer.player_id.is_empty() {
             mentioned_player_ids.push(answer.player_id.clone());
@@ -359,14 +373,14 @@ fn apply_press_conference(
         "{} {} - {} {}",
         home_team_name, home_score, away_score, away_team_name
     );
-    let headline_key = if quotes.is_empty() {
+    let headline_key = if quote_count == 0 {
         "be.news.pressConference.headlinePostMatch"
     } else {
         "be.news.pressConference.headlineManagerQuote"
     };
-    let body_key = if quotes.len() > 1 {
+    let body_key = if quote_count > 1 {
         "be.news.pressConference.bodyMultiple"
-    } else if quotes.len() == 1 {
+    } else if quote_count == 1 {
         "be.news.pressConference.bodySingle"
     } else {
         "be.news.pressConference.bodyNone"
@@ -375,8 +389,8 @@ fn apply_press_conference(
     let mut i18n_params = std::collections::HashMap::new();
     i18n_params.insert("team".to_string(), user_team_name);
     i18n_params.insert("result".to_string(), result_str);
-    if !quotes.is_empty() {
-        i18n_params.insert("quote".to_string(), quotes[0].trim_matches('"').to_string());
+    if let Some(quote) = first_quote {
+        i18n_params.insert("quote".to_string(), quote.trim_matches('"').to_string());
     }
 
     let article = domain::news::NewsArticle::new(
@@ -400,6 +414,34 @@ fn apply_press_conference(
         home_score,
         away_score,
     })
+}
+
+/// Rejects a request too large to walk while holding the game mutex.
+///
+/// Called before `press_conference_on`, deliberately: the loop it guards runs with the mutex
+/// held, so the point is to refuse an oversized request *without* having taken the lock.
+fn check_answer_limits(answers: &[PressAnswer]) -> Result<(), String> {
+    if answers.len() > MAX_PRESS_CONFERENCE_ANSWERS {
+        return Err(format!(
+            "Too many answers: {} submitted, at most {} accepted.",
+            answers.len(),
+            MAX_PRESS_CONFERENCE_ANSWERS
+        ));
+    }
+
+    if let Some(answer) = answers
+        .iter()
+        .find(|answer| answer.response_text.chars().count() > MAX_RESPONSE_TEXT_CHARS)
+    {
+        return Err(format!(
+            "Answer to `{}` is too long: {} characters, at most {} accepted.",
+            answer.question_id,
+            answer.response_text.chars().count(),
+            MAX_RESPONSE_TEXT_CHARS
+        ));
+    }
+
+    Ok(())
 }
 
 /// Runs a press conference against the active game.
@@ -428,6 +470,8 @@ pub fn match_press_conference(
 ) -> Result<String, String> {
     let answers: Vec<PressAnswer> =
         serde_json::from_str(&answers_json).map_err(|e| format!("Invalid answers JSON: {}", e))?;
+
+    check_answer_limits(&answers)?;
 
     let outcome = press_conference_on(&ctx.state_manager, &answers)?;
 
@@ -753,6 +797,82 @@ mod tests {
         let result = press_conference_on(&state, &[answer("mood", "confident", "")]);
 
         assert_eq!(result.unwrap_err(), "be.error.noActiveGameSession");
+    }
+
+    fn quoted(text: &str) -> PressAnswer {
+        PressAnswer {
+            question_id: "mood".to_string(),
+            response_id: "confident".to_string(),
+            response_text: text.to_string(),
+            player_id: String::new(),
+        }
+    }
+
+    fn body_key_of(game: &ofm_core::game::Game) -> String {
+        game.news[0]
+            .body_key
+            .clone()
+            .expect("the article carries an i18n body key")
+    }
+
+    #[test]
+    fn too_many_answers_are_refused_before_the_lock() {
+        let answers: Vec<PressAnswer> = (0..MAX_PRESS_CONFERENCE_ANSWERS + 1)
+            .map(|_| answer("mood", "confident", ""))
+            .collect();
+
+        let err = check_answer_limits(&answers).unwrap_err();
+
+        assert!(err.contains("Too many answers"), "got: {err}");
+        assert!(check_answer_limits(&answers[..MAX_PRESS_CONFERENCE_ANSWERS]).is_ok());
+    }
+
+    #[test]
+    fn an_overlong_answer_is_refused_before_the_lock() {
+        let long = "x".repeat(MAX_RESPONSE_TEXT_CHARS + 1);
+
+        let err = check_answer_limits(&[quoted(&long)]).unwrap_err();
+
+        assert!(err.contains("too long"), "got: {err}");
+        assert!(check_answer_limits(&[quoted(&"x".repeat(MAX_RESPONSE_TEXT_CHARS))]).is_ok());
+    }
+
+    /// The limit counts characters, not bytes, so a multi-byte quote is not penalised for its
+    /// encoding — and `chars().count()` on a `String` cannot panic mid-character the way slicing
+    /// would.
+    #[test]
+    fn the_answer_limit_counts_characters_not_bytes() {
+        let accented = "é".repeat(MAX_RESPONSE_TEXT_CHARS);
+
+        assert!(check_answer_limits(&[quoted(&accented)]).is_ok());
+    }
+
+    /// Only the first quote reaches the article, but the number of them picks the wording.
+    #[test]
+    fn the_article_wording_follows_the_number_of_quotes() {
+        let mut none = game_after_a_match();
+        apply_press_conference(&mut none, &[quoted("")]).unwrap();
+        assert_eq!(body_key_of(&none), "be.news.pressConference.bodyNone");
+
+        let mut one = game_after_a_match();
+        apply_press_conference(&mut one, &[quoted("We go again.")]).unwrap();
+        assert_eq!(body_key_of(&one), "be.news.pressConference.bodySingle");
+
+        let mut many = game_after_a_match();
+        apply_press_conference(&mut many, &[quoted("First."), quoted("Second.")]).unwrap();
+        assert_eq!(body_key_of(&many), "be.news.pressConference.bodyMultiple");
+    }
+
+    #[test]
+    fn the_article_quotes_the_first_answer_given() {
+        let mut game = game_after_a_match();
+
+        apply_press_conference(&mut game, &[quoted("First."), quoted("Second.")]).unwrap();
+
+        assert_eq!(
+            game.news[0].i18n_params.get("quote").map(String::as_str),
+            Some("First.")
+        );
     }
 
     #[test]
