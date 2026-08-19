@@ -8,7 +8,7 @@ import { DatePicker } from "../../ui/DatePicker";
 import { Checkbox } from "../../ui/Checkbox";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { Select } from "../../ui/Select";
-import { POSITIONS, PLAYER_ATTR_GROUPS, emptyAttributes, toSlug, type PlayerAttrKey } from "./helpers";
+import { POSITIONS, PLAYER_ATTR_GROUPS, emptyAttributes, parseRating, toSlug, type PlayerAttrKey } from "./helpers";
 import type { Footedness, PlayerDef, TeamDef } from "./types";
 
 const FOOT_OPTIONS: Footedness[] = ["Right", "Left", "Both"];
@@ -232,7 +232,7 @@ export function PlayerForm({
           label={t("worldEditor.playerOverall")}
           value={editing.overall?.toString() ?? ""}
           type="number"
-          onChange={(v) => updateField("overall", v === "" ? null : Math.min(99, Math.max(1, parseInt(v, 10) || 1)))}
+          onChange={(v) => updateField("overall", parseRating(v))}
         />
       )}
 
@@ -248,7 +248,7 @@ export function PlayerForm({
         help={t("worldEditor.playerPotentialHelp")}
         value={editing.potential?.toString() ?? ""}
         type="number"
-        onChange={(v) => updateField("potential", v === "" ? null : Math.min(99, Math.max(1, parseInt(v, 10) || 1)))}
+        onChange={(v) => updateField("potential", parseRating(v))}
       />
 
       {useAttributes && (

@@ -23,6 +23,7 @@ import {
   emptyMeta,
   emptyNamesDefinition,
   emptyPlayer,
+  parseRating,
   emptyTeam,
   entityRowKey,
   makeRange,
@@ -232,6 +233,31 @@ describe("emptyCountry", () => {
 
   it("returns a new object on each call", () => {
     expect(emptyCountry()).not.toBe(emptyCountry());
+  });
+});
+
+describe("parseRating", () => {
+  it("reads a plain rating and clamps it to 1-99", () => {
+    expect(parseRating("70")).toBe(70);
+    expect(parseRating("140")).toBe(99);
+    expect(parseRating("0")).toBe(1);
+  });
+
+  it("reads scientific notation as the number it is", () => {
+    // `<input type="number">` accepts `1e2`; parseInt stopped at the `e` and
+    // returned 1, so asking for the top of the range produced the bottom.
+    expect(parseRating("1e2")).toBe(99);
+    expect(parseRating("5e1")).toBe(50);
+  });
+
+  it("treats blank and unparseable entries as absent, not as the worst rating", () => {
+    expect(parseRating("")).toBeNull();
+    expect(parseRating("   ")).toBeNull();
+    expect(parseRating("abc")).toBeNull();
+  });
+
+  it("rounds a fractional entry rather than truncating toward zero", () => {
+    expect(parseRating("70.6")).toBe(71);
   });
 });
 

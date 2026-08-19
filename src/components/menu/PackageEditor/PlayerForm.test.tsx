@@ -76,4 +76,25 @@ describe("PlayerForm potential", () => {
 
     expect(updateField).toHaveBeenCalledWith("potential", 99);
   });
+
+  it("clamps scientific notation rather than truncating it", () => {
+    // `type="number"` accepts `1e2` as a valid value, but parseInt stops at the
+    // `e` and yields 1 — so a user asking for 100 silently got the opposite end
+    // of the range.
+    const { updateField } = renderForm({ overall: 70 });
+
+    fireEvent.change(potentialInput(), { target: { value: "1e2" } });
+
+    expect(updateField).toHaveBeenCalledWith("potential", 99);
+  });
+
+  it("ignores a value that is not a number at all", () => {
+    const { updateField } = renderForm({ overall: 70, potential: 80 });
+
+    fireEvent.change(potentialInput(), { target: { value: "abc" } });
+
+    // Null, not 1: an unparseable entry is an absent ceiling, not the worst
+    // possible one.
+    expect(updateField).toHaveBeenCalledWith("potential", null);
+  });
 });

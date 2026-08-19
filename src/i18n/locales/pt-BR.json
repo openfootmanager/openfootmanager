@@ -2617,8 +2617,8 @@
         "reversedRange": "O time \"{{team}}\" tem um {{field}} invertido (mín > máx).",
         "outOfRange": "O time \"{{team}}\" tem valores de {{field}} fora do intervalo (reputação 0–1000, finanças ≥ 0).",
         "potentialOutOfRange": "\"{{entity}}\" tem um potencial de {{potential}}. O potencial deve estar entre 1 e 99.",
-        "potentialBelowOverall": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo do seu geral de {{ability}}. O teto de um jogador não pode ficar abaixo da sua capacidade atual.",
-        "potentialBelowAttributes": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo dos {{ability}} que os seus atributos resultam. O teto de um jogador não pode ficar abaixo da sua capacidade atual.",
+        "potentialBelowOverall": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da sua nota geral de {{ability}}. O teto de um jogador não pode ficar abaixo da sua capacidade atual.",
+        "potentialBelowAttributes": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo dos {{ability}} que resultam dos seus atributos. O teto de um jogador não pode ficar abaixo da sua capacidade atual.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da capacidade padrão de {{ability}} usada quando não se informa geral nem atributos.",
         "unsupportedFormatVersion": "Este pacote foi criado com uma versão mais nova do jogo (formato {{version}}; esta versão suporta {{supported}}). Atualize o jogo para abri-lo."
       },
