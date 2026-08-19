@@ -205,9 +205,9 @@ Three things to know before using it.
 - **A player who has reached their ceiling stops improving.** Training raises attributes only while
   there is headroom left, so a player generated at their ceiling never develops again. That is a
   reasonable thing to author for a finished veteran — just not what you want for a 19-year-old.
-  Because an `overall` is turned into a *jittered* attribute spread, a player written with `overall`
-  and `potential` equal may land fractionally either side of the line; leave a few points of
-  headroom when you mean "still has room to grow".
+  Writing `overall` and `potential` equal is the way to say "this player is finished", and it does
+  exactly that: the engine bounds the attribute spread it generates so a player is never created
+  above their own ceiling.
 - **It can earn the Wonderkid trait.** A player aged 20 or under whose ceiling is 90 or better and
   at least 14 points above their current ability is tagged a wonderkid by the engine. Authoring a
   generational talent therefore also authors the badge — usually what you want, but worth knowing

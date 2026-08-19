@@ -899,6 +899,62 @@ fn resolve_birth_year(
 /// different floor.
 pub(super) const DEFAULT_AUTHORED_OVERALL: u8 = 65;
 
+/// Pull an engine-invented attribute spread down until it sits at or below an
+/// authored ceiling.
+///
+/// `attributes_for_overall` jitters around its target and clamps every attribute
+/// to a floor of 30, so the ovr it produces lands *near* the authored `overall`
+/// rather than on it — and below 30 it cannot land there at all. Since
+/// `refresh_player_derived` floors potential at ovr, that quietly raised a
+/// ceiling the author had written: measured at 26-32% for mid-range abilities,
+/// and every single time below the clamp floor.
+///
+/// The rule this keeps: **the engine may bound what the engine invented, and
+/// never touches what the author wrote.** It is applied only to a spread
+/// synthesized from `overall`; an explicit `attributes` block is left exactly as
+/// written, and a ceiling below what that block is worth is reported by package
+/// validation instead.
+///
+/// Converges in a pass or two — ovr is a weighted mean of the attributes minus a
+/// penalty, so subtracting the overshoot from every attribute overshoots
+/// downward at worst. The iteration cap is a belt-and-braces stop, not a
+/// expectation of slow convergence.
+fn bound_attributes_by_ceiling(
+    attributes: &mut PlayerAttributes,
+    position: &Position,
+    ceiling: u8,
+) {
+    for _ in 0..4 {
+        let ovr = crate::player_rating::ovr_from_attributes(attributes, position).round() as u8;
+        let Some(overshoot) = ovr.checked_sub(ceiling).filter(|delta| *delta > 0) else {
+            return;
+        };
+        for slot in [
+            &mut attributes.pace,
+            &mut attributes.stamina,
+            &mut attributes.strength,
+            &mut attributes.agility,
+            &mut attributes.passing,
+            &mut attributes.shooting,
+            &mut attributes.tackling,
+            &mut attributes.dribbling,
+            &mut attributes.defending,
+            &mut attributes.positioning,
+            &mut attributes.vision,
+            &mut attributes.decisions,
+            &mut attributes.composure,
+            &mut attributes.aggression,
+            &mut attributes.teamwork,
+            &mut attributes.leadership,
+            &mut attributes.handling,
+            &mut attributes.reflexes,
+            &mut attributes.aerial,
+        ] {
+            *slot = slot.saturating_sub(overshoot).max(1);
+        }
+    }
+}
+
 pub(super) fn generate_player_from_def(
     def: &super::package::PlayerDef,
     team_id: &str,
@@ -923,16 +979,20 @@ pub(super) fn generate_player_from_def(
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
     let age = current_year.saturating_sub(birth_year);
 
-    let attributes = def
-        .attributes
-        .clone()
-        .unwrap_or_else(|| {
-            attributes_for_overall(
-                def.overall.unwrap_or(DEFAULT_AUTHORED_OVERALL),
-                &def.position,
-                rng,
-            )
-        });
+    let mut attributes = def.attributes.clone().unwrap_or_else(|| {
+        attributes_for_overall(
+            def.overall.unwrap_or(DEFAULT_AUTHORED_OVERALL),
+            &def.position,
+            rng,
+        )
+    });
+
+    // Only a spread this function invented, and only when a ceiling was authored.
+    // Bounding it here rather than after `Player::new` keeps market value and
+    // wage sized from the attributes the player actually ends up with.
+    if let (Some(ceiling), None) = (def.potential, def.attributes.as_ref()) {
+        bound_attributes_by_ceiling(&mut attributes, &def.position, ceiling);
+    }
 
     let approx_ovr =
         crate::player_rating::ovr_from_attributes(&attributes, &def.position).round() as u32;
@@ -1147,6 +1207,82 @@ mod tests {
             "a 17-year-old's rolled ceiling should sit {floor}..={ceiling}, got {}",
             player.potential
         );
+    }
+
+    /// An authored ceiling is exact, not a suggestion.
+    ///
+    /// An `overall` is turned into a *jittered* attribute spread and the real ovr
+    /// derived from that, so it lands near the target rather than on it. Since
+    /// `refresh_player_derived` floors potential at ovr, a ceiling the author
+    /// wrote could be quietly raised — measured at 26-32% for mid-range
+    /// abilities, and every single time below the attribute clamp floor.
+    #[test]
+    fn an_authored_ceiling_is_never_raised_by_attribute_jitter() {
+        for _ in 0..200 {
+            let player = generate_from_json(
+                serde_json::json!({
+                    "id": "veteran",
+                    "firstName": "Fin", "lastName": "Ished",
+                    "club": "club-id", "nationality": "ENG", "position": "Striker",
+                    "dateOfBirth": "1990-01-01",
+                    "overall": 70,
+                    "potential": 70,
+                }),
+                2026,
+            );
+            assert_eq!(
+                player.potential, 70,
+                "the authored ceiling was raised to match a jittered ovr of {}",
+                player.ovr
+            );
+        }
+    }
+
+    /// The same, where it used to fail every time rather than sometimes.
+    ///
+    /// Attributes are clamped to a floor of 30 (`jitter(base, 8, 30, 97, ..)`),
+    /// so a deliberately poor player could never be generated at the ability
+    /// they were authored with, and their ceiling rose with it.
+    #[test]
+    fn a_deliberately_limited_player_keeps_their_low_ceiling() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "journeyman",
+                "firstName": "Jour", "lastName": "Neyman",
+                "club": "club-id", "nationality": "ENG", "position": "Striker",
+                "dateOfBirth": "1990-01-01",
+                "overall": 10,
+                "potential": 10,
+            }),
+            2026,
+        );
+
+        assert_eq!(player.potential, 10, "the authored ceiling was raised");
+        assert!(
+            player.ovr <= 10,
+            "a player cannot be generated above their own ceiling, got ovr {}",
+            player.ovr
+        );
+    }
+
+    /// Authoring a ceiling for a youth prospect is the case the field exists for.
+    #[test]
+    fn a_youth_prospect_keeps_both_their_squad_role_and_their_ceiling() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "academy-star",
+                "firstName": "Academy", "lastName": "Star",
+                "club": "club-id", "nationality": "ENG", "position": "AttackingMidfielder",
+                "dateOfBirth": "2009-06-02",
+                "overall": 58,
+                "potential": 88,
+                "youth": true,
+            }),
+            2026,
+        );
+
+        assert_eq!(player.potential, 88);
+        assert_eq!(player.squad_role, domain::player::SquadRole::Youth);
     }
 
     /// Authoring a generational talent also authors the badge.
