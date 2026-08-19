@@ -19,8 +19,17 @@
 //!
 //! The "likely XI" here is this probe's own approximation (best by rating within
 //! position quotas), not a call into the production selector — `ai_select_starting_xi`
-//! is private to `live_match_manager`. It is a measuring stick, not an assertion
-//! about which players the game would pick.
+//! is private to `turn::squad`. It is a measuring stick, not an assertion about
+//! which players the game would pick.
+//!
+//! Since AI clubs started rotating in earnest, that distinction has teeth: the
+//! side a club actually names on a congested week is deliberately *not* its best
+//! eleven. So read this column as "what condition are this club's best players
+//! arriving in", which is the question the readiness controller ought to be
+//! asking, rather than as the average of whoever took the field. The wear behind
+//! the number is real either way — every match here is simulated through
+//! `turn::process_day`, so it is the production selector that decides who is
+//! charged for it.
 //!
 //! # What this models, and what it does not
 //!
