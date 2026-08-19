@@ -112,6 +112,10 @@ mod tests {
                 let version = name
                     .strip_prefix('v')
                     .and_then(|rest| rest.split('_').next())
+                    // Exactly three digits: `v1_x.sql` and `v01_x.sql` both parse as 1, so
+                    // without this the directory could hold two files claiming one version and
+                    // the contiguity check below would still be satisfied.
+                    .filter(|digits| digits.len() == 3 && digits.bytes().all(|b| b.is_ascii_digit()))
                     .and_then(|digits| digits.parse::<usize>().ok())
                     .unwrap_or_else(|| {
                         panic!("migration file `{name}` does not follow the vNNN_description.sql naming")
@@ -143,25 +147,64 @@ mod tests {
         );
     }
 
-    /// A registered-but-absent or present-but-unregistered file is the failure this catches; the
-    /// count test alone would pass if someone added one file and deleted another.
-    #[test]
-    fn test_every_sql_file_is_registered_exactly_once() {
-        // This module's own source is the registration list.
+    /// The file names registered in `all_migrations()`, in the order they are registered.
+    ///
+    /// Read out of this module's own source because `Migrations` does not expose its scripts.
+    /// Only `M::up(include_str!("sql/…"))` is matched, so a name mentioned in a comment — or in
+    /// this very test — is not mistaken for a registration.
+    fn registered_file_names() -> Vec<String> {
         // `include_str!` resolves relative to this file, so the bare name is required:
         // `include_str!(file!())` expands to a crate-root-relative path and does not compile.
         let source = include_str!("migrations.rs");
+        const OPENING: &str = "M::up(include_str!(\"sql/";
 
-        for (_, name) in sql_files_on_disk() {
-            let needle = format!("sql/{name}");
-            let occurrences = source.matches(&needle).count();
+        source
+            .lines()
+            .map(str::trim)
+            .filter_map(|line| line.strip_prefix(OPENING))
+            .filter_map(|rest| rest.split('"').next())
+            .map(String::from)
+            .collect()
+    }
 
-            assert_eq!(
-                occurrences, 1,
-                "`{name}` is referenced {occurrences} times in all_migrations(); it must appear \
-                 exactly once. A file with no reference never runs against any database.",
-            );
-        }
+    /// Guards the parser below: if the registration style changes, this stops matching and every
+    /// name silently disappears. Pinning the count against `MIGRATION_COUNT` turns that into a
+    /// failure rather than a vacuous pass over an empty list.
+    #[test]
+    fn test_registrations_are_all_recognised() {
+        assert_eq!(
+            registered_file_names().len(),
+            MIGRATION_COUNT,
+            "recognised {} `M::up(include_str!(\"sql/…\"))` registrations but MIGRATION_COUNT is \
+             {MIGRATION_COUNT}. A migration was registered in a style this test cannot read — \
+             teach it the new style rather than deleting the assertion, or the ordering check \
+             below starts passing for migrations it never examined.",
+            registered_file_names().len(),
+        );
+    }
+
+    /// The registration order **is** the schema version: `rusqlite_migration` applies the vec in
+    /// order and stores the applied count as `user_version`, so entry N is what "version N" means
+    /// for every save file ever written. Swapping two entries, or registering a file that is not
+    /// on disk, therefore changes what an existing database's version number refers to.
+    ///
+    /// Comparing the ordered lists catches all of it: a missing registration, a duplicate, a file
+    /// with no registration, and a reordering — which a per-name occurrence count cannot see,
+    /// because swapping two entries leaves every name present exactly once.
+    #[test]
+    fn test_registrations_match_the_sql_directory_in_order() {
+        let registered = registered_file_names();
+        let on_disk: Vec<String> = sql_files_on_disk()
+            .into_iter()
+            .map(|(_, name)| name)
+            .collect();
+
+        assert_eq!(
+            registered, on_disk,
+            "all_migrations() does not register src/sql in version order. A file with no \
+             registration never runs; a registration out of order changes which script a given \
+             user_version means, and no existing save can be corrected afterwards.",
+        );
     }
 
     /// Versions must be contiguous from 1. A gap means a migration was deleted after shipping —
