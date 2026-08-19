@@ -123,6 +123,28 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
     }
 }
 
+/// Every club with a fixture today, in any competition it plays in.
+///
+/// Deliberately matched on date alone, with no filter on `FixtureStatus`. This is
+/// asked *after* the day's matches have been simulated, by which point those
+/// fixtures read `Completed`; a status filter here would report the clubs that
+/// just played ninety minutes as free to train, and they would recover on the
+/// very day they were emptied.
+pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
+    let competitions: &[domain::league::League] = if game.competitions.is_empty() {
+        game.league.as_slice()
+    } else {
+        &game.competitions
+    };
+
+    competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.date == date)
+        .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])
+        .collect()
+}
+
 /// Every club whose fixture list puts it inside a taper today.
 ///
 /// Reads every competition a club plays in, not just `game.league`: a cup tie
@@ -185,12 +207,18 @@ struct TeamTrainingPlan {
     tapering: bool,
 }
 
-/// Process daily training for all teams.
-/// On non-match days each team's players train according to the team's
-/// current focus, intensity, and schedule. Rest days (determined by the
-/// weekly schedule) give full condition recovery with no training cost.
-/// Players assigned to a training group use that group's focus instead of
-/// the team default.
+/// Process daily training for every club that is not playing today.
+///
+/// A club's players train according to its current focus, intensity and
+/// schedule. Rest days (determined by the weekly schedule) give full condition
+/// recovery with no training cost. Players assigned to a training group use that
+/// group's focus instead of the team default.
+///
+/// Clubs with a fixture today are skipped, and only those clubs: whether the
+/// training ground opens is a question about *this* club's calendar, not the
+/// world's. It used to be asked globally, so one cup tie anywhere shut every
+/// training ground in the game and nobody recovered.
+///
 /// `weekday_num` is 0=Mon .. 6=Sun (chrono Weekday::num_days_from_monday()).
 pub fn process_training(game: &mut Game, weekday_num: u32) {
     // Derive the current year from the game clock for accurate age calculations.
@@ -205,9 +233,14 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
     // Index each team's plan by id so players are visited once (O(teams + players))
     // instead of rescanning every player for every team (O(teams * players)).
     let tapering = tapering_teams(game);
+    let playing_today = teams_playing_on(
+        game,
+        &game.clock.current_date.format("%Y-%m-%d").to_string(),
+    );
     let plans: std::collections::HashMap<String, TeamTrainingPlan> = game
         .teams
         .iter()
+        .filter(|t| !playing_today.contains(&t.id))
         .map(|t| {
             let bonus = compute_coaching_bonus(game, &t.id, &t.training_focus);
             let medical_facility_mult =

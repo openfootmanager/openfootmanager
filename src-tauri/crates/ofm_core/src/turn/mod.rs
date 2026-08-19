@@ -138,6 +138,19 @@ fn simulate_competition_day_with_capture<F>(
     game.sync_legacy_league();
 }
 
+/// A day at the training ground, for every club that is not playing.
+///
+/// Lives here rather than inline because a day has two entry points and both owe
+/// the world the same one. `finish_live_match_day` used to run no training at
+/// all, so on the day the player watched their own fixture, nobody in the game
+/// recovered — the eighteen clubs with nothing on included.
+fn run_training_ground(game: &mut Game) {
+    let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
+    crate::ai_training::apply_ai_training_policies(game, weekday_num);
+    training::process_training(game, weekday_num);
+    training::check_squad_fitness_warnings(game);
+}
+
 /// Process a single day advance.
 pub fn process_day(game: &mut Game) {
     process_day_with_capture(game, &mut |_| {});
@@ -159,12 +172,11 @@ where
         for competition_index in due_competitions {
             simulate_competition_day_with_capture(game, competition_index, &today, on_capture);
         }
-    } else {
-        let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
-        crate::ai_training::apply_ai_training_policies(game, weekday_num);
-        training::process_training(game, weekday_num);
-        training::check_squad_fitness_warnings(game);
     }
+    // Unconditional, and after the matches: a fixture somewhere in the world says
+    // nothing about whether *this* club trains. `run_training_ground` skips only
+    // the clubs actually playing today.
+    run_training_ground(game);
 
     // Tiered simulation: competitions outside the active scope are resolved by
     // scoreline only, keeping the dormant world moving without the full engine.
@@ -221,6 +233,9 @@ pub fn finish_live_match_day(game: &mut Game) {
     transfers::process_loan_development_reports(game);
     transfers::process_loan_returns(game);
     generate_matchday_news(game, &today);
+    // The user's fixture is over; the rest of the world still had a day, and the
+    // clubs that were not in it still had a session or a rest day.
+    run_training_ground(game);
 
     crate::contracts::process_contract_expiries(game);
     crate::finances::process_weekly_finances(game);
