@@ -68,7 +68,14 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         select_starting_xi(saved_xi_ids, &available_players, &formation)
     } else {
         let quality = team_management_quality(game, team);
-        ai_select_starting_xi(&available_players, &formation, quality)
+        // The same club must name the same side however often this is called for
+        // one fixture, so the manager's misjudgements are seeded from the club and
+        // the date rather than rolled fresh. A new matchday is a new judgement.
+        let seed = selection_seed(
+            team_id,
+            &game.clock.current_date.format("%Y-%m-%d").to_string(),
+        );
+        ai_select_starting_xi(&available_players, &formation, quality, seed)
     };
     // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
     // (entry i plays formation slot i), so the list index is the deployed slot.
@@ -296,26 +303,77 @@ fn team_management_quality(game: &Game, team: Option<&domain::team::Team>) -> f6
     management_quality(team.reputation)
 }
 
+/// FNV-1a, hand-rolled rather than reached for from the standard library.
+/// `DefaultHasher`'s output is explicitly not promised to stay the same across
+/// Rust releases, and an AI team sheet that changed when the toolchain moved
+/// would make a saved season impossible to reproduce.
+fn stable_hash(bytes: &[u8], seed: u64) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325 ^ seed;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+/// One club's judgement for one matchday. Derived rather than rolled, so asking
+/// for the same fixture's lineup twice gives the same answer — the builder runs
+/// on both match paths and must not name a different side each time.
+fn selection_seed(team_id: &str, date: &str) -> u64 {
+    stable_hash(date.as_bytes(), stable_hash(team_id.as_bytes(), 0))
+}
+
+/// How wrong this manager is about this player today, as −1.0 ..= 1.0.
+fn judgement_noise(seed: u64, player_id: &str) -> f64 {
+    let hash = stable_hash(player_id.as_bytes(), seed);
+    let unit = (hash >> 11) as f64 / (1u64 << 53) as f64;
+    unit * 2.0 - 1.0
+}
+
 /// Reputation-aware AI lineup selection.
 ///
 /// Step 1 picks the first-choice XI purely on condition-free positional fit, so a
-/// club always fields its best players when fresh. Step 2 applies load management:
-/// a tired starter is rested ONLY when (a) their condition is below a
-/// quality-dependent fatigue threshold AND (b) a fresher squad option exists whose
-/// quality is within a quality-dependent tolerance. Well-run clubs (high quality)
-/// rest players earlier and accept a slightly larger quality drop to keep the
-/// squad fresh; poorly-run clubs ride their best XI into the ground. The
-/// gap-aware tolerance guarantees a strong starter is never benched for a much
-/// weaker fresh player — better clubs still field better teams.
+/// club always fields its best players when fresh. Step 2 rests the tired ones.
+///
+/// What management quality buys is **judgement, not willingness**. A weak manager
+/// notices fatigue later (`rest_threshold`) and is a worse judge of who can
+/// deputise (`misjudgement`) — but every manager wants to win, so none of them
+/// deliberately sends out a player who cannot run. Two rules keep that honest:
+///
+/// - The quality drop a manager will accept in order to rest someone is bounded
+///   below. It used to be `12 × quality`, which handed the worst manager a
+///   tolerance of exactly zero: since step 1 has already taken the best player
+///   for the slot, no remaining deputy can match them, so rotation was
+///   arithmetically impossible however exhausted the XI became. That was not a
+///   gradient, it was self-harm.
+/// - Below `EXHAUSTED` there is no gradient at all. A player that spent is
+///   visibly unfit to start and comes out for anyone adequate.
+///
+/// Where judgement does bite is *which* deputy gets the shirt: the adequacy gate
+/// is applied to a player's real standard, so no manager talks themselves into
+/// fielding someone hopeless, but the choice between adequate options is made on
+/// what the manager believes, which a poor one gets wrong.
 fn ai_select_starting_xi<'a>(
     available_players: &[&'a domain::player::Player],
     formation: &str,
     quality: f64,
+    seed: u64,
 ) -> Vec<&'a domain::player::Player> {
     /// A rotation candidate must be at least this fresh to be worth considering.
     const FRESH_FLOOR: f64 = 60.0;
     /// And meaningfully fresher than the starter it would replace.
     const MIN_FRESHNESS_GAIN: i16 = 10;
+    /// Below this a player is not fit to start, whatever their manager makes of
+    /// the alternatives. This is the floor the quality gradient stands on.
+    const EXHAUSTED: f64 = 45.0;
+    /// Quality drop a manager will accept to rest someone, worst and best. Never
+    /// zero: a manager who will accept no drop can never rotate at all.
+    const MIN_FIT_TOLERANCE: f64 = 6.0;
+    const MAX_FIT_TOLERANCE: f64 = 12.0;
+    /// And what any of them will accept to get an exhausted player off the pitch.
+    const EXHAUSTED_FIT_TOLERANCE: f64 = 20.0;
+    /// How far the worst manager can misread a player's standard, either way.
+    const MAX_MISJUDGEMENT: f64 = 9.0;
 
     let slots = formation_slots(formation);
     let mut used_ids: HashSet<String> = HashSet::new();
@@ -341,17 +399,35 @@ fn ai_select_starting_xi<'a>(
         selected.push((slot_index, player));
     }
 
-    // Step 2: reputation-driven load management.
+    // Step 2: load management.
     let rest_threshold = 50.0 + 25.0 * quality; // 50 (poor) .. 75 (elite)
-    let fit_tolerance = 12.0 * quality; // 0 (poor) .. 12 (elite)
+    let fit_tolerance = MIN_FIT_TOLERANCE + (MAX_FIT_TOLERANCE - MIN_FIT_TOLERANCE) * quality; // 6 .. 12
+    let misjudgement = MAX_MISJUDGEMENT * (1.0 - quality); // 9 (poor) .. 0 (elite)
+
+    // What the manager believes a player is worth in this slot, which is the
+    // truth only for the very best of them. Stable per player per matchday, so a
+    // manager holds one opinion for the whole team sheet rather than a fresh one
+    // per comparison.
+    let perceived_fit = |player: &domain::player::Player, slot: &DomainPosition| {
+        positional_fit_for_assignment(player, slot)
+            + judgement_noise(seed, &player.id) * misjudgement
+    };
 
     for entry in selected.iter_mut() {
         let slot = &slots[entry.0];
         let starter = entry.1;
 
-        if f64::from(starter.condition) >= rest_threshold {
+        let condition = f64::from(starter.condition);
+        if condition >= rest_threshold {
             continue; // Fresh enough — no reason to rotate.
         }
+        // A spent player comes out for anyone adequate; a merely tired one only
+        // for someone close to their own standard.
+        let tolerance = if condition < EXHAUSTED {
+            EXHAUSTED_FIT_TOLERANCE
+        } else {
+            fit_tolerance
+        };
 
         let starter_fit = positional_fit_for_assignment(starter, slot);
         let starter_group = starter.position.to_group_position();
@@ -367,12 +443,14 @@ fn ai_select_starting_xi<'a>(
             .filter(|player| {
                 i16::from(player.condition) - i16::from(starter.condition) >= MIN_FRESHNESS_GAIN
             })
-            .filter(|player| {
-                positional_fit_for_assignment(player, slot) >= starter_fit - fit_tolerance
-            })
+            // Adequacy is measured against what the deputy can actually do. A
+            // manager may misjudge which of two capable players is better; none of
+            // them mistakes a reserve-team player for a first-choice one.
+            .filter(|player| positional_fit_for_assignment(player, slot) >= starter_fit - tolerance)
+            // The choice between adequate options, though, is the manager's read.
             .max_by(|left, right| {
-                positional_fit_for_assignment(left, slot)
-                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                perceived_fit(left, slot)
+                    .partial_cmp(&perceived_fit(right, slot))
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
 
@@ -655,7 +733,7 @@ mod tests {
         }
         let refs: Vec<&Player> = squad.iter().collect();
 
-        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0);
+        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1);
 
         assert_eq!(xi.len(), 11);
         assert!(
@@ -679,7 +757,7 @@ mod tests {
         }
         let refs: Vec<&Player> = squad.iter().collect();
 
-        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0);
+        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1);
 
         assert_eq!(xi.len(), 11);
         assert!(
@@ -697,10 +775,12 @@ mod tests {
         );
     }
 
-    /// Same squad as above, but a poorly-run club: it rides its tired starters and
-    /// does not rotate. Proves the reputation gradient.
+    /// Same squad as above, but a poorly-run club: it is slow to notice fatigue and
+    /// rides a *mildly* tired XI. This is the reputation gradient, and it survives —
+    /// what it is not allowed to do is ride an exhausted one, which is the test
+    /// below.
     #[test]
-    fn low_reputation_club_rides_tired_starters() {
+    fn low_reputation_club_rides_mildly_tired_starters() {
         let mut squad = Vec::new();
         for i in 0..11 {
             squad.push(mk(&format!("star{i}"), 80, 65));
@@ -711,13 +791,117 @@ mod tests {
         }
         let refs: Vec<&Player> = squad.iter().collect();
 
-        let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300)); // q = 0
+        let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300), 1); // q = 0
 
         assert_eq!(xi.len(), 11);
         assert!(
             xi.iter().all(|p| p.id.starts_with("star")),
-            "a low-reputation club should ride its tired first XI, not rotate"
+            "a low-reputation club should ride its mildly tired first XI, not rotate"
         );
+    }
+
+    /// The behaviour this slice exists to change. A manager may be slow, or a poor
+    /// judge of who the better player is; no manager knowingly sends out a player
+    /// who can barely run when a rested deputy is available. Under the old
+    /// `fit_tolerance = 12 × quality` the worst manager accepted a quality drop of
+    /// exactly zero, so it could never rotate at all.
+    #[test]
+    fn even_the_worst_manager_rests_an_exhausted_starter() {
+        let mut squad = Vec::new();
+        for i in 0..11 {
+            squad.push(mk(&format!("star{i}"), 80, 22)); // first choice, spent
+        }
+        squad.push(mk("deputy", 66, 95)); // clearly worse, but able to play
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300), 1); // q = 0
+
+        assert_eq!(xi.len(), 11);
+        assert!(
+            xi.iter().any(|p| p.id == "deputy"),
+            "an exhausted XI must be broken up even by the worst manager: {:?}",
+            xi.iter().map(|p| &p.id).collect::<Vec<_>>()
+        );
+    }
+
+    /// A universal floor is not a licence to field anybody. Even exhausted, a club
+    /// does not replace its best player with someone hopeless.
+    #[test]
+    fn an_exhausted_starter_is_not_replaced_by_a_hopeless_deputy() {
+        let mut squad = Vec::new();
+        for i in 0..11 {
+            squad.push(mk(&format!("star{i}"), 80, 22));
+        }
+        squad.push(mk("hopeless", 30, 100));
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300), 1);
+
+        assert_eq!(xi.len(), 11);
+        assert!(
+            xi.iter().all(|p| p.id != "hopeless"),
+            "a 30-rated player is not an adequate deputy at any fatigue level"
+        );
+    }
+
+    /// Quality is judgement, not willingness. Given two deputies of nearly equal
+    /// standard, an elite manager always identifies the better one; a poor manager
+    /// gets it wrong some of the time. Fixed seeds, so this is deterministic.
+    #[test]
+    fn a_poor_manager_misjudges_which_deputy_is_better() {
+        let pick_deputy = |quality: f64, seed: u64| -> String {
+            let mut squad = Vec::new();
+            for i in 0..11 {
+                squad.push(mk(&format!("star{i}"), 80, 22));
+            }
+            squad.push(mk("better", 70, 95));
+            squad.push(mk("worse", 66, 95));
+            let refs: Vec<&Player> = squad.iter().collect();
+            let xi = ai_select_starting_xi(&refs, "4-4-2", quality, seed);
+            xi.iter()
+                .find(|p| !p.id.starts_with("star"))
+                .map(|p| p.id.clone())
+                .unwrap_or_default()
+        };
+
+        let seeds: Vec<u64> = (0..24).collect();
+        let elite: Vec<String> = seeds.iter().map(|s| pick_deputy(1.0, *s)).collect();
+        let poor: Vec<String> = seeds.iter().map(|s| pick_deputy(0.0, *s)).collect();
+
+        // Stated first and deliberately: without it, a manager that never rotated
+        // at all would satisfy "sometimes picks the worse one" by picking nobody,
+        // which is how the old behaviour would have passed this test.
+        assert!(
+            poor.iter().all(|d| d == "better" || d == "worse"),
+            "a poor manager must still name a deputy for an exhausted XI: {poor:?}"
+        );
+        assert!(
+            elite.iter().all(|d| d == "better"),
+            "an elite manager should always spot the better deputy: {elite:?}"
+        );
+        assert!(
+            poor.iter().any(|d| d == "worse"),
+            "a poor manager should sometimes pick the worse deputy; got it right every time"
+        );
+    }
+
+    /// The seed is the club and the date, so one fixture always produces one XI
+    /// however many times the builder is asked for it.
+    #[test]
+    fn the_same_seed_always_names_the_same_side() {
+        let mut squad = Vec::new();
+        for i in 0..11 {
+            squad.push(mk(&format!("star{i}"), 80, 22));
+        }
+        squad.push(mk("a", 70, 95));
+        squad.push(mk("b", 69, 95));
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let first = ai_select_starting_xi(&refs, "4-4-2", 0.0, 7);
+        let second = ai_select_starting_xi(&refs, "4-4-2", 0.0, 7);
+
+        let ids = |xi: &Vec<&Player>| xi.iter().map(|p| p.id.clone()).collect::<Vec<_>>();
+        assert_eq!(ids(&first), ids(&second));
     }
 
     /// Regression: load-management rotation must not skew the formation's
@@ -747,7 +931,7 @@ mod tests {
         ];
         let refs: Vec<&Player> = squad.iter().collect();
 
-        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0); // elite: rotates eagerly
+        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1); // elite: rotates eagerly
 
         assert_eq!(xi.len(), 11);
         let group_count = |group: DomainPos| {
