@@ -340,9 +340,16 @@ fn train_player(
         }
     };
 
-    // Recovery amount: rest days get boosted recovery (like Recovery focus)
+    // A scheduled day off restores more than any session, including a Recovery
+    // one. It has to: restoring condition is the *only* thing it does, while a
+    // Recovery session does that and nudges match fitness besides. At the old
+    // 7.0 against a session's 9.0 a day off was strictly dominated, so the
+    // schedule with the fewest of them was simply the best schedule — a club
+    // training six days a week finished it fresher than one resting five.
+    // The trade is now honest: days off buy condition, sessions buy sharpness
+    // and development.
     let recovery_base: f64 = if !is_training_day {
-        7.0 * plan.bonus.physio_mult * plan.medical_facility_mult
+        10.0 * plan.bonus.physio_mult * plan.medical_facility_mult
     } else {
         match player_focus {
             TrainingFocus::Recovery => 9.0 * plan.bonus.physio_mult * plan.medical_facility_mult,

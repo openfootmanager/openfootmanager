@@ -1327,3 +1327,72 @@ fn peaked_player_does_not_gain_from_training() {
         initial_ovr, final_player.ovr
     );
 }
+
+// ---------------------------------------------------------------------------
+// A day off is the best rest available
+//
+// Rest base was 7.0 against a Recovery session's 9.0, so the only thing a
+// scheduled day off does — restore condition — it did worse than a training
+// session that also nudges fitness and drifts attributes. A day off was strictly
+// dominated, and the schedule with the fewest of them was the best schedule.
+// ---------------------------------------------------------------------------
+
+fn condition_after(schedule: TrainingSchedule, focus: TrainingFocus, weekday: u32) -> u8 {
+    let mut game = make_game();
+    game.teams[0].training_schedule = schedule;
+    game.teams[0].training_focus = focus;
+    for p in game.players.iter_mut() {
+        p.condition = 50;
+    }
+    training::process_training(&mut game, weekday);
+    game.players[0].condition
+}
+
+#[test]
+fn a_rest_day_restores_more_than_a_recovery_session() {
+    // Balanced rests on Wednesday (2) and trains on Monday (0).
+    let rest = condition_after(TrainingSchedule::Balanced, TrainingFocus::Recovery, 2);
+    let session = condition_after(TrainingSchedule::Balanced, TrainingFocus::Recovery, 0);
+
+    assert!(
+        rest > session,
+        "a day off must restore more than a Recovery session, which also builds \
+         fitness: rest gave {rest}, session gave {session}"
+    );
+}
+
+#[test]
+fn resting_more_beats_training_more_when_both_clubs_only_want_condition() {
+    // One week, both clubs on Recovery focus so the only difference is how many
+    // days off the schedule gives. Intense rests once, Light rests five times.
+    let week = |schedule: TrainingSchedule| -> u8 {
+        let mut game = make_game();
+        game.teams[0].training_schedule = schedule;
+        game.teams[0].training_focus = TrainingFocus::Recovery;
+        // No physio, and read the veteran: the slowest recovery in the game, so a
+        // week's worth of it stays clear of the 100 ceiling where the two
+        // schedules would be indistinguishable rather than equal.
+        game.staff.retain(|s| s.role != StaffRole::Physio);
+        for p in game.players.iter_mut() {
+            p.condition = 10;
+        }
+        for weekday in 0..7 {
+            training::process_training(&mut game, weekday);
+        }
+        game.players
+            .iter()
+            .find(|p| p.id == "p3")
+            .expect("veteran")
+            .condition
+    };
+
+    let intense = week(TrainingSchedule::Intense);
+    let light = week(TrainingSchedule::Light);
+
+    assert!(
+        light > intense,
+        "a club that rests five days a week must end it fresher than one that \
+         trains six, or nobody would ever schedule a day off: Light {light}, \
+         Intense {intense}"
+    );
+}
