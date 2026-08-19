@@ -1119,7 +1119,12 @@ mod tests {
     /// check while the router serves a name the catalog has never heard of.
     ///
     /// Inside the macro definitions the same guard reads `$name`, so it does not match here.
-    fn hand_rolled_guard_and_registered_names_in(source: &str) -> Vec<(String, String)> {
+    fn hand_rolled_guard_and_registered_names_in(source: &str) -> Vec<(String, Option<String>)> {
+        // The `Tool` sits within a few lines of its guard — at most guard, `let ctx = …`,
+        // `router.add_route(ToolRoute::new_dyn(`, then the name. Searching further would let a
+        // guard that wraps no registration at all pair up with the *next* block's tool, which
+        // reads as a name mismatch somewhere it isn't.
+        const BLOCK: usize = 4;
         const GUARD: &str = "if !disabled.contains(&\"";
         const REGISTRARS: &[&str] = &["simple_tool(", "Tool::new("];
 
@@ -1136,8 +1141,9 @@ mod tests {
                     .iter()
                     .enumerate()
                     .skip(index)
+                    .take(BLOCK + 1)
                     .find(|(_, below)| REGISTRARS.iter().any(|start| below.starts_with(start)))
-                    .and_then(|(at, _)| literal_at_or_after(&lines, at))?;
+                    .and_then(|(at, _)| literal_at_or_after(&lines, at));
 
                 Some((guard, registered))
             })
@@ -1145,10 +1151,13 @@ mod tests {
     }
 
     /// Tools registered by hand rather than through a macro, named as the router names them.
+    ///
+    /// A guard whose registration could not be read is dropped here rather than guessed at, which
+    /// makes `router_registrations_are_all_recognised` fall out of balance and say so.
     fn hand_rolled_names() -> Vec<String> {
         hand_rolled_guard_and_registered_names_in(source())
             .into_iter()
-            .map(|(_, registered)| registered)
+            .filter_map(|(_, registered)| registered)
             .collect()
     }
 
@@ -1235,8 +1244,25 @@ mod tests {
     /// them green while `help_find_tool` advertised a name the router no longer served.
     #[test]
     fn hand_rolled_guards_match_the_names_they_register() {
-        let disagreements: Vec<(String, String)> = hand_rolled_guard_and_registered_names_in(source())
-            .into_iter()
+        let pairs = hand_rolled_guard_and_registered_names_in(source());
+
+        let unreadable: Vec<&String> = pairs
+            .iter()
+            .filter(|(_, registered)| registered.is_none())
+            .map(|(guard, _)| guard)
+            .collect();
+
+        assert!(
+            unreadable.is_empty(),
+            "no `simple_tool(\"…\")` or `Tool::new(\"…\")` found beneath these disable guards: \
+             {unreadable:?}. Either the guard wraps no registration, or the registration is \
+             written in a shape this parser cannot read — in which case its tool is routed \
+             without ever being compared against the catalog.",
+        );
+
+        let disagreements: Vec<(&String, &String)> = pairs
+            .iter()
+            .filter_map(|(guard, registered)| Some((guard, registered.as_ref()?)))
             .filter(|(guard, registered)| guard != registered)
             .collect();
 
@@ -1266,12 +1292,36 @@ mod tests {
 
         assert_eq!(
             hand_rolled_guard_and_registered_names_in(&agreeing),
-            vec![(String::from("ping"), String::from("ping"))],
+            vec![(String::from("ping"), Some(String::from("ping")))],
         );
         assert_eq!(
             hand_rolled_guard_and_registered_names_in(&disagreeing),
-            vec![(String::from("ping"), String::from("pong"))],
+            vec![(String::from("ping"), Some(String::from("pong")))],
             "the parser must report the registered name, not the guard name twice",
+        );
+    }
+
+    /// A guard that wraps no registration must come back empty-handed rather than adopting the
+    /// next block's tool.
+    ///
+    /// Searching the whole remaining file for a `Tool` looks harmless and is not: a stray guard
+    /// then pairs with a registration far below it, and the mismatch is reported against a block
+    /// that is perfectly correct. It also lets the recognition count stay balanced — one
+    /// unreadable registration cancelling one stray guard — which is precisely the arithmetic
+    /// that check exists to prevent.
+    #[test]
+    fn a_guard_with_no_registration_beneath_it_pairs_with_nothing() {
+        let stray = format!(
+            "if !disabled.contains(&\"stray\".to_string()) {{\n    tidy_up();\n}}\n\n{}",
+            hand_rolled_block("ping", "ping"),
+        );
+
+        assert_eq!(
+            hand_rolled_guard_and_registered_names_in(&stray),
+            vec![
+                (String::from("stray"), None),
+                (String::from("ping"), Some(String::from("ping"))),
+            ],
         );
     }
 
