@@ -23,6 +23,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The fixtures run first. They are the only thing that proves the check still rejects what
+      # it claims to reject: the real repository is correct, so a loosened regex would sail
+      # through the step below and report success.
+      - name: Check the toolchain check still rejects violations
+        run: ./scripts/check-toolchain-pin.test.sh
+
       - name: Check Rust toolchain pins agree
         run: ./scripts/check-toolchain-pin.sh
 

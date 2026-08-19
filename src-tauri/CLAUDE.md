@@ -131,7 +131,9 @@ Conventions:
   same version CI installs, so rustup picks it up automatically wherever you run cargo from — you
   do not need to remember anything. Changing it means changing every
   `dtolnay/rust-toolchain@<version>` pin in `.github/workflows/` in the same commit;
-  `scripts/check-toolchain-pin.sh` fails the build if they disagree.
+  `scripts/check-toolchain-pin.sh` fails the build if they disagree. **Never write
+  `cargo +<toolchain>` in a workflow** — it overrides the file, which is the one thing the pin
+  cannot defend against, so the check rejects it outright.
 - `cargo clippy --workspace --all-targets` before every PR. Address warnings; don't `#[allow]`
   them without a comment saying why.
 - `cargo fmt` your own files. (A repo-wide format sweep is pending — see the note in
