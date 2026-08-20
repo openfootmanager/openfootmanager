@@ -3,11 +3,18 @@
 //! Applies automated training focus and intensity decisions to all non-user teams
 //! each non-match training day, BEFORE `training::process_training` runs.
 //!
+//! Every reading here is taken across the eleven best available players rather
+//! than the whole squad. A squad mean is the average of a group most of whom are
+//! not going to play: a first eleven worn down to 50 sitting behind eleven
+//! untouched reserves reads as a comfortable 75, and the planner answers by
+//! putting that same eleven through a hard session. See
+//! [`likely_starters_condition`].
+//!
 //! Algorithm:
 //! 1. Skip the user-controlled team entirely.
 //! 2. Skip if today is a rest day for that team's schedule.
-//! 3. If avg available-player condition < 10 → Recovery focus + Low intensity (no cycle advance).
-//! 4. Otherwise compute intensity from condition band (Low/Medium/High).
+//! 3. If the likely starters' condition < 10 → Recovery focus + Low intensity (no cycle advance).
+//! 4. Otherwise compute intensity from that same reading's band (Low/Medium/High).
 //! 5. Apply near-match / congestion downgrade where applicable.
 //! 6. Pick focus from the style-biased 5-slot weekly cycle (indexed by weekday % 5).
 //! 7. Force Recovery focus when final intensity is Low (fatigue band or downgraded).
@@ -92,12 +99,60 @@ fn style_weekly_cycle(play_style: &PlayStyle) -> [TrainingFocus; 5] {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/// How many players the readiness reading is taken across: a starting eleven.
+const LIKELY_STARTERS: usize = 11;
+
+/// Average condition of the eleven best players this club has available.
+///
+/// This is the number the intensity bands are computed from, and it is
+/// deliberately *not* the squad average. A squad average is dominated by
+/// whoever is not playing: a first eleven ground down to 50 sitting behind
+/// eleven untouched reserves reads as a comfortable 75, so the planner sees
+/// room to work and puts the same exhausted eleven through a High session. The
+/// gap between the two numbers is not small — over a simulated season an AI
+/// squad averages around 71 while its best eleven arrive at matches in the
+/// high 40s.
+///
+/// It is also deliberately not the side the lineup picker would actually name.
+/// That side is rotation-adjusted: the tired stars have been left out of it, so
+/// reading it would launder the fatigue back out of the signal exactly the way
+/// a fresh bench launders it out of the squad mean. The question worth asking
+/// is "what condition are this club's best players in", and the answer has to
+/// stay uncomfortable while they are tired.
+///
+/// Injured players are excluded — they are not candidates for anything, and
+/// their condition is being managed by the treatment room rather than by the
+/// training ground. `ovr` is position-weighted, so a goalkeeper is comparable
+/// with an outfielder and the eleven cannot degenerate into one shape. Ties
+/// break on player id so a squad of equals gives the same reading every day.
+/// A club with nothing to read is reported fully fit rather than in crisis:
+/// there is nobody for a lighter session to protect.
+fn likely_starters_condition(game: &Game, team_id: &str) -> f64 {
+    let mut available: Vec<(u8, &str, u8)> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
+        .map(|p| (p.ovr, p.id.as_str(), p.condition))
+        .collect();
+
+    if available.is_empty() {
+        return 100.0;
+    }
+
+    available.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    let eleven = &available[..LIKELY_STARTERS.min(available.len())];
+
+    eleven.iter().map(|(_, _, c)| *c as f64).sum::<f64>() / eleven.len() as f64
+}
+
 // ---------------------------------------------------------------------------
 // Per-team snapshot (immutable read, no borrows retained)
 // ---------------------------------------------------------------------------
 
 struct TeamSnapshot {
-    avg_condition: f64,
+    /// Average condition of the eleven best available players — see
+    /// [`likely_starters_condition`] for why it is not the squad average.
+    starters_condition: f64,
     play_style: PlayStyle,
     is_training_day: bool,
 }
@@ -113,24 +168,8 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
 
     let is_training_day = schedule.is_training_day(weekday_num);
 
-    let available_players: Vec<_> = game
-        .players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
-        .collect();
-
-    let avg_condition = if available_players.is_empty() {
-        100.0
-    } else {
-        available_players
-            .iter()
-            .map(|p| p.condition as f64)
-            .sum::<f64>()
-            / available_players.len() as f64
-    };
-
     TeamSnapshot {
-        avg_condition,
+        starters_condition: likely_starters_condition(game, team_id),
         play_style,
         is_training_day,
     }
@@ -173,7 +212,7 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
         }
 
         // Recovery crisis: full recovery day, cycle does NOT advance.
-        if snap.avg_condition < RECOVERY_CRISIS_THRESHOLD {
+        if snap.starters_condition < RECOVERY_CRISIS_THRESHOLD {
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
                 team.training_focus = TrainingFocus::Recovery;
                 team.training_intensity = TrainingIntensity::Low;
@@ -182,9 +221,9 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
         }
 
         // Base intensity from condition band.
-        let base_intensity = if snap.avg_condition < LOW_INTENSITY_MAX {
+        let base_intensity = if snap.starters_condition < LOW_INTENSITY_MAX {
             TrainingIntensity::Low
-        } else if snap.avg_condition <= HIGH_INTENSITY_MIN {
+        } else if snap.starters_condition <= HIGH_INTENSITY_MIN {
             TrainingIntensity::Medium
         } else {
             TrainingIntensity::High
@@ -559,6 +598,103 @@ mod tests {
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
         assert_eq!(ai.training_focus, TrainingFocus::Recovery);
         assert_eq!(ai.training_intensity, TrainingIntensity::Low);
+    }
+
+    // -----------------------------------------------------------------------
+    // What the controller steers on
+    //
+    // These two cases pull in opposite directions on purpose. A statistic that
+    // gets one of them right by accident — the squad mean, the squad minimum, a
+    // low percentile — gets the other one wrong.
+    // -----------------------------------------------------------------------
+
+    /// A club of 22: eleven better players and eleven reserves, each half given
+    /// its own overall rating and condition.
+    fn make_game_with_a_split_squad(
+        starter_ovr: u8,
+        starter_condition: u8,
+        reserve_ovr: u8,
+        reserve_condition: u8,
+    ) -> Game {
+        let date = Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap();
+        let clock = GameClock::new(date);
+        let manager = make_manager(Some("user"));
+
+        let mut players: Vec<Player> = Vec::new();
+        for i in 0..11 {
+            let mut starter = make_player(&format!("first{}", i), "ai", starter_condition);
+            starter.ovr = starter_ovr;
+            players.push(starter);
+            let mut reserve = make_player(&format!("reserve{}", i), "ai", reserve_condition);
+            reserve.ovr = reserve_ovr;
+            players.push(reserve);
+        }
+
+        Game::new(
+            clock,
+            manager,
+            vec![
+                make_team("user", PlayStyle::Balanced),
+                make_team("ai", PlayStyle::Balanced),
+            ],
+            players,
+            vec![],
+            vec![],
+        )
+    }
+
+    #[test]
+    fn a_fresh_bench_does_not_authorise_working_a_tired_first_eleven() {
+        // Eleven at 50 behind eleven at 100: the squad averages 75, which reads
+        // as a squad with room to work. The eleven who play do not have it.
+        let mut game = make_game_with_a_split_squad(75, 50, 50, 100);
+
+        // Tuesday: a Balanced training day whose cycle slot is Technical, so the
+        // Physical-and-High safety rule cannot stand in for the result.
+        apply_ai_training_policies(&mut game, 1);
+
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(
+            ai.training_intensity,
+            TrainingIntensity::Medium,
+            "a first eleven at 50 must not be worked at High just because the \
+             reserves are fresh"
+        );
+    }
+
+    #[test]
+    fn a_shattered_reserve_squad_does_not_wrap_the_first_eleven_in_cotton_wool() {
+        // The mirror image: the eleven who play are fresh at 90 and the reserves
+        // are wrecked at 20. The squad averages 55. Nothing about the players who
+        // take the field says this club should be training lightly.
+        let mut game = make_game_with_a_split_squad(75, 90, 50, 20);
+
+        apply_ai_training_policies(&mut game, 1);
+
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(
+            ai.training_intensity,
+            TrainingIntensity::High,
+            "the players who play are at 90; the squad mean is being dragged \
+             down by people who are not going to be picked"
+        );
+    }
+
+    #[test]
+    fn the_reading_does_not_depend_on_the_order_players_happen_to_be_stored_in() {
+        // Every player rated the same, so rating cannot separate them and the
+        // tiebreak decides which eleven the signal reads. It must decide the
+        // same way whichever end of the squad list it starts from.
+        let mut game = make_game_with_a_split_squad(60, 100, 60, 20);
+        let first = likely_starters_condition(&game, "ai");
+        game.players.reverse();
+        let second = likely_starters_condition(&game, "ai");
+
+        assert!(
+            (first - second).abs() < f64::EPSILON,
+            "the same squad gave two different readings ({first} then {second}) \
+             once its players were stored in a different order"
+        );
     }
 
     // -----------------------------------------------------------------------
