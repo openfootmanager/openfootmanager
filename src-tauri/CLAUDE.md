@@ -33,8 +33,10 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
 
 > This section used to say `ofm_core` depends on `db`, and drew `engine` sitting on `domain`. Both
 > were wrong, and survived because the only thing checking the crate graph was a reviewer reading
-> this file. `src-tauri/tests/architecture.rs` now asserts the two leaf crates mechanically, so a
-> future edit here cannot quietly disagree with the manifests.
+> this file. `src-tauri/tests/architecture.rs` now asserts the two leaf boundaries mechanically:
+> `engine` and `domain` declare no workspace dependency of any kind, so the edge that matters most
+> can no longer be added quietly. That is the whole of what the test defends — every other edge
+> above is still prose, and an edit that misstates `db → ofm_core` will fail nothing.
 
 Adding `domain = { path = "../domain" }` to `crates/engine/Cargo.toml` "to avoid duplication"
 looks like a cleanup and is actually the single most damaging change you can make to this

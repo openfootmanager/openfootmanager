@@ -55,14 +55,15 @@ openfootmanager/
 
 ## Crate Architecture
 
-The Rust backend is organized into 4 crates with clear dependency boundaries:
+The Rust workspace holds seven packages — four library crates, two binaries, and the Tauri
+application itself — with these dependency boundaries:
 
 Listed rather than drawn, because the previous box diagram put `engine` on top of `domain` — the
 one edge this codebase forbids — and put `db` below `ofm_core`, which is backwards. Each arrow
 below is a `path` dependency in that crate's own `Cargo.toml`, and
 `src-tauri/tests/architecture.rs` fails the build if the two leaves ever gain one.
 
-```
+```text
   Tauri commands          src/commands/, src/application/, src/mcp_server/
                           → domain, engine, ofm_core, db
 
