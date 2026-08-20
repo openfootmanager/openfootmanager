@@ -466,6 +466,84 @@ pub(crate) fn tactics_break_speed_counter(tactics: &TacticsConfig) -> f64 {
     }
 }
 
+// --- What the defensive dials cost ---
+//
+// Three of the dials above used to only ever help the side that set them, which
+// made them free wins rather than choices. Measured between equal squads, a
+// club that sat deep and countered took about eight more league points a season
+// than one that attacked — off a play style the world generator assigns at
+// random and shows to nobody. The three functions below are the other half of
+// those trades. Each is neutral (×1.0, or 0.0 for a roll) on a default config,
+// so a side that has set nothing still simulates exactly as before.
+
+/// What a deep line concedes: the ball. A side defending on its own box wins it
+/// back less often than one squeezing high up the pitch. Applied to the
+/// defending side's weight in the possession contest, opposite
+/// [`tactics_defensive_conversion_mod`], which is what a deep line buys.
+pub(crate) fn tactics_defensive_line_recovery(tactics: &TacticsConfig) -> f64 {
+    match tactics.defensive_line {
+        DefensiveLine::VeryLow => 0.88,
+        DefensiveLine::Low => 0.93,
+        DefensiveLine::Medium => 1.0,
+        DefensiveLine::High => 1.06,
+    }
+}
+
+/// How far a break has to travel, from the depth the side was defending at.
+///
+/// Scales [`tactics_break_speed_counter`]: springing a counter from your own
+/// box means eighty yards of open field, and fewer of those arrive than the
+/// same break launched from halfway. Without this a deep line was pure profit
+/// for a counter-attacking side — the ball-recovery cost above does not touch
+/// it, because a side that lives on turnovers is not hurt by conceding
+/// possession. This is the cost it actually pays.
+pub(crate) fn tactics_break_distance(tactics: &TacticsConfig) -> f64 {
+    match tactics.defensive_line {
+        DefensiveLine::VeryLow => 0.70,
+        DefensiveLine::Low => 0.80,
+        DefensiveLine::Medium => 1.0,
+        DefensiveLine::High => 1.15,
+    }
+}
+
+/// What a counter-press costs when it fails: shape. A side that commits bodies
+/// to winning the ball back immediately and does not get it is played through,
+/// so the opponent breaks away whatever its own break-speed setting says.
+/// Added to [`tactics_break_speed_counter`] on the turnover the counter-press
+/// lost, and the mirror of [`tactics_counter_press_rewin`], which is what it
+/// buys.
+pub(crate) fn tactics_counter_press_exposure(tactics: &TacticsConfig) -> f64 {
+    match tactics.counter_press_duration {
+        CounterPressDuration::None => 0.0,
+        CounterPressDuration::Short => 0.05,
+        CounterPressDuration::Long => 0.11,
+    }
+}
+
+/// Width against shape, as a matchup rather than two separate dials.
+///
+/// A compact block defends the middle and can be pulled apart by width; a
+/// narrow attack plays straight into it. Without this, `Compact` was a free
+/// defensive gain and `Wide` a pure handicap — the engine charged for the
+/// crosses width produces without modelling the space it creates.
+///
+/// Multiplies the defender's rating in the attacking third, so below 1.0 means
+/// the attack has the better of the matchup.
+pub(crate) fn tactics_width_versus_shape(
+    attacking: &TacticsConfig,
+    defending: &TacticsConfig,
+) -> f64 {
+    match (&attacking.width, &defending.defensive_shape) {
+        (TacticsPitchWidth::Wide, DefensiveShape::Compact) => 0.93,
+        (TacticsPitchWidth::Wide, DefensiveShape::Normal) => 0.97,
+        (TacticsPitchWidth::Narrow, DefensiveShape::Compact) => 1.05,
+        (TacticsPitchWidth::Narrow, DefensiveShape::Normal) => 1.02,
+        // A stretched block has no middle to overload and no width to exploit,
+        // and a normal attack has no shape preference to reward either way.
+        _ => 1.0,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Home advantage modifier
 // ---------------------------------------------------------------------------
@@ -542,6 +620,63 @@ mod phase_modifier_tests {
         assert!(tactics_shape_modifier(&stretched) < 1.0);
         assert_eq!(tactics_shape_modifier(&normal), 1.0);
         assert!(tactics_shape_modifier(&compact) > 1.0);
+    }
+
+    /// A dial that only ever helps is not a tactic, it is a free win. These
+    /// three cover the ones that used to be exactly that.
+    #[test]
+    fn every_advantage_is_paid_for_somewhere() {
+        // Sitting deep is safer to defend against and concedes the ball for it.
+        let very_low = cfg(|c| c.defensive_line = DefensiveLine::VeryLow);
+        let high = cfg(|c| c.defensive_line = DefensiveLine::High);
+        assert!(
+            tactics_defensive_conversion_mod(&very_low) < tactics_defensive_conversion_mod(&high),
+            "a deep line must be the safer one to defend with"
+        );
+        assert!(
+            tactics_defensive_line_recovery(&very_low) < tactics_defensive_line_recovery(&high),
+            "and must win the ball back less often, or it costs nothing"
+        );
+        assert!(
+            tactics_break_distance(&very_low) < tactics_break_distance(&high),
+            "and must complete fewer breaks, because the ball has further to go — \
+             conceding possession is not a cost to a side that lives on turnovers"
+        );
+
+        // Counter-pressing wins the ball back and leaves space behind when it
+        // does not.
+        let long = cfg(|c| c.counter_press_duration = CounterPressDuration::Long);
+        let short = cfg(|c| c.counter_press_duration = CounterPressDuration::Short);
+        assert!(tactics_counter_press_rewin(&long) > tactics_counter_press_rewin(&short));
+        assert!(
+            tactics_counter_press_exposure(&long) > tactics_counter_press_exposure(&short),
+            "the longer the press, the further out of shape when it is beaten"
+        );
+
+        // Width is a matchup, not a handicap: going wide pulls a compact block
+        // apart, going narrow plays straight into it.
+        let wide = cfg(|c| c.width = TacticsPitchWidth::Wide);
+        let narrow = cfg(|c| c.width = TacticsPitchWidth::Narrow);
+        let compact = cfg(|c| c.defensive_shape = DefensiveShape::Compact);
+        assert!(
+            tactics_width_versus_shape(&wide, &compact) < 1.0,
+            "a compact block must be vulnerable to width, or Compact is free"
+        );
+        assert!(
+            tactics_width_versus_shape(&narrow, &compact) > 1.0,
+            "attacking narrow into a compact block must be the hard way to play"
+        );
+    }
+
+    /// The neutrality invariant extends to the new dials: nothing new may fire
+    /// for a side that has set nothing.
+    #[test]
+    fn the_new_costs_are_neutral_by_default() {
+        let d = TacticsConfig::default();
+        assert_eq!(tactics_defensive_line_recovery(&d), 1.0);
+        assert_eq!(tactics_break_distance(&d), 1.0);
+        assert_eq!(tactics_counter_press_exposure(&d), 0.0);
+        assert_eq!(tactics_width_versus_shape(&d, &d), 1.0);
     }
 
     #[test]

@@ -2,7 +2,8 @@ use rand::{Rng, RngExt};
 
 use crate::event::{EventType, MatchEvent};
 use crate::shared::{
-    tactics_break_speed_counter, tactics_counter_press_rewin, tactics_pressing_contest,
+    tactics_break_distance, tactics_break_speed_counter, tactics_counter_press_exposure,
+    tactics_counter_press_rewin, tactics_defensive_line_recovery, tactics_pressing_contest,
     tactics_tempo_retention,
 };
 use crate::types::{Side, Zone};
@@ -186,7 +187,9 @@ impl LiveMatchState {
         let poss_tactics = self.team_ref(poss_side).tactics.clone();
         let def_tactics = self.team_ref(def_side).tactics.clone();
         let mid_att = self.effective_midfield(poss_side) * tactics_tempo_retention(&poss_tactics);
-        let mid_def = self.effective_midfield(def_side) * tactics_pressing_contest(&def_tactics);
+        let mid_def = self.effective_midfield(def_side)
+            * tactics_pressing_contest(&def_tactics)
+            * tactics_defensive_line_recovery(&def_tactics);
         let retain = mid_att / (mid_att + mid_def);
         if rng.random_range(0.0..1.0f64) > retain {
             // Counter-press: the side losing the ball may win it straight back.
@@ -195,8 +198,12 @@ impl LiveMatchState {
                 // Ball retained; possession and zone unchanged.
             } else {
                 self.possession = def_side;
-                // Break speed: the winner may spring a fast counter forward.
-                let breakaway = tactics_break_speed_counter(&def_tactics);
+                // Break speed: the winner may spring a fast counter forward —
+                // and a beaten counter-press leaves the space for one whether
+                // the winner intended to break quickly or not.
+                let breakaway = tactics_break_speed_counter(&def_tactics)
+                    * tactics_break_distance(&def_tactics)
+                    + tactics_counter_press_exposure(&poss_tactics);
                 if breakaway > 0.0 && rng.random_range(0.0..1.0f64) < breakaway {
                     self.ball_zone = Zone::attacking_third(def_side);
                 } else {

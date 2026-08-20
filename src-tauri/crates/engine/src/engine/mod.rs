@@ -210,7 +210,8 @@ fn simulate_minute<R: Rng>(ctx: &mut MatchContext, minute: u8, rng: &mut R) {
     let mid_att = resolution::effective_midfield(ctx, poss_side)
         * shared::tactics_tempo_retention(&poss_tactics);
     let mid_def = resolution::effective_midfield(ctx, def_side)
-        * shared::tactics_pressing_contest(&def_tactics);
+        * shared::tactics_pressing_contest(&def_tactics)
+        * shared::tactics_defensive_line_recovery(&def_tactics);
     let retain = mid_att / (mid_att + mid_def);
     if rng.random_range(0.0..1.0f64) > retain {
         let rewin = shared::tactics_counter_press_rewin(&poss_tactics);
@@ -218,7 +219,11 @@ fn simulate_minute<R: Rng>(ctx: &mut MatchContext, minute: u8, rng: &mut R) {
             // Counter-press wins it straight back; nothing changes.
         } else {
             ctx.possession = def_side;
-            let breakaway = shared::tactics_break_speed_counter(&def_tactics);
+            // A counter-press that has just been beaten leaves its side out of
+            // shape, so the opponent breaks away whatever its own break speed.
+            let breakaway = shared::tactics_break_speed_counter(&def_tactics)
+                * shared::tactics_break_distance(&def_tactics)
+                + shared::tactics_counter_press_exposure(&poss_tactics);
             if breakaway > 0.0 && rng.random_range(0.0..1.0f64) < breakaway {
                 ctx.ball_zone = Zone::attacking_third(def_side);
             } else {
