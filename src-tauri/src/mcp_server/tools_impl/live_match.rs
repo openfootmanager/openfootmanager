@@ -272,6 +272,27 @@ fn apply_press_conference(
         .map(|t| t.name.clone())
         .unwrap_or_else(|| user_team_id.clone());
 
+    // Every named player must be one the user actually manages, checked before anything moves.
+    // The ids arrive from an agent and the morale effect below resolves them against the whole
+    // world, so an opposition striker could be praised into a better mood — a +5 handed to a
+    // rival. The UI only ever offers the user's own squad; this is the backend saying so too.
+    let outsider = {
+        let squad: std::collections::HashSet<&str> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some(&user_team_id))
+            .map(|p| p.id.as_str())
+            .collect();
+        answers
+            .iter()
+            .map(|answer| answer.player_id.as_str())
+            .find(|id| !id.is_empty() && !squad.contains(id))
+            .map(str::to_string)
+    };
+    if let Some(id) = outsider {
+        return Err(format!("Player {} is not in your squad.", id));
+    }
+
     // The most recent completed fixture involving the user's team, across every competition it
     // plays in. Reading `game.league` here instead would silently report the last *league* match
     // after a cup tie: that field mirrors one competition, and `Game` says so itself — "the legacy
@@ -926,5 +947,42 @@ mod tests {
         assert_eq!(outcome.away_team_name, "Test FC");
         assert_eq!(outcome.home_score, 0);
         assert_eq!(outcome.away_score, 3);
+    }
+
+    /// A `player_focus` answer used to resolve its id against every player in the world, so
+    /// praising the striker who had just knocked you out lifted *his* morale by five.
+    #[test]
+    fn praising_a_player_from_another_club_is_rejected() {
+        let mut game = game_after_a_match();
+
+        let result = apply_press_conference(&mut game, &[answer("player_focus", "praise", "p3")]);
+
+        assert_eq!(result.unwrap_err(), "Player p3 is not in your squad.");
+        assert!(game.players.iter().all(|p| p.morale == 50));
+        assert!(game.news.is_empty());
+    }
+
+    /// The same rule for an id that only decorates the article: a player the user does not manage
+    /// has no business in the conference's player list either.
+    #[test]
+    fn mentioning_a_player_from_another_club_is_rejected() {
+        let mut game = game_after_a_match();
+
+        let result = apply_press_conference(&mut game, &[answer("mood", "confident", "p3")]);
+
+        assert_eq!(result.unwrap_err(), "Player p3 is not in your squad.");
+        assert!(game.players.iter().all(|p| p.morale == 50));
+        assert!(game.news.is_empty());
+    }
+
+    #[test]
+    fn an_unknown_player_id_is_rejected() {
+        let mut game = game_after_a_match();
+
+        let result =
+            apply_press_conference(&mut game, &[answer("player_focus", "praise", "nobody")]);
+
+        assert_eq!(result.unwrap_err(), "Player nobody is not in your squad.");
+        assert!(game.news.is_empty());
     }
 }
