@@ -730,6 +730,10 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         secondary: tdef.colors.secondary.clone(),
     };
     team.play_style = play_style_from_str(&tdef.play_style);
+    // A club's tactics are its style expressed in the nine dials the engine
+    // actually reads. Set here rather than left at the neutral default, which is
+    // where every club in every save had been sitting: see `ai_tactics`.
+    team.tactics_phase = crate::ai_tactics::blueprint_for(&team.play_style);
     team.media.logo = tdef.logo.clone();
     if let Some(ref pattern_str) = tdef.kit_pattern
         && let Ok(pattern) = pattern_str.parse()
@@ -1429,6 +1433,46 @@ mod tests {
             "colors": { "primary": "#ff0000", "secondary": "#ffffff" }
         }))
         .expect("team def should deserialize")
+    }
+
+    /// Every club the world builds — procedural, package-authored or filler —
+    /// comes through `build_team`, which is why the blueprint is applied here
+    /// and not at one of the several call sites above it.
+    #[test]
+    fn a_built_club_takes_its_style_onto_the_pitch_with_it() {
+        let mut rng = StdRng::seed_from_u64(19);
+        let mut tdef = test_team_def();
+        tdef.play_style = "HighPress".to_string();
+
+        let team = build_team(&tdef, &mut rng);
+
+        assert_eq!(team.play_style, domain::team::PlayStyle::HighPress);
+        assert_eq!(
+            team.tactics_phase,
+            crate::ai_tactics::blueprint_for(&domain::team::PlayStyle::HighPress),
+            "a club's stored tactics must be the blueprint for its style"
+        );
+        assert_ne!(
+            team.tactics_phase,
+            domain::team::TacticsPhaseSettings::default(),
+            "the whole point is that it is no longer neutral"
+        );
+    }
+
+    /// Two clubs of different styles must be distinguishable on the pitch, not
+    /// merely in a label the engine never reads.
+    #[test]
+    fn two_clubs_of_different_styles_do_not_play_the_same_way() {
+        let mut rng = StdRng::seed_from_u64(23);
+        let mut counter_def = test_team_def();
+        counter_def.play_style = "Counter".to_string();
+        let mut possession_def = test_team_def();
+        possession_def.play_style = "Possession".to_string();
+
+        let counter = build_team(&counter_def, &mut rng);
+        let possession = build_team(&possession_def, &mut rng);
+
+        assert_ne!(counter.tactics_phase, possession.tactics_phase);
     }
 
     /// A club whose reputation is pinned to a single value — one rating typed into

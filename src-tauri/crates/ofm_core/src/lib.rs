@@ -1,6 +1,7 @@
 pub mod advance_results;
 pub mod aging;
 pub mod ai_hiring;
+pub mod ai_tactics;
 pub mod ai_training;
 pub mod board_objectives;
 pub mod catchup;
