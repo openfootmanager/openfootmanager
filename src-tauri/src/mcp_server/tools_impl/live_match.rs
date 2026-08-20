@@ -232,6 +232,10 @@ struct PressAnswer {
 #[derive(Debug)]
 struct PressConferenceOutcome {
     squad_morale_delta: i16,
+    /// How many of the user's players actually ended the conference on a different morale, and
+    /// how many there were. Both effects clamp, so the delta alone says nothing about movement.
+    squad_players_moved: usize,
+    squad_size: usize,
     home_team_name: String,
     away_team_name: String,
     home_score: u8,
@@ -331,6 +335,18 @@ fn apply_press_conference(
     let home_team_name = team_name(&home_team_id);
     let away_team_name = team_name(&away_team_id);
 
+    // The squad's morale before anything moves, so the outcome can report what changed rather
+    // than what was asked for. Both effects below clamp to 10..=100, so a squad already at the
+    // ceiling absorbs a "+3" whole — reporting the nominal delta would tell the caller its praise
+    // landed when not one player moved. Indices are stable: nothing here adds or removes players.
+    let squad_before: Vec<(usize, u8)> = game
+        .players
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.team_id.as_deref() == Some(&user_team_id))
+        .map(|(index, p)| (index, p.morale))
+        .collect();
+
     let mut morale_delta: i16 = 0;
     let mut mentioned_player_ids: Vec<String> = Vec::new();
     // Only the first quote is ever rendered; the rest only decide singular vs plural wording.
@@ -389,6 +405,11 @@ fn apply_press_conference(
         }
     }
 
+    let squad_players_moved = squad_before
+        .iter()
+        .filter(|(index, before)| game.players[*index].morale != *before)
+        .count();
+
     let result_str = format!(
         "{} {} - {} {}",
         home_team_name, home_score, away_score, away_team_name
@@ -429,6 +450,8 @@ fn apply_press_conference(
 
     Ok(PressConferenceOutcome {
         squad_morale_delta: morale_delta,
+        squad_players_moved,
+        squad_size: squad_before.len(),
         home_team_name,
         away_team_name,
         home_score,
@@ -500,22 +523,33 @@ pub fn match_press_conference(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let emoji = if outcome.squad_morale_delta > 0 {
-        "📈"
-    } else if outcome.squad_morale_delta < 0 {
-        "📉"
-    } else {
-        "➡️"
+    Ok(format_outcome(&outcome))
+}
+
+/// Renders the outcome for the agent that asked for it.
+///
+/// The movement count is not decoration: a squad already on 100 absorbs a "+3" entirely, and a
+/// `deflect` on a player question moves one player while leaving the squad delta at zero.
+/// Reporting the delta on its own told the caller praise had worked when nothing had happened —
+/// and this call is its only window onto morale, so it would learn the wrong lesson.
+fn format_outcome(outcome: &PressConferenceOutcome) -> String {
+    let emoji = match (outcome.squad_players_moved, outcome.squad_morale_delta) {
+        (0, _) => "➡️",
+        (_, delta) if delta > 0 => "📈",
+        (_, delta) if delta < 0 => "📉",
+        _ => "➡️",
     };
-    Ok(format!(
-        "## Press Conference Complete\n\n{} Squad morale: {:+}\n**Match**: {} {} - {} {}",
+    format!(
+        "## Press Conference Complete\n\n{} Squad morale {:+}: {} of {} players moved\n**Match**: {} {} - {} {}",
         emoji,
         outcome.squad_morale_delta,
+        outcome.squad_players_moved,
+        outcome.squad_size,
         outcome.home_team_name,
         outcome.home_score,
         outcome.away_score,
         outcome.away_team_name
-    ))
+    )
 }
 
 #[cfg(test)]
@@ -984,5 +1018,73 @@ mod tests {
 
         assert_eq!(result.unwrap_err(), "Player nobody is not in your squad.");
         assert!(game.news.is_empty());
+    }
+
+    #[test]
+    fn the_outcome_counts_the_players_that_moved() {
+        let mut game = game_after_a_match();
+
+        let outcome =
+            apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        assert_eq!(outcome.squad_morale_delta, 3);
+        assert_eq!(outcome.squad_players_moved, 2);
+        assert_eq!(outcome.squad_size, 2);
+    }
+
+    /// Morale clamps at 100. A squad already there absorbs the whole delta, and the old report
+    /// still announced "+3" — telling the caller its praise had worked when nobody had moved.
+    #[test]
+    fn a_squad_already_at_maximum_morale_reports_nobody_moved() {
+        let mut game = game_after_a_match();
+        for player in game.players.iter_mut() {
+            if player.team_id.as_deref() == Some("team1") {
+                player.morale = 100;
+            }
+        }
+
+        let outcome =
+            apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        assert_eq!(outcome.squad_morale_delta, 3);
+        assert_eq!(outcome.squad_players_moved, 0);
+        assert_eq!(outcome.squad_size, 2);
+    }
+
+    /// The mirror of the case above: `deflect` on a player question leaves the squad-wide delta at
+    /// zero but still costs the named player a point, so "no change" would be just as wrong.
+    #[test]
+    fn a_zero_squad_delta_still_reports_the_player_that_moved() {
+        let mut game = game_after_a_match();
+
+        let outcome =
+            apply_press_conference(&mut game, &[answer("player_focus", "deflect", "p1")]).unwrap();
+
+        assert_eq!(outcome.squad_morale_delta, 0);
+        assert_eq!(outcome.squad_players_moved, 1);
+        let p1 = game.players.iter().find(|p| p.id == "p1").unwrap();
+        assert_eq!(p1.morale, 49);
+    }
+
+    fn outcome_with(squad_morale_delta: i16, squad_players_moved: usize) -> PressConferenceOutcome {
+        PressConferenceOutcome {
+            squad_morale_delta,
+            squad_players_moved,
+            squad_size: 24,
+            home_team_name: "Test FC".to_string(),
+            away_team_name: "Rival FC".to_string(),
+            home_score: 2,
+            away_score: 1,
+        }
+    }
+
+    #[test]
+    fn the_report_never_claims_a_change_that_did_not_happen() {
+        assert!(format_outcome(&outcome_with(3, 18)).contains("📈 Squad morale +3: 18 of 24"));
+        assert!(format_outcome(&outcome_with(-2, 24)).contains("📉 Squad morale -2: 24 of 24"));
+        // A delta the squad absorbed whole must not read as a rise.
+        assert!(format_outcome(&outcome_with(3, 0)).contains("➡️ Squad morale +3: 0 of 24"));
+        // And a flat squad delta must not read as nothing happening.
+        assert!(format_outcome(&outcome_with(0, 1)).contains("➡️ Squad morale +0: 1 of 24"));
     }
 }
