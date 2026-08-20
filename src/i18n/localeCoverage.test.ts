@@ -11,6 +11,7 @@ import de from "./locales/de.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
+import idLocale from "./locales/id.json";
 import itLocale from "./locales/it.json";
 import ptBR from "./locales/pt-BR.json";
 import pt from "./locales/pt.json";
@@ -24,6 +25,7 @@ const LOCALES: Record<string, LocaleTree> = {
   es,
   fr,
   it: itLocale,
+  id: idLocale,
   pt,
   "pt-BR": ptBR,
   ru,
