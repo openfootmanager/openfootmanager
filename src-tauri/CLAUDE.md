@@ -131,6 +131,11 @@ Conventions:
 - Unit tests in a `#[cfg(test)]` module in the same file — the Rust norm and what
   `CONTRIBUTING.md` asks for.
 - Cross-crate and end-to-end tests in `crates/<crate>/tests/`.
+- Tests of the workspace itself — properties of the crate graph rather than of any one
+  crate — in `src-tauri/tests/`, the root package's integration directory.
+  `src-tauri/tests/architecture.rs` is the worked example: filing it under one member would
+  put a rule about `domain` inside `engine`'s manifest, and the choice between the two
+  crates would be arbitrary.
 - Write the failing test first.
 - Simulation changes: `crates/sim-bench/` exists to check that balance changes do what you think
   across many matches. A tuning change without bench output is a guess.
