@@ -326,6 +326,10 @@ pub fn generate_national_team_player(
 fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_year: i32) {
     seed_opening_youth_academy(players, opening_year);
     normalize_opening_contracts(players);
+    // Last, and here rather than in `build_club`: the package path calls this
+    // again after swapping generated players for authored ones, and a role
+    // belongs to the squad that finished rather than the one that was built.
+    crate::ai_roles::assign_squad_roles(team, players);
 
     let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
 
@@ -1433,6 +1437,38 @@ mod tests {
             "colors": { "primary": "#ff0000", "secondary": "#ffffff" }
         }))
         .expect("team def should deserialize")
+    }
+
+    /// A generated squad must arrive with jobs, not just names. Roles are
+    /// assigned in `normalize_generated_team` rather than in `build_club`,
+    /// because the package path runs it again *after* replacing generated
+    /// players with authored ones — and a role belongs to the squad that
+    /// finished, not the one that was built first.
+    #[test]
+    fn a_generated_squad_is_given_something_to_do() {
+        let mut rng = StdRng::seed_from_u64(29);
+        let mut tdef = test_team_def();
+        tdef.play_style = "Possession".to_string();
+        let names_def = default_names_definition();
+        let country_codes = generation::nationality_distribution();
+
+        let (team, players, _) = build_club(&tdef, country_codes, 2026, &names_def, &mut rng);
+
+        assert!(
+            !team.player_roles.is_empty(),
+            "every player converted to Standard at the engine boundary"
+        );
+        for (player_id, role) in &team.player_roles {
+            let player = players
+                .iter()
+                .find(|p| p.id == *player_id)
+                .expect("a role was stored for somebody who is not in the squad");
+            assert!(
+                player.position.admits_role(role),
+                "{:?} was given {role:?}",
+                player.position
+            );
+        }
     }
 
     /// Every club the world builds — procedural, package-authored or filler —
