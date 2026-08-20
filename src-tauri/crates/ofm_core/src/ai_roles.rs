@@ -30,10 +30,36 @@
 use domain::player::Player;
 use domain::team::{PlayStyle, PlayerRole, Team};
 
-/// How far above his own average a player must score to be given a specialist
-/// role at all. Below it he is a `Standard` player in that position, which is
-/// the honest description of most of a squad.
-const SPECIALIST_MARGIN: f64 = 5.0;
+/// How far above his own average a player must score before a specialist role
+/// is even on the table, before accounting for how many roles he is choosing
+/// between. See [`specialist_margin`].
+const SPECIALIST_MARGIN: f64 = 4.0;
+
+/// How much of the margin scales with the number of candidate roles.
+///
+/// Roughly the spread of a three-attribute average across generated players —
+/// the unit in which "how far above his own average" is worth measuring.
+const SELECTION_SPREAD: f64 = 5.0;
+
+/// The margin a specialist role must clear, for a position admitting
+/// `candidates` of them.
+///
+/// It grows with the candidate count, and it has to. Picking the best of twelve
+/// roles is taking a *maximum*, not a sample: the more jobs a position admits,
+/// the more chances a player has to look distinctive at one of them by nothing
+/// but the luck of which attributes came out high. Measured against a real
+/// generated world with a flat margin of 5, **93.5% of players took a
+/// specialist role** — 99.6% of midfielders, who choose between eleven, against
+/// 56.5% of goalkeepers, who choose between two. `Standard` had stopped meaning
+/// anything, and the gap between the groups was pure candidate count.
+///
+/// `√(2 ln n)` is where the maximum of `n` draws sits, so this measures a player
+/// against the best role his position would throw up by chance rather than
+/// against a fixed number.
+fn specialist_margin(candidates: usize) -> f64 {
+    let n = candidates.max(1) as f64;
+    SPECIALIST_MARGIN + SELECTION_SPREAD * (2.0 * n.ln()).sqrt()
+}
 
 /// What a club's style is worth when it is choosing between two roles a player
 /// could plausibly fill. Deliberately smaller than the margin: a style shades
@@ -165,9 +191,10 @@ fn player_baseline(player: &Player) -> f64 {
 fn role_for(player: &Player, play_style: &PlayStyle) -> PlayerRole {
     let baseline = player_baseline(player);
     let preferred = style_preferences(play_style);
+    let candidates = player.position.valid_roles().len().saturating_sub(1);
 
     let mut best = PlayerRole::Standard;
-    let mut best_score = baseline + SPECIALIST_MARGIN;
+    let mut best_score = baseline + specialist_margin(candidates);
 
     for role in player.position.valid_roles() {
         if *role == PlayerRole::Standard {
@@ -468,15 +495,54 @@ mod tests {
         assert!(team.player_roles.is_empty());
     }
 
+    /// One high attribute is luck, not a shape.
+    ///
+    /// A midfielder chooses between eleven specialisms, and eleven three-attribute
+    /// averages give a lucky player plenty of chances to top his own average at
+    /// one of them. This is the case that says the margin has to scale with the
+    /// candidate count: against a real generated world it did not, and 99.6% of
+    /// midfielders came out as specialists.
     #[test]
-    fn a_squad_of_ordinary_players_is_not_wall_to_wall_specialists() {
-        // Every player distinctive at exactly one thing, plus three who are not
-        // distinctive at all: the three must stay Standard.
-        let mut players = Vec::new();
-        for (index, standout) in [
+    fn one_good_attribute_is_not_enough_to_earn_a_specialism() {
+        for standout in [
             |a: &mut PlayerAttributes| a.pace = 90,
             |a: &mut PlayerAttributes| a.passing = 90,
             |a: &mut PlayerAttributes| a.tackling = 90,
+        ] {
+            let mut attributes = flat_attrs(60);
+            standout(&mut attributes);
+            let lucky = player("lucky", Position::Midfielder, attributes);
+            assert_eq!(
+                role_for(&lucky, &PlayStyle::Balanced),
+                PlayerRole::Standard,
+                "one attribute out of nineteen bought a job title"
+            );
+        }
+    }
+
+    #[test]
+    fn a_squad_of_ordinary_players_is_not_wall_to_wall_specialists() {
+        // Three players who fit a whole job description, plus three who are not
+        // distinctive at all: the three must stay Standard.
+        let mut players = Vec::new();
+        for (index, standout) in [
+            // BallWinner, DeepLyingPlaymaker, BoxToBox — the full profile each,
+            // because that is what a shape is.
+            |a: &mut PlayerAttributes| {
+                a.tackling = 92;
+                a.aggression = 92;
+                a.stamina = 92;
+            },
+            |a: &mut PlayerAttributes| {
+                a.passing = 92;
+                a.vision = 92;
+                a.composure = 92;
+            },
+            |a: &mut PlayerAttributes| {
+                a.stamina = 92;
+                a.strength = 92;
+                a.teamwork = 92;
+            },
         ]
         .into_iter()
         .enumerate()
