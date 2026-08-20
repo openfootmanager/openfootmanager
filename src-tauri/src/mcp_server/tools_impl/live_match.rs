@@ -272,22 +272,21 @@ fn apply_press_conference(
         .map(|t| t.name.clone())
         .unwrap_or_else(|| user_team_id.clone());
 
-    // Find the most recent completed fixture involving the user's team. Copied out of the league
-    // borrow here so the morale loops below can take `game` mutably.
+    // The most recent completed fixture involving the user's team, across every competition it
+    // plays in. Reading `game.league` here instead would silently report the last *league* match
+    // after a cup tie: that field mirrors one competition, and `Game` says so itself — "the legacy
+    // `league` mirror misses cups and isn't reliable" (game.rs). Copied out of the borrow so the
+    // morale loops below can take `game` mutably.
     let (home_team_id, away_team_id, home_score, away_score) = {
         let last_match = game
-            .league
-            .as_ref()
-            .and_then(|league| {
-                league
-                    .fixtures
-                    .iter()
-                    .filter(|f| {
-                        f.result.is_some()
-                            && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
-                    })
-                    .max_by(|a, b| a.date.cmp(&b.date))
+            .competitions
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|f| {
+                f.result.is_some()
+                    && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
             })
+            .max_by(|a, b| a.date.cmp(&b.date))
             .ok_or("No completed match found for your team")?;
         let result = last_match
             .result
@@ -606,7 +605,10 @@ mod tests {
             vec![],
             vec![],
         );
-        game.league = Some(league);
+        game.competitions.push(league);
+        // What every load path does (`db::game_persistence`), so the fixture reaches the state
+        // production actually reaches: `competitions` is the source of truth, `league` its mirror.
+        game.promote_legacy_league();
         game
     }
 
@@ -692,9 +694,7 @@ mod tests {
     #[test]
     fn a_team_that_has_not_played_changes_nothing() {
         let mut game = game_after_a_match();
-        if let Some(league) = game.league.as_mut() {
-            league.fixtures[0].result = None;
-        }
+        game.competitions[0].fixtures[0].result = None;
 
         let result = apply_press_conference(&mut game, &[answer("mood", "confident", "")]);
 
@@ -886,5 +886,45 @@ mod tests {
         assert_eq!(outcome.away_team_name, "Rival FC");
         assert_eq!(outcome.home_score, 2);
         assert_eq!(outcome.away_score, 1);
+    }
+
+    /// A cup tie is a match the manager is asked about. It lives in its own `League` entry, so a
+    /// lookup that reads only the legacy `game.league` mirror reports the previous *league* game
+    /// instead — the wrong scoreline, filed into a news article the player reads.
+    #[test]
+    fn the_conference_covers_the_last_match_played_not_the_last_league_match() {
+        let mut game = game_after_a_match();
+        let cup_tie = domain::league::Fixture {
+            id: "cup1".to_string(),
+            matchday: 1,
+            // The day after the league fixture in `game_after_a_match`.
+            date: "2026-03-14".to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "team1".to_string(),
+            competition: domain::league::FixtureCompetition::Cup,
+            status: domain::league::FixtureStatus::Completed,
+            result: Some(domain::league::MatchResult {
+                home_goals: 0,
+                away_goals: 3,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        game.competitions.push(domain::league::League {
+            id: "cup".to_string(),
+            name: "Test Cup".to_string(),
+            season: 1,
+            kind: domain::league::CompetitionType::Cup,
+            fixtures: vec![cup_tie],
+            ..Default::default()
+        });
+
+        let outcome =
+            apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        assert_eq!(outcome.home_team_name, "Rival FC");
+        assert_eq!(outcome.away_team_name, "Test FC");
+        assert_eq!(outcome.home_score, 0);
+        assert_eq!(outcome.away_score, 3);
     }
 }
