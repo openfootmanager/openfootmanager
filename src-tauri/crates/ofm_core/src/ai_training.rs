@@ -28,11 +28,17 @@ use domain::team::{PlayStyle, TrainingFocus, TrainingIntensity};
 // Thresholds
 // ---------------------------------------------------------------------------
 
-/// Below this avg condition: full recovery day (no cycle advance).
+// All three are read against `likely_starters_condition`, not the squad mean.
+// They did not move when the signal did: a band written for "the players who
+// play" only ever made sense against that reading, and it is the reading that
+// was wrong. `HIGH_INTENSITY_MIN` is what the club now settles at — a squad
+// working hard enough to keep its best eleven around 70 and no harder.
+
+/// Below this starters' condition: full recovery day (no cycle advance).
 const RECOVERY_CRISIS_THRESHOLD: f64 = 10.0;
-/// Below this avg condition: Low intensity band.
+/// Below this starters' condition: Low intensity band.
 const LOW_INTENSITY_MAX: f64 = 40.0;
-/// Above this avg condition: High intensity band (40–70 inclusive is Medium).
+/// Above this starters' condition: High intensity band (40–70 inclusive is Medium).
 const HIGH_INTENSITY_MIN: f64 = 70.0;
 
 // ---------------------------------------------------------------------------
@@ -454,7 +460,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn avg_condition_39_gives_low_intensity() {
+    fn likely_starters_at_39_give_low_intensity() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 39);
         apply_ai_training_policies(&mut game, 0);
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
@@ -462,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn avg_condition_40_gives_medium_intensity() {
+    fn likely_starters_at_40_give_medium_intensity() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 40);
         apply_ai_training_policies(&mut game, 0);
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
@@ -470,7 +476,7 @@ mod tests {
     }
 
     #[test]
-    fn avg_condition_71_gives_high_intensity() {
+    fn likely_starters_at_71_give_high_intensity() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 71);
         // Use Tuesday (weekday 1, Balanced schedule trains Tue) → slot 1 = Technical.
         // Technical + High does not trigger the safety rule, so intensity stays High.
