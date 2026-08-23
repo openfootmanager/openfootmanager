@@ -249,8 +249,11 @@ pub fn berth_qualified_entrants(game: &Game, target: &League) -> Vec<String> {
 /// cross-target exclusivity and the `fallbackTo` cascade: a club ends in the
 /// single most prestigious matching target (lowest priority) it earns, and a
 /// berth's `fallbackTo` is a lower-preference target used when the club
-/// doesn't earn the primary. Returns `target_id -> field`; targets without
-/// incoming berths are absent.
+/// doesn't earn the primary. Each field is emitted in evaluation order
+/// (source list, then that source's berths, then standings) so an
+/// oversubscribed domestic cap keeps a stable prefix rather than HashMap
+/// iteration. Returns `target_id -> field`; targets without incoming berths
+/// are absent.
 fn resolve_berth_fields(
     game: &Game,
     scope_match: impl Fn(&League) -> bool,
@@ -303,9 +306,24 @@ fn resolve_berth_fields(
     // Every club placed in any target — excluded from all targets' reputation
     // top-up so a thin field never pulls in a club already qualified elsewhere.
     let all_placed: HashSet<String> = best.keys().cloned().collect();
+    // Replay evaluation order so each field's vec is stable: competitions,
+    // then authored berths, then standings. HashMap iteration is not.
     let mut raw: HashMap<String, Vec<String>> = HashMap::new();
-    for (club, (_prio, target)) in best {
-        raw.entry(target).or_default().push(club);
+    let mut emitted: HashSet<String> = HashSet::new();
+    for source in &game.competitions {
+        for berth in &source.berths {
+            if !berth_eligible(source, berth) {
+                continue;
+            }
+            for winner in evaluate_berth_rule(source, &berth.rule) {
+                if !emitted.insert(winner.clone()) {
+                    continue;
+                }
+                if let Some((_, target)) = best.get(&winner) {
+                    raw.entry(target.clone()).or_default().push(winner);
+                }
+            }
+        }
     }
 
     let mut fields = HashMap::new();
@@ -398,8 +416,9 @@ fn domestic_position_range_promoted(
 /// hemisphere-foreign rollover cannot promote from an unfinished table or
 /// duplicate a feeder's place-getters. Dropouts and entrants are capped to
 /// the target's authored `participant_ids` length so empty standings cannot
-/// grow the league. Oversubscribed berths leave surplus place-getters in
-/// their feeder so they are not removed from both tables.
+/// grow the league. Oversubscribed berths keep the evaluation-order prefix
+/// (source list, then berth, then standings) and leave surplus place-getters
+/// in their feeder so they are not removed from both tables.
 ///
 /// Leagues without incoming berths are left untouched. Must run after the
 /// linear pyramid pass (which handles feeder-vs-lower-tier edges) and before
@@ -434,7 +453,9 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
         let unfinished_feeder = game.competitions.iter().enumerate().any(|(index, source)| {
             index != target_index
                 && source.rules.format == CompetitionFormat::LeagueTable
-                && source.berths.iter().any(|berth| berth.target == target_id)
+                && source.berths.iter().any(|berth| {
+                    berth.target == target_id && matches!(berth.rule, BerthRule::PositionRange { .. })
+                })
                 && !super::is_league_season_ended(source)
         });
         if unfinished_feeder {
@@ -656,6 +677,31 @@ mod tests {
         game
     }
 
+    /// 4-club Central, four 2-club feeders each sending two — 8 winners, 4 places.
+    fn four_region_oversubscribed_pyramid() -> Game {
+        let central = division(
+            "central",
+            0,
+            "BR",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        let regions = [
+            ("north", "n1", "n2"),
+            ("south", "s1", "s2"),
+            ("east", "e1", "e2"),
+            ("west", "w1", "w2"),
+        ];
+        let mut game = empty_game();
+        game.competitions = std::iter::once(central)
+            .chain(regions.iter().map(|(id, a, b)| {
+                let mut league = division(id, 1, "BR", &[(a, 20), (b, 10)]);
+                league.berths = vec![position_berth("central", 1, 2)];
+                league
+            }))
+            .collect();
+        game
+    }
+
     fn filler_club(id: &str, nation: &str, reputation: u32) -> domain::team::Team {
         let mut team = domain::team::Team::new(
             id.to_string(),
@@ -718,6 +764,28 @@ mod tests {
         assert!(
             !continental_fields.contains_key("central"),
             "a domestic league must not appear in the continental map"
+        );
+    }
+
+    #[test]
+    fn resolve_domestic_berth_fields_preserves_evaluation_order() {
+        let game = four_region_oversubscribed_pyramid();
+        let field = resolve_domestic_berth_fields(&game)
+            .remove("central")
+            .expect("berth-fed");
+        assert_eq!(
+            field,
+            vec![
+                "n1".to_string(),
+                "n2".to_string(),
+                "s1".to_string(),
+                "s2".to_string(),
+                "e1".to_string(),
+                "e2".to_string(),
+                "w1".to_string(),
+                "w2".to_string(),
+            ],
+            "field order is competition then berth then standings, not HashMap iteration"
         );
     }
 
@@ -1363,34 +1431,10 @@ mod tests {
     #[test]
     fn apply_domestic_berth_keeps_surplus_place_getters_in_their_feeder() {
         // 4-club target, four feeders each sending two → 8 winners, 4 places.
-        // Surplus must stay in the feeder instead of vanishing from both tables.
-        let central = division(
-            "central",
-            0,
-            "BR",
-            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
-        );
-        let regions = [
-            ("north", "n1", "n2"),
-            ("south", "s1", "s2"),
-            ("east", "e1", "e2"),
-            ("west", "w1", "w2"),
-        ];
-        let mut game = empty_game();
-        game.competitions = std::iter::once(central)
-            .chain(regions.iter().map(|(id, a, b)| {
-                let mut league = division(id, 1, "BR", &[(a, 20), (b, 10)]);
-                league.berths = vec![position_berth("central", 1, 2)];
-                league
-            }))
-            .collect();
-
+        // Evaluation order is north, south, east, west (1st then 2nd). The
+        // prefix takes the released places; the rest stay in their feeder.
+        let mut game = four_region_oversubscribed_pyramid();
         let fields = resolve_domestic_berth_fields(&game);
-        let field = fields.get("central").expect("berth-fed");
-        assert_eq!(field.len(), 8, "four feeders send two each: {field:?}");
-        let placed: HashSet<&str> = field[..4].iter().map(String::as_str).collect();
-        let surplus: HashSet<&str> = field[4..].iter().map(String::as_str).collect();
-
         apply_domestic_berth_promotion_relegation(&mut game, &fields);
 
         let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
@@ -1400,52 +1444,45 @@ mod tests {
             .map(String::as_str)
             .collect();
         assert_eq!(
-            central.len(),
-            4,
-            "target keeps authored size: {:?}",
+            central,
+            HashSet::from(["n1", "n2", "s1", "s2"]),
+            "evaluation-order prefix occupies the released places: {:?}",
             by_id("central").participant_ids
         );
-        assert_eq!(
-            central, placed,
-            "only released places are filled: {central:?}"
-        );
 
-        let mut seen = central.clone();
-        for (id, a, b) in regions {
-            let ids: HashSet<&str> = by_id(id)
+        let feeder = |id: &str| -> HashSet<&str> {
+            by_id(id)
                 .participant_ids
                 .iter()
                 .map(String::as_str)
-                .collect();
-            assert_eq!(
-                ids.len(),
-                2,
-                "{id} keeps authored size: {:?}",
-                by_id(id).participant_ids
-            );
-            for club in [a, b] {
-                if placed.contains(club) {
-                    assert!(
-                        !ids.contains(club),
-                        "{id} must lose placed {club}: {:?}",
-                        by_id(id).participant_ids
-                    );
-                } else {
-                    assert!(
-                        ids.contains(club),
-                        "{id} must keep surplus {club}: {:?}",
-                        by_id(id).participant_ids
-                    );
-                }
-            }
-            seen.extend(ids);
-        }
-        assert!(
-            surplus
-                .iter()
-                .all(|club| seen.contains(club) && !central.contains(club)),
-            "surplus must remain in a feeder: placed={placed:?} surplus={surplus:?} seen={seen:?}"
+                .collect()
+        };
+        assert_eq!(
+            by_id("north").participant_ids.len(),
+            2,
+            "north keeps authored size: {:?}",
+            by_id("north").participant_ids
         );
+        assert_eq!(
+            by_id("south").participant_ids.len(),
+            2,
+            "south keeps authored size: {:?}",
+            by_id("south").participant_ids
+        );
+        assert!(!feeder("north").contains("n1") && !feeder("north").contains("n2"));
+        assert!(!feeder("south").contains("s1") && !feeder("south").contains("s2"));
+        assert!(
+            feeder("east").contains("e1") && feeder("east").contains("e2"),
+            "east surplus stay put: {:?}",
+            by_id("east").participant_ids
+        );
+        assert!(
+            feeder("west").contains("w1") && feeder("west").contains("w2"),
+            "west surplus stay put: {:?}",
+            by_id("west").participant_ids
+        );
+        assert_eq!(by_id("east").participant_ids.len(), 2);
+        assert_eq!(by_id("west").participant_ids.len(), 2);
     }
 
     #[test]
@@ -1483,5 +1520,59 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn apply_domestic_berth_ignores_unfinished_non_position_range_source() {
+        // A mid-season PlayoffWinner table aimed at Central must not block
+        // finished PositionRange feeders — resolve cannot take those clubs.
+        let scheduled = Fixture {
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        };
+        let mut game = two_region_central_pyramid();
+        let mut playoff = division(
+            "playoff",
+            2,
+            "BR",
+            &[("p1", 20), ("p2", 10)],
+        );
+        playoff.berths = vec![Berth {
+            target: "central".to_string(),
+            rule: BerthRule::PlayoffWinner { from: 1, to: 2 },
+            fallback_to: None,
+        }];
+        playoff.fixtures.push(scheduled);
+        game.competitions.push(playoff);
+
+        let fields = resolve_domestic_berth_fields(&game);
+        apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+        let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+        let central: HashSet<&str> = by_id("central")
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        assert!(
+            ["n1", "n2", "s1", "s2"]
+                .iter()
+                .all(|club| central.contains(club)),
+            "finished feeders still promote: {:?}",
+            by_id("central").participant_ids
+        );
+        assert!(
+            ["c5", "c6", "c7", "c8"]
+                .iter()
+                .all(|club| !central.contains(club)),
+            "Central dropouts must leave: {:?}",
+            by_id("central").participant_ids
+        );
+        assert_eq!(
+            by_id("playoff").participant_ids,
+            vec!["p1".to_string(), "p2".to_string()],
+            "PlayoffWinner source is not a feeder"
+        );
     }
 }
