@@ -398,7 +398,8 @@ fn domestic_position_range_promoted(
 /// hemisphere-foreign rollover cannot promote from an unfinished table or
 /// duplicate a feeder's place-getters. Dropouts and entrants are capped to
 /// the target's authored `participant_ids` length so empty standings cannot
-/// grow the league.
+/// grow the league. Oversubscribed berths leave surplus place-getters in
+/// their feeder so they are not removed from both tables.
 ///
 /// Leagues without incoming berths are left untouched. Must run after the
 /// linear pyramid pass (which handles feeder-vs-lower-tier edges) and before
@@ -466,7 +467,11 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             .iter()
             .map(|entry| entry.team_id.clone())
             .collect();
+        // Berths can award more clubs than the target releases. Only the
+        // clubs that take a released place leave their feeder; surplus
+        // stay put instead of vanishing from both tables.
         entrants.truncate(drop_count);
+        let placed: HashSet<String> = entrants.iter().cloned().collect();
         let dropout_set: HashSet<&str> = dropouts.iter().map(String::as_str).collect();
         let mut next_participants: Vec<String> = game.competitions[target_index]
             .participant_ids
@@ -482,8 +487,10 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             .enumerate()
             .filter(|(index, _)| *index != target_index)
             .filter_map(|(index, source)| {
-                domestic_position_range_promoted(source, &target_id)
-                    .map(|promoted| (index, promoted))
+                domestic_position_range_promoted(source, &target_id).and_then(|mut promoted| {
+                    promoted.retain(|id| placed.contains(id));
+                    (!promoted.is_empty()).then_some((index, promoted))
+                })
             })
             .collect();
 
@@ -1350,6 +1357,94 @@ mod tests {
             north.intersection(&south).count(),
             0,
             "each dropout lands in exactly one feeder"
+        );
+    }
+
+    #[test]
+    fn apply_domestic_berth_keeps_surplus_place_getters_in_their_feeder() {
+        // 4-club target, four feeders each sending two → 8 winners, 4 places.
+        // Surplus must stay in the feeder instead of vanishing from both tables.
+        let central = division(
+            "central",
+            0,
+            "BR",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        let regions = [
+            ("north", "n1", "n2"),
+            ("south", "s1", "s2"),
+            ("east", "e1", "e2"),
+            ("west", "w1", "w2"),
+        ];
+        let mut game = empty_game();
+        game.competitions = std::iter::once(central)
+            .chain(regions.iter().map(|(id, a, b)| {
+                let mut league = division(id, 1, "BR", &[(a, 20), (b, 10)]);
+                league.berths = vec![position_berth("central", 1, 2)];
+                league
+            }))
+            .collect();
+
+        let fields = resolve_domestic_berth_fields(&game);
+        let field = fields.get("central").expect("berth-fed");
+        assert_eq!(field.len(), 8, "four feeders send two each: {field:?}");
+        let placed: HashSet<&str> = field[..4].iter().map(String::as_str).collect();
+        let surplus: HashSet<&str> = field[4..].iter().map(String::as_str).collect();
+
+        apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+        let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+        let central: HashSet<&str> = by_id("central")
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            central.len(),
+            4,
+            "target keeps authored size: {:?}",
+            by_id("central").participant_ids
+        );
+        assert_eq!(
+            central, placed,
+            "only released places are filled: {central:?}"
+        );
+
+        let mut seen = central.clone();
+        for (id, a, b) in regions {
+            let ids: HashSet<&str> = by_id(id)
+                .participant_ids
+                .iter()
+                .map(String::as_str)
+                .collect();
+            assert_eq!(
+                ids.len(),
+                2,
+                "{id} keeps authored size: {:?}",
+                by_id(id).participant_ids
+            );
+            for club in [a, b] {
+                if placed.contains(club) {
+                    assert!(
+                        !ids.contains(club),
+                        "{id} must lose placed {club}: {:?}",
+                        by_id(id).participant_ids
+                    );
+                } else {
+                    assert!(
+                        ids.contains(club),
+                        "{id} must keep surplus {club}: {:?}",
+                        by_id(id).participant_ids
+                    );
+                }
+            }
+            seen.extend(ids);
+        }
+        assert!(
+            surplus
+                .iter()
+                .all(|club| seen.contains(club) && !central.contains(club)),
+            "surplus must remain in a feeder: placed={placed:?} surplus={surplus:?} seen={seen:?}"
         );
     }
 
