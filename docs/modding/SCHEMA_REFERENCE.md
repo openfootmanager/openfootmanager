@@ -451,6 +451,19 @@ Additional selector fields:
 
 Berths define automatic qualification spots that a competition awards to other competitions. For example, a league's top two finishers qualify for a continental cup.
 
+When the target is a domestic `LeagueTable`, a primary `PositionRange` berth also drives promotion: those place-getters replace the target's bottom finishers (the league keeps its authored size) and the dropouts are shared round-robin back across the feeders. The target is left out of the linear adjacent-tier swap so sibling regional groups do not promote into each other. `CupWinner` and `fallbackTo` targets do not take a league out of that ladder.
+
+Regional groups feeding one Central League:
+
+```json
+"berths": [
+  {
+    "target": "central-league",
+    "rule": { "kind": "positionRange", "from": 1, "to": 2 }
+  }
+]
+```
+
 ```json
 "berths": [
   {
