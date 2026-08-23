@@ -451,7 +451,7 @@ Additional selector fields:
 
 Berths define automatic qualification spots that a competition awards to other competitions. For example, a league's top two finishers qualify for a continental cup.
 
-When the target is a domestic `LeagueTable`, a primary `PositionRange` berth also drives promotion: those place-getters replace the target's bottom finishers (the league keeps its authored size) and the dropouts are shared round-robin back across the feeders. The target is left out of the linear adjacent-tier swap so sibling regional groups do not promote into each other. `CupWinner` and `fallbackTo` targets do not take a league out of that ladder.
+When the target is a domestic `LeagueTable`, a primary `PositionRange` berth also drives promotion: those place-getters replace the target's bottom finishers (the league keeps its authored size) and the dropouts are shared round-robin back across the feeders. The target is left out of the linear adjacent-tier swap so sibling regional groups do not promote into each other. `CupWinner`, `PlayoffWinner`, and `fallbackTo` targets do not take a league out of that ladder.
 
 Regional groups feeding one Central League:
 
@@ -467,20 +467,21 @@ Regional groups feeding one Central League:
 ```json
 "berths": [
   {
-    "targetCompetition": "continental-cup",
-    "rule": { "type": "LeagueFinishers", "from": 1, "to": 2 }
+    "target": "continental-cup",
+    "rule": { "kind": "positionRange", "from": 1, "to": 2 }
   },
   {
-    "targetCompetition": "relegation-play-off",
-    "rule": { "type": "LeagueFinishers", "from": 17, "to": 20 }
+    "target": "relegation-play-off",
+    "rule": { "kind": "positionRange", "from": 17, "to": 20 }
   }
 ]
 ```
 
-| Berth Rule Type | Description |
+| Berth Rule Kind | Description |
 |-----------------|-------------|
-| `"LeagueFinishers"` | League finishers from position `from` to `to` (1-based, inclusive) |
-| `"CupWinner"` | The winner of this cup |
+| `"positionRange"` | League finishers from position `from` to `to` (1-based, inclusive) |
+| `"cupWinner"` | The winner of this cup |
+| `"playoffWinner"` | The winner of a playoff contested by league finishers in `[from, to]` (1-based, inclusive) |
 
 ### Full Example
 
@@ -507,7 +508,7 @@ A domestic league using `topByReputation` selector:
     }
   },
   "berths": [
-    { "targetCompetition": "eng-champions-cup", "rule": { "type": "LeagueFinishers", "from": 1, "to": 4 } }
+    { "target": "eng-champions-cup", "rule": { "kind": "positionRange", "from": 1, "to": 4 } }
   ],
   "seasonStartMonth": 8,
   "seasonStartDay": 1

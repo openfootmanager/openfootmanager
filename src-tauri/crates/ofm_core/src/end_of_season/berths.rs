@@ -1,5 +1,7 @@
 use crate::game::Game;
-use domain::league::{BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, League};
+use domain::league::{
+    Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, League,
+};
 
 /// Apply promotion/relegation within each domestic pyramid. A pyramid is the
 /// set of league-table competitions sharing a country, ordered by `priority`
@@ -253,6 +255,7 @@ fn resolve_berth_fields(
     game: &Game,
     scope_match: impl Fn(&League) -> bool,
     fill: bool,
+    berth_eligible: impl Fn(&League, &Berth) -> bool,
 ) -> std::collections::HashMap<String, Vec<String>> {
     use std::collections::{HashMap, HashSet};
 
@@ -285,6 +288,9 @@ fn resolve_berth_fields(
     };
     for source in &game.competitions {
         for berth in &source.berths {
+            if !berth_eligible(source, berth) {
+                continue;
+            }
             for winner in evaluate_berth_rule(source, &berth.rule) {
                 consider(&winner, &berth.target);
                 if let Some(fallback) = &berth.fallback_to {
@@ -326,6 +332,7 @@ pub fn resolve_continental_fields(game: &Game) -> std::collections::HashMap<Stri
         game,
         |competition| competition.scope == CompetitionScope::Continental,
         true,
+        |_, _| true,
     )
 }
 
@@ -343,7 +350,37 @@ pub(super) fn resolve_domestic_berth_fields(
                 && competition.kind == CompetitionType::League
         },
         false,
+        |source, berth| {
+            source.rules.format == CompetitionFormat::LeagueTable
+                && matches!(berth.rule, BerthRule::PositionRange { .. })
+        },
     )
+}
+
+/// Clubs a `LeagueTable` source sends up via a primary `PositionRange` berth
+/// at `target_id`. `None` when the source is not a domestic feeder for this
+/// target (wrong format, no such berth, or the range yields nobody) so it
+/// must not receive relegated dropouts.
+fn domestic_position_range_promoted(
+    source: &League,
+    target_id: &str,
+) -> Option<std::collections::HashSet<String>> {
+    if source.rules.format != CompetitionFormat::LeagueTable {
+        return None;
+    }
+    let promoted: std::collections::HashSet<String> = source
+        .berths
+        .iter()
+        .filter(|berth| {
+            berth.target == target_id && matches!(berth.rule, BerthRule::PositionRange { .. })
+        })
+        .flat_map(|berth| evaluate_berth_rule(source, &berth.rule))
+        .collect();
+    if promoted.is_empty() {
+        None
+    } else {
+        Some(promoted)
+    }
 }
 
 /// Merge berth-fed domestic league tables after the linear pyramid pass.
@@ -351,9 +388,17 @@ pub(super) fn resolve_domestic_berth_fields(
 /// For each domestic `LeagueTable` that received a non-empty resolved field:
 /// incoming berth winners replace the bottom K finishers so the league keeps
 /// its authored size (survivors stay in their existing `participant_ids`
-/// order; the entrants are appended). Those K dropouts are then split
-/// round-robin across the feeder leagues whose berths target this league,
-/// after each feeder drops the clubs it sent up.
+/// order; the entrants are appended). Those K dropouts are then given to
+/// each feeder in turn — `promoted.len()` clubs first, so the feeder keeps
+/// its authored size — with any leftover shared round-robin, after each
+/// feeder drops the clubs it sent up.
+///
+/// If the target or any contributing `LeagueTable` feeder is still mid-season
+/// (`is_league_season_ended` is false), the whole merge is skipped so a
+/// hemisphere-foreign rollover cannot promote from an unfinished table or
+/// duplicate a feeder's place-getters. Dropouts and entrants are capped to
+/// the target's authored `participant_ids` length so empty standings cannot
+/// grow the league.
 ///
 /// Leagues without incoming berths are left untouched. Must run after the
 /// linear pyramid pass (which handles feeder-vs-lower-tier edges) and before
@@ -379,24 +424,49 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
         .collect();
 
     for target_id in target_ids {
-        let Some(entrants) = fields
-            .get(&target_id)
-            .filter(|field| !field.is_empty())
-            .cloned()
-        else {
-            continue;
-        };
-        let incoming = entrants.len();
-
         let Some(target_index) = game.competitions.iter().position(|c| c.id == target_id) else {
             continue;
         };
+        if !super::is_league_season_ended(&game.competitions[target_index]) {
+            continue;
+        }
+        let unfinished_feeder = game.competitions.iter().enumerate().any(|(index, source)| {
+            index != target_index
+                && source.rules.format == CompetitionFormat::LeagueTable
+                && source.berths.iter().any(|berth| berth.target == target_id)
+                && !super::is_league_season_ended(source)
+        });
+        if unfinished_feeder {
+            continue;
+        }
+        let already_in_target: HashSet<&str> = game.competitions[target_index]
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        let Some(mut entrants) = fields.get(&target_id).map(|field| {
+            field
+                .iter()
+                .filter(|id| !already_in_target.contains(id.as_str()))
+                .cloned()
+                .collect::<Vec<_>>()
+        }) else {
+            continue;
+        };
+        if entrants.is_empty() {
+            continue;
+        }
+        let incoming = entrants.len();
+
+        let authored = game.competitions[target_index].participant_ids.len();
         let standings = game.competitions[target_index].sorted_standings();
-        let drop_start = standings.len().saturating_sub(incoming);
+        let drop_count = incoming.min(standings.len()).min(authored);
+        let drop_start = standings.len() - drop_count;
         let dropouts: Vec<String> = standings[drop_start..]
             .iter()
             .map(|entry| entry.team_id.clone())
             .collect();
+        entrants.truncate(drop_count);
         let dropout_set: HashSet<&str> = dropouts.iter().map(String::as_str).collect();
         let mut next_participants: Vec<String> = game.competitions[target_index]
             .participant_ids
@@ -412,18 +482,8 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             .enumerate()
             .filter(|(index, _)| *index != target_index)
             .filter_map(|(index, source)| {
-                let is_feeder = source.berths.iter().any(|berth| berth.target == target_id);
-                if !is_feeder {
-                    return None;
-                }
-                let promoted: HashSet<String> = source
-                    .berths
-                    .iter()
-                    .filter(|berth| berth.target == target_id)
-                    .filter(|berth| matches!(berth.rule, BerthRule::PositionRange { .. }))
-                    .flat_map(|berth| evaluate_berth_rule(source, &berth.rule))
-                    .collect();
-                Some((index, promoted))
+                domestic_position_range_promoted(source, &target_id)
+                    .map(|promoted| (index, promoted))
             })
             .collect();
 
@@ -433,7 +493,12 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             continue;
         }
         let mut received: Vec<Vec<String>> = vec![Vec::new(); feeder_plans.len()];
-        for (offset, club) in dropouts.into_iter().enumerate() {
+        let mut leftover = dropouts;
+        for (slot, (_, promoted)) in feeder_plans.iter().enumerate() {
+            let take = promoted.len().min(leftover.len());
+            received[slot].extend(leftover.drain(..take));
+        }
+        for (offset, club) in leftover.into_iter().enumerate() {
             received[offset % feeder_plans.len()].push(club);
         }
         for ((index, promoted), arrivals) in feeder_plans.into_iter().zip(received) {
@@ -503,7 +568,10 @@ mod tests {
     use super::*;
     use crate::clock::GameClock;
     use chrono::{TimeZone, Utc};
-    use domain::league::{Berth, BerthRule, StandingEntry};
+    use domain::league::{
+        Berth, BerthRule, Fixture, FixtureCompetition, FixtureStatus, KnockoutRoundState,
+        MatchResult, StandingEntry,
+    };
     use domain::manager::Manager;
     use std::collections::HashSet;
 
@@ -874,6 +942,121 @@ mod tests {
     }
 
     #[test]
+    fn cup_winner_into_top_flight_does_not_block_linear_pr_or_mutate_the_cup() {
+        // CupWinner → top flight must not become a domestic entrant or turn
+        // the cup into a feeder. Linear P/R with the adjacent tier still runs.
+        let eng_top = division(
+            "eng-1",
+            0,
+            "ENG",
+            &[
+                ("t1", 60),
+                ("t2", 50),
+                ("t3", 40),
+                ("t4", 30),
+                ("t5", 20),
+                ("t6", 10),
+            ],
+        );
+        let eng_second = division(
+            "eng-2",
+            1,
+            "ENG",
+            &[
+                ("s1", 60),
+                ("s2", 50),
+                ("s3", 40),
+                ("s4", 30),
+                ("s5", 20),
+                ("s6", 10),
+            ],
+        );
+        let final_id = "eng-cup-final";
+        let mut cup = League::new(
+            "eng-cup".to_string(),
+            "Cup".to_string(),
+            2026,
+            &["t1".to_string(), "s1".to_string()],
+        );
+        cup.kind = CompetitionType::Cup;
+        cup.country_id = Some("ENG".to_string());
+        cup.rules.format = CompetitionFormat::Knockout;
+        cup.berths = vec![Berth {
+            target: "eng-1".to_string(),
+            rule: BerthRule::CupWinner,
+            fallback_to: None,
+        }];
+        cup.fixtures = vec![Fixture {
+            id: final_id.to_string(),
+            matchday: 1,
+            date: "2026-05-01".to_string(),
+            home_team_id: "t1".to_string(),
+            away_team_id: "s1".to_string(),
+            competition: FixtureCompetition::Cup,
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 2,
+                away_goals: 1,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }];
+        cup.knockout_rounds = vec![KnockoutRoundState {
+            id: "eng-cup-final-round".to_string(),
+            name: "Final".to_string(),
+            fixture_ids: vec![final_id.to_string()],
+            bye_team_ids: vec![],
+            completed: true,
+        }];
+        let cup_before = cup.participant_ids.clone();
+
+        let mut game = empty_game();
+        game.competitions = vec![eng_top, eng_second, cup];
+
+        let fields = resolve_domestic_berth_fields(&game);
+        apply_pyramid_promotion_relegation(&mut game.competitions);
+        apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+        let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+        assert_eq!(
+            by_id("eng-cup").participant_ids,
+            cup_before,
+            "CupWinner must not turn the cup into a feeder: {:?}",
+            by_id("eng-cup").participant_ids
+        );
+        let eng1_ids: Vec<&str> = by_id("eng-1")
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            eng1_ids.iter().filter(|id| **id == "t1").count(),
+            1,
+            "cup winner already in top flight must not be duplicated: {eng1_ids:?}"
+        );
+        let eng1: HashSet<&str> = eng1_ids.iter().copied().collect();
+        let eng2: HashSet<&str> = by_id("eng-2")
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        assert!(
+            eng1.contains("s1"),
+            "linear P/R must still promote the feeder champion: {:?}",
+            by_id("eng-1").participant_ids
+        );
+        assert!(!eng1.contains("t6"));
+        assert!(eng2.contains("t6"));
+        assert!(!eng2.contains("s1"));
+        assert_eq!(
+            by_id("eng-1").participant_ids.len(),
+            6,
+            "top flight keeps its authored size: {:?}",
+            by_id("eng-1").participant_ids
+        );
+    }
+
+    #[test]
     fn apply_domestic_berth_merges_two_regional_groups_into_central() {
         let mut game = two_region_central_pyramid();
         let fields = resolve_domestic_berth_fields(&game);
@@ -1039,5 +1222,171 @@ mod tests {
             received_dropouts.insert(dropout.as_str());
         }
         assert_eq!(received_dropouts, HashSet::from(["c5", "c6", "c7", "c8"]));
+    }
+
+    #[test]
+    fn apply_domestic_berth_preserves_feeder_size_when_quotas_differ() {
+        // North sends three, South sends one. A naive 2+2 split of the four
+        // Central dropouts would shrink North and grow South.
+        let central = division(
+            "central",
+            0,
+            "BR",
+            &[
+                ("c1", 80),
+                ("c2", 70),
+                ("c3", 60),
+                ("c4", 50),
+                ("c5", 40),
+                ("c6", 30),
+                ("c7", 20),
+                ("c8", 10),
+            ],
+        );
+        let mut north = division(
+            "north",
+            1,
+            "BR",
+            &[("n1", 40), ("n2", 30), ("n3", 20), ("n4", 10)],
+        );
+        north.berths = vec![position_berth("central", 1, 3)];
+        let mut south = division(
+            "south",
+            1,
+            "BR",
+            &[("s1", 40), ("s2", 30), ("s3", 20), ("s4", 10)],
+        );
+        south.berths = vec![position_berth("central", 1, 1)];
+        let mut game = empty_game();
+        game.competitions = vec![central, north, south];
+
+        let fields = resolve_domestic_berth_fields(&game);
+        apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+        let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+
+        let central = &by_id("central").participant_ids;
+        assert_eq!(
+            central.len(),
+            8,
+            "Central League keeps its authored size: {central:?}"
+        );
+        let central_set: HashSet<&str> = central.iter().map(String::as_str).collect();
+        assert!(
+            ["n1", "n2", "n3", "s1"]
+                .iter()
+                .all(|club| central_set.contains(club)),
+            "unequal place-getters must all promote: {central:?}"
+        );
+        assert!(
+            ["c5", "c6", "c7", "c8"]
+                .iter()
+                .all(|club| !central_set.contains(club)),
+            "Central dropouts must leave: {central:?}"
+        );
+
+        let north: HashSet<&str> = by_id("north")
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        let south: HashSet<&str> = by_id("south")
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        assert!(
+            !north.contains("n1") && !north.contains("n2") && !north.contains("n3"),
+            "north sent its three place-getters up: {:?}",
+            by_id("north").participant_ids
+        );
+        assert!(
+            !south.contains("s1"),
+            "south sent its champion up: {:?}",
+            by_id("south").participant_ids
+        );
+        assert_eq!(
+            by_id("north").participant_ids.len(),
+            4,
+            "north keeps its authored size after receiving three dropouts: {:?}",
+            by_id("north").participant_ids
+        );
+        assert_eq!(
+            by_id("south").participant_ids.len(),
+            4,
+            "south keeps its authored size after receiving one dropout: {:?}",
+            by_id("south").participant_ids
+        );
+        let north_dropouts: HashSet<&str> = north
+            .iter()
+            .copied()
+            .filter(|id| id.starts_with('c'))
+            .collect();
+        let south_dropouts: HashSet<&str> = south
+            .iter()
+            .copied()
+            .filter(|id| id.starts_with('c'))
+            .collect();
+        assert_eq!(
+            north_dropouts.len(),
+            3,
+            "north receives exactly as many dropouts as it promoted: {:?}",
+            by_id("north").participant_ids
+        );
+        assert_eq!(
+            south_dropouts.len(),
+            1,
+            "south receives exactly as many dropouts as it promoted: {:?}",
+            by_id("south").participant_ids
+        );
+        assert_eq!(
+            north_dropouts
+                .union(&south_dropouts)
+                .copied()
+                .collect::<HashSet<_>>(),
+            HashSet::from(["c5", "c6", "c7", "c8"])
+        );
+        assert_eq!(
+            north.intersection(&south).count(),
+            0,
+            "each dropout lands in exactly one feeder"
+        );
+    }
+
+    #[test]
+    fn apply_domestic_berth_skips_when_target_or_feeder_is_unfinished() {
+        // Linear P/R already leaves mid-season tables alone. The berth merge
+        // must do the same for the whole target — skipping only an unfinished
+        // feeder while still taking its clubs would duplicate them.
+        let scheduled = Fixture {
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        };
+        for unfinished_id in ["central", "north"] {
+            let mut game = two_region_central_pyramid();
+            game.competitions
+                .iter_mut()
+                .find(|competition| competition.id == unfinished_id)
+                .expect(unfinished_id)
+                .fixtures
+                .push(scheduled.clone());
+            let before: Vec<Vec<String>> = game
+                .competitions
+                .iter()
+                .map(|competition| competition.participant_ids.clone())
+                .collect();
+
+            let fields = resolve_domestic_berth_fields(&game);
+            apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+            for (competition, expected) in game.competitions.iter().zip(&before) {
+                assert_eq!(
+                    &competition.participant_ids, expected,
+                    "unfinished {unfinished_id} must leave {} unchanged: {:?}",
+                    competition.id, competition.participant_ids
+                );
+            }
+        }
     }
 }
