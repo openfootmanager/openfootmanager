@@ -2630,6 +2630,10 @@
         "unknownRegion": "\"{{field}}\" merujuk wilayah \"{{id}}\" yang tidak dikenal.",
         "reversedRange": "Tim \"{{team}}\" memiliki {{field}} yang terbalik (min > maks).",
         "outOfRange": "Tim \"{{team}}\" memiliki nilai {{field}} di luar jangkauan (reputasi 0–1000, keuangan ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" memiliki potensi {{potential}}. Potensi harus berada di antara 1 dan 99.",
+        "potentialBelowOverall": "\"{{entity}}\" memiliki potensi {{potential}}, di bawah OVR-nya yang {{ability}}. Batas seorang pemain tidak boleh berada di bawah kemampuannya saat ini.",
+        "potentialBelowAttributes": "\"{{entity}}\" memiliki potensi {{potential}}, di bawah {{ability}} yang dihasilkan atributnya. Batas seorang pemain tidak boleh berada di bawah kemampuannya saat ini.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" memiliki potensi {{potential}}, di bawah kemampuan bawaan {{ability}} yang dipakai ketika OVR maupun atribut tidak diisi.",
         "unsupportedFormatVersion": "Paket ini dibuat dengan versi permainan yang lebih baru (format {{version}}; build ini mendukung {{supported}}). Perbarui permainan untuk membukanya."
       },
       "conflict": {
@@ -3819,6 +3823,8 @@
     "playerDateOfBirth": "Tanggal Lahir",
     "playerAge": "Umur",
     "playerOverall": "OVR (1–99)",
+    "playerPotential": "Potensi (1–99)",
+    "playerPotentialHelp": "Sejauh mana pemain ini bisa berkembang. Biarkan kosong dan mesin akan mengundi batasnya dari kemampuan dan umurnya. Nilainya tidak boleh di bawah kemampuannya saat ini, dan pemain yang sudah mencapainya berhenti berkembang.",
     "playerUseAttributes": "Gunakan atribut terperinci",
     "savePlayer": "Simpan Pemain",
     "names": "Nama",
