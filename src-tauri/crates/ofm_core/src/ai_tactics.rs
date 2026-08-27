@@ -277,39 +277,60 @@ struct FormReading {
     scored_per_game: f64,
 }
 
-/// The club's last few results, most recent first, across every competition it
+/// Every club's recent results, most recent first, across every competition it
 /// plays in — a cup exit says as much about a plan as a league defeat.
-fn read_form(game: &Game, team_id: &str) -> Option<FormReading> {
-    let mut results: Vec<(&str, u32, u32)> = game
+///
+/// Built as one pass over the world's fixtures and then looked up, rather than
+/// scanned once per club. `tapering_teams` learned this the same way: this runs
+/// for a seventh of the clubs in the world every day, and a populated world
+/// holds tens of thousands of fixtures.
+///
+/// Keyed by owned id rather than by borrow: the caller writes back through
+/// `game.teams` while holding this, and a key borrowed out of the fixture list
+/// would pin `game.competitions` for the whole loop.
+fn read_form(game: &Game) -> std::collections::HashMap<String, FormReading> {
+    let mut results: std::collections::HashMap<&str, Vec<(&str, u32, u32)>> = Default::default();
+    for fixture in game
         .competitions_in_play()
         .iter()
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Completed)
-        .filter_map(|fixture| {
-            let result = fixture.result.as_ref()?;
-            let (scored, conceded) = if fixture.home_team_id == team_id {
-                (result.home_goals, result.away_goals)
-            } else if fixture.away_team_id == team_id {
-                (result.away_goals, result.home_goals)
-            } else {
-                return None;
-            };
-            Some((fixture.date.as_str(), scored as u32, conceded as u32))
-        })
-        .collect();
-
-    if results.len() < FORM_MINIMUM {
-        return None;
+    {
+        let Some(result) = fixture.result.as_ref() else {
+            continue;
+        };
+        let (home, away) = (u32::from(result.home_goals), u32::from(result.away_goals));
+        results
+            .entry(fixture.home_team_id.as_str())
+            .or_default()
+            .push((fixture.date.as_str(), home, away));
+        results
+            .entry(fixture.away_team_id.as_str())
+            .or_default()
+            .push((fixture.date.as_str(), away, home));
     }
-    // ISO dates sort lexicographically, so ordering them needs no parsing.
-    results.sort_by(|a, b| b.0.cmp(a.0));
-    let window = &results[..FORM_WINDOW.min(results.len())];
-    let games = window.len() as f64;
 
-    Some(FormReading {
-        scored_per_game: window.iter().map(|(_, s, _)| *s as f64).sum::<f64>() / games,
-        conceded_per_game: window.iter().map(|(_, _, c)| *c as f64).sum::<f64>() / games,
-    })
+    results
+        .into_iter()
+        .filter_map(|(team_id, mut played)| {
+            if played.len() < FORM_MINIMUM {
+                return None;
+            }
+            // ISO dates sort lexicographically, so ordering them needs no parsing.
+            played.sort_by(|a, b| b.0.cmp(a.0));
+            let window = &played[..FORM_WINDOW.min(played.len())];
+            let games = window.len() as f64;
+            Some((
+                team_id.to_string(),
+                FormReading {
+                    scored_per_game: window.iter().map(|(_, s, _)| f64::from(*s)).sum::<f64>()
+                        / games,
+                    conceded_per_game: window.iter().map(|(_, _, c)| f64::from(*c)).sum::<f64>()
+                        / games,
+                },
+            ))
+        })
+        .collect()
 }
 
 // --- What he does about it -------------------------------------------------
@@ -469,8 +490,10 @@ pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
         .map(|team| team.id.clone())
         .collect();
 
+    // One pass over the world's fixtures for everybody, not one per club.
+    let form = read_form(game);
+
     for team_id in due {
-        let form = read_form(game, &team_id);
         let Some(team_index) = game.teams.iter().position(|team| team.id == team_id) else {
             continue;
         };
@@ -485,7 +508,7 @@ pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
         let reading = read_squad(&squad);
 
         let team = &mut game.teams[team_index];
-        team.tactics_phase = match_plan(&team.play_style, reading.as_ref(), form.as_ref());
+        team.tactics_phase = match_plan(&team.play_style, reading.as_ref(), form.get(&team_id));
         crate::ai_roles::assign_squad_roles(team, squad.iter().copied());
     }
 }
