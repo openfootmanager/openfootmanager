@@ -2,6 +2,7 @@
 name = "domain"
 version = "0.3.0"
 edition = "2024"
+publish = false
 
 [dependencies]
 log = "0.4"

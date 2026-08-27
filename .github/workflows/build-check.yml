@@ -32,6 +32,32 @@ jobs:
       - name: Check Rust toolchain pins agree
         run: ./scripts/check-toolchain-pin.sh
 
+  # Separate from `backend` for the same reason `toolchain-pin` is: this compiles nothing,
+  # so it answers in about a minute under its own check name instead of waiting behind a
+  # twenty-minute job whose failures are usually about something else.
+  #
+  # `licenses bans sources` only. `advisories` is deliberately excluded — a RUSTSEC
+  # advisory published overnight would redden every open PR for a dependency fact nobody
+  # in those PRs chose. It belongs on a schedule, which does not exist yet; see
+  # `src-tauri/deny.toml`.
+  dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pinned exactly, and for the same reason the compiler is: cargo-deny's built-in
+      # defaults and advisory handling change between releases, so an unpinned tool turns
+      # someone else's release into a red build on an unrelated PR.
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+
+      - name: Check dependency licenses, bans and sources
+        run: cargo deny --manifest-path src-tauri/Cargo.toml check licenses bans sources
+
   frontend:
     runs-on: ubuntu-latest
 
