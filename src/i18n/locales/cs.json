@@ -2595,8 +2595,8 @@
         "playerAlreadySubstitutedOff": "Hráč již byl vystřídán",
         "playerNotOnBench": "Hráč není na lavički",
         "playerNotInStartingXi": "Hráč není v základní sestavě",
-        "pressConferenceAlreadyHeld": "Dnes jsi už tiskovou konferenci uspořádal",
-        "noCompletedMatch": "Pro tvůj tým nebyl nalezen žádný odehraný zápas"
+        "pressConferenceAlreadyHeld": "Tisková konference dnes už proběhla",
+        "noCompletedMatch": "Pro váš tým nebyl nalezen žádný odehraný zápas"
       },
       "csv": {
         "writeFailed": "Nepodařilo se zapsat soubor CSV."

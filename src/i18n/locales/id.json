@@ -2595,8 +2595,8 @@
         "playerAlreadySubstitutedOff": "Pemain sudah diganti",
         "playerNotOnBench": "Pemain tidak berada di bangku cadangan",
         "playerNotInStartingXi": "Pemain tidak berada di Starting XI",
-        "pressConferenceAlreadyHeld": "Anda sudah menggelar konferensi pers hari ini",
-        "noCompletedMatch": "Tidak ada pertandingan selesai yang ditemukan untuk tim Anda"
+        "pressConferenceAlreadyHeld": "Kamu sudah menggelar konferensi pers hari ini",
+        "noCompletedMatch": "Tidak ada pertandingan selesai yang ditemukan untuk tim kamu"
       },
       "csv": {
         "writeFailed": "Gagal menulis berkas CSV."
