@@ -27,7 +27,6 @@ dist-ssr
 # Rust
 /target
 /src-tauri/target
-Cargo.lock
 coverage/
 
 # Claude local settings and scratch worktrees

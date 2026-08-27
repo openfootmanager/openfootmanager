@@ -113,6 +113,23 @@ If you're working on a new feature that has no prior **Issue** related to it, pl
   - Use TailwindCSS for styling instead of raw CSS where possible.
   - Ensure type safety across the application (avoid `any` types).
 
+### Dependencies and the lockfile
+
+`src-tauri/Cargo.lock` is **committed**. Leaving it out is the right call for a library, whose
+dependents pick their own versions; OpenFoot Manager is a shipped desktop application, so the
+opposite holds — two people on the same commit should get the same build, and a release should
+match the CI run that approved it.
+
+CI runs its cargo commands with `--locked`, so **a dependency change is a diff you have to
+commit**. If you add or bump a dependency and only touch `Cargo.toml`, the build fails with
+`the lock file needs to be updated`. Run the command again without `--locked` (a plain
+`cargo test --manifest-path src-tauri/Cargo.toml --workspace` will do it), then commit the
+resulting `Cargo.lock` alongside the manifest change.
+
+That is deliberate rather than a nuisance: it means a transitive version jump shows up in review
+as a diff someone can see and question, instead of arriving invisibly on whichever machine
+happened to resolve it first.
+
 ### Tests
 
 Whenever you add a new feature (backend or frontend), include tests to ensure it behaves as expected.
