@@ -2,6 +2,7 @@ use crate::game::Game;
 use crate::player_rating::{
     effective_rating_for_assignment, formation_slots, natural_ovr, positional_fit_for_assignment,
 };
+use crate::stable_hash::stable_hash;
 use domain::player::Position as DomainPosition;
 use engine::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, PlayStyle,
@@ -353,19 +354,6 @@ fn team_management_quality(game: &Game, team: Option<&domain::team::Team>) -> f6
     }
 
     management_quality(team.reputation)
-}
-
-/// FNV-1a, hand-rolled rather than reached for from the standard library.
-/// `DefaultHasher`'s output is explicitly not promised to stay the same across
-/// Rust releases, and an AI team sheet that changed when the toolchain moved
-/// would make a saved season impossible to reproduce.
-fn stable_hash(bytes: &[u8], seed: u64) -> u64 {
-    let mut hash = 0xcbf2_9ce4_8422_2325 ^ seed;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash
 }
 
 /// Whether this club plays again soon after the match it is picking a side for.

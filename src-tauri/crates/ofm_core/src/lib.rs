@@ -41,6 +41,7 @@ pub mod season_awards;
 pub mod season_context;
 pub mod slices;
 pub mod squad_safety;
+pub(crate) mod stable_hash;
 pub mod state;
 pub mod training;
 pub mod transfers;
