@@ -2807,7 +2807,6 @@
     "source": {
       "sportsGazette": "Gazeta Desportiva",
       "footballHerald": "O Arauto do Futebol",
-      "playersUnder21": "{{count}} jogadores na academia",
       "matchDayPress": "Imprensa do Jogo",
       "leagueChronicle": "Crónica da Liga",
       "leagueWire": "Notícias da Liga",
@@ -2822,7 +2821,6 @@
         "exportedDescription": "Mundo com {{teamCount}} equipas exportado de um jogo guardado"
       },
       "welcome": {
-        "noYouthPlayers": "Nenhum jogador está atualmente atribuído à academia jovem.",
         "subject0": "Bem-vindo ao {{team}}",
         "subject1": "Nova Era no {{team}}",
         "subject2": "{{team}} Aguarda a Sua Liderança",
@@ -2832,8 +2830,6 @@
         "actionReview": "Rever Plantel",
         "actionThank": "Agradecer ao Conselho"
       },
-      "delegateToYouthAcademy": "Delegar para a academia jovem",
-      "promoteToSeniorSquad": "Promover à equipa principal",
       "schedule": {
         "subject": "Calendário da Época Publicado",
         "body0": "O calendário da {{league}} foi divulgado. A época começa a {{start}}.\n\nReveja a lista de jogos e certifique-se de que o seu plantel está pronto para os desafios que se aproximam. A preparação de pré-época será crucial.",

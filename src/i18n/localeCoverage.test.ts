@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   collectMissingKeys,
+  collectOrphanKeys,
   collectUntranslatedKeys,
   type LocaleTree,
 } from "./i18nTestHelpers";
@@ -48,6 +49,22 @@ describe("locale coverage", () => {
     }, {});
 
     expect(missingKeysByLocale).toEqual({});
+  });
+
+  it("carries no keys that English does not have", () => {
+    const orphanKeysByLocale = Object.entries(LOCALES).reduce<
+      Record<string, string[]>
+    >((accumulator, [localeCode, translations]) => {
+      const orphanKeys = collectOrphanKeys(en, translations);
+
+      if (orphanKeys.length > 0) {
+        accumulator[localeCode] = orphanKeys;
+      }
+
+      return accumulator;
+    }, {});
+
+    expect(orphanKeysByLocale).toEqual({});
   });
 
   it("has no untranslated strings (only explicitly allowed same-language exceptions)", () => {

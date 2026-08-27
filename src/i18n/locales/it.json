@@ -2807,7 +2807,6 @@
     "source": {
       "sportsGazette": "Gazzetta Sportiva",
       "footballHerald": "L'Araldo del Calcio",
-      "playersUnder21": "{{count}} giocatori del vivaio",
       "matchDayPress": "Stampa del Giorno Partita",
       "leagueChronicle": "Cronaca della Lega",
       "leagueWire": "Filo della Lega",
@@ -2822,7 +2821,6 @@
         "exportedDescription": "Mondo con {{teamCount}} squadre esportato da una partita salvata"
       },
       "welcome": {
-        "noYouthPlayers": "Nessun giocatore è attualmente assegnato al settore giovanile.",
         "subject0": "Benvenuto al {{team}}",
         "subject1": "Nuova era al {{team}}",
         "subject2": "{{team}} attende la tua leadership",
@@ -2878,8 +2876,6 @@
         "subject": "Convocazione in nazionale — {{player}}",
         "body": "{{player}} è stato convocato dalla nazionale di {{nationality}} per la prossima finestra internazionale.\n\nÈ un grande onore per il giocatore e riflette positivamente anche sul club. Tornerà di buon umore, ma conviene tenere d'occhio il suo livello di fatica."
       },
-      "delegateToYouthAcademy": "Assegna al settore giovanile",
-      "promoteToSeniorSquad": "Promuovi in prima squadra",
       "schedule": {
         "subject": "Calendario stagionale pubblicato",
         "body0": "Il calendario della {{league}} è stato pubblicato. La stagione inizierà il {{start}}.\n\nControlla l'elenco delle partite e assicurati che la tua rosa sia pronta per le sfide che ti aspettano. La preparazione precampionato sarà cruciale.",

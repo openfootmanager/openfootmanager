@@ -69,6 +69,43 @@ export function collectUntranslatedKeys(
     });
 }
 
+/**
+ * Keys the candidate locale carries that `en.json` does not — the direction
+ * `collectMissingKeys` cannot see. A key here is dead weight at best: a
+ * translator keeps maintaining a string nothing renders, and a rename that
+ * leaves the old key behind still looks translated long after it stopped
+ * being reachable.
+ */
+export function collectOrphanKeys(
+    reference: LocaleTree,
+    candidate: LocaleTree,
+    path: string[] = [],
+): string[] {
+    return Object.entries(candidate).flatMap(([key, value]) => {
+        const nextPath = [...path, key];
+        const referenceValue = reference[key];
+
+        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+            if (
+                referenceValue !== null &&
+                typeof referenceValue === "object" &&
+                !Array.isArray(referenceValue)
+            ) {
+                return collectOrphanKeys(
+                    referenceValue as LocaleTree,
+                    value as LocaleTree,
+                    nextPath,
+                );
+            }
+
+            // English has no table here, so every leaf beneath it is orphaned.
+            return collectOrphanKeys({}, value as LocaleTree, nextPath);
+        }
+
+        return referenceValue === undefined ? [nextPath.join(".")] : [];
+    });
+}
+
 export function hasLocaleKey(locale: LocaleTree, keyPath: string): boolean {
     const segments = keyPath.split(".");
     let current: unknown = locale;
