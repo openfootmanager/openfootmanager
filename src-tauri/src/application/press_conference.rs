@@ -12,17 +12,6 @@
 
 use ofm_core::game::Game;
 
-/// The most answers one press conference may carry.
-///
-/// The screen asks five questions. The ceiling is not about that — it is about the loops these
-/// answers drive running with the game mutex held, so a caller that posts a million answers would
-/// otherwise stall every other game operation while they are copied, and persist the whole pile
-/// into the article's player list.
-pub const MAX_PRESS_CONFERENCE_ANSWERS: usize = 32;
-
-/// The longest quote that can be attributed to the manager. Real responses are a sentence.
-pub const MAX_RESPONSE_TEXT_CHARS: usize = 500;
-
 /// The match a press conference held today is about: the most recent completed fixture involving
 /// the team, across every competition it plays in.
 ///

@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use crate::application::press_conference::{
     first_player_outside_squad, last_completed_match, todays_article_id,
-    MAX_PRESS_CONFERENCE_ANSWERS, MAX_RESPONSE_TEXT_CHARS,
 };
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::formatting::translate_error;
@@ -210,6 +209,17 @@ pub fn match_team_talk(
         tone, context, reactions
     ))
 }
+
+/// The most answers one press conference may carry.
+///
+/// The screen asks five questions. The ceiling is not about that — it is about the loops these
+/// answers drive running with the game mutex held, so a caller that posts a million answers would
+/// otherwise stall every other game operation while they are copied, and persist the whole pile
+/// into the article's player list.
+const MAX_PRESS_CONFERENCE_ANSWERS: usize = 32;
+
+/// The longest quote that can be attributed to the manager. Real responses are a sentence.
+const MAX_RESPONSE_TEXT_CHARS: usize = 500;
 
 /// One press conference answer, as the agent submits it.
 #[derive(serde::Deserialize)]
