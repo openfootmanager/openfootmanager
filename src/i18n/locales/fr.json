@@ -2617,6 +2617,10 @@
         "unknownRegion": "« {{field}} » référence une région inconnue « {{id}} ».",
         "reversedRange": "L'équipe « {{team}} » a un {{field}} inversé (min > max).",
         "outOfRange": "L’équipe « {{team}} » a des valeurs {{field}} hors limites (réputation 0–1000, finances ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" a un potentiel de {{potential}}. Le potentiel doit être compris entre 1 et 99.",
+        "potentialBelowOverall": "\"{{entity}}\" a un potentiel de {{potential}}, inférieur à sa note générale de {{ability}}. Le plafond d'un joueur ne peut pas être inférieur à son niveau actuel.",
+        "potentialBelowAttributes": "\"{{entity}}\" a un potentiel de {{potential}}, inférieur aux {{ability}} que donnent ses attributs. Le plafond d'un joueur ne peut pas être inférieur à son niveau actuel.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" a un potentiel de {{potential}}, inférieur au niveau par défaut de {{ability}} utilisé lorsque ni la note générale ni les attributs ne sont indiqués.",
         "unsupportedFormatVersion": "Ce paquet a été créé avec une version plus récente du jeu (format {{version}} ; cette version prend en charge {{supported}}). Mettez le jeu à jour pour l'ouvrir."
       },
       "competitionDef": {
@@ -3823,6 +3827,8 @@
     "playerDateOfBirth": "Date de naissance",
     "playerAge": "Âge",
     "playerOverall": "Note globale (1–99)",
+    "playerPotential": "Potentiel (1–99)",
+    "playerPotentialHelp": "Jusqu'où ce joueur peut progresser. Laissez vide et le moteur tire un plafond à partir de son niveau et de son âge. Il ne peut pas être inférieur à son niveau actuel, et un joueur qui l'a atteint cesse de progresser.",
     "playerUseAttributes": "Utiliser les attributs détaillés",
     "savePlayer": "Enregistrer le Joueur",
     "names": "Noms",

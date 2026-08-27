@@ -2617,6 +2617,10 @@
         "unknownRegion": "\"{{field}}\" fa riferimento a una regione sconosciuta \"{{id}}\".",
         "reversedRange": "La squadra \"{{team}}\" ha un {{field}} invertito (min > max).",
         "outOfRange": "La squadra \"{{team}}\" ha valori {{field}} fuori intervallo (reputazione 0–1000, finanze ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" ha un potenziale di {{potential}}. Il potenziale deve essere compreso tra 1 e 99.",
+        "potentialBelowOverall": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore al suo voto complessivo di {{ability}}. Il tetto di un giocatore non può stare sotto la sua abilità attuale.",
+        "potentialBelowAttributes": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore al voto complessivo di {{ability}} che risulta dai suoi attributi. Il tetto di un giocatore non può stare sotto la sua abilità attuale.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore all'abilità predefinita di {{ability}} usata quando non sono indicati né media né attributi.",
         "unsupportedFormatVersion": "Questo pacchetto è stato creato con una versione più recente del gioco (formato {{version}}; questa versione supporta {{supported}}). Aggiorna il gioco per aprirlo."
       },
       "competitionDef": {
@@ -3823,6 +3827,8 @@
     "playerDateOfBirth": "Data di nascita",
     "playerAge": "Età",
     "playerOverall": "Voto complessivo (1–99)",
+    "playerPotential": "Potenziale (1–99)",
+    "playerPotentialHelp": "Fin dove può arrivare questo giocatore. Lascialo vuoto e il motore estrae un tetto dalla sua abilità e dalla sua età. Non può essere inferiore all'abilità attuale, e chi lo ha raggiunto smette di migliorare.",
     "playerUseAttributes": "Usa attributi dettagliati",
     "savePlayer": "Salva Giocatore",
     "names": "Nomi",

@@ -2617,6 +2617,10 @@
         "unknownRegion": "\"{{field}}\" verweist auf unbekannte Region \"{{id}}\".",
         "reversedRange": "Team \"{{team}}\" hat einen umgekehrten {{field}} (min > max).",
         "outOfRange": "Team \"{{team}}\" hat {{field}}-Werte außerhalb des gültigen Bereichs (Reputation 0–1000, Finanzen ≥ 0).",
+        "potentialOutOfRange": "„{{entity}}“ hat ein Potenzial von {{potential}}. Das Potenzial muss zwischen 1 und 99 liegen.",
+        "potentialBelowOverall": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter der Gesamtstärke von {{ability}}. Die Obergrenze eines Spielers darf nicht unter seiner aktuellen Stärke liegen.",
+        "potentialBelowAttributes": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter den {{ability}}, die sich aus den Attributen ergeben. Die Obergrenze eines Spielers darf nicht unter seiner aktuellen Stärke liegen.",
+        "potentialBelowDefaultAbility": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter der Standardstärke von {{ability}}, die ohne Gesamtstärke und Attribute verwendet wird.",
         "unsupportedFormatVersion": "Dieses Paket wurde mit einer neueren Version des Spiels erstellt (Format {{version}}; diese Version unterstützt {{supported}}). Aktualisiere das Spiel, um es zu öffnen."
       },
       "competitionDef": {
@@ -3823,6 +3827,8 @@
     "playerDateOfBirth": "Geburtsdatum",
     "playerAge": "Alter",
     "playerOverall": "Gesamtwertung (1–99)",
+    "playerPotential": "Potenzial (1–99)",
+    "playerPotentialHelp": "Wie gut dieser Spieler werden kann. Leer lassen und die Engine würfelt eine Obergrenze aus Stärke und Alter aus. Sie darf nicht unter der aktuellen Stärke liegen, und wer sie erreicht hat, entwickelt sich nicht weiter.",
     "playerUseAttributes": "Detaillierte Attribute verwenden",
     "savePlayer": "Spieler speichern",
     "names": "Namen",

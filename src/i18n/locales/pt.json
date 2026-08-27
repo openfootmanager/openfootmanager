@@ -2617,6 +2617,10 @@
         "unknownRegion": "\"{{field}}\" refere uma região desconhecida \"{{id}}\".",
         "reversedRange": "A equipa \"{{team}}\" tem um {{field}} invertido (mín > máx).",
         "outOfRange": "A equipa \"{{team}}\" tem valores de {{field}} fora do intervalo (reputação 0–1000, finanças ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" tem um potencial de {{potential}}. O potencial deve estar entre 1 e 99.",
+        "potentialBelowOverall": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da sua nota global de {{ability}}. O tecto de um jogador não pode ficar abaixo da sua capacidade actual.",
+        "potentialBelowAttributes": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo dos {{ability}} que resultam dos seus atributos. O tecto de um jogador não pode ficar abaixo da sua capacidade actual.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da capacidade predefinida de {{ability}} usada quando não se indica média nem atributos.",
         "unsupportedFormatVersion": "Este pacote foi criado com uma versão mais recente do jogo (formato {{version}}; esta versão suporta {{supported}}). Atualize o jogo para o abrir."
       },
       "competitionDef": {
@@ -3823,6 +3827,8 @@
     "playerDateOfBirth": "Data de nascimento",
     "playerAge": "Idade",
     "playerOverall": "Nota global (1–99)",
+    "playerPotential": "Potencial (1–99)",
+    "playerPotentialHelp": "Até onde este jogador pode chegar. Deixe em branco e o motor gera um tecto a partir da sua capacidade e idade. Não pode ser inferior à capacidade actual, e um jogador que já lá chegou deixa de evoluir.",
     "playerUseAttributes": "Usar atributos detalhados",
     "savePlayer": "Guardar Jogador",
     "names": "Nomes",

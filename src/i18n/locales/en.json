@@ -2630,6 +2630,10 @@
         "unknownRegion": "\"{{field}}\" references unknown region \"{{id}}\".",
         "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max).",
         "outOfRange": "Team \"{{team}}\" has out-of-range {{field}} values (reputation 0–1000, finance ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" has a potential of {{potential}}. Potential must be between 1 and 99.",
+        "potentialBelowOverall": "\"{{entity}}\" has a potential of {{potential}}, below their overall of {{ability}}. A player's ceiling cannot sit under their current ability.",
+        "potentialBelowAttributes": "\"{{entity}}\" has a potential of {{potential}}, below the {{ability}} their attributes work out to. A player's ceiling cannot sit under their current ability.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" has a potential of {{potential}}, below the default ability of {{ability}} used when neither overall nor attributes is given.",
         "unsupportedFormatVersion": "This package was made with a newer version of the game (format {{version}}; this build supports {{supported}}). Update the game to open it."
       },
       "conflict": {
@@ -3819,6 +3823,8 @@
     "playerDateOfBirth": "Date of Birth",
     "playerAge": "Age",
     "playerOverall": "Overall (1–99)",
+    "playerPotential": "Potential (1–99)",
+    "playerPotentialHelp": "How good this player can become. Leave blank and the engine rolls a ceiling from their ability and age. It cannot be below their current ability, and a player who has reached it stops improving.",
     "playerUseAttributes": "Use detailed attributes",
     "savePlayer": "Save Player",
     "names": "Names",

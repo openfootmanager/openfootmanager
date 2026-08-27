@@ -88,10 +88,11 @@ const PLAYER_IDENTITY_HEADERS: &[&str] = &[
     "youth",
     "photo",
     "overall",
+    "potential",
 ];
 
-/// Player columns holding free text. `age` and `overall` are numbers, as is
-/// every attribute column, so none of them appear here.
+/// Player columns holding free text. `age`, `overall` and `potential` are
+/// numbers, as is every attribute column, so none of them appear here.
 const PLAYER_TEXT_HEADERS: &[&str] = &[
     "id",
     "firstName",
@@ -250,6 +251,7 @@ fn player_row(player: &PlayerDef) -> Vec<String> {
         if player.youth { "true".to_string() } else { String::new() },
         optional(&player.photo),
         optional(&player.overall),
+        optional(&player.potential),
     ];
 
     // A player carries either a single `overall` or an explicit attribute block.
@@ -389,10 +391,30 @@ mod tests {
 
         assert_eq!(row.len(), PLAYER_IDENTITY_HEADERS.len() + PLAYER_ATTRIBUTE_HEADERS.len());
         assert_eq!(row[12], "70", "overall is written");
+        assert_eq!(row[13], "", "an unset ceiling leaves its column blank");
         assert!(
             row[PLAYER_IDENTITY_HEADERS.len()..].iter().all(String::is_empty),
             "attribute columns stay blank so import falls back to overall"
         );
+    }
+
+    /// The ceiling belongs beside the ability it caps.
+    ///
+    /// A spreadsheet of a squad that shows what every player is now, and nothing
+    /// about what any of them becomes, is missing the more interesting half.
+    #[test]
+    fn an_authored_potential_is_written_beside_the_overall() {
+        let player = player_def(serde_json::json!({
+            "id": "p1", "firstName": "Test", "lastName": "Player",
+            "club": "fc-test", "nationality": "ENG", "overall": 55, "potential": 92
+        }));
+        let row = player_row(&player);
+
+        let column = PLAYER_IDENTITY_HEADERS
+            .iter()
+            .position(|header| *header == "potential")
+            .expect("the header exists");
+        assert_eq!(row[column], "92");
     }
 
     #[test]

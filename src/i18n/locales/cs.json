@@ -2631,6 +2631,10 @@
         "unknownRegion": "„{{field}}“ odkazuje na neznámý region „{{id}}“.",
         "reversedRange": "Tým „{{team}}“ má obrácený rozsah v poli {{field}} (min > max).",
         "outOfRange": "Tým „{{team}}“ má hodnoty v poli {{field}} mimo rozsah (reputace 0–1000, finance ≥ 0).",
+        "potentialOutOfRange": "„{{entity}}“ má potenciál {{potential}}. Potenciál musí být mezi 1 a 99.",
+        "potentialBelowOverall": "„{{entity}}“ má potenciál {{potential}}, což je méně než jeho celkové hodnocení {{ability}}. Strop hráče nemůže být pod jeho současnou úrovní.",
+        "potentialBelowAttributes": "„{{entity}}“ má potenciál {{potential}}, což je méně než celkové hodnocení {{ability}}, které vychází z jeho atributů. Strop hráče nemůže být pod jeho současnou úrovní.",
+        "potentialBelowDefaultAbility": "„{{entity}}“ má potenciál {{potential}}, což je méně než výchozí úroveň {{ability}} použitá, když není zadáno celkové hodnocení ani atributy.",
         "unsupportedFormatVersion": "Tento balíček byl vytvořen v novější verzi hry (formát {{version}}; tato verze podporuje {{supported}}). Pro otevření hru aktualizujte."
       },
       "conflict": {
@@ -3820,6 +3824,8 @@
     "playerDateOfBirth": "Datum narození",
     "playerAge": "Věk",
     "playerOverall": "Celkové hodnocení (1–99)",
+    "playerPotential": "Potenciál (1–99)",
+    "playerPotentialHelp": "Kam až tento hráč může dojít. Nechte prázdné a engine vylosuje strop podle jeho úrovně a věku. Nesmí být pod současnou úrovní a hráč, který ho dosáhl, se přestane zlepšovat.",
     "playerUseAttributes": "Použít podrobné atributy",
     "savePlayer": "Uložit hráče",
     "names": "Jména",

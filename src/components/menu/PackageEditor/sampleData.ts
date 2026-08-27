@@ -391,6 +391,7 @@ export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
       footedness: "Right",
       dateOfBirth: "1996-04-12",
       overall: 78,
+      potential: null,
       attributes: null,
     },
     {
@@ -404,6 +405,7 @@ export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
       footedness: "Left",
       dateOfBirth: "1994-09-30",
       overall: 75,
+      potential: null,
       attributes: null,
     },
     {
@@ -417,6 +419,7 @@ export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
       footedness: "Right",
       dateOfBirth: "1992-01-18",
       overall: 74,
+      potential: null,
       attributes: null,
     },
     // Youth prospects — flagged youth: true so they join the academy squad.
@@ -431,6 +434,10 @@ export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
       footedness: "Both",
       dateOfBirth: "2009-06-02",
       overall: 58,
+      // An authored ceiling: this is the prospect the academy sample exists to
+      // show off, and without it his ceiling would be a random roll like any
+      // other 16-year-old's.
+      potential: 88,
       attributes: null,
       youth: true,
     },
@@ -445,6 +452,7 @@ export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
       footedness: "Right",
       dateOfBirth: "2010-02-21",
       overall: 55,
+      potential: 72,
       attributes: null,
       youth: true,
     },

@@ -182,9 +182,36 @@ Defines a specific player. Reference teams and countries by their `id`.
 | `youth` | boolean | no | `false` | If `true`, the player joins the club's youth/academy squad instead of the first team. |
 | `photo` | string or null | no | `null` | Relative path to a player photo asset bundled in the package. |
 | `overall` | integer (1–99) or null | no | `null` | Overall ability rating. The engine generates a realistic attribute spread from this value. |
+| `potential` | integer (1–99) or null | no | `null` | Career ceiling. Omit it and the engine rolls one from the player's ability and age. See below. |
 | `attributes` | object or null | no | `null` | Explicit attribute block. Replaces `overall`-based generation entirely — this is not a partial override, so any of the 19 attributes you omit takes its serde default (8 are optional; the other 11 are required). |
 
 > **Tip**: You only need to specify `overall` *or* `attributes` — not both. For most authored players, `overall` is sufficient. Use `attributes` for precise control.
+
+### `potential` — the career ceiling
+
+`potential` is how good a player can *become*, and it is independent of how you expressed how good
+they are *now* — set it alongside either `overall` or `attributes`.
+
+Leave it out and nothing changes: the engine rolls a ceiling from the player's ability and age,
+exactly as it did before the field existed, so every package written without it generates the same
+players it always did. Set it and the number is yours; the engine will not overwrite it.
+
+Three things to know before using it.
+
+- **It cannot sit below current ability**, and validation will tell you if it does. Which ability it
+  is measured against follows the same precedence generation uses: your `attributes` block if you
+  wrote one, otherwise your `overall`, otherwise the default ability a player with neither is
+  generated at.
+- **A player who has reached their ceiling stops improving.** Training raises attributes only while
+  there is headroom left, so a player generated at their ceiling never develops again. That is a
+  reasonable thing to author for a finished veteran — just not what you want for a 19-year-old.
+  Writing `overall` and `potential` equal is the way to say "this player is finished", and it does
+  exactly that: the engine bounds the attribute spread it generates so a player is never created
+  above their own ceiling.
+- **It can earn the Wonderkid trait.** A player aged 20 or under whose ceiling is 90 or better and
+  at least 14 points above their current ability is tagged a wonderkid by the engine. Authoring a
+  generational talent therefore also authors the badge — usually what you want, but worth knowing
+  it is not something you set separately.
 
 **Position Values:**
 

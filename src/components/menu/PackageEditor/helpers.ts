@@ -191,6 +191,7 @@ export function emptyPlayer(): PlayerDef {
     position: "Goalkeeper",
     dateOfBirth: null,
     overall: null,
+    potential: null,
     attributes: null,
     footedness: null,
   };
@@ -264,6 +265,25 @@ export function parseRangeBound(v: string): number | null {
   if (v === "") return null;
   const n = parseInt(v, 10);
   return Number.isNaN(n) ? null : n;
+}
+
+/** The 1–99 band every player ability and ceiling is expressed in. */
+export const RATING_MIN = 1;
+export const RATING_MAX = 99;
+
+/**
+ * Read a rating out of a numeric input, clamped to 1–99.
+ *
+ * `Number` rather than `parseInt`: an `<input type="number">` treats `1e2` as a
+ * perfectly valid 100, but `parseInt` stops at the `e` and returns 1 — so asking
+ * for the top of the range quietly produced the bottom of it. An entry that is
+ * not a number at all reads as absent rather than as the worst possible rating.
+ */
+export function parseRating(v: string): number | null {
+  if (v.trim() === "") return null;
+  const parsed = Number(v);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.min(RATING_MAX, Math.max(RATING_MIN, Math.round(parsed)));
 }
 
 export function makeRange(a: number | null, b: number | null): [number, number] | null {
