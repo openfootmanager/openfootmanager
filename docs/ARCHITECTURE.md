@@ -55,28 +55,40 @@ openfootmanager/
 
 ## Crate Architecture
 
-The Rust backend is organized into 4 crates with clear dependency boundaries:
+The Rust workspace holds seven packages — four library crates, two binaries, and the Tauri
+application itself — with these dependency boundaries:
 
+Listed rather than drawn, because the previous box diagram put `engine` on top of `domain` — the
+one edge this codebase forbids — and put `db` below `ofm_core`, which is backwards. Each arrow
+below is a `path` dependency in that crate's own `Cargo.toml`, and
+`src-tauri/tests/architecture.rs` fails the build if the two leaves ever gain one.
+
+```text
+  Tauri commands          src/commands/, src/application/, src/mcp_server/
+                          → domain, engine, ofm_core, db
+
+  db                      SQLite persistence
+                          → domain, ofm_core
+
+  ofm_core                game logic, state, turn processing
+                          → domain, engine
+
+  engine                  match simulation          → nothing in this workspace
+  domain                  pure data types           → nothing in this workspace
+
+  ofm-cli                 standalone CLI binary     → ofm_core
+  sim-bench               balance benchmark harness → engine
 ```
-                    ┌──────────┐
-                    │  Tauri   │  src-tauri/src/lib.rs
-                    │ Commands │  (IPC boundary)
-                    └────┬─────┘
-                         │
-                    ┌────┴─────┐
-                    │ ofm_core │  Game logic, turn processing, state
-                    └──┬───┬───┘
-                       │   │
-              ┌────────┘   └────────┐
-         ┌────┴───┐           ┌─────┴────┐
-         │ engine │           │    db    │
-         │        │           │          │
-         └────────┘           └──────────┘
-              │
-         ┌────┴───┐
-         │ domain │  Pure data types (shared by all)
-         └────────┘
-```
+
+Two things about this graph are worth stating plainly, because both have been documented backwards
+before:
+
+- **`engine` and `domain` are independent leaves.** Neither depends on anything else in the
+  workspace — `engine`'s only dependencies are `log`, `rand` and `serde`. `engine` in particular
+  does *not* sit on `domain`; see "Engine Isolation" below for why that is deliberate.
+- **`db` depends on `ofm_core`, not the other way round.** Persistence sits *above* game logic
+  here. That is a layering inversion against how the crates are usually described, and it is
+  recorded because it is true, not because it is the intended design.
 
 ### `domain` — Pure Data Types
 
