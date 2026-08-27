@@ -193,12 +193,21 @@ const LIKELY_STARTERS: usize = 11;
 /// How many defenders decide whether the line can be pushed up.
 const BACK_LINE: usize = 4;
 
+// Both caps are placed at roughly the twentieth percentile of a generated world
+// (`tests/tactical_adaptation_probe.rs`, 440 clubs), so the rule they encode is
+// one sentence: the least equipped fifth of the world cannot run the most
+// demanding version of its style. A cap at the median is not a cap, it is a
+// second blueprint; a cap below the tenth percentile never fires.
+
 /// Below this mean stamina across the likely eleven, a squad cannot sustain a
 /// pressing game for ninety minutes however much its manager would like to.
-const LEGS_FOR_A_PRESS: f64 = 62.0;
+/// The world's likely-XI stamina runs 62.1 at p10 and 68.6 at the median.
+const LEGS_FOR_A_PRESS: f64 = 64.0;
 /// Below this mean pace across the back line, the space behind a high line is
-/// not space this defence can cover.
-const PACE_FOR_A_HIGH_LINE: f64 = 62.0;
+/// not space this defence can cover. The world's back-four pace runs 55.8 at
+/// p10 and 66.0 at the median — it is far more spread than stamina, which is
+/// why the same percentile lands on a much lower number.
+const PACE_FOR_A_HIGH_LINE: f64 = 59.0;
 
 /// What the squad can be asked to do, as opposed to what the badge says.
 struct SquadReading {
@@ -267,10 +276,22 @@ const FORM_WINDOW: usize = 5;
 /// Fewer results than this is not evidence, it is a new season.
 const FORM_MINIMUM: usize = 3;
 
+// Both triggers sit at the same tail of the same measured distribution. Over
+// every five-match window a probe season produces, a club scores and concedes
+// 2.06 a game on average, with p15 at 1.2 and p85 at 2.8 — the two numbers are
+// the same because every match is counted from both ends. So these are the
+// worst and best sixth of runs a club actually lives through.
+//
+// The first pass used 2.2 and 0.8, which read like a matched pair and were
+// nothing of the kind: 2.2 sat just above the median and fired for two clubs in
+// five, while 0.8 sat below the fifth percentile and fired for almost nobody.
+// Every club in the world was permanently "leaking" and none was ever blunt,
+// and the reaction table came out as one column of compact blocks.
+
 /// Conceding at this rate says the plan is not holding, whatever the badge says.
-const LEAKY: f64 = 2.2;
+const LEAKY: f64 = 2.8;
 /// Scoring at this rate says the same about the other end.
-const BLUNT: f64 = 0.8;
+const BLUNT: f64 = 1.2;
 
 struct FormReading {
     conceded_per_game: f64,
