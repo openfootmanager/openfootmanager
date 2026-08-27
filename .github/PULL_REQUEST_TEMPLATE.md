@@ -30,8 +30,8 @@ Closes #
 
 - [ ] New behaviour has a test that would have failed before this change
 - [ ] `npm test` passes
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml --workspace` passes
-- [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings` is clean
+- [ ] `cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace` passes
+- [ ] `cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings` is clean
 
 **If this changes user-facing text**
 
