@@ -224,7 +224,14 @@ fn role_for(player: &Player, play_style: &PlayStyle) -> PlayerRole {
 /// `Standard` players are left out of the map rather than stored explicitly:
 /// the engine treats a missing entry as `Standard`, and writing them would put
 /// a row in the saved JSON for every player who has nothing special to say.
-pub(crate) fn assign_squad_roles(team: &mut Team, players: &[Player]) {
+///
+/// Takes an iterator rather than a slice because its two callers hold the squad
+/// differently: the generator has it as an owned block, the weekly review has it
+/// as a filtered borrow out of the whole world's player list.
+pub(crate) fn assign_squad_roles<'a>(
+    team: &mut Team,
+    players: impl IntoIterator<Item = &'a Player>,
+) {
     team.player_roles.clear();
     for player in players {
         let role = role_for(player, &team.play_style);

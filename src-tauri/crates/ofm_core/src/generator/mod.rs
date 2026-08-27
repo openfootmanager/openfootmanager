@@ -329,7 +329,7 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_yea
     // Last, and here rather than in `build_club`: the package path calls this
     // again after swapping generated players for authored ones, and a role
     // belongs to the squad that finished rather than the one that was built.
-    crate::ai_roles::assign_squad_roles(team, players);
+    crate::ai_roles::assign_squad_roles(team, players.iter());
 
     let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
 

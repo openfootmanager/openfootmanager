@@ -151,13 +151,7 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 /// clubs have not had a match in any physical sense — closing the training
 /// ground on them would cost them the day's recovery for nothing.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
-    let competitions: &[domain::league::League] = if game.competitions.is_empty() {
-        game.league.as_slice()
-    } else {
-        &game.competitions
-    };
-
-    competitions
+    game.competitions_in_play()
         .iter()
         .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
@@ -180,18 +174,14 @@ fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use domain::league::FixtureStatus;
 
     let today = game.clock.current_date.date_naive();
-    let competitions: &[domain::league::League] = if game.competitions.is_empty() {
-        game.league.as_slice()
-    } else {
-        &game.competitions
-    };
 
     // team id → how many of its fixtures fall inside the next week.
     let mut fixtures_this_week: std::collections::HashMap<&str, usize> =
         std::collections::HashMap::new();
     let mut tapering: std::collections::HashMap<String, Taper> = std::collections::HashMap::new();
 
-    for fixture in competitions
+    for fixture in game
+        .competitions_in_play()
         .iter()
         .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())

@@ -45,6 +45,10 @@
 //! identity-vs-identity probe in `tests/tactical_identity_probe.rs` is what
 //! says whether it has become urgent.
 
+use crate::game::Game;
+use crate::stable_hash::stable_hash;
+use domain::league::FixtureStatus;
+use domain::player::{Player, Position};
 use domain::team::{
     BreakSpeed, BuildUpStyle, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle,
     PitchWidth, PlayStyle, PressingIntensity, TacticsPhaseSettings, Tempo,
@@ -132,6 +136,357 @@ pub fn blueprint_for(play_style: &PlayStyle) -> TacticsPhaseSettings {
             counter_press_duration: CounterPressDuration::Long,
             break_speed: BreakSpeed::Fast,
         },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The weekly review
+// ---------------------------------------------------------------------------
+
+/// The four dials `--phase-sweep` found the engine gives away, and the most any
+/// one club may hold. Slice 6 rationed the blueprints by hand; adaptation has to
+/// obey the same limit at run time, because "we keep conceding" pushes a club
+/// straight at the deep line and the compact block — the two cheapest of the
+/// four.
+const MAX_UNDER_PRICED_DIALS: usize = 2;
+
+fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
+    [
+        matches!(
+            settings.defensive_line,
+            DefensiveLine::VeryLow | DefensiveLine::Low
+        ),
+        settings.defensive_shape == DefensiveShape::Compact,
+        settings.width == PitchWidth::Narrow,
+        settings.counter_press_duration == CounterPressDuration::Long,
+    ]
+    .iter()
+    .filter(|taken| **taken)
+    .count()
+}
+
+/// A club sits down to look at itself once a week, on a day of its own.
+///
+/// Not every club on the same day: the review is a sweep over every squad in the
+/// world, and spreading it over the week keeps that off any single day's
+/// advance. Not on a fixed rota either — the day is derived from the club's id,
+/// so it survives a save and a reload and does not depend on where the club sits
+/// in the list.
+///
+/// A week is also the hysteresis. The plan is recomputed from scratch each time
+/// rather than nudged from where it was, so a club cannot drift; what a weekly
+/// cadence buys is that it cannot flip-flop on a Tuesday either.
+const REVIEW_CYCLE_DAYS: u64 = 7;
+
+/// Distinct from the lineup builder's stream, which hashes the same club ids for
+/// a different question.
+const REVIEW_SEED: u64 = 0x7461_6374_6963_7300; // "tactics\0"
+
+fn review_weekday(team_id: &str) -> u32 {
+    (stable_hash(team_id.as_bytes(), REVIEW_SEED) % REVIEW_CYCLE_DAYS) as u32
+}
+
+// --- What the manager looks at ---------------------------------------------
+
+/// How many of the eleven best available players the legs reading is taken over.
+const LIKELY_STARTERS: usize = 11;
+/// How many defenders decide whether the line can be pushed up.
+const BACK_LINE: usize = 4;
+
+/// Below this mean stamina across the likely eleven, a squad cannot sustain a
+/// pressing game for ninety minutes however much its manager would like to.
+const LEGS_FOR_A_PRESS: f64 = 62.0;
+/// Below this mean pace across the back line, the space behind a high line is
+/// not space this defence can cover.
+const PACE_FOR_A_HIGH_LINE: f64 = 62.0;
+
+/// What the squad can be asked to do, as opposed to what the badge says.
+struct SquadReading {
+    /// Mean stamina of the eleven best available players.
+    legs: f64,
+    /// Mean pace of the four best defenders.
+    defensive_pace: f64,
+}
+
+fn read_squad(squad: &[&Player]) -> Option<SquadReading> {
+    if squad.is_empty() {
+        return None;
+    }
+
+    // Ties broken on id so the reading does not depend on storage order.
+    let by_standing = |candidates: &mut Vec<&&Player>| {
+        candidates.sort_by(|a, b| b.ovr.cmp(&a.ovr).then_with(|| a.id.cmp(&b.id)));
+    };
+
+    let mut available: Vec<&&Player> = squad.iter().filter(|p| p.injury.is_none()).collect();
+    if available.is_empty() {
+        // An entire squad in the treatment room is still the squad the manager
+        // has to plan around.
+        available = squad.iter().collect();
+    }
+    by_standing(&mut available);
+    let eleven = &available[..LIKELY_STARTERS.min(available.len())];
+    let legs = mean(eleven.iter().map(|p| p.attributes.stamina));
+
+    let mut defenders: Vec<&&Player> = available
+        .iter()
+        .copied()
+        .filter(|p| p.position.to_group_position() == Position::Defender)
+        .collect();
+    by_standing(&mut defenders);
+    let defensive_pace = if defenders.is_empty() {
+        // No recognised defenders is a broken squad, not a fast one. Read the
+        // eleven rather than claim the back line can do anything.
+        mean(eleven.iter().map(|p| p.attributes.pace))
+    } else {
+        mean(
+            defenders[..BACK_LINE.min(defenders.len())]
+                .iter()
+                .map(|p| p.attributes.pace),
+        )
+    };
+
+    Some(SquadReading {
+        legs,
+        defensive_pace,
+    })
+}
+
+fn mean(values: impl Iterator<Item = u8>) -> f64 {
+    let mut total = 0.0;
+    let mut count = 0.0;
+    for value in values {
+        total += value as f64;
+        count += 1.0;
+    }
+    if count == 0.0 { 0.0 } else { total / count }
+}
+
+/// How many recent matches the manager judges the plan on.
+const FORM_WINDOW: usize = 5;
+/// Fewer results than this is not evidence, it is a new season.
+const FORM_MINIMUM: usize = 3;
+
+/// Conceding at this rate says the plan is not holding, whatever the badge says.
+const LEAKY: f64 = 2.2;
+/// Scoring at this rate says the same about the other end.
+const BLUNT: f64 = 0.8;
+
+struct FormReading {
+    conceded_per_game: f64,
+    scored_per_game: f64,
+}
+
+/// The club's last few results, most recent first, across every competition it
+/// plays in — a cup exit says as much about a plan as a league defeat.
+fn read_form(game: &Game, team_id: &str) -> Option<FormReading> {
+    let mut results: Vec<(&str, u32, u32)> = game
+        .competitions_in_play()
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.status == FixtureStatus::Completed)
+        .filter_map(|fixture| {
+            let result = fixture.result.as_ref()?;
+            let (scored, conceded) = if fixture.home_team_id == team_id {
+                (result.home_goals, result.away_goals)
+            } else if fixture.away_team_id == team_id {
+                (result.away_goals, result.home_goals)
+            } else {
+                return None;
+            };
+            Some((fixture.date.as_str(), scored as u32, conceded as u32))
+        })
+        .collect();
+
+    if results.len() < FORM_MINIMUM {
+        return None;
+    }
+    // ISO dates sort lexicographically, so ordering them needs no parsing.
+    results.sort_by(|a, b| b.0.cmp(a.0));
+    let window = &results[..FORM_WINDOW.min(results.len())];
+    let games = window.len() as f64;
+
+    Some(FormReading {
+        scored_per_game: window.iter().map(|(_, s, _)| *s as f64).sum::<f64>() / games,
+        conceded_per_game: window.iter().map(|(_, _, c)| *c as f64).sum::<f64>() / games,
+    })
+}
+
+// --- What he does about it -------------------------------------------------
+
+/// One step deeper, or `false` if the side is already on its own goal line.
+fn sit_deeper(settings: &mut TacticsPhaseSettings) -> bool {
+    settings.defensive_line = match settings.defensive_line {
+        DefensiveLine::High => DefensiveLine::Medium,
+        DefensiveLine::Medium => DefensiveLine::Low,
+        DefensiveLine::Low => DefensiveLine::VeryLow,
+        DefensiveLine::VeryLow => return false,
+    };
+    true
+}
+
+fn close_the_gaps(settings: &mut TacticsPhaseSettings) -> bool {
+    if settings.defensive_shape == DefensiveShape::Compact {
+        return false;
+    }
+    settings.defensive_shape = DefensiveShape::Compact;
+    true
+}
+
+fn press_less(settings: &mut TacticsPhaseSettings) -> bool {
+    settings.pressing_intensity = match settings.pressing_intensity {
+        PressingIntensity::Aggressive => PressingIntensity::Medium,
+        PressingIntensity::Medium => PressingIntensity::Passive,
+        PressingIntensity::Passive => return false,
+    };
+    true
+}
+
+/// Win it back closer to their goal. The answer for a side that is already as
+/// fast, as wide and as direct as it can get — which every attacking blueprint
+/// is on the day it is written.
+fn press_higher(settings: &mut TacticsPhaseSettings) -> bool {
+    settings.pressing_intensity = match settings.pressing_intensity {
+        PressingIntensity::Passive => PressingIntensity::Medium,
+        PressingIntensity::Medium => PressingIntensity::Aggressive,
+        PressingIntensity::Aggressive => return false,
+    };
+    true
+}
+
+fn break_faster(settings: &mut TacticsPhaseSettings) -> bool {
+    settings.break_speed = match settings.break_speed {
+        BreakSpeed::Slow => BreakSpeed::Medium,
+        BreakSpeed::Medium => BreakSpeed::Fast,
+        BreakSpeed::Fast => return false,
+    };
+    true
+}
+
+fn stretch_the_pitch(settings: &mut TacticsPhaseSettings) -> bool {
+    if settings.width == PitchWidth::Wide {
+        return false;
+    }
+    settings.width = PitchWidth::Wide;
+    true
+}
+
+fn go_more_direct(settings: &mut TacticsPhaseSettings) -> bool {
+    if settings.tempo == Tempo::Direct {
+        return false;
+    }
+    settings.tempo = Tempo::Direct;
+    true
+}
+
+/// Apply the first change on the list that does something and does not push the
+/// club past its ration of under-priced dials.
+///
+/// One change per problem, deliberately. A manager reacting to a bad run moves
+/// one thing; a policy that moved all three would have rebuilt the blueprint,
+/// and the identity slice 6 gave the club would last exactly one bad month.
+fn shade(settings: &mut TacticsPhaseSettings, moves: &[fn(&mut TacticsPhaseSettings) -> bool]) {
+    for change in moves {
+        let mut trial = settings.clone();
+        if change(&mut trial) && under_priced_dials(&trial) <= MAX_UNDER_PRICED_DIALS {
+            *settings = trial;
+            return;
+        }
+    }
+}
+
+/// The plan this club takes into its next match.
+///
+/// Recomputed from the style blueprint every time rather than nudged from
+/// whatever is stored, which is what keeps it honest: the answer is a pure
+/// function of style, squad and form, so a club cannot ratchet its way to
+/// something no manager ever chose, and running the review twice in a day
+/// changes nothing.
+fn match_plan(
+    play_style: &PlayStyle,
+    squad: Option<&SquadReading>,
+    form: Option<&FormReading>,
+) -> TacticsPhaseSettings {
+    let mut settings = blueprint_for(play_style);
+
+    if let Some(form) = form {
+        if form.conceded_per_game >= LEAKY {
+            shade(&mut settings, &[close_the_gaps, sit_deeper, press_less]);
+        }
+        if form.scored_per_game <= BLUNT {
+            shade(
+                &mut settings,
+                &[
+                    break_faster,
+                    stretch_the_pitch,
+                    press_higher,
+                    go_more_direct,
+                ],
+            );
+        }
+    }
+
+    // What the players can actually do has the last word. A bad run is a reason
+    // to try something; it is not a reason to ask a squad for something it does
+    // not have, so the caps close over the reaction as well as the blueprint.
+    // They only ever ask for less, so nothing here can breach the ration.
+    if let Some(squad) = squad {
+        if squad.legs < LEGS_FOR_A_PRESS {
+            if settings.pressing_intensity == PressingIntensity::Aggressive {
+                settings.pressing_intensity = PressingIntensity::Medium;
+            }
+            if settings.counter_press_duration == CounterPressDuration::Long {
+                settings.counter_press_duration = CounterPressDuration::Short;
+            }
+        }
+        if squad.defensive_pace < PACE_FOR_A_HIGH_LINE
+            && settings.defensive_line == DefensiveLine::High
+        {
+            settings.defensive_line = DefensiveLine::Medium;
+        }
+    }
+
+    settings
+}
+
+/// Every club the player does not manage looks at how it plays, once a week.
+///
+/// This is what pays for slices 6 and 7 shipping without a backfill. A save made
+/// before them carries the neutral blueprint and an empty role map on every AI
+/// club; nothing here treats that as a special case, so those clubs simply get
+/// their identity at their first review like everyone else.
+///
+/// Deliberate, and worth saying out loud: a club the player leaves becomes an AI
+/// club, and its next review overwrites the tactics and the roles the player set
+/// there. That is a new manager taking over and doing it his way.
+pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
+    let user_team_id = game.manager.team_id.clone();
+    let due: Vec<String> = game
+        .teams
+        .iter()
+        .filter(|team| Some(&team.id) != user_team_id.as_ref())
+        .filter(|team| review_weekday(&team.id) == weekday_num)
+        .map(|team| team.id.clone())
+        .collect();
+
+    for team_id in due {
+        let form = read_form(game, &team_id);
+        let Some(team_index) = game.teams.iter().position(|team| team.id == team_id) else {
+            continue;
+        };
+
+        // Disjoint field borrows: the squad is read out of `game.players` while
+        // the club is written through `game.teams`.
+        let squad: Vec<&Player> = game
+            .players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some(team_id.as_str()))
+            .collect();
+        let reading = read_squad(&squad);
+
+        let team = &mut game.teams[team_index];
+        team.tactics_phase = match_plan(&team.play_style, reading.as_ref(), form.as_ref());
+        crate::ai_roles::assign_squad_roles(team, squad.iter().copied());
     }
 }
 
@@ -249,5 +604,178 @@ mod tests {
                 "{style:?} gave two different blueprints"
             );
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // The weekly review
+    // -----------------------------------------------------------------------
+
+    fn a_squad_that_can_run() -> SquadReading {
+        SquadReading {
+            legs: 75.0,
+            defensive_pace: 75.0,
+        }
+    }
+
+    fn a_squad_with_no_legs() -> SquadReading {
+        SquadReading {
+            legs: 40.0,
+            defensive_pace: 75.0,
+        }
+    }
+
+    fn a_slow_back_line() -> SquadReading {
+        SquadReading {
+            legs: 75.0,
+            defensive_pace: 40.0,
+        }
+    }
+
+    fn leaking() -> FormReading {
+        FormReading {
+            conceded_per_game: 3.0,
+            scored_per_game: 2.0,
+        }
+    }
+
+    fn toothless() -> FormReading {
+        FormReading {
+            conceded_per_game: 1.0,
+            scored_per_game: 0.2,
+        }
+    }
+
+    #[test]
+    fn a_squad_good_enough_to_run_the_plan_and_no_bad_run_behind_it_just_plays_the_plan() {
+        for style in EVERY_STYLE {
+            assert_eq!(
+                match_plan(&style, Some(&a_squad_that_can_run()), None),
+                blueprint_for(&style),
+                "{style:?} was talked out of its own identity for no reason"
+            );
+        }
+    }
+
+    #[test]
+    fn a_squad_without_the_legs_is_not_asked_to_press_for_ninety_minutes() {
+        let plan = match_plan(&PlayStyle::HighPress, Some(&a_squad_with_no_legs()), None);
+        assert_eq!(
+            plan.pressing_intensity,
+            PressingIntensity::Medium,
+            "a squad that cannot run was still sent out to press aggressively"
+        );
+        assert_eq!(plan.counter_press_duration, CounterPressDuration::Short);
+    }
+
+    #[test]
+    fn a_slow_back_line_is_not_asked_to_hold_a_high_line() {
+        for style in [
+            PlayStyle::Attacking,
+            PlayStyle::Possession,
+            PlayStyle::HighPress,
+        ] {
+            let plan = match_plan(&style, Some(&a_slow_back_line()), None);
+            assert_ne!(
+                plan.defensive_line,
+                DefensiveLine::High,
+                "{style:?} pushed a defence that cannot turn up the pitch"
+            );
+        }
+    }
+
+    #[test]
+    fn a_side_that_keeps_conceding_changes_something_at_the_back() {
+        for style in EVERY_STYLE {
+            let settled = match_plan(&style, Some(&a_squad_that_can_run()), None);
+            let reacting = match_plan(&style, Some(&a_squad_that_can_run()), Some(&leaking()));
+            assert_ne!(
+                settled, reacting,
+                "{style:?} conceded three a game for a month and changed nothing"
+            );
+        }
+    }
+
+    #[test]
+    fn a_side_that_cannot_score_changes_something_going_forward() {
+        for style in EVERY_STYLE {
+            let settled = match_plan(&style, Some(&a_squad_that_can_run()), None);
+            let reacting = match_plan(&style, Some(&a_squad_that_can_run()), Some(&toothless()));
+            assert_ne!(
+                settled, reacting,
+                "{style:?} has not scored in a month and changed nothing"
+            );
+        }
+    }
+
+    /// The reason this exists: the natural answer to conceding is a deeper line
+    /// and a compact block, which are two of the four dials the engine hands out
+    /// for free. Left alone, adaptation would quietly undo the ration slice 6
+    /// imposed on the blueprints, and every struggling club in the world would
+    /// converge on the same under-priced shape.
+    #[test]
+    fn no_adaptation_stacks_every_under_priced_dial() {
+        let squads = [
+            None,
+            Some(a_squad_that_can_run()),
+            Some(a_squad_with_no_legs()),
+            Some(a_slow_back_line()),
+        ];
+        let forms = [
+            None,
+            Some(leaking()),
+            Some(toothless()),
+            Some(FormReading {
+                conceded_per_game: 4.0,
+                scored_per_game: 0.0,
+            }),
+        ];
+        for style in EVERY_STYLE {
+            for squad in &squads {
+                for form in &forms {
+                    let plan = match_plan(&style, squad.as_ref(), form.as_ref());
+                    let taken = under_priced_dials(&plan);
+                    assert!(
+                        taken <= MAX_UNDER_PRICED_DIALS,
+                        "{style:?} ended up holding {taken} of the four under-priced \
+                         dials after adapting: {plan:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn reviewing_twice_says_the_same_thing_twice() {
+        // The plan is rebuilt from the blueprint each time rather than nudged
+        // from what is stored, so a club cannot ratchet itself somewhere no
+        // manager chose. A second review on the same evidence is a no-op.
+        let first = match_plan(
+            &PlayStyle::HighPress,
+            Some(&a_squad_with_no_legs()),
+            Some(&leaking()),
+        );
+        let second = match_plan(
+            &PlayStyle::HighPress,
+            Some(&a_squad_with_no_legs()),
+            Some(&leaking()),
+        );
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn a_clubs_review_day_is_its_own_and_does_not_move() {
+        assert_eq!(review_weekday("club-42"), review_weekday("club-42"));
+
+        let mut days = std::collections::HashSet::new();
+        for index in 0..500 {
+            days.insert(review_weekday(&format!("club-{index}")));
+        }
+        assert_eq!(
+            days.len(),
+            REVIEW_CYCLE_DAYS as usize,
+            "the review lands on {} of the seven days, so it is not spread across \
+             the week at all",
+            days.len()
+        );
     }
 }

@@ -149,6 +149,11 @@ fn run_training_ground(game: &mut Game) {
     crate::ai_training::apply_ai_training_policies(game, weekday_num);
     training::process_training(game, weekday_num);
     training::check_squad_fitness_warnings(game);
+    // Not a session, and deliberately not skipped for the clubs playing today:
+    // a league plays whole rounds on one date, so a club whose review day landed
+    // on its matchday would never review at all. It runs after the matches, so
+    // today's result is part of the form it reads.
+    crate::ai_tactics::apply_ai_tactical_reviews(game, weekday_num);
 }
 
 /// Process a single day advance.

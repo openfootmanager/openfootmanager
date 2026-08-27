@@ -221,6 +221,19 @@ impl Game {
             .or_else(|| self.competitions.first().cloned());
     }
 
+    /// Every competition the world is actually playing, legacy saves included.
+    ///
+    /// `competitions` is the modern home for them; a save old enough to predate
+    /// it has one competition sitting in `league` and nothing in the list. Any
+    /// pass over the world's fixtures owes both shapes the same answer.
+    pub(crate) fn competitions_in_play(&self) -> &[League] {
+        if self.competitions.is_empty() {
+            self.league.as_slice()
+        } else {
+            &self.competitions
+        }
+    }
+
     /// Whether the user's club has a scheduled fixture on `date` in ANY of its
     /// competitions (league or cup). This is the source of truth for "is today a
     /// match day" — the legacy `league` mirror misses cups and isn't reliable
