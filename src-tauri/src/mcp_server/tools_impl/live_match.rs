@@ -2,6 +2,10 @@
 
 use std::sync::Arc;
 
+use crate::application::press_conference::{
+    first_player_outside_squad, last_completed_match, todays_article_id,
+    MAX_PRESS_CONFERENCE_ANSWERS, MAX_RESPONSE_TEXT_CHARS,
+};
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::formatting::translate_error;
 
@@ -207,17 +211,6 @@ pub fn match_team_talk(
     ))
 }
 
-/// The most answers one press conference may carry.
-///
-/// The screen asks five questions. The ceiling is not about that — it is about the loop below
-/// running with the game mutex held, so an agent that posts a million answers would otherwise
-/// stall every other game operation while they are copied, and persist the whole pile into the
-/// article's player list.
-const MAX_PRESS_CONFERENCE_ANSWERS: usize = 32;
-
-/// The longest quote that can be attributed to the manager. Real responses are a sentence.
-const MAX_RESPONSE_TEXT_CHARS: usize = 500;
-
 /// One press conference answer, as the agent submits it.
 #[derive(serde::Deserialize)]
 struct PressAnswer {
@@ -253,13 +246,9 @@ fn apply_press_conference(
 ) -> Result<PressConferenceOutcome, String> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    // One conference per game day. The id is derived from the date alone, so a second call files
-    // an article sharing the first one's id — the id the news list keys on and selects by, which
-    // makes the later article unreachable — and re-applies the whole squad delta, walking every
-    // player to maximum morale. This is the guard every other generator of a date-derived article
-    // id already uses; see `turn/news.rs`.
-    let article_id = format!("press_conf_{}", today);
-    if game.news.iter().any(|article| article.id == article_id) {
+    // One conference per game day.
+    let (article_id, already_held) = todays_article_id(game);
+    if already_held {
         return Err("A press conference has already been held today.".to_string());
     }
 
@@ -277,53 +266,20 @@ fn apply_press_conference(
         .unwrap_or_else(|| user_team_id.clone());
 
     // Every named player must be one the user actually manages, checked before anything moves.
-    // The ids arrive from an agent and the morale effect below resolves them against the whole
-    // world, so an opposition striker could be praised into a better mood — a +5 handed to a
-    // rival. The UI only ever offers the user's own squad; this is the backend saying so too.
-    let outsider = {
-        let squad: std::collections::HashSet<&str> = game
-            .players
-            .iter()
-            .filter(|p| p.team_id.as_deref() == Some(&user_team_id))
-            .map(|p| p.id.as_str())
-            .collect();
-        answers
-            .iter()
-            .map(|answer| answer.player_id.as_str())
-            .find(|id| !id.is_empty() && !squad.contains(id))
-            .map(str::to_string)
-    };
+    let outsider = first_player_outside_squad(
+        game,
+        &user_team_id,
+        answers.iter().map(|answer| answer.player_id.as_str()),
+    );
     if let Some(id) = outsider {
         return Err(format!("Player {} is not in your squad.", id));
     }
 
-    // The most recent completed fixture involving the user's team, across every competition it
-    // plays in. Reading `game.league` here instead would silently report the last *league* match
-    // after a cup tie: that field mirrors one competition, and `Game` says so itself — "the legacy
-    // `league` mirror misses cups and isn't reliable" (game.rs). Copied out of the borrow so the
-    // morale loops below can take `game` mutably.
-    let (home_team_id, away_team_id, home_score, away_score) = {
-        let last_match = game
-            .competitions
-            .iter()
-            .flat_map(|competition| competition.fixtures.iter())
-            .filter(|f| {
-                f.result.is_some()
-                    && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
-            })
-            .max_by(|a, b| a.date.cmp(&b.date))
+    // The match the conference is about — the last one played in any competition, not the last
+    // league match. Copied out of the borrow so the morale loops below can take `game` mutably.
+    let (home_team_id, away_team_id, home_score, away_score) =
+        last_completed_match(game, &user_team_id)
             .ok_or("No completed match found for your team")?;
-        let result = last_match
-            .result
-            .as_ref()
-            .expect("filtered to fixtures with a result");
-        (
-            last_match.home_team_id.clone(),
-            last_match.away_team_id.clone(),
-            result.home_goals,
-            result.away_goals,
-        )
-    };
 
     let team_name = |id: &str| {
         game.teams
