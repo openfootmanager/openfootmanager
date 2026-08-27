@@ -83,10 +83,15 @@ export function collectOrphanKeys(
 ): string[] {
     return Object.entries(candidate).flatMap(([key, value]) => {
         const nextPath = [...path, key];
+        // `reference[key]` would also find `Object.prototype` members, so a locale
+        // key literally named `constructor` or `toString` would look present in
+        // English and escape the check.
+        const referenceHasKey = Object.prototype.hasOwnProperty.call(reference, key);
         const referenceValue = reference[key];
 
         if (value !== null && typeof value === "object" && !Array.isArray(value)) {
             if (
+                referenceHasKey &&
                 referenceValue !== null &&
                 typeof referenceValue === "object" &&
                 !Array.isArray(referenceValue)
@@ -98,11 +103,13 @@ export function collectOrphanKeys(
                 );
             }
 
-            // English has no table here, so every leaf beneath it is orphaned.
-            return collectOrphanKeys({}, value as LocaleTree, nextPath);
+            // English has no table here, so every leaf beneath it is orphaned. An
+            // empty table has no leaves to name, so the table itself is the orphan.
+            const orphanedLeaves = collectOrphanKeys({}, value as LocaleTree, nextPath);
+            return orphanedLeaves.length > 0 ? orphanedLeaves : [nextPath.join(".")];
         }
 
-        return referenceValue === undefined ? [nextPath.join(".")] : [];
+        return referenceHasKey ? [] : [nextPath.join(".")];
     });
 }
 
