@@ -1011,3 +1011,453 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ("help_list_categories", "List all tool categories with tool counts", "Help"),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    /// This module's own source. The router is built from closures capturing an
+    /// `Arc<McpContext>`, which owns a `tauri::AppHandle`, so building a real router in a unit
+    /// test would mean standing up a mock Tauri application just to read a list of names. The
+    /// registrations are plain, regular source text, so they are read from there instead.
+    ///
+    /// The hazard with any textual check is that it quietly stops matching and passes on an empty
+    /// parse. `router_registrations_are_all_recognised` exists to make that impossible.
+    ///
+    /// This parser goes away when the router can report its registered names without a constructed
+    /// `McpContext` — that is, without a `tauri::AppHandle`.
+    const FULL_SOURCE: &str = include_str!("tools.rs");
+
+    /// Everything above this test module.
+    ///
+    /// Necessary because the tests below quote the very patterns they count: the first draft
+    /// counted ten route registrations where the router has six, having matched its own comments.
+    /// Anything after the module marker is this test's text, not a registration.
+    fn source() -> &'static str {
+        // Split on the *last* such marker, and name `mod tests {` in it: a `#[cfg(test)]` helper
+        // added higher up the file would otherwise cut production code short, and every check
+        // below would start reporting on registrations it never read.
+        FULL_SOURCE
+            .rsplit_once("\n#[cfg(test)]\nmod tests {")
+            .map(|(production_code, _)| production_code)
+            .expect("this test module is introduced by `#[cfg(test)] mod tests {`")
+    }
+
+    /// The macros every bulk registration goes through.
+    const REGISTRATION_MACROS: &[&str] = &["real_tool!(", "id_tool!(", "custom_tool!("];
+
+    /// Route registrations that live inside a `macro_rules!` definition rather than being a
+    /// registration in their own right — one per macro above.
+    const REGISTRATIONS_INSIDE_MACRO_DEFINITIONS: usize = REGISTRATION_MACROS.len();
+
+    fn first_string_literal(line: &str) -> Option<&str> {
+        let after_quote = line.find('"')? + 1;
+        let rest = &line[after_quote..];
+        let closing = rest.find('"')?;
+        Some(&rest[..closing])
+    }
+
+    fn is_macro_invocation(line: &str) -> bool {
+        REGISTRATION_MACROS
+            .iter()
+            .any(|macro_name| line.starts_with(macro_name))
+    }
+
+    /// The first string literal at or after `start`, searching at most a few lines.
+    ///
+    /// The bound matters: without it a registration whose name went missing would silently adopt
+    /// the next literal anywhere below it, which is how a text parser turns a real defect into a
+    /// plausible wrong answer. Nothing in this file puts more than three lines between a
+    /// registration and its name.
+    fn literal_at_or_after(lines: &[&str], start: usize) -> Option<String> {
+        const LOOKAHEAD: usize = 3;
+
+        lines
+            .iter()
+            .skip(start)
+            .take(LOOKAHEAD + 1)
+            .find_map(|line| first_string_literal(line))
+            .map(String::from)
+    }
+
+    /// Tools registered through one of the registration macros, in registration order.
+    ///
+    /// The name is taken from the invocation line *or the lines just below it*. Requiring it on
+    /// the invocation line looks simpler and is a trap: `rustfmt` splits
+    /// `real_tool!("name", "desc", path);` across four lines, and it does so for 82 of the 86
+    /// invocations in this file. A same-line parser therefore loses 82 names the moment the
+    /// pending repo-wide format sweep lands — every check here fails at once, for no defect.
+    fn macro_registered_names_in(source: &str) -> Vec<String> {
+        let lines: Vec<&str> = source.lines().map(str::trim).collect();
+
+        lines
+            .iter()
+            .enumerate()
+            .filter(|(_, line)| is_macro_invocation(line))
+            .filter_map(|(index, _)| literal_at_or_after(&lines, index))
+            .collect()
+    }
+
+    fn macro_registered_names() -> Vec<String> {
+        macro_registered_names_in(source())
+    }
+
+    fn macro_invocation_line_count() -> usize {
+        source()
+            .lines()
+            .map(str::trim)
+            .filter(|line| is_macro_invocation(line))
+            .count()
+    }
+
+    /// The name each hand-rolled block *guards* on, paired with the name it actually *registers*.
+    ///
+    /// These are two independent spellings of the same tool — `if !disabled.contains(&"ping")`
+    /// and `simple_tool("ping", …)` — and only the second one reaches an agent. Reading just the
+    /// guard, as this module first did, means a block whose two spellings disagree passes every
+    /// check while the router serves a name the catalog has never heard of.
+    ///
+    /// Inside the macro definitions the same guard reads `$name`, so it does not match here.
+    /// The literal opening a hand-rolled registration's disable guard.
+    const GUARD: &str = "if !disabled.contains(&\"";
+
+    /// The name a hand-rolled block registers, read from the `Tool` beneath its guard at `start`.
+    ///
+    /// Bounded to the guard's own block — guard, an optional `let ctx = …`,
+    /// `router.add_route(ToolRoute::new_dyn(`, then the name. Searching further would let a guard
+    /// that wraps no registration pair up with the *next* block's tool, reporting a mismatch
+    /// against a block that is perfectly correct while the recognition count stays balanced.
+    fn registered_name_below(lines: &[&str], start: usize) -> Option<String> {
+        const BLOCK: usize = 4;
+        const REGISTRARS: &[&str] = &["simple_tool(", "Tool::new("];
+
+        lines
+            .iter()
+            .enumerate()
+            .skip(start)
+            .take(BLOCK + 1)
+            .find(|(_, below)| REGISTRARS.iter().any(|start| below.starts_with(start)))
+            .and_then(|(at, _)| literal_at_or_after(lines, at))
+    }
+
+    fn hand_rolled_guard_and_registered_names_in(source: &str) -> Vec<(String, Option<String>)> {
+        let lines: Vec<&str> = source.lines().map(str::trim).collect();
+
+        lines
+            .iter()
+            .enumerate()
+            .filter(|(_, line)| line.starts_with(GUARD))
+            .filter_map(|(index, line)| {
+                let guard = String::from(first_string_literal(line)?);
+                Some((guard, registered_name_below(&lines, index)))
+            })
+            .collect()
+    }
+
+    /// Every routed name, in the order `build_tool_router` registers them, including repeats.
+    ///
+    /// One pass over the source rather than "all macro registrations, then all hand-rolled ones":
+    /// the router interleaves the two forms, so concatenating them produces a plausible list in
+    /// the wrong order. Nothing asserts on position today — `no_tool_is_routed_twice` reports
+    /// which names repeat, not which registration won — but a list that claims an order it does
+    /// not have is a trap for whatever asks next.
+    fn routed_names_in_order_of(source: &str) -> Vec<String> {
+        let lines: Vec<&str> = source.lines().map(str::trim).collect();
+
+        lines
+            .iter()
+            .enumerate()
+            .filter_map(|(index, line)| {
+                if is_macro_invocation(line) {
+                    literal_at_or_after(&lines, index)
+                } else if line.starts_with(GUARD) {
+                    registered_name_below(&lines, index)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Tools registered by hand rather than through a macro, named as the router names them.
+    ///
+    /// A guard whose registration could not be read is dropped here rather than guessed at, which
+    /// makes `router_registrations_are_all_recognised` fall out of balance and say so.
+    fn hand_rolled_names() -> Vec<String> {
+        hand_rolled_guard_and_registered_names_in(source())
+            .into_iter()
+            .filter_map(|(_, registered)| registered)
+            .collect()
+    }
+
+    /// `routed_names` collapses these into a set, which is what the catalog comparisons need but
+    /// is also exactly what hides a name registered twice.
+    fn routed_names_in_order() -> Vec<String> {
+        routed_names_in_order_of(source())
+    }
+
+    fn routed_names() -> BTreeSet<String> {
+        routed_names_in_order().into_iter().collect()
+    }
+
+    fn catalogued_names() -> BTreeSet<String> {
+        tool_catalog()
+            .into_iter()
+            .map(|(name, _, _)| String::from(name))
+            .collect()
+    }
+
+    /// Guards every other test in this module against parsing nothing and passing anyway.
+    ///
+    /// A registration written in a style the parser does not recognise still adds a route, so
+    /// pinning those two counts against each other turns an unrecognised style into a loud
+    /// failure rather than a silently uncounted tool.
+    #[test]
+    fn router_registrations_are_all_recognised() {
+        let registrations = source().matches("add_route(").count();
+        let hand_rolled = hand_rolled_names().len();
+
+        assert_eq!(
+            registrations,
+            REGISTRATIONS_INSIDE_MACRO_DEFINITIONS + hand_rolled,
+            "found {registrations} route registrations but recognised {hand_rolled} hand-rolled \
+             ones plus {REGISTRATIONS_INSIDE_MACRO_DEFINITIONS} inside macro definitions. A tool \
+             was registered in a style this test cannot see — teach it the new style rather than \
+             deleting the assertion, or the catalog checks below start passing for tools they \
+             never examined.",
+        );
+
+        assert_eq!(
+            macro_registered_names().len(),
+            macro_invocation_line_count(),
+            "a registration macro was invoked without a tool name in the three lines below it, so \
+             its name could not be extracted",
+        );
+    }
+
+    /// The other half of the recognition guard: every *textual* use of a registration macro has
+    /// to be one this parser counted.
+    ///
+    /// `is_macro_invocation` asks whether the trimmed line *starts with* the macro name, so
+    /// anything sharing that line — `#[cfg(feature = "x")] real_tool!("secret", …)` — is invisible
+    /// and its tool would be routed without ever being compared against the catalog. Counting
+    /// occurrences instead of trusting the line shape turns that into a failure.
+    #[test]
+    fn every_macro_invocation_is_recognised() {
+        let occurrences: usize = REGISTRATION_MACROS
+            .iter()
+            .map(|macro_name| source().matches(macro_name).count())
+            .sum();
+
+        assert_eq!(
+            occurrences,
+            macro_invocation_line_count(),
+            "found {occurrences} uses of a registration macro but only \
+             {} of them begin a line. One is written in a shape this parser skips — most likely \
+             an attribute or another statement sharing the line — so its tool is routed without \
+             ever being checked against the catalog.",
+            macro_invocation_line_count(),
+        );
+    }
+
+    /// A hand-rolled tool spells its name twice: once in the disable guard and once in the `Tool`
+    /// handed to `add_route`. Only the second reaches an agent, and nothing makes them agree.
+    ///
+    /// This is the gap that made the rest of this module honest-looking rather than honest: the
+    /// checks below all read the guard, so renaming only the registered tool left every one of
+    /// them green while `help_find_tool` advertised a name the router no longer served.
+    #[test]
+    fn hand_rolled_guards_match_the_names_they_register() {
+        let pairs = hand_rolled_guard_and_registered_names_in(source());
+
+        let unreadable: Vec<&String> = pairs
+            .iter()
+            .filter(|(_, registered)| registered.is_none())
+            .map(|(guard, _)| guard)
+            .collect();
+
+        assert!(
+            unreadable.is_empty(),
+            "no `simple_tool(\"…\")` or `Tool::new(\"…\")` found beneath these disable guards: \
+             {unreadable:?}. Either the guard wraps no registration, or the registration is \
+             written in a shape this parser cannot read — in which case its tool is routed \
+             without ever being compared against the catalog.",
+        );
+
+        let disagreements: Vec<(&String, &String)> = pairs
+            .iter()
+            .filter_map(|(guard, registered)| Some((guard, registered.as_ref()?)))
+            .filter(|(guard, registered)| guard != registered)
+            .collect();
+
+        assert!(
+            disagreements.is_empty(),
+            "these hand-rolled tools guard on one name and register another (guard, registered): \
+             {disagreements:?}. Agents call the registered name; the disable list and this test \
+             read the guard. Make them the same literal.",
+        );
+    }
+
+    /// A hand-rolled block with only one route in it, so the fixtures below stay readable.
+    fn hand_rolled_block(guard: &str, registered: &str) -> String {
+        format!(
+            "if !disabled.contains(&\"{guard}\".to_string()) {{\n    \
+             router.add_route(ToolRoute::new_dyn(\n        \
+             simple_tool(\"{registered}\", \"desc\"),\n    ));\n}}\n"
+        )
+    }
+
+    /// Proves the guard/registration comparison actually bites. Without it the assertion above
+    /// would pass just as happily against a parser that compared a name with itself.
+    #[test]
+    fn a_guard_that_disagrees_with_its_registration_is_caught() {
+        let agreeing = hand_rolled_block("ping", "ping");
+        let disagreeing = hand_rolled_block("ping", "pong");
+
+        assert_eq!(
+            hand_rolled_guard_and_registered_names_in(&agreeing),
+            vec![(String::from("ping"), Some(String::from("ping")))],
+        );
+        assert_eq!(
+            hand_rolled_guard_and_registered_names_in(&disagreeing),
+            vec![(String::from("ping"), Some(String::from("pong")))],
+            "the parser must report the registered name, not the guard name twice",
+        );
+    }
+
+    /// A guard that wraps no registration must come back empty-handed rather than adopting the
+    /// next block's tool.
+    ///
+    /// Searching the whole remaining file for a `Tool` looks harmless and is not: a stray guard
+    /// then pairs with a registration far below it, and the mismatch is reported against a block
+    /// that is perfectly correct. It also lets the recognition count stay balanced — one
+    /// unreadable registration cancelling one stray guard — which is precisely the arithmetic
+    /// that check exists to prevent.
+    #[test]
+    fn a_guard_with_no_registration_beneath_it_pairs_with_nothing() {
+        let stray = format!(
+            "if !disabled.contains(&\"stray\".to_string()) {{\n    tidy_up();\n}}\n\n{}",
+            hand_rolled_block("ping", "ping"),
+        );
+
+        assert_eq!(
+            hand_rolled_guard_and_registered_names_in(&stray),
+            vec![
+                (String::from("stray"), None),
+                (String::from("ping"), Some(String::from("ping"))),
+            ],
+        );
+    }
+
+    /// The two registration forms are interleaved in `build_tool_router`, so the ordered list has
+    /// to be read in one pass rather than assembled form by form.
+    #[test]
+    fn routed_names_follow_the_order_the_router_registers_them() {
+        let source = format!(
+            "real_tool!(\"first\", \"desc\", path);\n{}real_tool!(\"third\", \"desc\", path);\n",
+            hand_rolled_block("second", "second"),
+        );
+
+        assert_eq!(
+            routed_names_in_order_of(&source),
+            vec!["first", "second", "third"],
+            "a macro registration between two hand-rolled ones must keep its place",
+        );
+    }
+
+    /// Proves the name extraction survives `rustfmt`.
+    ///
+    /// The second fixture is the exact shape the formatter produces, and it is not hypothetical:
+    /// running `rustfmt` over this file today reflows 82 of its 86 invocations into it. Before
+    /// this test existed the parser read only the invocation line and would have found nothing
+    /// there.
+    #[test]
+    fn a_registration_split_across_lines_is_still_read() {
+        let same_line = "real_tool!(\"game_status\", \"desc\", tools_impl::info::game_status);\n";
+        let reflowed = "real_tool!(\n    \"game_status\",\n    \"desc\",\n    \
+                        tools_impl::info::game_status\n);\n";
+
+        assert_eq!(macro_registered_names_in(same_line), vec!["game_status"]);
+        assert_eq!(
+            macro_registered_names_in(reflowed),
+            vec!["game_status"],
+            "rustfmt splits long registrations across lines; a same-line parser loses the name",
+        );
+    }
+
+    /// `ToolRouter::add_route` stores routes with `HashMap::insert` (rmcp 1.7,
+    /// `handler/server/router/tool.rs`), so registering a name twice does not fail — the second
+    /// registration silently replaces the first handler, and the tool starts answering with
+    /// another tool's implementation.
+    ///
+    /// Nothing else here can see that. The set comparisons below dedupe, and the recognition
+    /// count rises consistently because both the invocation count and the extracted-name count go
+    /// up together.
+    #[test]
+    fn no_tool_is_routed_twice() {
+        let mut seen = BTreeSet::new();
+        let duplicates: Vec<String> = routed_names_in_order()
+            .into_iter()
+            .filter(|name| !seen.insert(name.clone()))
+            .collect();
+
+        assert!(
+            duplicates.is_empty(),
+            "these tools are registered more than once: {duplicates:?}. The router keeps the last \
+             registration, so the earlier handler is unreachable and the tool answers as whatever \
+             was registered after it.",
+        );
+    }
+
+    /// `help_find_tool` searches only the catalog, so a routed tool missing from it is callable
+    /// but undiscoverable. Until now this was prevented only by a ⚠️ in a comment.
+    #[test]
+    fn every_routed_tool_is_in_the_catalog() {
+        let catalogued = catalogued_names();
+        let missing: Vec<String> = routed_names()
+            .into_iter()
+            .filter(|name| !catalogued.contains(name))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "registered in build_tool_router() but absent from tool_catalog():\n\n  {missing:?}\n\n\
+             help_find_tool searches only the catalog, so an agent can never discover these. Add a \
+             (name, description, category) entry — see the checklist above tool_catalog().",
+        );
+    }
+
+    /// The reverse direction, which is worse: a catalogued tool with no route is advertised to
+    /// agents and then fails when called.
+    #[test]
+    fn every_catalogued_tool_has_a_route() {
+        let routed = routed_names();
+        let missing: Vec<String> = catalogued_names()
+            .into_iter()
+            .filter(|name| !routed.contains(name))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "listed in tool_catalog() but never registered in build_tool_router():\n\n  \
+             {missing:?}\n\n\
+             Agents will find these via help_find_tool and get an unknown-tool error on call.",
+        );
+    }
+
+    #[test]
+    fn the_catalog_has_no_duplicate_entries() {
+        let catalog = tool_catalog();
+        let unique: BTreeSet<&str> = catalog.iter().map(|(name, _, _)| *name).collect();
+
+        assert_eq!(
+            catalog.len(),
+            unique.len(),
+            "tool_catalog() lists {} entries but only {} distinct names; a duplicate makes \
+             help_find_tool report the same tool twice",
+            catalog.len(),
+            unique.len(),
+        );
+    }
+}
