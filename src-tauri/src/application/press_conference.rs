@@ -12,12 +12,19 @@
 
 use ofm_core::game::Game;
 
-/// The match a press conference held today is about: the most recent completed fixture involving
-/// the team, across every competition it plays in.
+/// The match a press conference held today is about: the most recent fixture that has a result,
+/// involving the team, across every competition it plays in.
 ///
 /// Reading `game.league` instead would silently report the last *league* match after a cup tie:
 /// that field mirrors one competition, and `Game` says so itself — "the legacy `league` mirror
 /// misses cups and isn't reliable" (`game.rs`).
+///
+/// The filter is the result, not `FixtureStatus::Completed`, and deliberately so. A fixture
+/// carrying a `MatchResult` has by definition been played, whereas the status is a workflow marker
+/// that `league_repo::parse_fixture_status` defaults to `Scheduled` for any value it does not
+/// recognise — so a status filter could hide a match that really was played. The two cannot
+/// disagree in practice anyway: every write of `result` sets the status first (`turn/post_match.rs`,
+/// `catchup.rs`), and `InProgress` is never assigned outside tests.
 ///
 /// Returns `(home_team_id, away_team_id, home_goals, away_goals)`, owned so the caller can go on to
 /// borrow `game` mutably.
