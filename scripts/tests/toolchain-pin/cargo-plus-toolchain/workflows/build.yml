@@ -1,0 +1,9 @@
+name: build
+on: [workflow_dispatch]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - run: cargo +nightly test --workspace

@@ -1,0 +1,9 @@
+name: docs
+on: [workflow_dispatch]
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The docs job deliberately does not run cargo test; the backend job does.
+      - run: npm run build

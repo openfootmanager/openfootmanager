@@ -1,0 +1,9 @@
+name: smoke
+on: [workflow_dispatch]
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx tauri build --debug --no-bundle --ci
