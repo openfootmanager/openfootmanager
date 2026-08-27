@@ -25,6 +25,27 @@
 //! the nine dials one-sidedly (`ai_tactics` documents which, and what the
 //! sweep measured). The blueprints ration those dials rather than budget them,
 //! and this probe is what says whether rationing was enough.
+//!
+//! # It measures identity as *played*, not as designed
+//!
+//! Every match here goes through `turn::process_day`, so the weekly tactical
+//! review runs inside the probe. The squad caps never fire — attributes are flat
+//! at 70, above both — but form shading does, so a club on a bad run changes
+//! something and the number includes that. That is the right thing to measure,
+//! since it is what ships; it is the wrong thing to compare against a reading
+//! taken before the review existed. Numbers from different sides of that line
+//! are not the same measurement:
+//!
+//! | | spread, best to worst |
+//! |---|---|
+//! | blueprints alone, before the engine charged for the free dials | 6.3 |
+//! | blueprints alone, after it did | 3.7 |
+//! | blueprints plus the weekly review | 4.8 |
+//!
+//! The last step is about one standard error on the difference of the two
+//! extremes, so it is not evidence that adapting costs balance — and the order
+//! is unchanged, Counter still highest and Attacking still lowest. Unifying the
+//! match paths re-prices every blueprint and this gets re-run then anyway.
 
 use chrono::{TimeZone, Utc};
 use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
