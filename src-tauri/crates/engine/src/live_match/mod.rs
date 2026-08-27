@@ -1,4 +1,5 @@
 mod helpers;
+mod observation;
 mod penalty;
 mod simulation;
 mod snapshot;
@@ -8,6 +9,8 @@ mod zone_resolution;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
+
+pub(crate) use observation::AiObservation;
 
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
@@ -408,15 +411,6 @@ impl LiveMatchState {
     /// Current minute
     pub fn minute(&self) -> u8 {
         self.current_minute
-    }
-
-    /// Rolling window of the last ≤10 ball_zone values (oldest first).
-    ///
-    /// Crate-private and iterator-shaped: only the AI reads this, and only to
-    /// count zones. Handing out the `VecDeque` published a container choice
-    /// that nothing outside the engine has any business depending on.
-    pub(crate) fn recent_zones(&self) -> impl Iterator<Item = Zone> + '_ {
-        self.recent_zones.iter().copied()
     }
 
     /// Get the bench for a side
