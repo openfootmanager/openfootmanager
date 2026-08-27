@@ -2807,7 +2807,6 @@
     "source": {
       "sportsGazette": "Gazeta Esportiva",
       "footballHerald": "O Arauto do Futebol",
-      "playersUnder21": "{{count}} jogadores na base",
       "matchDayPress": "Imprensa do Jogo",
       "leagueChronicle": "Crônica da Liga",
       "leagueWire": "Notícias da Liga",
@@ -2822,7 +2821,6 @@
         "exportedDescription": "Mundo com {{teamCount}} times exportado de um jogo salvo"
       },
       "welcome": {
-        "noYouthPlayers": "Nenhum jogador está atualmente alocado à academia de base.",
         "subject0": "Bem-vindo ao {{team}}",
         "subject1": "Nova Era no {{team}}",
         "subject2": "{{team}} Aguarda Sua Liderança",
@@ -2832,8 +2830,6 @@
         "actionReview": "Revisar Elenco",
         "actionThank": "Agradecer à Diretoria"
       },
-      "delegateToYouthAcademy": "Enviar para a academia de base",
-      "promoteToSeniorSquad": "Promover ao elenco principal",
       "schedule": {
         "subject": "Calendário da Temporada Divulgado",
         "body0": "O calendário da {{league}} foi divulgado. A temporada começa em {{start}}.\n\nRevise a lista de jogos e certifique-se de que seu elenco está pronto para os desafios que vêm pela frente. A preparação de pré-temporada será crucial.",

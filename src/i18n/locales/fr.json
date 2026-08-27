@@ -2807,7 +2807,6 @@
     "source": {
       "sportsGazette": "Gazette Sportive",
       "footballHerald": "Le Héraut du Football",
-      "playersUnder21": "{{count}} joueurs du centre",
       "matchDayPress": "Presse du Match",
       "leagueChronicle": "Chronique de la Ligue",
       "leagueWire": "Fil de la Ligue",
@@ -2822,7 +2821,6 @@
         "exportedDescription": "Monde avec {{teamCount}} équipes exporté depuis une sauvegarde"
       },
       "welcome": {
-        "noYouthPlayers": "Aucun joueur n'est actuellement affecté au centre de formation.",
         "subject0": "Bienvenue à {{team}}",
         "subject1": "Nouvelle Ère à {{team}}",
         "subject2": "{{team}} Attend Votre Leadership",
@@ -2832,8 +2830,6 @@
         "actionReview": "Examiner l'Effectif",
         "actionThank": "Remercier le Conseil"
       },
-      "delegateToYouthAcademy": "Envoyer au centre de formation",
-      "promoteToSeniorSquad": "Promouvoir en équipe première",
       "schedule": {
         "subject": "Calendrier de la Saison Publié",
         "body0": "Le calendrier de la {{league}} a été publié. La saison commence le {{start}}.\n\nConsultez la liste des matchs et assurez-vous que votre effectif est prêt pour les défis à venir. La préparation de pré-saison sera cruciale.",
