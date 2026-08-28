@@ -157,7 +157,7 @@ Conventions:
   `.github/workflows/build-check.yml`; keep your diff to code you actually touched.)
 - User-facing text is a **translation key**, never English prose. The frontend resolves keys via
   `src/utils/backendI18n.ts`; `scripts/audit-i18n.mjs` scans `src-tauri/` for literals that
-  escaped. Adding a key means adding it to all 11 locale files — use `/add-ui-string`.
+  escaped. Adding a key means adding it to every locale file — use `/add-ui-string`.
 - Public API is a promise. Keep helpers private until a second caller exists.
 - Large files get split into a `mod.rs` shell plus submodules — `ofm_core/generator/`,
   `ofm_core/slices/`, and `ofm_core/turn/` show the shape. Before adding to a file already past

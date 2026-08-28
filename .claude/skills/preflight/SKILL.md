@@ -132,7 +132,7 @@ real gate was step 3.
       (`CONTRIBUTING.md` asks for this)
 - [ ] Commit message explains **why**, not just what
 - [ ] Tests added for new behaviour, written before the code
-- [ ] All 11 locales updated if any user-facing text changed
+- [ ] Every locale updated if any user-facing text changed
 - [ ] AI-assisted work disclosed in the PR description — this is a GPLv3 project and provenance
       matters
 

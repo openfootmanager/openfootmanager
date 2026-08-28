@@ -36,7 +36,7 @@ Closes #
 **If this changes user-facing text**
 
 - [ ] Added to `src/i18n/locales/en.json`
-- [ ] Translated into **all 10** other locales — `cs de es fr it pt pt-BR ru tr zh-CN`
+- [ ] Translated into **every** other locale — `cs de es fr id it pt pt-BR ru tr zh-CN`
 - [ ] `npx vitest run src/i18n` passes
 - [ ] Backend strings emit translation **keys**, not English prose
 

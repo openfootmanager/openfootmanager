@@ -61,7 +61,8 @@ Six rules. Each one has something that enforces it — if you break one, somethi
    module in the same file; frontend tests are co-located as `*.test.ts(x)`. A PR that adds
    behaviour without a test that would have caught its absence is incomplete.
 
-2. **Every user-facing string is translated into all 11 locales.** Not just `en.json`.
+2. **Every user-facing string is translated into every locale the game ships in.** Not just
+   `en.json`. The list is `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`; it grows.
    → use [`/add-ui-string`](.claude/skills/add-ui-string/SKILL.md).
    → enforced by `src/i18n/localeCoverage.test.ts` and `src/i18n/frontendKeyCoverage.test.ts`.
 
