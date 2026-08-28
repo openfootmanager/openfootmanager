@@ -37,6 +37,12 @@ export interface PitchTokenProps {
   };
   /** Plain "#N" fallback shown when no kit `jersey` is available. */
   jerseyNumber?: number | null;
+  /**
+   * When true, skips the face avatar and kit jersey graphics, replacing the
+   * avatar with a plain fit-tone ring. Used by the tactics board, where the
+   * portraits and kit colours added clutter without helping tactical setup.
+   */
+  hidePortrait?: boolean;
   /** Role markers stacked at the top-left (max 3 shown). */
   markers?: PitchTokenMarker[];
   /** Optional slot below the name — e.g. a tactical-role combobox. */
@@ -89,6 +95,7 @@ export function PitchToken({
   avatar,
   jersey,
   jerseyNumber,
+  hidePortrait = false,
   markers,
   children,
 }: PitchTokenProps) {
@@ -113,10 +120,14 @@ export function PitchToken({
             {positionAbbr}
           </span>
         </div>
-        <PlayerAvatar
-          player={avatar ?? { full_name: name, match_name: name }}
-          className={`h-11 w-11 overflow-hidden rounded-full ${fitRingClass(fitTone)}`}
-        />
+        {hidePortrait ? (
+          <div className={`h-11 w-11 rounded-full bg-gray-800/60 ${fitRingClass(fitTone)}`} />
+        ) : (
+          <PlayerAvatar
+            player={avatar ?? { full_name: name, match_name: name }}
+            className={`h-11 w-11 overflow-hidden rounded-full ${fitRingClass(fitTone)}`}
+          />
+        )}
         <div className="absolute -bottom-1 -right-1.5 z-10">
           <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-heading font-bold leading-4 text-white ring-1 ring-white/30">
             {ovr}
@@ -124,19 +135,20 @@ export function PitchToken({
         </div>
       </div>
 
-      {jersey ? (
-        <JerseyIcon
-          size="md"
-          primaryColor={jersey.primaryColor}
-          secondaryColor={jersey.secondaryColor}
-          pattern={jersey.pattern}
-          number={jersey.number}
-        />
-      ) : jerseyNumber != null ? (
-        <span className="text-[10px] font-heading font-bold text-white/80">
-          #{jerseyNumber}
-        </span>
-      ) : null}
+      {!hidePortrait &&
+        (jersey ? (
+          <JerseyIcon
+            size="md"
+            primaryColor={jersey.primaryColor}
+            secondaryColor={jersey.secondaryColor}
+            pattern={jersey.pattern}
+            number={jersey.number}
+          />
+        ) : jerseyNumber != null ? (
+          <span className="text-[10px] font-heading font-bold text-white/80">
+            #{jerseyNumber}
+          </span>
+        ) : null)}
 
       <div className="max-w-full truncate text-xs font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
         {name}
