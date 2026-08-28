@@ -10,12 +10,16 @@ use domain::league::{
 /// Competitions that are the *primary* `PositionRange` target of an incoming
 /// berth are excluded from the linear adjacent-tier swap — both as a source
 /// and as a destination — so a berth-fed Central League is not poisoned by
-/// auto P/R. Consecutive leagues that share a `PositionRange` target are
-/// also split so sibling regional groups are not chained into each other.
+/// auto P/R. Leagues that share such a target are sibling regional groups and
+/// leave the ladder as a set, so none of them is left swapping with the tier
+/// below by accident of declaration order. A tier below a sibling group
+/// therefore has no automatic promotion path; it needs berths of its own.
+/// A league that is the *sole* `PositionRange` feeder into a target keeps its
+/// ladder edge — that is an ordinary two-tier pyramid written as data.
 /// `CupWinner`, `PlayoffWinner`, and `fallback_to` targets stay
 /// in the ladder (play-offs are Phase C.3b; fallbacks are continental).
 pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
-    use std::collections::{BTreeMap, HashSet};
+    use std::collections::{BTreeMap, HashMap, HashSet};
 
     let berth_targets: HashSet<&str> = competitions
         .iter()
@@ -24,12 +28,43 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         .map(|berth| berth.target.as_str())
         .collect();
 
+    // Leagues sharing a PositionRange target are sibling regional groups. They
+    // exchange clubs with that target through berths, so the whole set leaves
+    // the ladder together: splitting it pair by pair would leave whichever
+    // group sorts last still chained to the tier below, making the outcome
+    // depend on declaration order.
+    let mut feeders_by_target: HashMap<&str, Vec<&str>> = HashMap::new();
+    for competition in competitions.iter() {
+        if competition.rules.format != CompetitionFormat::LeagueTable {
+            continue;
+        }
+        let targets: HashSet<&str> = competition
+            .berths
+            .iter()
+            .filter(|berth| matches!(berth.rule, BerthRule::PositionRange { .. }))
+            .map(|berth| berth.target.as_str())
+            .collect();
+        for target in targets {
+            feeders_by_target
+                .entry(target)
+                .or_default()
+                .push(competition.id.as_str());
+        }
+    }
+    let sibling_feeders: HashSet<&str> = feeders_by_target
+        .into_values()
+        .filter(|feeders| feeders.len() > 1)
+        .flatten()
+        .collect();
+
     let mut tiers_by_country: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (index, competition) in competitions.iter().enumerate() {
         if competition.rules.format != CompetitionFormat::LeagueTable {
             continue;
         }
-        if berth_targets.contains(competition.id.as_str()) {
+        if berth_targets.contains(competition.id.as_str())
+            || sibling_feeders.contains(competition.id.as_str())
+        {
             continue;
         }
         if !super::is_league_season_ended(competition) {
@@ -48,41 +83,8 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
             continue;
         }
         indices.sort_by_key(|&index| competitions[index].priority);
-
-        // Split the country ladder wherever two consecutive leagues both send
-        // PositionRange berths to the same target — sibling regional groups
-        // must not linearly swap with each other.
-        let mut chain_start = 0;
-        for split_at in 1..indices.len() {
-            if share_position_range_target(
-                &competitions[indices[split_at - 1]],
-                &competitions[indices[split_at]],
-            ) {
-                apply_linear_chain(competitions, &indices[chain_start..split_at]);
-                chain_start = split_at;
-            }
-        }
-        apply_linear_chain(competitions, &indices[chain_start..]);
+        apply_linear_chain(competitions, &indices);
     }
-}
-
-fn position_range_targets(league: &League) -> std::collections::HashSet<&str> {
-    league
-        .berths
-        .iter()
-        .filter(|berth| matches!(berth.rule, BerthRule::PositionRange { .. }))
-        .map(|berth| berth.target.as_str())
-        .collect()
-}
-
-fn share_position_range_target(left: &League, right: &League) -> bool {
-    let left_targets = position_range_targets(left);
-    if left_targets.is_empty() {
-        return false;
-    }
-    position_range_targets(right)
-        .iter()
-        .any(|target| left_targets.contains(target))
 }
 
 fn apply_linear_chain(competitions: &mut [League], indices: &[usize]) {
@@ -245,21 +247,36 @@ pub fn berth_qualified_entrants(game: &Game, target: &League) -> Vec<String> {
     seed_cap_and_fill(game, target, qualified, seen)
 }
 
-/// Resolve every berth-fed field whose target matches `scope_match`, honouring
-/// cross-target exclusivity and the `fallbackTo` cascade: a club ends in the
-/// single most prestigious matching target (lowest priority) it earns, and a
-/// berth's `fallbackTo` is a lower-preference target used when the club
-/// doesn't earn the primary. Each field is emitted in evaluation order
+struct BerthFieldOptions<S, E> {
+    /// Which competitions may receive a field.
+    scope_match: S,
+    /// Which of a source's berths award places on this path.
+    berth_eligible: E,
+    /// Seed by reputation, cap to the field size, and top up a thin field.
+    fill: bool,
+    /// Whether a berth's `fallbackTo` also offers the club a place. Continental
+    /// qualification cascades this way; domestic promotion does not, because a
+    /// club that misses its target simply stays in its own league.
+    follow_fallback: bool,
+}
+
+/// Resolve every berth-fed field whose target matches `options.scope_match`,
+/// honouring cross-target exclusivity: a club ends in the single most
+/// prestigious matching target (lowest priority) it earns. When
+/// `options.follow_fallback` is set, a berth's `fallbackTo` offers the club a
+/// further target on the same terms. Each field is emitted in evaluation order
 /// (source list, then that source's berths, then standings) so an
 /// oversubscribed domestic cap keeps a stable prefix rather than HashMap
 /// iteration. Returns `target_id -> field`; targets without incoming berths
 /// are absent.
-fn resolve_berth_fields(
+fn resolve_berth_fields<S, E>(
     game: &Game,
-    scope_match: impl Fn(&League) -> bool,
-    fill: bool,
-    berth_eligible: impl Fn(&League, &Berth) -> bool,
-) -> std::collections::HashMap<String, Vec<String>> {
+    options: BerthFieldOptions<S, E>,
+) -> std::collections::HashMap<String, Vec<String>>
+where
+    S: Fn(&League) -> bool,
+    E: Fn(&League, &Berth) -> bool,
+{
     use std::collections::{HashMap, HashSet};
 
     // Matching berth-fed targets, most prestigious (lowest priority) first.
@@ -267,7 +284,8 @@ fn resolve_berth_fields(
         .competitions
         .iter()
         .filter(|competition| {
-            scope_match(competition) && competition_has_incoming_berths(game, &competition.id)
+            (options.scope_match)(competition)
+                && competition_has_incoming_berths(game, &competition.id)
         })
         .collect();
     targets.sort_by(|a, b| a.priority.cmp(&b.priority).then_with(|| a.id.cmp(&b.id)));
@@ -276,8 +294,8 @@ fn resolve_berth_fields(
         .map(|c| (c.id.as_str(), c.priority))
         .collect();
 
-    // Each club keeps the most prestigious target any of its berths award it;
-    // a berth's primary target outranks its fallback for the same club.
+    // Each club keeps the most prestigious target any of its berths award it,
+    // whether it reached that target as a primary or as a fallback.
     let mut best: HashMap<String, (u32, String)> = HashMap::new();
     let mut consider = |club: &str, target: &str| {
         if let Some(&prio) = priority_of.get(target) {
@@ -291,12 +309,14 @@ fn resolve_berth_fields(
     };
     for source in &game.competitions {
         for berth in &source.berths {
-            if !berth_eligible(source, berth) {
+            if !(options.berth_eligible)(source, berth) {
                 continue;
             }
             for winner in evaluate_berth_rule(source, &berth.rule) {
                 consider(&winner, &berth.target);
-                if let Some(fallback) = &berth.fallback_to {
+                if options.follow_fallback
+                    && let Some(fallback) = &berth.fallback_to
+                {
                     consider(&winner, fallback);
                 }
             }
@@ -312,7 +332,7 @@ fn resolve_berth_fields(
     let mut emitted: HashSet<String> = HashSet::new();
     for source in &game.competitions {
         for berth in &source.berths {
-            if !berth_eligible(source, berth) {
+            if !(options.berth_eligible)(source, berth) {
                 continue;
             }
             for winner in evaluate_berth_rule(source, &berth.rule) {
@@ -329,7 +349,7 @@ fn resolve_berth_fields(
     let mut fields = HashMap::new();
     for target in &targets {
         let qualified = raw.remove(&target.id).unwrap_or_default();
-        let field = if fill {
+        let field = if options.fill {
             seed_cap_and_fill(game, target, qualified, all_placed.clone())
         } else {
             qualified
@@ -348,29 +368,37 @@ fn resolve_berth_fields(
 pub fn resolve_continental_fields(game: &Game) -> std::collections::HashMap<String, Vec<String>> {
     resolve_berth_fields(
         game,
-        |competition| competition.scope == CompetitionScope::Continental,
-        true,
-        |_, _| true,
+        BerthFieldOptions {
+            scope_match: |competition: &League| competition.scope == CompetitionScope::Continental,
+            berth_eligible: |_: &League, _: &Berth| true,
+            fill: true,
+            follow_fallback: true,
+        },
     )
 }
 
 /// Domestic league-table fields populated from sibling regional berths
 /// (e.g. several state leagues feeding one national "Central League").
-/// Same exclusivity / `fallbackTo` rules as the continental path; targets
-/// without incoming berths are absent.
+/// Same cross-target exclusivity as the continental path, but `fallbackTo` is
+/// not followed: a club that misses its primary target has nowhere to drop to
+/// domestically, so it stays in its own league. Targets without incoming
+/// berths are absent.
 pub(super) fn resolve_domestic_berth_fields(
     game: &Game,
 ) -> std::collections::HashMap<String, Vec<String>> {
     resolve_berth_fields(
         game,
-        |competition| {
-            competition.scope == CompetitionScope::Domestic
-                && competition.kind == CompetitionType::League
-        },
-        false,
-        |source, berth| {
-            source.rules.format == CompetitionFormat::LeagueTable
-                && matches!(berth.rule, BerthRule::PositionRange { .. })
+        BerthFieldOptions {
+            scope_match: |competition: &League| {
+                competition.scope == CompetitionScope::Domestic
+                    && competition.kind == CompetitionType::League
+            },
+            berth_eligible: |source: &League, berth: &Berth| {
+                source.rules.format == CompetitionFormat::LeagueTable
+                    && matches!(berth.rule, BerthRule::PositionRange { .. })
+            },
+            fill: false,
+            follow_fallback: false,
         },
     )
 }
@@ -411,14 +439,21 @@ fn domestic_position_range_promoted(
 /// its authored size — with any leftover shared round-robin, after each
 /// feeder drops the clubs it sent up.
 ///
+/// Both sides are read from the roster as it stands *now*, not from the frozen
+/// table: a place-getter only promotes while it is still registered with the
+/// feeder that awarded it, and only a club still in the target can be
+/// relegated out of it. The linear pass runs first and rewrites those rosters,
+/// so trusting the table alone would let a club the ladder already relegated
+/// be promoted as well and finish the rollover on two tables.
+///
 /// If the target or any contributing `LeagueTable` feeder is still mid-season
 /// (`is_league_season_ended` is false), the whole merge is skipped so a
 /// hemisphere-foreign rollover cannot promote from an unfinished table or
-/// duplicate a feeder's place-getters. Dropouts and entrants are capped to
-/// the target's authored `participant_ids` length so empty standings cannot
-/// grow the league. Oversubscribed berths keep the evaluation-order prefix
-/// (source list, then berth, then standings) and leave surplus place-getters
-/// in their feeder so they are not removed from both tables.
+/// duplicate a feeder's place-getters. Oversubscribed berths keep the
+/// evaluation-order prefix (source list, then berth, then standings) and leave
+/// surplus place-getters in their feeder so they are not removed from both
+/// tables. The final roster is capped to the target's authored length as a
+/// backstop.
 ///
 /// Leagues without incoming berths are left untouched. Must run after the
 /// linear pyramid pass (which handles feeder-vs-lower-tier edges) and before
@@ -454,69 +489,98 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             index != target_index
                 && source.rules.format == CompetitionFormat::LeagueTable
                 && source.berths.iter().any(|berth| {
-                    berth.target == target_id && matches!(berth.rule, BerthRule::PositionRange { .. })
+                    berth.target == target_id
+                        && matches!(berth.rule, BerthRule::PositionRange { .. })
                 })
                 && !super::is_league_season_ended(source)
         });
         if unfinished_feeder {
             continue;
         }
-        let already_in_target: HashSet<&str> = game.competitions[target_index]
-            .participant_ids
+
+        // Standings are a frozen record of a finished season, but the linear
+        // pyramid pass has already rewritten rosters. A finishing place only
+        // earns promotion while the club is still registered with the feeder
+        // that awarded it — otherwise a club the ladder relegated would also
+        // be promoted here and end the rollover on two tables.
+        let mut feeder_plans: Vec<(usize, HashSet<String>)> = game
+            .competitions
             .iter()
-            .map(String::as_str)
+            .enumerate()
+            .filter(|(index, _)| *index != target_index)
+            .filter_map(|(index, source)| {
+                let registered: HashSet<&str> =
+                    source.participant_ids.iter().map(String::as_str).collect();
+                let mut promoted = domestic_position_range_promoted(source, &target_id)?;
+                promoted.retain(|club| registered.contains(club.as_str()));
+                (!promoted.is_empty()).then_some((index, promoted))
+            })
             .collect();
-        let Some(mut entrants) = fields.get(&target_id).map(|field| {
-            field
+
+        let mut entrants: Vec<String> = {
+            let promotable: HashSet<&str> = feeder_plans
                 .iter()
-                .filter(|id| !already_in_target.contains(id.as_str()))
+                .flat_map(|(_, promoted)| promoted.iter().map(String::as_str))
+                .collect();
+            let already_in_target: HashSet<&str> = game.competitions[target_index]
+                .participant_ids
+                .iter()
+                .map(String::as_str)
+                .collect();
+            fields
+                .get(&target_id)
+                .into_iter()
+                .flatten()
+                .filter(|club| {
+                    promotable.contains(club.as_str()) && !already_in_target.contains(club.as_str())
+                })
                 .cloned()
-                .collect::<Vec<_>>()
-        }) else {
-            continue;
+                .collect()
         };
         if entrants.is_empty() {
             continue;
         }
         let incoming = entrants.len();
 
+        // Relegate from the roster as it stands now, worst finisher first. A
+        // club the ladder already moved out has no place left to release.
         let authored = game.competitions[target_index].participant_ids.len();
-        let standings = game.competitions[target_index].sorted_standings();
-        let drop_count = incoming.min(standings.len()).min(authored);
-        let drop_start = standings.len() - drop_count;
-        let dropouts: Vec<String> = standings[drop_start..]
-            .iter()
-            .map(|entry| entry.team_id.clone())
-            .collect();
+        let dropouts: Vec<String> = {
+            let target = &game.competitions[target_index];
+            let registered: HashSet<&str> =
+                target.participant_ids.iter().map(String::as_str).collect();
+            let mut eligible: Vec<String> = target
+                .sorted_standings()
+                .into_iter()
+                .map(|entry| entry.team_id)
+                .filter(|club| registered.contains(club.as_str()))
+                .collect();
+            let drop_count = incoming.min(eligible.len());
+            eligible.split_off(eligible.len() - drop_count)
+        };
         // Berths can award more clubs than the target releases. Only the
         // clubs that take a released place leave their feeder; surplus
         // stay put instead of vanishing from both tables.
-        entrants.truncate(drop_count);
+        entrants.truncate(dropouts.len());
         let placed: HashSet<String> = entrants.iter().cloned().collect();
-        let dropout_set: HashSet<&str> = dropouts.iter().map(String::as_str).collect();
-        let mut next_participants: Vec<String> = game.competitions[target_index]
-            .participant_ids
-            .iter()
-            .filter(|id| !dropout_set.contains(id.as_str()))
-            .cloned()
-            .collect();
+
+        let mut next_participants: Vec<String> = {
+            let dropout_set: HashSet<&str> = dropouts.iter().map(String::as_str).collect();
+            game.competitions[target_index]
+                .participant_ids
+                .iter()
+                .filter(|club| !dropout_set.contains(club.as_str()))
+                .cloned()
+                .collect()
+        };
         next_participants.extend(entrants);
-
-        let feeder_plans: Vec<(usize, HashSet<String>)> = game
-            .competitions
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| *index != target_index)
-            .filter_map(|(index, source)| {
-                domestic_position_range_promoted(source, &target_id).and_then(|mut promoted| {
-                    promoted.retain(|id| placed.contains(id));
-                    (!promoted.is_empty()).then_some((index, promoted))
-                })
-            })
-            .collect();
-
+        next_participants.truncate(authored);
         game.competitions[target_index].participant_ids = next_participants;
 
+        feeder_plans.retain_mut(|(_, promoted)| {
+            promoted.retain(|club| placed.contains(club));
+            !promoted.is_empty()
+        });
         if feeder_plans.is_empty() {
             continue;
         }
@@ -945,6 +1009,46 @@ mod tests {
     }
 
     #[test]
+    fn apply_pyramid_takes_every_sibling_feeder_off_the_ladder() {
+        // Three groups feed one Central League. Splitting the chain pair by
+        // pair leaves the last group attached to the tier below it, so which
+        // group swaps with `lower` would depend on competition order alone.
+        let mut competitions = vec![
+            division("lower", 2, "BR", &[("d1", 20), ("d2", 10)]),
+            division(
+                "central",
+                0,
+                "BR",
+                &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+            ),
+        ];
+        for (id, first, second) in [
+            ("north", "n1", "n2"),
+            ("south", "s1", "s2"),
+            ("east", "e1", "e2"),
+        ] {
+            let mut group = division(id, 1, "BR", &[(first, 20), (second, 10)]);
+            group.berths = vec![position_berth("central", 1, 1)];
+            competitions.push(group);
+        }
+        let before: Vec<(String, Vec<String>)> = competitions
+            .iter()
+            .map(|c| (c.id.clone(), c.participant_ids.clone()))
+            .collect();
+
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        for (competition, (id, expected)) in competitions.iter().zip(&before) {
+            assert_eq!(
+                &competition.participant_ids, expected,
+                "sibling feeders and their target stay off the linear ladder, whatever \
+                 order they are declared in: {id} became {:?}",
+                competition.participant_ids
+            );
+        }
+    }
+
+    #[test]
     fn apply_pyramid_still_swaps_when_top_flight_is_only_a_non_position_berth_target() {
         // CupWinner, PlayoffWinner, and fallback_to must not pull a league out
         // of the linear pyramid — only a primary PositionRange target does.
@@ -1201,6 +1305,56 @@ mod tests {
             north.intersection(&south).count(),
             0,
             "each dropout lands in exactly one feeder"
+        );
+    }
+
+    #[test]
+    fn domestic_promotion_ignores_a_fallback_target() {
+        // `fallbackTo` is a continental cascade. A club that misses its
+        // primary target has nowhere to drop to domestically — it stays put.
+        // Following the fallback here would add it to the fallback league
+        // while the feeder-removal path, which only matches a direct target,
+        // left it where it was.
+        let eng = division(
+            "eng-1",
+            0,
+            "ENG",
+            &[("t1", 40), ("t2", 30), ("t3", 20), ("t4", 10)],
+        );
+        let mut wales = division("wal-1", 0, "WAL", &[("w1", 20), ("w2", 10)]);
+        wales.berths = vec![Berth {
+            target: "missing-continental".to_string(),
+            rule: BerthRule::PositionRange { from: 1, to: 1 },
+            fallback_to: Some("eng-1".to_string()),
+        }];
+        let mut game = empty_game();
+        game.competitions = vec![eng, wales];
+
+        let fields = resolve_domestic_berth_fields(&game);
+        assert!(
+            !fields
+                .get("eng-1")
+                .is_some_and(|field| field.contains(&"w1".to_string())),
+            "a domestic fallback must not award a place: {fields:?}"
+        );
+
+        apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+        let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+        assert_eq!(
+            by_id("wal-1").participant_ids,
+            vec!["w1".to_string(), "w2".to_string()],
+            "the club stays in its own league"
+        );
+        assert_eq!(
+            by_id("eng-1").participant_ids,
+            vec![
+                "t1".to_string(),
+                "t2".to_string(),
+                "t3".to_string(),
+                "t4".to_string()
+            ],
+            "the fallback league neither gains a club nor releases a place"
         );
     }
 
@@ -1486,6 +1640,79 @@ mod tests {
     }
 
     #[test]
+    fn apply_domestic_berth_does_not_promote_a_club_the_ladder_already_relegated() {
+        // A feeder that both sends clubs up and swaps with the tier below is
+        // handled by both passes in one rollover. The linear pass relegates
+        // `m2` into `low`; the berth merge must not then promote it into
+        // `central` off the frozen table, or `m2` plays in two leagues.
+        let central = division(
+            "central",
+            0,
+            "BR",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        let mut mid = division("mid", 1, "BR", &[("m1", 20), ("m2", 10)]);
+        mid.berths = vec![position_berth("central", 1, 2)];
+        let low = division("low", 2, "BR", &[("l1", 20), ("l2", 10)]);
+
+        let mut game = empty_game();
+        game.competitions = vec![central, mid, low];
+
+        let fields = resolve_domestic_berth_fields(&game);
+        apply_pyramid_promotion_relegation(&mut game.competitions);
+        apply_domestic_berth_promotion_relegation(&mut game, &fields);
+
+        let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+        let roster = |id: &str| -> HashSet<&str> {
+            by_id(id)
+                .participant_ids
+                .iter()
+                .map(String::as_str)
+                .collect()
+        };
+
+        assert_eq!(
+            by_id("central").participant_ids.len(),
+            4,
+            "central keeps its authored size: {:?}",
+            by_id("central").participant_ids
+        );
+        assert_eq!(
+            by_id("mid").participant_ids.len(),
+            2,
+            "mid keeps its authored size: {:?}",
+            by_id("mid").participant_ids
+        );
+        assert_eq!(
+            by_id("low").participant_ids.len(),
+            2,
+            "low keeps its authored size: {:?}",
+            by_id("low").participant_ids
+        );
+
+        let (central_ids, mid_ids, low_ids) = (roster("central"), roster("mid"), roster("low"));
+        assert!(
+            central_ids.is_disjoint(&mid_ids)
+                && central_ids.is_disjoint(&low_ids)
+                && mid_ids.is_disjoint(&low_ids),
+            "no club may sit on two tables: central {:?} mid {:?} low {:?}",
+            by_id("central").participant_ids,
+            by_id("mid").participant_ids,
+            by_id("low").participant_ids
+        );
+        assert!(
+            low_ids.contains("m2"),
+            "the ladder's relegation stands: {:?}",
+            by_id("low").participant_ids
+        );
+        assert!(
+            central_ids.contains("m1"),
+            "the place-getter still in its feeder is promoted: {:?}",
+            by_id("central").participant_ids
+        );
+    }
+
+    #[test]
     fn apply_domestic_berth_skips_when_target_or_feeder_is_unfinished() {
         // Linear P/R already leaves mid-season tables alone. The berth merge
         // must do the same for the whole target — skipping only an unfinished
@@ -1532,12 +1759,7 @@ mod tests {
             ..Default::default()
         };
         let mut game = two_region_central_pyramid();
-        let mut playoff = division(
-            "playoff",
-            2,
-            "BR",
-            &[("p1", 20), ("p2", 10)],
-        );
+        let mut playoff = division("playoff", 2, "BR", &[("p1", 20), ("p2", 10)]);
         playoff.berths = vec![Berth {
             target: "central".to_string(),
             rule: BerthRule::PlayoffWinner { from: 1, to: 2 },
