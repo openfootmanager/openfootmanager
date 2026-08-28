@@ -5,8 +5,8 @@
 #
 # CI runs `licenses`, `bans` and `sources` on every pull request. `advisories` is
 # deliberately NOT in that set: a newly published RUSTSEC advisory would otherwise turn
-# every unrelated PR red overnight, for a dependency fact nobody in the PR chose. It
-# belongs on a schedule instead — see the note at the bottom of this file.
+# every unrelated PR red overnight, for a dependency fact nobody in the PR chose. It runs
+# weekly instead, from `.github/workflows/dependency-advisories.yml`.
 
 [graph]
 # ⚠ This file does not by itself decide which crates get checked. Run cargo-deny the way CI
@@ -88,8 +88,29 @@ unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 
 [advisories]
-# Not run on pull requests; see the header. Once a scheduled workflow exists, it runs
-# `cargo deny check advisories` and nothing else. There is no `schedule:` trigger anywhere
-# in `.github/workflows/` today, so that job is still to be built.
+# Not run on pull requests; see the header. It runs weekly instead, from
+# `.github/workflows/dependency-advisories.yml`, which is the only thing that reads the
+# settings below.
 yanked = "warn"
+
+# Gate on vulnerabilities, report unmaintained crates without gating on them.
+#
+# The distinction is the difference between a check that gets read and one that gets muted.
+# A vulnerability is actionable: someone published a fix, or there is a reason to accept the
+# risk, and either way it is a decision. "Unmaintained" usually is not — today it is 16
+# crates, none of them a dependency this project chose:
+#
+#   * 10 gtk-rs GTK3 bindings, reached through Tauri's Linux WebKitGTK stack. They go away
+#     when Tauri moves to GTK4, and not before.
+#   * 5 `unic-*` crates, and `proc-macro-error`, both transitive.
+#
+# `"workspace"` narrows the check to crates this workspace depends on directly, which is
+# where the project can actually act. All 16 are transitive, so the job is green today —
+# and it would go red the day one of *our* direct dependencies is abandoned, which is a
+# thing worth being told. Left at the default, this job would ship red on day one, be
+# muted within a month, and then miss the vulnerability it exists to catch.
+unmaintained = "workspace"
+
+# Empty, and it should stay that way unless someone writes down why. An entry here silences
+# a real advisory: it needs the RUSTSEC id, the reason, and what would let us remove it.
 ignore = []
