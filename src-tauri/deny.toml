@@ -9,6 +9,13 @@
 # belongs on a schedule instead — see the note at the bottom of this file.
 
 [graph]
+# ⚠ This file does not by itself decide which crates get checked. Run cargo-deny the way CI
+# does — `cargo deny --locked --workspace --all-features …` — or you will be checking a
+# smaller graph than the gate does and wondering why CI disagrees. `build-check.yml` explains
+# what each flag pulls in. `all-features = true` here is NOT an alternative: cargo-deny 0.20.2
+# accepts the key in this table without complaint and ignores it, which is worse than not
+# having it, because the file then looks like it covers the optional `mcp` dependencies.
+#
 # Check the platforms the release matrix actually builds, so a Windows-only or macOS-only
 # dependency cannot slip past a Linux-only run. `tauri-action.yml` and
 # `nightly-tauri-action.yml` build exactly these five.
@@ -27,7 +34,8 @@ targets = [
 # branches allowed, so `Unlicense OR MIT` is covered by MIT alone and does not earn
 # `Unlicense` a line here.
 allow = [
-    # The permissive bulk of the ecosystem. ~480 of the 578 packages are one of these two.
+    # The permissive bulk of the ecosystem: of the 499 packages in the graph, 452 allow MIT
+    # and 328 allow Apache-2.0 (most offer both).
     "MIT",
     "Apache-2.0",
     # `Apache-2.0 WITH LLVM-exception` appears once on its own, without an `OR` branch to
@@ -48,9 +56,10 @@ allow = [
     "MPL-2.0",
 ]
 
-# The seven workspace members declare no `license` field, so without this cargo-deny
-# rejects our own crates. `publish = false` in each manifest is what marks them private;
-# it is also true, since none of them are published to crates.io.
+# All seven workspace members declare no `license` field, so without this cargo-deny rejects
+# our own crates. `publish = false` in each manifest is what marks them private; it is also
+# true, since none of them are published to crates.io. (Two of the seven — `ofm-cli` and
+# `sim-bench` — only reach the graph at all under `--workspace`.)
 #
 # Declaring `license = "GPL-3.0-…"` in the manifests would be better than staying silent,
 # but choosing between `GPL-3.0-only` and `GPL-3.0-or-later` is a licensing decision for

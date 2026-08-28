@@ -55,8 +55,28 @@ jobs:
         with:
           tool: cargo-deny@0.20.2
 
+      # No `dtolnay/rust-toolchain` step on purpose. cargo-deny ships as a prebuilt binary
+      # and only shells out to `cargo metadata`, and the root `rust-toolchain.toml` already
+      # pins that to 1.95.0 — the same compiler every other job here uses. That is the whole
+      # point of the toolchain file: a cargo invocation cannot pick up a drifting default.
+      #
+      # Every flag below widens the graph, and each one closes a hole that was measured, not
+      # imagined. Together they take the check from 445 crates to 499:
+      #
+      #   --workspace       `src-tauri/Cargo.toml` carries both `[workspace]` and `[package]`,
+      #                     so it is not a virtual manifest. Without this, cargo-deny roots the
+      #                     graph at that one package and the workspace members nothing depends
+      #                     on — `ofm-cli` and `sim-bench` — vanish along with their 21
+      #                     dependencies (clap, comfy-table, crossterm, colored, …).
+      #   --all-features    `mcp` is a set of optional dependencies, so the default graph omits
+      #                     rmcp, axum, tower, hyper and 27 more — code CI compiles and tests
+      #                     two steps below, unlicensed as far as this gate was concerned.
+      #   --locked          Same reason every cargo call in `backend` takes it: without it
+      #                     cargo may resolve around `Cargo.lock` while producing the metadata,
+      #                     and the policy would then be checked against a graph that is not
+      #                     the one we ship.
       - name: Check dependency licenses, bans and sources
-        run: cargo deny --manifest-path src-tauri/Cargo.toml check licenses bans sources
+        run: cargo deny --locked --workspace --all-features --manifest-path src-tauri/Cargo.toml check licenses bans sources
 
   frontend:
     runs-on: ubuntu-latest
