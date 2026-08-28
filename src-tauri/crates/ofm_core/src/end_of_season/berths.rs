@@ -436,8 +436,9 @@ fn domestic_position_range_promoted(
 /// its authored size (survivors stay in their existing `participant_ids`
 /// order; the entrants are appended). Those K dropouts are then given to
 /// each feeder in turn — `promoted.len()` clubs first, so the feeder keeps
-/// its authored size — with any leftover shared round-robin, after each
-/// feeder drops the clubs it sent up.
+/// its authored size — after each feeder drops the clubs it sent up. Those
+/// quotas cover every dropout, so no remainder is left over; a round-robin
+/// backstop shares one out if that ever stops holding.
 ///
 /// Both sides are read from the roster as it stands *now*, not from the frozen
 /// table: a place-getter only promotes while it is still registered with the
@@ -590,6 +591,11 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             let take = promoted.len().min(leftover.len());
             received[slot].extend(leftover.drain(..take));
         }
+        // Unreachable while the quotas above cover every dropout: `entrants`
+        // was truncated to `dropouts.len()` and each retained plan holds only
+        // placed clubs, so the drain always empties `leftover`. Kept as a
+        // backstop in case a future rule awards places without a matching
+        // quota; drop it once that relationship is enforced by construction.
         for (offset, club) in leftover.into_iter().enumerate() {
             received[offset % feeder_plans.len()].push(club);
         }

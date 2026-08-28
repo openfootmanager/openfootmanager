@@ -478,7 +478,7 @@ Additional selector fields:
 
 Berths define automatic qualification spots that a competition awards to other competitions. For example, a league's top two finishers qualify for a continental cup.
 
-When the target is a domestic `LeagueTable`, a primary `PositionRange` berth also drives promotion: those place-getters replace the target's bottom finishers (the league keeps its authored size) and the dropouts return to the feeders quota-first — each feeder receives as many dropouts as it promoted, then any remainder is shared round-robin. A club only moves while it is still registered with the competition it is leaving, so a club the ordinary ladder has already moved is never promoted a second time.
+When the target is a domestic `LeagueTable`, a primary `positionRange` berth also drives promotion: those place-getters replace the target's bottom finishers (the league keeps its authored size) and the dropouts return to the feeders quota-first — each feeder receives as many dropouts as it promoted, which accounts for all of them. A club only moves while it is still registered with the competition it is leaving, so a club the ordinary ladder has already moved is never promoted a second time.
 
 The target is left out of the linear adjacent-tier swap so sibling regional groups do not promote into each other. When two or more leagues send `positionRange` berths to the same target they are treated as one sibling group and **all** of them leave the ladder — otherwise which group swapped with the tier below would depend on the order the competitions happen to be declared in. A tier below such a group therefore has no automatic promotion path: give it `positionRange` berths into the groups if its clubs should be able to go up. A league that is the *sole* `positionRange` feeder into a target keeps its ordinary ladder edge, so a plain two-tier pyramid can be written as data without losing promotion and relegation with the tier beneath it.
 
@@ -494,6 +494,8 @@ Regional groups feeding one Central League:
   }
 ]
 ```
+
+A league awarding several berths at once — a continental place and a relegation play-off place:
 
 ```json
 "berths": [
