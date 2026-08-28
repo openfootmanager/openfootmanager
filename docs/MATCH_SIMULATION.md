@@ -282,27 +282,74 @@ At any point, a `MatchSnapshot` can be taken — a serializable view of the enti
 
 ## AI Manager
 
-The AI manager (`ai.rs`) controls non-player sides during live matches. It evaluates the match state once per minute and can issue substitution and tactical commands.
+The AI manager (`ai.rs`) controls non-player sides during live matches. It is consulted once a
+minute and can issue substitution and tactical commands. It reads the match through
+`AiObservation` — a borrowed, side-relative view built by `LiveMatchState::observe()`, not a
+`MatchSnapshot`.
 
 ### AI Profile
 
 Each AI manager has:
 - **Reputation** (0–1000) — higher = more sophisticated decisions
-- **Experience** (0–100) — affects timing and quality of choices
+- **Experience** (0–100) — decides which checkpoints he works to, how early he replaces a spent
+  player, and how often he gets a close call wrong
+- **Personality** — `Pragmatist` waits for the scheduled moments; `Visionary` reaches for a
+  different shape before a different label and looks up when a goal goes against him; `Reactive`
+  takes stock every time the score changes
 
-### Decision Logic
+### When the manager looks up
 
-**Substitutions:**
-- After minute 55: replace most fatigued players (condition < threshold based on experience)
-- After minute 65 (losing): tactical subs — bring on attacking players
-- After minute 80 (winning): defensive subs — bring on fresh defenders/midfielders
+Reactions are **not** rolled for each minute. A manager takes stock at fixed moments and
+immediately when the match changes under him:
 
-**Tactical changes:**
-- Losing by 2+ goals after minute 60: switch to Attacking
-- Winning by 2+ goals after minute 75: switch to Defensive
-- Close game: maintain current style
+| Moment | Who |
+|---|---|
+| Half-time, and the interval in extra time | every manager |
+| 80' | every manager |
+| 70' | experience ≥ 40 |
+| 60' | experience ≥ 70 |
+| 113' | every manager — the last look before penalties |
+| A sending-off, either side | every manager, that minute |
+| A goal, either way | `Reactive` always; `Visionary` when it went against him |
+| Nobody left in goal | every manager, every minute, ahead of everything else |
 
-The experience factor scales how early and aggressively the AI makes decisions.
+Exhaustion is judged **every** minute rather than at a checkpoint: a spent player is not a
+judgement call, and the condition economy is calibrated on that branch firing the minute a
+starter crosses the line.
+
+### What he decides
+
+**Substitutions** (one per evaluation, in this order):
+1. No available goalkeeper on the pitch — a bench keeper comes on for the most spent outfielder,
+   forwards first. He keeps `Position::Goalkeeper` rather than inheriting the vacated slot.
+2. Any starter below the fatigue threshold (55 − experience×10 from 75', 45 − experience×8 from
+   60', otherwise 35) — replaced in kind.
+3. Chasing — two goals down at any checkpoint, one goal down from 60'. A forward comes on for the
+   most spent defender or midfielder, never breaking up a back four below three.
+4. Protecting a lead from 80' — a defender comes on for the most spent forward, always leaving one
+   up front.
+
+Who comes off is whoever has least left to give. Two players within 10 condition points look
+identical from the touchline, and a manager takes the wrong one off with probability
+(1 − experience/100)/2 — the in-match twin of the lineup picker's misjudgement. It never decides
+*whether* he acts.
+
+**Tactical changes** (one per evaluation):
+- A `Visionary` who is losing after 60' changes shape first: 4-4-2 → 4-3-3 → 4-2-3-1. The chain
+  ends, so this fires at most twice.
+- Otherwise a target play style: Attacking two goals down, or one goal down from 60' unless already
+  HighPress; Defensive with a lead from 80', or pinned in one's own half for 7 of the last 10
+  minutes with nothing to chase.
+- If the style is already right, one dial underneath it (`ChangeTacticalDial`). Chasing: a higher
+  line, then a faster break, then a harder press. Protecting: a lower line, then a compact shape,
+  then a passive press — subject to the same ration on under-priced dials that `ai_tactics` applies
+  between matches, at most two per side.
+
+**Nothing here ever issues a command to undo an earlier one.** A position that has stopped calling
+for a change produces no target rather than the opposite one, so a side that dropped deep under
+pressure stays deep when the pressure lifts. That is the hysteresis.
+
+All five substitutions are available to every branch; `max_subs` is the only limit.
 
 ---
 
