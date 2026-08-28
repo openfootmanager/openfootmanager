@@ -426,6 +426,16 @@ impl LiveMatchState {
     pub fn test_send_off(&mut self, player_id: &str) {
         self.sent_off.insert(player_id.to_string());
     }
+
+    /// Put a scoreline on the board without playing the match that produced it.
+    ///
+    /// For tests about what a manager does when he is two down with twenty
+    /// minutes left. Reaching that position by simulation would make the test
+    /// about the seed rather than about the decision.
+    pub fn test_set_score(&mut self, home: u8, away: u8) {
+        self.home_score = home;
+        self.away_score = away;
+    }
 }
 
 fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {

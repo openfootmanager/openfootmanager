@@ -16,10 +16,17 @@
 //! caller previously re-derived "my team", "my bench", "my goal difference" and
 //! "how long the ball has been in my half" from a neutral view; here they are
 //! resolved once.
+//!
+//! One thing here does read the event log, and it is worth being explicit about
+//! why that is not the same mistake: the manager needs to know whether anything
+//! *just* happened, so `observe` walks backwards from the end of the log for as
+//! long as the entries belong to the minute being played, and stops. That is a
+//! handful of events whatever the score, not a copy of the match.
 
 use std::collections::HashSet;
 
 use super::{LiveMatchState, MatchPhase, SubstitutionRecord};
+use crate::event::EventType;
 use crate::types::{PlayerData, Side, TeamData, Zone};
 
 /// Everything one AI manager can see, resolved for that manager's side.
@@ -39,6 +46,10 @@ pub(crate) struct AiObservation<'a> {
     substitutions: &'a [SubstitutionRecord],
     /// How many of the last ten minutes the ball spent in this side's own half.
     pub(crate) pressure_ticks: usize,
+    /// The score changed this minute, either way round.
+    pub(crate) goal_this_minute: bool,
+    /// Somebody was sent off this minute, either side.
+    pub(crate) dismissal_this_minute: bool,
     /// Live per-minute condition, which is not what `TeamData` carries: the
     /// stored value is what the player started with.
     conditions: &'a std::collections::HashMap<String, f64>,
@@ -98,6 +109,24 @@ impl LiveMatchState {
             ),
         };
 
+        // Only this minute's entries, taken from the end. `play_minute`
+        // increments the clock before it resolves anything, so everything it
+        // pushes carries the minute `current_minute` is about to be read as.
+        let mut goal_this_minute = false;
+        let mut dismissal_this_minute = false;
+        for event in self
+            .events
+            .iter()
+            .rev()
+            .take_while(|event| event.minute == self.current_minute)
+        {
+            match event.event_type {
+                EventType::Goal | EventType::PenaltyGoal => goal_this_minute = true,
+                EventType::RedCard | EventType::SecondYellow => dismissal_this_minute = true,
+                _ => {}
+            }
+        }
+
         AiObservation {
             phase: self.phase,
             minute: self.current_minute,
@@ -114,6 +143,8 @@ impl LiveMatchState {
                 .iter()
                 .filter(|zone| own_half.contains(zone))
                 .count(),
+            goal_this_minute,
+            dismissal_this_minute,
             conditions: &self.player_conditions,
         }
     }

@@ -1,3 +1,34 @@
+//! The manager on the touchline.
+//!
+//! Consulted once a minute for every side the player is not managing. What
+//! follows is a model of when a manager looks up from the game and what he does
+//! about what he sees — not a search, not a policy learned from anything.
+//!
+//! # Checkpoints, not a lottery
+//!
+//! This used to be a per-minute dice roll: about a 1% chance a minute of
+//! noticing anything at all, scaled by experience. Two goals down with fifteen
+//! minutes left, that is roughly a one-in-four chance of the manager ever
+//! reacting — and when he did react, the minute he reacted in was noise. It is
+//! also why the answer to "why did that side never make a substitution?" was
+//! always "it rolled badly", which is not an answer a supporter accepts.
+//!
+//! A manager here looks up at a few well-known moments — the interval, the hour,
+//! seventy, eighty — and immediately when something happens that will not wait.
+//! What he decides at those moments is then a function of the match rather than
+//! of the roll. Randomness is left in exactly one place: which of two players
+//! who are equally spent comes off, where a less experienced manager takes the
+//! wrong one off more often. It never decides *whether* he acts.
+//!
+//! # Why this cannot oscillate
+//!
+//! Nothing here ever issues a command to undo an earlier one. A target is only
+//! produced by a position that calls for it, and a position that has stopped
+//! calling for it produces no target rather than the opposite one — so a side
+//! that dropped deep under pressure stays deep when the pressure lifts instead
+//! of flapping between shapes every time it takes stock. That is the hysteresis,
+//! and it is a property of the shape of the code rather than a timer.
+
 use rand::{Rng, RngExt};
 
 use crate::live_match::{AiObservation, LiveMatchState, MatchCommand, MatchPhase};
@@ -7,13 +38,14 @@ use crate::types::{PlayStyle, PlayerData, PlayerRole, Position, Side};
 // AiPersonality — determines decision-making style
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AiPersonality {
-    /// Safe play: subs early for fatigue, incremental style changes.
+    /// Safe play: works to the scheduled checkpoints and changes the personnel.
     Pragmatist,
-    /// Bold: can trigger formation changes after minute 60 when losing.
+    /// Bold: reaches for a different shape before a different label, and looks
+    /// up the moment a goal goes against him.
     Visionary,
-    /// Reactive: 1.5× base chance after any score-differential change.
+    /// Reactive: takes stock every time the score changes, either way round.
     Reactive,
 }
 
@@ -42,6 +74,65 @@ impl Default for AiProfile {
 }
 
 // ---------------------------------------------------------------------------
+// When a manager looks up
+// ---------------------------------------------------------------------------
+
+/// The hour, and the two windows either side of it, are when substitutions get
+/// made in a football match. An experienced manager works to all three; one who
+/// has seen less waits longer before admitting the game is getting away.
+///
+/// Every manager keeps the eighty-minute look. Below that there is a position
+/// nobody disagrees about, and a manager who could not see it would be a bug
+/// rather than a character.
+fn checkpoints(experience: u8) -> &'static [u8] {
+    match experience {
+        0..=39 => &[80],
+        40..=69 => &[70, 80],
+        _ => &[60, 70, 80],
+    }
+}
+
+/// The last look before penalties. The interval in extra time is covered by the
+/// phase itself, the same way half-time is.
+const LAST_CHANCE: u8 = 113;
+
+/// Is this a moment the manager is paying attention?
+fn takes_stock(obs: &AiObservation<'_>, profile: &AiProfile) -> bool {
+    // The interval. Every manager gets one, whatever his experience: it is the
+    // one moment in a football match when nobody is playing and everybody is
+    // listening. The AI used to sit both of them out entirely, because
+    // `HalfTime` is a phase of its own and the phase gate only admitted play.
+    if matches!(
+        obs.phase,
+        MatchPhase::HalfTime | MatchPhase::ExtraTimeHalfTime
+    ) {
+        return true;
+    }
+
+    // A sending-off rewrites the match for both sides and waits for nothing.
+    if obs.dismissal_this_minute {
+        return true;
+    }
+
+    // A goal is news to some managers and only confirmation to others.
+    if obs.goal_this_minute && reacts_to_the_score(profile, obs) {
+        return true;
+    }
+
+    checkpoints(profile.experience).contains(&obs.minute) || obs.minute == LAST_CHANCE
+}
+
+fn reacts_to_the_score(profile: &AiProfile, obs: &AiObservation<'_>) -> bool {
+    match profile.personality {
+        AiPersonality::Reactive => true,
+        // Bold, not twitchy: he looks up when one has gone against him.
+        AiPersonality::Visionary => obs.goal_diff < 0,
+        // Waits for the interval or the hour, and is usually right to.
+        AiPersonality::Pragmatist => false,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // AI decision engine — called once per minute for AI-controlled sides
 // ---------------------------------------------------------------------------
 
@@ -59,24 +150,27 @@ pub fn ai_decide<R: Rng>(
     // `MatchSnapshot`s — see `live_match::observation` for what that cost.
     let obs = match_state.observe(side);
 
-    // AI only acts during playing phases
+    // The manager is present while the match is being played and while it is
+    // paused for an interval; not before the kick-off, and not once it is over.
     match obs.phase {
         MatchPhase::FirstHalf
         | MatchPhase::SecondHalf
         | MatchPhase::ExtraTimeFirstHalf
-        | MatchPhase::ExtraTimeSecondHalf => {}
+        | MatchPhase::ExtraTimeSecondHalf
+        | MatchPhase::HalfTime
+        | MatchPhase::ExtraTimeHalfTime => {}
         _ => return commands,
     }
 
-    // --- Substitution decisions ---
+    let taking_stock = takes_stock(&obs, profile);
+
     if obs.subs_made < obs.max_subs
-        && let Some(sub_cmd) = consider_substitution(&obs, profile, rng)
+        && let Some(sub_cmd) = consider_substitution(&obs, profile, taking_stock, rng)
     {
         commands.push(sub_cmd);
     }
 
-    // --- Tactical adjustments ---
-    if let Some(tactic_cmd) = consider_tactic_change(&obs, profile, rng) {
+    if taking_stock && let Some(tactic_cmd) = consider_tactic_change(&obs, profile) {
         commands.push(tactic_cmd);
     }
 
@@ -87,36 +181,73 @@ pub fn ai_decide<R: Rng>(
 // Substitution logic
 // ---------------------------------------------------------------------------
 
+/// One goal down is a position; two goals down is a problem. The first is worth
+/// changing something for once the hour has gone, the second at any point a
+/// manager looks up, the interval included.
+const CHASE_ONE_GOAL_FROM: u8 = 60;
+/// A lead is worth protecting once there is little enough left of the match for
+/// protecting it to be the whole job.
+const SEE_OUT_A_LEAD_FROM: u8 = 80;
+/// However badly the game is going, somebody has to hold the line together.
+const A_BACK_LINE_WORTH_KEEPING: usize = 3;
+/// However well it is going, somebody has to chase the clearances.
+const A_FORWARD_TO_CHASE_CLEARANCES: usize = 1;
+/// Two players this close in condition are, to the eye, the same player. Inside
+/// the gap a manager can be wrong about which of them to take off.
+const TOO_CLOSE_TO_CALL: f64 = 10.0;
+
 fn consider_substitution<R: Rng>(
     obs: &AiObservation<'_>,
     profile: &AiProfile,
+    taking_stock: bool,
     rng: &mut R,
 ) -> Option<MatchCommand> {
-    let (side, minute, subs_made) = (obs.side, obs.minute, obs.subs_made);
-    let team = obs.team;
-    let bench = obs.bench;
-
-    if bench.is_empty() {
+    if obs.bench.is_empty() {
         return None;
     }
 
-    let goal_diff = obs.goal_diff;
+    // Exhaustion is not a judgement call, and this branch has never been behind
+    // a dice roll. Holding it back to a checkpoint would make the AI react to a
+    // spent player *later* than it does today, and the condition economy was
+    // measured with it firing the minute a starter crosses the line.
+    if let Some(cmd) = replace_the_exhausted(obs, profile) {
+        return Some(cmd);
+    }
 
-    // Higher experience → earlier and smarter substitutions
+    if !taking_stock {
+        return None;
+    }
+
+    if chasing(obs) {
+        return chase_the_game(obs, profile, rng);
+    }
+    if obs.goal_diff > 0 && obs.minute >= SEE_OUT_A_LEAD_FROM {
+        return protect_the_lead(obs, profile, rng);
+    }
+
+    None
+}
+
+/// Is this side behind in a way that calls for something to be done?
+fn chasing(obs: &AiObservation<'_>) -> bool {
+    obs.goal_diff <= -2 || (obs.goal_diff == -1 && obs.minute >= CHASE_ONE_GOAL_FROM)
+}
+
+/// Take off whoever has least left to give, and replace him in kind.
+fn replace_the_exhausted(obs: &AiObservation<'_>, profile: &AiProfile) -> Option<MatchCommand> {
+    // Higher experience → earlier substitutions.
     let experience_factor = profile.experience as f64 / 100.0;
 
-    // --- Fatigue-based substitutions (after minute 55+) ---
-    let fatigue_threshold = if minute >= 75 {
-        55.0 - experience_factor * 10.0 // experienced managers sub earlier
-    } else if minute >= 60 {
+    let fatigue_threshold = if obs.minute >= 75 {
+        55.0 - experience_factor * 10.0
+    } else if obs.minute >= 60 {
         45.0 - experience_factor * 8.0
     } else {
         35.0 // only for very tired players before 60'
     };
 
-    // Find the most fatigued outfield player
-    let mut worst_player: Option<(&PlayerData, f64)> = None;
-    for p in &team.players {
+    let mut worst: Option<(&PlayerData, f64)> = None;
+    for p in &obs.team.players {
         if p.position == Position::Goalkeeper {
             continue; // Don't sub the goalkeeper for fatigue
         }
@@ -124,91 +255,134 @@ fn consider_substitution<R: Rng>(
             continue;
         }
         let condition = obs.condition_of(p);
-        if condition < fatigue_threshold {
-            match &worst_player {
-                None => worst_player = Some((p, condition)),
-                Some((_, worst_cond)) => {
-                    if condition < *worst_cond {
-                        worst_player = Some((p, condition));
-                    }
-                }
+        if condition >= fatigue_threshold {
+            continue;
+        }
+        match worst {
+            None => worst = Some((p, condition)),
+            Some((_, worst_condition)) if condition < worst_condition => {
+                worst = Some((p, condition));
             }
+            Some(_) => {}
         }
     }
 
-    if let Some((tired_player, _)) = worst_player {
-        // Find best replacement from bench with same position
-        if let Some(replacement) =
-            find_best_bench_replacement(bench, tired_player.position, obs, None)
-        {
-            return Some(MatchCommand::Substitute {
-                side,
-                player_off_id: tired_player.id.clone(),
-                player_on_id: replacement.id.clone(),
-            });
-        }
+    let (tired_player, _) = worst?;
+    let replacement = find_best_bench_replacement(obs.bench, tired_player.position, obs, None)?;
+    Some(MatchCommand::Substitute {
+        side: obs.side,
+        player_off_id: tired_player.id.clone(),
+        player_on_id: replacement.id.clone(),
+    })
+}
+
+/// Behind: a forward for someone further back, without dismantling the defence.
+fn chase_the_game<R: Rng>(
+    obs: &AiObservation<'_>,
+    profile: &AiProfile,
+    rng: &mut R,
+) -> Option<MatchCommand> {
+    let defenders = obs
+        .team
+        .players
+        .iter()
+        .filter(|p| p.position == Position::Defender && obs.available(p))
+        .count();
+
+    let candidates: Vec<&PlayerData> = obs
+        .team
+        .players
+        .iter()
+        .filter(|p| obs.available(p))
+        .filter(|p| match p.position {
+            Position::Defender => defenders > A_BACK_LINE_WORTH_KEEPING,
+            Position::Midfielder => true,
+            _ => false,
+        })
+        .collect();
+
+    let player_off = least_missed(&candidates, obs, profile, rng)?;
+
+    // A side that presses wants a forward who presses.
+    let preferred_role =
+        (obs.team.play_style == PlayStyle::HighPress).then_some(PlayerRole::PressingForward);
+    let attacker_on =
+        find_best_bench_replacement(obs.bench, Position::Forward, obs, preferred_role)?;
+
+    Some(MatchCommand::Substitute {
+        side: obs.side,
+        player_off_id: player_off.id.clone(),
+        player_on_id: attacker_on.id.clone(),
+    })
+}
+
+/// Ahead: a defender for a forward, keeping someone up there to hold the ball.
+fn protect_the_lead<R: Rng>(
+    obs: &AiObservation<'_>,
+    profile: &AiProfile,
+    rng: &mut R,
+) -> Option<MatchCommand> {
+    let forwards: Vec<&PlayerData> = obs
+        .team
+        .players
+        .iter()
+        .filter(|p| p.position == Position::Forward && obs.available(p))
+        .collect();
+
+    if forwards.len() <= A_FORWARD_TO_CHASE_CLEARANCES {
+        return None;
     }
 
-    // --- Tactical substitutions (losing and past 65') ---
-    if goal_diff < 0 && minute >= 65 && subs_made < 3 {
-        // Bring on an attacker if losing.
-        // When playing HighPress, prefer a PressingForward for role synergy.
-        let chance = 0.03 * experience_factor * (1.0 + (minute as f64 - 65.0) / 25.0);
-        if rng.random_range(0.0..1.0f64) < chance {
-            // Find a defender or midfielder to take off
-            let candidates: Vec<&PlayerData> = team
-                .players
-                .iter()
-                .filter(|p| {
-                    (p.position == Position::Defender || p.position == Position::Midfielder)
-                        && obs.available(p)
-                })
-                .collect();
+    let player_off = least_missed(&forwards, obs, profile, rng)?;
+    let defender_on = find_best_bench_replacement(obs.bench, Position::Defender, obs, None)?;
 
-            let preferred_role = if team.play_style == PlayStyle::HighPress {
-                Some(PlayerRole::PressingForward)
-            } else {
-                None
-            };
+    Some(MatchCommand::Substitute {
+        side: obs.side,
+        player_off_id: player_off.id.clone(),
+        player_on_id: defender_on.id.clone(),
+    })
+}
 
-            if let Some(player_off) = candidates.last()
-                && let Some(attacker_on) =
-                    find_best_bench_replacement(bench, Position::Forward, obs, preferred_role)
-            {
-                return Some(MatchCommand::Substitute {
-                    side,
-                    player_off_id: player_off.id.clone(),
-                    player_on_id: attacker_on.id.clone(),
-                });
-            }
-        }
+/// Which of these players will be missed least — that is, who is most spent.
+///
+/// The old code took `candidates.last()` and `forwards.first()`: the last
+/// defender or midfielder the squad list happened to hold, and the first
+/// forward. Squad order is an artefact of how the side was built, so the same
+/// player came off every time and it was never the tired one.
+///
+/// The roll is the in-match twin of the lineup picker's misjudgement. Two
+/// players within a few points of each other look identical from the touchline,
+/// and a manager who has seen less football takes the wrong one off more often.
+/// It decides which of two close calls he lands on, never whether he acts.
+fn least_missed<'a, R: Rng>(
+    candidates: &[&'a PlayerData],
+    obs: &AiObservation<'_>,
+    profile: &AiProfile,
+    rng: &mut R,
+) -> Option<&'a PlayerData> {
+    let mut ranked: Vec<(&'a PlayerData, f64)> = candidates
+        .iter()
+        .map(|player| (*player, obs.condition_of(player)))
+        .collect();
+    // Ties broken on id, so the same match played twice names the same player.
+    ranked.sort_by(|a, b| {
+        a.1.partial_cmp(&b.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.id.cmp(&b.0.id))
+    });
+
+    let (spent, spent_condition) = *ranked.first()?;
+    let Some(&(next, next_condition)) = ranked.get(1) else {
+        return Some(spent);
+    };
+
+    let misjudgement = (1.0 - profile.experience as f64 / 100.0) / 2.0;
+    if next_condition - spent_condition <= TOO_CLOSE_TO_CALL
+        && rng.random_range(0.0..1.0f64) < misjudgement
+    {
+        return Some(next);
     }
-
-    // --- Defensive substitutions (winning and past 80') ---
-    if goal_diff > 0 && minute >= 80 && subs_made < 3 {
-        let chance = 0.04 * experience_factor;
-        if rng.random_range(0.0..1.0f64) < chance {
-            // Bring on a defender
-            let forwards: Vec<&PlayerData> = team
-                .players
-                .iter()
-                .filter(|p| p.position == Position::Forward && obs.available(p))
-                .collect();
-
-            if let Some(player_off) = forwards.first()
-                && let Some(defender_on) =
-                    find_best_bench_replacement(bench, Position::Defender, obs, None)
-            {
-                return Some(MatchCommand::Substitute {
-                    side,
-                    player_off_id: player_off.id.clone(),
-                    player_on_id: defender_on.id.clone(),
-                });
-            }
-        }
-    }
-
-    None
+    Some(spent)
 }
 
 /// The best player on the bench for a given job.
@@ -267,115 +441,69 @@ fn find_best_bench_replacement<'a>(
 // Tactical change logic
 // ---------------------------------------------------------------------------
 
-fn consider_tactic_change<R: Rng>(
-    obs: &AiObservation<'_>,
-    profile: &AiProfile,
-    rng: &mut R,
-) -> Option<MatchCommand> {
-    let (side, minute) = (obs.side, obs.minute);
-    let team = obs.team;
-    let goal_diff = obs.goal_diff;
-    let experience_factor = profile.experience as f64 / 100.0;
+/// Most of the last ten minutes spent in our own half. Six was enough when the
+/// reaction was a one-in-a-hundred roll on top of it; without the roll the
+/// reading has to carry the decision by itself.
+const PINNED_BACK: usize = 7;
 
-    // Only consider changes after a meaningful period
-    if minute < 55 {
-        return None;
-    }
-
-    // Base chance per minute; Reactive personality gets a 1.5× boost
-    let personality_mult = if profile.personality == AiPersonality::Reactive {
-        1.5
-    } else {
-        1.0
-    };
-    let base_chance = 0.02 * experience_factor * personality_mult;
-
-    // ---------------------------------------------------------------------------
-    // Zone-reactive: if the ball has been stuck in our defensive half for most of
-    // the last 10 minutes, shift to a more defensive style to soak pressure.
-    // ---------------------------------------------------------------------------
-    let pressure_ticks = obs.pressure_ticks;
-    // 6+ of the last 10 minutes under defensive pressure → consider going defensive.
-    // Guard: only when not already losing (a losing team should be attacking, not absorbing).
-    if pressure_ticks >= 6
-        && goal_diff >= 0
-        && team.play_style != PlayStyle::Defensive
-        && rng.random_range(0.0..1.0f64) < base_chance * 2.5
-    {
-        return Some(MatchCommand::ChangePlayStyle {
-            side,
-            play_style: PlayStyle::Defensive,
-        });
-    }
-
-    // Losing by 2+ goals after 70': switch to attacking
-    if goal_diff <= -2
-        && minute >= 70
-        && team.play_style != PlayStyle::Attacking
-        && rng.random_range(0.0..1.0f64) < base_chance * 3.0
-    {
-        return Some(MatchCommand::ChangePlayStyle {
-            side,
-            play_style: PlayStyle::Attacking,
-        });
-    }
-
-    // Losing by 1 goal after 75': consider more attacking
-    if goal_diff == -1
-        && minute >= 75
-        && team.play_style != PlayStyle::Attacking
-        && team.play_style != PlayStyle::HighPress
-        && rng.random_range(0.0..1.0f64) < base_chance * 2.0
-    {
-        return Some(MatchCommand::ChangePlayStyle {
-            side,
-            play_style: PlayStyle::Attacking,
-        });
-    }
-
-    // Winning by 1+ goals after 80': switch to defensive
-    if goal_diff >= 1
-        && minute >= 80
-        && team.play_style != PlayStyle::Defensive
-        && rng.random_range(0.0..1.0f64) < base_chance * 2.0
-    {
-        return Some(MatchCommand::ChangePlayStyle {
-            side,
-            play_style: PlayStyle::Defensive,
-        });
-    }
-
-    // Winning by 2+ goals after 85': very defensive / time wasting
-    if goal_diff >= 2
-        && minute >= 85
-        && team.play_style != PlayStyle::Defensive
-        && rng.random_range(0.0..1.0f64) < base_chance * 4.0
-    {
-        return Some(MatchCommand::ChangePlayStyle {
-            side,
-            play_style: PlayStyle::Defensive,
-        });
-    }
-
-    // Visionary: losing after 60' → try a formation change
+fn consider_tactic_change(obs: &AiObservation<'_>, profile: &AiProfile) -> Option<MatchCommand> {
+    // A Visionary reaches for a different shape before a different label. The
+    // chain of formations ends, so this fires at most twice in a match and then
+    // he changes the instructions like everyone else.
     if profile.personality == AiPersonality::Visionary
-        && goal_diff < 0
-        && minute >= 60
-        && rng.random_range(0.0..1.0f64) < base_chance * 1.5
+        && obs.goal_diff < 0
+        && obs.minute >= CHASE_ONE_GOAL_FROM
+        && let Some(formation) = bolder_formation(&obs.team.formation)
     {
-        let current = &team.formation;
-        let new_formation = if current == "4-4-2" {
-            "4-3-3"
-        } else if current == "4-3-3" || current == "4-5-1" {
-            "4-2-3-1"
-        } else {
-            return None;
-        };
         return Some(MatchCommand::ChangeFormation {
-            side,
-            formation: new_formation.to_string(),
+            side: obs.side,
+            formation: formation.to_string(),
         });
+    }
+
+    let target = target_play_style(obs)?;
+    (target != obs.team.play_style).then_some(MatchCommand::ChangePlayStyle {
+        side: obs.side,
+        play_style: target,
+    })
+}
+
+/// How this side ought to be playing, given where the match has got to.
+///
+/// Only ever names a way of playing that the position calls for. There is no
+/// branch returning "back to normal", which is what stops a side changing its
+/// mind every time it looks up — see the note on hysteresis at the top of the
+/// file.
+fn target_play_style(obs: &AiObservation<'_>) -> Option<PlayStyle> {
+    // Two down is two down. At the interval or at eighty, the answer is the same.
+    if obs.goal_diff <= -2 {
+        return Some(PlayStyle::Attacking);
+    }
+
+    // One down, with the hour gone. A side already pressing high is committed as
+    // far up the pitch as this would take it.
+    if obs.goal_diff == -1 && obs.minute >= CHASE_ONE_GOAL_FROM {
+        return (obs.team.play_style != PlayStyle::HighPress).then_some(PlayStyle::Attacking);
+    }
+
+    if obs.goal_diff >= 1 && obs.minute >= SEE_OUT_A_LEAD_FROM {
+        return Some(PlayStyle::Defensive);
+    }
+
+    // Pinned in for most of the last ten minutes with nothing to chase. A side
+    // that is behind should be attacking its way out of this, not absorbing it.
+    if obs.goal_diff >= 0 && obs.pressure_ticks >= PINNED_BACK {
+        return Some(PlayStyle::Defensive);
     }
 
     None
+}
+
+/// The next shape up from this one, or nothing if there is no obvious next one.
+fn bolder_formation(current: &str) -> Option<&'static str> {
+    match current {
+        "4-4-2" => Some("4-3-3"),
+        "4-3-3" | "4-5-1" => Some("4-2-3-1"),
+        _ => None,
+    }
 }
