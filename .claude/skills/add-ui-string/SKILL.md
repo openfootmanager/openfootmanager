@@ -82,7 +82,33 @@ Add the same key path to `cs`, `de`, `es`, `fr`, `id`, `it`, `pt`, `pt-BR`, `ru`
 - If you genuinely cannot produce a confident translation for a locale, say so in your summary
   rather than shipping English text under a non-English key. The test will catch it anyway.
 
-### 4. `INTENTIONAL_SAME.json` — only for terms that truly don't translate
+### 4. Match how the file already addresses the manager
+
+Most of these languages choose between a familiar and a polite second person — `du`/`Sie`,
+`tu`/`vous`, `ty`/`vy`, `kamu`/`Anda`, 你/您 — and that choice is not yours to make one string at a
+time. Each file has already made it. A string in the wrong register reads to a native speaker the
+way a stranger using your first name does: not wrong, exactly, but written by someone who wasn't
+paying attention.
+
+**Read four or five neighbouring values in the namespace you are editing, and copy their form.**
+
+Do not instead count pronouns across the whole file and follow the majority. Those counts are
+dominated by third-person text *about* players rather than text *to* the manager, and the markers
+are ambiguous in both directions: Spanish `su` is "his" far more often than polite "your", and
+German `Sie` is also "they" and "it".
+
+Register follows **who is speaking**, which is why one file holds both forms correctly. In
+`de.json`, a journalist's question under `match.press.*` and a letter from the board under
+`be.msg.*` both use `Sie`; a menu label, and the dialogue options the manager picks under
+`be.msg.playerEvent.options.*`, use `du`. Neither is a bug.
+
+⚠️ **A polite form can force you to guess the manager's gender.** Formal Czech takes a plural
+auxiliary but keeps the participle singular and gendered: `uspořádal jste` says the manager is a
+man, `uspořádala jste` says she is a woman, and the game does not know. Rephrase so that nobody is
+the subject — `Tisková konference dnes už proběhla`, *a press conference has already taken place
+today*. Any locale that agrees a verb or adjective with the person being addressed can spring this.
+
+### 5. `INTENTIONAL_SAME.json` — only for terms that truly don't translate
 
 `src/i18n/INTENTIONAL_SAME.json` allowlists keys whose value is legitimately identical to English:
 proper nouns, competition names, position abbreviations like `GK`. Entries are keyed by locale
@@ -91,7 +117,7 @@ code, or `global` for all of them.
 This is an escape hatch for linguistics, **not** for unfinished work. If you find yourself adding
 several keys at once, you are using it wrong.
 
-### 5. Backend strings are keys, not prose
+### 6. Backend strings are keys, not prose
 
 Rust never emits English text for the player. It emits a **translation key**, and the frontend
 resolves it:
@@ -104,7 +130,7 @@ So a new inbox message or news headline generated in `ofm_core` means: emit the 
 side, map it in `backendI18n.ts` if the mapping isn't automatic, and add the key to every locale
 file. `src/utils/backendI18n.localeCoverage.test.ts` covers this half.
 
-### 6. Run the gates
+### 7. Run the gates
 
 ```bash
 npx vitest run src/i18n        # localeCoverage + frontendKeyCoverage + index
@@ -134,6 +160,7 @@ is not a pass — the vitest gates are.
 - [ ] Real translations added to all 11 other locales
 - [ ] Interpolation placeholders identical across every locale
 - [ ] `pt` and `pt-BR` translated separately
+- [ ] Form of address matches the neighbouring keys, and no wording assumes the manager’s gender
 - [ ] `INTENTIONAL_SAME.json` touched only for genuinely untranslatable terms
 - [ ] Backend keys mapped in `src/utils/backendI18n*.ts` if applicable
 - [ ] `npx vitest run src/i18n` green
