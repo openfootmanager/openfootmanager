@@ -30,7 +30,8 @@ Files: `src/i18n/locales/<code>.json`.
 If `SUPPORTED_LANGUAGES` and this table ever disagree, `src/i18n/index.ts` wins — read it. It has
 grown before and will again: `id` was the twelfth, added in August 2026.
 
-The rest of the repository's docs say "every locale" rather than a number, on purpose: when `id`
+This file and `src/CLAUDE.md` are the only two that state a count, because they are the only two
+that carry the list. The rest of the repository's docs say "every locale" on purpose: when `id`
 was added, a dozen files were left claiming eleven. Keep it that way.
 
 ---
@@ -97,10 +98,14 @@ dominated by third-person text *about* players rather than text *to* the manager
 are ambiguous in both directions: Spanish `su` is "his" far more often than polite "your", and
 German `Sie` is also "they" and "it".
 
-Register follows **who is speaking**, which is why one file holds both forms correctly. In
-`de.json`, a journalist's question under `match.press.*` and a letter from the board under
-`be.msg.*` both use `Sie`; a menu label, and the dialogue options the manager picks under
-`be.msg.playerEvent.options.*`, use `du`. Neither is a bug.
+Register follows **who is speaking**, which is why one file can hold both forms correctly. In
+`de.json`, a journalist's question under `match.press.*` is formal (`Sie`, throughout); a menu
+label, and the dialogue options the manager picks under `be.msg.playerEvent.options.*`, are
+familiar (`du`). Neither of those is a bug.
+
+Elsewhere in `de.json` the two forms are genuinely tangled — board correspondence under
+`be.msg.*` mixes them from one letter to the next. That is unresolved, not a pattern to copy: if
+the keys around yours disagree with each other, say so rather than picking one silently.
 
 ⚠️ **A polite form can force you to guess the manager's gender.** Formal Czech takes a plural
 auxiliary but keeps the participle singular and gendered: `uspořádal jste` says the manager is a

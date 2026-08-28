@@ -207,7 +207,7 @@ move fast because `release` is the thing that has to be trustworthy.
 
 ### Translations
 
-OpenFoot Manager ships in **twelve locales** — the list is `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`. Any string a player can read must exist in all of them, not only English.
+OpenFoot Manager ships in **every locale listed in `SUPPORTED_LANGUAGES`** (`src/i18n/index.ts`). Any string a player can read must exist in all of them, not only English.
 
 Two tests enforce this, and it is worth knowing precisely what each one catches, because between them they leave a gap:
 
