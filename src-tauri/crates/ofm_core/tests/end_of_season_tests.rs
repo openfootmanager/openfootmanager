@@ -1211,6 +1211,151 @@ fn process_end_of_season_promotes_and_relegates_between_divisions() {
     );
 }
 
+/// Two sibling regional groups feeding one Central League through PositionRange
+/// berths. Goes through `process_end_of_season` so deleting the resolve/apply
+/// call sites in `regenerate_competitions_for_new_season` fails this test.
+#[test]
+fn process_end_of_season_merges_regional_groups_into_a_berth_fed_central() {
+    use std::collections::HashSet;
+
+    let mut game = make_completed_season_game();
+    game.manager.hire("c1".to_string());
+    for id in [
+        "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "n1", "n2", "n3", "n4", "s1", "s2", "s3",
+        "s4",
+    ] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let standing = |id: &str, points: u32| {
+        let mut entry = make_standing(id, 1, 0, 0, 1, 0);
+        entry.points = points;
+        entry.played = 1;
+        entry
+    };
+    let finished_table = |id: &str, priority: u32, rows: &[(&str, u32)], berths: Vec<Berth>| {
+        let ids: Vec<String> = rows.iter().map(|(club, _)| club.to_string()).collect();
+        League {
+            id: id.to_string(),
+            name: id.to_string(),
+            country_id: Some("BR".to_string()),
+            priority,
+            season: 1,
+            participant_ids: ids.clone(),
+            standings: rows
+                .iter()
+                .map(|(club, points)| standing(club, *points))
+                .collect(),
+            berths,
+            ..Default::default()
+        }
+    };
+    let place_berth = |target: &str, from: u32, to: u32| Berth {
+        target: target.to_string(),
+        rule: BerthRule::PositionRange { from, to },
+        fallback_to: None,
+    };
+
+    let central = finished_table(
+        "central",
+        0,
+        &[
+            ("c1", 80),
+            ("c2", 70),
+            ("c3", 60),
+            ("c4", 50),
+            ("c5", 40),
+            ("c6", 30),
+            ("c7", 20),
+            ("c8", 10),
+        ],
+        vec![],
+    );
+    let north = finished_table(
+        "north",
+        1,
+        &[("n1", 40), ("n2", 30), ("n3", 20), ("n4", 10)],
+        vec![place_berth("central", 1, 2)],
+    );
+    let south = finished_table(
+        "south",
+        1,
+        &[("s1", 40), ("s2", 30), ("s3", 20), ("s4", 10)],
+        vec![place_berth("central", 1, 2)],
+    );
+    game.league = Some(central.clone());
+    game.competitions = vec![central, north, south];
+
+    process_end_of_season(&mut game);
+
+    let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+    let central_ids = &by_id("central").participant_ids;
+    assert_eq!(
+        central_ids.len(),
+        8,
+        "Central League keeps its authored size: {central_ids:?}"
+    );
+    let central_set: HashSet<&str> = central_ids.iter().map(String::as_str).collect();
+    assert!(
+        ["n1", "n2", "s1", "s2"]
+            .iter()
+            .all(|club| central_set.contains(club)),
+        "regional place-getters must be promoted through process_end_of_season: {central_ids:?}"
+    );
+    assert!(
+        ["c5", "c6", "c7", "c8"]
+            .iter()
+            .all(|club| !central_set.contains(club)),
+        "Central dropouts must leave: {central_ids:?}"
+    );
+
+    let north_set: HashSet<&str> = by_id("north")
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let south_set: HashSet<&str> = by_id("south")
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    assert!(!north_set.contains("n1") && !north_set.contains("n2"));
+    assert!(!south_set.contains("s1") && !south_set.contains("s2"));
+    assert!(
+        central_set.is_disjoint(&north_set)
+            && central_set.is_disjoint(&south_set)
+            && north_set.is_disjoint(&south_set),
+        "a club must not appear in two tables after the berth merge: central={central_set:?} north={north_set:?} south={south_set:?}"
+    );
+    let dropouts: HashSet<&str> = north_set
+        .union(&south_set)
+        .copied()
+        .filter(|id| id.starts_with('c'))
+        .collect();
+    assert_eq!(dropouts, HashSet::from(["c5", "c6", "c7", "c8"]));
+
+    assert!(
+        by_id("central")
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.status == FixtureStatus::Scheduled),
+        "rollover must regenerate Central fixtures after the berth merge"
+    );
+    assert!(
+        by_id("north")
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.status == FixtureStatus::Scheduled)
+            && by_id("south")
+                .fixtures
+                .iter()
+                .any(|fixture| fixture.status == FixtureStatus::Scheduled),
+        "feeders must also receive a new schedule"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // is_season_complete
 // ---------------------------------------------------------------------------
