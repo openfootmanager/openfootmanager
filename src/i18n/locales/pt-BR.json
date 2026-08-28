@@ -1734,7 +1734,8 @@
       "zhCN": "Chinês simplificado",
       "ru": "Russo",
       "cs": "Tcheco",
-      "tr": "Turco"
+      "tr": "Turco",
+      "id": "indonésio"
     },
     "gameplay": "Jogabilidade",
     "defaultMatchMode": "Modo de Partida Padrão",
@@ -2616,6 +2617,10 @@
         "unknownRegion": "\"{{field}}\" referencia uma região desconhecida \"{{id}}\".",
         "reversedRange": "O time \"{{team}}\" tem um {{field}} invertido (mín > máx).",
         "outOfRange": "O time \"{{team}}\" tem valores de {{field}} fora do intervalo (reputação 0–1000, finanças ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" tem um potencial de {{potential}}. O potencial deve estar entre 1 e 99.",
+        "potentialBelowOverall": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da sua nota geral de {{ability}}. O teto de um jogador não pode ficar abaixo da sua capacidade atual.",
+        "potentialBelowAttributes": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo dos {{ability}} que resultam dos seus atributos. O teto de um jogador não pode ficar abaixo da sua capacidade atual.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da capacidade padrão de {{ability}} usada quando não se informa geral nem atributos.",
         "unsupportedFormatVersion": "Este pacote foi criado com uma versão mais nova do jogo (formato {{version}}; esta versão suporta {{supported}}). Atualize o jogo para abri-lo."
       },
       "competitionDef": {
@@ -2802,7 +2807,6 @@
     "source": {
       "sportsGazette": "Gazeta Esportiva",
       "footballHerald": "O Arauto do Futebol",
-      "playersUnder21": "{{count}} jogadores na base",
       "matchDayPress": "Imprensa do Jogo",
       "leagueChronicle": "Crônica da Liga",
       "leagueWire": "Notícias da Liga",
@@ -2817,7 +2821,6 @@
         "exportedDescription": "Mundo com {{teamCount}} times exportado de um jogo salvo"
       },
       "welcome": {
-        "noYouthPlayers": "Nenhum jogador está atualmente alocado à academia de base.",
         "subject0": "Bem-vindo ao {{team}}",
         "subject1": "Nova Era no {{team}}",
         "subject2": "{{team}} Aguarda Sua Liderança",
@@ -2827,8 +2830,6 @@
         "actionReview": "Revisar Elenco",
         "actionThank": "Agradecer à Diretoria"
       },
-      "delegateToYouthAcademy": "Enviar para a academia de base",
-      "promoteToSeniorSquad": "Promover ao elenco principal",
       "schedule": {
         "subject": "Calendário da Temporada Divulgado",
         "body0": "O calendário da {{league}} foi divulgado. A temporada começa em {{start}}.\n\nRevise a lista de jogos e certifique-se de que seu elenco está pronto para os desafios que vêm pela frente. A preparação de pré-temporada será crucial.",
@@ -3822,6 +3823,8 @@
     "playerDateOfBirth": "Data de nascimento",
     "playerAge": "Idade",
     "playerOverall": "Nota geral (1–99)",
+    "playerPotential": "Potencial (1–99)",
+    "playerPotentialHelp": "Até onde este jogador pode chegar. Deixe em branco e o motor gera um teto a partir da capacidade e da idade dele. Não pode ser menor que a capacidade atual, e um jogador que já o alcançou para de evoluir.",
     "playerUseAttributes": "Usar atributos detalhados",
     "savePlayer": "Salvar Jogador",
     "names": "Nomes",

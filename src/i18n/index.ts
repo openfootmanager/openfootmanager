@@ -14,6 +14,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "zh-CN", labelKey: "settings.languages.zhCN" },
   { code: "cs", labelKey: "settings.languages.cs" },
   { code: "tr", labelKey: "settings.languages.tr" },
+  { code: "id", labelKey: "settings.languages.id" },
 ] as const;
 
 const SUPPORTED_CODES = new Map(

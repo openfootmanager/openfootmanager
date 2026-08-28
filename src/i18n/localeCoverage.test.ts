@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   collectMissingKeys,
+  collectOrphanKeys,
   collectUntranslatedKeys,
   type LocaleTree,
 } from "./i18nTestHelpers";
@@ -11,6 +12,7 @@ import de from "./locales/de.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
+import idLocale from "./locales/id.json";
 import itLocale from "./locales/it.json";
 import ptBR from "./locales/pt-BR.json";
 import pt from "./locales/pt.json";
@@ -24,6 +26,7 @@ const LOCALES: Record<string, LocaleTree> = {
   es,
   fr,
   it: itLocale,
+  id: idLocale,
   pt,
   "pt-BR": ptBR,
   ru,
@@ -46,6 +49,22 @@ describe("locale coverage", () => {
     }, {});
 
     expect(missingKeysByLocale).toEqual({});
+  });
+
+  it("carries no keys that English does not have", () => {
+    const orphanKeysByLocale = Object.entries(LOCALES).reduce<
+      Record<string, string[]>
+    >((accumulator, [localeCode, translations]) => {
+      const orphanKeys = collectOrphanKeys(en, translations);
+
+      if (orphanKeys.length > 0) {
+        accumulator[localeCode] = orphanKeys;
+      }
+
+      return accumulator;
+    }, {});
+
+    expect(orphanKeysByLocale).toEqual({});
   });
 
   it("has no untranslated strings (only explicitly allowed same-language exceptions)", () => {

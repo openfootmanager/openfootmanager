@@ -118,9 +118,13 @@ pub fn jobs_available(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── jobs_apply ──────────────────────────────────────────────────────────────
 
 pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
-    let mut game = require_game(&ctx.state_manager)?;
-    let result = ofm_core::job_offers::apply_for_job(&mut game, &team_id);
-    ctx.state_manager.set_game(game);
+    // `apply_for_job` reports its outcome as a value rather than an error, and
+    // the old code committed unconditionally — so running it in place changes
+    // nothing except closing the window between the read and the write.
+    let result = ctx
+        .state_manager
+        .update_game(|game| ofm_core::job_offers::apply_for_job(game, &team_id))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?;
 
     {
         use tauri::Emitter;

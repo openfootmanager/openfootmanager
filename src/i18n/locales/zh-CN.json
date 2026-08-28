@@ -1734,7 +1734,8 @@
       "zhCN": "简体中文",
       "ru": "俄语",
       "cs": "捷克语",
-      "tr": "土耳其语"
+      "tr": "土耳其语",
+      "id": "印尼语"
     },
     "gameplay": "玩法",
     "defaultMatchMode": "默认比赛模式",
@@ -2616,6 +2617,10 @@
         "unknownRegion": "\"{{field}}\" 引用了未知的区域 \"{{id}}\"。",
         "reversedRange": "球队 \"{{team}}\" 的 {{field}} 范围颠倒（最小值 > 最大值）。",
         "outOfRange": "球队 \"{{team}}\" 的 {{field}} 值超出范围（声望 0–1000，财务 ≥ 0）。",
+        "potentialOutOfRange": "“{{entity}}”的潜力为 {{potential}}。潜力必须介于 1 到 99 之间。",
+        "potentialBelowOverall": "“{{entity}}”的潜力为 {{potential}}，低于其综合评分 {{ability}}。球员的上限不能低于其当前能力。",
+        "potentialBelowAttributes": "“{{entity}}”的潜力为 {{potential}}，低于其属性得出的 {{ability}}。球员的上限不能低于其当前能力。",
+        "potentialBelowDefaultAbility": "“{{entity}}”的潜力为 {{potential}}，低于未填写综合评分和属性时使用的默认能力 {{ability}}。",
         "unsupportedFormatVersion": "此扩展包由更新版本的游戏创建（格式 {{version}}，本版本支持 {{supported}}）。请更新游戏后再打开。"
       },
       "competitionDef": {
@@ -2802,7 +2807,6 @@
     "source": {
       "sportsGazette": "体育公报",
       "footballHerald": "足球先驱报",
-      "playersUnder21": "U21球员",
       "matchDayPress": "比赛日新闻",
       "leagueChronicle": "联赛纪事",
       "leagueWire": "联赛快讯",
@@ -3819,6 +3823,8 @@
     "playerDateOfBirth": "出生日期",
     "playerAge": "年龄",
     "playerOverall": "综合评分 (1–99)",
+    "playerPotential": "潜力（1–99）",
+    "playerPotentialHelp": "这名球员能达到的高度。留空则由引擎根据其能力和年龄生成上限。上限不能低于当前能力，已达到上限的球员将不再成长。",
     "playerUseAttributes": "使用详细属性",
     "savePlayer": "保存球员",
     "names": "姓名",

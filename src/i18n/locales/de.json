@@ -1734,7 +1734,8 @@
       "zhCN": "Vereinfachtes Chinesisch",
       "ru": "Russisch",
       "cs": "Tschechisch",
-      "tr": "Türkisch"
+      "tr": "Türkisch",
+      "id": "Indonesisch"
     },
     "gameplay": "Spielweise",
     "defaultMatchMode": "Standard-Spielmodus",
@@ -2616,6 +2617,10 @@
         "unknownRegion": "\"{{field}}\" verweist auf unbekannte Region \"{{id}}\".",
         "reversedRange": "Team \"{{team}}\" hat einen umgekehrten {{field}} (min > max).",
         "outOfRange": "Team \"{{team}}\" hat {{field}}-Werte außerhalb des gültigen Bereichs (Reputation 0–1000, Finanzen ≥ 0).",
+        "potentialOutOfRange": "„{{entity}}“ hat ein Potenzial von {{potential}}. Das Potenzial muss zwischen 1 und 99 liegen.",
+        "potentialBelowOverall": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter der Gesamtstärke von {{ability}}. Die Obergrenze eines Spielers darf nicht unter seiner aktuellen Stärke liegen.",
+        "potentialBelowAttributes": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter den {{ability}}, die sich aus den Attributen ergeben. Die Obergrenze eines Spielers darf nicht unter seiner aktuellen Stärke liegen.",
+        "potentialBelowDefaultAbility": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter der Standardstärke von {{ability}}, die ohne Gesamtstärke und Attribute verwendet wird.",
         "unsupportedFormatVersion": "Dieses Paket wurde mit einer neueren Version des Spiels erstellt (Format {{version}}; diese Version unterstützt {{supported}}). Aktualisiere das Spiel, um es zu öffnen."
       },
       "competitionDef": {
@@ -2802,7 +2807,6 @@
     "source": {
       "sportsGazette": "Sportgazette",
       "footballHerald": "Der Football Herald",
-      "playersUnder21": "{{count}} Akademiespieler",
       "matchDayPress": "Spieltagspresse",
       "leagueChronicle": "Liga-Chronik",
       "leagueWire": "Liga-Ticker",
@@ -2817,7 +2821,6 @@
         "exportedDescription": "Welt mit {{teamCount}} Teams, aus einem gespeicherten Spiel exportiert"
       },
       "welcome": {
-        "noYouthPlayers": "Derzeit sind keine Spieler der Jugendakademie zugewiesen.",
         "subject0": "Willkommen bei {{team}}",
         "subject1": "Neue Ära bei {{team}}",
         "subject2": "{{team}} Erwartet Ihre Führung",
@@ -2827,8 +2830,6 @@
         "actionReview": "Kader überprüfen",
         "actionThank": "Dem Vorstand danken"
       },
-      "delegateToYouthAcademy": "In die Jugendakademie versetzen",
-      "promoteToSeniorSquad": "In den Profikader befördern",
       "schedule": {
         "subject": "Saisonspielplan veröffentlicht",
         "body0": "Der Spielplan der {{league}} wurde veröffentlicht. Die Saison beginnt am {{start}}.\n\nÜberprüfen Sie die Spielliste und stellen Sie sicher, dass Ihr Kader für die kommenden Herausforderungen bereit ist. Die Vorbereitung wird entscheidend sein.",
@@ -3822,6 +3823,8 @@
     "playerDateOfBirth": "Geburtsdatum",
     "playerAge": "Alter",
     "playerOverall": "Gesamtwertung (1–99)",
+    "playerPotential": "Potenzial (1–99)",
+    "playerPotentialHelp": "Wie gut dieser Spieler werden kann. Leer lassen und die Engine würfelt eine Obergrenze aus Stärke und Alter aus. Sie darf nicht unter der aktuellen Stärke liegen, und wer sie erreicht hat, entwickelt sich nicht weiter.",
     "playerUseAttributes": "Detaillierte Attribute verwenden",
     "savePlayer": "Spieler speichern",
     "names": "Namen",

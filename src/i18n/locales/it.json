@@ -1753,7 +1753,8 @@
       "zhCN": "Cinese semplificato",
       "ru": "Russo",
       "cs": "Ceco",
-      "tr": "Turco"
+      "tr": "Turco",
+      "id": "indonesiano"
     },
     "gameplay": "Impostazioni di gioco",
     "defaultMatchMode": "Modalità partita predefinita",
@@ -2616,6 +2617,10 @@
         "unknownRegion": "\"{{field}}\" fa riferimento a una regione sconosciuta \"{{id}}\".",
         "reversedRange": "La squadra \"{{team}}\" ha un {{field}} invertito (min > max).",
         "outOfRange": "La squadra \"{{team}}\" ha valori {{field}} fuori intervallo (reputazione 0–1000, finanze ≥ 0).",
+        "potentialOutOfRange": "\"{{entity}}\" ha un potenziale di {{potential}}. Il potenziale deve essere compreso tra 1 e 99.",
+        "potentialBelowOverall": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore al suo voto complessivo di {{ability}}. Il tetto di un giocatore non può stare sotto la sua abilità attuale.",
+        "potentialBelowAttributes": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore al voto complessivo di {{ability}} che risulta dai suoi attributi. Il tetto di un giocatore non può stare sotto la sua abilità attuale.",
+        "potentialBelowDefaultAbility": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore all'abilità predefinita di {{ability}} usata quando non sono indicati né media né attributi.",
         "unsupportedFormatVersion": "Questo pacchetto è stato creato con una versione più recente del gioco (formato {{version}}; questa versione supporta {{supported}}). Aggiorna il gioco per aprirlo."
       },
       "competitionDef": {
@@ -2802,7 +2807,6 @@
     "source": {
       "sportsGazette": "Gazzetta Sportiva",
       "footballHerald": "L'Araldo del Calcio",
-      "playersUnder21": "{{count}} giocatori del vivaio",
       "matchDayPress": "Stampa del Giorno Partita",
       "leagueChronicle": "Cronaca della Lega",
       "leagueWire": "Filo della Lega",
@@ -2817,7 +2821,6 @@
         "exportedDescription": "Mondo con {{teamCount}} squadre esportato da una partita salvata"
       },
       "welcome": {
-        "noYouthPlayers": "Nessun giocatore è attualmente assegnato al settore giovanile.",
         "subject0": "Benvenuto al {{team}}",
         "subject1": "Nuova era al {{team}}",
         "subject2": "{{team}} attende la tua leadership",
@@ -2873,8 +2876,6 @@
         "subject": "Convocazione in nazionale — {{player}}",
         "body": "{{player}} è stato convocato dalla nazionale di {{nationality}} per la prossima finestra internazionale.\n\nÈ un grande onore per il giocatore e riflette positivamente anche sul club. Tornerà di buon umore, ma conviene tenere d'occhio il suo livello di fatica."
       },
-      "delegateToYouthAcademy": "Assegna al settore giovanile",
-      "promoteToSeniorSquad": "Promuovi in prima squadra",
       "schedule": {
         "subject": "Calendario stagionale pubblicato",
         "body0": "Il calendario della {{league}} è stato pubblicato. La stagione inizierà il {{start}}.\n\nControlla l'elenco delle partite e assicurati che la tua rosa sia pronta per le sfide che ti aspettano. La preparazione precampionato sarà cruciale.",
@@ -3822,6 +3823,8 @@
     "playerDateOfBirth": "Data di nascita",
     "playerAge": "Età",
     "playerOverall": "Voto complessivo (1–99)",
+    "playerPotential": "Potenziale (1–99)",
+    "playerPotentialHelp": "Fin dove può arrivare questo giocatore. Lascialo vuoto e il motore estrae un tetto dalla sua abilità e dalla sua età. Non può essere inferiore all'abilità attuale, e chi lo ha raggiunto smette di migliorare.",
     "playerUseAttributes": "Usa attributi dettagliati",
     "savePlayer": "Salva Giocatore",
     "names": "Nomi",

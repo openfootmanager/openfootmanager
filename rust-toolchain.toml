@@ -1,0 +1,14 @@
+# Pins the Rust toolchain for everyone, so "clean locally, red on CI" stops being possible.
+# rustup resolves this file by walking up from the current directory, so it governs both
+# `cargo --manifest-path src-tauri/Cargo.toml ...` run from the repository root and a bare
+# `cargo ...` run from inside `src-tauri/`.
+#
+# Keep the channel equal to every `dtolnay/rust-toolchain@<version>` pin in `.github/workflows/`.
+# `scripts/check-toolchain-pin.sh` enforces that and explains why the release builds depend on it.
+#
+# Deliberately no `targets = [...]`: the macOS release builds install their Apple targets through
+# the workflow action instead, so listing them here would make every Linux contributor download a
+# macOS standard library they will never build against.
+[toolchain]
+channel = "1.95.0"
+components = ["clippy", "rustfmt"]

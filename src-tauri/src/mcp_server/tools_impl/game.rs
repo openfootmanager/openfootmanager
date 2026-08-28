@@ -113,6 +113,10 @@ pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<String,
     let mut sm = ctx.save_manager_state.0.lock().map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
     let save_id = crate::commands::game::create_new_save(&mut sm, &game, &stats_state, &save_name)?;
 
+    // Deliberately still clone-and-set rather than `update_game`: the new save
+    // is written to disk above, and doing that inside the closure would hold the
+    // game mutex across filesystem I/O. There is no concurrency exposure here
+    // anyway — this is career creation, before any other tool can act on a game.
     ctx.state_manager.set_save_id(save_id.clone());
     ctx.state_manager.set_game(game);
     ctx.state_manager.set_stats_state(stats_state);
@@ -138,6 +142,8 @@ pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, S
 
     let mgr_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
 
+    // `set_game` is correct here and is not the clone-mutate-replace pattern:
+    // this game came off disk, so there is no prior state to lose an update to.
     ctx.state_manager.set_save_id(save_id.clone());
     ctx.state_manager.set_game(game);
     ctx.state_manager.set_stats_state(stats_state);

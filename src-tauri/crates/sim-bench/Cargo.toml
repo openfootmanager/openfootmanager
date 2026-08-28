@@ -15,3 +15,6 @@ serde_json = "1"
 clap = { version = "4", features = ["derive"] }
 comfy-table = "7"
 colored = "2"
+
+[lints]
+workspace = true

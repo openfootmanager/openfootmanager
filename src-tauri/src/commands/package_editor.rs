@@ -848,6 +848,7 @@ mod tests {
             date_of_birth: Some("1985-10-24".to_string()),
             age: None,
             overall: None,
+            potential: Some(93),
             attributes: Some(PlayerAttributes {
                 pace: 75,
                 stamina: 80,
@@ -979,6 +980,8 @@ mod tests {
         let attrs = p.attributes.as_ref().expect("attributes must survive round-trip");
         assert_eq!(attrs.shooting, 88);
         assert_eq!(attrs.pace, 75);
+        // An authored ceiling has to come back out of the project the editor wrote.
+        assert_eq!(p.potential, Some(93), "potential must survive round-trip");
 
         let names_rt = loaded.names.expect("names must survive round-trip");
         let eng = names_rt.pools.get("ENG").expect("ENG pool must survive round-trip");

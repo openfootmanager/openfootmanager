@@ -8,10 +8,12 @@ use crate::mcp_server::formatting::translate_error;
 // ─── scout_send ─────────────────────────────────────────────────────────────
 
 pub fn scout_send(ctx: Arc<McpContext>, scout_id: String, player_id: String) -> Result<String, String> {
-    let mut game = require_game(&ctx.state_manager)?;
-    ofm_core::scouting::send_scout(&mut game, &scout_id, &player_id)
+    // `send_scout` validates fully before its single push, so an error path
+    // leaves the game untouched even though `update_game` cannot roll back.
+    ctx.state_manager
+        .update_game(|game| ofm_core::scouting::send_scout(game, &scout_id, &player_id))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
         .map_err(|e| translate_error(&e))?;
-    ctx.state_manager.set_game(game);
 
     let scout_name = ctx.state_manager.get_game(|g| {
         g.staff.iter().find(|s| s.id == scout_id)
@@ -87,22 +89,24 @@ pub fn scout_get_reports(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── scout_youth_start ──────────────────────────────────────────────────────
 
 pub fn scout_youth_start(ctx: Arc<McpContext>, scout_id: String, region: Option<String>, objective: Option<String>, target_position: Option<String>) -> Result<String, String> {
-    let mut game = require_game(&ctx.state_manager)?;
-
     let region = parse_youth_region(region.as_deref())?;
     let objective = parse_youth_objective(objective.as_deref())?;
     let target_position = parse_youth_target_position(target_position.as_deref())?;
 
-    ofm_core::scouting::start_youth_scouting(
-        &mut game,
-        &scout_id,
-        region,
-        objective,
-        target_position,
-    )
-    .map_err(|e| translate_error(&e))?;
-
-    ctx.state_manager.set_game(game);
+    // Validates fully before its single push, so the error path leaves the game
+    // untouched even though `update_game` cannot roll back.
+    ctx.state_manager
+        .update_game(|game| {
+            ofm_core::scouting::start_youth_scouting(
+                game,
+                &scout_id,
+                region,
+                objective,
+                target_position,
+            )
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+        .map_err(|e| translate_error(&e))?;
 
     {
         use tauri::Emitter;
@@ -149,10 +153,13 @@ fn parse_youth_target_position(pos: Option<&str>) -> Result<Option<domain::playe
 // ─── scout_youth_cancel ─────────────────────────────────────────────────────
 
 pub fn scout_youth_cancel(ctx: Arc<McpContext>, assignment_id: String) -> Result<String, String> {
-    let mut game = require_game(&ctx.state_manager)?;
-    ofm_core::scouting::cancel_youth_scouting(&mut game, &assignment_id)
+    // The odd one out: `cancel_youth_scouting` retains first and reports the
+    // failure afterwards. That is still safe to run in place — when it errors,
+    // the retain matched nothing and removed nothing.
+    ctx.state_manager
+        .update_game(|game| ofm_core::scouting::cancel_youth_scouting(game, &assignment_id))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
         .map_err(|e| translate_error(&e))?;
-    ctx.state_manager.set_game(game);
 
     {
         use tauri::Emitter;
@@ -167,10 +174,13 @@ pub fn scout_youth_cancel(ctx: Arc<McpContext>, assignment_id: String) -> Result
 // ─── scout_youth_reassign ───────────────────────────────────────────────────
 
 pub fn scout_youth_reassign(ctx: Arc<McpContext>, assignment_id: String, scout_id: String) -> Result<String, String> {
-    let mut game = require_game(&ctx.state_manager)?;
-    ofm_core::scouting::reassign_youth_scouting(&mut game, &assignment_id, &scout_id)
+    // Validates fully before the one field it assigns.
+    ctx.state_manager
+        .update_game(|game| {
+            ofm_core::scouting::reassign_youth_scouting(game, &assignment_id, &scout_id)
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
         .map_err(|e| translate_error(&e))?;
-    ctx.state_manager.set_game(game);
 
     {
         use tauri::Emitter;
