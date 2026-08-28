@@ -152,6 +152,11 @@ pub fn blueprint_for(play_style: &PlayStyle) -> TacticsPhaseSettings {
 /// straight at the deep line and the compact block. The engine now charges for
 /// all four, but not provably in full — see the module docs for when this
 /// limit can be revisited.
+///
+/// `engine::ai` keeps its own copy of this rule for the dials a manager turns
+/// during a match. That is duplication the crate boundary requires rather than
+/// an oversight: the engine does not depend on `domain`, so it cannot see
+/// `TacticsPhaseSettings` at all. Move one and move both.
 const MAX_UNDER_PRICED_DIALS: usize = 2;
 
 fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {

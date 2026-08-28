@@ -32,7 +32,10 @@
 use rand::{Rng, RngExt};
 
 use crate::live_match::{AiObservation, LiveMatchState, MatchCommand, MatchPhase};
-use crate::types::{PlayStyle, PlayerData, PlayerRole, Position, Side};
+use crate::types::{
+    BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, PlayStyle, PlayerData,
+    PlayerRole, Position, PressingIntensity, Side, TacticalDial, TacticsConfig, TacticsPitchWidth,
+};
 
 // ---------------------------------------------------------------------------
 // AiPersonality — determines decision-making style
@@ -516,11 +519,83 @@ fn consider_tactic_change(obs: &AiObservation<'_>, profile: &AiProfile) -> Optio
         });
     }
 
-    let target = target_play_style(obs)?;
-    (target != obs.team.play_style).then_some(MatchCommand::ChangePlayStyle {
-        side: obs.side,
-        play_style: target,
-    })
+    if let Some(target) = target_play_style(obs)
+        && target != obs.team.play_style
+    {
+        return Some(MatchCommand::ChangePlayStyle {
+            side: obs.side,
+            play_style: target,
+        });
+    }
+
+    // Already wearing the right shirt. There are still nine dials underneath it.
+    turn_a_dial(obs)
+}
+
+/// The four dials `--phase-sweep` found the engine still prices one-sidedly,
+/// and the most any one side may hold at once.
+///
+/// `ofm_core::ai_tactics` keeps the same rule for the plan a club takes *into* a
+/// match. Duplicating it is what the crate boundary costs: the engine does not
+/// depend on `domain`, so it cannot see `TacticsPhaseSettings`, and a manager
+/// who could turn these dials freely at eighty minutes would undo between the
+/// whistles exactly what the blueprints ration between matches. Move one and
+/// move both.
+const MAX_UNDER_PRICED_DIALS: usize = 2;
+
+fn under_priced_dials(tactics: &TacticsConfig) -> usize {
+    [
+        matches!(
+            tactics.defensive_line,
+            DefensiveLine::VeryLow | DefensiveLine::Low
+        ),
+        tactics.defensive_shape == DefensiveShape::Compact,
+        tactics.width == TacticsPitchWidth::Narrow,
+        tactics.counter_press_duration == CounterPressDuration::Long,
+    ]
+    .iter()
+    .filter(|held| **held)
+    .count()
+}
+
+/// One instruction, shouted from the touchline.
+///
+/// The moves are in the order a manager would reach for them, and the first one
+/// that changes anything and stays inside the ration is the one he gives.
+fn turn_a_dial(obs: &AiObservation<'_>) -> Option<MatchCommand> {
+    let reach_for: &[TacticalDial] = if chasing(obs) {
+        // Squeeze the pitch from the other end: a higher line, quicker breaks,
+        // and press them when the ball is lost. None of these is a dial the
+        // engine gives away, so the ration never bites on this side of it.
+        &[
+            TacticalDial::DefensiveLine(DefensiveLine::High),
+            TacticalDial::BreakSpeed(BreakSpeed::Fast),
+            TacticalDial::PressingIntensity(PressingIntensity::Aggressive),
+        ]
+    } else if obs.goal_diff > 0 && obs.minute >= SEE_OUT_A_LEAD_FROM {
+        // Drop, narrow the gaps, and stop chasing. The first two are rationed
+        // dials, so a side already holding two of them gets the third move.
+        &[
+            TacticalDial::DefensiveLine(DefensiveLine::Low),
+            TacticalDial::DefensiveShape(DefensiveShape::Compact),
+            TacticalDial::PressingIntensity(PressingIntensity::Passive),
+        ]
+    } else {
+        return None;
+    };
+
+    for dial in reach_for {
+        let mut trial = obs.team.tactics.clone();
+        dial.set_on(&mut trial);
+        if trial != obs.team.tactics && under_priced_dials(&trial) <= MAX_UNDER_PRICED_DIALS {
+            return Some(MatchCommand::ChangeTacticalDial {
+                side: obs.side,
+                dial: *dial,
+            });
+        }
+    }
+
+    None
 }
 
 /// How this side ought to be playing, given where the match has got to.

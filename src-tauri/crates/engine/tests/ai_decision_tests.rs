@@ -431,6 +431,119 @@ fn a_side_chasing_the_game_uses_more_than_three_substitutions() {
 }
 
 // ---------------------------------------------------------------------------
+// The nine dials underneath the play style
+// ---------------------------------------------------------------------------
+
+/// How many of the four dials the engine still prices one-sidedly this plan
+/// holds. Written out here rather than borrowed from the engine on purpose: the
+/// rule is what is being tested, so the test has to state it itself.
+fn under_priced_dials(tactics: &TacticsConfig) -> usize {
+    [
+        matches!(
+            tactics.defensive_line,
+            DefensiveLine::VeryLow | DefensiveLine::Low
+        ),
+        tactics.defensive_shape == DefensiveShape::Compact,
+        tactics.width == TacticsPitchWidth::Narrow,
+        tactics.counter_press_duration == CounterPressDuration::Long,
+    ]
+    .iter()
+    .filter(|held| **held)
+    .count()
+}
+
+/// Play out a stuck scoreline and hand back every dial the home manager turned,
+/// paired with the plan as it stood after he turned it.
+fn dials_turned_at(
+    home: TeamData,
+    home_goals: u8,
+    away_goals: u8,
+    profile: &AiProfile,
+) -> Vec<(TacticalDial, TacticsConfig)> {
+    let mut state = LiveMatchState::new(
+        home,
+        team("away", eleven("away", 60, 100)),
+        MatchConfig::default(),
+        bench("home", 55),
+        bench("away", 55),
+        false,
+    );
+
+    let mut rng = StdRng::seed_from_u64(13);
+    let mut turned = Vec::new();
+
+    loop {
+        if state.step_minute(&mut rng).is_finished {
+            break;
+        }
+        state.test_set_score(home_goals, away_goals);
+        for cmd in ai_decide(&state, Side::Home, profile, &mut rng) {
+            let turn = match cmd {
+                MatchCommand::ChangeTacticalDial { dial, .. } => Some(dial),
+                _ => None,
+            };
+            let _ = state.apply_command(cmd);
+            if let Some(dial) = turn {
+                turned.push((dial, state.snapshot().home_team.tactics.clone()));
+            }
+        }
+    }
+
+    turned
+}
+
+/// A side already playing the right way had nothing left to say.
+///
+/// `ChangePlayStyle` is the only tactical instruction the AI could give, and it
+/// is a label for a whole approach: a side that is already Attacking and two
+/// goals down would emit it, find it equal to what it is already doing, and
+/// send nothing. "Push the line up" and "start the whole side attacking" are
+/// different instructions, and only one of them was available.
+#[test]
+fn a_side_already_attacking_still_has_something_to_change() {
+    let mut home = team("home", eleven("home", 60, 100));
+    home.play_style = PlayStyle::Attacking;
+
+    let turned = dials_turned_at(home, 0, 2, &profile(90, AiPersonality::Pragmatist));
+
+    assert!(
+        !turned.is_empty(),
+        "two goals down all match, already set up to attack, and the manager \
+         never changed a single instruction"
+    );
+}
+
+/// The blueprints ration the four dials the engine gives away, at most two per
+/// club. A manager free to turn them at eighty minutes would undo between the
+/// whistles what the weekly review rations between matches — and "see out the
+/// lead" reaches for two of the four by name.
+#[test]
+fn no_instruction_from_the_touchline_breaks_the_ration() {
+    let mut home = team("home", eleven("home", 60, 100));
+    // Already spending its whole allowance, the way a Counter or Defensive
+    // blueprint does.
+    home.play_style = PlayStyle::Defensive;
+    home.tactics.defensive_line = DefensiveLine::Low;
+    home.tactics.width = TacticsPitchWidth::Narrow;
+
+    let turned = dials_turned_at(home, 2, 0, &profile(90, AiPersonality::Pragmatist));
+
+    assert!(
+        !turned.is_empty(),
+        "a side two up at eighty minutes holding two of the four rationed dials \
+         gave no instruction at all, so this test proves nothing about the ration"
+    );
+    for (dial, plan) in &turned {
+        assert!(
+            under_priced_dials(plan) <= 2,
+            "{dial:?} left the side holding {} of the four dials the engine \
+             under-prices: {plan:?}",
+            under_priced_dials(plan)
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Somebody has to go in goal
 // ---------------------------------------------------------------------------
 

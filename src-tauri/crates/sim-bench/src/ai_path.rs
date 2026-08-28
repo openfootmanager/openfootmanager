@@ -40,6 +40,7 @@ pub struct PathTotals {
     substitutions: u64,
     style_changes: u64,
     formation_changes: u64,
+    dial_changes: u64,
     /// Commands the engine refused (no bench cover, substitutions used up), kept
     /// apart so the rows above count changes rather than attempts.
     rejected_commands: u64,
@@ -240,6 +241,7 @@ fn count_command(totals: &mut PathTotals, cmd: &engine::MatchCommand) {
         engine::MatchCommand::Substitute { .. } => totals.substitutions += 1,
         engine::MatchCommand::ChangePlayStyle { .. } => totals.style_changes += 1,
         engine::MatchCommand::ChangeFormation { .. } => totals.formation_changes += 1,
+        engine::MatchCommand::ChangeTacticalDial { .. } => totals.dial_changes += 1,
         _ => {}
     }
 }
@@ -262,7 +264,7 @@ fn print_table(instant: &PathTotals, live: &PathTotals, games: u32) {
     );
     println!("{sep}");
 
-    let rows: [(&str, f64, f64); 7] = [
+    let rows: [(&str, f64, f64); 8] = [
         (
             "participants",
             instant.per_match(instant.participants),
@@ -287,6 +289,11 @@ fn print_table(instant: &PathTotals, live: &PathTotals, games: u32) {
             "formation changes",
             instant.per_match(instant.formation_changes),
             live.per_match(live.formation_changes),
+        ),
+        (
+            "tactical dial changes",
+            instant.per_match(instant.dial_changes),
+            live.per_match(live.dial_changes),
         ),
         (
             "commands rejected",

@@ -14,7 +14,9 @@ pub(crate) use observation::AiObservation;
 
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
-use crate::types::{MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TeamData, Zone};
+use crate::types::{
+    MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TacticalDial, TeamData, Zone,
+};
 
 // ---------------------------------------------------------------------------
 // MatchPhase — tracks where we are in the match lifecycle
@@ -79,6 +81,11 @@ pub enum MatchCommand {
         side: Side,
         player_id: String,
         role: PlayerRole,
+    },
+    /// Turn one of the nine tactical dials, leaving the other eight alone.
+    ChangeTacticalDial {
+        side: Side,
+        dial: TacticalDial,
     },
 }
 
@@ -357,6 +364,10 @@ impl LiveMatchState {
                     return Err("be.error.liveMatch.preMatchSwapTooLate".into());
                 }
                 self.do_pre_match_swap(side, &player_off_id, &player_on_id)
+            }
+            MatchCommand::ChangeTacticalDial { side, dial } => {
+                dial.set_on(&mut self.team_mut(side).tactics);
+                Ok(())
             }
             MatchCommand::ChangePlayerRole {
                 side,
