@@ -206,6 +206,12 @@ fn consider_substitution<R: Rng>(
         return None;
     }
 
+    // Nobody in goal is not a decision, it is an emergency, and it does not
+    // wait for a checkpoint or for anything else on this list.
+    if let Some(cmd) = put_someone_in_goal(obs, profile, rng) {
+        return Some(cmd);
+    }
+
     // Exhaustion is not a judgement call, and this branch has never been behind
     // a dice roll. Holding it back to a checkpoint would make the AI react to a
     // spent player *later* than it does today, and the condition economy was
@@ -231,6 +237,55 @@ fn consider_substitution<R: Rng>(
 /// Is this side behind in a way that calls for something to be done?
 fn chasing(obs: &AiObservation<'_>) -> bool {
     obs.goal_diff <= -2 || (obs.goal_diff == -1 && obs.minute >= CHASE_ONE_GOAL_FROM)
+}
+
+/// The goalkeeper has been sent off. Somebody has to go in.
+///
+/// The AI had no branch for this at all — the exhaustion search skips
+/// goalkeepers by design, and the other two are about outfield shape — so a side
+/// that lost its keeper played out the match with `pick_goalkeeper` falling
+/// through to whoever happened to be first in the list.
+///
+/// Who makes way is the same question as anywhere else, asked of a shorter list:
+/// a side down to ten and without a keeper is not taking a defender off.
+fn put_someone_in_goal<R: Rng>(
+    obs: &AiObservation<'_>,
+    profile: &AiProfile,
+    rng: &mut R,
+) -> Option<MatchCommand> {
+    if obs
+        .team
+        .players
+        .iter()
+        .any(|p| p.position == Position::Goalkeeper && obs.available(p))
+    {
+        return None;
+    }
+
+    // `find_best_bench_replacement` falls back to the best player of any
+    // position, which is the right answer everywhere else and useless here.
+    let keeper_on = find_best_bench_replacement(obs.bench, Position::Goalkeeper, obs, None)?;
+    if keeper_on.position != Position::Goalkeeper {
+        return None;
+    }
+
+    let makes_way = [Position::Forward, Position::Midfielder, Position::Defender]
+        .into_iter()
+        .find_map(|position| {
+            let candidates: Vec<&PlayerData> = obs
+                .team
+                .players
+                .iter()
+                .filter(|p| p.position == position && obs.available(p))
+                .collect();
+            least_missed(&candidates, obs, profile, rng)
+        })?;
+
+    Some(MatchCommand::Substitute {
+        side: obs.side,
+        player_off_id: makes_way.id.clone(),
+        player_on_id: keeper_on.id.clone(),
+    })
 }
 
 /// Take off whoever has least left to give, and replace him in kind.

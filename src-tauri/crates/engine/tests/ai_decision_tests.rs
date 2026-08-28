@@ -431,6 +431,63 @@ fn a_side_chasing_the_game_uses_more_than_three_substitutions() {
 }
 
 // ---------------------------------------------------------------------------
+// Somebody has to go in goal
+// ---------------------------------------------------------------------------
+
+/// A dismissed goalkeeper is the one substitution no manager has to think
+/// about, and the AI had no branch for it at all: the fatigue search skips
+/// goalkeepers by design, and the chasing and lead-protecting branches are
+/// about outfield shape. A side played the rest of the match with
+/// `pick_goalkeeper` falling through to "the first player who is still on the
+/// pitch" — a centre-half in goal, for forty-five minutes, every time.
+#[test]
+fn a_side_whose_goalkeeper_is_sent_off_puts_another_one_in_goal() {
+    let mut state = LiveMatchState::new(
+        team("home", eleven("home", 60, 100)),
+        team("away", eleven("away", 60, 100)),
+        MatchConfig::default(),
+        bench("home", 55),
+        bench("away", 55),
+        false,
+    );
+
+    let mut rng = StdRng::seed_from_u64(4);
+    let manager = profile(50, AiPersonality::Pragmatist);
+
+    state.step_minute(&mut rng); // kick off
+    state.step_minute(&mut rng);
+    state.test_send_off("home_gk");
+
+    for _ in 0..10 {
+        if state.step_minute(&mut rng).is_finished {
+            break;
+        }
+        for cmd in ai_decide(&state, Side::Home, &manager, &mut rng) {
+            let _ = state.apply_command(cmd);
+        }
+    }
+
+    let snapshot = state.snapshot();
+    let keeper = snapshot
+        .home_team
+        .players
+        .iter()
+        .find(|p| p.position == Position::Goalkeeper && !snapshot.sent_off.contains(&p.id));
+
+    assert!(
+        keeper.is_some(),
+        "ten minutes after the goalkeeper was sent off, with a goalkeeper on the \
+         bench and five substitutions unused, there is still nobody in goal: {:?}",
+        snapshot
+            .home_team
+            .players
+            .iter()
+            .map(|p| (&p.id, &p.position))
+            .collect::<Vec<_>>()
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Who comes off
 // ---------------------------------------------------------------------------
 
