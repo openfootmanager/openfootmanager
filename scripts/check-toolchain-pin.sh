@@ -89,10 +89,22 @@ done < <(grep -rnE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow_dir" || tr
 # in a comment and demanded a pin from a workflow that builds nothing.
 builds_rust='(^|[^[:alnum:]_-])cargo[[:space:]]+[+a-z]|uses:[[:space:]]*tauri-apps/tauri-action|(^|[^[:alnum:]_-])tauri[[:space:]]+build'
 
+# `cargo deny` is not a Rust build. It is a prebuilt binary that shells out to `cargo metadata`,
+# so it compiles nothing, needs no `targets`, and has no toolchain download to warm — the three
+# things the rule above exists to guarantee. `rust-toolchain.toml` still governs the `cargo` it
+# calls, so it is pinned; it just does not need the action to be.
+#
+# Blanked token by token rather than line by line, so `cargo deny check && cargo build` still
+# trips the rule on its second half. That matters more than it looks: a whole-line exclusion
+# would turn this into a one-line bypass for any job willing to write both on one line.
+strip_non_builders() {
+    grep -v '^[[:space:]]*#' "$1" | sed 's/cargo[[:space:]][[:space:]]*deny/cargo-deny/g'
+}
+
 for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
     [ -e "$workflow" ] || continue
 
-    grep -v '^[[:space:]]*#' "$workflow" | grep -qE "$builds_rust" || continue
+    strip_non_builders "$workflow" | grep -qE "$builds_rust" || continue
     grep -q "dtolnay/rust-toolchain@" "$workflow" && continue
 
     echo "$(relative "$workflow"): builds Rust but never installs the toolchain through dtolnay/rust-toolchain@$channel" >&2

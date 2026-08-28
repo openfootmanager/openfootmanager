@@ -1,0 +1,14 @@
+# cargo-deny compiles nothing, so it needs no dtolnay/rust-toolchain step. This fixture is the
+# accepted half of that exemption; cargo-deny-hiding-a-build is the half that proves the
+# exemption is not a way out of the rule.
+name: advisories
+on: [workflow_dispatch]
+jobs:
+  advisories:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+      - run: cargo deny --locked --manifest-path src-tauri/Cargo.toml check advisories

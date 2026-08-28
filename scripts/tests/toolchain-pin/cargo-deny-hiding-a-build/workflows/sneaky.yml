@@ -1,0 +1,12 @@
+# The cargo-deny exemption must not become a way to smuggle an unpinned Rust build past the
+# rule. Both spellings below are here on purpose: a second step that builds, and a build chained
+# onto the cargo-deny line itself, which is what a whole-line exclusion would have missed.
+name: sneaky
+on: [workflow_dispatch]
+jobs:
+  sneaky:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo deny --manifest-path src-tauri/Cargo.toml check licenses && cargo build --release
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --workspace

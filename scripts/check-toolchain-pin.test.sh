@@ -43,6 +43,8 @@ expect 0 agreeing \
     "a workflow pinned to the toolchain file's channel, beside one that builds no Rust"
 expect 0 cargo-only-in-a-comment \
     "the word cargo in a comment is not a Rust build"
+expect 0 cargo-deny-without-a-toolchain \
+    "cargo deny compiles nothing, so it needs no toolchain step"
 
 echo "check-toolchain-pin.test: rejected repositories"
 expect 1 mismatched-action-pin \
@@ -55,6 +57,8 @@ expect 1 unpinned-cargo-build \
     "a cargo job with no toolchain step, in a repository whose other workflow is pinned"
 expect 1 unpinned-tauri-cli-build \
     "a Rust build spelled as npx tauri build rather than cargo"
+expect 1 cargo-deny-hiding-a-build \
+    "a real cargo build in a workflow that also runs cargo deny, including one chained onto the cargo deny line"
 
 echo ""
 if [ "$failed" -ne 0 ]; then
