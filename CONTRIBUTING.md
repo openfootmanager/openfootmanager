@@ -124,7 +124,7 @@ CI runs its cargo commands with `--locked`, so **a manifest change that moves th
 is a diff you have to commit**. Add or bump a dependency, touch only `Cargo.toml`, and the build
 stops with:
 
-```
+```text
 error: cannot update the lock file … because --locked was passed to prevent this
 ```
 
