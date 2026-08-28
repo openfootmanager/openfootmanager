@@ -120,7 +120,7 @@ fn consider_substitution<R: Rng>(
         if p.position == Position::Goalkeeper {
             continue; // Don't sub the goalkeeper for fatigue
         }
-        if obs.sent_off.contains(&p.id) {
+        if !obs.available(p) {
             continue;
         }
         let condition = obs.condition_of(p);
@@ -139,7 +139,7 @@ fn consider_substitution<R: Rng>(
     if let Some((tired_player, _)) = worst_player {
         // Find best replacement from bench with same position
         if let Some(replacement) =
-            find_best_bench_replacement(bench, tired_player.position, obs.sent_off, None)
+            find_best_bench_replacement(bench, tired_player.position, obs, None)
         {
             return Some(MatchCommand::Substitute {
                 side,
@@ -161,7 +161,7 @@ fn consider_substitution<R: Rng>(
                 .iter()
                 .filter(|p| {
                     (p.position == Position::Defender || p.position == Position::Midfielder)
-                        && !obs.sent_off.contains(&p.id)
+                        && obs.available(p)
                 })
                 .collect();
 
@@ -172,12 +172,8 @@ fn consider_substitution<R: Rng>(
             };
 
             if let Some(player_off) = candidates.last()
-                && let Some(attacker_on) = find_best_bench_replacement(
-                    bench,
-                    Position::Forward,
-                    obs.sent_off,
-                    preferred_role,
-                )
+                && let Some(attacker_on) =
+                    find_best_bench_replacement(bench, Position::Forward, obs, preferred_role)
             {
                 return Some(MatchCommand::Substitute {
                     side,
@@ -196,12 +192,12 @@ fn consider_substitution<R: Rng>(
             let forwards: Vec<&PlayerData> = team
                 .players
                 .iter()
-                .filter(|p| p.position == Position::Forward && !obs.sent_off.contains(&p.id))
+                .filter(|p| p.position == Position::Forward && obs.available(p))
                 .collect();
 
             if let Some(player_off) = forwards.first()
                 && let Some(defender_on) =
-                    find_best_bench_replacement(bench, Position::Defender, obs.sent_off, None)
+                    find_best_bench_replacement(bench, Position::Defender, obs, None)
             {
                 return Some(MatchCommand::Substitute {
                     side,
@@ -215,19 +211,22 @@ fn consider_substitution<R: Rng>(
     None
 }
 
+/// The best player on the bench for a given job.
+///
+/// "On the bench" is not the same as "available": a substituted player is pushed
+/// back onto the same list, so every search here goes through
+/// [`AiObservation::available`] rather than reading the list directly.
 fn find_best_bench_replacement<'a>(
     bench: &'a [PlayerData],
     preferred_position: Position,
-    sent_off: &std::collections::HashSet<String>,
+    obs: &AiObservation<'_>,
     preferred_role: Option<PlayerRole>,
 ) -> Option<&'a PlayerData> {
     // If a role preference is set, try to find a position+role match first
     if let Some(role) = preferred_role {
         let mut role_candidates: Vec<&PlayerData> = bench
             .iter()
-            .filter(|p| {
-                p.position == preferred_position && p.role == role && !sent_off.contains(&p.id)
-            })
+            .filter(|p| p.position == preferred_position && p.role == role && obs.available(p))
             .collect();
         role_candidates.sort_by(|a, b| {
             b.overall()
@@ -242,7 +241,7 @@ fn find_best_bench_replacement<'a>(
     // First try exact position match, sorted by overall
     let mut candidates: Vec<&PlayerData> = bench
         .iter()
-        .filter(|p| p.position == preferred_position && !sent_off.contains(&p.id))
+        .filter(|p| p.position == preferred_position && obs.available(p))
         .collect();
     candidates.sort_by(|a, b| {
         b.overall()
@@ -255,7 +254,7 @@ fn find_best_bench_replacement<'a>(
     }
 
     // Fallback: any bench player
-    let mut all: Vec<&PlayerData> = bench.iter().filter(|p| !sent_off.contains(&p.id)).collect();
+    let mut all: Vec<&PlayerData> = bench.iter().filter(|p| obs.available(p)).collect();
     all.sort_by(|a, b| {
         b.overall()
             .partial_cmp(&a.overall())

@@ -19,7 +19,7 @@
 
 use std::collections::HashSet;
 
-use super::{LiveMatchState, MatchPhase};
+use super::{LiveMatchState, MatchPhase, SubstitutionRecord};
 use crate::types::{PlayerData, Side, TeamData, Zone};
 
 /// Everything one AI manager can see, resolved for that manager's side.
@@ -33,7 +33,10 @@ pub(crate) struct AiObservation<'a> {
     pub(crate) max_subs: u8,
     pub(crate) team: &'a TeamData,
     pub(crate) bench: &'a [PlayerData],
-    pub(crate) sent_off: &'a HashSet<String>,
+    sent_off: &'a HashSet<String>,
+    /// Every substitution the match has seen, both sides. Read only to find out
+    /// who has already been taken off — see [`AiObservation::available`].
+    substitutions: &'a [SubstitutionRecord],
     /// How many of the last ten minutes the ball spent in this side's own half.
     pub(crate) pressure_ticks: usize,
     /// Live per-minute condition, which is not what `TeamData` carries: the
@@ -42,6 +45,23 @@ pub(crate) struct AiObservation<'a> {
 }
 
 impl AiObservation<'_> {
+    /// Can this player take part — now, or later from the bench?
+    ///
+    /// Two ways to be finished with a match: sent off, or already substituted.
+    /// The second is easy to miss, because a substituted player is pushed back
+    /// onto the bench list (he has to go somewhere, and the UI lists him), where
+    /// a tired star still outranks every reserve. `do_substitution` refuses to
+    /// bring him on, so a manager who overlooks this does not break the match —
+    /// he just keeps proposing the one substitution he cannot make instead of
+    /// the ones he can.
+    pub(crate) fn available(&self, player: &PlayerData) -> bool {
+        !self.sent_off.contains(&player.id)
+            && !self
+                .substitutions
+                .iter()
+                .any(|sub| sub.player_off_id == player.id)
+    }
+
     /// This player's condition as the manager sees it right now.
     ///
     /// Rounded to a whole number before being read back as a float, which looks
@@ -88,6 +108,7 @@ impl LiveMatchState {
             team,
             bench: self.bench(side),
             sent_off: &self.sent_off,
+            substitutions: &self.substitutions,
             pressure_ticks: self
                 .recent_zones
                 .iter()
