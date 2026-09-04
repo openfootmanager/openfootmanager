@@ -5,6 +5,10 @@ on:
     branches:
       - develop
   workflow_dispatch:
+  # Called by the two release workflows before they publish anything. `uses:` with a
+  # local path runs the caller's own copy of this file, so the checks a release must
+  # pass cannot drift from the checks a PR must pass — there is only one definition.
+  workflow_call:
 
 # Every job here only reads the repo — checkout, build, test, lint. Nothing
 # publishes a release or comments on the PR, so the token needs nothing more.

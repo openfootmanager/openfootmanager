@@ -7,7 +7,16 @@ on:
       - release
 
 jobs:
+  # The same gauntlet a pull request has to pass, run against the commit that is about
+  # to be published. Shipping a stable release untested is strictly worse than shipping
+  # a nightly untested, and `release` is a branch no `pull_request` run ever covers.
+  #
+  # No `environment:` here on purpose — see the note in `nightly-tauri-action.yml`.
+  verify:
+    uses: ./.github/workflows/build-check.yml
+
   publish-tauri:
+    needs: verify
     environment: ${{ vars.RELEASE_ENVIRONMENT || 'release' }}
     permissions:
       contents: write
