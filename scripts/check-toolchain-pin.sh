@@ -97,11 +97,21 @@ done < <(grep -rnE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow_dir" || tr
 # file with its continuations joined and reports the file alone — worth the weaker message,
 # because otherwise `cargo \` on one line and `+nightly build` on the next walks straight past
 # the one rule that has no safe version to fall back on.
+#
+# Both greps below read the file with comments already stripped, and the first one is the reason
+# why. It exists only to stop a file the loop above has already reported being reported twice,
+# so it has to see what that loop saw — and the loop skips comments. Reading the raw text
+# instead meant an ordinary maintainer's note ("never write cargo +nightly here") short-circuited
+# the whole file, and the real override further down was never looked at. The second grep needs
+# the same treatment for the mirror-image reason: a comment split across a continuation would
+# otherwise join into a violation nobody wrote.
 for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
     [ -e "$workflow" ] || continue
 
-    grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow" && continue
-    unwrap_continuations < "$workflow" | grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' || continue
+    code="$(grep -v '^[[:space:]]*#' "$workflow" || true)"
+
+    printf '%s\n' "$code" | grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' && continue
+    printf '%s\n' "$code" | unwrap_continuations | grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' || continue
 
     echo "$(relative "$workflow"): uses \`cargo +<toolchain>\` across a line continuation, which overrides $(relative "$toolchain_file")" >&2
     status=1
@@ -133,10 +143,16 @@ builds_rust='(^|[^[:alnum:]_-])cargo[[:space:]]+[+a-z]|uses:[[:space:]]*tauri-ap
 # exempt `cargo deny-audit` — any future subcommand merely *starting* with an exempt name —
 # and the exemption is meant to name two specific tools, not a namespace. Both delimiters are
 # captured and put back so two exempt calls on one line still both blank.
+#
+# A token can end on something other than a space, which is why the trailing class carries the
+# shell separators too. `cargo deny; cargo machete src-tauri` went unblanked and was reported as
+# an unpinned Rust build — a false alarm, and that is not the harmless direction: it is how a
+# gate earns a reputation for noise and gets switched off. `-` is deliberately *not* in the
+# class; adding it is exactly the `cargo deny-audit` hole again.
 strip_non_builders() {
     grep -v '^[[:space:]]*#' "$1" |
         unwrap_continuations |
-        sed -E 's/(^|[^[:alnum:]_-])cargo[[:space:]]+(deny|machete)([[:space:]]|$)/\1cargo-\2\3/g'
+        sed -E 's/(^|[^[:alnum:]_-])cargo[[:space:]]+(deny|machete)([[:space:];&|)]|$)/\1cargo-\2\3/g'
 }
 
 for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do

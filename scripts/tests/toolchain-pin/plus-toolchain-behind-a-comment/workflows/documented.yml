@@ -1,0 +1,21 @@
+# Two rules meet badly here. Rule 2's line-numbered pass skips comments, so the note below is
+# correctly ignored. Its continuation pass then skipped the whole *file* on seeing that same
+# note, because the short-circuit that stops a file being reported twice read the raw text —
+# and the real override two steps down was never looked at.
+#
+# The note is the ordinary kind a maintainer writes, which is what makes it dangerous:
+#
+#   Never write cargo +nightly in a workflow; it beats rust-toolchain.toml outright.
+#
+# The toolchain action is present on purpose, so this must be rejected for the override alone.
+name: documented
+on: [workflow_dispatch]
+jobs:
+  documented:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - run: |
+          cargo \
+            +nightly build --manifest-path src-tauri/Cargo.toml

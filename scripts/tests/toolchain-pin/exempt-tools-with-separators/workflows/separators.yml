@@ -1,0 +1,16 @@
+# The exemption ends a token, and a token can end on something other than a space. Every line
+# below runs nothing but the two prebuilt tools, so this repository must be accepted — with the
+# whitespace-only delimiter it was rejected, demanding a toolchain step from a job that compiles
+# nothing. A false alarm is not the harmless direction: it is how a gate gets a reputation for
+# noise, and then gets switched off.
+name: separators
+on: [workflow_dispatch]
+jobs:
+  separators:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo deny; cargo machete src-tauri
+      - run: cargo machete; echo done
+      - run: (cargo deny) && (cargo machete src-tauri)
+      - run: cargo deny check licenses | tee licences.log
