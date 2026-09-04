@@ -63,6 +63,15 @@ while IFS= read -r line; do
     fi
 done < <(grep -rn "dtolnay/rust-toolchain@" "$workflow_dir" || true)
 
+# A shell continuation splits one command over several lines, and every rule below reads the
+# file a line at a time. `cargo \` on its own line followed by `  build --release` is a real
+# Rust build that no per-line pattern can see — the first line ends at the backslash and the
+# second never says `cargo`. Joining the continuations first is what makes the rules read the
+# commands that actually run rather than the lines they happen to be typed on.
+unwrap_continuations() {
+    sed -e :a -e '/\\$/N; s/\\\n//; ta'
+}
+
 # ── 2. Nothing overrides the toolchain on the cargo command line ──────────────────────────────
 # `cargo +nightly build` beats rust-toolchain.toml outright: rustup honours the `+toolchain`
 # argument above the file. It is the one spelling that defeats the pin rather than merely
@@ -72,10 +81,41 @@ while IFS= read -r line; do
     file="${line%%:*}"
     rest="${line#*:}"
     lineno="${rest%%:*}"
+    content="${rest#*:}"
+
+    # Full-line comments are skipped, for the reason recorded under rule 3: this rule used to
+    # demand a pin from a workflow whose only offence was *documenting* the spelling nobody may
+    # use. Found the hard way — a new fixture was rejected for its own explanatory header rather
+    # than for the command it existed to test, which made it prove nothing.
+    printf '%s\n' "$content" | grep -q '^[[:space:]]*#' && continue
 
     echo "$(relative "$file"):$lineno: uses \`cargo +<toolchain>\`, which overrides $(relative "$toolchain_file")" >&2
     status=1
 done < <(grep -rnE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow_dir" || true)
+
+# The loop above keeps line numbers, which a continuation destroys. So a second pass reads each
+# file with its continuations joined and reports the file alone — worth the weaker message,
+# because otherwise `cargo \` on one line and `+nightly build` on the next walks straight past
+# the one rule that has no safe version to fall back on.
+#
+# Both greps below read the file with comments already stripped, and the first one is the reason
+# why. It exists only to stop a file the loop above has already reported being reported twice,
+# so it has to see what that loop saw — and the loop skips comments. Reading the raw text
+# instead meant an ordinary maintainer's note ("never write cargo +nightly here") short-circuited
+# the whole file, and the real override further down was never looked at. The second grep needs
+# the same treatment for the mirror-image reason: a comment split across a continuation would
+# otherwise join into a violation nobody wrote.
+for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
+    [ -e "$workflow" ] || continue
+
+    code="$(grep -v '^[[:space:]]*#' "$workflow" || true)"
+
+    printf '%s\n' "$code" | grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' && continue
+    printf '%s\n' "$code" | unwrap_continuations | grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' || continue
+
+    echo "$(relative "$workflow"): uses \`cargo +<toolchain>\` across a line continuation, which overrides $(relative "$toolchain_file")" >&2
+    status=1
+done
 
 # ── 3. A workflow that builds Rust installs the toolchain through the action ──────────────────
 # Not because an unpinned job would otherwise get the runner's default — `rust-toolchain.toml`
@@ -89,10 +129,36 @@ done < <(grep -rnE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow_dir" || tr
 # in a comment and demanded a pin from a workflow that builds nothing.
 builds_rust='(^|[^[:alnum:]_-])cargo[[:space:]]+[+a-z]|uses:[[:space:]]*tauri-apps/tauri-action|(^|[^[:alnum:]_-])tauri[[:space:]]+build'
 
+# `cargo deny` and `cargo machete` are not Rust builds. Both are prebuilt binaries — one shells
+# out to `cargo metadata`, the other only parses manifests and greps sources — so they compile
+# nothing, need no `targets`, and have no toolchain download to warm, which is the whole of what
+# the rule above exists to guarantee. `rust-toolchain.toml` still governs any `cargo` they call,
+# so they are pinned; they just do not need the action to be.
+#
+# Blanked token by token rather than line by line, so `cargo deny check && cargo build` still
+# trips the rule on its second half. That matters more than it looks: a whole-line exclusion
+# would turn this into a one-line bypass for any job willing to write both on one line.
+#
+# The trailing delimiter is load-bearing for the same reason. Matching a bare prefix would
+# exempt `cargo deny-audit` — any future subcommand merely *starting* with an exempt name —
+# and the exemption is meant to name two specific tools, not a namespace. Both delimiters are
+# captured and put back so two exempt calls on one line still both blank.
+#
+# A token can end on something other than a space, which is why the trailing class carries the
+# shell separators too. `cargo deny; cargo machete src-tauri` went unblanked and was reported as
+# an unpinned Rust build — a false alarm, and that is not the harmless direction: it is how a
+# gate earns a reputation for noise and gets switched off. `-` is deliberately *not* in the
+# class; adding it is exactly the `cargo deny-audit` hole again.
+strip_non_builders() {
+    grep -v '^[[:space:]]*#' "$1" |
+        unwrap_continuations |
+        sed -E 's/(^|[^[:alnum:]_-])cargo[[:space:]]+(deny|machete)([[:space:];&|)]|$)/\1cargo-\2\3/g'
+}
+
 for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
     [ -e "$workflow" ] || continue
 
-    grep -v '^[[:space:]]*#' "$workflow" | grep -qE "$builds_rust" || continue
+    strip_non_builders "$workflow" | grep -qE "$builds_rust" || continue
     grep -q "dtolnay/rust-toolchain@" "$workflow" && continue
 
     echo "$(relative "$workflow"): builds Rust but never installs the toolchain through dtolnay/rust-toolchain@$channel" >&2

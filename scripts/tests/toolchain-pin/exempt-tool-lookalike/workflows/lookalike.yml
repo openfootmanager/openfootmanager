@@ -1,0 +1,13 @@
+# The exemption names two tools, not a namespace. A subcommand that merely *starts* with an
+# exempt name is an ordinary cargo subcommand and must still be caught — without a trailing
+# delimiter in the rewrite, `cargo deny-audit` became `cargo-deny-audit` and disappeared from
+# the check entirely, which is a one-word bypass anyone could reach by accident.
+name: lookalike
+on: [workflow_dispatch]
+jobs:
+  lookalike:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo deny-audit --manifest-path src-tauri/Cargo.toml
+      - run: cargo machete-fix src-tauri

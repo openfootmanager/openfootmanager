@@ -42,8 +42,8 @@ jobs:
   #
   # `licenses bans sources` only. `advisories` is deliberately excluded — a RUSTSEC
   # advisory published overnight would redden every open PR for a dependency fact nobody
-  # in those PRs chose. It belongs on a schedule, which does not exist yet; see
-  # `src-tauri/deny.toml`.
+  # in those PRs chose. It runs weekly instead, from
+  # `.github/workflows/dependency-advisories.yml`.
   dependencies:
     runs-on: ubuntu-latest
 
@@ -73,7 +73,7 @@ jobs:
       #                     on — `ofm-cli` and `sim-bench` — vanish along with their 21
       #                     dependencies (clap, comfy-table, crossterm, colored, …).
       #   --all-features    `mcp` is a set of optional dependencies, so the default graph omits
-      #                     rmcp, axum, tower, hyper and 27 more — code CI compiles and tests
+      #                     rmcp, axum, hyper and 28 more — code CI compiles and tests
       #                     two steps below, unlicensed as far as this gate was concerned.
       #   --locked          Same reason every cargo call in `backend` takes it: without it
       #                     cargo may resolve around `Cargo.lock` while producing the metadata,
@@ -81,6 +81,27 @@ jobs:
       #                     the one we ship.
       - name: Check dependency licenses, bans and sources
         run: cargo deny --locked --workspace --all-features --manifest-path src-tauri/Cargo.toml check licenses bans sources
+
+      # Pinned for the same reason cargo-deny is: the heuristic changes between releases, and
+      # an unpinned tool turns someone else's release into a red build on an unrelated PR.
+      - name: Install cargo-machete
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete@0.9.2
+
+      # Note the argument is a path, not `--manifest-path` — cargo-machete walks directories
+      # rather than reading a manifest, and silently finds nothing if handed the wrong shape.
+      #
+      # `--with-metadata` is deliberately left off. It resolves renamed dependencies properly
+      # but rewrites `Cargo.lock` to do it, which the step above has just finished insisting is
+      # immutable. The cost is that a dependency declared only to switch on a feature of another
+      # crate reads as unused. The fix for that is `[package.metadata.cargo-machete] ignored =
+      # ["<crate>"]` — the array takes **dependency names**, so name the crate and say which
+      # feature it switches on in a comment beside it. Not the flag: reaching for
+      # `--with-metadata` trades a two-line note for a gate that rewrites the lockfile the
+      # step above has just frozen.
+      - name: Check for unused dependencies
+        run: cargo machete --skip-target-dir src-tauri
 
   frontend:
     runs-on: ubuntu-latest

@@ -1,0 +1,54 @@
+name: dependency-advisories
+
+# The half of cargo-deny that cannot live on a pull request.
+#
+# `build-check.yml` gates `licenses bans sources`, which are deterministic: the same commit
+# gives the same answer forever, so a red result is always something the pull request did.
+# `advisories` is not like that. It reads the RustSec database, which changes under us — an
+# advisory published overnight would redden every open pull request for a dependency fact
+# nobody in those pull requests chose, and a gate that fires for reasons its author cannot
+# act on is a gate that gets switched off. So it runs here instead, on a clock.
+#
+# ⚠ Read this before relying on it: a scheduled run has no pull request to redden, and
+# GitHub notifies only the last person to touch the workflow file. Until branch protection
+# and an owner exist, treat this as something a human checks, not something that stops a bad
+# release. Its honest job is to answer "is there a known vulnerability in what we ship?" on
+# a schedule tighter than "whenever somebody thinks to ask".
+
+on:
+  schedule:
+    # 07:23 UTC every Monday. Early enough that a finding has the week to be dealt with, and
+    # deliberately off the hour: GitHub queues scheduled runs, and the top of the hour is when
+    # everyone else's cron fires, so `0 7` can sit in the backlog for a long time. The odd
+    # minute is the whole point of the line — do not tidy it back to `0`.
+    - cron: "23 7 * * 1"
+  # Not optional. A `schedule:` trigger only ever fires on the default branch, so without
+  # this the first real execution would be a week after merge, on a workflow nobody has
+  # watched run. It also means a maintainer can answer "are we exposed?" on demand.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Same pin as `build-check.yml`, and it has to stay the same: cargo-deny's advisory
+      # handling changes between releases, so two versions would give two answers.
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+
+      # The same four flags the licence gate uses, for the same reasons — see the comment on
+      # the `dependencies` job in `build-check.yml`. An advisory check against a narrower
+      # graph than the one we ship is the failure this whole file exists to avoid: it would
+      # miss a vulnerability in the `mcp` subtree, which is exactly where a networked
+      # dependency like `axum` or `hyper` lives.
+      - name: Check dependency advisories
+        run: cargo deny --locked --workspace --all-features --manifest-path src-tauri/Cargo.toml check advisories
