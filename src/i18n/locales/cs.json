@@ -715,6 +715,7 @@
     "duplicateTactic": "Duplikovat",
     "saveAsTactic": "Uložit jako taktiku",
     "updateTactic": "Aktualizovat taktiku",
+    "tacticSaved": "Uloženo",
     "tacticName": "Název taktiky",
     "identitySummary": "Shrnutí identity",
     "synced": "Synchronizováno",

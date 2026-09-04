@@ -763,6 +763,7 @@
     "duplicateTactic": "复制",
     "saveAsTactic": "保存为战术",
     "updateTactic": "更新战术",
+    "tacticSaved": "已保存",
     "tacticName": "战术名称",
     "identitySummary": "风格摘要",
     "synced": "已同步",

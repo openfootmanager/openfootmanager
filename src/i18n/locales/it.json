@@ -782,6 +782,7 @@
     "duplicateTactic": "Duplica",
     "saveAsTactic": "Salva come tattica",
     "updateTactic": "Aggiorna tattica",
+    "tacticSaved": "Salvato",
     "tacticName": "Nome tattica",
     "identitySummary": "Riepilogo identità",
     "synced": "Sincronizzato",
