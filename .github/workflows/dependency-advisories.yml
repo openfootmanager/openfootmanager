@@ -17,9 +17,11 @@ name: dependency-advisories
 
 on:
   schedule:
-    # 07:00 UTC every Monday. Early enough that a finding has the week to be dealt with,
-    # and off the hour to avoid GitHub's peak-of-the-hour scheduling backlog.
-    - cron: "0 7 * * 1"
+    # 07:23 UTC every Monday. Early enough that a finding has the week to be dealt with, and
+    # deliberately off the hour: GitHub queues scheduled runs, and the top of the hour is when
+    # everyone else's cron fires, so `0 7` can sit in the backlog for a long time. The odd
+    # minute is the whole point of the line — do not tidy it back to `0`.
+    - cron: "23 7 * * 1"
   # Not optional. A `schedule:` trigger only ever fires on the default branch, so without
   # this the first real execution would be a week after merge, on a workflow nobody has
   # watched run. It also means a maintainer can answer "are we exposed?" on demand.

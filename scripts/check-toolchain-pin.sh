@@ -98,8 +98,14 @@ builds_rust='(^|[^[:alnum:]_-])cargo[[:space:]]+[+a-z]|uses:[[:space:]]*tauri-ap
 # Blanked token by token rather than line by line, so `cargo deny check && cargo build` still
 # trips the rule on its second half. That matters more than it looks: a whole-line exclusion
 # would turn this into a one-line bypass for any job willing to write both on one line.
+#
+# The trailing delimiter is load-bearing for the same reason. Matching a bare prefix would
+# exempt `cargo deny-audit` — any future subcommand merely *starting* with an exempt name —
+# and the exemption is meant to name two specific tools, not a namespace. Both delimiters are
+# captured and put back so two exempt calls on one line still both blank.
 strip_non_builders() {
-    grep -v '^[[:space:]]*#' "$1" | sed -E 's/cargo[[:space:]]+(deny|machete)/cargo-\1/g'
+    grep -v '^[[:space:]]*#' "$1" |
+        sed -E 's/(^|[^[:alnum:]_-])cargo[[:space:]]+(deny|machete)([[:space:]]|$)/\1cargo-\2\3/g'
 }
 
 for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do

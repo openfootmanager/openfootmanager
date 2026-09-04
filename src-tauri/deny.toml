@@ -93,7 +93,11 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # settings below.
 yanked = "warn"
 
-# Gate on vulnerabilities, report unmaintained crates without gating on them.
+# Gate on vulnerabilities at any depth; gate on unmaintained crates only where we can act.
+#
+# `unmaintained` is not a severity dial and this is not report-only — every setting below
+# still fails the check. What `"workspace"` changes is *which* crates count: a direct
+# dependency of a workspace crate fails, a transitive-only one does not.
 #
 # The distinction is the difference between a check that gets read and one that gets muted.
 # A vulnerability is actionable: someone published a fix, or there is a reason to accept the

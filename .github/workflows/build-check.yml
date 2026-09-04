@@ -38,8 +38,8 @@ jobs:
   #
   # `licenses bans sources` only. `advisories` is deliberately excluded — a RUSTSEC
   # advisory published overnight would redden every open PR for a dependency fact nobody
-  # in those PRs chose. It belongs on a schedule, which does not exist yet; see
-  # `src-tauri/deny.toml`.
+  # in those PRs chose. It runs weekly instead, from
+  # `.github/workflows/dependency-advisories.yml`.
   dependencies:
     runs-on: ubuntu-latest
 
@@ -91,8 +91,11 @@ jobs:
       # `--with-metadata` is deliberately left off. It resolves renamed dependencies properly
       # but rewrites `Cargo.lock` to do it, which the step above has just finished insisting is
       # immutable. The cost is that a dependency declared only to switch on a feature of another
-      # crate reads as unused; the fix is a `[package.metadata.cargo-machete] ignored` entry
-      # naming the feature, not the flag.
+      # crate reads as unused. The fix for that is `[package.metadata.cargo-machete] ignored =
+      # ["<crate>"]` — the array takes **dependency names**, so name the crate and say which
+      # feature it switches on in a comment beside it. Not the flag: reaching for
+      # `--with-metadata` trades a two-line note for a gate that rewrites the lockfile the
+      # step above has just frozen.
       - name: Check for unused dependencies
         run: cargo machete --skip-target-dir src-tauri
 

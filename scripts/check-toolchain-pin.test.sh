@@ -59,6 +59,8 @@ expect 1 unpinned-tauri-cli-build \
     "a Rust build spelled as npx tauri build rather than cargo"
 expect 1 cargo-deny-hiding-a-build \
     "a real cargo build in a workflow that also runs the exempt tools, including builds chained onto their own lines"
+expect 1 exempt-tool-lookalike \
+    "a subcommand that only starts with an exempt tool's name, which the exemption must not cover"
 
 echo ""
 if [ "$failed" -ne 0 ]; then
