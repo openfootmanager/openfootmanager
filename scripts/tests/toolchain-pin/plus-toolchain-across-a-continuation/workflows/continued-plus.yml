@@ -1,0 +1,18 @@
+# The same continuation trick against the one rule with no safe answer: a leading `+toolchain`
+# argument overrides rust-toolchain.toml outright, so it is banned rather than pin-checked — and
+# a rule that can be stepped around by pressing Enter is not a ban.
+#
+# Two things here are deliberate. The toolchain action is present, so this must be rejected for
+# the override alone and not for a missing pin. And the prose never spells the banned form out:
+# it did at first, and the fixture then passed against the unfixed script for that reason alone.
+name: continued-plus
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - run: |
+          cargo \
+            +nightly build --manifest-path src-tauri/Cargo.toml

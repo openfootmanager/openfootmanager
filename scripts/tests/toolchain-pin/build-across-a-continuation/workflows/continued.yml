@@ -1,0 +1,15 @@
+# Every rule in the script reads one line at a time, and a shell continuation is how a command
+# stops being one line. The build below is real, needs the toolchain action for its `targets`,
+# and used to be invisible: the first line ends at the backslash, and the second never says
+# `cargo`. Nothing about this spelling is exotic — it is what anyone writing a long cargo
+# invocation in a `run: |` block does.
+name: continued
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cargo \
+            build --manifest-path src-tauri/Cargo.toml --release

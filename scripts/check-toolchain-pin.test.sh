@@ -61,6 +61,10 @@ expect 1 cargo-deny-hiding-a-build \
     "a real cargo build in a workflow that also runs the exempt tools, including builds chained onto their own lines"
 expect 1 exempt-tool-lookalike \
     "a subcommand that only starts with an exempt tool's name, which the exemption must not cover"
+expect 1 build-across-a-continuation \
+    "a cargo build split over a shell line continuation, which no per-line pattern can see"
+expect 1 plus-toolchain-across-a-continuation \
+    "cargo +nightly split over a continuation, in a workflow that is otherwise correctly pinned"
 
 echo ""
 if [ "$failed" -ne 0 ]; then

@@ -63,6 +63,15 @@ while IFS= read -r line; do
     fi
 done < <(grep -rn "dtolnay/rust-toolchain@" "$workflow_dir" || true)
 
+# A shell continuation splits one command over several lines, and every rule below reads the
+# file a line at a time. `cargo \` on its own line followed by `  build --release` is a real
+# Rust build that no per-line pattern can see — the first line ends at the backslash and the
+# second never says `cargo`. Joining the continuations first is what makes the rules read the
+# commands that actually run rather than the lines they happen to be typed on.
+unwrap_continuations() {
+    sed -e :a -e '/\\$/N; s/\\\n//; ta'
+}
+
 # ── 2. Nothing overrides the toolchain on the cargo command line ──────────────────────────────
 # `cargo +nightly build` beats rust-toolchain.toml outright: rustup honours the `+toolchain`
 # argument above the file. It is the one spelling that defeats the pin rather than merely
@@ -72,10 +81,31 @@ while IFS= read -r line; do
     file="${line%%:*}"
     rest="${line#*:}"
     lineno="${rest%%:*}"
+    content="${rest#*:}"
+
+    # Full-line comments are skipped, for the reason recorded under rule 3: this rule used to
+    # demand a pin from a workflow whose only offence was *documenting* the spelling nobody may
+    # use. Found the hard way — a new fixture was rejected for its own explanatory header rather
+    # than for the command it existed to test, which made it prove nothing.
+    printf '%s\n' "$content" | grep -q '^[[:space:]]*#' && continue
 
     echo "$(relative "$file"):$lineno: uses \`cargo +<toolchain>\`, which overrides $(relative "$toolchain_file")" >&2
     status=1
 done < <(grep -rnE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow_dir" || true)
+
+# The loop above keeps line numbers, which a continuation destroys. So a second pass reads each
+# file with its continuations joined and reports the file alone — worth the weaker message,
+# because otherwise `cargo \` on one line and `+nightly build` on the next walks straight past
+# the one rule that has no safe version to fall back on.
+for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
+    [ -e "$workflow" ] || continue
+
+    grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow" && continue
+    unwrap_continuations < "$workflow" | grep -qE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' || continue
+
+    echo "$(relative "$workflow"): uses \`cargo +<toolchain>\` across a line continuation, which overrides $(relative "$toolchain_file")" >&2
+    status=1
+done
 
 # ── 3. A workflow that builds Rust installs the toolchain through the action ──────────────────
 # Not because an unpinned job would otherwise get the runner's default — `rust-toolchain.toml`
@@ -105,6 +135,7 @@ builds_rust='(^|[^[:alnum:]_-])cargo[[:space:]]+[+a-z]|uses:[[:space:]]*tauri-ap
 # captured and put back so two exempt calls on one line still both blank.
 strip_non_builders() {
     grep -v '^[[:space:]]*#' "$1" |
+        unwrap_continuations |
         sed -E 's/(^|[^[:alnum:]_-])cargo[[:space:]]+(deny|machete)([[:space:]]|$)/\1cargo-\2\3/g'
 }
 
