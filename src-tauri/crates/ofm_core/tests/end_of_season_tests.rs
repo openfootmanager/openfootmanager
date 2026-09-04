@@ -477,6 +477,82 @@ fn berths_keep_each_club_in_its_most_prestigious_continental_target() {
     assert!(uel_field.contains(&"es-c".to_string()));
 }
 
+/// `fallbackTo` as the *only* route into a field: the cup winner's primary
+/// target does not exist in this world, and it is both outside the league's
+/// qualifying positions and the worst-reputation club, so neither a position
+/// berth nor the reputation top-up would reach it.
+#[test]
+fn a_continental_fallback_places_a_club_no_other_route_would() {
+    let clubs = [
+        "es-a", "es-b", "es-c", "es-d", "es-e", "es-f", "es-g", "es-h", "es-i",
+    ];
+    let mut teams: Vec<Team> = clubs
+        .iter()
+        .enumerate()
+        .map(|(rank, id)| make_club(id, "ES", 900 - rank as u32 * 50))
+        .collect();
+    // The cup winner is the least-reputable club in the country, so a thin
+    // field would top up with es-i long before it reached es-h.
+    teams[7].reputation = 10;
+
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("es-a".to_string());
+    let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+
+    let mut first = first_division("es-1", "ES", "europe", &clubs);
+    first.berths = vec![
+        Berth {
+            target: "ucl".to_string(),
+            rule: BerthRule::PositionRange { from: 1, to: 4 },
+            fallback_to: None,
+        },
+        Berth {
+            target: "uel".to_string(),
+            rule: BerthRule::PositionRange { from: 5, to: 7 },
+            fallback_to: None,
+        },
+    ];
+    // 8th-placed es-h wins the cup, but the cup's primary target is not part
+    // of this world — only the fallback can seat it.
+    let mut cup = domestic_cup("es-cup", "ES", "europe", "es-h", "es-i");
+    cup.berths = vec![Berth {
+        target: "super-cup".to_string(),
+        rule: BerthRule::CupWinner,
+        fallback_to: Some("uel".to_string()),
+    }];
+
+    let mut ucl = continental_cup("ucl", "europe", 4);
+    ucl.priority = 100;
+    let mut uel = continental_cup("uel", "europe", 4);
+    uel.priority = 101;
+    game.competitions = vec![first, cup, ucl, uel];
+
+    let fields = resolve_continental_fields(&game);
+    let uel_field = &fields["uel"];
+
+    assert!(
+        uel_field.contains(&"es-h".to_string()),
+        "the cup winner takes its fallback place: {uel_field:?}"
+    );
+    assert!(
+        !uel_field.contains(&"es-i".to_string()),
+        "es-h fills the fourth slot through the fallback, not through the \
+         reputation top-up that would have taken es-i: {uel_field:?}"
+    );
+    assert!(
+        !fields["ucl"].contains(&"es-h".to_string()),
+        "an unresolvable primary target seats nobody: {:?}",
+        fields["ucl"]
+    );
+}
+
 #[test]
 fn region_for_country_prefers_world_data_over_the_catalog() {
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
@@ -1208,6 +1284,282 @@ fn process_end_of_season_promotes_and_relegates_between_divisions() {
             .fixtures
             .iter()
             .any(|f| f.status == FixtureStatus::Scheduled)
+    );
+}
+
+/// Two sibling regional groups feeding one Central League through PositionRange
+/// berths. Goes through `process_end_of_season` so deleting the resolve/apply
+/// call sites in `regenerate_competitions_for_new_season` fails this test.
+#[test]
+fn process_end_of_season_merges_regional_groups_into_a_berth_fed_central() {
+    use std::collections::HashSet;
+
+    let mut game = make_completed_season_game();
+    game.manager.hire("c1".to_string());
+    for id in [
+        "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "n1", "n2", "n3", "n4", "s1", "s2", "s3",
+        "s4", "i1", "i2", "d1", "d2",
+    ] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let standing = |id: &str, points: u32| {
+        let mut entry = make_standing(id, 1, 0, 0, 1, 0);
+        entry.points = points;
+        entry.played = 1;
+        entry
+    };
+    let finished_table = |id: &str, priority: u32, rows: &[(&str, u32)], berths: Vec<Berth>| {
+        let ids: Vec<String> = rows.iter().map(|(club, _)| club.to_string()).collect();
+        League {
+            id: id.to_string(),
+            name: id.to_string(),
+            country_id: Some("BR".to_string()),
+            priority,
+            season: 1,
+            participant_ids: ids.clone(),
+            standings: rows
+                .iter()
+                .map(|(club, points)| standing(club, *points))
+                .collect(),
+            berths,
+            ..Default::default()
+        }
+    };
+    let place_berth = |target: &str, from: u32, to: u32| Berth {
+        target: target.to_string(),
+        rule: BerthRule::PositionRange { from, to },
+        fallback_to: None,
+    };
+
+    let central = finished_table(
+        "central",
+        0,
+        &[
+            ("c1", 80),
+            ("c2", 70),
+            ("c3", 60),
+            ("c4", 50),
+            ("c5", 40),
+            ("c6", 30),
+            ("c7", 20),
+            ("c8", 10),
+        ],
+        vec![],
+    );
+    let north = finished_table(
+        "north",
+        1,
+        &[("n1", 40), ("n2", 30), ("n3", 20), ("n4", 10)],
+        vec![place_berth("central", 1, 2)],
+    );
+    let south = finished_table(
+        "south",
+        1,
+        &[("s1", 40), ("s2", 30), ("s3", 20), ("s4", 10)],
+        vec![place_berth("central", 1, 2)],
+    );
+    // A plain pair below the groups, so the linear ladder has real work to do
+    // in the same rollover as the berth merge. Without it neither pass can
+    // observe the other and the two could run in either order.
+    let interior = finished_table("interior", 2, &[("i1", 20), ("i2", 10)], vec![]);
+    let deep = finished_table("deep", 3, &[("d1", 20), ("d2", 10)], vec![]);
+    game.league = Some(central.clone());
+    game.competitions = vec![central, north, south, interior, deep];
+
+    process_end_of_season(&mut game);
+
+    let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+    let central_ids = &by_id("central").participant_ids;
+    assert_eq!(
+        central_ids.len(),
+        8,
+        "Central League keeps its authored size: {central_ids:?}"
+    );
+    let central_set: HashSet<&str> = central_ids.iter().map(String::as_str).collect();
+    assert!(
+        ["n1", "n2", "s1", "s2"]
+            .iter()
+            .all(|club| central_set.contains(club)),
+        "regional place-getters must be promoted through process_end_of_season: {central_ids:?}"
+    );
+    assert!(
+        ["c5", "c6", "c7", "c8"]
+            .iter()
+            .all(|club| !central_set.contains(club)),
+        "Central dropouts must leave: {central_ids:?}"
+    );
+
+    let north_set: HashSet<&str> = by_id("north")
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let south_set: HashSet<&str> = by_id("south")
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    assert!(!north_set.contains("n1") && !north_set.contains("n2"));
+    assert!(!south_set.contains("s1") && !south_set.contains("s2"));
+    assert!(
+        central_set.is_disjoint(&north_set)
+            && central_set.is_disjoint(&south_set)
+            && north_set.is_disjoint(&south_set),
+        "a club must not appear in two tables after the berth merge: central={central_set:?} north={north_set:?} south={south_set:?}"
+    );
+    let dropouts: HashSet<&str> = north_set
+        .union(&south_set)
+        .copied()
+        .filter(|id| id.starts_with('c'))
+        .collect();
+    assert_eq!(dropouts, HashSet::from(["c5", "c6", "c7", "c8"]));
+
+    assert!(
+        by_id("central")
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.status == FixtureStatus::Scheduled),
+        "rollover must regenerate Central fixtures after the berth merge"
+    );
+    assert!(
+        by_id("north")
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.status == FixtureStatus::Scheduled)
+            && by_id("south")
+                .fixtures
+                .iter()
+                .any(|fixture| fixture.status == FixtureStatus::Scheduled),
+        "feeders must also receive a new schedule"
+    );
+
+    // The berth-fed groups leave the ladder, but the plain pair below them
+    // still swaps in the very same rollover.
+    let interior_set: HashSet<&str> = by_id("interior")
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let deep_set: HashSet<&str> = by_id("deep")
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        interior_set,
+        HashSet::from(["i1", "d1"]),
+        "the tier below the groups still promotes: {:?}",
+        by_id("interior").participant_ids
+    );
+    assert_eq!(
+        deep_set,
+        HashSet::from(["d2", "i2"]),
+        "the tier below the groups still relegates: {:?}",
+        by_id("deep").participant_ids
+    );
+}
+
+/// A feeder that both sends clubs up through berths and swaps with the tier
+/// below is touched by both rollover passes. Pins their order and their
+/// agreement: run through `process_end_of_season` so reordering the calls in
+/// `end_of_season/mod.rs`, or reading the frozen table instead of the live
+/// roster, leaves a club registered with two competitions.
+#[test]
+fn process_end_of_season_never_leaves_a_club_in_two_leagues() {
+    use std::collections::HashSet;
+
+    let mut game = make_completed_season_game();
+    game.manager.hire("c1".to_string());
+    for id in ["c1", "c2", "c3", "c4", "m1", "m2", "l1", "l2"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let table = |id: &str, priority: u32, rows: &[(&str, u32)], berths: Vec<Berth>| {
+        let ids: Vec<String> = rows.iter().map(|(club, _)| club.to_string()).collect();
+        League {
+            id: id.to_string(),
+            name: id.to_string(),
+            country_id: Some("BR".to_string()),
+            priority,
+            season: 1,
+            participant_ids: ids,
+            standings: rows
+                .iter()
+                .map(|(club, points)| {
+                    let mut entry = make_standing(club, 1, 0, 0, 1, 0);
+                    entry.points = *points;
+                    entry.played = 1;
+                    entry
+                })
+                .collect(),
+            berths,
+            ..Default::default()
+        }
+    };
+
+    let central = table(
+        "central",
+        0,
+        &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        vec![],
+    );
+    let mid = table(
+        "mid",
+        1,
+        &[("m1", 20), ("m2", 10)],
+        vec![Berth {
+            target: "central".to_string(),
+            rule: BerthRule::PositionRange { from: 1, to: 2 },
+            fallback_to: None,
+        }],
+    );
+    let low = table("low", 2, &[("l1", 20), ("l2", 10)], vec![]);
+    game.league = Some(central.clone());
+    game.competitions = vec![central, mid, low];
+
+    process_end_of_season(&mut game);
+
+    let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+    let roster = |id: &str| -> HashSet<&str> {
+        by_id(id)
+            .participant_ids
+            .iter()
+            .map(String::as_str)
+            .collect()
+    };
+    let (central_set, mid_set, low_set) = (roster("central"), roster("mid"), roster("low"));
+
+    assert!(
+        central_set.is_disjoint(&mid_set)
+            && central_set.is_disjoint(&low_set)
+            && mid_set.is_disjoint(&low_set),
+        "a club must play for exactly one league: central={:?} mid={:?} low={:?}",
+        by_id("central").participant_ids,
+        by_id("mid").participant_ids,
+        by_id("low").participant_ids
+    );
+    for (id, size) in [("central", 4), ("mid", 2), ("low", 2)] {
+        assert_eq!(
+            by_id(id).participant_ids.len(),
+            size,
+            "{id} keeps its authored size: {:?}",
+            by_id(id).participant_ids
+        );
+    }
+    assert!(
+        low_set.contains("m2"),
+        "the ladder relegated m2, so the berth merge must not also promote it: {:?}",
+        by_id("low").participant_ids
+    );
+    assert!(
+        central_set.contains("m1"),
+        "the place-getter still registered with mid is promoted: {:?}",
+        by_id("central").participant_ids
     );
 }
 

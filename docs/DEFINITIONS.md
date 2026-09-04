@@ -268,7 +268,7 @@ list of problems. Nothing loads half-broken.
 | `name` | `string` | Yes | Display name (shown as-is; not translated). |
 | `type` | `string` | Yes | `League`, `Cup`, `ContinentalClub`, `InternationalClub`, `InternationalNation`, or `FriendlyCup`. |
 | `scope` | `string` | Yes | `Domestic`, `Regional`, `Continental`, or `International`. |
-| `countryId` | `string` | No | Country code. Competitions sharing a `countryId` form a promotion/relegation pyramid, ordered by `priority` (lower = higher division). |
+| `countryId` | `string` | No | Country code. Competitions sharing a `countryId` form a promotion/relegation pyramid, ordered by `priority` (lower = higher division). Adjacent tiers swap by default. A domestic league that is the primary `PositionRange` berth target is filled from its feeders instead, and is not chained into the linear ladder. Two or more feeders sharing one target also leave the ladder as a set, so a tier below them needs its own berths into the groups to have a promotion path; a sole feeder keeps its ladder edge. |
 | `regionId` | `string` | No | Region id this competition belongs to. |
 | `requiredRegionIds` | `string[]` | No | Regions that must be active for this competition to be simulated. |
 | `priority` | `number` | No | Sort order in lists; also the tier within a country pyramid. |

@@ -478,23 +478,43 @@ Additional selector fields:
 
 Berths define automatic qualification spots that a competition awards to other competitions. For example, a league's top two finishers qualify for a continental cup.
 
+When the target is a domestic `LeagueTable`, a primary `positionRange` berth also drives promotion: those place-getters replace the target's bottom finishers (the league keeps its authored size) and the dropouts return to the feeders quota-first — each feeder receives as many dropouts as it promoted, which accounts for all of them. A club only moves while it is still registered with the competition it is leaving, so a club the ordinary ladder has already moved is never promoted a second time.
+
+The target is left out of the linear adjacent-tier swap so sibling regional groups do not promote into each other. When two or more leagues send `positionRange` berths to the same target they are treated as one sibling group and **all** of them leave the ladder — otherwise which group swapped with the tier below would depend on the order the competitions happen to be declared in. A tier below such a group therefore has no automatic promotion path: give it `positionRange` berths into the groups if its clubs should be able to go up. A league that is the *sole* `positionRange` feeder into a target keeps its ordinary ladder edge, so a plain two-tier pyramid can be written as data without losing promotion and relegation with the tier beneath it.
+
+`CupWinner`, `PlayoffWinner`, and `fallbackTo` targets do not take a league out of that ladder. `fallbackTo` is a continental cascade only — it never awards a domestic promotion place, because a club that misses its primary target simply stays in its own league.
+
+Regional groups feeding one Central League:
+
 ```json
 "berths": [
   {
-    "targetCompetition": "continental-cup",
-    "rule": { "type": "LeagueFinishers", "from": 1, "to": 2 }
-  },
-  {
-    "targetCompetition": "relegation-play-off",
-    "rule": { "type": "LeagueFinishers", "from": 17, "to": 20 }
+    "target": "central-league",
+    "rule": { "kind": "positionRange", "from": 1, "to": 2 }
   }
 ]
 ```
 
-| Berth Rule Type | Description |
+A league awarding several berths at once — a continental place and a relegation play-off place:
+
+```json
+"berths": [
+  {
+    "target": "continental-cup",
+    "rule": { "kind": "positionRange", "from": 1, "to": 2 }
+  },
+  {
+    "target": "relegation-play-off",
+    "rule": { "kind": "positionRange", "from": 17, "to": 20 }
+  }
+]
+```
+
+| Berth Rule Kind | Description |
 |-----------------|-------------|
-| `"LeagueFinishers"` | League finishers from position `from` to `to` (1-based, inclusive) |
-| `"CupWinner"` | The winner of this cup |
+| `"positionRange"` | League finishers from position `from` to `to` (1-based, inclusive) |
+| `"cupWinner"` | The winner of this cup |
+| `"playoffWinner"` | The winner of a playoff contested by league finishers in `[from, to]` (1-based, inclusive) |
 
 ### Full Example
 
@@ -521,7 +541,7 @@ A domestic league using `topByReputation` selector:
     }
   },
   "berths": [
-    { "targetCompetition": "eng-champions-cup", "rule": { "type": "LeagueFinishers", "from": 1, "to": 4 } }
+    { "target": "eng-champions-cup", "rule": { "kind": "positionRange", "from": 1, "to": 4 } }
   ],
   "seasonStartMonth": 8,
   "seasonStartDay": 1
