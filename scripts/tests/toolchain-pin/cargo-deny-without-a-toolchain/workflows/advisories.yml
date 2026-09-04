@@ -1,6 +1,8 @@
-# cargo-deny compiles nothing, so it needs no dtolnay/rust-toolchain step. This fixture is the
-# accepted half of that exemption; cargo-deny-hiding-a-build is the half that proves the
-# exemption is not a way out of the rule.
+# cargo-deny and cargo-machete compile nothing, so neither needs a dtolnay/rust-toolchain step.
+# This fixture is the accepted half of that exemption; cargo-deny-hiding-a-build is the half
+# that proves the exemption is not a way out of the rule. Both tools appear here because the
+# exemption is one alternation — a fixture naming only cargo-deny would still pass if the
+# machete branch were dropped.
 name: advisories
 on: [workflow_dispatch]
 jobs:
@@ -12,3 +14,7 @@ jobs:
         with:
           tool: cargo-deny@0.20.2
       - run: cargo deny --locked --manifest-path src-tauri/Cargo.toml check advisories
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete@0.9.2
+      - run: cargo machete --skip-target-dir src-tauri

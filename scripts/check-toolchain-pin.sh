@@ -89,16 +89,17 @@ done < <(grep -rnE '(^|[^[:alnum:]_-])cargo[[:space:]]+\+' "$workflow_dir" || tr
 # in a comment and demanded a pin from a workflow that builds nothing.
 builds_rust='(^|[^[:alnum:]_-])cargo[[:space:]]+[+a-z]|uses:[[:space:]]*tauri-apps/tauri-action|(^|[^[:alnum:]_-])tauri[[:space:]]+build'
 
-# `cargo deny` is not a Rust build. It is a prebuilt binary that shells out to `cargo metadata`,
-# so it compiles nothing, needs no `targets`, and has no toolchain download to warm — the three
-# things the rule above exists to guarantee. `rust-toolchain.toml` still governs the `cargo` it
-# calls, so it is pinned; it just does not need the action to be.
+# `cargo deny` and `cargo machete` are not Rust builds. Both are prebuilt binaries — one shells
+# out to `cargo metadata`, the other only parses manifests and greps sources — so they compile
+# nothing, need no `targets`, and have no toolchain download to warm, which is the whole of what
+# the rule above exists to guarantee. `rust-toolchain.toml` still governs any `cargo` they call,
+# so they are pinned; they just do not need the action to be.
 #
 # Blanked token by token rather than line by line, so `cargo deny check && cargo build` still
 # trips the rule on its second half. That matters more than it looks: a whole-line exclusion
 # would turn this into a one-line bypass for any job willing to write both on one line.
 strip_non_builders() {
-    grep -v '^[[:space:]]*#' "$1" | sed 's/cargo[[:space:]][[:space:]]*deny/cargo-deny/g'
+    grep -v '^[[:space:]]*#' "$1" | sed -E 's/cargo[[:space:]]+(deny|machete)/cargo-\1/g'
 }
 
 for workflow in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do

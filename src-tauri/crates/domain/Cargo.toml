@@ -5,7 +5,6 @@ edition = "2024"
 publish = false
 
 [dependencies]
-log = "0.4"
 serde = { version = "1.0.228", features = ["derive"] }
 
 [dev-dependencies]

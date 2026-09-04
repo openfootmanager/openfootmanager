@@ -1239,7 +1239,6 @@ dependencies = [
 name = "domain"
 version = "0.3.0"
 dependencies = [
- "log",
  "serde",
  "serde_json",
 ]
@@ -1325,7 +1324,6 @@ checksum = "66b7e2430c6dff6a955451e2cfc438f09cea1965a9d6f87f7e3b90decc014099"
 name = "engine"
 version = "0.3.0"
 dependencies = [
- "log",
  "rand",
  "serde",
  "serde_json",
@@ -3093,8 +3091,6 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
- "tokio-util",
- "tower",
  "webp",
 ]
 
