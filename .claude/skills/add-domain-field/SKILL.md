@@ -96,7 +96,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --workspace
 
 - Add the field to the matching TypeScript type (`src/store/types.ts` or the relevant service
   types). Optional (`?`) if old saves may not have it.
-- Any label, unit, or tooltip for it is a user-facing string → `/add-ui-string`, all 11 locales.
+- Any label, unit, or tooltip for it is a user-facing string → `/add-ui-string`, every locale.
 
 ---
 
@@ -113,4 +113,4 @@ cargo test --manifest-path src-tauri/Cargo.toml --workspace
 - [ ] `MIGRATION_COUNT` bumped
 - [ ] Round-trip test with a **non-default** value, written first
 - [ ] `cargo test --workspace` and `cargo clippy --workspace --all-targets` green
-- [ ] Frontend type updated; any new label translated into all 11 locales
+- [ ] Frontend type updated; any new label translated into every locale

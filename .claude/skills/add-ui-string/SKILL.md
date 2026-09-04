@@ -1,6 +1,6 @@
 ---
 name: add-ui-string
-description: Add or change any text a player can see, in all 11 locales. Covers the full procedure — en.json first, real translations for the other 10, INTENTIONAL_SAME.json only where a term genuinely does not translate, then the two vitest gates. Use for frontend strings and for Rust-side message keys.
+description: Add or change any text a player can see, in every locale the game ships in. Covers the full procedure — en.json first, real translations for the rest, INTENTIONAL_SAME.json only where a term genuinely does not translate, then the two vitest gates. Use for frontend strings and for Rust-side message keys.
 when_to_use: Adding a label, button, tooltip, error message, news headline, inbox message, aria-label, or any other user-visible text. Also when changing existing wording, renaming a translation key, or when localeCoverage.test.ts or frontendKeyCoverage.test.ts fails.
 argument-hint: "[what the string says or the key you are adding]"
 allowed-tools: Read, Edit, Write, Grep, Glob, Bash(npx vitest run src/i18n), Bash(npx vitest run src/utils), Bash(npm run audit:i18n)
@@ -8,11 +8,11 @@ allowed-tools: Read, Edit, Write, Grep, Glob, Bash(npx vitest run src/i18n), Bas
 
 # Adding a user-facing string
 
-OpenFoot Manager ships in **11 locales**. A string that exists only in English is a broken
+OpenFoot Manager ships in **12 locales**. A string that exists only in English is a broken
 build, not a TODO. This is the project's most frequently violated rule, so follow the steps in
 order and finish with the tests.
 
-## The 11 locales
+## The 12 locales
 
 Source of truth: `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`.
 
@@ -23,11 +23,16 @@ Source of truth: `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`.
 | `pt` | Portuguese | | `zh-CN` | Simplified Chinese |
 | `fr` | French | | `cs` | Czech |
 | `de` | German | | `tr` | Turkish |
-| `it` | Italian | | | |
+| `it` | Italian | | `id` | Indonesian |
 
 Files: `src/i18n/locales/<code>.json`.
 
-If `SUPPORTED_LANGUAGES` and this table ever disagree, `src/i18n/index.ts` wins — read it.
+If `SUPPORTED_LANGUAGES` and this table ever disagree, `src/i18n/index.ts` wins — read it. It has
+grown before and will again: `id` was the twelfth, added in August 2026.
+
+This file and `src/CLAUDE.md` are the only two that state a count, because they are the only two
+that carry the list. The rest of the repository's docs say "every locale" on purpose: when `id`
+was added, a dozen files were left claiming eleven. Keep it that way.
 
 ---
 
@@ -63,9 +68,9 @@ fragments, because word order differs by language:
 Pluralisation uses i18next suffixes (`_one`, `_other`, and the extra forms `ru` and `cs` need).
 If a count is involved, check how an existing pluralised key in `en.json` is written and match it.
 
-### 3. Translate into the other 10 — properly
+### 3. Translate into the other 11 — properly
 
-Add the same key path to `cs`, `de`, `es`, `fr`, `it`, `pt`, `pt-BR`, `ru`, `tr`, `zh-CN`.
+Add the same key path to `cs`, `de`, `es`, `fr`, `id`, `it`, `pt`, `pt-BR`, `ru`, `tr`, `zh-CN`.
 
 - **Keep every interpolation placeholder identical.** `{{player}}` stays `{{player}}`; only the
   surrounding text and the word order change.
@@ -78,7 +83,37 @@ Add the same key path to `cs`, `de`, `es`, `fr`, `it`, `pt`, `pt-BR`, `ru`, `tr`
 - If you genuinely cannot produce a confident translation for a locale, say so in your summary
   rather than shipping English text under a non-English key. The test will catch it anyway.
 
-### 4. `INTENTIONAL_SAME.json` — only for terms that truly don't translate
+### 4. Match how the file already addresses the manager
+
+Most of these languages choose between a familiar and a polite second person — `du`/`Sie`,
+`tu`/`vous`, `ty`/`vy`, `kamu`/`Anda`, 你/您 — and that choice is not yours to make one string at a
+time. Each file has already made it. A string in the wrong register reads to a native speaker the
+way a stranger using your first name does: not wrong, exactly, but written by someone who wasn't
+paying attention.
+
+**Read four or five neighbouring values in the namespace you are editing, and copy their form.**
+
+Do not instead count pronouns across the whole file and follow the majority. Those counts are
+dominated by third-person text *about* players rather than text *to* the manager, and the markers
+are ambiguous in both directions: Spanish `su` is "his" far more often than polite "your", and
+German `Sie` is also "they" and "it".
+
+Register follows **who is speaking**, which is why one file can hold both forms correctly. In
+`de.json`, a journalist's question under `match.press.*` is formal (`Sie`, throughout); a menu
+label, and the dialogue options the manager picks under `be.msg.playerEvent.options.*`, are
+familiar (`du`). Neither of those is a bug.
+
+Elsewhere in `de.json` the two forms are genuinely tangled — board correspondence under
+`be.msg.*` mixes them from one letter to the next. That is unresolved, not a pattern to copy: if
+the keys around yours disagree with each other, say so rather than picking one silently.
+
+⚠️ **A polite form can force you to guess the manager's gender.** Formal Czech takes a plural
+auxiliary but keeps the participle singular and gendered: `uspořádal jste` says the manager is a
+man, `uspořádala jste` says she is a woman, and the game does not know. Rephrase so that nobody is
+the subject — `Tisková konference dnes už proběhla`, *a press conference has already taken place
+today*. Any locale that agrees a verb or adjective with the person being addressed can spring this.
+
+### 5. `INTENTIONAL_SAME.json` — only for terms that truly don't translate
 
 `src/i18n/INTENTIONAL_SAME.json` allowlists keys whose value is legitimately identical to English:
 proper nouns, competition names, position abbreviations like `GK`. Entries are keyed by locale
@@ -87,7 +122,7 @@ code, or `global` for all of them.
 This is an escape hatch for linguistics, **not** for unfinished work. If you find yourself adding
 several keys at once, you are using it wrong.
 
-### 5. Backend strings are keys, not prose
+### 6. Backend strings are keys, not prose
 
 Rust never emits English text for the player. It emits a **translation key**, and the frontend
 resolves it:
@@ -97,10 +132,10 @@ resolves it:
 - `src/utils/backendI18n.legacy.ts` — keys kept for old saves
 
 So a new inbox message or news headline generated in `ofm_core` means: emit the key on the Rust
-side, map it in `backendI18n.ts` if the mapping isn't automatic, and add the key to all 11 locale
-files. `src/utils/backendI18n.localeCoverage.test.ts` covers this half.
+side, map it in `backendI18n.ts` if the mapping isn't automatic, and add the key to every locale
+file. `src/utils/backendI18n.localeCoverage.test.ts` covers this half.
 
-### 6. Run the gates
+### 7. Run the gates
 
 ```bash
 npx vitest run src/i18n        # localeCoverage + frontendKeyCoverage + index
@@ -127,9 +162,10 @@ is not a pass — the vitest gates are.
 ## Checklist
 
 - [ ] Key added to `src/i18n/locales/en.json`, in the right namespace
-- [ ] Real translations added to all 10 other locales
+- [ ] Real translations added to all 11 other locales
 - [ ] Interpolation placeholders identical across every locale
 - [ ] `pt` and `pt-BR` translated separately
+- [ ] Form of address matches the neighbouring keys, and no wording assumes the manager’s gender
 - [ ] `INTENTIONAL_SAME.json` touched only for genuinely untranslatable terms
 - [ ] Backend keys mapped in `src/utils/backendI18n*.ts` if applicable
 - [ ] `npx vitest run src/i18n` green

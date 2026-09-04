@@ -72,7 +72,7 @@ Not optional, and cheap if done while writing rather than after.
 ## 4. Strings
 
 Every visible string — and every `aria-label`, `title`, `placeholder`, and `alt` — is a
-translation key in all 11 locales. Use `/add-ui-string`; don't hand-roll it.
+translation key in every locale. Use `/add-ui-string`; don't hand-roll it.
 
 ## 5. State
 
@@ -118,7 +118,7 @@ npx tsc --noEmit
 - [ ] Every colour class has a `dark:` partner; checked in both themes
 - [ ] Visible focus ring on every interactive element
 - [ ] Semantic elements; icon-only controls have translated `aria-label`s
-- [ ] All strings routed through `/add-ui-string` (all 11 locales)
+- [ ] All strings routed through `/add-ui-string` (every locale)
 - [ ] No store mutation from a component
 - [ ] Co-located test querying by role, written before the component
 - [ ] `npx vitest run src/components/<area>` and `npx tsc --noEmit` green

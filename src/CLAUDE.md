@@ -7,11 +7,11 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules.
 
 ## 1. Internationalisation — the rule that breaks CI most often
 
-**Every string a player can read must exist in all 11 locales.** No exceptions, no "I'll add the
+**Every string a player can read must exist in all 12 locales.** No exceptions, no "I'll add the
 translations later."
 
 - Source of truth for the locale list: `SUPPORTED_LANGUAGES` in `src/i18n/index.ts` —
-  `en, es, pt, fr, de, it, ru, pt-BR, zh-CN, cs, tr`.
+  `en, es, pt, fr, de, it, ru, pt-BR, zh-CN, cs, tr, id`.
 - Translation files: `src/i18n/locales/<code>.json`.
 - Deliberate same-as-English terms (proper nouns, football abbreviations) go in
   `src/i18n/INTENTIONAL_SAME.json`, keyed by locale or under `global`. This is an escape hatch for
@@ -26,7 +26,7 @@ Enforced by two tests, both run by `npm test`:
 
 Backend strings arrive as **translation keys**, not English prose. `src/utils/backendI18n.ts`
 (plus `backendI18nPlayerEvents.ts` and `backendI18n.legacy.ts`) maps them to text. If you add a
-message on the Rust side, you add its key to all 11 locales here.
+message on the Rust side, you add its key to every locale here.
 
 Use `/add-ui-string` — it is the whole procedure, in order.
 

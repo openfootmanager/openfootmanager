@@ -215,7 +215,7 @@ the following must hold:
 - **Saves round-trip.** Save and load at several points in that playthrough, and confirm nothing is
   lost. See [`docs/SAVE_SYSTEM_DESIGN.md`](docs/SAVE_SYSTEM_DESIGN.md); a save written by a stable
   release must keep loading for the life of that stable line.
-- **Translations are complete** — `src/i18n/localeCoverage.test.ts` green across all 11 locales, and
+- **Translations are complete** — `src/i18n/localeCoverage.test.ts` green across every locale, and
   no untranslated player-facing strings introduced since the last cut (see [Translations](#translations)).
 - **The suite is green** — `npm test`, `cargo test --locked --workspace`, and both clippy gates
   (`cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings`,
@@ -241,7 +241,7 @@ move fast because `release` is the thing that has to be trustworthy.
 
 ### Translations
 
-OpenFoot Manager ships in **11 locales**. Any string a player can read must exist in all of them, not only English.
+OpenFoot Manager ships in **every locale listed in `SUPPORTED_LANGUAGES`** (`src/i18n/index.ts`). Any string a player can read must exist in all of them, not only English.
 
 Two tests enforce this, and it is worth knowing precisely what each one catches, because between them they leave a gap:
 
@@ -279,7 +279,7 @@ AI coding agents are welcome here, and the repository is set up so they start wi
 | `i18n-auditor` | Untranslated strings, missing locales, translation quality |
 | `ui-accessibility-reviewer` | Design tokens, theme parity, focus, keyboard, labelling |
 
-**The bar is the same.** An AI-assisted PR is held to exactly the standards above: tests that would have failed before the change, all 11 locales, clean `cargo clippy`, and a description that explains *why*. "The agent wrote it" is not a review comment we can act on.
+**The bar is the same.** An AI-assisted PR is held to exactly the standards above: tests that would have failed before the change, every locale, clean `cargo clippy`, and a description that explains *why*. "The agent wrote it" is not a review comment we can act on.
 
 **A note on `.claude/settings.json`.** The shared settings pre-approve only read-only `git` inspection commands. Build and test commands are deliberately left prompting, even though approving them would be more convenient: `npm test`, `cargo test`, and `cargo clippy` all execute code from the working tree — test files, `vite.config.ts`, `build.rs`, proc macros. On a fork-and-pull project you will sometimes check out someone else's branch to review it, and a checked-in allowlist would run their code without asking you first. If you want those commands approved on your own machine, put them in `.claude/settings.local.json`, which is gitignored.
 

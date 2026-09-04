@@ -54,7 +54,7 @@ an early `Err` return persists. Check preconditions up front, then mutate.
 ### Errors are translation keys
 
 Return `"be.error.noTeamAssigned"`, not `"No team assigned"`. The frontend resolves these through
-`src/utils/backendI18n.ts`. A new error key must be added to all 11 locale files — use
+`src/utils/backendI18n.ts`. A new error key must be added to every locale file — use
 `/add-ui-string`.
 
 ## 2. Register it
@@ -117,7 +117,7 @@ If the command should also be available to AI agents, continue with `/add-mcp-to
 
 - [ ] Logic in a `*_internal(&StateManager, …)` function; `#[tauri::command]` is a thin wrapper
 - [ ] Mutations go through `mutate_active_game`, with validation before mutation
-- [ ] Errors are translation keys, added to all 11 locales
+- [ ] Errors are translation keys, added to every locale
 - [ ] Registered in `generate_handler![…]` in `src-tauri/src/lib.rs`
 - [ ] New modules re-exported from `commands/mod.rs`
 - [ ] Typed wrapper in `src/services/`, camelCase args, no `any`
