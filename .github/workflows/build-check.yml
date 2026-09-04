@@ -116,8 +116,13 @@ jobs:
         with:
           workspaces: ./src-tauri -> target
 
+      # Every cargo invocation below passes `--locked`. Committing `Cargo.lock` only buys a
+      # reproducible build if something refuses to silently resolve around it — without this,
+      # cargo would quietly update the lockfile in the runner's checkout and CI could be testing
+      # a dependency set that exists nowhere else. With it, a manifest change that was not
+      # accompanied by its lockfile fails here and says so.
       - name: Run backend tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml --workspace
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace
 
       # `mod mcp_server` is behind a Cargo feature, so the step above never
       # compiles it — nine tests under src/mcp_server/ (167 vs 176 in the lib
@@ -131,20 +136,20 @@ jobs:
       # above and took 80 minutes of CI time for these nine tests; scoped to
       # `--lib` it measures ~5 minutes.
       - name: Run backend tests (mcp feature)
-        run: cargo test --manifest-path src-tauri/Cargo.toml --lib --features mcp
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features mcp
 
       - name: Check backend compilation
-        run: cargo check --manifest-path src-tauri/Cargo.toml --workspace
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
 
       # Clippy is a hard gate: any warning fails the build. Run the same command
       # locally before pushing (or use the /preflight skill).
       - name: Clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
 
       # The MCP server sits behind a Cargo feature, so the step above never
       # compiles it. Without this, ~90 tools' worth of code is unlinted.
       - name: Clippy (mcp feature)
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
 
 # ── Gates deliberately NOT enabled yet ───────────────────────────────────────
 #

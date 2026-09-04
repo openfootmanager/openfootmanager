@@ -53,13 +53,17 @@ frontend job.
 ## 5. Backend tests
 
 ```bash
-cargo test --manifest-path src-tauri/Cargo.toml --workspace
+cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace
 ```
+
+`--locked` is what CI passes, so a lockfile you forgot to commit fails here rather than twenty
+minutes into a CI run. If it stops with *cannot update the lock file*, re-run without the flag
+and commit the resulting `src-tauri/Cargo.lock` with your manifest change.
 
 If you changed a Tauri command, also run the lib target explicitly:
 
 ```bash
-cargo test --manifest-path src-tauri/Cargo.toml --lib
+cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
 ```
 
 **`cargo test --bin` matches zero tests and exits 0.** It looks like a pass and checks nothing.
@@ -67,13 +71,13 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib
 Touched MCP server code? That is behind a feature flag and is not compiled by default:
 
 ```bash
-cargo build --manifest-path src-tauri/Cargo.toml --features mcp
+cargo build --locked --manifest-path src-tauri/Cargo.toml --features mcp
 ```
 
 ## 6. Clippy
 
 ```bash
-cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
 ```
 
 Clippy must be clean before a PR (`CONTRIBUTING.md` has always asked for this; check
@@ -89,7 +93,7 @@ disagree with CI, run `cargo +<pinned-version> clippy …` before chasing anythi
 Touched MCP code? CI lints it separately, because the feature isn't on by default:
 
 ```bash
-cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
 ```
 
 ## 7. Formatting

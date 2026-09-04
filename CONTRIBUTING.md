@@ -113,6 +113,36 @@ If you're working on a new feature that has no prior **Issue** related to it, pl
   - Use TailwindCSS for styling instead of raw CSS where possible.
   - Ensure type safety across the application (avoid `any` types).
 
+### Dependencies and the lockfile
+
+`src-tauri/Cargo.lock` is **committed**. Leaving it out is the right call for a library, whose
+dependents pick their own versions; OpenFoot Manager is a shipped desktop application, so the
+opposite holds — two people on the same commit should get the same build, and a release should
+match the CI run that approved it.
+
+CI runs its cargo commands with `--locked`, so **a manifest change that moves the resolved graph
+is a diff you have to commit**. Add or bump a dependency, touch only `Cargo.toml`, and the build
+stops with:
+
+```text
+error: cannot update the lock file … because --locked was passed to prevent this
+```
+
+Not every manifest edit does this — widening a version range that the locked version already
+satisfies leaves the lockfile alone. When it does fire, run the command again **without**
+`--locked` (a plain `cargo test --manifest-path src-tauri/Cargo.toml --workspace` will do it),
+then commit the resulting `Cargo.lock` alongside the manifest change.
+
+That is deliberate rather than a nuisance: it means a transitive version jump shows up in review
+as a diff someone can see and question, instead of arriving invisibly on whichever machine
+happened to resolve it first.
+
+**Which commands take the flag.** Use `--locked` when you are *verifying* — the pre-PR run
+above, the [`/preflight`](.claude/skills/preflight/SKILL.md) list, the release checklist — so
+your machine agrees with CI. Leave it off while you are *iterating*, which is why the quick
+reference in `CLAUDE.md` and `AGENTS.md` omits it: mid-change is exactly when you want cargo
+free to resolve a dependency you just added.
+
 ### Tests
 
 Whenever you add a new feature (backend or frontend), include tests to ensure it behaves as expected.
@@ -127,10 +157,14 @@ npm test
 
 ```bash
 cd src-tauri
-cargo test --workspace
+cargo test --locked --workspace
 ```
 
 If your change affects both layers, run both test suites.
+
+`--locked` here matches what CI runs, so a lockfile you forgot to commit fails on your machine
+instead of twenty minutes into a CI run. Drop it while you are still iterating — see
+[Dependencies and the lockfile](#dependencies-and-the-lockfile).
 
 One trap worth knowing: Tauri command tests live in the `openfootmanager_lib` **lib** target. Use `cargo test --lib` to run them — `cargo test --bin` matches zero tests and exits successfully, which looks like a pass but checks nothing.
 
@@ -183,9 +217,9 @@ the following must hold:
   release must keep loading for the life of that stable line.
 - **Translations are complete** — `src/i18n/localeCoverage.test.ts` green across all 11 locales, and
   no untranslated player-facing strings introduced since the last cut (see [Translations](#translations)).
-- **The suite is green** — `npm test`, `cargo test --workspace`, and both clippy gates
-  (`cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings`, and
-  the same with `--features mcp`).
+- **The suite is green** — `npm test`, `cargo test --locked --workspace`, and both clippy gates
+  (`cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings`,
+  and the same with `--features mcp`).
 
 The full-season playthrough is currently a manual check. An automated scenario suite driving the game
 through the MCP server is planned for 0.4.0, and joins this list when it lands.
