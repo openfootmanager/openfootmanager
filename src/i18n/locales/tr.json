@@ -2594,7 +2594,9 @@
         "playerNotOnPitch": "Oyuncu sahada değil",
         "playerAlreadySubstitutedOff": "Oyuncu zaten oyundan alınmış",
         "playerNotOnBench": "Oyuncu yedek kulübesinde değil",
-        "playerNotInStartingXi": "Oyuncu ilk 11'de değil"
+        "playerNotInStartingXi": "Oyuncu ilk 11'de değil",
+        "pressConferenceAlreadyHeld": "Bugün zaten bir basın toplantısı düzenlediniz",
+        "noCompletedMatch": "Takımınız için tamamlanmış bir maç bulunamadı"
       },
       "csv": {
         "writeFailed": "CSV dosyası yazılamadı."

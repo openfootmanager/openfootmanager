@@ -2581,7 +2581,9 @@
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",
         "playerNotOnBench": "O jogador não está no banco",
-        "playerNotInStartingXi": "O jogador não está no time titular"
+        "playerNotInStartingXi": "O jogador não está no time titular",
+        "pressConferenceAlreadyHeld": "Você já deu uma coletiva de imprensa hoje",
+        "noCompletedMatch": "Nenhuma partida disputada foi encontrada para o seu time"
       },
       "csv": {
         "writeFailed": "Falha ao gravar o arquivo CSV."

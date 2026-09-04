@@ -2594,7 +2594,9 @@
         "playerNotOnPitch": "Игрок не на поле",
         "playerAlreadySubstitutedOff": "Игрок уже заменен",
         "playerNotOnBench": "Игрок не на скамейке запасных",
-        "playerNotInStartingXi": "Игрок не в стартовом составе"
+        "playerNotInStartingXi": "Игрок не в стартовом составе",
+        "pressConferenceAlreadyHeld": "Вы уже провели пресс-конференцию сегодня",
+        "noCompletedMatch": "Для вашей команды не найдено сыгранных матчей"
       },
       "csv": {
         "writeFailed": "Не удалось записать CSV-файл."

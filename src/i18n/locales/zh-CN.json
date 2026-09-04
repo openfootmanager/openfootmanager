@@ -2581,7 +2581,9 @@
         "playerNotOnPitch": "球员不在场上",
         "playerAlreadySubstitutedOff": "该球员已经被换下",
         "playerNotOnBench": "球员不在替补席上",
-        "playerNotInStartingXi": "球员不在首发阵容中"
+        "playerNotInStartingXi": "球员不在首发阵容中",
+        "pressConferenceAlreadyHeld": "今天你已经召开过新闻发布会了",
+        "noCompletedMatch": "未找到你的球队已完成的比赛"
       },
       "csv": {
         "writeFailed": "无法写入 CSV 文件。"

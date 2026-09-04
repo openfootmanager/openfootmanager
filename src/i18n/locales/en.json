@@ -2594,7 +2594,9 @@
         "playerNotOnPitch": "Player not on pitch",
         "playerAlreadySubstitutedOff": "Player has already been substituted off",
         "playerNotOnBench": "Player not on bench",
-        "playerNotInStartingXi": "Player not in starting XI"
+        "playerNotInStartingXi": "Player not in starting XI",
+        "pressConferenceAlreadyHeld": "You have already held a press conference today",
+        "noCompletedMatch": "No completed match found for your team"
       },
       "csv": {
         "writeFailed": "Failed to write the CSV file."

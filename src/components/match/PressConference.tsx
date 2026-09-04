@@ -298,54 +298,11 @@ export default function PressConference({
         })
         .filter((p) => p.response_id);
 
-      const userTeamName =
-        userSide === "Home" ? snapshot.home_team.name : snapshot.away_team.name;
-      const userTeamId =
-        userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
-      const resultStr = `${snapshot.home_team.name} ${snapshot.home_score} - ${snapshot.away_score} ${snapshot.away_team.name}`;
-      const quotes = payloads
-        .filter((p) => p.response_text)
-        .map((p) => `"${p.response_text}"`);
-      const firstQuoteRaw = payloads[0]?.response_text ?? "";
-
-      const prerenderedHeadline =
-        quotes.length === 0
-          ? t("match.pressReport.headlinePostMatch", { team: userTeamName, result: resultStr })
-          : Math.random() < 0.5
-            ? t("match.pressReport.headlineManagerQuote", { team: userTeamName, quote: firstQuoteRaw })
-            : t("match.pressReport.headlinePressConf", { team: userTeamName, quote: firstQuoteRaw });
-
-      let prerenderedBody: string;
-      if (quotes.length > 1) {
-        const bulletList = quotes.map((q) => `• ${q}`).join("\n");
-        prerenderedBody =
-          t("match.pressReport.bodyIntro", { result: resultStr, team: userTeamName }) +
-          "\n\n" +
-          bulletList +
-          "\n\n" +
-          t("match.pressReport.bodyOutro");
-      } else if (quotes.length === 1) {
-        prerenderedBody =
-          t("match.pressReport.bodySingle", { team: userTeamName, result: resultStr }) +
-          "\n\n" +
-          quotes[0];
-      } else {
-        prerenderedBody = t("match.pressReport.bodyNone", { team: userTeamName, result: resultStr });
-      }
-
       const result = await invoke<{
         game: GameStateData;
         morale_delta: number;
       }>("submit_press_conference", {
         answers: payloads,
-        homeTeam: snapshot.home_team.name,
-        awayTeam: snapshot.away_team.name,
-        homeScore: snapshot.home_score,
-        awayScore: snapshot.away_score,
-        userTeamName: userTeamName,
-        userTeamId: userTeamId,
-        prerenderedBody,
-        prerenderedHeadline,
       });
       if (result.game && onGameUpdate) {
         onGameUpdate(result.game);
