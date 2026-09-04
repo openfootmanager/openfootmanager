@@ -1,0 +1,95 @@
+# cargo-deny — what may enter this dependency graph.
+#
+# Lives beside the workspace manifest rather than at the repository root, because that is
+# where the `[workspace]` table is and cargo-deny resolves the graph from there.
+#
+# CI runs `licenses`, `bans` and `sources` on every pull request. `advisories` is
+# deliberately NOT in that set: a newly published RUSTSEC advisory would otherwise turn
+# every unrelated PR red overnight, for a dependency fact nobody in the PR chose. It
+# belongs on a schedule instead — see the note at the bottom of this file.
+
+[graph]
+# ⚠ This file does not by itself decide which crates get checked. Run cargo-deny the way CI
+# does — `cargo deny --locked --workspace --all-features …` — or you will be checking a
+# smaller graph than the gate does and wondering why CI disagrees. `build-check.yml` explains
+# what each flag pulls in. `all-features = true` here is NOT an alternative: cargo-deny 0.20.2
+# accepts the key in this table without complaint and ignores it, which is worse than not
+# having it, because the file then looks like it covers the optional `mcp` dependencies.
+#
+# Check the platforms the release matrix actually builds, so a Windows-only or macOS-only
+# dependency cannot slip past a Linux-only run. `tauri-action.yml` and
+# `nightly-tauri-action.yml` build exactly these five.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+
+[licenses]
+# OpenFoot Manager is GPLv3, so this list is a legal boundary rather than a preference:
+# every entry has to be a licence whose terms GPL-3.0 can absorb. It is deliberately the
+# minimum that makes today's graph pass — an `OR` expression only needs one of its
+# branches allowed, so `Unlicense OR MIT` is covered by MIT alone and does not earn
+# `Unlicense` a line here.
+allow = [
+    # The permissive bulk of the ecosystem: of the 499 packages in the graph, 452 allow MIT
+    # and 328 allow Apache-2.0 (most offer both).
+    "MIT",
+    "Apache-2.0",
+    # `Apache-2.0 WITH LLVM-exception` appears once on its own, without an `OR` branch to
+    # fall back to, so the exception needs naming explicitly.
+    "Apache-2.0 WITH LLVM-exception",
+    # Permissive, and each is the only allowed branch for at least one package.
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Zlib",
+    # Required by an `AND` expression — `(MIT OR Apache-2.0) AND Unicode-3.0` — so unlike
+    # the `OR` cases above it cannot be satisfied by allowing MIT.
+    "Unicode-3.0",
+    # File-level copyleft, and GPL-compatible by MPL-2.0 §3.3, which lets a covered file
+    # be distributed under a Secondary License — the GPL is named as one. Six packages:
+    # colored, cssparser, cssparser-macros, dtoa-short, option-ext, selectors.
+    # Not a rubber stamp: if a future MPL-2.0 dependency ever ships with §3.3 disclaimed,
+    # cargo-deny will not notice, and that one would genuinely need legal review.
+    "MPL-2.0",
+]
+
+# All seven workspace members declare no `license` field, so without this cargo-deny rejects
+# our own crates. `publish = false` in each manifest is what marks them private; it is also
+# true, since none of them are published to crates.io. (Two of the seven — `ofm-cli` and
+# `sim-bench` — only reach the graph at all under `--workspace`.)
+#
+# Declaring `license = "GPL-3.0-…"` in the manifests would be better than staying silent,
+# but choosing between `GPL-3.0-only` and `GPL-3.0-or-later` is a licensing decision for
+# the maintainer rather than something to settle inside a tooling PR.
+private = { ignore = true }
+
+[bans]
+# NOT `deny`. The graph already carries ordinary transitive duplication that this repo
+# did not choose and has no mandate to resolve — windows-sys alone appears at four
+# versions. Denying it would redden pull requests over dependency facts nobody in the
+# pull request picked, which is how a gate earns a reputation for noise and gets turned
+# off. That is the failure this whole effort exists to avoid.
+multiple-versions = "allow"
+
+# Empty on purpose, and useful anyway: this is the list to add to the day a specific crate
+# is ruled out, with a comment saying why, instead of that decision living in a review
+# thread nobody can find later.
+deny = []
+
+[sources]
+# A dependency must come from crates.io. A git dependency is not necessarily wrong, but it
+# is a supply-chain decision — an unreviewed upstream that can change under a moving ref —
+# and it should be argued for in a pull request rather than arriving unnoticed.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+[advisories]
+# Not run on pull requests; see the header. Once a scheduled workflow exists, it runs
+# `cargo deny check advisories` and nothing else. There is no `schedule:` trigger anywhere
+# in `.github/workflows/` today, so that job is still to be built.
+yanked = "warn"
+ignore = []
