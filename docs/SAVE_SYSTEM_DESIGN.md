@@ -44,6 +44,12 @@ CREATE TABLE game_meta (
     current_date    TEXT NOT NULL,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     last_played_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    -- Later migrations add JSON columns here, among them V26 `world_history_json`
+    -- and V43 `emitted_events_json`. The latter is the inbox sent-ledger: the set
+    -- of event keys already announced to the player. It has to be persisted and
+    -- must never be pruned, because the inbox cannot serve as that record — the
+    -- player deletes from it, and a generator that read it would send the event
+    -- again (see the sent-ledger section in GAME_SYSTEMS.md).
 );
 
 CREATE TABLE managers (
