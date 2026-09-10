@@ -639,7 +639,7 @@ pub fn preview_sponsor_pitch(game: &Game, team_id: &str) -> Result<SponsorPitchP
     }
 
     let message_id = sponsor_pitch_message_id(game);
-    if game.messages.iter().any(|message| message.id == message_id) {
+    if crate::inbox::already_emitted(game, &message_id) {
         return Err("be.error.finance.sponsorPitchAlreadyAttemptedToday".to_string());
     }
 
@@ -778,7 +778,7 @@ pub fn request_marketing_campaign(
         amount: gross_revenue,
         kind: FinancialTransactionKind::CommercialCampaign,
     });
-    game.messages.push(message);
+    crate::inbox::emit(game, message);
 
     Ok(MarketingCampaignResult {
         message_id,
@@ -1019,8 +1019,8 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         None => return,
     };
 
-    let existing_ids: std::collections::HashSet<String> =
-        game.messages.iter().map(|m| m.id.clone()).collect();
+    // The ledger, not the mailbox: a message the player deleted was still sent.
+    let existing_ids = game.emitted_events.clone();
 
     let mut new_messages: Vec<InboxMessage> = Vec::new();
 
@@ -1159,7 +1159,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
 
-    game.messages.extend(new_messages);
+    crate::inbox::emit_all(game, new_messages);
 }
 
 fn format_money(amount: u64) -> String {

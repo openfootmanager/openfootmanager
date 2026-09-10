@@ -158,12 +158,17 @@ fn low_morale_generates_message() {
         .unwrap()
         .morale = 20;
 
-    // Now probabilistic (20% per day), run multiple iterations
+    // Now probabilistic (20% per day), run multiple iterations.
+    // Deliberately no `messages.clear()` between rolls: clearing the inbox used
+    // to be what let the generator run again, and that is the bug (#520).
     let mut found = false;
     for _ in 0..100 {
-        game.messages.clear();
         player_events::check_player_events(&mut game);
-        if game.messages.iter().any(|m| m.id == "morale_talk_p_fwd0") {
+        if game
+            .messages
+            .iter()
+            .any(|m| m.id.starts_with("morale_talk_p_fwd0_"))
+        {
             found = true;
             break;
         }
@@ -206,7 +211,7 @@ fn injured_player_no_morale_message() {
     let morale_msgs: Vec<_> = game
         .messages
         .iter()
-        .filter(|m| m.id == "morale_talk_p_fwd0")
+        .filter(|m| m.id.starts_with("morale_talk_p_fwd0_"))
         .collect();
     assert!(morale_msgs.is_empty(), "No morale talk for injured player");
 }
@@ -222,7 +227,11 @@ fn morale_message_not_duplicated() {
 
     for _ in 0..100 {
         player_events::check_player_events(&mut game);
-        if game.messages.iter().any(|m| m.id == "morale_talk_p_fwd0") {
+        if game
+            .messages
+            .iter()
+            .any(|m| m.id.starts_with("morale_talk_p_fwd0_"))
+        {
             break;
         }
     }
@@ -230,7 +239,7 @@ fn morale_message_not_duplicated() {
     let count1 = game
         .messages
         .iter()
-        .filter(|m| m.id == "morale_talk_p_fwd0")
+        .filter(|m| m.id.starts_with("morale_talk_p_fwd0_"))
         .count();
     assert_eq!(count1, 1, "Should generate exactly one morale message");
 
@@ -240,7 +249,7 @@ fn morale_message_not_duplicated() {
     let count2 = game
         .messages
         .iter()
-        .filter(|m| m.id == "morale_talk_p_fwd0")
+        .filter(|m| m.id.starts_with("morale_talk_p_fwd0_"))
         .count();
 
     assert_eq!(count2, 1, "Should not duplicate morale messages");
@@ -487,7 +496,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         twelve_month_game
             .messages
             .iter()
-            .all(|m| m.id != "contract_concern_p_fwd0_12m"),
+            .all(|m| !(m.id.starts_with("contract_concern_p_fwd0_") && m.id.ends_with("_12m"))),
         "Should defer per-player contract warnings until six months"
     );
 
@@ -508,7 +517,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         six_month_game
             .messages
             .iter()
-            .any(|m| m.id == "contract_concern_p_fwd0_6m"),
+            .any(|m| m.id.starts_with("contract_concern_p_fwd0_") && m.id.ends_with("_6m")),
         "Should generate a 6-month contract warning"
     );
 
@@ -529,7 +538,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         three_month_game
             .messages
             .iter()
-            .any(|m| m.id == "contract_concern_p_fwd0_3m"),
+            .any(|m| m.id.starts_with("contract_concern_p_fwd0_") && m.id.ends_with("_3m")),
         "Should generate a 3-month contract warning"
     );
 
@@ -550,7 +559,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         final_weeks_game
             .messages
             .iter()
-            .any(|m| m.id == "contract_concern_p_fwd0_final"),
+            .any(|m| m.id.starts_with("contract_concern_p_fwd0_") && m.id.ends_with("_final")),
         "Should generate a final-weeks contract warning"
     );
 }
@@ -637,7 +646,7 @@ fn takeover_contract_review_replaces_first_day_contract_spam() {
     assert!(
         game.messages
             .iter()
-            .any(|message| message.id == "contract_review_takeover_team1"),
+            .any(|message| message.id.starts_with("contract_review_takeover_team1_")),
         "Takeover should seed one contract review message"
     );
     assert_eq!(

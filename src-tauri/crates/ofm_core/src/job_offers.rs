@@ -334,7 +334,7 @@ fn send_job_offer(game: &mut Game, opportunity: &JobOpportunity, _rng: &mut impl
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let msg_id = format!("job_offer_{}_{}", opportunity.team_id, today);
 
-    if game.messages.iter().any(|m| m.id == msg_id) {
+    if crate::inbox::already_emitted(game, &msg_id) {
         return;
     }
 
@@ -401,7 +401,7 @@ fn send_job_offer(game: &mut Game, opportunity: &JobOpportunity, _rng: &mut impl
         game.manager.reputation
     );
 
-    game.messages.push(msg);
+    crate::inbox::emit(game, msg);
 }
 
 /// Returns up to 4 job opportunities suitable for the manager. For an

@@ -85,8 +85,8 @@ pub fn check_random_events(game: &mut Game) {
         None => return,
     };
 
-    let existing_ids: std::collections::HashSet<String> =
-        game.messages.iter().map(|m| m.id.clone()).collect();
+    // The ledger, not the mailbox: a message the player deleted was still sent.
+    let existing_ids = game.emitted_events.clone();
 
     let mut rng = rand::rng();
     let mut new_messages: Vec<InboxMessage> = Vec::new();
@@ -418,7 +418,7 @@ pub fn check_random_events(game: &mut Game) {
         }
     }
 
-    game.messages.extend(new_messages);
+    crate::inbox::emit_all(game, new_messages);
 }
 
 pub fn rival_interest_weight(

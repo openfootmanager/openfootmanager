@@ -31,7 +31,7 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
 
     // Deduplicate: only one warning per day
     let msg_id = format!("fitness_warn_{}", today_str);
-    if game.messages.iter().any(|m| m.id == msg_id) {
+    if crate::inbox::already_emitted(game, &msg_id) {
         return;
     }
 
@@ -140,7 +140,7 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
             msg = msg.with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager");
         }
 
-        game.messages.push(msg);
+        crate::inbox::emit(game, msg);
         return;
     }
 
@@ -193,6 +193,6 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
             msg = msg.with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager");
         }
 
-        game.messages.push(msg);
+        crate::inbox::emit(game, msg);
     }
 }

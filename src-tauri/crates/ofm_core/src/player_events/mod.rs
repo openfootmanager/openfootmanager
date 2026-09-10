@@ -27,8 +27,11 @@ pub fn generate_takeover_contract_review_message(game: &mut Game) {
         None => return,
     };
 
-    let summary_id = format!("contract_review_takeover_{}", user_team_id);
-    if game.messages.iter().any(|message| message.id == summary_id) {
+    // Keyed on the day of the takeover, not the club alone: a manager who leaves
+    // and later returns is taking over again and wants the briefing again. With
+    // the club as the whole key, the ledger would answer "already sent" forever.
+    let summary_id = format!("contract_review_takeover_{}_{}", user_team_id, today);
+    if crate::inbox::already_emitted(game, &summary_id) {
         return;
     }
 
@@ -66,13 +69,14 @@ pub fn generate_takeover_contract_review_message(game: &mut Game) {
         return;
     }
 
-    game.messages.push(takeover_contract_review_message(
+    let review = takeover_contract_review_message(
         &summary_id,
         total_expiring_this_season,
         urgent_contracts,
         final_weeks_contracts,
         &today,
-    ));
+    );
+    crate::inbox::emit(game, review);
 }
 
 fn talk_cooldown_active(player: &domain::player::Player, today: &str) -> bool {
@@ -86,11 +90,8 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
         None => return,
     };
     let current_date = game.clock.current_date.date_naive();
-    let existing_ids: std::collections::HashSet<String> = game
-        .messages
-        .iter()
-        .map(|message| message.id.clone())
-        .collect();
+    // The ledger, not the mailbox: a message the player deleted was still sent.
+    let existing_ids = game.emitted_events.clone();
     let mut new_messages: Vec<InboxMessage> = Vec::new();
 
     for player in game.players.iter_mut() {
@@ -111,31 +112,43 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
             continue;
         }
 
-        let msg_id = format!("contract_concern_{}_{}", player.id, stage.message_suffix());
+        // The contract itself is in the key. Keyed on player and stage alone, a
+        // renewal would inherit the old deal's stages from the ledger and the
+        // player would never be warned about the new one.
+        let contract_end = player.contract_end.clone().unwrap_or_default();
+        let msg_id = format!(
+            "contract_concern_{}_{}_{}",
+            player.id,
+            contract_end,
+            stage.message_suffix()
+        );
 
         if existing_ids.contains(&msg_id) {
             continue;
         }
 
+        let Ok(end_date) = chrono::NaiveDate::parse_from_str(&contract_end, "%Y-%m-%d") else {
+            continue;
+        };
+
+        // The morale hit rides with the message, not with the attempt. It used
+        // to be applied before the message was built, so a player who deleted
+        // the message took the hit again every time it regenerated.
         if apply_morale_pressure {
             player.morale = (player.morale as i16 - stage.morale_pressure()).clamp(5, 100) as u8;
         }
 
-        if let Some(end_str) = &player.contract_end
-            && let Ok(end_date) = chrono::NaiveDate::parse_from_str(end_str, "%Y-%m-%d")
-        {
-            let days_remaining = (end_date - current_date).num_days();
-            new_messages.push(contract_concern_message(
-                &msg_id,
-                &player.id,
-                &player.match_name,
-                days_remaining,
-                &today,
-            ));
-        }
+        let days_remaining = (end_date - current_date).num_days();
+        new_messages.push(contract_concern_message(
+            &msg_id,
+            &player.id,
+            &player.match_name,
+            days_remaining,
+            &today,
+        ));
     }
 
-    game.messages.extend(new_messages);
+    crate::inbox::emit_all(game, new_messages);
 }
 
 /// Check all player-related events and generate inbox messages.
@@ -147,9 +160,12 @@ pub fn check_player_events(game: &mut Game) {
         None => return,
     };
 
-    // Collect existing message IDs for deduplication
-    let existing_ids: std::collections::HashSet<String> =
-        game.messages.iter().map(|m| m.id.clone()).collect();
+    // The ledger, not the mailbox: a message the player deleted was still sent.
+    let existing_ids = game.emitted_events.clone();
+    // These three are conditions, not moments — a player can be unhappy again
+    // next year. The season in the key is what lets them recur; without it the
+    // ledger would take each player's first complaint as his last.
+    let season = crate::inbox::recurrence_season(game);
 
     let mut new_messages: Vec<InboxMessage> = Vec::new();
 
@@ -183,7 +199,7 @@ pub fn check_player_events(game: &mut Game) {
             continue;
         }
 
-        let msg_id = format!("morale_talk_{}", player.id);
+        let msg_id = format!("morale_talk_{}_{}", player.id, season);
         if existing_ids.contains(&msg_id) {
             continue;
         }
@@ -231,7 +247,7 @@ pub fn check_player_events(game: &mut Game) {
                     continue;
                 }
 
-                let msg_id = format!("bench_complaint_{}", player.id);
+                let msg_id = format!("bench_complaint_{}_{}", player.id, season);
                 if existing_ids.contains(&msg_id) {
                     continue;
                 }
@@ -276,7 +292,7 @@ pub fn check_player_events(game: &mut Game) {
                 continue;
             }
 
-            let msg_id = format!("happy_player_{}", player.id);
+            let msg_id = format!("happy_player_{}_{}", player.id, season);
             if existing_ids.contains(&msg_id) {
                 continue;
             }
@@ -292,6 +308,6 @@ pub fn check_player_events(game: &mut Game) {
         }
     }
 
-    game.messages.extend(new_messages);
+    crate::inbox::emit_all(game, new_messages);
     generate_contract_concern_messages(game, true);
 }

@@ -187,13 +187,13 @@ pub fn generate_objectives(game: &mut Game) {
 
     // Send inbox message about objectives
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let existing_ids: std::collections::HashSet<String> =
-        game.messages.iter().map(|m| m.id.clone()).collect();
+    // The ledger, not the mailbox: a message the player deleted was still sent.
+    let existing_ids = game.emitted_events.clone();
     let season = game.league.as_ref().map(|l| l.season).unwrap_or(1);
     let msg_id = board_message_id(season);
     if !existing_ids.contains(&msg_id) {
         let msg = build_objectives_message(&targets, season, today);
-        game.messages.push(msg);
+        crate::inbox::emit(game, msg);
     }
 }
 
@@ -469,7 +469,8 @@ mod tests {
     #[test]
     fn generate_objectives_does_not_duplicate_existing_board_message() {
         let mut game = make_game(60, 2, 4);
-        game.messages.push(
+        crate::inbox::emit(
+            &mut game,
             InboxMessage::new(
                 "board_objectives_2".to_string(),
                 "Existing".to_string(),
@@ -491,6 +492,19 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn generate_objectives_does_not_resend_the_briefing_the_player_deleted() {
+        let mut game = make_game(60, 2, 4);
+        generate_objectives(&mut game);
+        assert_eq!(game.messages.len(), 1);
+
+        game.messages.clear();
+        game.board_objectives.clear();
+        generate_objectives(&mut game);
+
+        assert!(game.messages.is_empty());
     }
 
     #[test]

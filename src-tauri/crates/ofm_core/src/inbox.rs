@@ -36,9 +36,57 @@ pub fn emit_once(game: &mut Game, key: &str, build: impl FnOnce() -> InboxMessag
         message.id, key,
         "emit_once key must be the message id, or the ledger and the inbox disagree"
     );
-    game.emitted_events.insert(key.to_string());
+    emit(game, message)
+}
+
+/// Send `message` unless its id has been sent before, and return whether it was
+/// sent.
+///
+/// The id is the ledger key. Use this where the message is already built;
+/// [`emit_once`] where building it is the expensive part.
+pub fn emit(game: &mut Game, message: InboxMessage) -> bool {
+    if game.emitted_events.contains(&message.id) {
+        return false;
+    }
+    game.emitted_events.insert(message.id.clone());
     game.messages.push(message);
     true
+}
+
+/// Send each of `messages` whose id has not been sent before, and return how
+/// many were sent.
+///
+/// For generators that build a batch and extend the inbox in one go. Ids
+/// repeated inside `messages` are sent once.
+pub fn emit_all(game: &mut Game, messages: Vec<InboxMessage>) -> usize {
+    let mut sent = 0;
+    for message in messages {
+        if emit(game, message) {
+            sent += 1;
+        }
+    }
+    sent
+}
+
+/// The season to scope a recurring event's key by.
+///
+/// Some events are conditions rather than moments — a player is unhappy, a
+/// squad member is not getting minutes. Keyed on the player alone they would
+/// enter the ledger once and never be raised again; keyed on the day they would
+/// arrive as often as the dice allow. The season is the unit a manager thinks
+/// in, so `morale_talk_{player}_{season}` means "he'll raise it once a season",
+/// which is roughly what the old accidental throttle delivered.
+pub fn recurrence_season(game: &Game) -> u32 {
+    game.primary_competition()
+        .map(|competition| competition.season)
+        .unwrap_or_else(|| {
+            game.clock
+                .current_date
+                .format("%Y")
+                .to_string()
+                .parse()
+                .unwrap_or(0)
+        })
 }
 
 /// Whether `key` has already been announced.
@@ -149,6 +197,66 @@ mod tests {
             });
         seed_ledger_from_save(&mut game);
         assert!(already_emitted(&game, "world_cup_champion_2026"));
+    }
+
+    /// No generator may dedupe against the mailbox again.
+    ///
+    /// This is a source check because the mistake is invisible at runtime: code
+    /// that asks the inbox "have I sent this?" behaves correctly until the day a
+    /// player deletes the message, and no ordinary test constructs that state.
+    /// Nine generators carried the pattern before #520, in two spellings, and
+    /// each looked perfectly reasonable in isolation.
+    ///
+    /// Deliberately narrow: it bans comparing a message *id*, not reading the
+    /// inbox. `has_pending_sponsor_offer` scans for unresolved actions and
+    /// `job_offers` matches an id prefix to resolve one — both are questions
+    /// about the mailbox's present contents, which is what the mailbox is for.
+    #[test]
+    fn no_generator_dedupes_against_the_mailbox() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut offenders = Vec::new();
+        let mut stack = vec![root.clone()];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).expect("readable source directory") {
+                let path = entry.expect("readable entry").path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                    continue;
+                }
+                // This module documents the banned pattern, so it is exempt.
+                if path == root.join("inbox.rs") {
+                    continue;
+                }
+                let source = std::fs::read_to_string(&path).expect("readable source file");
+                for (number, line) in source.lines().enumerate() {
+                    let squashed: String = line
+                        .chars()
+                        .filter(|c| !c.is_whitespace())
+                        .collect::<String>();
+                    let scans_mailbox = squashed.contains("messages.iter()")
+                        || squashed.contains("messages.iter().map(");
+                    if scans_mailbox
+                        && (squashed.contains(".id==") || squashed.contains("id.clone()"))
+                    {
+                        offenders.push(format!(
+                            "{}:{}",
+                            path.strip_prefix(&root).unwrap_or(&path).display(),
+                            number + 1
+                        ));
+                    }
+                }
+            }
+        }
+        assert!(
+            offenders.is_empty(),
+            "these dedupe against the inbox instead of the sent-ledger, so deleting \
+             the message re-sends the event (#520). Use inbox::emit / emit_once / \
+             already_emitted:\n  {}",
+            offenders.join("\n  ")
+        );
     }
 
     #[test]

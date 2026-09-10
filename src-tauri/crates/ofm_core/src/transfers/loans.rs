@@ -1251,7 +1251,7 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
     let current_date = game.clock.current_date.date_naive();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let report_id = loan_development_report_id(player_id, &today, final_report);
-    if game.messages.iter().any(|message| message.id == report_id) {
+    if crate::inbox::already_emitted(game, &report_id) {
         return;
     }
 
@@ -1300,19 +1300,19 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
     };
 
     if game.manager.team_id.as_deref() == Some(loan.parent_team_id.as_str()) {
-        game.messages
-            .push(crate::messages::loan_development_report_message(
-                &report_id,
-                player_id,
-                &player_name,
-                &loan_team_name,
-                days_on_loan,
-                ovr_before,
-                ovr_after,
-                attribute_gains,
-                final_report,
-                &today,
-            ));
+        let report = crate::messages::loan_development_report_message(
+            &report_id,
+            player_id,
+            &player_name,
+            &loan_team_name,
+            days_on_loan,
+            ovr_before,
+            ovr_after,
+            attribute_gains,
+            final_report,
+            &today,
+        );
+        crate::inbox::emit(game, report);
     }
 }
 pub fn process_loan_development_reports(game: &mut Game) {
