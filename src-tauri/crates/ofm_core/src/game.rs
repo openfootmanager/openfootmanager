@@ -11,7 +11,7 @@ use domain::team::Team;
 use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ObjectiveType {
@@ -112,6 +112,16 @@ pub struct Game {
     pub vacant_team_days: HashMap<String, u32>,
     #[serde(default)]
     pub world_history: WorldHistoryArchive,
+    /// Keys of events that have already been announced to the player.
+    ///
+    /// This is the sent-ledger. It exists because `messages` cannot serve as
+    /// one: the player deletes from the inbox and clears it, so "is this id in
+    /// `messages`?" answers "is it still in the mailbox", not "was it ever
+    /// sent". Generators that used the mailbox as their guard re-fired the
+    /// moment a message was removed — see issue #520. Nothing outside
+    /// [`crate::inbox`] should write to this.
+    #[serde(default)]
+    pub emitted_events: BTreeSet<String>,
     /// Per-locale translation bundles from the world package (if any), keyed by
     /// locale code. The frontend merges these into the active i18n namespace so
     /// custom competition `name_key` values resolve to package-supplied strings.
@@ -156,6 +166,7 @@ impl Game {
             available_staff_market_last_activity_date: None,
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
+            emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
         };

@@ -83,6 +83,8 @@ fn write_game_to_connection(
         .map_err(|_| game_persistence_write_error())?;
     let world_history_json =
         serde_json::to_string(&game.world_history).map_err(|_| game_persistence_write_error())?;
+    let emitted_events_json =
+        serde_json::to_string(&game.emitted_events).map_err(|_| game_persistence_write_error())?;
     let extra_translations_json = serde_json::to_string(&game.extra_translations)
         .map_err(|_| game_persistence_write_error())?;
     let package_lockfile_json = serde_json::to_string(&game.package_lockfile)
@@ -111,6 +113,7 @@ fn write_game_to_connection(
             last_played_at: now,
             vacant_team_days_json,
             world_history_json,
+            emitted_events_json,
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -332,6 +335,7 @@ impl GamePersistenceReader {
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
+            emitted_events: serde_json::from_str(&meta.emitted_events_json).unwrap_or_default(),
             extra_translations: serde_json::from_str(&meta.extra_translations_json)
                 .unwrap_or_default(),
             package_lockfile: if meta.package_lockfile_json.trim().is_empty() {
@@ -342,6 +346,9 @@ impl GamePersistenceReader {
             },
         };
         game.promote_legacy_league();
+        // A save written before the sent-ledger existed carries an empty one.
+        // Adopt its inbox, or the first advance re-announces everything in it.
+        ofm_core::inbox::seed_ledger_from_save(&mut game);
         ofm_core::season_context::refresh_game_context(&mut game);
 
         Ok(game)
@@ -386,6 +393,7 @@ mod tests {
             active_competition_ids_json: "[]".to_string(),
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
+            emitted_events_json: "[]".to_string(),
         }
     }
 
@@ -538,6 +546,43 @@ mod tests {
 
         let loaded = GamePersistenceReader::read_game(&db).unwrap();
         assert_eq!(loaded.world_history, game.world_history);
+    }
+
+    #[test]
+    fn write_and_read_game_preserves_the_sent_ledger() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2032, 18);
+        // The message is gone from the inbox, the ledger entry is not — which is
+        // the whole reason the ledger exists. A round trip must keep it that way,
+        // or the generator re-announces on the next advance.
+        game.emitted_events
+            .insert("world_cup_champion_2030".to_string());
+        game.emitted_events.insert("promotion_2032".to_string());
+
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(loaded.emitted_events, game.emitted_events);
+        assert!(loaded.messages.is_empty());
+    }
+
+    #[test]
+    fn loading_a_save_written_before_the_ledger_adopts_its_inbox() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2032, 18);
+        game.messages.push(domain::message::InboxMessage::new(
+            "world_cup_champion_2030".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2030-07-15".to_string(),
+        ));
+        game.emitted_events.clear();
+
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
     }
 
     #[test]

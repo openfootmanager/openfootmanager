@@ -18,6 +18,7 @@ pub mod game;
 pub mod generator;
 pub mod group_stage;
 pub mod history_generation;
+pub mod inbox;
 pub mod job_offers;
 pub mod live_match_manager;
 pub mod messages;

@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 42;
+const EXPECTED_MIGRATION_COUNT: usize = 43;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -125,6 +125,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("v041_player_movement_history.sql", include_str!("sql/v041_player_movement_history.sql")),
     // V42: Persist installed-package lockfile (id, version, hash) for save reproducibility
     ("v042_game_package_lockfile.sql", include_str!("sql/v042_game_package_lockfile.sql")),
+    // V43: Persist the inbox sent-ledger so deleting a message can't re-send the event
+    ("v043_emitted_events.sql", include_str!("sql/v043_emitted_events.sql")),
 ];
 
 /// All migrations for a per-save game database.
