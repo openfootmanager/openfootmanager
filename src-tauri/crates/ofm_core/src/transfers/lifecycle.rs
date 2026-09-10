@@ -26,21 +26,73 @@ pub(crate) fn pending_approach_clubs(player: &domain::player::Player) -> HashSet
         )
         .collect()
 }
+/// Clubs that were turned away recently enough that they should not be asking again.
+///
+/// Being told no is information a club acts on. Without this, the day after a rejection the club
+/// is eligible again — it re-enters the shortlist, opens a fresh approach, and the manager rejects
+/// the same suitor every day for the length of the window. Expiry counts too: talks that went cold
+/// on their own are no more of an invitation to start over than a refusal is.
+///
+/// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
+/// when talks ended; offers written before that field existed fall back to their arrival date.
+pub(crate) fn clubs_in_rebid_cooldown(
+    player: &domain::player::Player,
+    current_date: NaiveDate,
+) -> HashSet<String> {
+    let cooling = |closed_on: Option<&str>, date: &str| {
+        NaiveDate::parse_from_str(closed_on.unwrap_or(date), "%Y-%m-%d")
+            .is_ok_and(|day| (current_date - day).num_days() < REBID_COOLDOWN_DAYS)
+    };
+
+    player
+        .transfer_offers
+        .iter()
+        .filter(|offer| {
+            matches!(
+                offer.status,
+                TransferOfferStatus::Rejected | TransferOfferStatus::Withdrawn
+            ) && cooling(offer.closed_on.as_deref(), &offer.date)
+        })
+        .map(|offer| offer.from_team_id.clone())
+        .chain(
+            player
+                .loan_offers
+                .iter()
+                .filter(|offer| {
+                    matches!(
+                        offer.status,
+                        LoanOfferStatus::Rejected | LoanOfferStatus::Withdrawn
+                    ) && cooling(offer.closed_on.as_deref(), &offer.date)
+                })
+                .map(|offer| offer.from_team_id.clone()),
+        )
+        .collect()
+}
+
 /// Whether `club_id` may open talks for a player already approached by `clubs`.
 pub(crate) fn club_may_approach(clubs: &HashSet<String>, club_id: &str) -> bool {
     clubs.len() < MAX_PENDING_INCOMING_OFFERS_PER_USER_PLAYER && !clubs.contains(club_id)
 }
-/// What today's sweep has already sent to the user's squad.
+
+/// What today's sweep has already sent to the user's squad, and who is not welcome to add to it.
 ///
-/// Both limits are per-player but tracked differently: `new_today` resets every day and throttles
-/// arrivals, while `approach_clubs` is the standing queue and persists across days.
+/// The three limits answer different questions. `new_today` resets every day and throttles
+/// arrivals; `approach_clubs` is the standing queue and bounds how many offers face the manager at
+/// once; `cooled_clubs` is memory of refusals, and is deliberately *not* counted against the queue
+/// — a club sitting out its cooldown should not also occupy a slot someone else could use.
 pub(crate) struct IncomingOfferBudget<'a> {
     pub(crate) new_today: &'a std::collections::HashMap<String, usize>,
     pub(crate) approach_clubs: &'a std::collections::HashMap<String, HashSet<String>>,
+    pub(crate) cooled_clubs: &'a std::collections::HashMap<String, HashSet<String>>,
 }
+
 impl IncomingOfferBudget<'_> {
     pub(crate) fn accepts(&self, player_id: &str, club_id: &str, per_day_limit: usize) -> bool {
         self.new_today.get(player_id).copied().unwrap_or(0) < per_day_limit
+            && self
+                .cooled_clubs
+                .get(player_id)
+                .is_none_or(|clubs| !clubs.contains(club_id))
             && self
                 .approach_clubs
                 .get(player_id)

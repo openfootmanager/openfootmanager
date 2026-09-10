@@ -19,11 +19,20 @@ pub(super) const MAX_NEW_INCOMING_USER_OFFERS_PER_DAY: usize = 3;
 /// fielding fourteen simultaneous proposals. Counting both deal types in one budget also stops
 /// a club dropping a loan approach and returning as a permanent bid to claim a second slot.
 pub(super) const MAX_PENDING_INCOMING_OFFERS_PER_USER_PLAYER: usize = 3;
+/// How long a club that was turned away waits before it may approach the same player again.
+///
+/// Applies to a refusal and to talks that expired, and across both deal types, so a club cannot
+/// come back the next morning — or come back as a loan approach after a permanent bid was refused.
+pub(super) const REBID_COOLDOWN_DAYS: i64 = 30;
 /// How long a rejected or withdrawn offer is kept before being dropped.
 ///
 /// Long enough for the UI to show recent history and for later work to tell how recently a club
 /// was turned away; short enough that a save does not carry every approach ever made.
 pub(super) const CLOSED_OFFER_RETENTION_DAYS: i64 = 120;
+/// The cooldown is read off the closed offers themselves, so retention has to outlast it. Were
+/// these ever reordered, pruning would erase the memory of a refusal while it was still meant to
+/// hold and the rejected club could come straight back.
+const _: () = assert!(CLOSED_OFFER_RETENTION_DAYS > REBID_COOLDOWN_DAYS);
 /// A club won't pursue a player whose current club out-reputes it by more than
 /// this margin — the player wouldn't realistically drop to a much smaller side.
 pub(super) const MAX_BUYER_REPUTATION_DEFICIT: i32 = 150;

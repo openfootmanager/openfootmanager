@@ -3193,3 +3193,179 @@ fn closed_offers_are_pruned_once_they_fall_outside_the_retention_window() {
         "closed offers older than the retention window should be pruned ({before} -> {after})"
     );
 }
+
+/// A player who is not listed can still draw interest — a contract running down, a big valuation,
+/// low morale. That is intended. What is not intended is the same club asking again the day after
+/// being turned down, which is what a manager actually experiences as harassment.
+#[test]
+fn a_club_that_is_turned_down_does_not_come_straight_back() {
+    let mut player = make_user_player("player-persistent-suitor");
+    player.transfer_listed = false;
+    player.contract_end = Some("2026-11-01".to_string());
+    player.market_value = 1_400_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 9_000_000;
+    game.teams[1].transfer_budget = 6_000_000;
+    let suitor = game.teams[1].id.clone();
+
+    let mut approaches = 0_usize;
+    for _ in 0..30 {
+        generate_incoming_transfer_offers(&mut game);
+
+        // The manager turns down everything this club sends, every time.
+        let pending: Vec<String> = find_player(&game, "player-persistent-suitor")
+            .transfer_offers
+            .iter()
+            .filter(|offer| {
+                offer.status == TransferOfferStatus::Pending && offer.from_team_id == suitor
+            })
+            .map(|offer| offer.id.clone())
+            .collect();
+        for offer_id in pending {
+            approaches += 1;
+            respond_to_offer(&mut game, "player-persistent-suitor", &offer_id, false)
+                .expect("rejecting an incoming offer should succeed");
+        }
+
+        game.clock.advance_days(1);
+    }
+
+    assert!(
+        approaches <= 2,
+        "a rejected club should back off for a while, but it approached {approaches} times in 30 days"
+    );
+}
+
+fn make_persistent_suitor_game(player_id: &str, ai_teams: usize) -> Game {
+    let mut player = make_user_player(player_id);
+    player.transfer_listed = false;
+    player.contract_end = Some("2026-11-01".to_string());
+    player.market_value = 1_400_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 9_000_000;
+    game.teams[1].transfer_budget = 6_000_000;
+    for index in 0..ai_teams {
+        game.teams.push(make_ai_team(
+            &format!("team-suitor-{index}"),
+            &format!("Suitor {index}"),
+            9_000_000,
+            6_000_000,
+        ));
+    }
+    game
+}
+
+/// Rejecting one club must not close the market. The queue has three slots and a club sitting out
+/// its cooldown does not occupy one, so somebody else can still come in.
+#[test]
+fn turning_one_club_away_does_not_stop_the_others_bidding() {
+    let mut game = make_persistent_suitor_game("player-other-suitors", 6);
+    let refused = game.teams[1].id.clone();
+
+    for _ in 0..10 {
+        generate_incoming_transfer_offers(&mut game);
+        let from_refused: Vec<String> = find_player(&game, "player-other-suitors")
+            .transfer_offers
+            .iter()
+            .filter(|offer| {
+                offer.status == TransferOfferStatus::Pending && offer.from_team_id == refused
+            })
+            .map(|offer| offer.id.clone())
+            .collect();
+        for offer_id in from_refused {
+            respond_to_offer(&mut game, "player-other-suitors", &offer_id, false)
+                .expect("rejecting an incoming offer should succeed");
+        }
+        game.clock.advance_days(1);
+    }
+
+    let others = find_player(&game, "player-other-suitors")
+        .transfer_offers
+        .iter()
+        .filter(|offer| {
+            offer.status == TransferOfferStatus::Pending && offer.from_team_id != refused
+        })
+        .count();
+    assert!(
+        others > 0,
+        "other clubs should still be able to approach after one was turned away"
+    );
+}
+
+/// A cooldown, not a ban — the club is allowed back once enough time has passed, otherwise one
+/// rejection would permanently remove a suitor from a player's market.
+#[test]
+fn a_rejected_club_may_approach_again_once_the_cooldown_has_passed() {
+    let mut game = make_persistent_suitor_game("player-suitor-returns", 0);
+    let suitor = game.teams[1].id.clone();
+
+    generate_incoming_transfer_offers(&mut game);
+    let offer_id = find_player(&game, "player-suitor-returns").transfer_offers[0]
+        .id
+        .clone();
+    respond_to_offer(&mut game, "player-suitor-returns", &offer_id, false)
+        .expect("rejecting an incoming offer should succeed");
+
+    // Just inside the window: still not welcome.
+    game.clock.advance_days(20);
+    generate_incoming_transfer_offers(&mut game);
+    assert!(
+        !find_player(&game, "player-suitor-returns")
+            .transfer_offers
+            .iter()
+            .any(|offer| offer.status == TransferOfferStatus::Pending),
+        "the club should still be cooling off twenty days after being refused"
+    );
+
+    // Past it: interest may legitimately revive.
+    game.clock.advance_days(20);
+    generate_incoming_transfer_offers(&mut game);
+    assert!(
+        find_player(&game, "player-suitor-returns")
+            .transfer_offers
+            .iter()
+            .any(|offer| {
+                offer.status == TransferOfferStatus::Pending && offer.from_team_id == suitor
+            }),
+        "the club should be free to try again once the cooldown has expired"
+    );
+}
+
+/// The cooldown spans both deal types, so a refused permanent bid cannot be re-run as a loan
+/// approach the next day — which is the same harassment wearing a different hat.
+#[test]
+fn a_club_refused_a_transfer_cannot_return_immediately_as_a_loan_approach() {
+    let mut game = make_persistent_suitor_game("player-suitor-switches", 0);
+    let suitor = game.teams[1].id.clone();
+
+    generate_incoming_transfer_offers(&mut game);
+    let offer_id = find_player(&game, "player-suitor-switches").transfer_offers[0]
+        .id
+        .clone();
+    respond_to_offer(&mut game, "player-suitor-switches", &offer_id, false)
+        .expect("rejecting an incoming offer should succeed");
+
+    // The manager now makes him available on loan, which would otherwise open a fresh route in.
+    if let Some(player) = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-suitor-switches")
+    {
+        player.loan_listed = true;
+    }
+
+    for _ in 0..10 {
+        game.clock.advance_days(1);
+        generate_incoming_transfer_offers(&mut game);
+    }
+
+    assert!(
+        !find_player(&game, "player-suitor-switches")
+            .loan_offers
+            .iter()
+            .any(|offer| offer.from_team_id == suitor),
+        "a club refused a permanent bid should not reappear as a loan approach inside the cooldown"
+    );
+}
