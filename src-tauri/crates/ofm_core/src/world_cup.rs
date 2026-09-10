@@ -1669,6 +1669,12 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
             .map(|(fixture_index, _)| fixture_index)
             .collect();
 
+        // A champion is crowned by a result, so the announcement belongs to the
+        // day a fixture was played. Re-deriving it on every other day of the
+        // eleven months the tournament lingers in `competitions` is what made
+        // the announcement re-fire the moment its message left the inbox.
+        let played_today = !due.is_empty();
+
         for fixture_index in due {
             let (home_id, away_id, fixture_id) = {
                 let fixture = &game.competitions[competition_index].fixtures[fixture_index];
@@ -1735,6 +1741,10 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
             simulated += 1;
         }
 
+        if !played_today {
+            continue;
+        }
+
         announce_champion_if_decided(game, competition_index, today, rng);
         // The playoff's completion is news the moment its finals are played.
         let competition = &game.competitions[competition_index];
@@ -1784,7 +1794,7 @@ fn announce_champion_if_decided(
     };
     let year = competition.season;
     let msg_id = format!("world_cup_champion_{year}");
-    if game.messages.iter().any(|message| message.id == msg_id) {
+    if crate::inbox::already_emitted(game, &msg_id) {
         return;
     }
 
@@ -1807,23 +1817,25 @@ fn announce_champion_if_decided(
     params.insert("nation".to_string(), nation);
     params.insert("year".to_string(), year.to_string());
 
-    let message = InboxMessage::new(
-        msg_id,
-        String::new(),
-        String::new(),
-        String::new(),
-        today.to_string(),
-    )
-    .with_category(MessageCategory::LeagueInfo)
-    .with_priority(MessagePriority::High)
-    .with_sender_role("")
-    .with_i18n(
-        "be.msg.worldCupChampion.subject",
-        "be.msg.worldCupChampion.body",
-        params.clone(),
-    )
-    .with_sender_i18n("be.sender.intlLiaison", "be.role.intlLiaison");
-    game.messages.push(message);
+    let announcement_params = params.clone();
+    crate::inbox::emit_once(game, &msg_id, || {
+        InboxMessage::new(
+            msg_id.clone(),
+            String::new(),
+            String::new(),
+            String::new(),
+            today.to_string(),
+        )
+        .with_category(MessageCategory::LeagueInfo)
+        .with_priority(MessagePriority::High)
+        .with_sender_role("")
+        .with_i18n(
+            "be.msg.worldCupChampion.subject",
+            "be.msg.worldCupChampion.body",
+            announcement_params,
+        )
+        .with_sender_i18n("be.sender.intlLiaison", "be.role.intlLiaison")
+    });
 
     // Front-page news for everyone, participant or not.
     let news_id = format!("world_cup_champion_news_{year}");
@@ -2644,6 +2656,97 @@ mod tests {
             .expect("the champion is recorded for the hall of fame");
         assert_eq!(record.year, 2026);
         assert!(!record.nation_name.is_empty());
+    }
+
+    /// Play `game`'s World Cup through to its champion. Returns the date of the
+    /// final, so a caller can carry on simulating the days after it.
+    fn play_to_the_final(game: &mut Game, rng: &mut impl Rng) -> String {
+        let mut last = String::new();
+        for _ in 0..200 {
+            let next_date = game
+                .competitions
+                .iter()
+                .filter(|c| is_world_cup_competition(c))
+                .flat_map(|c| c.fixtures.iter())
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .map(|f| f.date.clone())
+                .min();
+            let Some(date) = next_date else {
+                break;
+            };
+            process_world_cup_fixtures_due(game, &date, rng);
+            last = date;
+        }
+        last
+    }
+
+    /// The day after `date`.
+    fn day_after(date: &str) -> String {
+        (chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap() + chrono::Duration::days(1))
+            .format("%Y-%m-%d")
+            .to_string()
+    }
+
+    #[test]
+    fn the_champion_is_announced_exactly_once() {
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2026), &FORMAT_16);
+        let mut rng = StdRng::seed_from_u64(7);
+        let final_day = play_to_the_final(&mut game, &mut rng);
+
+        // Counted, not found: `.find()` passes just as happily on a duplicate.
+        assert_eq!(
+            game.messages
+                .iter()
+                .filter(|m| m.id == "world_cup_champion_2026")
+                .count(),
+            1
+        );
+        assert_eq!(game.world_history.world_cup_champions.len(), 1);
+
+        // The tournament stays in `competitions` until the next rollover, so the
+        // days after the final keep re-entering the announcement path.
+        let mut day = day_after(&final_day);
+        for _ in 0..30 {
+            process_world_cup_fixtures_due(&mut game, &day, &mut rng);
+            day = day_after(&day);
+        }
+        assert_eq!(
+            game.messages
+                .iter()
+                .filter(|m| m.id == "world_cup_champion_2026")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn clearing_the_inbox_does_not_re_announce_the_champion() {
+        // The reported bug (#520): the guard used to be "is this message still in
+        // the inbox", so deleting it invited the announcement straight back.
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2026), &FORMAT_16);
+        let mut rng = StdRng::seed_from_u64(7);
+        let final_day = play_to_the_final(&mut game, &mut rng);
+        assert!(
+            game.messages
+                .iter()
+                .any(|m| m.id == "world_cup_champion_2026")
+        );
+
+        game.messages.clear();
+
+        let mut day = day_after(&final_day);
+        for _ in 0..30 {
+            process_world_cup_fixtures_due(&mut game, &day, &mut rng);
+            day = day_after(&day);
+        }
+        assert!(
+            game.messages.is_empty(),
+            "a deleted announcement must stay deleted, got {:?}",
+            game.messages.iter().map(|m| &m.id).collect::<Vec<_>>()
+        );
+        assert_eq!(game.world_history.world_cup_champions.len(), 1);
     }
 
     /// The international windows of the season starting in `year`'s August.
