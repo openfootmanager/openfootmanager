@@ -144,7 +144,7 @@ fn write_game_to_connection(
     player_repo::upsert_players(conn, &game.players)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;
-    news_repo::upsert_news_list(conn, &game.news)?;
+    news_repo::replace_news_list(conn, &game.news)?;
 
     if let Some(ref league) = game.league {
         league_repo::upsert_league(conn, league)?;
@@ -546,6 +546,35 @@ mod tests {
 
         let loaded = GamePersistenceReader::read_game(&db).unwrap();
         assert_eq!(loaded.world_history, game.world_history);
+    }
+
+    #[test]
+    fn retiring_last_seasons_news_removes_it_from_the_file() {
+        // Asserted against the database, not a reload: the rollover clears
+        // `game.news`, and with upsert-only writes the rows stayed in the file
+        // and the whole previous season came back on the next load. A test that
+        // only compared the loaded `Game` to the written one would agree with
+        // itself and never notice.
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2032, 18);
+        game.news.push(domain::news::NewsArticle::new(
+            "roundup_md1".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2032-05-18".to_string(),
+            domain::news::NewsCategory::LeagueRoundup,
+        ));
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        game.news.clear();
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let remaining: i64 = db
+            .conn()
+            .query_row("SELECT COUNT(*) FROM news", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(remaining, 0);
     }
 
     #[test]
