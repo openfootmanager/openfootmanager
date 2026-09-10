@@ -26,6 +26,7 @@ import HomeRecentMessagesCard from "./HomeRecentMessagesCard";
 import HomeSquadOverviewCard from "./HomeSquadOverviewCard";
 import HomeSeasonStatusCard from "./HomeSeasonStatusCard";
 import HomeUnavailablePlayersCard from "./HomeUnavailablePlayersCard";
+import { isMessageVisible } from "../../utils/newsVisibility";
 import {
   Dumbbell,
   Mail,
@@ -157,6 +158,9 @@ export default function HomeTab({
     .slice(0, 2)
     .map(resolveNewsArticle);
   const recentMessages = (gameState.messages || [])
+    .filter((message) =>
+      isMessageVisible(message.date, gameState.clock?.current_date),
+    )
     .slice(0, 4)
     .map(resolveMessage);
   const nextOpponent = getNextOpponentWidgetData(gameState);

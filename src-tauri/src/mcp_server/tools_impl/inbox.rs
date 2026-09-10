@@ -13,9 +13,12 @@ pub fn inbox_get_messages(
 ) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
 
+    // Agents read the same inbox the player does, future-dated mail included.
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let messages: Vec<_> = game
         .messages
         .iter()
+        .filter(|m| ofm_core::slices::inbox::message_is_visible(&m.date, &today))
         .filter(|m| {
             if let Some(ref cat) = category {
                 format!("{:?}", m.category) == *cat

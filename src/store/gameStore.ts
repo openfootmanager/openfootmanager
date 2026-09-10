@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { GameStateData, MessageData, SeasonContextData } from './types';
 import type { SessionState, UserCompetitionSummary, StandingRow } from '../services/sessionService';
-import { isNewsArticleVisible } from '../utils/newsVisibility';
+import { isMessageVisible, isNewsArticleVisible } from '../utils/newsVisibility';
 
 type FootballIdentityCarrier = {
   nationality: string;
@@ -130,7 +130,9 @@ function deriveSessionState(state: GameStateData): SessionState {
     unread_news_count: (state.news ?? []).filter(
       (a) => !a.read && isNewsArticleVisible(a.date, state.clock?.current_date),
     ).length,
-    unread_messages_count: (state.messages ?? []).filter((m) => !m.read).length,
+    unread_messages_count: (state.messages ?? []).filter(
+      (m) => !m.read && isMessageVisible(m.date, state.clock?.current_date),
+    ).length,
     user_competition,
   };
 }
