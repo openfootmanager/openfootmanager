@@ -118,8 +118,16 @@ pub fn clear_old_messages_internal(state: &StateManager) -> Result<Vec<InboxMess
                 if m.actions.iter().any(|a| !a.resolved) {
                     return true;
                 }
-                // Keep recent messages (within 14 days)
-                if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d") {
+                // Keep recent messages (within 14 days).
+                //
+                // Compare on the day prefix: message dates come in two shapes, a
+                // bare `YYYY-MM-DD` and an RFC3339 timestamp. `parse_from_str`
+                // with "%Y-%m-%d" errors on the trailing time, so parsing the
+                // whole string sent every timestamped message — match reports,
+                // pre-match previews, fitness warnings, the weekly digest — to
+                // the `false` branch and purged it however recent it was.
+                let message_day = ofm_core::slices::news::article_day(&m.date);
+                if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(message_day, "%Y-%m-%d") {
                     if let Ok(cur_date) =
                         chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d")
                     {
@@ -329,6 +337,35 @@ mod tests {
             read_message("remove-stale", "2026-07-01"),
         ];
         game
+    }
+
+    #[test]
+    fn clear_old_messages_internal_keeps_recent_rfc3339_dated_messages() {
+        // Match reports, pre-match previews, fitness warnings and the weekly
+        // digest stamp `to_rfc3339()`. Parsing those as "%Y-%m-%d" fails on the
+        // trailing time, which used to drop them to the `false` branch and purge
+        // them however recent they were — re-arming their generators immediately.
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![read_message("keep-timestamped", "2026-08-19T12:00:00+00:00")];
+        state.set_game(game);
+
+        let response = clear_old_messages_internal(&state).expect("response");
+
+        let message_ids: Vec<&str> = response.iter().map(|message| message.id.as_str()).collect();
+        assert_eq!(message_ids, vec!["keep-timestamped"]);
+    }
+
+    #[test]
+    fn clear_old_messages_internal_still_purges_stale_rfc3339_dated_messages() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![read_message("drop-timestamped", "2026-07-01T12:00:00+00:00")];
+        state.set_game(game);
+
+        let response = clear_old_messages_internal(&state).expect("response");
+
+        assert!(response.is_empty());
     }
 
     #[test]
