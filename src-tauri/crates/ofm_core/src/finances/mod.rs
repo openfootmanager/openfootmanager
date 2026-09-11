@@ -1058,7 +1058,14 @@ pub fn process_weekly_finances(game: &mut Game) {
 
     // --- Financial health warnings for user's team ---
     generate_financial_warnings(game, &today);
-    apply_weekly_finance_satisfaction_pressure(game);
+    if game
+        .manager
+        .team_id
+        .as_ref()
+        .is_some_and(|id| posted_clubs.contains(id))
+    {
+        apply_weekly_finance_satisfaction_pressure(game);
+    }
 }
 
 /// Generate inbox messages warning about financial issues.

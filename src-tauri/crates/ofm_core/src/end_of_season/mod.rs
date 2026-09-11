@@ -688,6 +688,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .find(|(standings, _)| standings.iter().any(|s| s.team_id == user_team_id))
         .map(|(_, tier)| *tier)
         .unwrap_or(0);
+    let mut user_prize_posted = false;
     for (division_standings, tier) in divisions {
         for (idx, standing) in division_standings.iter().enumerate() {
             let position = (idx + 1) as u32;
@@ -712,6 +713,9 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             } else {
                 false
             };
+            if prize_posted && team_id == user_team_id {
+                user_prize_posted = true;
+            }
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
                 team.history.push(TeamSeasonRecord {
                     season,
@@ -898,7 +902,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // below are interleaved with the checks, so a snapshot would go stale.
     let payout_msg_id = format!("season_payout_{}", season);
     let user_prize_money = division_prize_money(user_position, user_division_tier);
-    if user_prize_money > 0 && !crate::inbox::already_emitted(game, &payout_msg_id) {
+    if user_prize_posted && !crate::inbox::already_emitted(game, &payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,
             String::new(),

@@ -232,22 +232,37 @@ pub fn backfill_opening_balances(game: &mut Game) -> bool {
                 }
             })
             .collect();
-        let imported_sum = imported
+        let opening = imported
             .iter()
             .try_fold(0i64, |acc, post| acc.checked_add(post.amount))
-            .unwrap_or(0);
-        let opening = team.finance.saturating_sub(imported_sum);
-        batch.push(CashPost {
-            id: uuid::Uuid::new_v4().to_string(),
-            club_id: team.id.clone(),
-            amount: opening,
-            kind: CashKind::OpeningBalance,
-            date: date.format("%Y-%m-%d").to_string(),
-            envelope_generation: team.envelope_generation,
-            meta: CashPostMeta::default(),
-            reverses_id: None,
-        });
-        batch.extend(imported);
+            .and_then(|imported_sum| team.finance.checked_sub(imported_sum));
+        match opening {
+            Some(amount) => {
+                batch.push(CashPost {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    club_id: team.id.clone(),
+                    amount,
+                    kind: CashKind::OpeningBalance,
+                    date: date.format("%Y-%m-%d").to_string(),
+                    envelope_generation: team.envelope_generation,
+                    meta: CashPostMeta::default(),
+                    reverses_id: None,
+                });
+                batch.extend(imported);
+            }
+            None => {
+                batch.push(CashPost {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    club_id: team.id.clone(),
+                    amount: team.finance,
+                    kind: CashKind::OpeningBalance,
+                    date: date.format("%Y-%m-%d").to_string(),
+                    envelope_generation: team.envelope_generation,
+                    meta: CashPostMeta::default(),
+                    reverses_id: None,
+                });
+            }
+        }
     }
 
     let ids: Vec<String> = batch.iter().map(|post| post.id.clone()).collect();
@@ -434,5 +449,23 @@ mod tests {
             .unwrap();
         assert_eq!(opening.amount, -4_000_000);
         assert!(!backfill_opening_balances(&mut game));
+    }
+
+    #[test]
+    fn backfill_skips_unrepresentable_ledger_history() {
+        let mut team = make_team("alpha", i64::MIN);
+        team.financial_ledger.push(FinancialTransaction {
+            date: "2026-01-01".to_string(),
+            description: "prize".to_string(),
+            amount: i64::MAX,
+            kind: FinancialTransactionKind::PrizeMoney,
+        });
+        let mut game = make_game(vec![team]);
+
+        assert!(backfill_opening_balances(&mut game));
+        assert_eq!(game.cash_journal.len(), 1);
+        assert_eq!(game.cash_journal.as_slice()[0].kind, CashKind::OpeningBalance);
+        assert_eq!(game.cash_journal.cash_for("alpha"), i64::MIN);
+        assert_eq!(game.teams[0].finance, i64::MIN);
     }
 }
