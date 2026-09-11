@@ -1,11 +1,7 @@
 pub mod journal;
-pub mod post;
 
-pub use domain::finance::CashKind;
-pub use journal::{CashJournal, TransferReservationBook, cash_from_journal};
-pub use post::{
-    PostRequest, backfill_opening_balances, journal_matches_cash, post, post_all, post_legacy,
-};
+pub use domain::finance::{CashJournal, CashKind};
+pub use journal::{PostRequest, backfill_opening_balances, journal_matches_cash, post, post_all};
 
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
@@ -808,7 +804,7 @@ pub fn request_board_support(game: &mut Game, team_id: &str) -> Result<BoardSupp
     let support_amount = preview.support_amount;
     let transfer_budget_reduction = preview.transfer_budget_reduction;
     let date = game.clock.current_date.date_naive();
-    post_legacy(game, team_id, support_amount, CashKind::BoardSupport, date)?;
+    post(game, team_id, support_amount, CashKind::BoardSupport, date)?;
     let team = game
         .teams
         .iter_mut()

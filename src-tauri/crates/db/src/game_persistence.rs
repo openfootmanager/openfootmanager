@@ -140,7 +140,6 @@ fn write_game_to_connection(
     }
     team_repo::upsert_teams(conn, &game.teams)?;
     journal_repo::insert_dirty_cash_posts(conn, game)?;
-    journal_repo::upsert_transfer_reservations(conn, game.transfer_reservations.as_slice())?;
     player_repo::upsert_players(conn, &game.players)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;
@@ -346,9 +345,6 @@ impl GamePersistenceReader {
             cash_journal: domain::finance::CashJournal::from_vec(journal_repo::load_cash_journal(
                 conn,
             )?),
-            transfer_reservations: domain::finance::TransferReservationBook::from_vec(
-                journal_repo::load_transfer_reservations(conn)?,
-            ),
             cash_journal_dirty_ids: Vec::new(),
         };
         game.promote_legacy_league();

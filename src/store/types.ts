@@ -133,7 +133,6 @@ export interface TeamData {
   reputation: number;
   wage_budget: number;
   transfer_budget: number;
-  envelope_generation?: number;
   season_income: number;
   season_expenses: number;
   financial_ledger?: FinancialTransactionData[];

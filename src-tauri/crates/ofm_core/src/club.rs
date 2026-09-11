@@ -1,4 +1,4 @@
-use crate::finances::{CashKind, post_legacy};
+use crate::finances::{CashKind, post};
 use crate::game::Game;
 use domain::team::{Facilities, FacilityType, Team};
 
@@ -48,7 +48,7 @@ pub fn upgrade_facility(
     };
 
     let date = game.clock.current_date.date_naive();
-    post_legacy(game, team_id, -cost, CashKind::Facilities, date)?;
+    post(game, team_id, -cost, CashKind::Facilities, date)?;
 
     let team = game
         .teams

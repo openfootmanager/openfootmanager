@@ -412,10 +412,6 @@ mod tests {
             team_columns.contains(&"media_json".to_string()),
             "missing teams.media_json"
         );
-        assert!(
-            team_columns.contains(&"envelope_generation".to_string()),
-            "missing teams.envelope_generation"
-        );
 
         let cash_journal_exists: i64 = conn
             .query_row(

@@ -156,7 +156,7 @@ mod tests {
         use super::persist_active_game;
         use db::save_manager::SaveManager;
         use domain::finance::CashKind;
-        use ofm_core::finances::post_legacy;
+        use ofm_core::finances::post;
         use ofm_core::state::StateManager;
         use std::fs;
         use std::time::{SystemTime, UNIX_EPOCH};
@@ -182,7 +182,7 @@ mod tests {
 
         state
             .update_game(|live| {
-                post_legacy(
+                post(
                     live,
                     "team-1",
                     -1_000,
@@ -194,9 +194,11 @@ mod tests {
             .expect("update");
 
         persist_active_game(&state, &mut save_manager).expect("first persist");
-        assert!(state
-            .get_game(|live| live.cash_journal_dirty_ids.is_empty())
-            .expect("live game"));
+        assert!(
+            state
+                .get_game(|live| live.cash_journal_dirty_ids.is_empty())
+                .expect("live game")
+        );
 
         let first = save_manager.load_game(&save_id).expect("load");
         let first_len = first.cash_journal.len();
@@ -208,7 +210,7 @@ mod tests {
 
         state
             .update_game(|live| {
-                post_legacy(
+                post(
                     live,
                     "team-1",
                     250,

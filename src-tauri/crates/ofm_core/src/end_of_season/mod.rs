@@ -697,7 +697,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             let prize_posted = if prize_money > 0 {
                 let date = chrono::NaiveDate::parse_from_str(&last_fixture_date, "%Y-%m-%d")
                     .unwrap_or_else(|_| game.clock.current_date.date_naive());
-                match crate::finances::post_legacy(
+                match crate::finances::post(
                     game,
                     &team_id,
                     prize_money,
