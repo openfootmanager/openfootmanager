@@ -1,7 +1,8 @@
 //! Cash may only move through `post` / `post_all`.
 
+use std::ffi::OsStr;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     let entries =
@@ -24,10 +25,11 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 fn is_allowed_cash_writer(path: &Path) -> bool {
-    let text = path.to_string_lossy();
-    text.ends_with("finances/journal.rs")
-        || text.contains("/generator/")
-        || text.ends_with("history_generation.rs")
+    path.ends_with(Path::new("finances").join("journal.rs"))
+        || path
+            .components()
+            .any(|component| component == Component::Normal(OsStr::new("generator")))
+        || path.ends_with("history_generation.rs")
 }
 
 fn production_lines(source: &str) -> impl Iterator<Item = &str> {
@@ -38,6 +40,32 @@ fn production_lines(source: &str) -> impl Iterator<Item = &str> {
         }
         !in_tests
     })
+}
+
+#[test]
+fn allowed_writer_paths_are_component_aware() {
+    assert!(is_allowed_cash_writer(
+        &Path::new("crates")
+            .join("ofm_core")
+            .join("src")
+            .join("finances")
+            .join("journal.rs")
+    ));
+    assert!(is_allowed_cash_writer(
+        &Path::new("crates")
+            .join("ofm_core")
+            .join("src")
+            .join("generator")
+            .join("clubs.rs")
+    ));
+    assert!(is_allowed_cash_writer(Path::new("history_generation.rs")));
+    assert!(!is_allowed_cash_writer(
+        &Path::new("crates")
+            .join("ofm_core")
+            .join("src")
+            .join("finances")
+            .join("mod.rs")
+    ));
 }
 
 #[test]

@@ -80,12 +80,13 @@ impl CashJournal {
         Arc::make_mut(&mut self.posts).extend(posts);
     }
 
-    /// Overflow is a bug: `post_all` rejected it.
+    /// Sum of posts for one club. Folded in `i128` so prefix order cannot panic.
     pub fn cash_for(&self, club_id: &str) -> i64 {
-        self.iter()
+        let sum = self
+            .iter()
             .filter(|post| post.club_id == club_id)
-            .try_fold(0i64, |acc, post| acc.checked_add(post.amount))
-            .expect("journal overflow is a bug: post_all rejected it")
+            .fold(0i128, |acc, post| acc + i128::from(post.amount));
+        i64::try_from(sum).expect("journal overflow is a bug: post_all rejected it")
     }
 }
 
@@ -105,5 +106,25 @@ mod tests {
     fn unknown_kind_fails_to_deserialize() {
         let err = serde_json::from_str::<CashKind>("\"not_a_kind\"").unwrap_err();
         assert!(err.to_string().contains("unknown variant"));
+    }
+
+    fn post(id: &str, amount: i64) -> CashPost {
+        CashPost {
+            id: id.to_string(),
+            club_id: "alpha".to_string(),
+            amount,
+            kind: CashKind::Other,
+            date: "2026-02-16".to_string(),
+        }
+    }
+
+    #[test]
+    fn cash_for_does_not_depend_on_prefix_order() {
+        let credits_first =
+            CashJournal::from_vec(vec![post("1", i64::MAX), post("2", 1), post("3", -1)]);
+        let debit_first =
+            CashJournal::from_vec(vec![post("1", i64::MAX), post("3", -1), post("2", 1)]);
+        assert_eq!(credits_first.cash_for("alpha"), i64::MAX);
+        assert_eq!(debit_first.cash_for("alpha"), i64::MAX);
     }
 }
