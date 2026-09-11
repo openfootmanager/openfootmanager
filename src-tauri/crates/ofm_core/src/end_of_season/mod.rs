@@ -693,17 +693,25 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             let position = (idx + 1) as u32;
             let prize_money = division_prize_money(position, tier);
             let team_id = standing.team_id.clone();
-            if prize_money > 0 {
+            let prize_posted = if prize_money > 0 {
                 let date = chrono::NaiveDate::parse_from_str(&last_fixture_date, "%Y-%m-%d")
                     .unwrap_or_else(|_| game.clock.current_date.date_naive());
-                let _ = crate::finances::post_legacy(
+                match crate::finances::post_legacy(
                     game,
                     &team_id,
                     prize_money,
                     crate::finances::CashKind::PrizeMoney,
                     date,
-                );
-            }
+                ) {
+                    Ok(_) => true,
+                    Err(err) => {
+                        log::error!("end-of-season prize post failed for {team_id}: {err}");
+                        false
+                    }
+                }
+            } else {
+                false
+            };
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
                 team.history.push(TeamSeasonRecord {
                     season,
@@ -717,7 +725,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 });
                 team.form.clear();
 
-                if prize_money > 0 {
+                if prize_posted {
                     team.financial_ledger.push(FinancialTransaction {
                         date: last_fixture_date.clone(),
                         description: prize_money_ledger_description(

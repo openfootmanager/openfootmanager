@@ -1800,7 +1800,7 @@ pub async fn exit_to_menu(
     sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] exit_to_menu");
-    if state.get_save_id().is_some() {
+    if state.get_save_id().is_some_and(|id| !id.is_empty()) {
         let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
         persist_active_game(&state, &mut sm)?;
     }

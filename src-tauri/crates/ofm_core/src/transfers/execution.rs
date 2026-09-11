@@ -254,6 +254,26 @@ pub(super) fn execute_transfer(
         .find(|team| team.id == to_team_id)
         .and_then(|team| crate::roster::resolve_jersey_for(game, &player_snapshot, team));
 
+    let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
+    let date = game.clock.current_date.date_naive();
+    crate::finances::post_all(
+        game,
+        &[
+            crate::finances::PostRequest::new(
+                to_team_id,
+                -fee_i64,
+                crate::finances::CashKind::TransferFeeOut,
+                date,
+            ),
+            crate::finances::PostRequest::new(
+                from_team_id,
+                fee_i64,
+                crate::finances::CashKind::TransferFeeIn,
+                date,
+            ),
+        ],
+    )?;
+
     // Move player
     if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
         p.team_id = Some(to_team_id.to_string());
@@ -282,26 +302,6 @@ pub(super) fn execute_transfer(
             }
         }
     }
-
-    let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
-    let date = game.clock.current_date.date_naive();
-    crate::finances::post_all(
-        game,
-        &[
-            crate::finances::PostRequest::new(
-                to_team_id,
-                -fee_i64,
-                crate::finances::CashKind::TransferFeeOut,
-                date,
-            ),
-            crate::finances::PostRequest::new(
-                from_team_id,
-                fee_i64,
-                crate::finances::CashKind::TransferFeeIn,
-                date,
-            ),
-        ],
-    )?;
 
     // Envelope still mutates here (PR1 gameplay-neutral). Cash is posted above.
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == to_team_id) {

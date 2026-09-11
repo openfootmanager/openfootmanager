@@ -54,7 +54,11 @@ fn production_code_does_not_assign_finance_with_plus_equals() {
         }
         let source = fs::read_to_string(&path).unwrap();
         for (index, line) in production_lines(&source).enumerate() {
-            if line.contains(".finance +=") || line.contains(".finance -=") {
+            let assigns_finance = line.split_once(".finance").is_some_and(|(_, suffix)| {
+                let suffix = suffix.trim_start();
+                suffix.starts_with('=') && !suffix.starts_with("==")
+            });
+            if line.contains(".finance +=") || line.contains(".finance -=") || assigns_finance {
                 violations.push(format!("{}:{}: {}", path.display(), index + 1, line.trim()));
             }
         }

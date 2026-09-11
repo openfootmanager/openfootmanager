@@ -2719,7 +2719,8 @@
         "facilityUpgradeInsufficientFunds": "Insufficient funds for this facility upgrade. Need {{amount}}.",
         "facilityUpgradeOverBudget": "Facility upgrades are blocked while the club is over its wage budget.",
         "facilityUpgradeCritical": "Facility upgrades are blocked while the club is under serious financial pressure.",
-        "amountOverflow": "This cash movement is too large to record."
+        "amountOverflow": "This cash movement is too large to record.",
+        "openingBalanceReserved": "Opening balance posts are created automatically and cannot be submitted directly."
       },
       "createManager": {
         "nameRequired": "First name and last name are required.",

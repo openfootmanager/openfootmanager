@@ -2711,7 +2711,8 @@
         "facilityUpgradeInsufficientFunds": "No hay fondos suficientes para esta mejora de instalaciones. Se necesitan {{amount}}.",
         "facilityUpgradeOverBudget": "Las mejoras de instalaciones están bloqueadas mientras el club supere su presupuesto salarial.",
         "facilityUpgradeCritical": "Las mejoras de instalaciones están bloqueadas mientras el club esté bajo una fuerte presión financiera.",
-        "amountOverflow": "Este movimiento de efectivo es demasiado grande para registrarse."
+        "amountOverflow": "Este movimiento de efectivo es demasiado grande para registrarse.",
+        "openingBalanceReserved": "Los asientos de saldo de apertura se crean automáticamente y no se pueden enviar de forma directa."
       },
       "createManager": {
         "nameRequired": "El nombre y el apellido son obligatorios.",
