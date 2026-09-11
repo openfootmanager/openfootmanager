@@ -80,7 +80,7 @@ pub fn load_cash_journal(conn: &Connection) -> Result<Vec<CashPost>, String> {
         .prepare(
             "SELECT id, club_id, amount, kind, date
              FROM cash_journal
-             ORDER BY date, id",
+             ORDER BY rowid",
         )
         .map_err(|_| LOAD_ERROR.to_string())?;
     let rows = stmt
@@ -145,5 +145,16 @@ mod tests {
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].amount, 12_000);
         assert_eq!(loaded[0].kind, CashKind::Matchday);
+    }
+
+    #[test]
+    fn load_preserves_insert_order_for_same_date() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let first = sample_post("z-last-alphabetically", 1);
+        let second = sample_post("a-first-alphabetically", 2);
+        insert_cash_posts(db.conn(), [&first, &second]).unwrap();
+        let loaded = load_cash_journal(db.conn()).unwrap();
+        assert_eq!(loaded[0].id, "z-last-alphabetically");
+        assert_eq!(loaded[1].id, "a-first-alphabetically");
     }
 }

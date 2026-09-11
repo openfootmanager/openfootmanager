@@ -181,11 +181,7 @@ pub fn backfill_opening_balances(game: &mut Game) -> bool {
     let mut batch = Vec::new();
 
     for team in &game.teams {
-        let imported_sum = team
-            .financial_ledger
-            .iter()
-            .try_fold(0i64, |acc, entry| acc.checked_add(entry.amount));
-        match imported_sum.and_then(|sum| team.finance.checked_sub(sum)) {
+        match reconstructable_opening(team.finance, &team.financial_ledger) {
             Some(opening) => {
                 batch.push(build_post(
                     &team.id,
@@ -218,6 +214,22 @@ pub fn backfill_opening_balances(game: &mut Game) -> bool {
     game.cash_journal.extend(batch);
     game.cash_journal_dirty_ids.extend(ids);
     true
+}
+
+fn reconstructable_opening(
+    finance: i64,
+    ledger: &[domain::team::FinancialTransaction],
+) -> Option<i64> {
+    let imported_sum = ledger
+        .iter()
+        .try_fold(0i64, |acc, entry| acc.checked_add(entry.amount))?;
+    let opening = finance.checked_sub(imported_sum)?;
+    let mut running = opening;
+    for entry in ledger {
+        running = running.checked_add(entry.amount)?;
+    }
+    debug_assert_eq!(running, finance);
+    Some(opening)
 }
 
 #[cfg(test)]
@@ -413,5 +425,29 @@ mod tests {
         assert_eq!(game.cash_journal[0].kind, CashKind::OpeningBalance);
         assert_eq!(game.cash_journal.cash_for("alpha"), i64::MIN);
         assert_eq!(game.teams[0].finance, i64::MIN);
+    }
+
+    #[test]
+    fn backfill_skips_history_when_a_prefix_overflows() {
+        let mut team = make_team("alpha", i64::MAX);
+        team.financial_ledger.push(FinancialTransaction {
+            date: "2026-01-01".to_string(),
+            description: "in".to_string(),
+            amount: 1,
+            kind: FinancialTransactionKind::PrizeMoney,
+        });
+        team.financial_ledger.push(FinancialTransaction {
+            date: "2026-01-02".to_string(),
+            description: "out".to_string(),
+            amount: -1,
+            kind: FinancialTransactionKind::ContractTermination,
+        });
+        let mut game = make_game(vec![team]);
+
+        assert!(backfill_opening_balances(&mut game));
+        assert_eq!(game.cash_journal.len(), 1);
+        assert_eq!(game.cash_journal[0].kind, CashKind::OpeningBalance);
+        assert_eq!(game.cash_journal[0].amount, i64::MAX);
+        assert_eq!(game.cash_journal.cash_for("alpha"), i64::MAX);
     }
 }
