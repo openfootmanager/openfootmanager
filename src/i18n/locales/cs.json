@@ -2718,7 +2718,8 @@
         "marketingCampaignCoolingDown": "Obchodní tým potřebuje čas, než spustí další marketingovou kampaň.",
         "facilityUpgradeInsufficientFunds": "Nedostatek finančních prostředků na toto vylepšení zázemí. Potřebujete {{amount}}.",
         "facilityUpgradeOverBudget": "Vylepšování zázemí je zablokováno, dokud klub překračuje svůj platový rozpočet.",
-        "facilityUpgradeCritical": "Vylepšování zázemí je zablokováno, dokud je klub pod vážným finančním tlakem."
+        "facilityUpgradeCritical": "Vylepšování zázemí je zablokováno, dokud je klub pod vážným finančním tlakem.",
+        "amountOverflow": "Tento peněžní pohyb je příliš velký na zaúčtování."
       },
       "createManager": {
         "nameRequired": "Jméno a příjmení jsou povinné údaje.",

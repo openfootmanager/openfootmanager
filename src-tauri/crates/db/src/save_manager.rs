@@ -67,8 +67,7 @@ fn snapshot_db_before_write(db_path: &Path) -> Result<(), String> {
         .ok_or_else(|| "save-snapshot: invalid db filename".to_string())?;
     let snap_name = format!("{}.snap-{}", file_name, stamp);
     let snap_path = db_path.with_file_name(&snap_name);
-    fs::copy(db_path, &snap_path)
-        .map_err(|err| format!("save-snapshot: copy failed: {err}"))?;
+    fs::copy(db_path, &snap_path).map_err(|err| format!("save-snapshot: copy failed: {err}"))?;
     info!(
         "[save_manager] snapshot {} -> {}",
         db_path.display(),
@@ -525,6 +524,10 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        if ofm_core::finances::backfill_opening_balances(&mut game) {
+            needs_resave = true;
+        }
+
         // Backfill OVR/potential for players from older saves that don't have them yet.
         // We use the game clock year so age is accurate.
         let current_year = game
@@ -569,6 +572,7 @@ impl SaveManager {
             snapshot_db_before_write(&db_path)?;
             let db = GameDatabase::open(&db_path)?;
             GamePersistenceWriter::write_game(&db, &game, save_id, &save_name)?;
+            game.cash_journal_dirty_ids.clear();
             drop(db);
 
             let checksum = compute_checksum(&db_path)?;
@@ -1748,9 +1752,8 @@ mod tests {
         // manager comes back identical down to the id. Reading the file settles
         // it — the save itself has to carry the manager.
         let manager_id = manager.id.clone();
-        let db =
-            crate::game_database::GameDatabase::open(&saves_dir.join(format!("{save_id}.db")))
-                .unwrap();
+        let db = crate::game_database::GameDatabase::open(&saves_dir.join(format!("{save_id}.db")))
+            .unwrap();
         let stored = crate::repositories::manager_repo::load_all_managers(db.conn()).unwrap();
         assert!(
             stored.iter().any(|candidate| candidate.id == manager_id),
@@ -2335,5 +2338,38 @@ mod tests {
 
         assert_eq!(league_count, 1);
         assert_eq!(fixture_count, 1);
+    }
+
+    #[test]
+    fn load_game_backfills_opening_balances_from_the_legacy_ledger() {
+        use domain::finance::CashKind;
+        use domain::team::{FinancialTransaction, FinancialTransactionKind};
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game();
+        game.teams[0].finance = 1_000_000;
+        game.teams[0].financial_ledger.push(FinancialTransaction {
+            date: "2026-01-01".to_string(),
+            description: "prize".to_string(),
+            amount: 5_000_000,
+            kind: FinancialTransactionKind::PrizeMoney,
+        });
+        let save_id = sm.create_save(&game, "Opening Balance Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded.cash_journal.cash_for(&loaded.teams[0].id), 1_000_000);
+        assert!(loaded.cash_journal_dirty_ids.is_empty());
+        let opening = loaded
+            .cash_journal
+            .iter()
+            .find(|post| post.kind == CashKind::OpeningBalance)
+            .expect("opening balance");
+        assert_eq!(opening.amount, -4_000_000);
+
+        let loaded_again = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded_again.cash_journal.len(), loaded.cash_journal.len());
     }
 }

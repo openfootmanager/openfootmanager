@@ -2710,7 +2710,8 @@
         "marketingCampaignCoolingDown": "O time comercial precisa de tempo antes de lançar outra campanha de marketing.",
         "facilityUpgradeInsufficientFunds": "Fundos insuficientes para esta melhoria de instalações. São necessários {{amount}}.",
         "facilityUpgradeOverBudget": "As melhorias de instalações ficam bloqueadas enquanto o clube estiver acima do orçamento salarial.",
-        "facilityUpgradeCritical": "As melhorias de instalações ficam bloqueadas enquanto o clube estiver sob forte pressão financeira."
+        "facilityUpgradeCritical": "As melhorias de instalações ficam bloqueadas enquanto o clube estiver sob forte pressão financeira.",
+        "amountOverflow": "Este movimento de caixa é grande demais para ser registrado."
       },
       "createManager": {
         "nameRequired": "Nome e sobrenome são obrigatórios.",

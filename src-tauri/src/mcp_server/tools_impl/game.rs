@@ -29,21 +29,18 @@ pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── game_save ──────────────────────────────────────────────────────────────
 
 pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
-    let game = require_game(&ctx.state_manager)?;
     let save_id = ctx.state_manager
         .get_save_id()
         .ok_or("be.error.noActiveSaveSession")?;
-
-    let stats_state = ctx.state_manager
-        .get_stats_state(|s| s.clone())
-        .unwrap_or_default();
-
     {
         let mut sm = ctx.save_manager_state.0.lock().map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
-        sm.save_game_with_stats(&game, &stats_state, &save_id)?;
+        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
     }
+    let date = ctx.state_manager
+        .get_game(|game| game.clock.current_date.format("%d %B %Y").to_string())
+        .unwrap_or_default();
 
-    Ok(format!("## Game Saved\n\n**Save ID**: {}\n**Date**: {}", save_id, game.clock.current_date.format("%d %B %Y")))
+    Ok(format!("## Game Saved\n\n**Save ID**: {}\n**Date**: {}", save_id, date))
 }
 
 // ─── squad_set_starting_xi ─────────────────────────────────────────────────
@@ -162,15 +159,9 @@ pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, S
 // ─── game_exit ──────────────────────────────────────────────────────────────
 
 pub fn game_exit(ctx: Arc<McpContext>) -> Result<String, String> {
-    let game = require_game(&ctx.state_manager)?;
-
-    // Auto-save
-    if let Some(save_id) = ctx.state_manager.get_save_id() {
-        let stats_state = ctx.state_manager
-            .get_stats_state(|s| s.clone())
-            .unwrap_or_default();
+    if ctx.state_manager.get_save_id().filter(|id| !id.is_empty()).is_some() {
         let mut sm = ctx.save_manager_state.0.lock().map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
-        sm.save_game_with_stats(&game, &stats_state, &save_id)?;
+        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
     }
 
     ctx.state_manager.clear_game();

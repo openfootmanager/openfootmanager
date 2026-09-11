@@ -41,6 +41,7 @@ pub fn translate_error(key: &str) -> String {
         "be.error.contracts.playerNotFreeAgent" => "Player is not a free agent.".to_string(),
         "be.error.contracts.terminationWouldLeaveMatchdaySquadShort" => "Cannot terminate: would leave matchday squad too short.".to_string(),
         "be.error.finance.facilityUpgradeInsufficientFunds" => "Insufficient funds for facility upgrade.".to_string(),
+        "be.error.finance.amountOverflow" => "This cash movement is too large to record.".to_string(),
         "be.error.finance.boardSupportAlreadyUsed" => "Board support already used this season.".to_string(),
         "be.error.finance.sponsorPitchActiveSponsor" => "Already have an active sponsor.".to_string(),
         "be.error.scouting.scoutNotInTeam" => "Scout is not in your team.".to_string(),
