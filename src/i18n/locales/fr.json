@@ -2712,7 +2712,8 @@
         "facilityUpgradeInsufficientFunds": "Fonds insuffisants pour cette amélioration d'installation. Il faut {{amount}}.",
         "facilityUpgradeOverBudget": "Les améliorations d'installations sont bloquées tant que le club dépasse son budget salarial.",
         "facilityUpgradeCritical": "Les améliorations d'installations sont bloquées tant que le club subit une forte pression financière.",
-        "amountOverflow": "Ce mouvement de trésorerie est trop important pour être enregistré."
+        "amountOverflow": "Ce mouvement de trésorerie est trop important pour être enregistré.",
+        "openingBalanceReserved": "Les écritures de solde d'ouverture sont créées automatiquement et ne peuvent pas être soumises directement."
       },
       "createManager": {
         "nameRequired": "Le prénom et le nom sont requis.",

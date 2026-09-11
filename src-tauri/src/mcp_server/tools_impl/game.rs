@@ -205,7 +205,7 @@ pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, S
 // ─── game_exit ──────────────────────────────────────────────────────────────
 
 pub fn game_exit(ctx: Arc<McpContext>) -> Result<String, String> {
-    if ctx
+    let saved = if ctx
         .state_manager
         .get_save_id()
         .filter(|id| !id.is_empty())
@@ -217,7 +217,10 @@ pub fn game_exit(ctx: Arc<McpContext>) -> Result<String, String> {
             .lock()
             .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
         crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
-    }
+        true
+    } else {
+        false
+    };
 
     ctx.state_manager.clear_game();
     ctx.state_manager.set_save_id(String::new());
@@ -227,10 +230,17 @@ pub fn game_exit(ctx: Arc<McpContext>) -> Result<String, String> {
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(
-        "## Returned to Menu\n\nGame saved and cleared. Use `game_load_save` to resume."
-            .to_string(),
-    )
+    if saved {
+        Ok(
+            "## Returned to Menu\n\nGame saved and cleared. Use `game_load_save` to resume."
+                .to_string(),
+        )
+    } else {
+        Ok(
+            "## Returned to Menu\n\nGame cleared without saving. Use `game_load_save` to resume."
+                .to_string(),
+        )
+    }
 }
 
 // ─── game_export_world ──────────────────────────────────────────────────────

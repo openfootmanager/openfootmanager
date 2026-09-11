@@ -6,6 +6,7 @@ use domain::finance::{CashKind, CashPost, CashPostMeta};
 
 const ERR_TEAM_NOT_FOUND: &str = "be.error.managedTeamNotFound";
 const ERR_OVERFLOW: &str = "be.error.finance.amountOverflow";
+const ERR_OPENING_BALANCE: &str = "be.error.finance.openingBalanceReserved";
 
 /// In-memory request. Dates become `YYYY-MM-DD` strings on the persisted post.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,7 +86,10 @@ fn prepare_posts(game: &Game, reqs: &[PostRequest]) -> Result<Vec<PreparedPost>,
     let mut prepared = Vec::with_capacity(reqs.len());
 
     for req in reqs {
-        if req.amount == 0 && req.kind != CashKind::OpeningBalance {
+        if req.kind == CashKind::OpeningBalance {
+            return Err(ERR_OPENING_BALANCE.to_string());
+        }
+        if req.amount == 0 {
             continue;
         }
 
@@ -94,7 +98,7 @@ fn prepare_posts(game: &Game, reqs: &[PostRequest]) -> Result<Vec<PreparedPost>,
             .map(|&index| &game.teams[index])
             .ok_or_else(|| ERR_TEAM_NOT_FOUND.to_string())?;
 
-        if req.kind != CashKind::OpeningBalance && !present.contains(req.club_id.as_str()) {
+        if !present.contains(req.club_id.as_str()) {
             prepared.push(PreparedPost {
                 post: build_post(
                     team,
@@ -141,7 +145,9 @@ fn commit_posts(game: &mut Game, prepared: Vec<PreparedPost>) -> Vec<String> {
                 if item.post.amount > 0 {
                     team.season_income = team.season_income.saturating_add(item.post.amount);
                 } else if item.post.amount < 0 {
-                    team.season_expenses = team.season_expenses.saturating_add(-item.post.amount);
+                    team.season_expenses = team
+                        .season_expenses
+                        .saturating_add(item.post.amount.saturating_neg());
                 }
             }
         }
@@ -360,6 +366,25 @@ mod tests {
         post_legacy(&mut game, "alpha", -50, CashKind::Facilities, monday()).unwrap();
         assert_eq!(game.teams[0].finance, -40);
         assert_eq!(game.cash_journal.cash_for("alpha"), -40);
+    }
+
+    #[test]
+    fn explicit_opening_balance_is_rejected() {
+        let mut game = make_game(vec![make_team("alpha", 100)]);
+        let err =
+            post_legacy(&mut game, "alpha", 100, CashKind::OpeningBalance, monday()).unwrap_err();
+        assert_eq!(err, ERR_OPENING_BALANCE);
+        assert_eq!(game.teams[0].finance, 100);
+        assert!(game.cash_journal.is_empty());
+    }
+
+    #[test]
+    fn min_expense_does_not_overflow_season_totals() {
+        let mut game = make_game(vec![make_team("alpha", 0)]);
+        post_legacy(&mut game, "alpha", i64::MIN, CashKind::Facilities, monday()).unwrap();
+        assert_eq!(game.teams[0].finance, i64::MIN);
+        assert_eq!(game.teams[0].season_expenses, i64::MAX);
+        assert_eq!(game.cash_journal.cash_for("alpha"), i64::MIN);
     }
 
     #[test]

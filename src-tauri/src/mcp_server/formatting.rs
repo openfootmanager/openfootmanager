@@ -82,6 +82,10 @@ pub fn translate_error(key: &str) -> String {
         "be.error.finance.amountOverflow" => {
             "This cash movement is too large to record.".to_string()
         }
+        "be.error.finance.openingBalanceReserved" => {
+            "Opening balance posts are created automatically and cannot be submitted directly."
+                .to_string()
+        }
         "be.error.finance.boardSupportAlreadyUsed" => {
             "Board support already used this season.".to_string()
         }

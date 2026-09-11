@@ -905,6 +905,19 @@ fn count_recent_home_matches(game: &Game, team_id: &str) -> i64 {
         .count() as i64
 }
 
+fn commit_weekly_posts(game: &mut Game, reqs: &[PostRequest]) -> bool {
+    if reqs.is_empty() {
+        return true;
+    }
+    match post_all(game, reqs) {
+        Ok(_) => true,
+        Err(err) => {
+            log::error!("weekly finance post failed: {err}");
+            false
+        }
+    }
+}
+
 /// Process weekly financial operations (called every Monday = weekday 0).
 /// - Deduct player wages (weekly = annual / 52)
 /// - Deduct staff wages
@@ -951,13 +964,14 @@ pub fn process_weekly_finances(game: &mut Game) {
         .unwrap_or_default();
 
     let post_date = game.clock.current_date.date_naive();
-    let mut weekly_posts = Vec::new();
+    let mut weekly_by_club: Vec<(String, Vec<PostRequest>)> = Vec::new();
     for team in &game.teams {
+        let mut reqs = Vec::new();
         let player_wages = player_wages_by_team.get(&team.id).copied().unwrap_or(0);
         let staff_wages = staff_wages_by_team.get(&team.id).copied().unwrap_or(0);
         let upkeep = calc_upkeep(team);
         if player_wages != 0 {
-            weekly_posts.push(PostRequest::new(
+            reqs.push(PostRequest::new(
                 &team.id,
                 -player_wages,
                 CashKind::PlayerWages,
@@ -965,7 +979,7 @@ pub fn process_weekly_finances(game: &mut Game) {
             ));
         }
         if staff_wages != 0 {
-            weekly_posts.push(PostRequest::new(
+            reqs.push(PostRequest::new(
                 &team.id,
                 -staff_wages,
                 CashKind::StaffWages,
@@ -973,7 +987,7 @@ pub fn process_weekly_finances(game: &mut Game) {
             ));
         }
         if upkeep != 0 {
-            weekly_posts.push(PostRequest::new(
+            reqs.push(PostRequest::new(
                 &team.id,
                 -upkeep,
                 CashKind::Upkeep,
@@ -990,19 +1004,27 @@ pub fn process_weekly_finances(game: &mut Game) {
             })
             .unwrap_or(0);
         if sponsorship_income > 0 {
-            weekly_posts.push(PostRequest::new(
+            reqs.push(PostRequest::new(
                 &team.id,
                 sponsorship_income,
                 CashKind::Sponsorship,
                 post_date,
             ));
         }
+        weekly_by_club.push((team.id.clone(), reqs));
     }
-    if let Err(err) = post_all(game, &weekly_posts) {
-        log::error!("weekly finance post failed: {err}");
+
+    let mut posted_clubs = std::collections::HashSet::new();
+    for (team_id, reqs) in weekly_by_club {
+        if commit_weekly_posts(game, &reqs) {
+            posted_clubs.insert(team_id);
+        }
     }
 
     for team in game.teams.iter_mut() {
+        if !posted_clubs.contains(&team.id) {
+            continue;
+        }
         if let Some(sponsorship) = team.sponsorship.as_mut() {
             sponsorship.remaining_weeks = sponsorship.remaining_weeks.saturating_sub(1);
             if sponsorship.remaining_weeks == 0 {
@@ -1012,30 +1034,25 @@ pub fn process_weekly_finances(game: &mut Game) {
     }
 
     if game.league.is_some() {
-        let mut matchday_posts = Vec::new();
-        for team in &game.teams {
-            let home_count = count_recent_home_matches(game, &team.id);
+        let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+        for team_id in team_ids {
+            let home_count = count_recent_home_matches(game, &team_id);
             if home_count == 0 {
                 continue;
             }
+            let stadium_capacity = game
+                .teams
+                .iter()
+                .find(|team| team.id == team_id)
+                .map(|team| team.stadium_capacity)
+                .unwrap_or(0);
             let mut rng = rand::rng();
             let attendance_pct = rng.random_range(60..=92) as f64 / 100.0;
             let avg_ticket = rng.random_range(15..=25) as f64;
-            let total_revenue = calc_matchday(
-                team.stadium_capacity,
-                home_count,
-                attendance_pct,
-                avg_ticket,
-            );
-            matchday_posts.push(PostRequest::new(
-                &team.id,
-                total_revenue,
-                CashKind::Matchday,
-                post_date,
-            ));
-        }
-        if let Err(err) = post_all(game, &matchday_posts) {
-            log::error!("weekly matchday post failed: {err}");
+            let total_revenue =
+                calc_matchday(stadium_capacity, home_count, attendance_pct, avg_ticket);
+            let req = PostRequest::new(&team_id, total_revenue, CashKind::Matchday, post_date);
+            let _ = commit_weekly_posts(game, std::slice::from_ref(&req));
         }
     }
 

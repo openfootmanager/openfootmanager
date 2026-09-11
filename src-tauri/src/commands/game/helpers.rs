@@ -1,6 +1,9 @@
 //! Small shared helpers for the game commands: error shaping, and the
 //! defaults a new career is created with.
 
+// Runtime commands persist stats via persist_active_game; this helper is
+// only used by command tests. Drop the cfg(test) gates if a production
+// command needs it again.
 #[cfg(test)]
 use domain::stats::StatsState;
 #[cfg(test)]
