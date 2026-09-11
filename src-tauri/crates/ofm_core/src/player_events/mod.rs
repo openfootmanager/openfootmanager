@@ -91,7 +91,8 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
     };
     let current_date = game.clock.current_date.date_naive();
     // The ledger, not the mailbox: a message the player deleted was still sent.
-    let existing_ids = game.emitted_events.clone();
+    // Borrowed, not cloned — the ledger is never pruned, so it only grows.
+    let existing_ids = &game.emitted_events;
     let mut new_messages: Vec<InboxMessage> = Vec::new();
 
     for player in game.players.iter_mut() {
@@ -161,7 +162,8 @@ pub fn check_player_events(game: &mut Game) {
     };
 
     // The ledger, not the mailbox: a message the player deleted was still sent.
-    let existing_ids = game.emitted_events.clone();
+    // Borrowed, not cloned — the ledger is never pruned, so it only grows.
+    let existing_ids = &game.emitted_events;
     // These three are conditions, not moments — a player can be unhappy again
     // next year. The season in the key is what lets them recur; without it the
     // ledger would take each player's first complaint as his last.

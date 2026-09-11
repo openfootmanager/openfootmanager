@@ -722,14 +722,14 @@ pub fn request_sponsor_pitch(game: &mut Game, team_id: &str) -> Result<SponsorPi
     let team_name = team.name.clone();
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    game.messages
-        .push(crate::random_events::sponsor_offer_message(
-            &message_id,
-            &team_name,
-            &sponsor_name,
-            weekly_amount as u64,
-            &date,
-        ));
+    let offer = crate::random_events::sponsor_offer_message(
+        &message_id,
+        &team_name,
+        &sponsor_name,
+        weekly_amount as u64,
+        &date,
+    );
+    crate::inbox::emit(game, offer);
 
     Ok(SponsorPitchResult {
         message_id,
@@ -1020,7 +1020,8 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
     };
 
     // The ledger, not the mailbox: a message the player deleted was still sent.
-    let existing_ids = game.emitted_events.clone();
+    // Borrowed, not cloned — the ledger is never pruned, so it only grows.
+    let existing_ids = &game.emitted_events;
 
     let mut new_messages: Vec<InboxMessage> = Vec::new();
 

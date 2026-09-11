@@ -878,12 +878,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    // The ledger, not the mailbox: a message the player deleted was still sent.
-    let existing_ids = game.emitted_events.clone();
-
+    // Each check reads the live ledger rather than a snapshot: the three emits
+    // below are interleaved with the checks, so a snapshot would go stale.
     let payout_msg_id = format!("season_payout_{}", season);
     let user_prize_money = division_prize_money(user_position, user_division_tier);
-    if user_prize_money > 0 && !existing_ids.contains(&payout_msg_id) {
+    if user_prize_money > 0 && !crate::inbox::already_emitted(game, &payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,
             String::new(),
@@ -906,7 +905,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     let msg_id = format!("season_end_{}", season);
-    if !existing_ids.contains(&msg_id) {
+    if !crate::inbox::already_emitted(game, &msg_id) {
         let (body_key, mut i18n_params) = if user_position == 1 {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
@@ -952,7 +951,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     let sched_msg_id = format!("new_season_{}", next_season);
-    if !existing_ids.contains(&sched_msg_id) {
+    if !crate::inbox::already_emitted(game, &sched_msg_id) {
         let mut sched_params = std::collections::HashMap::new();
         sched_params.insert("season".to_string(), next_season.to_string());
         let sched_msg = InboxMessage::new(

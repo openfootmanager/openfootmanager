@@ -335,7 +335,19 @@ impl GamePersistenceReader {
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
-            emitted_events: serde_json::from_str(&meta.emitted_events_json).unwrap_or_default(),
+            // A malformed ledger degrades to the legacy-save path rather than
+            // failing the load: `seed_ledger_from_save` below re-seeds it from
+            // the inbox, which is exactly what a pre-v043 save does. Refusing to
+            // open an entire career over one bookkeeping column would be the
+            // worse trade — but it is not silent, because a repeat announcement
+            // months later is impossible to trace back to this line otherwise.
+            emitted_events: serde_json::from_str(&meta.emitted_events_json).unwrap_or_else(|_| {
+                log::warn!(
+                    "[load] sent-ledger JSON is malformed; reseeding it from the inbox. \
+                     Events whose messages were already deleted may be announced once more."
+                );
+                Default::default()
+            }),
             extra_translations: serde_json::from_str(&meta.extra_translations_json)
                 .unwrap_or_default(),
             package_lockfile: if meta.package_lockfile_json.trim().is_empty() {

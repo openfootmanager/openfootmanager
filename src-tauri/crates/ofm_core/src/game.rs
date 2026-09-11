@@ -244,6 +244,16 @@ impl Game {
             .or_else(|| self.competitions.iter().position(contains))
     }
 
+    /// The competition the user's club plays in, preferring its domestic league.
+    ///
+    /// Distinct from [`Self::primary_competition`], which is just the first
+    /// competition in the world — in a multi-competition save those are rarely
+    /// the same thing.
+    pub fn user_competition(&self) -> Option<&League> {
+        self.user_competition_index()
+            .map(|index| &self.competitions[index])
+    }
+
     pub fn primary_competition(&self) -> Option<&League> {
         self.competitions.first().or(self.league.as_ref())
     }

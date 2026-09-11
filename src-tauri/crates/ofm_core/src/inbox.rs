@@ -76,8 +76,12 @@ pub fn emit_all(game: &mut Game, messages: Vec<InboxMessage>) -> usize {
 /// arrive as often as the dice allow. The season is the unit a manager thinks
 /// in, so `morale_talk_{player}_{season}` means "he'll raise it once a season",
 /// which is roughly what the old accidental throttle delivered.
+///
+/// It is the *user's* season, not the world's first competition: in a
+/// multi-competition save those differ, and a hemisphere apart they roll over
+/// months apart. Falls back to the calendar year when the manager has no club.
 pub fn recurrence_season(game: &Game) -> u32 {
-    game.primary_competition()
+    game.user_competition()
         .map(|competition| competition.season)
         .unwrap_or_else(|| {
             game.clock
@@ -184,6 +188,38 @@ mod tests {
         seed_ledger_from_save(&mut game);
         assert!(!emit_once(&mut game, "old_event", || message("old_event")));
         assert_eq!(game.messages.len(), 1);
+    }
+
+    #[test]
+    fn the_recurrence_season_is_the_users_competition_not_the_first_one() {
+        // `primary_competition()` is just `competitions.first()`. In a world with
+        // more than one competition that is rarely the user's, and scoping a
+        // morale talk by someone else's season means it recurs at the wrong time
+        // — or not at all.
+        let mut game = game();
+        game.manager.team_id = Some("team-user".to_string());
+        game.competitions = vec![
+            domain::league::League::new(
+                "other-league".to_string(),
+                "Other".to_string(),
+                2030,
+                &["team-other".to_string()],
+            ),
+            domain::league::League::new(
+                "user-league".to_string(),
+                "User".to_string(),
+                2026,
+                &["team-user".to_string()],
+            ),
+        ];
+
+        assert_eq!(recurrence_season(&game), 2026);
+    }
+
+    #[test]
+    fn the_recurrence_season_falls_back_to_the_year_when_between_jobs() {
+        let game = game();
+        assert_eq!(recurrence_season(&game), 2026);
     }
 
     #[test]

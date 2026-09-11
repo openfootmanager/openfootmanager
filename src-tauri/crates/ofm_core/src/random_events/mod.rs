@@ -86,7 +86,8 @@ pub fn check_random_events(game: &mut Game) {
     };
 
     // The ledger, not the mailbox: a message the player deleted was still sent.
-    let existing_ids = game.emitted_events.clone();
+    // Borrowed, not cloned — the ledger is never pruned, so it only grows.
+    let existing_ids = &game.emitted_events;
 
     let mut rng = rand::rng();
     let mut new_messages: Vec<InboxMessage> = Vec::new();

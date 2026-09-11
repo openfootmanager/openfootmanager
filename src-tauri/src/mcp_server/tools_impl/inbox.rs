@@ -13,7 +13,9 @@ pub fn inbox_get_messages(
 ) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
 
-    // Agents read the same inbox the player does, future-dated mail included.
+    // Agents see the same inbox the player does, which means mail dated ahead of
+    // the clock is hidden from them too — an agent must not be able to act on an
+    // event the player cannot see yet.
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let messages: Vec<_> = game
         .messages

@@ -188,7 +188,8 @@ pub fn generate_objectives(game: &mut Game) {
     // Send inbox message about objectives
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     // The ledger, not the mailbox: a message the player deleted was still sent.
-    let existing_ids = game.emitted_events.clone();
+    // Borrowed, not cloned — the ledger is never pruned, so it only grows.
+    let existing_ids = &game.emitted_events;
     let season = game.league.as_ref().map(|l| l.season).unwrap_or(1);
     let msg_id = board_message_id(season);
     if !existing_ids.contains(&msg_id) {
