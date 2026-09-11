@@ -1,5 +1,5 @@
 use crate::clock::GameClock;
-use domain::finance::{CashJournal, TransferReservationBook};
+use domain::finance::CashJournal;
 use domain::league::{CompetitionType, FixtureStatus, League};
 use domain::manager::Manager;
 use domain::message::InboxMessage;
@@ -133,13 +133,10 @@ pub struct Game {
     pub package_lockfile: Vec<crate::generator::PackageLock>,
 
     /// Append-only cash journal. `Clone` is a pointer bump; `post` copy-on-writes.
-    /// Skipped on IPC serde — the frontend reads finances via snapshot commands.
-    /// Persistence is incremental SQL, not Game JSON.
+    /// Skipped on IPC serde. Persistence is incremental SQL, not Game JSON.
     #[serde(skip)]
     pub cash_journal: CashJournal,
-    #[serde(skip)]
-    pub transfer_reservations: TransferReservationBook,
-    /// Ids `post` added since the last successful flush of the *live* Game.
+    /// Ids `post` added since the last successful flush of the live Game.
     /// `SaveManager::save_game` takes `&Game` and cannot clear this; see
     /// `persist_active_game`.
     #[serde(skip)]
@@ -184,7 +181,6 @@ impl Game {
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
             cash_journal: CashJournal::default(),
-            transfer_reservations: TransferReservationBook::default(),
             cash_journal_dirty_ids: Vec::new(),
         };
         game.promote_legacy_league();

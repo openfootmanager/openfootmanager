@@ -98,7 +98,7 @@ pub fn terminate_contract_now(
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let date = game.clock.current_date.date_naive();
     if game.teams.iter().any(|team| team.id == team_id) {
-        crate::finances::post_legacy(
+        crate::finances::post(
             game,
             &team_id,
             -preview.severance_cost,

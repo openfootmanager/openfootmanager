@@ -25,7 +25,7 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
 
 fn is_allowed_cash_writer(path: &Path) -> bool {
     let text = path.to_string_lossy();
-    text.ends_with("finances/post.rs")
+    text.ends_with("finances/journal.rs")
         || text.contains("/generator/")
         || text.ends_with("history_generation.rs")
 }

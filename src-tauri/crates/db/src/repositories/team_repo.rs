@@ -45,8 +45,8 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
          training_focus, training_intensity, training_schedule,
          founded_year, colors_primary, colors_secondary,
          starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities, media_json, kit_pattern,
-         player_roles_json, tactics_phase_json, envelope_generation)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36)",
+         player_roles_json, tactics_phase_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35)",
         params![
             t.id,
             t.name,
@@ -83,7 +83,6 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
             kit_pattern_str,
             player_roles_json,
             tactics_phase_json,
-            t.envelope_generation,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -168,7 +167,6 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
         reputation: row.get(10)?,
         wage_budget: row.get(11)?,
         transfer_budget: row.get(12)?,
-        envelope_generation: row.get(35).unwrap_or(0),
         season_income: row.get(13)?,
         season_expenses: row.get(14)?,
         financial_ledger: serde_json::from_str::<Vec<FinancialTransaction>>(&financial_ledger_json)
@@ -263,8 +261,7 @@ pub fn load_all_teams(conn: &Connection) -> Result<Vec<Team>, String> {
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
                     COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid'),
-                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}'),
-                    COALESCE(envelope_generation, 0)
+                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}')
              FROM teams",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -291,8 +288,7 @@ pub fn load_team(conn: &Connection, id: &str) -> Result<Option<Team>, String> {
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
                     COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid'),
-                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}'),
-                    COALESCE(envelope_generation, 0)
+                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}')
              FROM teams WHERE id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -351,17 +347,6 @@ mod tests {
         assert_eq!(loaded.play_style, PlayStyle::Possession);
         assert_eq!(loaded.finance, 5_000_000);
         assert_eq!(loaded.stadium_capacity, 50000);
-        assert_eq!(loaded.envelope_generation, 0);
-    }
-
-    #[test]
-    fn envelope_generation_round_trips() {
-        let db = test_db();
-        let mut team = sample_team("team-env", "Gen FC");
-        team.envelope_generation = 7;
-        upsert_team(db.conn(), &team).unwrap();
-        let loaded = load_team(db.conn(), "team-env").unwrap().unwrap();
-        assert_eq!(loaded.envelope_generation, 7);
     }
 
     #[test]
