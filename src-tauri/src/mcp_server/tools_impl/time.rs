@@ -102,25 +102,21 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
     }
 
     // Auto-save every N in-game days (per-save tracking)
-    if ctx.config.auto_save_interval_days > 0 {
-        if let Some(ref game) = response.game {
-            if let Some(save_id) = ctx.state_manager.get_save_id() {
-                use std::sync::LazyLock;
-                use std::collections::HashMap;
-                static SAVE_DAY_COUNTERS: LazyLock<Mutex<HashMap<String, u32>>> =
-                    LazyLock::new(|| Mutex::new(HashMap::new()));
+    if ctx.config.auto_save_interval_days > 0 && response.game.is_some() {
+        if let Some(save_id) = ctx.state_manager.get_save_id() {
+            use std::sync::LazyLock;
+            use std::collections::HashMap;
+            static SAVE_DAY_COUNTERS: LazyLock<Mutex<HashMap<String, u32>>> =
+                LazyLock::new(|| Mutex::new(HashMap::new()));
 
-                let mut counters = SAVE_DAY_COUNTERS.lock().unwrap();
-                let days = counters.entry(save_id.clone()).or_insert(0);
-                *days += 1;
-                if *days >= ctx.config.auto_save_interval_days {
-                    *days = 0;
-                    drop(counters); // release lock before save
-                    let stats_state = ctx.state_manager
-                        .get_stats_state(|s| s.clone())
-                        .unwrap_or_default();
-                    if let Ok(mut sm) = ctx.save_manager_state.0.lock() {
-                        let _ = sm.save_game_with_stats(game, &stats_state, &save_id);
+            let mut counters = SAVE_DAY_COUNTERS.lock().unwrap();
+            let days = counters.entry(save_id.clone()).or_insert(0);
+            *days += 1;
+            if *days >= ctx.config.auto_save_interval_days {
+                *days = 0;
+                drop(counters); // release lock before save
+                if let Ok(mut sm) = ctx.save_manager_state.0.lock() {
+                    if crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm).is_ok() {
                         output.push_str("\n\n💾 *Auto-saved.*");
                     }
                 }

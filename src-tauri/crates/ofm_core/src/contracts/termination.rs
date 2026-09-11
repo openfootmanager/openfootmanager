@@ -96,24 +96,31 @@ pub fn terminate_contract_now(
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string())?
         .to_string();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-
-    if let Some(team) = game
-        .teams
-        .iter_mut()
-        .find(|candidate| candidate.id == team_id)
-    {
-        team.finance -= preview.severance_cost;
-        team.season_expenses += preview.severance_cost;
-        team.financial_ledger.push(FinancialTransaction {
-            date: today,
-            description: backend_text_with_param(
-                "be.msg.contractTerminated.ledgerDescription",
-                "player",
-                &preview.player_name,
-            ),
-            amount: -preview.severance_cost,
-            kind: FinancialTransactionKind::ContractTermination,
-        });
+    let date = game.clock.current_date.date_naive();
+    if game.teams.iter().any(|team| team.id == team_id) {
+        crate::finances::post(
+            game,
+            &team_id,
+            -preview.severance_cost,
+            crate::finances::CashKind::ContractTermination,
+            date,
+        )?;
+        if let Some(team) = game
+            .teams
+            .iter_mut()
+            .find(|candidate| candidate.id == team_id)
+        {
+            team.financial_ledger.push(FinancialTransaction {
+                date: today,
+                description: backend_text_with_param(
+                    "be.msg.contractTerminated.ledgerDescription",
+                    "player",
+                    &preview.player_name,
+                ),
+                amount: -preview.severance_cost,
+                kind: FinancialTransactionKind::ContractTermination,
+            });
+        }
     }
 
     release_player_contract(

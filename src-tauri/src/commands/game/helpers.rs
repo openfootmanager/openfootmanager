@@ -1,7 +1,12 @@
 //! Small shared helpers for the game commands: error shaping, and the
 //! defaults a new career is created with.
 
+// Runtime commands persist stats via persist_active_game; this helper is
+// only used by command tests. Drop the cfg(test) gates if a production
+// command needs it again.
+#[cfg(test)]
 use domain::stats::StatsState;
+#[cfg(test)]
 use ofm_core::state::StateManager;
 
 /// Surface the first concrete validation error (e.g. *which* country is unknown)
@@ -42,6 +47,7 @@ pub(super) fn map_save_manager_lock_error<T>(
     result.map_err(|_| "be.error.saveManagerUnavailable".to_string())
 }
 
+#[cfg(test)]
 pub(super) fn require_active_stats_state(state: &StateManager) -> Result<StatsState, String> {
     state
         .get_stats_state(|stats| stats.clone())

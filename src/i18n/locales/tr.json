@@ -2718,7 +2718,9 @@
         "marketingCampaignCoolingDown": "Ticari ekibin yeni bir pazarlama kampanyası öncesinde zamana ihtiyacı var.",
         "facilityUpgradeInsufficientFunds": "Bu tesis yükseltmesi için yetersiz bakiye. {{amount}} gerekli.",
         "facilityUpgradeOverBudget": "Kulüp maaş bütçesini aşmışken tesis yükseltmeleri engellenir.",
-        "facilityUpgradeCritical": "Kulüp ciddi finansal baskı altındayken tesis yükseltmeleri engellenir."
+        "facilityUpgradeCritical": "Kulüp ciddi finansal baskı altındayken tesis yükseltmeleri engellenir.",
+        "amountOverflow": "Bu nakit hareketi kaydedilemeyecek kadar büyük.",
+        "openingBalanceReserved": "Açılış bakiyesi kayıtları otomatik oluşturulur ve doğrudan gönderilemez."
       },
       "createManager": {
         "nameRequired": "Ad ve soyad zorunludur.",

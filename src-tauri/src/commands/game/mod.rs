@@ -15,6 +15,7 @@ use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
+use crate::commands::util::persist_active_game;
 use crate::SaveManagerState;
 
 mod helpers;
@@ -24,8 +25,8 @@ mod startup;
 // from here and from the tests below. The names the rest of the crate calls are
 // re-exported explicitly, and they are the only promise this module makes.
 use helpers::*;
-use startup::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+use startup::*;
 pub(crate) use startup::{start_phase_for_game, StartPhase};
 
 fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::WorldData, String> {
@@ -516,9 +517,7 @@ fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
         .fixtures
         .iter()
         .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
-        .filter(|fixture| {
-            fixture.home_team_id == team_id || fixture.away_team_id == team_id
-        })
+        .filter(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id)
         .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
         .min()
         .and_then(|date| date.and_hms_opt(0, 0, 0))
@@ -1790,17 +1789,8 @@ pub async fn save_game(
     sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] save_game");
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let save_id = state
-        .get_save_id()
-        .ok_or("be.error.noActiveSaveSession".to_string())?;
-
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    let stats_state = require_active_stats_state(&state)?;
-    sm.save_game_with_stats(&game, &stats_state, &save_id)
+    persist_active_game(&state, &mut sm)
 }
 
 /// Save the current game and clear the active session so the player returns to the main menu.
@@ -1810,15 +1800,9 @@ pub async fn exit_to_menu(
     sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] exit_to_menu");
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession")?;
-
-    // Auto-save
-    if let Some(save_id) = state.get_save_id() {
+    if state.get_save_id().is_some_and(|id| !id.is_empty()) {
         let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-        let stats_state = require_active_stats_state(&state)?;
-        sm.save_game_with_stats(&game, &stats_state, &save_id)?;
+        persist_active_game(&state, &mut sm)?;
     }
 
     // Clear the in-memory game state
@@ -2072,8 +2056,9 @@ mod tests {
             "the World Cup keeps its June schedule through a February re-anchor"
         );
         assert!(
-            after.iter().all(|date| date.starts_with("2026-06")
-                || date.starts_with("2026-07")),
+            after
+                .iter()
+                .all(|date| date.starts_with("2026-06") || date.starts_with("2026-07")),
             "World Cup fixtures stay in the cup window, not pulled back to February"
         );
     }
@@ -2327,7 +2312,9 @@ competitions:
         use std::time::Instant;
 
         let t = Instant::now();
-        let world = ofm_core::generator::generate_world_data(&ofm_core::generator::DefinitionSources::embedded_only());
+        let world = ofm_core::generator::generate_world_data(
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        );
         let gen = t.elapsed();
         let teams = world.teams.len();
         let players = world.players.len();

@@ -41,11 +41,17 @@ fn upgrade_facility_deducts_funds_and_increments_level() {
     let mut game = make_game();
     let initial_finance = game.teams[0].finance;
 
-    let cost = club::upgrade_facility(&mut game.teams[0], FacilityType::Medical).unwrap();
+    let cost = club::upgrade_facility(&mut game, "team1", FacilityType::Medical).unwrap();
 
     assert_eq!(cost, 250_000);
     assert_eq!(game.teams[0].finance, initial_finance - cost);
     assert_eq!(game.teams[0].facilities.medical, 2);
+    assert_eq!(game.cash_journal.cash_for("team1"), game.teams[0].finance);
+    assert!(
+        game.cash_journal
+            .iter()
+            .any(|post| post.kind == domain::finance::CashKind::Facilities && post.amount == -cost)
+    );
 }
 
 #[test]
@@ -58,7 +64,7 @@ fn upgrade_facility_rejects_when_funds_are_insufficient() {
         scouting: 1,
     };
 
-    let result = club::upgrade_facility(&mut game.teams[0], FacilityType::Training);
+    let result = club::upgrade_facility(&mut game, "team1", FacilityType::Training);
 
     assert_eq!(
         result.unwrap_err(),

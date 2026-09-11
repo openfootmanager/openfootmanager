@@ -2710,7 +2710,9 @@
         "marketingCampaignCoolingDown": "Il team commerciale ha bisogno di tempo prima di avviare un'altra campagna marketing.",
         "facilityUpgradeInsufficientFunds": "Fondi insufficienti per questo potenziamento della struttura. Servono {{amount}}.",
         "facilityUpgradeOverBudget": "I potenziamenti delle strutture sono bloccati finché il club supera il budget salariale.",
-        "facilityUpgradeCritical": "I potenziamenti delle strutture sono bloccati finché il club è sotto forte pressione finanziaria."
+        "facilityUpgradeCritical": "I potenziamenti delle strutture sono bloccati finché il club è sotto forte pressione finanziaria.",
+        "amountOverflow": "Questo movimento di cassa è troppo grande per essere registrato.",
+        "openingBalanceReserved": "Le registrazioni del saldo di apertura vengono create automaticamente e non possono essere inviate direttamente."
       },
       "createManager": {
         "nameRequired": "Nome e cognome sono obbligatori.",

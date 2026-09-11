@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use log::info;
+use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::finances::{self, FinanceHealthLevel};
@@ -9,7 +9,10 @@ use ofm_core::state::StateManager;
 use crate::commands::util::mutate_active_game;
 
 #[tauri::command]
-pub fn upgrade_facility(state: State<'_, Arc<StateManager>>, facility: String) -> Result<Game, String> {
+pub fn upgrade_facility(
+    state: State<'_, Arc<StateManager>>,
+    facility: String,
+) -> Result<Game, String> {
     upgrade_facility_internal(&state, &facility)
 }
 
@@ -43,13 +46,7 @@ pub fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result
             return Err("be.error.finance.facilityUpgradeCritical".to_string());
         }
 
-        let team = game
-            .teams
-            .iter_mut()
-            .find(|team| team.id == team_id)
-            .ok_or("be.error.managedTeamNotFound".to_string())?;
-
-        ofm_core::club::upgrade_facility(team, facility_type)?;
+        ofm_core::club::upgrade_facility(game, &team_id, facility_type)?;
 
         Ok(())
     })

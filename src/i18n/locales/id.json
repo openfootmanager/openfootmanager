@@ -2717,7 +2717,9 @@
         "marketingCampaignCoolingDown": "Tim komersial membutuhkan waktu sebelum menjalankan kampanye pemasaran berikutnya.",
         "facilityUpgradeInsufficientFunds": "Dana tidak mencukupi untuk peningkatan fasilitas ini. Dibutuhkan {{amount}}.",
         "facilityUpgradeOverBudget": "Peningkatan fasilitas diblokir selama klub melebihi anggaran gaji.",
-        "facilityUpgradeCritical": "Peningkatan fasilitas diblokir selama klub berada di bawah tekanan finansial yang serius."
+        "facilityUpgradeCritical": "Peningkatan fasilitas diblokir selama klub berada di bawah tekanan finansial yang serius.",
+        "amountOverflow": "Pergerakan kas ini terlalu besar untuk dicatat.",
+        "openingBalanceReserved": "Postingan saldo awal dibuat otomatis dan tidak dapat dikirim langsung."
       },
       "createManager": {
         "nameRequired": "Nama depan dan nama belakang wajib diisi.",

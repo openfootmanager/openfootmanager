@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 42;
+const EXPECTED_MIGRATION_COUNT: usize = 43;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -125,6 +125,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("v041_player_movement_history.sql", include_str!("sql/v041_player_movement_history.sql")),
     // V42: Persist installed-package lockfile (id, version, hash) for save reproducibility
     ("v042_game_package_lockfile.sql", include_str!("sql/v042_game_package_lockfile.sql")),
+    // V43: Append-only cash journal, transfer reservations, envelope generation
+    ("v043_cash_journal.sql", include_str!("sql/v043_cash_journal.sql")),
 ];
 
 /// All migrations for a per-save game database.
@@ -410,6 +412,15 @@ mod tests {
             team_columns.contains(&"media_json".to_string()),
             "missing teams.media_json"
         );
+
+        let cash_journal_exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'cash_journal'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(cash_journal_exists, 1, "missing cash_journal table");
 
         let player_columns: Vec<String> = conn
             .prepare("PRAGMA table_info(players)")

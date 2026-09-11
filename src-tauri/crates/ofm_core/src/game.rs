@@ -1,4 +1,5 @@
 use crate::clock::GameClock;
+use domain::finance::CashJournal;
 use domain::league::{CompetitionType, FixtureStatus, League};
 use domain::manager::Manager;
 use domain::message::InboxMessage;
@@ -120,6 +121,16 @@ pub struct Game {
     /// Records which `.ofm` packages were used to build this save.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub package_lockfile: Vec<crate::generator::PackageLock>,
+
+    /// Append-only cash journal. `Clone` is a pointer bump; `post` copy-on-writes.
+    /// Skipped on IPC serde. Persistence is incremental SQL, not Game JSON.
+    #[serde(skip)]
+    pub cash_journal: CashJournal,
+    /// Ids `post` added since the last successful flush of the live Game.
+    /// `SaveManager::save_game` takes `&Game` and cannot clear this; see
+    /// `persist_active_game`.
+    #[serde(skip)]
+    pub cash_journal_dirty_ids: Vec<String>,
 }
 
 impl Game {
@@ -158,6 +169,8 @@ impl Game {
             world_history: WorldHistoryArchive::default(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
+            cash_journal: CashJournal::default(),
+            cash_journal_dirty_ids: Vec::new(),
         };
         game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);
@@ -179,7 +192,9 @@ impl Game {
     }
 
     pub fn promote_legacy_league(&mut self) {
-        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+        if self.competitions.is_empty()
+            && let Some(league) = self.league.clone()
+        {
             self.competitions.push(league);
         }
         self.sync_legacy_league();
@@ -287,7 +302,9 @@ impl Game {
     }
 
     pub fn primary_competition_mut(&mut self) -> Option<&mut League> {
-        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+        if self.competitions.is_empty()
+            && let Some(league) = self.league.clone()
+        {
             self.competitions.push(league);
         }
         self.competitions.first_mut()
