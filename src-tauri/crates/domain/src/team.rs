@@ -14,6 +14,8 @@ pub struct Team {
     pub stadium_capacity: u32,
 
     // Current state
+    /// Cash on hand, in integer euros. Equal to the sum of cash-journal posts
+    /// for this club once the journal has been seeded.
     pub finance: i64,
     pub manager_id: Option<String>,
     pub reputation: u32,
@@ -21,6 +23,10 @@ pub struct Team {
     // Financial breakdown
     pub wage_budget: i64,
     pub transfer_budget: i64,
+    /// Board transfer-envelope generation. Incremented at season refill (PR3).
+    /// Cash posts stamp this so remaining permission can be summed per generation.
+    #[serde(default)]
+    pub envelope_generation: u32,
     pub season_income: i64,
     pub season_expenses: i64,
     #[serde(default)]
@@ -389,7 +395,7 @@ pub struct TeamSeasonRecord {
     pub goals_against: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FinancialTransactionKind {
     PrizeMoney,
     ContractTermination,
@@ -476,6 +482,7 @@ impl Team {
             reputation: 500,
             wage_budget: 200_000,
             transfer_budget: 500_000,
+            envelope_generation: 0,
             season_income: 0,
             season_expenses: 0,
             financial_ledger: Vec::new(),

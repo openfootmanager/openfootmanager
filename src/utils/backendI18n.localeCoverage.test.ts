@@ -122,6 +122,7 @@ const REQUIRED_KEYS = [
   "be.error.finance.facilityUpgradeInsufficientFunds",
   "be.error.finance.facilityUpgradeOverBudget",
   "be.error.finance.facilityUpgradeCritical",
+  "be.error.finance.amountOverflow",
   "be.error.createManager.nameRequired",
   "be.error.createManager.nameMaxLength",
   "be.error.createManager.nationalityRequired",

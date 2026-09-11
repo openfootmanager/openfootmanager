@@ -2711,7 +2711,8 @@
         "marketingCampaignCoolingDown": "商务团队在再次发起营销活动前还需要一些时间。",
         "facilityUpgradeInsufficientFunds": "资金不足，无法升级该设施。需要 {{amount}}。",
         "facilityUpgradeOverBudget": "当俱乐部超出工资预算时，设施升级会被禁止。",
-        "facilityUpgradeCritical": "当俱乐部面临严重财务压力时，设施升级会被禁止。"
+        "facilityUpgradeCritical": "当俱乐部面临严重财务压力时，设施升级会被禁止。",
+        "amountOverflow": "这笔资金变动过大，无法入账。"
       },
       "createManager": {
         "nameRequired": "名字和姓氏均为必填项。",

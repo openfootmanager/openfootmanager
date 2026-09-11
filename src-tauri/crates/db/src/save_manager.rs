@@ -533,6 +533,10 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        if ofm_core::finances::backfill_opening_balances(&mut game) {
+            needs_resave = true;
+        }
+
         // Backfill OVR/potential for players from older saves that don't have them yet.
         // We use the game clock year so age is accurate.
         let current_year = game
@@ -577,6 +581,7 @@ impl SaveManager {
             snapshot_db_before_write(&db_path)?;
             let db = GameDatabase::open(&db_path)?;
             GamePersistenceWriter::write_game(&db, &game, save_id, &save_name)?;
+            game.cash_journal_dirty_ids.clear();
             drop(db);
 
             let checksum = compute_checksum(&db_path)?;
@@ -2410,5 +2415,38 @@ mod tests {
 
         assert_eq!(league_count, 1);
         assert_eq!(fixture_count, 1);
+    }
+
+    #[test]
+    fn load_game_backfills_opening_balances_from_the_legacy_ledger() {
+        use domain::finance::CashKind;
+        use domain::team::{FinancialTransaction, FinancialTransactionKind};
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game();
+        game.teams[0].finance = 1_000_000;
+        game.teams[0].financial_ledger.push(FinancialTransaction {
+            date: "2026-01-01".to_string(),
+            description: "prize".to_string(),
+            amount: 5_000_000,
+            kind: FinancialTransactionKind::PrizeMoney,
+        });
+        let save_id = sm.create_save(&game, "Opening Balance Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded.cash_journal.cash_for(&loaded.teams[0].id), 1_000_000);
+        assert!(loaded.cash_journal_dirty_ids.is_empty());
+        let opening = loaded
+            .cash_journal
+            .iter()
+            .find(|post| post.kind == CashKind::OpeningBalance)
+            .expect("opening balance");
+        assert_eq!(opening.amount, -4_000_000);
+
+        let loaded_again = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded_again.cash_journal.len(), loaded.cash_journal.len());
     }
 }

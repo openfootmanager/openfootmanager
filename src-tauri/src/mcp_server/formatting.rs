@@ -79,6 +79,9 @@ pub fn translate_error(key: &str) -> String {
         "be.error.finance.facilityUpgradeInsufficientFunds" => {
             "Insufficient funds for facility upgrade.".to_string()
         }
+        "be.error.finance.amountOverflow" => {
+            "This cash movement is too large to record.".to_string()
+        }
         "be.error.finance.boardSupportAlreadyUsed" => {
             "Board support already used this season.".to_string()
         }

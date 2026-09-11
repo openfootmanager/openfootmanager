@@ -15,6 +15,7 @@ use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
+use crate::commands::util::persist_active_game;
 use crate::SaveManagerState;
 
 mod helpers;
@@ -1788,17 +1789,8 @@ pub async fn save_game(
     sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] save_game");
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let save_id = state
-        .get_save_id()
-        .ok_or("be.error.noActiveSaveSession".to_string())?;
-
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    let stats_state = require_active_stats_state(&state)?;
-    sm.save_game_with_stats(&game, &stats_state, &save_id)
+    persist_active_game(&state, &mut sm)
 }
 
 /// Save the current game and clear the active session so the player returns to the main menu.
@@ -1808,15 +1800,9 @@ pub async fn exit_to_menu(
     sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] exit_to_menu");
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession")?;
-
-    // Auto-save
-    if let Some(save_id) = state.get_save_id() {
+    if state.get_save_id().is_some() {
         let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-        let stats_state = require_active_stats_state(&state)?;
-        sm.save_game_with_stats(&game, &stats_state, &save_id)?;
+        persist_active_game(&state, &mut sm)?;
     }
 
     // Clear the in-memory game state
