@@ -7,7 +7,7 @@ import { EntityFormShell } from "./shared";
 import { DatePicker } from "../../ui/DatePicker";
 import { Checkbox } from "../../ui/Checkbox";
 import { CountryCombobox } from "../../ui/CountryCombobox";
-import { Select } from "../../ui/Select";
+import { TeamCombobox } from "../../ui/TeamCombobox";
 import { POSITIONS, PLAYER_ATTR_GROUPS, emptyAttributes, parseRating, toSlug, type PlayerAttrKey } from "./helpers";
 import type { Footedness, PlayerDef, TeamDef } from "./types";
 
@@ -81,6 +81,7 @@ export function PlayerForm({
 
   const attrs = editing.attributes ?? emptyAttributes();
   const teamsWithIds = teams?.filter((t) => t.id) ?? [];
+  const teamOptions = teamsWithIds.map((team) => ({ id: team.id, label: team.name || team.id, logo: team.logo, shortName: team.shortName, colors: team.colors }));
   const positionLabels = Object.fromEntries(POSITIONS.map((p) => [p, t(`common.positions.${p}`)])) as Record<string, string>;
 
   return (
@@ -155,22 +156,18 @@ export function PlayerForm({
       )}
 
       {/* Club picker */}
-      <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.playerClub")}</label>
-        {teamsWithIds.length > 0 ? (
-          <Select
-            value={editing.club}
-            onChange={(e) => updateField("club", e.target.value)}
-            fullWidth
-          >
-            <option value="">{t("worldEditor.noClubSelected")}</option>
-            {teamsWithIds.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name || team.id}
-              </option>
-            ))}
-          </Select>
-        ) : (
+      {teamOptions.length > 0 ? (
+        <TeamCombobox
+          label={t("worldEditor.playerClub")}
+          value={editing.club}
+          options={teamOptions}
+          onChange={(v) => updateField("club", v)}
+          projectDir={projectDir}
+          placeholder={t("worldEditor.noClubSelected")}
+        />
+      ) : (
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>{t("worldEditor.playerClub")}</label>
           <input
             type="text"
             value={editing.club}
@@ -178,8 +175,8 @@ export function PlayerForm({
             placeholder="team-id"
             className={inputClass}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       <CountryCombobox
         label={t("worldEditor.playerNationality")}
@@ -285,7 +282,7 @@ export function PlayerForm({
     </EntityFormShell>
     </div>
     <div className="w-64 flex-shrink-0 sticky top-0">
-      <PlayerPreviewCard editing={editing} photoDataUrl={photoDataUrl} teams={teams} />
+      <PlayerPreviewCard editing={editing} photoDataUrl={photoDataUrl} teams={teams} projectDir={projectDir} />
     </div>
     </div>
   );

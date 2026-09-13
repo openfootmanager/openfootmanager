@@ -153,7 +153,6 @@ export function StaffForm({
           onChange={(v) => updateField("club", v)}
         />
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.staffNationality")}</label>
           <CountryCombobox
             label={t("worldEditor.staffNationality")}
             value={editing.nationality}

@@ -4,6 +4,7 @@ import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { POSITION_COLOR, PLAYER_ATTR_GROUPS } from "./helpers";
 import type { PlayerAttributesDef, PlayerDef, Position, TeamDef } from "./types";
+import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 
 function attrColor(val: number): string {
   if (val >= 80) return "bg-success-500";
@@ -52,9 +53,10 @@ interface PlayerPreviewCardProps {
   editing: PlayerDef;
   photoDataUrl: string | null;
   teams?: TeamDef[];
+  projectDir?: string;
 }
 
-export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPreviewCardProps) {
+export function PlayerPreviewCard({ editing, photoDataUrl, teams, projectDir }: PlayerPreviewCardProps) {
   const { t } = useTranslation();
 
   const displayName =
@@ -183,12 +185,16 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
               <span className="shrink-0">{t("worldEditor.playerClub")}:</span>
               {club ? (
                 <div className="flex items-center gap-1 min-w-0">
-                  <GeneratedCrest
-                    name={club.name || club.id}
-                    label={club.shortName || club.name?.slice(0, 3) || "?"}
-                    colors={club.colors}
-                    className="w-4 h-4 flex-shrink-0"
-                  />
+                  {club.logo ? (
+                    <img src={useAssetDataUrl(club.logo, projectDir)??""} alt="" className="h-4 w-4 shrink-0 rounded object-contain border border-gray-200 dark:border-navy-600 dark:bg-navy-800" />
+                  ) : (
+                    <GeneratedCrest
+                      name={club.name || club.id}
+                      label={club.shortName || club.name?.slice(0, 3) || "?"}
+                      colors={club.colors}
+                      className="w-4 h-4 flex-shrink-0"
+                    />
+                  )}
                   <span className="text-gray-700 dark:text-gray-200 truncate">{clubName}</span>
                 </div>
               ) : (
