@@ -162,8 +162,11 @@ jobs:
       # lint step that silently passes is the exact shape of failure these gates exist to
       # prevent, so the version is asserted rather than assumed before anything relies on it.
       #
-      # `npm exec --no` refuses to fetch from the registry, so it can only resolve the local
-      # install. That is the spelling to use anywhere a bare `npx <tool>` is tempting.
+      # `npm exec --no` is trustworthy *here* only because `npm ci` ran above. `--no` refuses to
+      # fetch, but it will still run whatever `~/.npm/_npx` already holds, so on a tree with no
+      # `node_modules` it reaches the impostor and exits 0 where `npm run` fails loudly with
+      # `biome: command not found`. Sprung exactly that way in a fresh worktree on 14 Sep 2026.
+      # The assertion below is what actually makes this step safe, not the spelling.
       #
       # The pattern matches Biome's actual output, `Version: 2.5.5`, not a bare `2.5.5`. The
       # first version of this anchored `^2\.` and therefore never matched — a check that fails

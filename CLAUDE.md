@@ -23,7 +23,7 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before your first non-trivia
 ```bash
 npm install                 # once
 npm test                    # vitest run — the full frontend suite (~150 test files)
-npm exec --no -- vitest run <path>   # one file or directory (see the npx note below)
+npm exec --no -- vitest run <path>   # one file or directory (after npm ci — see below)
 npm run build               # tsc && vite build — type errors fail here
 npm run tauri dev           # run the real app (Vite + Tauri together)
 npm run audit:i18n          # advisory hardcoded-string report (see caveat below)
@@ -51,16 +51,26 @@ repository root.
   exits 0 (`scripts/audit-i18n.mjs`). Read its output; do not treat a clean run as a pass. The
   real i18n gate is `npm exec --no -- vitest run src/i18n`.
 
-### Never `npx <tool>` for a devDependency
+### `npm ci` first, then `npm run <script>` — never `npx <tool>`
 
-Use `npm run <script>`, or `npm exec --no -- <tool>` when you need an ad-hoc flag. `npm run` puts
-`node_modules/.bin` first on `PATH` and `npm exec --no` refuses to fetch from the registry, so
-neither can reach an impostor.
+There is an unrelated package on npm literally called `biome`, last published at 0.3.3. `npx
+biome` finds *that*, prints nothing, and exits 0 — a lint or format run that looks clean because
+it never happened.
 
-This is not hypothetical. There is an unrelated package on npm literally called `biome`, last
-published at 0.3.3; `npx biome` finds *that*, prints nothing, and exits 0. This repository has
-always documented `npm run lint`, which resolves correctly — so the trap was never sprung here,
-and the rule exists to keep it that way. CI asserts Biome's version before trusting it.
+`npm exec --no` is a weaker guard against it than it looks. `--no` refuses to *fetch*, but it will
+still run whatever `~/.npm/_npx` already holds, and a single earlier `npx biome` in any checkout
+on the machine is enough to put the impostor there. In a fresh worktree with no `node_modules`,
+`npm exec --no -- biome --version` prints `0.3.3` and exits 0; `npm run format:check` in that same
+tree fails loudly with `biome: command not found`. On a tree that has not been installed the two
+forms fail in **opposite** directions — one silent and green, the other loud and red.
+
+That is not hypothetical either: it was sprung here on 14 Sep 2026, on a formatter run reported as
+a pass that had formatted nothing.
+
+So: `npm ci` before anything else in a new worktree, and prefer `npm run <script>`, which puts
+`node_modules/.bin` first on `PATH`. `npm exec --no -- <tool>` is for ad-hoc flags a script does
+not expose, and is only as trustworthy as the install underneath it. CI asserts Biome's version
+before trusting it.
 
 ---
 
