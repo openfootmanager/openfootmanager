@@ -249,7 +249,7 @@ impl Game {
     /// Distinct from [`Self::primary_competition`], which is just the first
     /// competition in the world — in a multi-competition save those are rarely
     /// the same thing.
-    pub fn user_competition(&self) -> Option<&League> {
+    pub(crate) fn user_competition(&self) -> Option<&League> {
         self.user_competition_index()
             .map(|index| &self.competitions[index])
     }
