@@ -1,7 +1,6 @@
 //! MCP tool implementations: info
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
 use crate::mcp_server::tools_impl::helpers::{
     age_from_dob, format_position, require_game, require_league, user_team,
 };
@@ -531,8 +530,7 @@ pub fn info_player_profile(ctx: Arc<McpContext>, player_id: String) -> Result<St
 
 pub fn info_finances(ctx: Arc<McpContext>) -> Result<String, String> {
     let response =
-        crate::commands::finances::get_finance_snapshot_internal(&ctx.state_manager, None)
-            .map_err(|e| translate_error(&e))?;
+        crate::commands::finances::get_finance_snapshot_internal(&ctx.state_manager, None)?;
 
     let snap = &response.snapshot;
 
@@ -725,8 +723,7 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
 
 pub fn info_player_stats(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
     let response =
-        crate::commands::stats::get_player_stats_overview_internal(&ctx.state_manager, &player_id)
-            .map_err(|e| translate_error(&e))?;
+        crate::commands::stats::get_player_stats_overview_internal(&ctx.state_manager, &player_id)?;
 
     let game = require_game(&ctx.state_manager)?;
     let player_name = game
@@ -756,8 +753,7 @@ pub fn info_player_match_history(
         &ctx.state_manager,
         &player_id,
         limit,
-    )
-    .map_err(|e| translate_error(&e))?;
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
     let player_name = game
@@ -922,8 +918,7 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String
 
 pub fn info_team_stats(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
     let response =
-        crate::commands::stats::get_team_stats_overview_internal(&ctx.state_manager, &team_id)
-            .map_err(|e| translate_error(&e))?;
+        crate::commands::stats::get_team_stats_overview_internal(&ctx.state_manager, &team_id)?;
 
     let game = require_game(&ctx.state_manager)?;
     let team_name = game
@@ -959,8 +954,7 @@ pub fn info_team_match_history(
         &ctx.state_manager,
         &team_id,
         limit,
-    )
-    .map_err(|e| translate_error(&e))?;
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
     let team_name = game
@@ -1003,8 +997,7 @@ pub fn info_finance_snapshot(
     let response = crate::commands::finances::get_finance_snapshot_internal(
         &ctx.state_manager,
         team_id.as_deref(),
-    )
-    .map_err(|e| translate_error(&e))?;
+    )?;
 
     let snap = &response.snapshot;
 
