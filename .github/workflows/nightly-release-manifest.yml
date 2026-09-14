@@ -1,9 +1,15 @@
 name: nightly-release-manifest
 
+# Dispatch only, deliberately. This used to also trigger on `release: published`, which was
+# harmless while nightlies shared one rolling tag — editing an existing release does not re-fire
+# that event, so the trigger never actually ran. Now that every nightly publishes its own tag it
+# *would* fire, and it would fire at the wrong moment: `published` lands when the first of five
+# platforms creates the release, with the other four still uploading. The manifest and checksums
+# built from that describe a release that does not exist yet.
+#
+# `publish-nightly` dispatches this once every platform has finished, which is the only point at
+# which the asset list is final.
 on:
-  release:
-    types:
-      - published
   workflow_dispatch:
     inputs:
       release_tag:
@@ -21,7 +27,6 @@ concurrency:
 
 jobs:
   publish-nightly-release-metadata:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.target_commitish == 'develop' || startsWith(github.event.release.tag_name, 'nightly') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -70,19 +75,23 @@ jobs:
           RELEASE_VERSION: ${{ steps.nightly_version.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
           RELEASE_STREAM: nightly
           RELEASE_MANIFEST_FILE: nightly-release-manifest.json
           RELEASE_CHECKSUMS_FILE: nightly-checksums.txt
-          RELEASE_SOURCE_WORKFLOW_FILE: ${{ github.event_name == 'release' && 'nightly-tauri-action.yml' || '' }}
-          RELEASE_SOURCE_WORKFLOW_BRANCH: ${{ github.event_name == 'release' && github.event.release.target_commitish == 'develop' && 'develop' || '' }}
-          RELEASE_SOURCE_WORKFLOW_HEAD_SHA: ${{ github.event_name == 'release' && github.event.release.target_commitish != 'develop' && github.event.release.target_commitish || '' }}
+          # Empty on purpose. These three make the script wait for the publishing workflow to
+          # finish before it reads the asset list, which mattered when a `release: published`
+          # event could arrive mid-upload. The only caller now dispatches this *after* every
+          # platform has uploaded, so there is nothing left to wait for.
+          RELEASE_SOURCE_WORKFLOW_FILE: ""
+          RELEASE_SOURCE_WORKFLOW_BRANCH: ""
+          RELEASE_SOURCE_WORKFLOW_HEAD_SHA: ""
         run: node .github/scripts/generate-release-manifest.mjs
 
       - name: Upload nightly manifest assets to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           gh release upload "$RELEASE_TAG" nightly-release-manifest.json nightly-checksums.txt --clobber
@@ -90,7 +99,7 @@ jobs:
       - name: Publish nightly metadata branch
         env:
           RELEASE_METADATA_BRANCH: ${{ vars.NIGHTLY_RELEASE_METADATA_BRANCH }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           branch="${RELEASE_METADATA_BRANCH:-release-metadata-nightly}"
@@ -126,7 +135,7 @@ jobs:
           WEBSITE_REPOSITORY: ${{ vars.WEBSITE_REPOSITORY }}
           WEBSITE_RELEASE_EVENT_TYPE: ${{ vars.NIGHTLY_WEBSITE_RELEASE_EVENT_TYPE }}
           RELEASE_METADATA_BRANCH: ${{ vars.NIGHTLY_RELEASE_METADATA_BRANCH }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ] || [ -z "${WEBSITE_REPOSITORY:-}" ]; then
