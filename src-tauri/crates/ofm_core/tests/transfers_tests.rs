@@ -3231,9 +3231,12 @@ fn a_club_that_is_turned_down_does_not_come_straight_back() {
         game.clock.advance_days(1);
     }
 
-    assert!(
-        approaches <= 2,
-        "a rejected club should back off for a while, but it approached {approaches} times in 30 days"
+    // Exactly one, not "a small number": the loop covers days 0 to 29, which is the whole
+    // cooldown, so a second approach anywhere in it means the window is shorter than advertised.
+    assert_eq!(
+        approaches, 1,
+        "a rejected club should approach once and then wait out the cooldown, \
+         but it approached {approaches} times over days 0 to 29"
     );
 }
 
@@ -3369,19 +3372,20 @@ fn a_rejected_club_may_approach_again_once_the_cooldown_has_passed() {
     respond_to_offer(&mut game, "player-suitor-returns", &offer_id, false)
         .expect("rejecting an incoming offer should succeed");
 
-    // Just inside the window: still not welcome.
-    game.clock.advance_days(20);
+    // The last day still inside the window. Testing the boundary rather than a comfortable
+    // margin is what makes the length of the cooldown an asserted fact instead of a guess.
+    game.clock.advance_days(29);
     generate_incoming_transfer_offers(&mut game);
     assert!(
         !find_player(&game, "player-suitor-returns")
             .transfer_offers
             .iter()
             .any(|offer| offer.status == TransferOfferStatus::Pending),
-        "the club should still be cooling off twenty days after being refused"
+        "the club should still be cooling off on the last day of the window"
     );
 
-    // Past it: interest may legitimately revive.
-    game.clock.advance_days(20);
+    // The first day outside it.
+    game.clock.advance_days(1);
     generate_incoming_transfer_offers(&mut game);
     assert!(
         find_player(&game, "player-suitor-returns")
