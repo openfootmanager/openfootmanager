@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, X } from "lucide-react";
 import { useAssetPicker } from "./useAssetPicker";
@@ -45,6 +45,7 @@ export function PlayerForm({
   onAssetError,
 }: PlayerFormProps) {
   const { t } = useTranslation();
+  const dobLabelId = useId();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
   const { dataUrl: photoDataUrl, pick: pickPhoto, clear: clearPhoto } = useAssetPicker({
@@ -208,8 +209,9 @@ export function PlayerForm({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.playerDateOfBirth")}</label>
+        <label id={dobLabelId} className={labelClass}>{t("worldEditor.playerDateOfBirth")}</label>
         <DatePicker
+          labelledBy={dobLabelId}
           value={editing.dateOfBirth ?? ""}
           onChange={(v) => updateField("dateOfBirth", v || null)}
         />

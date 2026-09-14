@@ -466,6 +466,7 @@
     "goalDifference": "净胜球",
     "nPlayersFound": "找到{{count}}名球员",
     "nResults": "{{count}}条结果",
+    "loadMore": "加载更多",
     "showingFirst": "显示{{total}}名球员中的前{{shown}}名。请优化搜索条件以查看更多。",
     "noPlayersMatch": "没有符合筛选条件的球员。",
     "positions": {
@@ -3600,6 +3601,9 @@
     }
   },
   "date": {
+    "dayLabel": "日",
+    "yearLabel": "年",
+    "noMonth": "不选月份",
     "day": "日",
     "month": "月",
     "year": "年"
@@ -3728,6 +3732,17 @@
     "winRate": "胜率"
   },
   "worldEditor": {
+    "positionGroupFilter": {
+      "Goalkeeper": "所有门将",
+      "Defender": "所有后卫",
+      "Midfielder": "所有中场",
+      "Forward": "所有前锋"
+    },
+    "filterByPosition": "按位置筛选",
+    "allPositions": "所有位置",
+    "positionFilterByGroup": "按位置类别",
+    "positionFilterBySpecific": "具体位置",
+    "showingEntries": "显示 {{total}} 项中的 {{shown}} 项",
     "title": "世界编辑器",
     "newPackage": "新建世界",
     "openPackageFile": "打开 .ofm 文件",
