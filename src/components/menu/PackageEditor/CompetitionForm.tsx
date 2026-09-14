@@ -408,6 +408,7 @@ export function CompetitionForm({
                       <div className="p-2 border-b border-gray-100 dark:border-navy-600">
                         <input
                           type="text"
+                          // biome-ignore lint/a11y/noAutofocus: the search field only exists while the team picker is open.
                           autoFocus
                           placeholder={t("worldEditor.searchTeams")}
                           value={teamSearch}

@@ -161,6 +161,7 @@ export function WorldEditorHome({
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder={t("worldEditor.worldNamePlaceholder")}
+                  // biome-ignore lint/a11y/noAutofocus: this is the new-world form, reached by clicking through from the home view.
                   autoFocus
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />

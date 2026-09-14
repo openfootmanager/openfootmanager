@@ -393,6 +393,10 @@ export function Select({
         aria-haspopup="listbox"
         aria-controls={listboxId}
         tabIndex={tabIndex}
+        // A forwarded prop, not a decision. This is the shared Select primitive; whether
+        // autofocus is right depends on the caller, and each caller that passes it argues
+        // for itself at its own site.
+        // biome-ignore lint/a11y/noAutofocus: forwarded, see above.
         autoFocus={autoFocus}
         className={`${base} ${variants[variant]} ${sizes[selectSize]} ${leftPadding} ${rightPadding} ${fullWidth ? "w-full" : ""} ${className} flex items-center justify-between text-left`}
         style={style}

@@ -239,6 +239,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                 <div className="border-b border-gray-100 dark:border-navy-600 p-2">
                   <input
                     type="text"
+                    // biome-ignore lint/a11y/noAutofocus: the search field only exists while the combobox is open.
                     autoFocus
                     role="combobox"
                     aria-expanded="true"

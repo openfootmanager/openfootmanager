@@ -197,6 +197,7 @@ export default function CreateManagerNationalityField({
                 <div className="border-b border-gray-100 p-2 dark:border-navy-600">
                   <input
                     type="text"
+                    // biome-ignore lint/a11y/noAutofocus: the search field only exists while the nationality dropdown is open.
                     autoFocus
                     placeholder={t("createManager.searchNationalities")}
                     value={searchValue}

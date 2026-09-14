@@ -84,6 +84,7 @@ export default function JerseyNumberInput({
         aria-label={t("squad.jerseyNumber")}
         min={1}
         max={99}
+        // biome-ignore lint/a11y/noAutofocus: the inline jersey editor replaces the number the user just clicked.
         autoFocus
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
