@@ -1972,3 +1972,33 @@ fn build_round_summary_ignores_non_competitive_matchday_zero_fixtures() {
 
     assert!(summary.is_none());
 }
+
+/// No generator may date a message ahead of the clock.
+///
+/// The news feed hides future-dated articles because some are deliberately
+/// dated at the event they announce — the World Cup kickoff is created months
+/// early. The inbox has no such producer and should not gain one: a message
+/// dated at a fixture or a deadline would sit unread, and count against the
+/// badge, from the day it was written until the day it refers to. The display
+/// guard in `slices::inbox::message_is_visible` catches that if it ever
+/// happens; this catches it at the source, which is where it should be fixed.
+#[test]
+fn no_generator_dates_a_message_ahead_of_the_clock() {
+    let mut game = make_game_with_match();
+
+    for _ in 0..90 {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        turn::process_day(&mut game);
+        let ahead: Vec<&str> = game
+            .messages
+            .iter()
+            .filter(|message| message.date.get(..10).unwrap_or(&message.date) > today.as_str())
+            .map(|message| message.id.as_str())
+            .collect();
+        assert!(
+            ahead.is_empty(),
+            "messages dated after {today}: {ahead:?}. An inbox message must be dated \
+             when it is sent, not at the event it is about."
+        );
+    }
+}

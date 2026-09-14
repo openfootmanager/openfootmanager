@@ -8,6 +8,7 @@ import { formatVal } from "../../lib/helpers";
 import { getAllFixturesAcrossCompetitions } from "../../lib/fixtures";
 import { getTeamFinanceSnapshot } from "../../lib/finance";
 import { buildStartingXIIds } from "../squad/SquadTab.helpers";
+import { isMessageVisible } from "../../utils/newsVisibility";
 
 export interface DashboardAlert {
   id: string;
@@ -43,7 +44,11 @@ export function getTodayMatchFixture(gameState: GameStateData): FixtureData | nu
 }
 
 export function getUnreadMessagesCount(gameState: GameStateData): number {
-  return gameState.messages.filter((message) => !message.read).length;
+  return gameState.messages.filter(
+    (message) =>
+      !message.read
+      && isMessageVisible(message.date, gameState.clock?.current_date),
+  ).length;
 }
 
 export function getManagerTeamName(gameState: GameStateData): string | null {
@@ -106,7 +111,11 @@ export function getDashboardAlerts(
     : null;
   const exhaustedCount = roster.filter((player) => player.condition < 25).length;
   const urgentUnreadCount = gameState.messages.filter((message) => {
-    return !message.read && message.priority === "Urgent";
+    return (
+      !message.read
+      && message.priority === "Urgent"
+      && isMessageVisible(message.date, gameState.clock?.current_date)
+    );
   }).length;
   const savedStartingXi = myTeam?.starting_xi_ids ?? [];
   const effectiveStartingXi = myTeam

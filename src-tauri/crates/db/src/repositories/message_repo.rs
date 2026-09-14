@@ -85,6 +85,7 @@ fn parse_category(s: &str) -> MessageCategory {
         "Contract" => MessageCategory::Contract,
         "ScoutReport" => MessageCategory::ScoutReport,
         "Media" => MessageCategory::Media,
+        "JobOffer" => MessageCategory::JobOffer,
         _ => MessageCategory::System,
     }
 }
@@ -271,6 +272,58 @@ mod tests {
             all[0].i18n_params.get("team").map(|s| s.as_str()),
             Some("London FC")
         );
+    }
+
+    /// Every category and priority survives a round trip.
+    ///
+    /// Categories are stored as `format!("{:?}", …)` and read back through a
+    /// hand-written match with a `_ => System` arm, so a variant nobody adds to
+    /// the match is not a compile error — it silently loads as `System`, taking
+    /// the wrong icon and the wrong filter bucket with it. `JobOffer` had been
+    /// missing since it was introduced. Listing the variants here means the next
+    /// one fails a test instead of shipping.
+    #[test]
+    fn every_category_and_priority_survives_a_round_trip() {
+        let categories = [
+            MessageCategory::Welcome,
+            MessageCategory::LeagueInfo,
+            MessageCategory::MatchPreview,
+            MessageCategory::MatchResult,
+            MessageCategory::Transfer,
+            MessageCategory::BoardDirective,
+            MessageCategory::PlayerMorale,
+            MessageCategory::Injury,
+            MessageCategory::Training,
+            MessageCategory::Finance,
+            MessageCategory::Contract,
+            MessageCategory::ScoutReport,
+            MessageCategory::Media,
+            MessageCategory::System,
+            MessageCategory::JobOffer,
+        ];
+        let priorities = [
+            MessagePriority::Low,
+            MessagePriority::Normal,
+            MessagePriority::High,
+            MessagePriority::Urgent,
+        ];
+        let db = test_db();
+
+        for (index, category) in categories.iter().enumerate() {
+            let priority = priorities[index % priorities.len()].clone();
+            let message = sample_message(&format!("msg-{index}"))
+                .with_category(category.clone())
+                .with_priority(priority.clone());
+            upsert_message(db.conn(), &message).unwrap();
+
+            let loaded = load_all_messages(db.conn()).unwrap();
+            let stored = loaded
+                .iter()
+                .find(|m| m.id == format!("msg-{index}"))
+                .expect("the message was stored");
+            assert_eq!(stored.category, *category, "category {category:?}");
+            assert_eq!(stored.priority, priority, "priority {priority:?}");
+        }
     }
 
     #[test]

@@ -94,7 +94,15 @@ pub fn project_session(game: &Game) -> SessionState {
                 .filter(|a| !a.read && crate::slices::news::article_is_visible(&a.date, &today))
                 .count()
         },
-        unread_messages_count: game.messages.iter().filter(|m| !m.read).count(),
+        unread_messages_count: {
+            // Same rule as the news badge above: a message dated ahead of the
+            // clock isn't in the inbox yet, so it can't be unread yet either.
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            game.messages
+                .iter()
+                .filter(|m| !m.read && crate::slices::inbox::message_is_visible(&m.date, &today))
+                .count()
+        },
         user_competition,
     }
 }

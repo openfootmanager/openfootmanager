@@ -118,8 +118,16 @@ pub fn clear_old_messages_internal(state: &StateManager) -> Result<Vec<InboxMess
                 if m.actions.iter().any(|a| !a.resolved) {
                     return true;
                 }
-                // Keep recent messages (within 14 days)
-                if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d") {
+                // Keep recent messages (within 14 days).
+                //
+                // Compare on the day prefix: message dates come in two shapes, a
+                // bare `YYYY-MM-DD` and an RFC3339 timestamp. `parse_from_str`
+                // with "%Y-%m-%d" errors on the trailing time, so parsing the
+                // whole string sent every timestamped message — match reports,
+                // pre-match previews, fitness warnings, the weekly digest — to
+                // the `false` branch and purged it however recent it was.
+                let message_day = ofm_core::slices::news::article_day(&m.date);
+                if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(message_day, "%Y-%m-%d") {
                     if let Ok(cur_date) =
                         chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d")
                     {
@@ -157,8 +165,25 @@ pub fn resolve_message_action_internal(
     // between read and write-back is not silently discarded.
     let (game, effect, effect_i18n_key, effect_i18n_params) = state
         .update_game(|game| {
+            // A message the player cannot see yet cannot be acted on. The inbox
+            // list already hides future-dated mail, but this takes an id from the
+            // caller — an MCP agent can name one the list never showed it. The
+            // guard belongs here rather than in the MCP tool so the GUI obeys the
+            // same rule through the same door.
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            let visible = game
+                .messages
+                .iter()
+                .find(|message| message.id == message_id)
+                .is_none_or(|message| {
+                    ofm_core::slices::inbox::message_is_visible(&message.date, &today)
+                });
             // Try to apply player conversation or random event response
-            let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
+            let (effect, effect_i18n_key, effect_i18n_params) = if !visible {
+                // Treated exactly like an id that is not in the inbox, because
+                // from the player's side it is not: no effect, nothing resolved.
+                (None, None, None)
+            } else if let Some(opt) = option_id {
                 // Try player events first, then random events
                 let player_effect = ofm_core::player_events::apply_player_response(
                     game, message_id, action_id, opt,
@@ -329,6 +354,62 @@ mod tests {
             read_message("remove-stale", "2026-07-01"),
         ];
         game
+    }
+
+    #[test]
+    fn resolve_message_action_internal_ignores_a_message_dated_ahead_of_the_clock() {
+        // The inbox list hides future-dated mail, but this takes an id from the
+        // caller, and an MCP agent can name one the list never showed it. Acting
+        // on it would let an agent resolve an event before the player can see it.
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![unresolved_action_message("future", "2026-09-01")];
+        state.set_game(game);
+
+        resolve_message_action_internal(&state, "future", "action-future", None)
+            .expect("the call itself succeeds");
+
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        let action = &stored.messages[0].actions[0];
+        assert!(
+            !action.resolved,
+            "an action on a message the player cannot see must not resolve"
+        );
+    }
+
+    #[test]
+    fn clear_old_messages_internal_keeps_recent_rfc3339_dated_messages() {
+        // Match reports, pre-match previews, fitness warnings and the weekly
+        // digest stamp `to_rfc3339()`. Parsing those as "%Y-%m-%d" fails on the
+        // trailing time, which used to drop them to the `false` branch and purge
+        // them however recent they were — re-arming their generators immediately.
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![read_message(
+            "keep-timestamped",
+            "2026-08-19T12:00:00+00:00",
+        )];
+        state.set_game(game);
+
+        let response = clear_old_messages_internal(&state).expect("response");
+
+        let message_ids: Vec<&str> = response.iter().map(|message| message.id.as_str()).collect();
+        assert_eq!(message_ids, vec!["keep-timestamped"]);
+    }
+
+    #[test]
+    fn clear_old_messages_internal_still_purges_stale_rfc3339_dated_messages() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![read_message(
+            "drop-timestamped",
+            "2026-07-01T12:00:00+00:00",
+        )];
+        state.set_game(game);
+
+        let response = clear_old_messages_internal(&state).expect("response");
+
+        assert!(response.is_empty());
     }
 
     #[test]

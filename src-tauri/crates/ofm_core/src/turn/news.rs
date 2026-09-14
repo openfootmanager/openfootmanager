@@ -773,6 +773,7 @@ pub(super) fn generate_pre_match_messages(game: &mut Game, today: &str) {
         None => return,
     };
 
+    let mut previews = Vec::new();
     if let Some(league) = &game.league {
         let upcoming = scheduled_user_fixtures_for_date(league, &user_team_id, &target_str);
 
@@ -782,12 +783,11 @@ pub(super) fn generate_pre_match_messages(game: &mut Game, today: &str) {
 
             // Check if we already sent this message
             let msg_id = format!("prematch_{}", fixture.id);
-            let already_sent = game.messages.iter().any(|m| m.id == msg_id);
-            if already_sent {
+            if crate::inbox::already_emitted(game, &msg_id) {
                 continue;
             }
 
-            let msg = messages::pre_match_message(
+            previews.push(messages::pre_match_message(
                 &fixture.id,
                 &opponent_name,
                 opponent_id,
@@ -795,10 +795,10 @@ pub(super) fn generate_pre_match_messages(game: &mut Game, today: &str) {
                 fixture.matchday,
                 &target_str,
                 &game.clock.current_date.to_rfc3339(),
-            );
-            game.messages.push(msg);
+            ));
         }
     }
+    crate::inbox::emit_all(game, previews);
 }
 
 #[cfg(test)]

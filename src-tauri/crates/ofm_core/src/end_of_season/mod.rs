@@ -562,7 +562,7 @@ fn notify_user_division_change(
     let division_name = new_division.name.clone();
     let kind = if promoted { "promotion" } else { "relegation" };
     let msg_id = format!("{kind}_{next_season}");
-    if game.messages.iter().any(|m| m.id == msg_id) {
+    if crate::inbox::already_emitted(game, &msg_id) {
         return;
     }
 
@@ -586,7 +586,7 @@ fn notify_user_division_change(
         params,
     )
     .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
-    game.messages.push(message);
+    crate::inbox::emit(game, message);
 }
 
 /// Process end-of-season: record history, compute awards, reset stats, generate next season.
@@ -878,12 +878,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    let existing_ids: std::collections::HashSet<String> =
-        game.messages.iter().map(|m| m.id.clone()).collect();
-
+    // Each check reads the live ledger rather than a snapshot: the three emits
+    // below are interleaved with the checks, so a snapshot would go stale.
     let payout_msg_id = format!("season_payout_{}", season);
     let user_prize_money = division_prize_money(user_position, user_division_tier);
-    if user_prize_money > 0 && !existing_ids.contains(&payout_msg_id) {
+    if user_prize_money > 0 && !crate::inbox::already_emitted(game, &payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,
             String::new(),
@@ -902,11 +901,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             params
         })
         .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
-        game.messages.push(payout_message);
+        crate::inbox::emit(game, payout_message);
     }
 
     let msg_id = format!("season_end_{}", season);
-    if !existing_ids.contains(&msg_id) {
+    if !crate::inbox::already_emitted(game, &msg_id) {
         let (body_key, mut i18n_params) = if user_position == 1 {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
@@ -948,11 +947,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .with_sender_role("")
         .with_i18n("be.msg.seasonReview.subject", body_key, i18n_params)
         .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
-        game.messages.push(msg);
+        crate::inbox::emit(game, msg);
     }
 
     let sched_msg_id = format!("new_season_{}", next_season);
-    if !existing_ids.contains(&sched_msg_id) {
+    if !crate::inbox::already_emitted(game, &sched_msg_id) {
         let mut sched_params = std::collections::HashMap::new();
         sched_params.insert("season".to_string(), next_season.to_string());
         let sched_msg = InboxMessage::new(
@@ -971,7 +970,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             sched_params,
         )
         .with_sender_i18n("be.sender.leagueOffice", "be.role.competitionSecretary");
-        game.messages.push(sched_msg);
+        crate::inbox::emit(game, sched_msg);
     }
 
     crate::season_context::refresh_game_context(game);

@@ -348,6 +348,25 @@ fn request_sponsor_pitch_rejects_when_offer_is_already_pending() {
 }
 
 #[test]
+fn request_sponsor_pitch_stays_capped_at_one_a_day_after_the_offer_is_gone() {
+    // The daily cap is the only thing stopping a club pitching sponsors on a
+    // loop. It has to survive the offer leaving the inbox — deleted by the
+    // player, or resolved and later purged — which is the whole point of the
+    // sent-ledger.
+    let mut game = make_monday_game();
+    game.teams[0].wage_budget = 50_000;
+    let first = finances::request_sponsor_pitch(&mut game, "team1").expect("first pitch");
+
+    game.messages
+        .retain(|message| message.id != first.message_id);
+
+    let error = finances::request_sponsor_pitch(&mut game, "team1")
+        .expect_err("a second pitch on the same day should be refused");
+
+    assert_eq!(error, "be.error.finance.sponsorPitchAlreadyAttemptedToday");
+}
+
+#[test]
 fn request_marketing_campaign_generates_cash_for_pressured_club() {
     let mut game = make_monday_game();
     game.teams[0].wage_budget = 50_000;

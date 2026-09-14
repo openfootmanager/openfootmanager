@@ -235,14 +235,20 @@ pub fn delegate_renewals(
 
     if !report.cases.is_empty() {
         let team_name = team.name.clone();
-        let message_id_suffix = game.messages.len();
-        game.messages.push(delegated_renewal_report_message(
-            &team.id,
-            &team_name,
-            &today,
-            &report,
-            message_id_suffix,
-        ));
+        // Which attempt of the day this is. The suffix used to be
+        // `game.messages.len()`, which is a property of the mailbox rather than
+        // of the report: delete a message and the next report reuses an id the
+        // last one already had. Counting the ledger's own entries is stable,
+        // because nothing removes from the ledger.
+        let prefix = format!("delegated_renewals_{}_{}_", team.id, today);
+        let attempt = game
+            .emitted_events
+            .iter()
+            .filter(|key| key.starts_with(&prefix))
+            .count();
+        let message =
+            delegated_renewal_report_message(&team.id, &team_name, &today, &report, attempt);
+        crate::inbox::emit(game, message);
     }
 
     Ok(report)
@@ -297,10 +303,10 @@ fn delegated_renewal_report_message(
     team_name: &str,
     date: &str,
     report: &DelegatedRenewalReport,
-    id_suffix: usize,
+    attempt: usize,
 ) -> InboxMessage {
     InboxMessage::new(
-        format!("delegated_renewals_{}_{}", date, id_suffix),
+        format!("delegated_renewals_{}_{}_{}", team_id, date, attempt),
         String::new(),
         String::new(),
         String::new(),
