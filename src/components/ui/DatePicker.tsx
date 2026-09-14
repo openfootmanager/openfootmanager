@@ -6,6 +6,13 @@ interface DatePickerProps {
   value: string; // YYYY-MM-DD
   onChange: (date: string) => void;
   error?: boolean;
+  /**
+   * Id of the caption above this picker. Three controls stand in for one
+   * field here, so a caption cannot be bound to them with `htmlFor` the way
+   * it can to a single input — without this the caption is orphaned and a
+   * screen reader reads out a day, a month and a year belonging to nothing.
+   */
+  labelledBy?: string;
 }
 
 interface DateParts {
@@ -93,19 +100,33 @@ function getSelectedMonthLabel(monthValue: string, months: MonthOption[], fallba
   );
 }
 
-export function DatePicker({ value, onChange, error }: DatePickerProps) {
+export function DatePicker({ value, onChange, error, labelledBy }: DatePickerProps) {
   const { t, i18n } = useTranslation();
 
-  // Parse initial value or use current date components
-  const [day, setDay] = useState<string>("");
-  const [month, setMonth] = useState<string>("");
-  const [year, setYear] = useState<string>("");
+  // Seeded from `value` rather than blank. The effect below also syncs from
+  // `value`, but its result only lands on the *next* render — so starting
+  // blank meant the first commit had three empty parts while there was a date
+  // to show, which the notify effect reads as "the user cleared it".
+  const initialParts = parseDateValue(value);
+  const [day, setDay] = useState<string>(initialParts?.day ?? "");
+  const [month, setMonth] = useState<string>(initialParts?.month ?? "");
+  const [year, setYear] = useState<string>(initialParts?.year ?? "");
 
   // Keep a stable ref so the notify effect below doesn't need onChange
   // in its dependency array — avoids firing with stale day/month/year
   // when the parent re-renders and passes a new inline function reference.
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+
+  // Read inside the notify effect without making it a dependency, so the
+  // effect can tell "the parts now say something new" from "the parts were
+  // just synced from the prop".
+  const valueRef = useRef(value);
+
+  // Whether there is currently a date here to remove. Clearing every part is
+  // only worth reporting as a change if something was set; a pristine field
+  // also has three blank parts, and telling the parent about that would mark
+  // an untouched form dirty the moment it opens.
+  const hasDateRef = useRef(initialParts !== null);
 
   const [monthOpen, setMonthOpen] = useState(false);
   const monthRef = useRef<HTMLDivElement>(null);
@@ -114,10 +135,14 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
   useEffect(() => {
     const nextValue = parseDateValue(value);
     if (nextValue) {
+      hasDateRef.current = true;
       setYear(nextValue.year);
       setMonth(nextValue.month);
       setDay(nextValue.day);
     } else {
+      // The parent already knows there is no date, so don't echo the clear
+      // back at it when this is what emptied the fields.
+      hasDateRef.current = false;
       setDay("");
       setMonth("");
       setYear("");
@@ -147,10 +172,41 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [monthOpen]);
 
+  /*
+    Written on commit, not during render. React can start a render and throw it
+    away — this tree sits under a Suspense boundary in career creation — and a
+    ref written during a render that never commits would leave the effect below
+    comparing against a value the parent does not hold. That used to be
+    harmless, when the ref only carried a callback whose identity nobody read;
+    now it decides whether a change is reported at all. Declared above that
+    effect so it always runs first and sees this commit's props.
+  */
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    valueRef.current = value;
+  });
+
   // Update parent when any component changes, if valid
   useEffect(() => {
     if (day && month && year && year.length === 4) {
-      onChangeRef.current(formatDateValue(day, month, year));
+      hasDateRef.current = true;
+      const next = formatDateValue(day, month, year);
+      // Only when it actually says something new. Seeding the parts above is
+      // what breaks the loop; this is what keeps it broken — the effect can
+      // now only ever report a value the parent does not already hold, so no
+      // arrangement of the two effects can start the cycle again. It also
+      // spares every form open a re-render for a value nobody touched. An
+      // unpadded or two-digit incoming value still differs from its
+      // normalised form, so that correction is still reported.
+      if (next !== valueRef.current) {
+        onChangeRef.current(next);
+      }
+      return;
+    }
+
+    if (!day && !month && !year && hasDateRef.current) {
+      hasDateRef.current = false;
+      onChangeRef.current("");
     }
   }, [day, month, year]);
 
@@ -178,13 +234,21 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
   const selectedMonthLabel = getSelectedMonthLabel(month, months, t("date.month"));
 
   return (
-    <div className="flex gap-2 w-full">
+    <div
+      className="flex gap-2 w-full"
+      // Unconditional: ARIA does not allow `aria-labelledby` on an element with no role, and a
+      // conditional role cannot be paired with it by any checker. A `group` with no label is
+      // valid and describes what this is — three fields that belong together — either way.
+      role="group"
+      aria-labelledby={labelledBy}
+    >
       {/* Day */}
       <div className="flex-1">
         <input
           type="text"
           inputMode="numeric"
           placeholder={t("date.day", "DD")}
+          aria-label={t("date.dayLabel")}
           value={day}
           onChange={handleDayChange}
           onBlur={() => setDay(normaliseDayOnBlur(day))}
@@ -222,6 +286,28 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
         {monthOpen && (
           <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white dark:bg-navy-700 rounded-lg shadow-xl border border-gray-200 dark:border-navy-600 overflow-hidden">
             <div className="max-h-48 overflow-y-auto">
+              {/*
+                Picking a month has to be undoable, otherwise a date can be
+                set but never removed — there is no other way back to a blank
+                month. Reuses the trigger's own placeholder as its label.
+              */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMonth("");
+                  setMonthOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
+                  month === ""
+                    ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
+                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-navy-600"
+                }`}
+              >
+                <span>{t("date.noMonth")}</span>
+                {month === "" && (
+                  <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />
+                )}
+              </button>
               {months.map((m) => (
                 <button
                   key={m.value}
@@ -246,7 +332,7 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
                 >
                   <span>{m.label}</span>
                   {(month === m.value || month === m.value.padStart(2, "0")) && (
-                    <Check className="w-4 h-4 text-primary-500" />
+                    <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />
                   )}
                 </button>
               ))}
@@ -261,6 +347,7 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
           type="text"
           inputMode="numeric"
           placeholder={t("date.year", "YYYY")}
+          aria-label={t("date.yearLabel")}
           value={year}
           onChange={handleYearChange}
           onBlur={() => {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -109,6 +109,10 @@ export default function WorldEditor() {
 
   // Recent projects
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>(readRecentProjects);
+
+  // The sidebar badge. Every keystroke anywhere in the editor re-renders this
+  // page, and counting the youth players is a pass over the whole squad list.
+  const youthCount = useMemo(() => players.filter((p) => p.youth).length, [players]);
 
   // ---------------------------------------------------------------------------
   // Snapshot helpers
@@ -702,7 +706,7 @@ export default function WorldEditor() {
             countryCount={countries.length}
             teamCount={teams.length}
             playerCount={players.length}
-            youthCount={players.filter((p) => p.youth).length}
+            youthCount={youthCount}
             staffCount={staff.length}
             namePoolCount={Object.keys(names.pools).length}
             competitionCount={competitions.length}

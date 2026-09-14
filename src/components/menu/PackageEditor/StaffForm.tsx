@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
 import { CountryCombobox } from "../../ui/CountryCombobox";
+import { DatePicker } from "../../ui/DatePicker";
 import { Checkbox } from "../../ui/Checkbox";
 import { STAFF_ROLES, COACHING_SPECIALIZATIONS, toSlug } from "./helpers";
 import type { StaffDef, TeamDef } from "./types";
@@ -35,6 +36,7 @@ export function StaffForm({
   updateField,
 }: StaffFormProps) {
   const { t } = useTranslation();
+  const dobLabelId = useId();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
 
@@ -176,7 +178,6 @@ export function StaffForm({
           onChange={(v) => updateField("club", v)}
         />
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.staffNationality")}</label>
           <CountryCombobox
             label={t("worldEditor.staffNationality")}
             value={editing.nationality}
@@ -186,12 +187,16 @@ export function StaffForm({
       </div>
 
       {/* Date of Birth */}
-      <LabeledInput
-        label={t("worldEditor.staffDateOfBirth")}
-        type="date"
-        value={editing.dateOfBirth ?? ""}
-        onChange={(v) => updateField("dateOfBirth", v || null)}
-      />
+      <div className="flex flex-col gap-1">
+        <label id={dobLabelId} className={labelClass}>
+          {t("worldEditor.staffDateOfBirth")}
+        </label>
+        <DatePicker
+          labelledBy={dobLabelId}
+          value={editing.dateOfBirth ?? ""}
+          onChange={(v) => updateField("dateOfBirth", v || null)}
+        />
+      </div>
 
       {/* Attributes */}
       <div className="flex flex-col gap-3">

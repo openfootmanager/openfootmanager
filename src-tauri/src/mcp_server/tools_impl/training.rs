@@ -1,7 +1,6 @@
 //! MCP tool implementations: training
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
 use crate::mcp_server::tools_impl::helpers::{require_game, user_team};
 use std::sync::Arc;
 
@@ -63,8 +62,7 @@ pub fn training_set_focus_intensity(
     focus: String,
     intensity: String,
 ) -> Result<String, String> {
-    crate::commands::squad::set_training_internal(&ctx.state_manager, &focus, &intensity)
-        .map_err(|e| translate_error(&e))?;
+    crate::commands::squad::set_training_internal(&ctx.state_manager, &focus, &intensity)?;
 
     {
         use tauri::Emitter;
@@ -82,8 +80,7 @@ pub fn training_set_focus_intensity(
 // ─── training_set_schedule ─────────────────────────────────────────────────
 
 pub fn training_set_schedule(ctx: Arc<McpContext>, schedule: String) -> Result<String, String> {
-    crate::commands::squad::set_training_schedule_internal(&ctx.state_manager, &schedule)
-        .map_err(|e| translate_error(&e))?;
+    crate::commands::squad::set_training_schedule_internal(&ctx.state_manager, &schedule)?;
 
     {
         use tauri::Emitter;
@@ -104,8 +101,7 @@ pub fn training_set_groups(ctx: Arc<McpContext>, groups_json: String) -> Result<
     let groups: Vec<domain::team::TrainingGroup> = serde_json::from_str(&groups_json)
         .map_err(|e| format!("Invalid training groups JSON: {}", e))?;
 
-    crate::commands::squad::set_training_groups_internal(&ctx.state_manager, groups)
-        .map_err(|e| translate_error(&e))?;
+    crate::commands::squad::set_training_groups_internal(&ctx.state_manager, groups)?;
 
     {
         use tauri::Emitter;
@@ -128,8 +124,7 @@ pub fn training_set_player_focus(
         &ctx.state_manager,
         &player_id,
         focus.as_deref(),
-    )
-    .map_err(|e| translate_error(&e))?;
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
     let player_name = game

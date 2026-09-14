@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -11,6 +11,8 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import { Button } from "../../ui/Button";
+import { ENTITY_LIST_PAGE_SIZE } from "./entityList.helpers";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
@@ -23,6 +25,8 @@ interface EntityListShellProps {
   isEmpty: boolean;
   children: React.ReactNode;
   searchSlot?: React.ReactNode;
+  /** Sits under the rows: the match count, and the button that reveals more. */
+  footerSlot?: React.ReactNode;
 }
 
 export function EntityListShell({
@@ -32,6 +36,7 @@ export function EntityListShell({
   isEmpty,
   children,
   searchSlot,
+  footerSlot,
 }: EntityListShellProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -51,6 +56,87 @@ export function EntityListShell({
       )}
 
       <div className="flex flex-col gap-2">{children}</div>
+
+      {footerSlot}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EntityListFooter
+// ---------------------------------------------------------------------------
+
+interface EntityListFooterProps {
+  /** Rows currently rendered. */
+  shown: number;
+  /** Rows the search and filters left, rendered or not. */
+  matches: number;
+  /** Whether this section holds any records at all. */
+  hasRecords: boolean;
+  onLoadMore: () => void;
+}
+
+/**
+ * The line under an entity list: how much of it you are looking at, and the
+ * button that shows more. Also the place a fruitless search is reported —
+ * without it the panel just went blank, since the shell's empty message only
+ * covers a section with no records in it at all.
+ */
+export function EntityListFooter({
+  shown,
+  matches,
+  hasRecords,
+  onLoadMore,
+}: EntityListFooterProps) {
+  const { t } = useTranslation();
+  const countId = useId();
+
+  if (!hasRecords) {
+    return null;
+  }
+
+  const everythingShown = shown >= matches;
+
+  // Kept mounted, disabled, once the list has run out: revealing the last
+  // page from the keyboard would otherwise unmount the focused button and
+  // drop focus to the top of the document, hundreds of rows above.
+  const wasCapped = matches > ENTITY_LIST_PAGE_SIZE;
+
+  return (
+    <div className="flex flex-col gap-2 pt-1">
+      {wasCapped && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          // `aria-disabled`, not `disabled`: a disabled element is not
+          // focusable, so disabling the button the user just pressed hands
+          // focus back to the document — the same problem as unmounting it.
+          // This keeps it in the tab order and announced as unavailable.
+          className={`w-full ${everythingShown ? "opacity-50 cursor-not-allowed" : ""}`}
+          onClick={everythingShown ? undefined : onLoadMore}
+          aria-disabled={everythingShown}
+          aria-describedby={countId}
+        >
+          {t("common.loadMore")}
+        </Button>
+      )}
+      {/*
+        One live region for all three messages, so revealing a page or
+        searching into nothing is announced rather than silently changing
+        the rows underneath.
+      */}
+      <p
+        id={countId}
+        role="status"
+        className={`text-xs text-gray-500 dark:text-gray-400 ${matches === 0 ? "text-center py-4" : "text-right"}`}
+      >
+        {matches === 0
+          ? t("common.noResults")
+          : everythingShown
+            ? t("common.nResults", { count: matches })
+            : t("worldEditor.showingEntries", { shown, total: matches })}
+      </p>
     </div>
   );
 }

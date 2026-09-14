@@ -302,6 +302,11 @@ export interface TransferOfferData {
   status: "Pending" | "PendingRegistration" | "Accepted" | "Rejected" | "Withdrawn";
   date: string;
   registration_date?: string | null;
+  /**
+   * When talks ended, for offers that were rejected or withdrawn. Distinct from `date`, which
+   * is when the offer arrived and is rewritten whenever a club re-opens talks.
+   */
+  closed_on?: string | null;
 }
 
 export interface LoanOfferData {
@@ -321,6 +326,8 @@ export interface LoanOfferData {
   suggested_buy_option_fee?: number | null;
   status: "Pending" | "PendingRegistration" | "Accepted" | "Rejected" | "Withdrawn";
   date: string;
+  /** See {@link TransferOfferData.closed_on}. */
+  closed_on?: string | null;
 }
 
 export interface ActiveLoanData {

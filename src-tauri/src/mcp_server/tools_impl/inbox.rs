@@ -1,7 +1,6 @@
 //! MCP tool implementations: inbox
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
 use crate::mcp_server::tools_impl::helpers::require_game;
 use std::sync::Arc;
 
@@ -57,8 +56,7 @@ pub fn inbox_get_messages(
 // ─── inbox_mark_read ────────────────────────────────────────────────────────
 
 pub fn inbox_mark_read(ctx: Arc<McpContext>, message_id: String) -> Result<String, String> {
-    crate::commands::messages::mark_message_read_internal(&ctx.state_manager, &message_id)
-        .map_err(|e| translate_error(&e))?;
+    crate::commands::messages::mark_message_read_internal(&ctx.state_manager, &message_id)?;
 
     {
         use tauri::Emitter;
@@ -73,8 +71,7 @@ pub fn inbox_mark_read(ctx: Arc<McpContext>, message_id: String) -> Result<Strin
 // ─── inbox_mark_all_read ────────────────────────────────────────────────────
 
 pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<String, String> {
-    crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager)
-        .map_err(|e| translate_error(&e))?;
+    crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager)?;
 
     {
         use tauri::Emitter;
@@ -89,8 +86,7 @@ pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── inbox_delete ───────────────────────────────────────────────────────────
 
 pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<String, String> {
-    crate::commands::messages::delete_message_internal(&ctx.state_manager, &message_id)
-        .map_err(|e| translate_error(&e))?;
+    crate::commands::messages::delete_message_internal(&ctx.state_manager, &message_id)?;
 
     {
         use tauri::Emitter;
@@ -105,8 +101,7 @@ pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<String, 
 // ─── inbox_clear_old ────────────────────────────────────────────────────────
 
 pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<String, String> {
-    crate::commands::messages::clear_old_messages_internal(&ctx.state_manager)
-        .map_err(|e| translate_error(&e))?;
+    crate::commands::messages::clear_old_messages_internal(&ctx.state_manager)?;
 
     {
         use tauri::Emitter;
@@ -131,8 +126,7 @@ pub fn inbox_resolve_action(
         &message_id,
         &action_id,
         option_id.as_deref(),
-    )
-    .map_err(|e| translate_error(&e))?;
+    )?;
 
     {
         use tauri::Emitter;

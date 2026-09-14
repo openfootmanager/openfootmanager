@@ -1,9 +1,10 @@
 {
   "oversizedAggregate": {
-    "rust": 63098,
-    "ts": 35358
+    "rust": 62875,
+    "ts": 35369
   },
   "allowedOversized": {
+    "src-tauri/crates/db/src/repositories/player_repo.rs": 1062,
     "src-tauri/crates/db/src/save_manager.rs": 2338,
     "src-tauri/crates/engine/tests/live_match_tests.rs": 1828,
     "src-tauri/crates/engine/tests/simulation_tests.rs": 1057,
@@ -20,14 +21,14 @@
     "src-tauri/crates/ofm_core/src/news.rs": 1451,
     "src-tauri/crates/ofm_core/src/schedule.rs": 1078,
     "src-tauri/crates/ofm_core/src/scouting.rs": 1022,
-    "src-tauri/crates/ofm_core/src/transfers/mod.rs": 3314,
+    "src-tauri/crates/ofm_core/src/transfers/loans.rs": 1427,
     "src-tauri/crates/ofm_core/src/turn/news.rs": 2055,
     "src-tauri/crates/ofm_core/src/world_cup.rs": 2981,
     "src-tauri/crates/ofm_core/tests/end_of_season_tests.rs": 2916,
     "src-tauri/crates/ofm_core/tests/player_events_tests.rs": 1560,
     "src-tauri/crates/ofm_core/tests/random_events_tests.rs": 1396,
     "src-tauri/crates/ofm_core/tests/training_tests.rs": 1164,
-    "src-tauri/crates/ofm_core/tests/transfers_tests.rs": 2825,
+    "src-tauri/crates/ofm_core/tests/transfers_tests.rs": 3437,
     "src-tauri/crates/ofm_core/tests/turn_tests.rs": 1975,
     "src-tauri/crates/ofm-cli/src/main.rs": 1118,
     "src-tauri/src/commands/game/mod.rs": 3334,
@@ -35,9 +36,9 @@
     "src-tauri/src/commands/package_editor.rs": 1392,
     "src-tauri/src/commands/squad.rs": 1257,
     "src-tauri/src/commands/time.rs": 1429,
-    "src-tauri/src/commands/transfers.rs": 1209,
-    "src-tauri/src/mcp_server/tools_impl/info.rs": 1088,
-    "src-tauri/src/mcp_server/tools_impl/live_match.rs": 1059,
+    "src-tauri/src/commands/transfers.rs": 1213,
+    "src-tauri/src/mcp_server/tools_impl/info.rs": 1081,
+    "src-tauri/src/mcp_server/tools_impl/live_match.rs": 1052,
     "src-tauri/src/mcp_server/tools.rs": 2527,
     "src/components/dashboard/advanceRecap.test.ts": 696,
     "src/components/dashboard/DashboardSimulatingModal.tsx": 539,
@@ -79,8 +80,8 @@
     "src/pages/MainMenu.tsx": 893,
     "src/pages/MatchSimulation.test.tsx": 623,
     "src/pages/SimLab.tsx": 945,
-    "src/pages/WorldEditor.tsx": 786,
-    "src/store/types.ts": 768,
+    "src/pages/WorldEditor.tsx": 790,
+    "src/store/types.ts": 775,
     "src/utils/backendI18n.test.ts": 1182,
     "src/utils/backendI18n.ts": 693
   },
@@ -89,7 +90,7 @@
     "tsAnyAssertion": 0,
     "tsIgnore": 0,
     "biomeIgnore": 11,
-    "eslintDisable": 7,
+    "eslintDisable": 8,
     "rustAllow": 22,
     "rustExpect": 0,
     "rustUnsafeBlocks": 0
@@ -98,7 +99,7 @@
     "a11y/noLabelWithoutControl": 35,
     "a11y/noStaticElementInteractions": 24,
     "a11y/useKeyWithClickEvents": 24,
-    "a11y/useSemanticElements": 9,
+    "a11y/useSemanticElements": 10,
     "style/noNonNullAssertion": 59
   },
   "deadCode": {
@@ -109,6 +110,6 @@
   },
   "antiPatterns": {
     "fullGameClones": 56,
-    "crossFeatureSquadImports": 39
+    "crossFeatureSquadImports": 40
   }
 }

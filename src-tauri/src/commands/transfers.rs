@@ -596,6 +596,7 @@ mod tests {
             status: TransferOfferStatus::Pending,
             date: "2026-08-01".to_string(),
             registration_date: None,
+            closed_on: None,
         });
         player
     }
@@ -901,6 +902,7 @@ mod tests {
             suggested_buy_option_fee: None,
             status: LoanOfferStatus::Pending,
             date: "2026-08-01".to_string(),
+            closed_on: None,
         });
         state.set_game(game);
 
@@ -952,6 +954,7 @@ mod tests {
             suggested_buy_option_fee: None,
             status: LoanOfferStatus::Pending,
             date: "2026-08-01".to_string(),
+            closed_on: None,
         });
         state.set_game(game);
 
@@ -1098,6 +1101,7 @@ mod tests {
             suggested_buy_option_fee: None,
             status: LoanOfferStatus::PendingRegistration,
             date: "2026-08-01".to_string(),
+            closed_on: None,
         });
         state.set_game(game);
 

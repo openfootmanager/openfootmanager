@@ -470,6 +470,7 @@
     "goalDifference": "Rozdíl",
     "nPlayersFound": "Nalezení hráči: {{count}}",
     "nResults": "Počet výsledků: {{count}}",
+    "loadMore": "Načíst další",
     "showingFirst": "Zobrazeno prvních {{shown}} z {{total}} hráčů. Pro upřesnění upravte vyhledávání.",
     "noPlayersMatch": "Vašim filtrům neodpovídají žádní hráči.",
     "positions": {
@@ -3600,6 +3601,9 @@
     }
   },
   "date": {
+    "dayLabel": "Den",
+    "yearLabel": "Rok",
+    "noMonth": "Bez měsíce",
     "day": "DD",
     "month": "Měsíc",
     "year": "RRRR"
@@ -3728,6 +3732,17 @@
     "winRate": "Úspěšnost"
   },
   "worldEditor": {
+    "positionGroupFilter": {
+      "Goalkeeper": "Všichni brankáři",
+      "Defender": "Všichni obránci",
+      "Midfielder": "Všichni záložníci",
+      "Forward": "Všichni útočníci"
+    },
+    "filterByPosition": "Filtrovat podle pozice",
+    "allPositions": "Všechny pozice",
+    "positionFilterByGroup": "Podle řady",
+    "positionFilterBySpecific": "Konkrétní pozice",
+    "showingEntries": "Zobrazeno {{shown}} z {{total}}",
     "title": "Editor světa",
     "newPackage": "Nový svět",
     "openPackageFile": "Otevřít soubor .ofm",
