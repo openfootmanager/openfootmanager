@@ -85,6 +85,45 @@ type FilterScope =
   | "outOfPosition"
   | "injured";
 
+/**
+ * Declared at module scope on purpose. Defined inside `SquadRosterView` it was a *new component
+ * type* on every render, so React unmounted and remounted all ten header cells each time the
+ * sort changed — the thing `noNestedComponentDefinitions` exists to catch.
+ */
+function SortHeader({
+  col,
+  label,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  col: SquadListSortKey;
+  label: string;
+  sortKey: SquadListSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (col: SquadListSortKey) => void;
+}) {
+  const active = sortKey === col;
+
+  return (
+    <th
+      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+      onClick={() => onSort(col)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {active ? (
+          sortDir === "asc" ? (
+            <ChevronUp className="w-3 h-3" />
+          ) : (
+            <ChevronDown className="w-3 h-3" />
+          )
+        ) : null}
+      </div>
+    </th>
+  );
+}
+
 export default function SquadRosterView({
   players,
   team,
@@ -382,24 +421,6 @@ export default function SquadRosterView({
     </div>
   );
 
-  const SortHeader = ({ col, label }: { col: SquadListSortKey; label: string }) => (
-    <th
-      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${sortKey === col ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
-      onClick={() => toggleSort(col)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortKey === col ? (
-          sortDir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )
-        ) : null}
-      </div>
-    </th>
-  );
-
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -552,19 +573,79 @@ export default function SquadRosterView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                <SortHeader col="jersey" label="#" />
-                <SortHeader col="name" label={t("common.name")} />
-                <SortHeader col="pos" label={t("squad.pos")} />
-                <SortHeader col="fit" label={t("squad.formationFit")} />
-                <SortHeader col="style" label={t("squad.styleFit")} />
+                <SortHeader
+                  col="jersey"
+                  label="#"
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="name"
+                  label={t("common.name")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="pos"
+                  label={t("squad.pos")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="fit"
+                  label={t("squad.formationFit")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="style"
+                  label={t("squad.styleFit")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.traits")}
                 </th>
-                <SortHeader col="age" label={t("common.age")} />
-                <SortHeader col="condition" label={t("common.condition")} />
-                <SortHeader col="morale" label={t("common.morale")} />
-                <SortHeader col="ovr" label={t("common.ovr")} />
-                <SortHeader col="contract" label={t("common.contract")} />
+                <SortHeader
+                  col="age"
+                  label={t("common.age")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="condition"
+                  label={t("common.condition")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="morale"
+                  label={t("common.morale")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="ovr"
+                  label={t("common.ovr")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="contract"
+                  label={t("common.contract")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">
                   <span className="sr-only">{t("common.actions")}</span>
                 </th>

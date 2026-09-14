@@ -172,6 +172,12 @@ jobs:
       - name: Check frontend formatting
         run: npm run format:check
 
+      # Enabled rule by rule rather than all at once. `biome.json` starts from `preset: none`, so
+      # a group only gates once the findings it reports have actually been cleared — which is why
+      # this step is green the day it lands instead of being a reporter somebody mutes.
+      - name: Lint frontend
+        run: npm run lint
+
       - name: Run frontend tests
         run: npm test
 

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
   "files": {
     "includes": [
       "**",
@@ -21,5 +21,21 @@
   },
   "assist": {
     "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "none",
+      "security": {
+        "preset": "recommended"
+      },
+      "performance": {
+        "preset": "recommended"
+      },
+      "correctness": {
+        "useHookAtTopLevel": "error",
+        "noNestedComponentDefinitions": "error"
+      }
+    }
   }
 }
