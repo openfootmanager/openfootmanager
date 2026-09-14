@@ -1,7 +1,7 @@
 {
   "oversizedAggregate": {
     "rust": 63098,
-    "ts": 36107
+    "ts": 35355
   },
   "allowedOversized": {
     "src-tauri/crates/db/src/save_manager.rs": 2338,
@@ -65,7 +65,6 @@
     "src/components/squad/SquadTab.helpers.test.ts": 720,
     "src/components/squad/SquadTab.helpers.ts": 938,
     "src/components/tactics/TacticsPitch.tsx": 581,
-    "src/components/tactics/TacticsPlayerTable.tsx": 752,
     "src/components/tactics/TacticsTab.test.tsx": 782,
     "src/components/tournaments/TournamentsTab.test.tsx": 684,
     "src/components/transfers/TransfersTab.model.test.ts": 526,
@@ -89,7 +88,7 @@
     "tsAnyAnnotation": 0,
     "tsAnyAssertion": 0,
     "tsIgnore": 0,
-    "biomeIgnore": 7,
+    "biomeIgnore": 6,
     "eslintDisable": 5,
     "rustAllow": 22,
     "rustExpect": 0,
@@ -97,13 +96,19 @@
   },
   "lintDebt": {
     "a11y/noLabelWithoutControl": 35,
-    "a11y/noStaticElementInteractions": 25,
-    "a11y/useKeyWithClickEvents": 25,
+    "a11y/noStaticElementInteractions": 24,
+    "a11y/useKeyWithClickEvents": 24,
     "a11y/useSemanticElements": 9,
     "style/noNonNullAssertion": 59
   },
+  "deadCode": {
+    "unusedFiles": 0,
+    "unusedExports": 12,
+    "unusedTypes": 20,
+    "duplicateExports": 3
+  },
   "antiPatterns": {
     "fullGameClones": 56,
-    "crossFeatureSquadImports": 40
+    "crossFeatureSquadImports": 39
   }
 }

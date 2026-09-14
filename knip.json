@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "scripts/*.mjs",
+    "scripts/perf/*.mjs",
+    ".github/scripts/*.mjs",
+    "vite.config.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", ".github/scripts/**/*.mjs"],
+  "ignore": ["src/i18n/locales/**", "dist/**", "src-tauri/**"],
+  "ignoreDependencies": ["@tauri-apps/cli", "@fontsource/.*", "tailwindcss"],
+  "ignoreExportsUsedInFile": true
+}

@@ -153,6 +153,47 @@ function lintDebt() {
 }
 
 /**
+ * Dead code, counted rather than deleted.
+ *
+ * Knip's raw number here was 138 and almost all of it was misconfiguration: without entry points
+ * it could not see that `scripts/perf/*.mjs` are run by hand, so it called them unused. Properly
+ * configured it reports 35, and most of *those* are deliberate — barrel re-exports from
+ * `components/ui/index.ts` and `teamProfile/index.ts` are the public surface this project asks
+ * you to search before writing a helper, and the types on `store/gameStore.ts` document the wire
+ * shape the Rust side sends whether or not TypeScript happens to reference them today.
+ *
+ * So this is a floor, not a hit list: a genuinely dead export can be removed and the number
+ * falls, but nothing new can accumulate behind it.
+ */
+function deadCode() {
+  let raw;
+  try {
+    raw = execFileSync(
+      "npm",
+      ["exec", "--no", "--", "knip", "--reporter", "json", "--no-progress"],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+  } catch (error) {
+    raw = error.stdout;
+  }
+  if (!raw) throw new Error("knip produced no JSON — is it installed? (npm ci)");
+
+  const counts = { unusedFiles: 0, unusedExports: 0, unusedTypes: 0, duplicateExports: 0 };
+  for (const issue of JSON.parse(raw).issues ?? []) {
+    if (issue.files?.length) counts.unusedFiles += issue.files.length;
+    counts.unusedExports += issue.exports?.length ?? 0;
+    counts.unusedTypes += issue.types?.length ?? 0;
+    counts.duplicateExports += issue.duplicates?.length ?? 0;
+  }
+  return counts;
+}
+
+/**
  * Named anti-patterns: things already found by hand that a general tool will not catch.
  *
  * Each is a directional signal rather than a number to defend in review — a rename defeats the
@@ -196,6 +237,7 @@ function collect() {
     ),
     suppressions: suppressions(),
     lintDebt: lintDebt(),
+    deadCode: deadCode(),
     antiPatterns: antiPatterns(),
   };
 }
@@ -214,7 +256,13 @@ function compare(current, baseline) {
     }
   };
 
-  for (const group of ["oversizedAggregate", "suppressions", "antiPatterns", "lintDebt"]) {
+  for (const group of [
+    "oversizedAggregate",
+    "suppressions",
+    "antiPatterns",
+    "lintDebt",
+    "deadCode",
+  ]) {
     for (const [key, value] of Object.entries(current[group])) {
       check(`${group}.${key}`, value, baseline[group]?.[key]);
     }
