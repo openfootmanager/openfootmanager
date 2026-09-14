@@ -1,3 +1,11 @@
+/** One training group as the backend stores it. */
+export interface TrainingGroupData {
+  id: string;
+  name: string;
+  focus: string;
+  player_ids: string[];
+}
+
 export interface TeamColors {
   primary: string;
   secondary: string;
@@ -136,6 +144,12 @@ export interface TeamData {
   training_focus: string;
   training_intensity: string;
   training_schedule: string;
+  /**
+   * Optional because a team saved before migration v002 has none. The backend has persisted this
+   * since that migration; the frontend type simply never declared it, so every read went through
+   * `as any` and TypeScript could not have noticed a rename or a shape change on either side.
+   */
+  training_groups?: TrainingGroupData[];
   founded_year: number;
   colors: TeamColors;
   kit_pattern?: KitPattern;

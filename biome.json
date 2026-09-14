@@ -16,7 +16,8 @@
       "!src-tauri/crates/**/data",
       "!docs/modding/examples",
       "!package-lock.json",
-      "!**/*.svg"
+      "!**/*.svg",
+      "!**/*.generated.*"
     ]
   },
   "formatter": {

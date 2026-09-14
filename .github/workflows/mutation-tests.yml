@@ -89,15 +89,32 @@ jobs:
           echo "name=$crate" >> "$GITHUB_OUTPUT"
           echo "Mutating $crate"
 
-      # `|| true`: survivors are the *output*, not a failure. This job exists to produce a list a
-      # person reads, and a red tick on a scheduled job nobody can act on immediately is how a
-      # scheduled job becomes invisible.
+      # Surviving mutants are the *output*, not a failure — a red tick on a weekly job nobody can
+      # act on today is how a scheduled job becomes invisible. cargo-mutants exits 2 for exactly
+      # that case, so that one status is swallowed and nothing else is: a bare `|| true` would
+      # have turned a missing tool or a compilation failure into a green job with no report,
+      # which is the same silent-pass shape this whole programme exists to stop.
       - name: Mutate ${{ steps.crate.outputs.name }}
         run: |
+          set -uo pipefail
           cargo mutants --manifest-path src-tauri/Cargo.toml \
             --package "${{ steps.crate.outputs.name }}" \
             --in-place --no-shuffle --timeout 300 \
-            --output mutants-out || true
+            --output mutants-out
+          status=$?
+
+          # 0 = nothing survived, 2 = some mutants survived. Anything else is a real failure.
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "cargo-mutants failed with status $status — this is a tool or build failure," >&2
+            echo "not a surviving mutant." >&2
+            exit "$status"
+          fi
+
+          # And a run that produced no report produced nothing, whatever it exited with.
+          if [ ! -s mutants-out/outcomes.json ]; then
+            echo "cargo-mutants exited $status but wrote no outcomes.json." >&2
+            exit 1
+          fi
 
       - name: Upload the survivor list
         uses: actions/upload-artifact@v4

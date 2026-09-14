@@ -118,11 +118,16 @@ function suppressions() {
     // one is a declaration nobody tightened, the other is an assertion somebody made.
     tsAnyAnnotation: countInCode(ts, /:\s*any\b/g),
     tsAnyAssertion: countInCode(ts, /\bas\s+any\b/g),
-    tsIgnore: countInSource(ts, /@ts-(ignore|expect-error)/g),
-    biomeIgnore: countInSource(ts, /biome-ignore/g),
+    // Anchored to the directive form — a comment that *starts* with the marker — rather than the
+    // bare word. Counting every occurrence meant this file's own explanation of what a
+    // `biome-ignore` is counted as three suppressions, so writing documentation raised the
+    // ratchet and could fail CI without anyone adding a directive. That is the same mistake as
+    // counting the word "any" in prose, in the opposite direction.
+    tsIgnore: countInSource(ts, /^\s*(\/\/|\*|\/\*)\s*@ts-(ignore|expect-error)\b/gm),
+    biomeIgnore: countInSource(ts, /^\s*(\/\/|\*|\/\*)\s*biome-ignore\b/gm),
     // Decorative: this repository has never had ESLint, so any of these suppress nothing at all.
     // The number should only ever go down.
-    eslintDisable: countInSource(ts, /eslint-disable/g),
+    eslintDisable: countInSource(ts, /^\s*(\/\/|\*|\/\*)\s*eslint-disable/gm),
     rustAllow: countInCode(rust, /#\[allow\(/g),
     rustExpect: countInCode(rust, /#\[expect\(/g),
     rustUnsafeBlocks: countInCode(rust, /\bunsafe\s*\{/g),

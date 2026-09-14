@@ -32,7 +32,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function createTeam(overrides: Partial<TeamData> & { training_groups?: unknown } = {}): TeamData {
+function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
     id: "team-1",
     name: "Alpha FC",

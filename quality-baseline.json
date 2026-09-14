@@ -1,7 +1,7 @@
 {
   "oversizedAggregate": {
     "rust": 62875,
-    "ts": 35369
+    "ts": 35383
   },
   "allowedOversized": {
     "src-tauri/crates/db/src/repositories/player_repo.rs": 1062,
@@ -81,7 +81,7 @@
     "src/pages/MatchSimulation.test.tsx": 623,
     "src/pages/SimLab.tsx": 945,
     "src/pages/WorldEditor.tsx": 790,
-    "src/store/types.ts": 775,
+    "src/store/types.ts": 789,
     "src/utils/backendI18n.test.ts": 1182,
     "src/utils/backendI18n.ts": 693
   },
@@ -89,8 +89,8 @@
     "tsAnyAnnotation": 0,
     "tsAnyAssertion": 0,
     "tsIgnore": 0,
-    "biomeIgnore": 11,
-    "eslintDisable": 8,
+    "biomeIgnore": 8,
+    "eslintDisable": 5,
     "rustAllow": 22,
     "rustExpect": 0,
     "rustUnsafeBlocks": 0

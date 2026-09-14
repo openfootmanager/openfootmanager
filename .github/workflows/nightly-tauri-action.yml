@@ -179,11 +179,15 @@ jobs:
   # does not exist yet.
   finalize-nightly:
     needs: [prepare-nightly, publish-tauri-nightly]
-    # `fail-fast: false` means one platform can fail while the others upload new
-    # assets. Finalizing anyway keeps the release name and, more importantly, the
-    # published checksums consistent with the assets that *did* land — skipping
-    # would leave nightly-checksums.txt describing files that no longer exist.
-    if: ${{ !cancelled() && needs.prepare-nightly.result == 'success' && needs.publish-tauri-nightly.result != 'skipped' }}
+    # Every platform must have succeeded. `fail-fast: false` lets one fail while the others
+    # upload, and the previous condition here (`result != 'skipped'`) was *true* for a failed
+    # matrix — so a build missing its macOS bundles would still have been published, with
+    # checksums describing a set of assets nobody can download in full. That is the thing the
+    # draft was introduced to prevent one commit ago, and the condition did not honour it.
+    #
+    # A failed or cancelled build now simply stays a draft: invisible, harmless, and still there
+    # to look at. Nothing is deleted, so the last good nightly is untouched.
+    if: ${{ needs.prepare-nightly.result == 'success' && needs.publish-tauri-nightly.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       # contents:write to edit the release below; actions:write to dispatch
