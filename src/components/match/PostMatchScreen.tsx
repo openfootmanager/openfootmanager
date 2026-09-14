@@ -2,20 +2,11 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
-import {
-  MatchSnapshot,
-  MatchEvent,
-  getTeamTalkOptions,
-  TeamTalkTone,
-} from "./types";
+import { MatchSnapshot, MatchEvent, getTeamTalkOptions, TeamTalkTone } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
-import {
-  QuickStat,
-  renderScorers,
-  PlayerRatingsPanel,
-} from "./PostMatchHelpers";
+import { QuickStat, renderScorers, PlayerRatingsPanel } from "./PostMatchHelpers";
 import { PossessionDonut } from "./PostMatchCharts";
 import {
   Trophy,
@@ -43,8 +34,14 @@ interface PostMatchScreenProps {
 type PostMatchTab = "teamTalk" | "matchReport" | "playerRatings" | "tactics";
 
 const SET_PIECE_CLEAR_EVENTS = new Set([
-  "ShotOffTarget", "ShotBlocked", "ShotSaved", "PenaltyMiss",
-  "Clearance", "Interception", "PassIntercepted", "GoalKick",
+  "ShotOffTarget",
+  "ShotBlocked",
+  "ShotSaved",
+  "PenaltyMiss",
+  "Clearance",
+  "Interception",
+  "PassIntercepted",
+  "GoalKick",
 ]);
 
 export function computeGoalSources(
@@ -69,7 +66,8 @@ export function computeGoalSources(
     } else if (evt.event_type === "Goal") {
       if (evt.side === side) {
         if (lastSetPiece?.type === "Corner" && lastSetPiece.side === side) sources.corners++;
-        else if (lastSetPiece?.type === "FreeKick" && lastSetPiece.side === side) sources.freekicks++;
+        else if (lastSetPiece?.type === "FreeKick" && lastSetPiece.side === side)
+          sources.freekicks++;
         else sources.openPlay++;
       }
       lastSetPiece = null;
@@ -109,27 +107,19 @@ export default function PostMatchScreen({
     }[]
   >([]);
 
-  const homeFullTeam = gameState.teams.find(
-    (t) => t.id === snapshot.home_team.id,
-  );
-  const awayFullTeam = gameState.teams.find(
-    (t) => t.id === snapshot.away_team.id,
-  );
+  const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
+  const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
-  const userScore =
-    userSide === "Home" ? snapshot.home_score : snapshot.away_score;
-  const oppScore =
-    userSide === "Home" ? snapshot.away_score : snapshot.home_score;
+  const userScore = userSide === "Home" ? snapshot.home_score : snapshot.away_score;
+  const oppScore = userSide === "Home" ? snapshot.away_score : snapshot.home_score;
 
   // The match score stays the regulation/ET score; a level tie decided on
   // penalties resolves the verdict via the shootout tally instead.
   const shootout = snapshot.penalty_shootout;
-  const userPens =
-    userSide === "Home" ? shootout?.home_scored : shootout?.away_scored;
-  const oppPens =
-    userSide === "Home" ? shootout?.away_scored : shootout?.home_scored;
+  const userPens = userSide === "Home" ? shootout?.home_scored : shootout?.away_scored;
+  const oppPens = userSide === "Home" ? shootout?.away_scored : shootout?.home_scored;
 
   const resultType =
     userScore > oppScore
@@ -181,12 +171,7 @@ export default function PostMatchScreen({
 
   const handleDeliverTalk = async () => {
     if (!selectedTalk || talkPending) return;
-    const context =
-      resultType === "win"
-        ? "winning"
-        : resultType === "loss"
-          ? "losing"
-          : "drawing";
+    const context = resultType === "win" ? "winning" : resultType === "loss" ? "losing" : "drawing";
     setTalkPending(true);
     setTalkError(null);
     try {
@@ -438,9 +423,7 @@ export default function PostMatchScreen({
                               : "bg-gray-50 hover:bg-gray-100 dark:bg-navy-700/50 dark:hover:bg-navy-700"
                           }`}
                         >
-                          <span className="text-2xl">
-                            {getTalkIcon(opt.icon)}
-                          </span>
+                          <span className="text-2xl">{getTalkIcon(opt.icon)}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p
@@ -452,9 +435,7 @@ export default function PostMatchScreen({
                               >
                                 {opt.label}
                               </p>
-                              {isSuggested && (
-                                <Star className="w-3 h-3 text-accent-400 shrink-0" />
-                              )}
+                              {isSuggested && <Star className="w-3 h-3 text-accent-400 shrink-0" />}
                             </div>
                             <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
                               {opt.description}
@@ -475,27 +456,18 @@ export default function PostMatchScreen({
                           : "bg-primary-500/20 hover:bg-primary-500/30 text-primary-400"
                       }`}
                     >
-                      {talkPending
-                        ? t("match.delivering")
-                        : t("match.deliverTeamTalk")}
+                      {talkPending ? t("match.delivering") : t("match.deliverTeamTalk")}
                     </button>
                   )}
-                  {talkError && (
-                    <p className="text-sm text-red-500 mt-2">{talkError}</p>
-                  )}
+                  {talkError && <p className="text-sm text-red-500 mt-2">{talkError}</p>}
                 </div>
               ) : (
                 <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-6 transition-colors duration-300">
                   <div className="flex items-center gap-3 mb-5">
-                    <span className="text-2xl">
-                      {getTalkIcon(selectedTalk || "")}
-                    </span>
+                    <span className="text-2xl">{getTalkIcon(selectedTalk || "")}</span>
                     <div>
                       <p className="text-sm font-heading font-bold text-primary-400">
-                        {
-                          teamTalkOptions.find((o) => o.id === selectedTalk)
-                            ?.label
-                        }
+                        {teamTalkOptions.find((o) => o.id === selectedTalk)?.label}
                       </p>
                       <Badge variant="success" size="sm">
                         {t("match.delivered")}
@@ -576,123 +548,108 @@ export default function PostMatchScreen({
             hidden={activeTab !== "matchReport"}
             className="grid grid-cols-2 gap-6"
           >
-              {/* Scorers */}
-              <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-                <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
-                  {t("match.scorers")}
+            {/* Scorers */}
+            <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+              <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+                {t("match.scorers")}
+              </h3>
+              {renderScorers(snapshot, importantEvents, "Home")}
+              {renderScorers(snapshot, importantEvents, "Away")}
+              {keyEvents.filter((e) => e.event_type === "Goal" || e.event_type === "PenaltyGoal")
+                .length === 0 && (
+                <p className="text-xs text-gray-600 dark:text-gray-500">{t("match.noGoals")}</p>
+              )}
+            </div>
+
+            {/* Quick Stats */}
+            <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                  {t("match.quickStats")}
                 </h3>
-                {renderScorers(snapshot, importantEvents, "Home")}
-                {renderScorers(snapshot, importantEvents, "Away")}
-                {keyEvents.filter(
-                  (e) =>
-                    e.event_type === "Goal" || e.event_type === "PenaltyGoal",
-                ).length === 0 && (
-                  <p className="text-xs text-gray-600 dark:text-gray-500">
-                    {t("match.noGoals")}
-                  </p>
-                )}
               </div>
-
-              {/* Quick Stats */}
-              <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                    {t("match.quickStats")}
-                  </h3>
-                </div>
-                <div className="flex justify-center mb-3">
-                  <PossessionDonut
-                    homePct={snapshot.home_possession_pct}
-                    awayPct={snapshot.away_possession_pct}
-                    homeTeamName={snapshot.home_team.name}
-                    awayTeamName={snapshot.away_team.name}
-                    homeColor={homeTeamColor}
-                    awayColor={awayTeamColor}
-                    label={t("match.possession")}
-                  />
-                </div>
-                <QuickStat
-                  label={t("match.shots")}
-                  home={homeShots}
-                  away={awayShots}
-                />
-                <QuickStat
-                  label={t("match.fouls")}
-                  home={countType(homeEvents, "Foul")}
-                  away={countType(awayEvents, "Foul")}
-                />
-                <QuickStat
-                  label={t("match.corners")}
-                  home={countType(homeEvents, "Corner")}
-                  away={countType(awayEvents, "Corner")}
+              <div className="flex justify-center mb-3">
+                <PossessionDonut
+                  homePct={snapshot.home_possession_pct}
+                  awayPct={snapshot.away_possession_pct}
+                  homeTeamName={snapshot.home_team.name}
+                  awayTeamName={snapshot.away_team.name}
+                  homeColor={homeTeamColor}
+                  awayColor={awayTeamColor}
+                  label={t("match.possession")}
                 />
               </div>
+              <QuickStat label={t("match.shots")} home={homeShots} away={awayShots} />
+              <QuickStat
+                label={t("match.fouls")}
+                home={countType(homeEvents, "Foul")}
+                away={countType(awayEvents, "Foul")}
+              />
+              <QuickStat
+                label={t("match.corners")}
+                home={countType(homeEvents, "Corner")}
+                away={countType(awayEvents, "Corner")}
+              />
+            </div>
 
-              {/* Key Events */}
-              <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-                <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
-                  {t("match.matchEvents")}
-                </h3>
-                {keyEvents.length === 0 ? (
-                  <p className="text-xs text-gray-600 dark:text-gray-500">
-                    {t("match.quietMatch")}
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {keyEvents.map((evt, i) => {
-                      const display = getEventDisplay(evt);
-                      return (
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                          <span className="text-gray-600 dark:text-gray-500 tabular-nums w-6 text-right font-heading">
-                            {evt.minute}'
-                          </span>
-                          <span>{display.icon}</span>
-                          <span
-                            className={`${display.color} font-medium truncate flex-1`}
-                          >
-                            {getPlayerName(snapshot, evt.player_id)}
-                          </span>
-                          <Badge
-                            variant={evt.side === "Home" ? "primary" : "accent"}
-                            size="sm"
-                          >
-                            {evt.side === "Home"
-                              ? snapshot.home_team.name.substring(0, 3)
-                              : snapshot.away_team.name.substring(0, 3)}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Substitutions */}
-              {snapshot.substitutions.length > 0 && (
-                <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-                  <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
-                    {t("match.substitutions")}
-                  </h3>
-                  <div className="flex flex-col gap-2">
-                    {snapshot.substitutions.map((sub, i) => (
+            {/* Key Events */}
+            <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+              <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+                {t("match.matchEvents")}
+              </h3>
+              {keyEvents.length === 0 ? (
+                <p className="text-xs text-gray-600 dark:text-gray-500">{t("match.quietMatch")}</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {keyEvents.map((evt, i) => {
+                    const display = getEventDisplay(evt);
+                    return (
                       <div key={i} className="flex items-center gap-2 text-xs">
                         <span className="text-gray-600 dark:text-gray-500 tabular-nums w-6 text-right font-heading">
-                          {sub.minute}'
+                          {evt.minute}'
                         </span>
-                        <span className="text-green-400">↑</span>
-                        <span className="text-gray-700 dark:text-gray-300 truncate flex-1">
-                          {getPlayerName(snapshot, sub.player_on_id)}
+                        <span>{display.icon}</span>
+                        <span className={`${display.color} font-medium truncate flex-1`}>
+                          {getPlayerName(snapshot, evt.player_id)}
                         </span>
-                        <span className="text-red-400">↓</span>
-                        <span className="text-gray-500 dark:text-gray-400 truncate">
-                          {getPlayerName(snapshot, sub.player_off_id)}
-                        </span>
+                        <Badge variant={evt.side === "Home" ? "primary" : "accent"} size="sm">
+                          {evt.side === "Home"
+                            ? snapshot.home_team.name.substring(0, 3)
+                            : snapshot.away_team.name.substring(0, 3)}
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               )}
+            </div>
+
+            {/* Substitutions */}
+            {snapshot.substitutions.length > 0 && (
+              <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+                <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+                  {t("match.substitutions")}
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {snapshot.substitutions.map((sub, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="text-gray-600 dark:text-gray-500 tabular-nums w-6 text-right font-heading">
+                        {sub.minute}'
+                      </span>
+                      <span className="text-green-400">↑</span>
+                      <span className="text-gray-700 dark:text-gray-300 truncate flex-1">
+                        {getPlayerName(snapshot, sub.player_on_id)}
+                      </span>
+                      <span className="text-red-400">↓</span>
+                      <span className="text-gray-500 dark:text-gray-400 truncate">
+                        {getPlayerName(snapshot, sub.player_off_id)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Player Ratings Tab */}
@@ -726,8 +683,10 @@ export default function PostMatchScreen({
             {(() => {
               const homeSrc = computeGoalSources(snapshot.events, "Home");
               const awaySrc = computeGoalSources(snapshot.events, "Away");
-              const homeTotal = homeSrc.openPlay + homeSrc.corners + homeSrc.freekicks + homeSrc.penalties || 1;
-              const awayTotal = awaySrc.openPlay + awaySrc.corners + awaySrc.freekicks + awaySrc.penalties || 1;
+              const homeTotal =
+                homeSrc.openPlay + homeSrc.corners + homeSrc.freekicks + homeSrc.penalties || 1;
+              const awayTotal =
+                awaySrc.openPlay + awaySrc.corners + awaySrc.freekicks + awaySrc.penalties || 1;
               const sourceKeys: { key: keyof typeof homeSrc; label: string }[] = [
                 { key: "openPlay", label: t("match.openPlay") },
                 { key: "corners", label: t("match.cornersGoals") },
@@ -765,8 +724,14 @@ export default function PostMatchScreen({
                             </span>
                           </div>
                           <div className="flex h-1 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary-500" style={{ width: `${homeBarPct}%` }} />
-                            <div className="h-full bg-indigo-500" style={{ width: `${awayBarPct}%` }} />
+                            <div
+                              className="h-full bg-primary-500"
+                              style={{ width: `${homeBarPct}%` }}
+                            />
+                            <div
+                              className="h-full bg-indigo-500"
+                              style={{ width: `${awayBarPct}%` }}
+                            />
                           </div>
                         </div>
                       );
@@ -786,13 +751,17 @@ export default function PostMatchScreen({
                   className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: teamColor }} />
+                    <div
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: teamColor }}
+                    />
                     <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                       {team.name}
                     </h3>
                   </div>
                   <p className="text-[10px] text-gray-500 dark:text-gray-500 font-heading uppercase tracking-wider mb-3">
-                    {team.formation} · {t(`common.playStyles.${team.play_style}` as never, team.play_style)}
+                    {team.formation} ·{" "}
+                    {t(`common.playStyles.${team.play_style}` as never, team.play_style)}
                   </p>
                   <div className="flex flex-col gap-0.5 max-h-52 overflow-auto">
                     {team.players.map((p) => (
@@ -800,9 +769,14 @@ export default function PostMatchScreen({
                         <span className="text-gray-500 dark:text-gray-500 text-[10px] font-heading uppercase w-6 shrink-0">
                           {p.position.charAt(0)}
                         </span>
-                        <span className="text-gray-700 dark:text-gray-300 truncate flex-1">{p.name}</span>
+                        <span className="text-gray-700 dark:text-gray-300 truncate flex-1">
+                          {p.name}
+                        </span>
                         <span className="text-gray-500 dark:text-gray-400 text-[10px] font-heading shrink-0">
-                          {t(`tactics.playerRoles.${p.role ?? "Standard"}` as never, p.role ?? "Standard")}
+                          {t(
+                            `tactics.playerRoles.${p.role ?? "Standard"}` as never,
+                            p.role ?? "Standard",
+                          )}
                         </span>
                       </div>
                     ))}
@@ -811,7 +785,6 @@ export default function PostMatchScreen({
               );
             })}
           </div>
-
         </div>
       </div>
     </div>

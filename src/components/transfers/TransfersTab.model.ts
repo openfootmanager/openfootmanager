@@ -17,16 +17,9 @@ export const SPECIFIC_POSITIONS_BY_GROUP: Record<string, string[]> = {
   Forward: ["LeftWinger", "RightWinger", "Striker"],
 };
 
-export type TransferTabView =
-  | "my_list"
-  | "players"
-  | "offers";
+export type TransferTabView = "my_list" | "players" | "offers";
 
-export type TransferAvailabilityFilter =
-  | "all"
-  | "transfer"
-  | "loan"
-  | "free_agent";
+export type TransferAvailabilityFilter = "all" | "transfer" | "loan" | "free_agent";
 
 export interface TransferCollections {
   myTransferList: PlayerData[];
@@ -51,13 +44,8 @@ export function uniquePlayersById(players: PlayerData[]): PlayerData[] {
   });
 }
 
-export function getMyListedPlayers(
-  collections: TransferCollections,
-): PlayerData[] {
-  return uniquePlayersById([
-    ...collections.myTransferList,
-    ...collections.myLoanList,
-  ]);
+export function getMyListedPlayers(collections: TransferCollections): PlayerData[] {
+  return uniquePlayersById([...collections.myTransferList, ...collections.myLoanList]);
 }
 
 /**
@@ -69,12 +57,8 @@ export function getMyListedPlayers(
  */
 export function playerHasPendingRegistration(player: PlayerData): boolean {
   return (
-    (player.transfer_offers ?? []).some(
-      (offer) => offer.status === "PendingRegistration",
-    ) ||
-    (player.loan_offers ?? []).some(
-      (offer) => offer.status === "PendingRegistration",
-    )
+    (player.transfer_offers ?? []).some((offer) => offer.status === "PendingRegistration") ||
+    (player.loan_offers ?? []).some((offer) => offer.status === "PendingRegistration")
   );
 }
 
@@ -83,14 +67,10 @@ export function deriveTransferCollections(
   userTeamId: string | null,
 ): TransferCollections {
   const myTransferList = gameState.players.filter(
-    (player) =>
-      player.team_id === userTeamId &&
-      player.transfer_listed &&
-      !player.active_loan,
+    (player) => player.team_id === userTeamId && player.transfer_listed && !player.active_loan,
   );
   const myLoanList = gameState.players.filter(
-    (player) =>
-      player.team_id === userTeamId && player.loan_listed && !player.active_loan,
+    (player) => player.team_id === userTeamId && player.loan_listed && !player.active_loan,
   );
   const marketPlayers = gameState.players.filter(
     (player) =>
@@ -116,22 +96,13 @@ export function deriveTransferCollections(
     marketPlayers,
     freeAgentPlayers,
     loanPlayers,
-    availablePlayers: uniquePlayersById([
-      ...marketPlayers,
-      ...loanPlayers,
-      ...freeAgentPlayers,
-    ]),
+    availablePlayers: uniquePlayersById([...marketPlayers, ...loanPlayers, ...freeAgentPlayers]),
     playersWithOffers: gameState.players.filter(
       (player) =>
-        (player.transfer_offers.length > 0 ||
-          (player.loan_offers?.length ?? 0) > 0) &&
+        (player.transfer_offers.length > 0 || (player.loan_offers?.length ?? 0) > 0) &&
         (player.team_id === userTeamId ||
-          player.transfer_offers.some(
-            (offer) => offer.from_team_id === userTeamId,
-          ) ||
-          (player.loan_offers ?? []).some(
-            (offer) => offer.from_team_id === userTeamId,
-          )),
+          player.transfer_offers.some((offer) => offer.from_team_id === userTeamId) ||
+          (player.loan_offers ?? []).some((offer) => offer.from_team_id === userTeamId)),
     ),
   };
 }
@@ -173,8 +144,7 @@ export function filterTransferPlayers(
   affordability: TransferAffordability | null = null,
   specificPositions: readonly string[] = [],
 ): PlayerData[] {
-  const specificSet =
-    specificPositions.length > 0 ? new Set(specificPositions) : null;
+  const specificSet = specificPositions.length > 0 ? new Set(specificPositions) : null;
 
   return players.filter((player) => {
     if (availabilityFilter === "transfer" && !player.transfer_listed) {

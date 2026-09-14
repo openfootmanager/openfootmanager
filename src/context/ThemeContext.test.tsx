@@ -39,7 +39,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <ThemeConsumer />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     expect(screen.getByTestId("theme").textContent).toBe("dark");
     expect(screen.getByTestId("isDark").textContent).toBe("true");
@@ -49,7 +49,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <ThemeConsumer />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
@@ -58,7 +58,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <ThemeConsumer />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     fireEvent.click(screen.getByText("Toggle"));
     expect(screen.getByTestId("theme").textContent).toBe("light");
@@ -70,7 +70,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <ThemeConsumer />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     fireEvent.click(screen.getByText("Toggle")); // dark -> light
     fireEvent.click(screen.getByText("Toggle")); // light -> dark
@@ -82,7 +82,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <ThemeConsumer />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     expect(localStorage.getItem("ofm-theme")).toBe("dark");
     fireEvent.click(screen.getByText("Toggle"));
@@ -94,7 +94,7 @@ describe("ThemeProvider", () => {
     render(
       <ThemeProvider>
         <ThemeConsumer />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     expect(screen.getByTestId("theme").textContent).toBe("light");
   });

@@ -471,11 +471,7 @@ describe("buildDigestEntries", function (): void {
 
     const entries = buildDigestEntries(game, "2026-07-01", results);
 
-    expect(entries.map((entry) => entry.date)).toEqual([
-      "2026-07-01",
-      "2026-07-02",
-      "2026-07-03",
-    ]);
+    expect(entries.map((entry) => entry.date)).toEqual(["2026-07-01", "2026-07-02", "2026-07-03"]);
     expect(entries[0].recap.matches).toHaveLength(1);
     expect(entries[0].recap.news).toEqual([]);
     expect(entries[1].recap.matches).toEqual([]);
@@ -629,9 +625,7 @@ describe("detectAttentionEvents", function (): void {
         fixtures: [],
         standings: [],
         transfer_log: [
-          ...Array.from({ length: 8 }, () =>
-            transferAt("team-2", "2026-07-01T12:00:00Z"),
-          ),
+          ...Array.from({ length: 8 }, () => transferAt("team-2", "2026-07-01T12:00:00Z")),
           transferAt("team-1", "2026-07-01"),
         ],
       },
@@ -690,14 +684,10 @@ describe("detectAttentionEvents", function (): void {
 
     // The recap window lands on 2026-07-02 (the fixture clock).
     const opensToday = withWindow({ opens_on: "2026-07-02" });
-    expect(detectAttentionEvents(opensToday, recapFor(opensToday))).toEqual([
-      "transferWindow",
-    ]);
+    expect(detectAttentionEvents(opensToday, recapFor(opensToday))).toEqual(["transferWindow"]);
 
     const deadline = withWindow({ status: "DeadlineDay" });
-    expect(detectAttentionEvents(deadline, recapFor(deadline))).toEqual([
-      "transferWindow",
-    ]);
+    expect(detectAttentionEvents(deadline, recapFor(deadline))).toEqual(["transferWindow"]);
 
     const midWindow = withWindow({ status: "Open", closes_on: "2026-08-31" });
     expect(detectAttentionEvents(midWindow, recapFor(midWindow))).toEqual([]);

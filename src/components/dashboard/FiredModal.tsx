@@ -26,11 +26,7 @@ export default function FiredModal(): JSX.Element | null {
           <h2 className="text-2xl font-heading font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide text-center">
             {t("sacked.title")}
           </h2>
-          {teamName && (
-            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-              {teamName}
-            </p>
-          )}
+          {teamName && <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">{teamName}</p>}
         </div>
 
         {/* Letter body */}

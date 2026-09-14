@@ -34,9 +34,20 @@ export function useEntityEditor<T extends { id: string }>(options: {
   cloneItem?: (item: T, id: string) => T;
   onDirty?: () => void;
 }) {
-  const { items, setItems, empty, captureHistory, saveItems, autoSave, onOpen, onClose, setIsBusy, onDirty } =
-    options;
-  const cloneItem = options.cloneItem ?? ((item: T, id: string) => ({ ...structuredClone(item), id }));
+  const {
+    items,
+    setItems,
+    empty,
+    captureHistory,
+    saveItems,
+    autoSave,
+    onOpen,
+    onClose,
+    setIsBusy,
+    onDirty,
+  } = options;
+  const cloneItem =
+    options.cloneItem ?? ((item: T, id: string) => ({ ...structuredClone(item), id }));
 
   const [editing, setEditing] = useState<T>(empty);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -58,7 +69,15 @@ export function useEntityEditor<T extends { id: string }>(options: {
   // commitField can run long after the render that created it — an asset pick
   // awaits a native file dialog first — so it must not write through the list
   // it saw back then. Anything the user did during the dialog would be undone.
-  const latest = useRef({ items, setItems, captureHistory, saveItems, autoSave, onDirty, revision });
+  const latest = useRef({
+    items,
+    setItems,
+    captureHistory,
+    saveItems,
+    autoSave,
+    onDirty,
+    revision,
+  });
   latest.current = { items, setItems, captureHistory, saveItems, autoSave, onDirty, revision };
 
   /**
@@ -94,9 +113,7 @@ export function useEntityEditor<T extends { id: string }>(options: {
     // A blank id cannot be told apart from another blank one, so an unnamed
     // record falls back to the position it had when the commit started — no
     // worse than before, and it keeps a not-yet-named entity working.
-    const index = editingId
-      ? items.findIndex((item) => item.id === editingId)
-      : editingIndex;
+    const index = editingId ? items.findIndex((item) => item.id === editingId) : editingIndex;
     // The record is gone (an undo discarded it). Writing it back would
     // resurrect something the user just removed.
     if (index === -1 || index >= items.length) return;
@@ -109,7 +126,10 @@ export function useEntityEditor<T extends { id: string }>(options: {
     const updated = items.map((item, i) => (i === index ? { ...item, [key]: value } : item));
     setItems(updated);
     onDirty?.();
-    if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
+    if (autoSave)
+      void saveItems(updated).catch(() => {
+        /* persist already showed the error */
+      });
   }
 
   function handleSelect(index: number) {
@@ -132,7 +152,10 @@ export function useEntityEditor<T extends { id: string }>(options: {
     captureHistory();
     const updated = items.filter((_, i) => i !== index);
     setItems(updated);
-    if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
+    if (autoSave)
+      void saveItems(updated).catch(() => {
+        /* persist already showed the error */
+      });
     if (editingIndex === index) {
       onClose();
     } else if (editingIndex !== null && index < editingIndex) {
@@ -158,7 +181,10 @@ export function useEntityEditor<T extends { id: string }>(options: {
     const clone = cloneItem(source, uniqueEntityId(source.id || "copy", taken));
     const updated = [...items.slice(0, index + 1), clone, ...items.slice(index + 1)];
     setItems(updated);
-    if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
+    if (autoSave)
+      void saveItems(updated).catch(() => {
+        /* persist already showed the error */
+      });
     setEditing({ ...clone });
     setEditingIndex(index + 1);
     setEditingId(clone.id);
@@ -210,5 +236,18 @@ export function useEntityEditor<T extends { id: string }>(options: {
     }
   }
 
-  return { editing, editingIndex, revision, setEditing, updateField, commitField, handleSelect, handleAdd, handleDelete, handleDuplicate, handleSave, syncEditing };
+  return {
+    editing,
+    editingIndex,
+    revision,
+    setEditing,
+    updateField,
+    commitField,
+    handleSelect,
+    handleAdd,
+    handleDelete,
+    handleDuplicate,
+    handleSave,
+    syncEditing,
+  };
 }

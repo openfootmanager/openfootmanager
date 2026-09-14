@@ -2,24 +2,15 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
-import {
-  Card,
-  CardBody,
-} from "../ui";
-import {
-  Eye,
-  ScanSearch,
-} from "lucide-react";
+import { Card, CardBody } from "../ui";
+import { Eye, ScanSearch } from "lucide-react";
 import {
   cancelYouthScouting,
   reassignYouthScouting,
   sendScout,
   startYouthScouting,
 } from "../../services/scoutingService";
-import {
-  calculateAvailableScouts,
-  scoutMaxSlots,
-} from "./ScoutingTab.helpers";
+import { calculateAvailableScouts, scoutMaxSlots } from "./ScoutingTab.helpers";
 import {
   buildAlreadyScoutingIds,
   filterScoutablePlayers,
@@ -103,9 +94,7 @@ export default function ScoutingTab({
   });
 
   const myTeamId = gameState.manager.team_id ?? "";
-  const scouts = gameState.staff.filter(
-    (s) => s.role === "Scout" && s.team_id === myTeamId,
-  );
+  const scouts = gameState.staff.filter((s) => s.role === "Scout" && s.team_id === myTeamId);
   const assignments = gameState.scouting_assignments || [];
   const youthAssignments = gameState.youth_scouting_assignments || [];
   const allAssignments = [...assignments, ...youthAssignments];
@@ -129,8 +118,11 @@ export default function ScoutingTab({
     posFilter,
     searchQuery,
   });
-  const { totalPages, safePage, players: scoutablePlayers } =
-    paginateScoutablePlayers(allScoutable, page, SCOUTING_PAGE_SIZE);
+  const {
+    totalPages,
+    safePage,
+    players: scoutablePlayers,
+  } = paginateScoutablePlayers(allScoutable, page, SCOUTING_PAGE_SIZE);
 
   const alreadyScoutingIds = buildAlreadyScoutingIds(assignments);
 
@@ -186,10 +178,7 @@ export default function ScoutingTab({
     }
   };
 
-  const handleReassignYouthScouting = async (
-    assignmentId: string,
-    scoutId: string,
-  ) => {
+  const handleReassignYouthScouting = async (assignmentId: string, scoutId: string) => {
     setYouthSearchError(null);
     try {
       const updated = await reassignYouthScouting(assignmentId, scoutId);
@@ -310,9 +299,7 @@ export default function ScoutingTab({
           onSelectTeam={onSelectTeam}
           onSendScout={handleSendScout}
           onPreviousPage={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
-          onNextPage={() =>
-            setPage((currentPage) => Math.min(totalPages - 1, currentPage + 1))
-          }
+          onNextPage={() => setPage((currentPage) => Math.min(totalPages - 1, currentPage + 1))}
         />
       )}
       {bidTarget && (

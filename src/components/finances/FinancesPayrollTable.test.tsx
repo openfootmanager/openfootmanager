@@ -21,9 +21,7 @@ const roster = [
 describe("FinancesPayrollTable", () => {
   it("selects a player when a row is clicked", () => {
     const onSelectPlayer = vi.fn();
-    render(
-      <FinancesPayrollTable roster={roster} onSelectPlayer={onSelectPlayer} />,
-    );
+    render(<FinancesPayrollTable roster={roster} onSelectPlayer={onSelectPlayer} />);
 
     fireEvent.click(screen.getByRole("button", { name: /John Smith/ }));
 
@@ -32,9 +30,7 @@ describe("FinancesPayrollTable", () => {
 
   it("selects a player from the keyboard with Enter and Space", () => {
     const onSelectPlayer = vi.fn();
-    render(
-      <FinancesPayrollTable roster={roster} onSelectPlayer={onSelectPlayer} />,
-    );
+    render(<FinancesPayrollTable roster={roster} onSelectPlayer={onSelectPlayer} />);
 
     const row = screen.getByRole("button", { name: /Ana Ruiz/ });
     expect(row).toHaveAttribute("tabindex", "0");

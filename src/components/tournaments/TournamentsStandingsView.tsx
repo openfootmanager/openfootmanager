@@ -108,8 +108,7 @@ export default function TournamentsStandingsView({
       <div className="p-5 border-b border-gray-100 dark:border-navy-600 bg-gradient-to-r from-navy-700 to-navy-800 rounded-t-xl">
         <h3 className="text-lg font-heading font-bold text-white flex items-center gap-2 uppercase tracking-wider">
           <Trophy className="text-accent-400 w-5 h-5" />
-          {competitionDisplayName(league, t)} —{" "}
-          {t("schedule.season", { number: league.season })}
+          {competitionDisplayName(league, t)} — {t("schedule.season", { number: league.season })}
         </h3>
       </div>
       <div className="overflow-x-auto">

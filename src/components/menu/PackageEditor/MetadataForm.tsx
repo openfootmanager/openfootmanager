@@ -10,14 +10,14 @@ import type { CompetitionScope, FallbackLeagueConfig, WorldMetaDef } from "./typ
 const ENGINE_DEFAULT = "";
 
 const SPDX_LICENSES = [
-  { id: "CC0-1.0",      name: "CC0 1.0 Public Domain" },
-  { id: "CC-BY-4.0",   name: "CC BY 4.0" },
-  { id: "CC-BY-SA-4.0",name: "CC BY-SA 4.0" },
-  { id: "CC-BY-NC-4.0",name: "CC BY-NC 4.0" },
-  { id: "MIT",          name: "MIT" },
-  { id: "Apache-2.0",  name: "Apache 2.0" },
-  { id: "GPL-2.0-only",name: "GPL 2.0" },
-  { id: "__custom__",  name: "Custom / Other" },
+  { id: "CC0-1.0", name: "CC0 1.0 Public Domain" },
+  { id: "CC-BY-4.0", name: "CC BY 4.0" },
+  { id: "CC-BY-SA-4.0", name: "CC BY-SA 4.0" },
+  { id: "CC-BY-NC-4.0", name: "CC BY-NC 4.0" },
+  { id: "MIT", name: "MIT" },
+  { id: "Apache-2.0", name: "Apache 2.0" },
+  { id: "GPL-2.0-only", name: "GPL 2.0" },
+  { id: "__custom__", name: "Custom / Other" },
 ];
 
 interface LicenseDetails {
@@ -47,7 +47,7 @@ const LICENSE_DETAILS: Record<string, LicenseDetails> = {
     conditions: ["Attribution", "Non-commercial only"],
     limitations: ["Commercial use", "No liability"],
   },
-  "MIT": {
+  MIT: {
     permissions: ["Commercial use", "Modification", "Distribution", "Private use"],
     conditions: ["Attribution"],
     limitations: ["No liability", "No warranty"],
@@ -87,7 +87,14 @@ interface MetadataFormProps {
   projectDir?: string;
 }
 
-export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, projectDir }: MetadataFormProps) {
+export function MetadataForm({
+  meta,
+  onChange,
+  onCommit,
+  onAssetError,
+  counts,
+  projectDir,
+}: MetadataFormProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
   // The logo commit fires after an async copy, and this form applies its other
@@ -96,7 +103,11 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
   // by a stale render snapshot.
   const metaRef = useRef(meta);
   metaRef.current = meta;
-  const { dataUrl: logoDataUrl, pick: pickLogo, clear: clearLogo } = useAssetPicker({
+  const {
+    dataUrl: logoDataUrl,
+    pick: pickLogo,
+    clear: clearLogo,
+  } = useAssetPicker({
     relPath: meta.logo,
     projectDir,
     entityId: () => metaRef.current.id || "package-logo",
@@ -104,9 +115,7 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
     onError: onAssetError,
   });
 
-  const isKnownLicense = SPDX_LICENSES.some(
-    (l) => l.id !== "__custom__" && l.id === meta.license,
-  );
+  const isKnownLicense = SPDX_LICENSES.some((l) => l.id !== "__custom__" && l.id === meta.license);
   const [useCustom, setUseCustom] = useState(!isKnownLicense && meta.license !== "");
 
   const packageTypeLabels: Record<string, string> = {
@@ -206,7 +215,11 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
             <label className={labelClass}>{t("worldEditor.packageLogo")}</label>
             <div className="flex items-center gap-3">
               {logoDataUrl ? (
-                <img src={logoDataUrl} alt="" className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+                <img
+                  src={logoDataUrl}
+                  alt=""
+                  className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0"
+                />
               ) : (
                 <div className="w-12 h-12 rounded-lg border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
                   <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
@@ -215,7 +228,9 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => { void pickLogo(); }}
+                  onClick={() => {
+                    void pickLogo();
+                  }}
                   className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
                 >
                   {t("worldEditor.chooseLogo")}
@@ -223,7 +238,9 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
                 {meta.logo && (
                   <button
                     type="button"
-                    onClick={() => { clearLogo(); }}
+                    onClick={() => {
+                      clearLogo();
+                    }}
                     className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -291,9 +308,7 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
             value={fallbackLeague.legs ? String(fallbackLeague.legs) : ENGINE_DEFAULT}
             options={[ENGINE_DEFAULT, "1", "2"]}
             optionLabels={fallbackLegsLabels}
-            onChange={(v) =>
-              setFallbackLeague({ legs: v === ENGINE_DEFAULT ? null : Number(v) })
-            }
+            onChange={(v) => setFallbackLeague({ legs: v === ENGINE_DEFAULT ? null : Number(v) })}
           />
           <LabeledSelect
             label={t("worldEditor.competitionScope")}
@@ -316,7 +331,11 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
           <p className={labelClass}>{t("worldEditor.licensePreview")}</p>
           <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 p-4 flex items-start gap-3">
             {logoDataUrl ? (
-              <img src={logoDataUrl} alt="" className="w-9 h-9 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+              <img
+                src={logoDataUrl}
+                alt=""
+                className="w-9 h-9 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0"
+              />
             ) : (
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
                 <Globe className="w-5 h-5 text-white" />
@@ -347,14 +366,16 @@ export function MetadataForm({ meta, onChange, onCommit, onAssetError, counts, p
               )}
               {counts && (
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {([
-                    { n: counts.teams, key: "sectionTeams" },
-                    { n: counts.players, key: "sectionPlayers" },
-                    { n: counts.confederations, key: "sectionConfederations" },
-                    { n: counts.countries, key: "sectionCountries" },
-                    { n: counts.competitions, key: "sectionCompetitions" },
-                    { n: counts.namePools, key: "sectionNames" },
-                  ] as const)
+                  {(
+                    [
+                      { n: counts.teams, key: "sectionTeams" },
+                      { n: counts.players, key: "sectionPlayers" },
+                      { n: counts.confederations, key: "sectionConfederations" },
+                      { n: counts.countries, key: "sectionCountries" },
+                      { n: counts.competitions, key: "sectionCompetitions" },
+                      { n: counts.namePools, key: "sectionNames" },
+                    ] as const
+                  )
                     .filter(({ n }) => n > 0)
                     .map(({ n, key }) => (
                       <span

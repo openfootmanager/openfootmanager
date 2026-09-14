@@ -52,7 +52,10 @@ export function useNamesPoolEditor({
       pools: Object.fromEntries(Object.entries(names.pools).filter(([k]) => k !== key)),
     };
     setNames(updated);
-    if (autoSave) void saveNames(updated).catch(() => { /* persist already showed the error */ });
+    if (autoSave)
+      void saveNames(updated).catch(() => {
+        /* persist already showed the error */
+      });
     if (editingPoolKey === key) onClose();
   }
 

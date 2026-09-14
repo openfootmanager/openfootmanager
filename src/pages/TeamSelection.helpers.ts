@@ -1,28 +1,17 @@
 import type { TFunction } from "i18next";
 
-import {
-  GameStateData,
-  LeagueData,
-  PlayerData,
-  WorldRegionData,
-} from "../store/gameStore";
+import { GameStateData, LeagueData, PlayerData, WorldRegionData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
 
-export function competitionScopeLabel(
-  t: TFunction,
-  scope?: string,
-): string | null {
+export function competitionScopeLabel(t: TFunction, scope?: string): string | null {
   if (!scope) {
     return null;
   }
   return t(`teamSelect.scopes.${scope}`, { defaultValue: scope });
 }
 
-export function competitionKindLabel(
-  t: TFunction,
-  kind?: string,
-): string | null {
+export function competitionKindLabel(t: TFunction, kind?: string): string | null {
   if (!kind) {
     return null;
   }
@@ -69,10 +58,7 @@ export function competitionRequiredRegions(competition: LeagueData): string[] {
   return Array.from(regionIds).sort();
 }
 
-export function teamCompetitions(
-  teamId: string,
-  competitions: LeagueData[],
-): LeagueData[] {
+export function teamCompetitions(teamId: string, competitions: LeagueData[]): LeagueData[] {
   return competitions.filter(
     (competition) =>
       competition.participant_ids?.includes(teamId) ??
@@ -83,16 +69,13 @@ export function teamCompetitions(
 }
 
 export function likelyXi(players: PlayerData[]): PlayerData[] {
-  return [...players]
-    .sort((left, right) => getPlayerOvr(right) - getPlayerOvr(left))
-    .slice(0, 11);
+  return [...players].sort((left, right) => getPlayerOvr(right) - getPlayerOvr(left)).slice(0, 11);
 }
 
 export function sortCompetitions(competitions: LeagueData[]): LeagueData[] {
   return [...competitions].sort(
     (left, right) =>
-      (left.priority ?? Number.MAX_SAFE_INTEGER) -
-        (right.priority ?? Number.MAX_SAFE_INTEGER) ||
+      (left.priority ?? Number.MAX_SAFE_INTEGER) - (right.priority ?? Number.MAX_SAFE_INTEGER) ||
       left.name.localeCompare(right.name),
   );
 }

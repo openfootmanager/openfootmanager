@@ -16,7 +16,14 @@ function attrColor(val: number): string {
 function estimateAttributesFromOvr(overall: number, position: Position): PlayerAttributesDef {
   const b = Math.max(30, Math.min(97, overall));
   const isGK = position === "Goalkeeper";
-  const isDef = ["Defender", "CenterBack", "RightBack", "LeftBack", "RightWingBack", "LeftWingBack"].includes(position);
+  const isDef = [
+    "Defender",
+    "CenterBack",
+    "RightBack",
+    "LeftBack",
+    "RightWingBack",
+    "LeftWingBack",
+  ].includes(position);
   const isFwd = ["Forward", "Striker", "RightWinger", "LeftWinger"].includes(position);
   return {
     pace: b,
@@ -25,7 +32,7 @@ function estimateAttributesFromOvr(overall: number, position: Position): PlayerA
     agility: b,
     passing: b,
     shooting: isGK ? 30 : b,
-    tackling: (isGK || isFwd) ? Math.max(20, b - 15) : b,
+    tackling: isGK || isFwd ? Math.max(20, b - 15) : b,
     dribbling: isGK ? 30 : b,
     defending: isGK ? 35 : isDef ? Math.min(97, b + 3) : b,
     positioning: b,
@@ -58,11 +65,11 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
   const { t } = useTranslation();
 
   const displayName =
-    editing.name ||
-    [editing.firstName, editing.lastName].filter(Boolean).join(" ") ||
-    null;
+    editing.name || [editing.firstName, editing.lastName].filter(Boolean).join(" ") || null;
 
-  const abbr = t(`common.posAbbr.${editing.position}`, { defaultValue: editing.position.slice(0, 2).toUpperCase() });
+  const abbr = t(`common.posAbbr.${editing.position}`, {
+    defaultValue: editing.position.slice(0, 2).toUpperCase(),
+  });
   const posColor = POSITION_COLOR[editing.position] ?? "bg-gray-500";
 
   const age = calcAge(editing.dateOfBirth);
@@ -71,8 +78,11 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
   const club = teams?.find((t) => t.id === editing.club);
   const clubName = club?.name ?? editing.club;
 
-  const displayAttrs = editing.attributes
-    ?? (editing.overall !== null ? estimateAttributesFromOvr(editing.overall, editing.position) : null);
+  const displayAttrs =
+    editing.attributes ??
+    (editing.overall !== null
+      ? estimateAttributesFromOvr(editing.overall, editing.position)
+      : null);
   const isEstimated = !editing.attributes && editing.overall !== null;
 
   return (
@@ -87,11 +97,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
             className="w-16 h-16 rounded-full object-cover border-2 border-white/20"
           />
         ) : displayName ? (
-          <GeneratedAvatar
-            name={displayName}
-            initials={initials}
-            className="w-16 h-16"
-          />
+          <GeneratedAvatar name={displayName} initials={initials} className="w-16 h-16" />
         ) : (
           <div className="w-16 h-16 rounded-full bg-navy-600 flex items-center justify-center">
             <User className="w-8 h-8 text-gray-500" />
@@ -118,18 +124,17 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
             <span
               className="text-2xl font-heading font-black leading-none"
               style={{
-                color: editing.overall >= 80
-                  ? "var(--color-success-500, #22c55e)"
-                  : editing.overall >= 65
-                    ? "var(--color-primary-500, #3b82f6)"
-                    : "#9ca3af",
+                color:
+                  editing.overall >= 80
+                    ? "var(--color-success-500, #22c55e)"
+                    : editing.overall >= 65
+                      ? "var(--color-primary-500, #3b82f6)"
+                      : "#9ca3af",
               }}
             >
               {editing.overall}
             </span>
-            {isEstimated && (
-              <span className="text-[10px] text-gray-400 italic">est.</span>
-            )}
+            {isEstimated && <span className="text-[10px] text-gray-400 italic">est.</span>}
           </div>
         )}
 
@@ -146,7 +151,9 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
                   </p>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                     {keys.map((key) => {
-                      const val = displayAttrs[key as keyof typeof displayAttrs] as number | undefined;
+                      const val = displayAttrs[key as keyof typeof displayAttrs] as
+                        | number
+                        | undefined;
                       if (val == null) return null;
                       const label = t(`common.attributes.${key}`).slice(0, 3).toUpperCase();
                       return (
@@ -176,7 +183,10 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
         {/* Bio info */}
         <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-navy-600">
           {editing.nationality && (
-            <p>{t("worldEditor.playerNationality")}: <span className="text-gray-700 dark:text-gray-200">{editing.nationality}</span></p>
+            <p>
+              {t("worldEditor.playerNationality")}:{" "}
+              <span className="text-gray-700 dark:text-gray-200">{editing.nationality}</span>
+            </p>
           )}
           {editing.club && (
             <div className="flex items-center gap-1.5">
@@ -198,12 +208,18 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
           )}
           {editing.dateOfBirth && (
             <p>
-              {t("worldEditor.playerDateOfBirth")}: <span className="text-gray-700 dark:text-gray-200">{editing.dateOfBirth}</span>
+              {t("worldEditor.playerDateOfBirth")}:{" "}
+              <span className="text-gray-700 dark:text-gray-200">{editing.dateOfBirth}</span>
               {age !== null && <span className="text-gray-400 dark:text-gray-500"> ({age}y)</span>}
             </p>
           )}
           {editing.footedness && editing.footedness !== "Right" && (
-            <p>{t("worldEditor.playerFoot")}: <span className="text-gray-700 dark:text-gray-200">{t(`common.footedness.${editing.footedness}`)}</span></p>
+            <p>
+              {t("worldEditor.playerFoot")}:{" "}
+              <span className="text-gray-700 dark:text-gray-200">
+                {t(`common.footedness.${editing.footedness}`)}
+              </span>
+            </p>
           )}
         </div>
       </div>

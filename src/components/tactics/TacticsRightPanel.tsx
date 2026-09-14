@@ -57,17 +57,9 @@ export default function TacticsRightPanel({
     }
   }
 
-  async function handleRoleChange(
-    role: keyof TeamMatchRolesData,
-    playerId: string,
-  ): Promise<void> {
+  async function handleRoleChange(role: keyof TeamMatchRolesData, playerId: string): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(
-        effectiveRoles,
-        startingPlayers,
-        role,
-        playerId,
-      ),
+      buildUpdatedMatchRolesForAssignment(effectiveRoles, startingPlayers, role, playerId),
     );
   }
 
@@ -85,7 +77,9 @@ export default function TacticsRightPanel({
         <div className="border-b border-gray-100 px-3 py-2 dark:border-navy-700">
           <button
             type="button"
-            onClick={() => { setRolesOpen((o) => !o); }}
+            onClick={() => {
+              setRolesOpen((o) => !o);
+            }}
             aria-expanded={rolesOpen}
             className="flex items-center gap-1.5 text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
@@ -105,7 +99,9 @@ export default function TacticsRightPanel({
               <div className="space-y-1">
                 <button
                   type="button"
-                  onClick={() => { void handleAutoSelectAssignments(); }}
+                  onClick={() => {
+                    void handleAutoSelectAssignments();
+                  }}
                   className="mb-2 w-full rounded-lg border border-primary-200 py-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 transition-colors hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-400 dark:hover:bg-primary-500/10"
                 >
                   {t("tactics.autoSelectAssignments")}
@@ -117,7 +113,9 @@ export default function TacticsRightPanel({
                   currentId={effectiveRoles.captain}
                   players={selectorPlayers}
                   allSquad={allSquad}
-                  onSelect={(id) => { void handleRoleChange("captain", id); }}
+                  onSelect={(id) => {
+                    void handleRoleChange("captain", id);
+                  }}
                 />
                 <SetPieceSelector
                   label={t("tactics.viceCaptain")}
@@ -126,7 +124,9 @@ export default function TacticsRightPanel({
                   currentId={effectiveRoles.vice_captain}
                   players={selectorPlayers}
                   allSquad={allSquad}
-                  onSelect={(id) => { void handleRoleChange("vice_captain", id); }}
+                  onSelect={(id) => {
+                    void handleRoleChange("vice_captain", id);
+                  }}
                 />
                 <SetPieceSelector
                   label={t("preMatch.penaltyTaker")}
@@ -135,7 +135,9 @@ export default function TacticsRightPanel({
                   currentId={effectiveRoles.penalty_taker}
                   players={selectorPlayers.filter((p) => p.position !== "Goalkeeper")}
                   allSquad={allSquad}
-                  onSelect={(id) => { void handleRoleChange("penalty_taker", id); }}
+                  onSelect={(id) => {
+                    void handleRoleChange("penalty_taker", id);
+                  }}
                 />
                 <SetPieceSelector
                   label={t("preMatch.freeKickTaker")}
@@ -144,7 +146,9 @@ export default function TacticsRightPanel({
                   currentId={effectiveRoles.free_kick_taker}
                   players={selectorPlayers.filter((p) => p.position !== "Goalkeeper")}
                   allSquad={allSquad}
-                  onSelect={(id) => { void handleRoleChange("free_kick_taker", id); }}
+                  onSelect={(id) => {
+                    void handleRoleChange("free_kick_taker", id);
+                  }}
                 />
                 <SetPieceSelector
                   label={t("preMatch.cornerTaker")}
@@ -153,7 +157,9 @@ export default function TacticsRightPanel({
                   currentId={effectiveRoles.corner_taker}
                   players={selectorPlayers.filter((p) => p.position !== "Goalkeeper")}
                   allSquad={allSquad}
-                  onSelect={(id) => { void handleRoleChange("corner_taker", id); }}
+                  onSelect={(id) => {
+                    void handleRoleChange("corner_taker", id);
+                  }}
                 />
               </div>
             )}
@@ -166,7 +172,9 @@ export default function TacticsRightPanel({
         <div className="border-b border-gray-100 px-3 py-2 dark:border-navy-700">
           <button
             type="button"
-            onClick={() => { setBlueprintOpen((o) => !o); }}
+            onClick={() => {
+              setBlueprintOpen((o) => !o);
+            }}
             aria-expanded={blueprintOpen}
             className="flex items-center gap-1.5 text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
@@ -183,7 +191,6 @@ export default function TacticsRightPanel({
           />
         )}
       </div>
-
     </div>
   );
 }

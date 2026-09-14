@@ -61,18 +61,14 @@ export default function HomeNextOpponentCard({
                       </p>
                     </div>
                   </div>
-                  <Badge
-                    variant={nextOpponent.isHome ? "success" : "accent"}
-                    size="sm"
-                  >
+                  <Badge variant={nextOpponent.isHome ? "success" : "accent"} size="sm">
                     {nextOpponent.isHome ? t("home.home") : t("home.away")}
                   </Badge>
                 </div>
               );
             })()}
 
-            {(nextOpponent.standingPosition !== null ||
-              nextOpponent.standingPoints !== null) && (
+            {(nextOpponent.standingPosition !== null || nextOpponent.standingPoints !== null) && (
               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                 {nextOpponent.standingPosition !== null && (
                   <Badge variant="neutral" size="sm">

@@ -1,17 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
-import type {
-  PlayerData,
-  TeamData,
-  TransferOfferData,
-} from "../../store/gameStore";
-import {
-  formatExactMoney,
-  formatVal,
-  getTeamName,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
 import type {
   TransferBidProjectionData,
   TransferNegotiationResponseData,
@@ -108,9 +99,7 @@ export function TransferBidForm({
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="text-xs">
-            <p className="font-heading font-bold uppercase tracking-wider">
-              {blockingTitle}
-            </p>
+            <p className="font-heading font-bold uppercase tracking-wider">{blockingTitle}</p>
             {blockingDetail ? <p className="mt-1">{blockingDetail}</p> : null}
           </div>
         </div>

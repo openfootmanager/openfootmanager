@@ -30,8 +30,7 @@ export default function TournamentsFixturesView({
         <Card key={matchday}>
           <div className="px-5 py-3 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 rounded-t-xl">
             <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-600 dark:text-gray-300">
-              {t("schedule.matchday", { number: matchday })} —{" "}
-              {formatMatchDate(fixtures[0].date)}
+              {t("schedule.matchday", { number: matchday })} — {formatMatchDate(fixtures[0].date)}
             </h4>
           </div>
           <CardBody className="p-0">

@@ -1,17 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
-import {
-  getErrorMessage,
-  resolveTranslatedErrorMessage,
-} from "../../utils/errorMessage";
-import {
-  Card,
-  CardBody,
-  Badge,
-  Select,
-  CountryFlag,
-  PlayerAvatar,
-} from "../ui";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
+import { Card, CardBody, Badge, Select, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
 import {
   Search,
@@ -29,10 +19,7 @@ import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
-import {
-  toggleLoanList,
-  toggleTransferList,
-} from "../../services/transfersService";
+import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 import {
   fetchPlayersPage,
   type PlayerSortKey,
@@ -167,18 +154,14 @@ export default function PlayersListTab({
     onGameUpdate: handleGameUpdate,
   });
   const scouts = gameState.staff.filter(
-    (staffMember) =>
-      staffMember.role === "Scout" && staffMember.team_id === managerTeamId,
+    (staffMember) => staffMember.role === "Scout" && staffMember.team_id === managerTeamId,
   );
   const scoutingAssignments = gameState.scouting_assignments || [];
   const allScoutingAssignments = [
     ...scoutingAssignments,
     ...(gameState.youth_scouting_assignments || []),
   ];
-  const availableScouts = calculateAvailableScouts(
-    scouts,
-    allScoutingAssignments,
-  );
+  const availableScouts = calculateAvailableScouts(scouts, allScoutingAssignments);
   const alreadyScoutingIds = buildAlreadyScoutingIds(scoutingAssignments);
 
   const handleScoutPlayer = async (playerId: string): Promise<void> => {
@@ -247,9 +230,7 @@ export default function PlayersListTab({
           {positions.map((pos) => (
             <button
               key={pos}
-              onClick={() =>
-                patchQuery({ position: query.position === pos ? null : pos })
-              }
+              onClick={() => patchQuery({ position: query.position === pos ? null : pos })}
               className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
                 query.position === pos
                   ? "bg-primary-500 text-white shadow-sm"
@@ -388,9 +369,7 @@ export default function PlayersListTab({
                         ? "unavailable"
                         : "ready";
                   const contextItems = [
-                    buildViewProfileMenuItem(t, () =>
-                      onSelectPlayer(summary.id),
-                    ),
+                    buildViewProfileMenuItem(t, () => onSelectPlayer(summary.id)),
                     ...(summary.team_id
                       ? [
                           buildViewTeamMenuItem(t, () => {
@@ -403,34 +382,24 @@ export default function PlayersListTab({
                   if (summary.team_id === managerTeamId) {
                     contextItems.push(buildDividerMenuItem());
                     contextItems.push(
-                      buildToggleTransferListMenuItem(
-                        t,
-                        summary.transfer_listed,
-                        async () => {
-                          try {
-                            const updated = await toggleTransferList(
-                              summary.id,
-                            );
-                            handleGameUpdate(updated);
-                          } catch {
-                            return;
-                          }
-                        },
-                      ),
+                      buildToggleTransferListMenuItem(t, summary.transfer_listed, async () => {
+                        try {
+                          const updated = await toggleTransferList(summary.id);
+                          handleGameUpdate(updated);
+                        } catch {
+                          return;
+                        }
+                      }),
                     );
                     contextItems.push(
-                      buildToggleLoanListMenuItem(
-                        t,
-                        summary.loan_listed,
-                        async () => {
-                          try {
-                            const updated = await toggleLoanList(summary.id);
-                            handleGameUpdate(updated);
-                          } catch {
-                            return;
-                          }
-                        },
-                      ),
+                      buildToggleLoanListMenuItem(t, summary.loan_listed, async () => {
+                        try {
+                          const updated = await toggleLoanList(summary.id);
+                          handleGameUpdate(updated);
+                        } catch {
+                          return;
+                        }
+                      }),
                     );
                   } else {
                     const playerActions = summary.team_id
@@ -496,10 +465,7 @@ export default function PlayersListTab({
                         className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400"
                         title={summary.nationality}
                       >
-                        <CountryFlag
-                          code={summary.nationality}
-                          className="text-lg leading-none"
-                        />
+                        <CountryFlag code={summary.nationality} className="text-lg leading-none" />
                       </td>
                       <td className="py-2.5 px-4">
                         {summary.team_id ? (
@@ -596,9 +562,7 @@ export default function PlayersListTab({
                   {page} / {totalPages}
                 </span>
                 <button
-                  onClick={() =>
-                    patchQuery({ page: Math.min(totalPages, page + 1) })
-                  }
+                  onClick={() => patchQuery({ page: Math.min(totalPages, page + 1) })}
                   disabled={page === totalPages}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
                 >

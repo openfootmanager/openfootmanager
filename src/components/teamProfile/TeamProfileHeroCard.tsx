@@ -51,7 +51,8 @@ export default function TeamProfileHeroCard({
             </div>
             {viewModel.manager && (
               <p className="text-white/70 text-sm mt-1 flex items-center gap-1.5">
-                <Users className="w-4 h-4" /> {t("teamProfile.managerLabel")} {viewModel.manager.first_name} {viewModel.manager.last_name}
+                <Users className="w-4 h-4" /> {t("teamProfile.managerLabel")}{" "}
+                {viewModel.manager.first_name} {viewModel.manager.last_name}
               </p>
             )}
           </div>
@@ -67,10 +68,7 @@ export default function TeamProfileHeroCard({
               label={t("teamProfile.leaguePos")}
               value={viewModel.leaguePos > 0 ? `#${viewModel.leaguePos}` : "—"}
             />
-            <QuickHeroStat
-              label={t("teams.squad")}
-              value={String(viewModel.roster.length)}
-            />
+            <QuickHeroStat label={t("teams.squad")} value={String(viewModel.roster.length)} />
           </div>
         </div>
       </div>
@@ -81,11 +79,7 @@ export default function TeamProfileHeroCard({
           value={String(viewModel.avgOvr)}
           color="text-primary-500"
         />
-        <QuickStat
-          label={t("teams.rep")}
-          value={String(team.reputation)}
-          color="text-accent-500"
-        />
+        <QuickStat label={t("teams.rep")} value={String(team.reputation)} color="text-accent-500" />
         <QuickStat
           label={t("common.position")}
           value={viewModel.leaguePos > 0 ? `#${viewModel.leaguePos}` : "—"}
@@ -112,12 +106,8 @@ function QuickHeroStat({
 }) {
   return (
     <div className="bg-black/20 backdrop-blur rounded-xl px-5 py-3 text-center min-w-[100px]">
-      <p className="text-xs text-white/60 font-heading uppercase tracking-wider">
-        {label}
-      </p>
-      <p className={`font-heading font-bold text-2xl mt-0.5 ${valueClassName}`}>
-        {value}
-      </p>
+      <p className="text-xs text-white/60 font-heading uppercase tracking-wider">{label}</p>
+      <p className={`font-heading font-bold text-2xl mt-0.5 ${valueClassName}`}>{value}</p>
     </div>
   );
 }

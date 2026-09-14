@@ -67,22 +67,16 @@ function standing(points: number, goalsFor: number, goalsAgainst: number) {
 
 describe("isKnockoutCompetition", () => {
   it("treats a plain league table as not a knockout", () => {
-    expect(
-      isKnockoutCompetition({ rules: { format: "LeagueTable" } } as LeagueData),
-    ).toBe(false);
+    expect(isKnockoutCompetition({ rules: { format: "LeagueTable" } } as LeagueData)).toBe(false);
   });
 
   it("treats any other declared format as a knockout", () => {
-    expect(
-      isKnockoutCompetition({ rules: { format: "Knockout" } } as LeagueData),
-    ).toBe(true);
+    expect(isKnockoutCompetition({ rules: { format: "Knockout" } } as LeagueData)).toBe(true);
   });
 
   it("falls back to the presence of knockout rounds when there are no rules", () => {
     expect(isKnockoutCompetition({} as LeagueData)).toBe(false);
-    expect(
-      isKnockoutCompetition({ knockout_rounds: [] } as unknown as LeagueData),
-    ).toBe(false);
+    expect(isKnockoutCompetition({ knockout_rounds: [] } as unknown as LeagueData)).toBe(false);
     expect(
       isKnockoutCompetition({
         knockout_rounds: [{ name: "Final" }],
@@ -93,39 +87,24 @@ describe("isKnockoutCompetition", () => {
 
 describe("byTablePosition", () => {
   it("ranks on points first", () => {
-    expect(byTablePosition(standing(10, 0, 0), standing(9, 99, 0))).toBeLessThan(
-      0,
-    );
+    expect(byTablePosition(standing(10, 0, 0), standing(9, 99, 0))).toBeLessThan(0);
   });
 
   it("breaks equal points on goal difference", () => {
     // +7 beats +5 even though the second side scored far more goals.
-    expect(
-      byTablePosition(standing(10, 8, 1), standing(10, 20, 15)),
-    ).toBeLessThan(0);
+    expect(byTablePosition(standing(10, 8, 1), standing(10, 20, 15))).toBeLessThan(0);
   });
 
   it("breaks equal points and goal difference on goals scored", () => {
     // Both +5; the side that scored 20 goes above the side that scored 6.
-    expect(
-      byTablePosition(standing(10, 20, 15), standing(10, 6, 1)),
-    ).toBeLessThan(0);
-    expect(
-      byTablePosition(standing(10, 6, 1), standing(10, 20, 15)),
-    ).toBeGreaterThan(0);
+    expect(byTablePosition(standing(10, 20, 15), standing(10, 6, 1))).toBeLessThan(0);
+    expect(byTablePosition(standing(10, 6, 1), standing(10, 20, 15))).toBeGreaterThan(0);
   });
 
   it("sorts a table best-first", () => {
-    const table = [
-      standing(3, 1, 1),
-      standing(9, 10, 2),
-      standing(3, 5, 5),
-      standing(6, 4, 4),
-    ];
+    const table = [standing(3, 1, 1), standing(9, 10, 2), standing(3, 5, 5), standing(6, 4, 4)];
 
-    expect([...table].sort(byTablePosition).map((row) => row.points)).toEqual([
-      9, 6, 3, 3,
-    ]);
+    expect([...table].sort(byTablePosition).map((row) => row.points)).toEqual([9, 6, 3, 3]);
   });
 });
 
@@ -135,18 +114,12 @@ describe("localizedRoundName", () => {
 
   it("maps the named rounds to translation keys", () => {
     expect(localizedRoundName(t, "Final")).toBe("tournaments.rounds.final");
-    expect(localizedRoundName(t, "Semifinal")).toBe(
-      "tournaments.rounds.semifinal",
-    );
-    expect(localizedRoundName(t, "Quarterfinal")).toBe(
-      "tournaments.rounds.quarterfinal",
-    );
+    expect(localizedRoundName(t, "Semifinal")).toBe("tournaments.rounds.semifinal");
+    expect(localizedRoundName(t, "Quarterfinal")).toBe("tournaments.rounds.quarterfinal");
   });
 
   it("passes the bracket size through for 'Round of N'", () => {
-    expect(localizedRoundName(t, "Round of 16")).toBe(
-      "tournaments.rounds.roundOf:16",
-    );
+    expect(localizedRoundName(t, "Round of 16")).toBe("tournaments.rounds.roundOf:16");
   });
 
   it("returns anything it does not recognise unchanged", () => {
@@ -233,10 +206,7 @@ describe("buildTopScorers", () => {
   });
 
   it("drops scorers with no known name rather than showing a blank row", () => {
-    const scorers = buildTopScorers(
-      [played(1, ["p1", "unknown", "unknown"], [])],
-      names,
-    );
+    const scorers = buildTopScorers([played(1, ["p1", "unknown", "unknown"], [])], names);
 
     expect(scorers).toHaveLength(1);
     expect(scorers[0].playerId).toBe("p1");
@@ -247,9 +217,7 @@ describe("buildTopScorers", () => {
   });
 
   it("caps the table at the requested limit", () => {
-    const many = Object.fromEntries(
-      Array.from({ length: 12 }, (_, i) => [`q${i}`, name()]),
-    );
+    const many = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`q${i}`, name()]));
     const goals = played(
       1,
       Array.from({ length: 12 }, (_, i) => `q${i}`),

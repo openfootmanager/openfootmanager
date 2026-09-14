@@ -2,8 +2,16 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n, { SUPPORTED_LANGUAGES } from "../../i18n";
 import {
-  ArrowLeft, CheckCircle, Package, Loader2, AlertCircle,
-  Undo2, Redo2, Save, ToggleLeft, ToggleRight,
+  ArrowLeft,
+  CheckCircle,
+  Package,
+  Loader2,
+  AlertCircle,
+  Undo2,
+  Redo2,
+  Save,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { Select } from "../ui/Select";
 import { ThemeToggle } from "../ui/ThemeToggle";
@@ -180,12 +188,16 @@ export function WorldEditorTopBar({
         {/* Language picker */}
         <Select
           value={i18n.language}
-          onChange={(e) => { void i18n.changeLanguage(e.target.value); }}
+          onChange={(e) => {
+            void i18n.changeLanguage(e.target.value);
+          }}
           selectSize="sm"
           title={t("settings.language")}
         >
           {SUPPORTED_LANGUAGES.map(({ code, labelKey }) => (
-            <option key={code} value={code}>{t(labelKey)}</option>
+            <option key={code} value={code}>
+              {t(labelKey)}
+            </option>
           ))}
         </Select>
 

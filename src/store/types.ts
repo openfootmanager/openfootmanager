@@ -3,12 +3,7 @@ export interface TeamColors {
   secondary: string;
 }
 
-export type KitPattern =
-  | "Solid"
-  | "Stripes"
-  | "Hoops"
-  | "HalfAndHalf"
-  | "Diagonal";
+export type KitPattern = "Solid" | "Stripes" | "Hoops" | "HalfAndHalf" | "Diagonal";
 
 export interface FacilitiesData {
   training: number;
@@ -304,12 +299,7 @@ export interface TransferOfferData {
   last_manager_fee: number | null;
   negotiation_round: number;
   suggested_counter_fee: number | null;
-  status:
-    | "Pending"
-    | "PendingRegistration"
-    | "Accepted"
-    | "Rejected"
-    | "Withdrawn";
+  status: "Pending" | "PendingRegistration" | "Accepted" | "Rejected" | "Withdrawn";
   date: string;
   registration_date?: string | null;
 }
@@ -329,12 +319,7 @@ export interface LoanOfferData {
   suggested_wage_contribution_pct?: number | null;
   suggested_end_date?: string | null;
   suggested_buy_option_fee?: number | null;
-  status:
-    | "Pending"
-    | "PendingRegistration"
-    | "Accepted"
-    | "Rejected"
-    | "Withdrawn";
+  status: "Pending" | "PendingRegistration" | "Accepted" | "Rejected" | "Withdrawn";
   date: string;
 }
 

@@ -116,10 +116,7 @@ describe("useTournamentsData", () => {
       ),
     );
 
-    expect(result.current.activeCompetitions.map((c) => c.id)).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(result.current.activeCompetitions.map((c) => c.id)).toEqual(["a", "b"]);
   });
 
   it("shows only the competitions listed as active", () => {
@@ -184,17 +181,14 @@ describe("useTournamentsData", () => {
   // A selection can outlive the competition it points at — a cup ends, a season
   // rolls over — and must not leave the screen pointing at nothing.
   it("moves the selection on when the chosen competition stops being active", () => {
-    const { result, rerender } = renderHook(
-      ({ state }) => useTournamentsData(state),
-      {
-        initialProps: {
-          state: gameState({
-            competitions: [competition("cup"), competition("plate")],
-            active_competition_ids: ["cup", "plate"],
-          }),
-        },
+    const { result, rerender } = renderHook(({ state }) => useTournamentsData(state), {
+      initialProps: {
+        state: gameState({
+          competitions: [competition("cup"), competition("plate")],
+          active_competition_ids: ["cup", "plate"],
+        }),
       },
-    );
+    });
     act(() => result.current.setSelectedCompetitionId("plate"));
     expect(result.current.league?.id).toBe("plate");
 
@@ -211,9 +205,7 @@ describe("useTournamentsData", () => {
   it("names the reigning champion of a World Cup's season", async () => {
     mockedFetch.mockResolvedValue(
       slice({
-        competitions: [
-          competition("wc", { kind: "InternationalNation" } as Partial<LeagueData>),
-        ],
+        competitions: [competition("wc", { kind: "InternationalNation" } as Partial<LeagueData>)],
         active_competition_ids: ["wc"],
         world_cup_champions: [
           { year: 2026, nation_name: "Brazil" },
@@ -224,9 +216,7 @@ describe("useTournamentsData", () => {
 
     const { result } = renderHook(() => useTournamentsData(gameState()));
 
-    await waitFor(() =>
-      expect(result.current.worldCupChampion?.nation_name).toBe("Brazil"),
-    );
+    await waitFor(() => expect(result.current.worldCupChampion?.nation_name).toBe("Brazil"));
   });
 
   it("names no champion for a competition that is not a World Cup", async () => {

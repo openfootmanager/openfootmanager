@@ -32,17 +32,10 @@ export default function TeamProfile({
         className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span className="font-heading font-bold uppercase tracking-wider">
-          {t("common.back")}
-        </span>
+        <span className="font-heading font-bold uppercase tracking-wider">{t("common.back")}</span>
       </button>
 
-      <TeamProfileHeroCard
-        team={team}
-        viewModel={viewModel}
-        locale={i18n.language}
-        t={t}
-      />
+      <TeamProfileHeroCard team={team} viewModel={viewModel} locale={i18n.language} t={t} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <TeamProfileClubDetailsCard team={team} t={t} />
@@ -55,9 +48,7 @@ export default function TeamProfile({
         />
         <TeamProfileLeagueStandingCard standings={viewModel.standings} t={t} />
 
-        {teamStatsOverview && (
-          <TeamProfileAdvancedStatsCard overview={teamStatsOverview} t={t} />
-        )}
+        {teamStatsOverview && <TeamProfileAdvancedStatsCard overview={teamStatsOverview} t={t} />}
 
         <TeamProfileRecentMatchesCard matches={recentMatches} t={t} />
 

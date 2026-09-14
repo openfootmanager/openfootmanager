@@ -36,7 +36,10 @@ import type { SamplePackage } from "../components/menu/PackageEditor/sampleData"
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
-import { WorldEditorFormPanel, type FormPanel } from "../components/worldEditor/WorldEditorFormPanel";
+import {
+  WorldEditorFormPanel,
+  type FormPanel,
+} from "../components/worldEditor/WorldEditorFormPanel";
 import { WorldEditorListContent } from "../components/worldEditor/WorldEditorListContent";
 
 const AUTO_SAVE_KEY = "worldEditor.autoSave";
@@ -90,7 +93,9 @@ export default function WorldEditor() {
   // Layout state
   const [selectedSection, setSelectedSection] = useState<EditTab>("metadata");
   const [formPanel, setFormPanel] = useState<FormPanel>("metadata");
-  const [sectionFormPanels, setSectionFormPanels] = useState<Partial<Record<EditTab, FormPanel>>>({});
+  const [sectionFormPanels, setSectionFormPanels] = useState<Partial<Record<EditTab, FormPanel>>>(
+    {},
+  );
 
   // Async state
   const [isBusy, setIsBusy] = useState(false);
@@ -111,8 +116,26 @@ export default function WorldEditor() {
 
   // Latest committed slices, read at write time so a serialized/queued persist
   // writes one consistent snapshot rather than whatever its closure captured.
-  const stateRef = useRef({ meta, confederations, countries, teams, players, staff, names, competitions });
-  stateRef.current = { meta, confederations, countries, teams, players, staff, names, competitions };
+  const stateRef = useRef({
+    meta,
+    confederations,
+    countries,
+    teams,
+    players,
+    staff,
+    names,
+    competitions,
+  });
+  stateRef.current = {
+    meta,
+    confederations,
+    countries,
+    teams,
+    players,
+    staff,
+    names,
+    competitions,
+  };
 
   /**
    * The undo snapshot, read through `stateRef` rather than this render's state.
@@ -206,7 +229,9 @@ export default function WorldEditor() {
       );
       try {
         localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       return updated;
     });
   }
@@ -215,45 +240,53 @@ export default function WorldEditor() {
   // full-file writes or let an older write land after a newer one.
   const enqueueWrite = useRef(createWriteQueue()).current;
 
-  const persist = useCallback((overrides?: {
-    meta?: WorldMetaDef;
-    confederations?: ConfederationDef[];
-    countries?: CountryDef[];
-    teams?: TeamDef[];
-    players?: PlayerDef[];
-    staff?: StaffDef[];
-    names?: NamesDefinition;
-    competitions?: CompetitionDef[];
-  }) => enqueueWrite(async () => {
-    const s = stateRef.current;
-    setSaveState("saving");
-    try {
-      await invoke("save_package_project", {
-        dir: projectDir,
-        meta: overrides?.meta ?? s.meta,
-        confederations: overrides?.confederations ?? s.confederations,
-        countries: overrides?.countries ?? s.countries,
-        teams: overrides?.teams ?? s.teams,
-        players: overrides?.players ?? s.players,
-        staff: overrides?.staff ?? s.staff,
-        names: overrides?.names ?? s.names,
-        competitions: overrides?.competitions ?? s.competitions,
-      });
-      setSaveState("saved");
-      setIsDirty(false);
-      setTimeout(() => setSaveState("idle"), 2000);
-    } catch (err) {
-      setSaveState("error");
-      flashError(resolveBackendError(err));
-      throw err;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [projectDir]);
+  const persist = useCallback(
+    (overrides?: {
+      meta?: WorldMetaDef;
+      confederations?: ConfederationDef[];
+      countries?: CountryDef[];
+      teams?: TeamDef[];
+      players?: PlayerDef[];
+      staff?: StaffDef[];
+      names?: NamesDefinition;
+      competitions?: CompetitionDef[];
+    }) =>
+      enqueueWrite(async () => {
+        const s = stateRef.current;
+        setSaveState("saving");
+        try {
+          await invoke("save_package_project", {
+            dir: projectDir,
+            meta: overrides?.meta ?? s.meta,
+            confederations: overrides?.confederations ?? s.confederations,
+            countries: overrides?.countries ?? s.countries,
+            teams: overrides?.teams ?? s.teams,
+            players: overrides?.players ?? s.players,
+            staff: overrides?.staff ?? s.staff,
+            names: overrides?.names ?? s.names,
+            competitions: overrides?.competitions ?? s.competitions,
+          });
+          setSaveState("saved");
+          setIsDirty(false);
+          setTimeout(() => setSaveState("idle"), 2000);
+        } catch (err) {
+          setSaveState("error");
+          flashError(resolveBackendError(err));
+          throw err;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }),
+    [projectDir],
+  );
 
   function handleToggleAutoSave() {
     const next = !autoSave;
     setAutoSave(next);
-    try { localStorage.setItem(AUTO_SAVE_KEY, String(next)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(AUTO_SAVE_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
   }
 
   async function handleManualSave() {
@@ -584,11 +617,21 @@ export default function WorldEditor() {
         isBusy={isBusy}
         errorMsg={errorMsg}
         recentProjects={recentProjects}
-        onNewPackage={(m, sample) => { void handleNewPackage(m, sample); }}
-        onOpenPackageFile={() => { void handleOpenPackageFile(); }}
-        onOpenPackageFolder={() => { void handleOpenPackageFolder(); }}
-        onOpenRecent={(path) => { void openFromPath(path, "folder"); }}
-        onOpenInstalled={(ofmPath) => { void openFromPath(ofmPath, "file"); }}
+        onNewPackage={(m, sample) => {
+          void handleNewPackage(m, sample);
+        }}
+        onOpenPackageFile={() => {
+          void handleOpenPackageFile();
+        }}
+        onOpenPackageFolder={() => {
+          void handleOpenPackageFolder();
+        }}
+        onOpenRecent={(path) => {
+          void openFromPath(path, "folder");
+        }}
+        onOpenInstalled={(ofmPath) => {
+          void openFromPath(ofmPath, "file");
+        }}
       />
     );
   }
@@ -625,105 +668,118 @@ export default function WorldEditor() {
 
   return (
     <>
-    <WorldEditorLayout
-      topBar={
-        <WorldEditorTopBar
-          packageName={meta.name || meta.id}
-          packageDir={projectDir}
-          saveState={saveState}
-          isBusy={isBusy}
-          issueCount={issues.length}
-          autoSave={autoSave}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          isDirty={isDirty}
-          onValidate={() => { void handleValidate(); }}
-          onBuild={() => { void handleBuild(); }}
-          onSave={() => { void handleManualSave(); }}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onToggleAutoSave={handleToggleAutoSave}
-        />
-      }
-      sidebar={
-        <WorldEditorSidebar
-          selectedSection={selectedSection}
-          onSelectSection={handleSelectSection}
-          confederationCount={confederations.length}
-          countryCount={countries.length}
-          teamCount={teams.length}
-          playerCount={players.length}
-          youthCount={players.filter((p) => p.youth).length}
-          staffCount={staff.length}
-          namePoolCount={Object.keys(names.pools).length}
-          competitionCount={competitions.length}
-          issueCount={issues.length}
-          onShowIssues={handleShowIssues}
-          showingIssues={formPanel === "issues"}
-        />
-      }
-      listPanel={listPanel}
-      formPanel={
-        <WorldEditorFormPanel
-          formPanel={formPanel}
-          isBusy={isBusy}
-          projectDir={projectDir}
-          meta={meta}
-          onMetaChange={(m) => { setMeta(m); setIsDirty(true); }}
-          onMetaCommit={(m) => {
-            pushHistory(currentSnapshot());
-            setMeta(m);
-            setIsDirty(true);
-            if (autoSave) void persist({ meta: m }).catch(() => {});
-          }}
-          onSaveMetadata={() => { void persist({ meta }).catch(() => {}); }}
-          onAssetError={(err) => flashError(resolveBackendError(err))}
-          counts={{
-            teams: teams.length,
-            players: players.length,
-            confederations: confederations.length,
-            countries: countries.length,
-            competitions: competitions.length,
-            namePools: Object.keys(names.pools).length,
-          }}
-          issues={issues}
-          teamEditor={teamEditor}
-          confEditor={confEditor}
-          countryEditor={countryEditor}
-          playerEditor={playerEditor}
-          youthEditor={youthEditor}
-          staffEditor={staffEditor}
-          compEditor={compEditor}
-          confederations={confederations}
-          teams={teams}
-          editingPoolKey={editingPoolKey}
-          editingPool={editingPool}
-          isNewPool={isNewPool}
-          namesPoolRevision={namesPoolRevision}
-          poolKeys={Object.keys(names.pools)}
-          onSavePool={(key, pool) => { void handleSavePool(key, pool); }}
-          onBack={() => setFormPanel("empty")}
-        />
-      }
-    />
+      <WorldEditorLayout
+        topBar={
+          <WorldEditorTopBar
+            packageName={meta.name || meta.id}
+            packageDir={projectDir}
+            saveState={saveState}
+            isBusy={isBusy}
+            issueCount={issues.length}
+            autoSave={autoSave}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            isDirty={isDirty}
+            onValidate={() => {
+              void handleValidate();
+            }}
+            onBuild={() => {
+              void handleBuild();
+            }}
+            onSave={() => {
+              void handleManualSave();
+            }}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onToggleAutoSave={handleToggleAutoSave}
+          />
+        }
+        sidebar={
+          <WorldEditorSidebar
+            selectedSection={selectedSection}
+            onSelectSection={handleSelectSection}
+            confederationCount={confederations.length}
+            countryCount={countries.length}
+            teamCount={teams.length}
+            playerCount={players.length}
+            youthCount={players.filter((p) => p.youth).length}
+            staffCount={staff.length}
+            namePoolCount={Object.keys(names.pools).length}
+            competitionCount={competitions.length}
+            issueCount={issues.length}
+            onShowIssues={handleShowIssues}
+            showingIssues={formPanel === "issues"}
+          />
+        }
+        listPanel={listPanel}
+        formPanel={
+          <WorldEditorFormPanel
+            formPanel={formPanel}
+            isBusy={isBusy}
+            projectDir={projectDir}
+            meta={meta}
+            onMetaChange={(m) => {
+              setMeta(m);
+              setIsDirty(true);
+            }}
+            onMetaCommit={(m) => {
+              pushHistory(currentSnapshot());
+              setMeta(m);
+              setIsDirty(true);
+              if (autoSave) void persist({ meta: m }).catch(() => {});
+            }}
+            onSaveMetadata={() => {
+              void persist({ meta }).catch(() => {});
+            }}
+            onAssetError={(err) => flashError(resolveBackendError(err))}
+            counts={{
+              teams: teams.length,
+              players: players.length,
+              confederations: confederations.length,
+              countries: countries.length,
+              competitions: competitions.length,
+              namePools: Object.keys(names.pools).length,
+            }}
+            issues={issues}
+            teamEditor={teamEditor}
+            confEditor={confEditor}
+            countryEditor={countryEditor}
+            playerEditor={playerEditor}
+            youthEditor={youthEditor}
+            staffEditor={staffEditor}
+            compEditor={compEditor}
+            confederations={confederations}
+            teams={teams}
+            editingPoolKey={editingPoolKey}
+            editingPool={editingPool}
+            isNewPool={isNewPool}
+            namesPoolRevision={namesPoolRevision}
+            poolKeys={Object.keys(names.pools)}
+            onSavePool={(key, pool) => {
+              void handleSavePool(key, pool);
+            }}
+            onBack={() => setFormPanel("empty")}
+          />
+        }
+      />
 
-    {/* Floating notifications */}
-    {(errorMsg || successMsg) && (
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
-        {errorMsg && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-4 py-3 shadow-lg text-sm text-red-700 dark:text-red-300">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-        {successMsg && (
-          <div className="flex items-center gap-2 rounded-xl border border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10 px-4 py-3 shadow-lg text-sm text-green-700 dark:text-green-300">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-        )}
-      </div>
-    )}
+      {/* Floating notifications */}
+      {(errorMsg || successMsg) && (
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+          {errorMsg && (
+            <div className="flex items-center gap-2 rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-4 py-3 shadow-lg text-sm text-red-700 dark:text-red-300">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+          {successMsg && (
+            <div className="flex items-center gap-2 rounded-xl border border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10 px-4 py-3 shadow-lg text-sm text-green-700 dark:text-green-300">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }

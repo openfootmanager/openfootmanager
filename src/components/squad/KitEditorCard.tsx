@@ -8,13 +8,7 @@ import { useGameStore } from "../../store/gameStore";
 import type { KitPattern } from "../../store/types";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
-const KIT_PATTERNS: KitPattern[] = [
-  "Solid",
-  "Stripes",
-  "Hoops",
-  "HalfAndHalf",
-  "Diagonal",
-];
+const KIT_PATTERNS: KitPattern[] = ["Solid", "Stripes", "Hoops", "HalfAndHalf", "Diagonal"];
 
 interface KitEditorCardProps {
   primaryColor: string;
@@ -56,9 +50,14 @@ export default function KitEditorCard({
           {t("squad.teamKit")}
         </p>
         {isLocked && (
-          <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400" title={t("squad.kitLockedInSeason")}>
+          <div
+            className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"
+            title={t("squad.kitLockedInSeason")}
+          >
             <Lock className="w-3 h-3" />
-            <span className="font-heading font-semibold uppercase tracking-wider">{t("squad.kitPattern")}</span>
+            <span className="font-heading font-semibold uppercase tracking-wider">
+              {t("squad.kitPattern")}
+            </span>
           </div>
         )}
       </div>
@@ -98,10 +97,11 @@ export default function KitEditorCard({
                 disabled={saving}
                 className={`flex flex-col items-center gap-1 rounded-lg p-1.5 transition-all
                             focus:outline-none focus:ring-2 focus:ring-primary-500/40
-                            ${selected
-                    ? "ring-2 ring-primary-500 bg-primary-500/10"
-                    : "hover:bg-gray-100 dark:hover:bg-navy-700"
-                  }`}
+                            ${
+                              selected
+                                ? "ring-2 ring-primary-500 bg-primary-500/10"
+                                : "hover:bg-gray-100 dark:hover:bg-navy-700"
+                            }`}
               >
                 <JerseyIcon
                   primaryColor={primaryColor}
@@ -123,9 +123,7 @@ export default function KitEditorCard({
           {t("squad.kitLockedInSeason")}
         </p>
       )}
-      {error && (
-        <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
     </div>
   );
 }

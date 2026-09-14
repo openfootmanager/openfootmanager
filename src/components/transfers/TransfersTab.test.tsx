@@ -1,18 +1,8 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
-import type {
-  GameStateData,
-  PlayerData,
-  StaffData,
-  TeamData,
-} from "../../store/gameStore";
+import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import TransfersTab from "./TransfersTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -22,8 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendError: (error: unknown) =>
-    error instanceof Error ? error.message : String(error),
+  resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -65,43 +54,29 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.loanEndDate") return "Loan End Date";
       if (key === "transfers.loanPeriod") return "Loan Length";
       if (key === "transfers.loanPeriodThreeMonths") return "3 months";
-      if (key === "transfers.loanPeriodJanuaryWindow")
-        return "Until January window";
-      if (key === "transfers.loanPeriodEndOfSeason")
-        return "Until end of season";
+      if (key === "transfers.loanPeriodJanuaryWindow") return "Until January window";
+      if (key === "transfers.loanPeriodEndOfSeason") return "Until end of season";
       if (key === "transfers.loanPeriodTwelveMonths") return "12 months";
-      if (key === "transfers.loanPeriodCurrentOffer")
-        return "Current offer date";
-      if (key === "transfers.loanEndsOn")
-        return `Loan ends on ${params?.endDate}`;
-      if (key === "transfers.noLoanPeriodAvailable")
-        return "No valid loan length.";
-      if (key === "transfers.loanPeriodUnavailableRules")
-        return "outside loan rules";
-      if (key === "transfers.loanPeriodUnavailableContract")
-        return "contract expires first";
-      if (key === "transfers.loanWageContribution")
-        return "Wage Contribution (%)";
-      if (key === "transfers.loanWageContributionManual")
-        return "Manual percentage";
-      if (key === "transfers.loanWageSummary")
-        return `${params?.percent}% wages: ${params?.wage}`;
+      if (key === "transfers.loanPeriodCurrentOffer") return "Current offer date";
+      if (key === "transfers.loanEndsOn") return `Loan ends on ${params?.endDate}`;
+      if (key === "transfers.noLoanPeriodAvailable") return "No valid loan length.";
+      if (key === "transfers.loanPeriodUnavailableRules") return "outside loan rules";
+      if (key === "transfers.loanPeriodUnavailableContract") return "contract expires first";
+      if (key === "transfers.loanWageContribution") return "Wage Contribution (%)";
+      if (key === "transfers.loanWageContributionManual") return "Manual percentage";
+      if (key === "transfers.loanWageSummary") return `${params?.percent}% wages: ${params?.wage}`;
       if (key === "transfers.loanToBuyOption") return "Loan-to-buy option";
-      if (key === "transfers.loanToBuyOptionDesc")
-        return "Include a permanent purchase clause.";
+      if (key === "transfers.loanToBuyOptionDesc") return "Include a permanent purchase clause.";
       if (key === "transfers.buyOptionFee") return "Buy Option Fee";
       if (key === "transfers.buyOptionFeeShort") return `Option ${params?.fee}`;
-      if (key === "transfers.loanBuyOptionSummary")
-        return `Permanent option at ${params?.fee}`;
+      if (key === "transfers.loanBuyOptionSummary") return `Permanent option at ${params?.fee}`;
       if (key === "transfers.exerciseBuyOption") return "Exercise Option";
       if (key === "transfers.submitLoanOffer") return "Submit Loan Offer";
       if (key === "transfers.submitLoanCounter") return "Submit Counter";
       if (key === "transfers.loanOfferAccepted") return "Loan accepted";
       if (key === "transfers.loanOfferRejected") return "Loan rejected";
-      if (key === "transfers.loanCounterAccepted")
-        return "Loan counter accepted";
-      if (key === "transfers.loanCounterRejected")
-        return "Loan counter rejected";
+      if (key === "transfers.loanCounterAccepted") return "Loan counter accepted";
+      if (key === "transfers.loanCounterRejected") return "Loan counter rejected";
       if (key === "transfers.loanCounterCountered")
         return "They pushed back with adjusted loan terms.";
       if (key === "transfers.loanCounterSuggestedTerms")
@@ -122,10 +97,8 @@ vi.mock("react-i18next", () => ({
         return `Projected wage budget usage ${params?.percent}%`;
       if (key === "transfers.bidImpactOverTransferBudget")
         return "This bid exceeds your transfer budget";
-      if (key === "transfers.bidImpactOverBalance")
-        return "This bid would push the club into debt";
-      if (key === "transfers.resumeNegotiationHint")
-        return "Talks are still live with this club.";
+      if (key === "transfers.bidImpactOverBalance") return "This bid would push the club into debt";
+      if (key === "transfers.resumeNegotiationHint") return "Talks are still live with this club.";
       if (key === "transfers.resumeNegotiationHeadline")
         return "The other club are waiting for your next move.";
       if (key === "transfers.resumeNegotiationDetail")
@@ -136,8 +109,7 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.lastCounterLabel") return "Your last counter";
       if (key === "transfers.currentOfferLabel") return "Their current offer";
       if (key === "transfers.offerStatusPending") return "Live";
-      if (key === "transfers.offerStatusPendingRegistration")
-        return "Pending registration";
+      if (key === "transfers.offerStatusPendingRegistration") return "Pending registration";
       if (key === "transfers.offerStatusAccepted") return "Accepted";
       if (key === "transfers.offerStatusRejected") return "Rejected";
       if (key === "transfers.offerStatusWithdrawn") return "Talks cooled off";
@@ -149,8 +121,7 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.negotiationRound") return `Round ${params?.count}`;
       if (key === "transfers.negotiationPatience") return "Patience";
       if (key === "transfers.negotiationTension") return "Tension";
-      if (key === "transfers.counterCountered")
-        return "They pushed back with a lower number.";
+      if (key === "transfers.counterCountered") return "They pushed back with a lower number.";
       if (key === "transfers.transferFeedbackCounterHeadline")
         return "They want more before shaking hands.";
       if (key === "transfers.transferFeedbackCounterDetail")
@@ -160,10 +131,8 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.transferFeedbackScheduledDetail")
         return `The terms are accepted. Registration is scheduled for ${params?.date}.`;
       if (key === "season.windowClosed") return "Transfer window closed";
-      if (key === "season.windowOpensInDays")
-        return `${params?.count} days until the window opens`;
-      if (key === "transfers.loanWindowClosedNoticeTitle")
-        return "Transfer window closed";
+      if (key === "season.windowOpensInDays") return `${params?.count} days until the window opens`;
+      if (key === "transfers.loanWindowClosedNoticeTitle") return "Transfer window closed";
       if (key === "transfers.loanWindowClosedNoticeDetail")
         return `If accepted, the loan will be registered on ${params?.date}.`;
       if (key === "transfers.loanWindowClosedUnavailableDetail")
@@ -174,8 +143,7 @@ vi.mock("react-i18next", () => ({
         return `Loan agreed. Registration scheduled for ${params?.date}.`;
       if (key === "squad.viewProfile") return "View profile";
       if (key === "squad.addToTransferList") return "Add to transfer list";
-      if (key === "squad.removeFromTransferList")
-        return "Remove from transfer list";
+      if (key === "squad.removeFromTransferList") return "Remove from transfer list";
       if (key === "squad.addToLoanList") return "Add to loan list";
       if (key === "squad.removeFromLoanList") return "Remove from loan list";
       if (key === "scouting.scoutBtn") return "Scout";
@@ -183,8 +151,7 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.noScoutsFree") return "No scouts free";
       if (key === "playerProfile.renewalWage") return "Offered Wage";
       if (key === "playerProfile.renewalLength") return "Contract Length";
-      if (key === "playerProfile.renewalProjectionTitle")
-        return "Projected financial impact";
+      if (key === "playerProfile.renewalProjectionTitle") return "Projected financial impact";
       if (key === "playerProfile.renewalProjectionWageBill")
         return `Weekly wage bill ${params?.before} -> ${params?.after}`;
       if (key === "playerProfile.renewalProjectionBudgetUsage")
@@ -192,8 +159,7 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalProjectionRunway")
         return `Cash runway ${params?.before} -> ${params?.after}`;
       if (key === "playerProfile.renewalBudgetWarning") return "Budget warning";
-      if (key === "playerProfile.renewalConversationTitle")
-        return "Negotiation pulse";
+      if (key === "playerProfile.renewalConversationTitle") return "Negotiation pulse";
       if (key === "playerProfile.renewalRound") return `Round ${params?.count}`;
       if (key === "playerProfile.renewalPatience") return "Patience";
       if (key === "playerProfile.renewalTension") return "Tension";
@@ -203,8 +169,7 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalCounter")
         return `Wants more: ${params?.wage} for ${params?.years} years`;
       if (key === "playerProfile.renewalBlocked") return "Talks blocked";
-      if (key === "be.error.transfers.playerAlreadyLoaned")
-        return "Player already loaned";
+      if (key === "be.error.transfers.playerAlreadyLoaned") return "Player already loaned";
       if (params && typeof params === "object" && "defaultValue" in params) {
         return String(params.defaultValue);
       }
@@ -355,9 +320,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
   };
 }
 
-function createGameState(
-  players: PlayerData[] = [createPlayer()],
-): GameStateData {
+function createGameState(players: PlayerData[] = [createPlayer()]): GameStateData {
   return {
     clock: {
       current_date: "2026-08-01T12:00:00Z",
@@ -574,8 +537,7 @@ describe("TransfersTab", function (): void {
       });
       expect(
         portraitCalls.some(([, payload]) => {
-          const portraitPayload = payload as
-            { request?: { playerId?: string } } | undefined;
+          const portraitPayload = payload as { request?: { playerId?: string } } | undefined;
           return portraitPayload?.request?.playerId === "portrait-player-31";
         }),
       ).toBe(false);
@@ -645,9 +607,7 @@ describe("TransfersTab", function (): void {
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     expect(screen.getByText("Negotiation pulse")).toBeInTheDocument();
-    expect(
-      screen.getByText("They want more before shaking hands."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("They want more before shaking hands.")).toBeInTheDocument();
     expect(
       screen.getByText(
         "The bid was close enough to keep talking, but their side are signalling a price nearer €1,150,000.",
@@ -689,24 +649,15 @@ describe("TransfersTab", function (): void {
     fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith(
-        "preview_transfer_bid_financial_impact",
-        {
-          fee: 1150000,
-          playerId: "player-market-1",
-        },
-      );
+      expect(mockedInvoke).toHaveBeenCalledWith("preview_transfer_bid_financial_impact", {
+        fee: 1150000,
+        playerId: "player-market-1",
+      });
     });
 
-    expect(
-      screen.getByText("Talks are still live with this club."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("The other club are waiting for your next move."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Their last signal pointed toward €1,150,000."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
+    expect(screen.getByText("The other club are waiting for your next move.")).toBeInTheDocument();
+    expect(screen.getByText("Their last signal pointed toward €1,150,000.")).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Your last bid")).toBeInTheDocument();
     expect(screen.getByText("Their last signal")).toBeInTheDocument();
@@ -715,9 +666,7 @@ describe("TransfersTab", function (): void {
   });
 
   it("shows scout assignment errors inline on the player market", async function (): Promise<void> {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const state = createGameState([
         createPlayer({
@@ -789,15 +738,9 @@ describe("TransfersTab", function (): void {
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
     fireEvent.click(screen.getByRole("button", { name: /counter offer/i }));
 
-    expect(
-      screen.getByText("Talks are still live with this club."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("The other club are waiting for your next move."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Their last signal pointed toward €1,150,000."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
+    expect(screen.getByText("The other club are waiting for your next move.")).toBeInTheDocument();
+    expect(screen.getByText("Their last signal pointed toward €1,150,000.")).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Your last counter")).toBeInTheDocument();
     expect(screen.getByText("Their current offer")).toBeInTheDocument();
@@ -874,13 +817,7 @@ describe("TransfersTab", function (): void {
       }),
     ]);
 
-    render(
-      <TransfersTab
-        gameState={state}
-        onSelectPlayer={vi.fn()}
-        onSelectTeam={vi.fn()}
-      />,
-    );
+    render(<TransfersTab gameState={state} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
     fireEvent.change(screen.getByLabelText(/bid amount/i), {
@@ -889,12 +826,8 @@ describe("TransfersTab", function (): void {
 
     await waitFor(function (): void {
       expect(screen.getByText("Projected impact")).toBeInTheDocument();
-      expect(
-        screen.getByText("This bid exceeds your transfer budget"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /submit bid/i }),
-      ).toBeDisabled();
+      expect(screen.getByText("This bid exceeds your transfer budget")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /submit bid/i })).toBeDisabled();
     });
   });
 
@@ -968,14 +901,10 @@ describe("TransfersTab", function (): void {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
-    expect(
-      screen.getByRole("dialog", { name: /john smith/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /john smith/i })).toBeInTheDocument();
 
     await waitFor(function (): void {
-      expect(
-        screen.getByRole("button", { name: /submit bid/i }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: /submit bid/i })).toBeEnabled();
     });
     fireEvent.click(screen.getByRole("button", { name: /submit bid/i }));
 
@@ -992,15 +921,11 @@ describe("TransfersTab", function (): void {
     // the old 2s timer so a regression that reintroduces it fires
     // before this assertion runs.
     await new Promise((resolve) => setTimeout(resolve, 2100));
-    expect(
-      screen.getByRole("dialog", { name: /john smith/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /john smith/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
     await waitFor(function (): void {
-      expect(
-        screen.queryByRole("dialog", { name: /john smith/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: /john smith/i })).not.toBeInTheDocument();
     });
   });
 
@@ -1032,9 +957,7 @@ describe("TransfersTab", function (): void {
     fireEvent.click(screen.getByRole("button", { name: /offer contract/i }));
 
     await waitFor(function (): void {
-      expect(
-        screen.getByText("Projected financial impact"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Projected financial impact")).toBeInTheDocument();
       expect(screen.getByLabelText("Offered Wage")).toBeInTheDocument();
     });
   });
@@ -1151,20 +1074,14 @@ describe("TransfersTab", function (): void {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
-    expect(
-      screen.getByRole("button", { name: /make transfer bid/i }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: /make transfer bid/i })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: /make loan offer/i }));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Transfer window closed",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Transfer window closed");
     expect(screen.getByRole("status")).toHaveTextContent(
       "If accepted, the loan will be registered on",
     );
-    expect(
-      screen.getByRole("button", { name: /submit loan offer/i }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: /submit loan offer/i })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: /submit loan offer/i }));
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
@@ -1309,18 +1226,10 @@ describe("TransfersTab", function (): void {
 
     fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
 
-    expect(
-      screen.getByRole("button", { name: /make transfer bid/i }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: /make loan offer/i }),
-    ).toBeDisabled();
-    expect(
-      screen.getAllByText("Transfer window closed").length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.queryByRole("button", { name: /submit loan offer/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /make transfer bid/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /make loan offer/i })).toBeDisabled();
+    expect(screen.getAllByText("Transfer window closed").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /submit loan offer/i })).not.toBeInTheDocument();
   });
 
   it("submits a loan offer with a buy option", async function (): Promise<void> {
@@ -1430,9 +1339,7 @@ describe("TransfersTab", function (): void {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    expect(
-      screen.getByText("Loan 75% wages until 2027-01-01 — Live"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Loan 75% wages until 2027-01-01 — Live")).toBeInTheDocument();
     fireEvent.click(screen.getByTitle("Accept Loan"));
 
     await waitFor(function (): void {
@@ -1494,9 +1401,7 @@ describe("TransfersTab", function (): void {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /counter loan offer/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /counter loan offer/i }));
     fireEvent.change(screen.getByLabelText(/wage contribution/i), {
       target: { value: "85" },
     });
@@ -1576,9 +1481,7 @@ describe("TransfersTab", function (): void {
   });
 
   it("offers transfer-list actions from the my-list context menu", async function (): Promise<void> {
-    const gameState = createGameState([
-      createPlayer({ transfer_listed: true }),
-    ]);
+    const gameState = createGameState([createPlayer({ transfer_listed: true })]);
     const onGameUpdate = vi.fn();
 
     mockedInvoke.mockResolvedValueOnce(gameState);
@@ -1598,9 +1501,7 @@ describe("TransfersTab", function (): void {
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(
-      screen.getByRole("menuitem", { name: "Remove from transfer list" }),
-    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Remove from transfer list" }));
 
     await waitFor(function (): void {
       expect(mockedInvoke).toHaveBeenCalledWith("toggle_transfer_list", {
@@ -1616,9 +1517,7 @@ describe("TransfersTab", function (): void {
     ]);
     const onGameUpdate = vi.fn();
 
-    mockedInvoke.mockRejectedValueOnce(
-      "be.error.transfers.playerAlreadyLoaned",
-    );
+    mockedInvoke.mockRejectedValueOnce("be.error.transfers.playerAlreadyLoaned");
 
     render(
       <TransfersTab
@@ -1638,9 +1537,7 @@ describe("TransfersTab", function (): void {
     fireEvent.click(screen.getByRole("menuitem", { name: "Add to loan list" }));
 
     await waitFor(function (): void {
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Player already loaned",
-      );
+      expect(screen.getByRole("alert")).toHaveTextContent("Player already loaned");
     });
     expect(onGameUpdate).not.toHaveBeenCalled();
   });
@@ -1672,9 +1569,7 @@ describe("TransfersTab", function (): void {
   });
 
   it("shows a dual-listed player once in the my-list view", function (): void {
-    const gameState = createGameState([
-      createPlayer({ transfer_listed: true, loan_listed: true }),
-    ]);
+    const gameState = createGameState([createPlayer({ transfer_listed: true, loan_listed: true })]);
 
     render(
       <TransfersTab
@@ -1685,9 +1580,7 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: /my transfer list \(1\)/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /my transfer list \(1\)/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
     expect(screen.getAllByText("John Smith")).toHaveLength(1);
   });

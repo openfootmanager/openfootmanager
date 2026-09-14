@@ -91,10 +91,7 @@ function getWeekdayFromDate(dateStr: string): number {
   return (date.getUTCDay() + 6) % 7;
 }
 
-export default function TrainingTab({
-  gameState,
-  onGameUpdate,
-}: TrainingTabProps) {
+export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProps) {
   const { t } = useTranslation();
   const { sessionState } = useGameStore();
   const [isSaving, setIsSaving] = useState(false);
@@ -105,35 +102,29 @@ export default function TrainingTab({
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
   if (!team) {
-    return (
-      <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
-    );
+    return <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>;
   }
 
   const currentFocus = team.training_focus || "Physical";
   const currentIntensity = team.training_intensity || "Medium";
   const currentSchedule = team.training_schedule || "Balanced";
 
-  const allSquadPlayers = fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
+  const allSquadPlayers =
+    fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
   const roster = allSquadPlayers.filter(isSeniorSquadPlayer);
   const avgCondition =
     roster.length > 0
-      ? Math.round(
-        roster.reduce((sum, player) => sum + player.condition, 0) / roster.length,
-      )
+      ? Math.round(roster.reduce((sum, player) => sum + player.condition, 0) / roster.length)
       : 0;
   const avgMorale =
     roster.length > 0
-      ? Math.round(
-        roster.reduce((sum, player) => sum + player.morale, 0) / roster.length,
-      )
+      ? Math.round(roster.reduce((sum, player) => sum + player.morale, 0) / roster.length)
       : 0;
   const exhaustedCount = roster.filter((player) => player.condition < 40).length;
   const criticalCount = roster.filter((player) => player.condition < 25).length;
 
   const todayWeekday = getWeekdayFromDate(clockDate);
-  const trainingDays =
-    SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;
+  const trainingDays = SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;
   const isTodayTraining = trainingDays.includes(todayWeekday);
 
   const handleSetTraining = async (focus: string, intensity: string) => {
@@ -174,12 +165,13 @@ export default function TrainingTab({
       <div className="lg:col-span-2 flex flex-col gap-5">
         {staffAdvice ? (
           <div
-            className={`flex items-start gap-3 p-4 rounded-xl border-2 ${staffAdvice.level === "critical"
+            className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
+              staffAdvice.level === "critical"
                 ? "bg-red-50 dark:bg-red-500/10 border-red-300 dark:border-red-500/40"
                 : staffAdvice.level === "warn"
                   ? "bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/40"
                   : "bg-blue-50 dark:bg-blue-500/10 border-blue-300 dark:border-blue-500/40"
-              }`}
+            }`}
           >
             {staffAdvice.level === "critical" ? (
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -190,12 +182,13 @@ export default function TrainingTab({
             )}
             <div>
               <p
-                className={`text-xs font-heading font-bold uppercase tracking-wider mb-0.5 ${staffAdvice.level === "critical"
+                className={`text-xs font-heading font-bold uppercase tracking-wider mb-0.5 ${
+                  staffAdvice.level === "critical"
                     ? "text-red-600 dark:text-red-400"
                     : staffAdvice.level === "warn"
                       ? "text-amber-600 dark:text-amber-400"
                       : "text-blue-600 dark:text-blue-400"
-                  }`}
+                }`}
               >
                 {staffAdvice.level === "critical"
                   ? t("training.staffAlert")
@@ -203,9 +196,7 @@ export default function TrainingTab({
                     ? t("training.staffWarning")
                     : t("training.staffSuggestion")}
               </p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                {staffAdvice.message}
-              </p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{staffAdvice.message}</p>
             </div>
           </div>
         ) : null}
@@ -307,14 +298,16 @@ export default function TrainingTab({
                 .map((player) => (
                   <div key={player.id} className="flex items-center px-4 py-2 gap-3">
                     <span
-                      className={`text-sm font-medium flex-1 truncate ${player.condition < 25
+                      className={`text-sm font-medium flex-1 truncate ${
+                        player.condition < 25
                           ? "text-red-600 dark:text-red-400"
                           : player.condition < 40
                             ? "text-amber-600 dark:text-amber-400"
                             : "text-gray-800 dark:text-gray-200"
-                        }`}
+                      }`}
                     >
-                      {player.match_name}{player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
+                      {player.match_name}
+                      {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
                     </span>
                     <ProgressBar
                       value={player.condition}

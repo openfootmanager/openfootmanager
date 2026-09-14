@@ -15,9 +15,14 @@ export function ProgressBar({
 }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(100, value));
 
-  const resolvedVariant = variant === "auto"
-    ? clamped >= 70 ? "success" : clamped >= 40 ? "accent" : "danger"
-    : variant;
+  const resolvedVariant =
+    variant === "auto"
+      ? clamped >= 70
+        ? "success"
+        : clamped >= 40
+          ? "accent"
+          : "danger"
+      : variant;
 
   const barColors = {
     primary: "bg-primary-500",
@@ -35,7 +40,9 @@ export function ProgressBar({
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div className={`flex-1 bg-gray-200 dark:bg-navy-600 rounded-full ${heights[size]} overflow-hidden`}>
+      <div
+        className={`flex-1 bg-gray-200 dark:bg-navy-600 rounded-full ${heights[size]} overflow-hidden`}
+      >
         <div
           className={`${barColors[resolvedVariant]} ${heights[size]} rounded-full transition-all duration-500`}
           style={{ width: `${clamped}%` }}

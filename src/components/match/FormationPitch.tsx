@@ -102,10 +102,7 @@ export function buildFormationSlots(
     const y = Math.round(bottom - rowIdx * step);
     return rowPlayers.map((p, colIdx) => ({
       player: p,
-      x:
-        rowPlayers.length === 1
-          ? 50
-          : Math.round((100 * (colIdx + 1)) / (rowPlayers.length + 1)),
+      x: rowPlayers.length === 1 ? 50 : Math.round((100 * (colIdx + 1)) / (rowPlayers.length + 1)),
       y,
     }));
   });
@@ -162,37 +159,12 @@ export function FormationPitch({
             <stop offset="0%" stopColor="rgba(63,172,99,0.35)" />
             <stop offset="100%" stopColor="rgba(31,109,61,0.25)" />
           </linearGradient>
-          <pattern
-            id={stripesId}
-            x="0"
-            y="0"
-            width="100"
-            height="10"
-            patternUnits="userSpaceOnUse"
-          >
-            <rect
-              x="0"
-              y="0"
-              width="100"
-              height="5"
-              fill="rgba(255,255,255,0.04)"
-            />
+          <pattern id={stripesId} x="0" y="0" width="100" height="10" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="100" height="5" fill="rgba(255,255,255,0.04)" />
           </pattern>
         </defs>
-        <rect
-          x="0"
-          y="0"
-          width="100"
-          height="140"
-          fill={`url(#${surfaceId})`}
-        />
-        <rect
-          x="0"
-          y="0"
-          width="100"
-          height="140"
-          fill={`url(#${stripesId})`}
-        />
+        <rect x="0" y="0" width="100" height="140" fill={`url(#${surfaceId})`} />
+        <rect x="0" y="0" width="100" height="140" fill={`url(#${stripesId})`} />
         <rect
           x="4"
           y="4"
@@ -202,14 +174,7 @@ export function FormationPitch({
           stroke="rgba(255,255,255,0.55)"
           strokeWidth="0.6"
         />
-        <line
-          x1="4"
-          y1="70"
-          x2="96"
-          y2="70"
-          stroke="rgba(255,255,255,0.55)"
-          strokeWidth="0.6"
-        />
+        <line x1="4" y1="70" x2="96" y2="70" stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" />
         <circle
           cx="50"
           cy="70"

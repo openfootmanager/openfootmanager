@@ -106,9 +106,7 @@ export function Select({
       if (child.type === "optgroup") {
         const optgroup = child as ReactElement<NativeOptgroupProps>;
         const label = optgroup.props.label;
-        return Children.toArray(optgroup.props.children).flatMap((nested) =>
-          read(nested, label),
-        );
+        return Children.toArray(optgroup.props.children).flatMap((nested) => read(nested, label));
       }
 
       if (child.type !== "option") {
@@ -165,9 +163,7 @@ export function Select({
 
   const currentValue = controlledValue ?? uncontrolledValue;
   const selectedOption =
-    options.find((option) => option.value === currentValue) ??
-    options[0] ??
-    null;
+    options.find((option) => option.value === currentValue) ?? options[0] ?? null;
   const selectedValue = selectedOption?.value ?? "";
   const enabledOptions = options.filter((option) => !option.disabled);
 
@@ -186,10 +182,7 @@ export function Select({
       const target = event.target as Node;
       // The menu is portaled to <body>, so a press inside it is "outside" the
       // wrapper — it must not dismiss the menu before the option click lands.
-      if (
-        !wrapperRef.current?.contains(target) &&
-        !menuRef.current?.contains(target)
-      ) {
+      if (!wrapperRef.current?.contains(target) && !menuRef.current?.contains(target)) {
         setIsOpen(false);
       }
     };
@@ -233,8 +226,7 @@ export function Select({
       const availableBelow = window.innerHeight - margin - rect.bottom - gap;
       const availableAbove = rect.top - gap - margin;
       const naturalHeight = menu.offsetHeight;
-      const openUp =
-        naturalHeight > availableBelow && availableAbove > availableBelow;
+      const openUp = naturalHeight > availableBelow && availableAbove > availableBelow;
       const available = openUp ? availableAbove : availableBelow;
       if (list && naturalHeight > available) {
         const chrome = naturalHeight - list.offsetHeight;
@@ -243,9 +235,7 @@ export function Select({
 
       const menuHeight = menu.offsetHeight;
       const menuWidth = menu.offsetWidth;
-      menu.style.top = openUp
-        ? `${rect.top - gap - menuHeight}px`
-        : `${rect.bottom + gap}px`;
+      menu.style.top = openUp ? `${rect.top - gap - menuHeight}px` : `${rect.bottom + gap}px`;
       menu.style.left = `${Math.max(
         margin,
         Math.min(rect.left, window.innerWidth - menuWidth - margin),
@@ -309,12 +299,9 @@ export function Select({
       return;
     }
 
-    const currentIndex = enabledOptions.findIndex(
-      (option) => option.value === selectedValue,
-    );
+    const currentIndex = enabledOptions.findIndex((option) => option.value === selectedValue);
     const baseIndex = currentIndex >= 0 ? currentIndex : 0;
-    const nextIndex =
-      (baseIndex + direction + enabledOptions.length) % enabledOptions.length;
+    const nextIndex = (baseIndex + direction + enabledOptions.length) % enabledOptions.length;
     handleSelect(enabledOptions[nextIndex].value);
   };
 
@@ -356,8 +343,7 @@ export function Select({
       "bg-primary-50 dark:bg-primary-500/10 border-primary-300 dark:border-primary-500/40 text-primary-700 dark:text-primary-300 font-bold",
     placeholder:
       "bg-gray-50 dark:bg-navy-700 border-gray-200 dark:border-navy-600 text-gray-400 dark:text-gray-500",
-    ghost:
-      "bg-white/10 border-white/10 text-white hover:bg-white/20",
+    ghost: "bg-white/10 border-white/10 text-white hover:bg-white/20",
   };
 
   const sizes = {
@@ -384,18 +370,8 @@ export function Select({
   ];
 
   return (
-    <div
-      ref={wrapperRef}
-      className={`relative ${fullWidth ? "w-full" : ""} ${wrapperClassName}`}
-    >
-      {name ? (
-        <input
-          type="hidden"
-          name={name}
-          value={selectedValue}
-          disabled={disabled}
-        />
-      ) : null}
+    <div ref={wrapperRef} className={`relative ${fullWidth ? "w-full" : ""} ${wrapperClassName}`}>
+      {name ? <input type="hidden" name={name} value={selectedValue} disabled={disabled} /> : null}
       {icon ? (
         <span
           className={`pointer-events-none absolute inset-y-0 ${iconInset} flex items-center text-gray-400 dark:text-gray-500`}
@@ -437,69 +413,69 @@ export function Select({
         <ChevronDown className={chevronSize} />
       </span>
 
-      {isOpen ? createPortal(
-        <div
-          ref={menuRef}
-          className="fixed z-50 w-max overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-navy-600 dark:bg-navy-800"
-        >
-          <div
-            id={listboxId}
-            role="listbox"
-            aria-required={required}
-            className="max-h-60 overflow-y-auto p-1"
-          >
-            {groupedOptions.map((section, sectionIndex) => {
-              const rendered = section.options.map((option) => {
-              const isSelected = option.value === currentValue;
+      {isOpen
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="fixed z-50 w-max overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-navy-600 dark:bg-navy-800"
+            >
+              <div
+                id={listboxId}
+                role="listbox"
+                aria-required={required}
+                className="max-h-60 overflow-y-auto p-1"
+              >
+                {groupedOptions.map((section, sectionIndex) => {
+                  const rendered = section.options.map((option) => {
+                    const isSelected = option.value === currentValue;
 
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  disabled={option.disabled}
-                  className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (!option.disabled) {
-                      handleSelect(option.value);
-                    }
-                  }}
-                >
-                  <span className="truncate">{option.label}</span>
-                  {isSelected ? (
-                    <Check className="ml-2 h-4 w-4 shrink-0" />
-                  ) : null}
-                </button>
-              );
-              });
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        disabled={option.disabled}
+                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (!option.disabled) {
+                            handleSelect(option.value);
+                          }
+                        }}
+                      >
+                        <span className="truncate">{option.label}</span>
+                        {isSelected ? <Check className="ml-2 h-4 w-4 shrink-0" /> : null}
+                      </button>
+                    );
+                  });
 
-              // Ungrouped options sit directly in the listbox, exactly as
-              // before — only a named `<optgroup>` adds a wrapper.
-              if (section.label === undefined) {
-                return rendered;
-              }
+                  // Ungrouped options sit directly in the listbox, exactly as
+                  // before — only a named `<optgroup>` adds a wrapper.
+                  if (section.label === undefined) {
+                    return rendered;
+                  }
 
-              return (
-                // Keyed by position, not by label: two `optgroup`s may carry the
-                // same label without being adjacent, and keying on the label
-                // would give them the same key.
-                <div key={`group-${sectionIndex}`} role="group" aria-label={section.label}>
-                  <div
-                    aria-hidden="true"
-                    className="px-3 pb-1 pt-2 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500"
-                  >
-                    {section.label}
-                  </div>
-                  {rendered}
-                </div>
-              );
-            })}
-          </div>
-        </div>,
-        document.body,
-      ) : null}
+                  return (
+                    // Keyed by position, not by label: two `optgroup`s may carry the
+                    // same label without being adjacent, and keying on the label
+                    // would give them the same key.
+                    <div key={`group-${sectionIndex}`} role="group" aria-label={section.label}>
+                      <div
+                        aria-hidden="true"
+                        className="px-3 pb-1 pt-2 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500"
+                      >
+                        {section.label}
+                      </div>
+                      {rendered}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

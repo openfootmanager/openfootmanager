@@ -43,7 +43,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("react-i18next", () => ({
   initReactI18next: {
     type: "3rdParty",
-    init: () => { },
+    init: () => {},
   },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) =>
@@ -154,11 +154,7 @@ vi.mock("../components/menu/PackageBuildStep", () => ({
   }) => (
     <div data-testid="package-build-step">
       {installedPackages.map((pkg) => (
-        <button
-          key={pkg.id}
-          type="button"
-          onClick={() => onTogglePackage(pkg.id)}
-        >
+        <button key={pkg.id} type="button" onClick={() => onTogglePackage(pkg.id)}>
           {`toggle-${pkg.id}`}
         </button>
       ))}
@@ -209,27 +205,18 @@ async function openCreateManagerForm(): Promise<void> {
 }
 
 function fillManagerDetails(): void {
-  fireEvent.change(
-    screen.getByPlaceholderText("createManager.placeholderFirst"),
-    {
-      target: { value: "Ada" },
-    },
-  );
-  fireEvent.change(
-    screen.getByPlaceholderText("createManager.placeholderLast"),
-    {
-      target: { value: "Lovelace" },
-    },
-  );
+  fireEvent.change(screen.getByPlaceholderText("createManager.placeholderFirst"), {
+    target: { value: "Ada" },
+  });
+  fireEvent.change(screen.getByPlaceholderText("createManager.placeholderLast"), {
+    target: { value: "Lovelace" },
+  });
   fireEvent.change(screen.getByLabelText("manager-date-of-birth"), {
     target: { value: "1980-01-01" },
   });
 }
 
-function fillCareerStartDetails(
-  startYear = "2026",
-  startPhase = "seasonStart",
-): void {
+function fillCareerStartDetails(startYear = "2026", startPhase = "seasonStart"): void {
   fireEvent.change(screen.getByLabelText("createManager.startYear"), {
     target: { value: startYear },
   });
@@ -242,12 +229,8 @@ async function getNationalityTrigger(): Promise<HTMLButtonElement> {
   let trigger: HTMLButtonElement | null = null;
 
   await waitFor(() => {
-    const fieldContainer = document.getElementById(
-      "create-manager-field-nationality",
-    );
-    const candidate = fieldContainer?.querySelector(
-      "div.relative > button:not([disabled])",
-    );
+    const fieldContainer = document.getElementById("create-manager-field-nationality");
+    const candidate = fieldContainer?.querySelector("div.relative > button:not([disabled])");
 
     trigger = candidate instanceof HTMLButtonElement ? candidate : null;
 
@@ -261,10 +244,7 @@ async function getNationalityTrigger(): Promise<HTMLButtonElement> {
   return trigger;
 }
 
-async function selectNationality(
-  language: string,
-  nationalityCode: string,
-): Promise<void> {
+async function selectNationality(language: string, nationalityCode: string): Promise<void> {
   const countryLabel = countryName(nationalityCode, language);
 
   fireEvent.mouseDown(await getNationalityTrigger());
@@ -279,15 +259,10 @@ async function searchAndSelectNationality(
   const countryLabel = countryName(nationalityCode, language);
 
   fireEvent.mouseDown(await getNationalityTrigger());
-  const searchInput = await screen.findByPlaceholderText(
-    "createManager.searchNationalities",
-  );
-  fireEvent.change(
-    searchInput,
-    {
-      target: { value: searchText },
-    },
-  );
+  const searchInput = await screen.findByPlaceholderText("createManager.searchNationalities");
+  fireEvent.change(searchInput, {
+    target: { value: searchText },
+  });
   fireEvent.mouseDown(await screen.findByText(countryLabel));
 }
 
@@ -317,7 +292,15 @@ describe("MainMenu", () => {
       }
 
       if (command === "save_manager_profile") {
-        return { id: "profile-1", first_name: "Test", last_name: "Manager", date_of_birth: "1980-01-01", nationality: "GB", created_at: new Date().toISOString(), last_used_at: null };
+        return {
+          id: "profile-1",
+          first_name: "Test",
+          last_name: "Manager",
+          date_of_birth: "1980-01-01",
+          nationality: "GB",
+          created_at: new Date().toISOString(),
+          last_used_at: null,
+        };
       }
 
       if (command === "touch_manager_profile") {
@@ -495,9 +478,7 @@ describe("MainMenu", () => {
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
     await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText("createManager.placeholderFirst"),
-      ).toHaveFocus();
+      expect(screen.getByPlaceholderText("createManager.placeholderFirst")).toHaveFocus();
     });
     expect(screen.queryByTestId("package-build-step")).not.toBeInTheDocument();
   });
@@ -506,16 +487,13 @@ describe("MainMenu", () => {
     render(<MainMenu />);
 
     await openCreateManagerForm();
-    fireEvent.change(
-      screen.getByPlaceholderText("createManager.placeholderFirst"),
-      { target: { value: "Ada" } },
-    );
+    fireEvent.change(screen.getByPlaceholderText("createManager.placeholderFirst"), {
+      target: { value: "Ada" },
+    });
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
     await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText("createManager.placeholderLast"),
-      ).toHaveFocus();
+      expect(screen.getByPlaceholderText("createManager.placeholderLast")).toHaveFocus();
     });
   });
 
@@ -523,14 +501,12 @@ describe("MainMenu", () => {
     render(<MainMenu />);
 
     await openCreateManagerForm();
-    fireEvent.change(
-      screen.getByPlaceholderText("createManager.placeholderFirst"),
-      { target: { value: "Ada" } },
-    );
-    fireEvent.change(
-      screen.getByPlaceholderText("createManager.placeholderLast"),
-      { target: { value: "Lovelace" } },
-    );
+    fireEvent.change(screen.getByPlaceholderText("createManager.placeholderFirst"), {
+      target: { value: "Ada" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("createManager.placeholderLast"), {
+      target: { value: "Lovelace" },
+    });
     fireEvent.change(screen.getByLabelText("manager-date-of-birth"), {
       target: { value: "2010-06-15" },
     });
@@ -551,14 +527,12 @@ describe("MainMenu", () => {
     render(<MainMenu />);
 
     await openCreateManagerForm();
-    fireEvent.change(
-      screen.getByPlaceholderText("createManager.placeholderFirst"),
-      { target: { value: "Ada" } },
-    );
-    fireEvent.change(
-      screen.getByPlaceholderText("createManager.placeholderLast"),
-      { target: { value: "Lovelace" } },
-    );
+    fireEvent.change(screen.getByPlaceholderText("createManager.placeholderFirst"), {
+      target: { value: "Ada" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("createManager.placeholderLast"), {
+      target: { value: "Lovelace" },
+    });
     fireEvent.change(screen.getByLabelText("manager-date-of-birth"), {
       target: { value: "2008-01-01" },
     });
@@ -577,14 +551,12 @@ describe("MainMenu", () => {
     render(<MainMenu />);
 
     await openCreateManagerForm();
-    fireEvent.change(
-      screen.getByPlaceholderText("createManager.placeholderFirst"),
-      { target: { value: "Ada" } },
-    );
-    fireEvent.change(
-      screen.getByPlaceholderText("createManager.placeholderLast"),
-      { target: { value: "Lovelace" } },
-    );
+    fireEvent.change(screen.getByPlaceholderText("createManager.placeholderFirst"), {
+      target: { value: "Ada" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("createManager.placeholderLast"), {
+      target: { value: "Lovelace" },
+    });
     fireEvent.change(screen.getByLabelText("manager-date-of-birth"), {
       target: { value: "2008-08-01" },
     });
@@ -764,7 +736,7 @@ describe("MainMenu", () => {
   });
 
   it("surfaces a message when a save fails to load", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => { });
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "list_installed_packages") {

@@ -32,11 +32,7 @@ describe("buildPlayerProfileRelationship", () => {
     // ownership, so `isOwnClub: false` does not make a player at the manager's
     // own club off limits.
     it("counts a player at the manager's club as theirs even when isOwnClub is false", () => {
-      const result = buildPlayerProfileRelationship(
-        player(),
-        gameState(),
-        false,
-      );
+      const result = buildPlayerProfileRelationship(player(), gameState(), false);
 
       expect(result.isContractOwnerClub).toBe(true);
       expect(result.isManagerOwnedProfile).toBe(true);
@@ -97,11 +93,7 @@ describe("buildPlayerProfileRelationship", () => {
         active_loan: { parent_team_id: "team-1", loan_team_id: "team-2" },
       } as Partial<PlayerData>);
 
-      const result = buildPlayerProfileRelationship(
-        loanedOut,
-        gameState(),
-        false,
-      );
+      const result = buildPlayerProfileRelationship(loanedOut, gameState(), false);
 
       expect(result.contractOwnerTeamId).toBe("team-1");
       expect(result.isManagerOwnedProfile).toBe(true);
@@ -114,11 +106,7 @@ describe("buildPlayerProfileRelationship", () => {
         active_loan: { parent_team_id: "team-2", loan_team_id: "team-3" },
       } as Partial<PlayerData>);
 
-      const result = buildPlayerProfileRelationship(
-        otherClubsLoan,
-        gameState(),
-        true,
-      );
+      const result = buildPlayerProfileRelationship(otherClubsLoan, gameState(), true);
 
       expect(result.isManagerOwnedProfile).toBe(false);
     });
@@ -126,11 +114,7 @@ describe("buildPlayerProfileRelationship", () => {
 
   describe("free agency", () => {
     it("treats a club-less player as a free agent", () => {
-      const result = buildPlayerProfileRelationship(
-        player({ team_id: null }),
-        gameState(),
-        false,
-      );
+      const result = buildPlayerProfileRelationship(player({ team_id: null }), gameState(), false);
 
       expect(result.isFreeAgent).toBe(true);
     });

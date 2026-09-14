@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  FixtureData,
-  GameStateData,
-  NationalTeamData,
-  PlayerData,
-} from "../store/gameStore";
+import type { FixtureData, GameStateData, NationalTeamData, PlayerData } from "../store/gameStore";
 import {
   getNationalTeamFixtures,
   getNationalTeamName,

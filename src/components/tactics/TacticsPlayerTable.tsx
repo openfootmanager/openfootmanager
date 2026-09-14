@@ -13,10 +13,7 @@ import { useTranslation } from "react-i18next";
 
 import { getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import { getRolesForPosition } from "../../lib/playerRoles";
-import type {
-  PlayerData,
-  TeamMatchRolesData,
-} from "../../store/gameStore";
+import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import type { PlayerRole } from "../../store/types";
 import ContextMenu from "../ContextMenu";
 import { Badge, Card, InjuryBadge, Select } from "../ui";
@@ -48,10 +45,7 @@ interface TacticsPlayerTableProps {
   onAssignBestFit?: (playerId: string) => void;
   onSetPlayerRole?: (playerId: string, role: PlayerRole | null) => void;
   playerRoles?: Record<string, PlayerRole>;
-  onAssignMatchRole?: (
-    role: keyof TeamMatchRolesData,
-    playerId: string,
-  ) => void;
+  onAssignMatchRole?: (role: keyof TeamMatchRolesData, playerId: string) => void;
   onAssignSlot?: (playerId: string, targetSlotIndex: number) => void;
   onClearTacticsSelection?: () => void;
   onDemoteStarter?: (playerId: string) => void;
@@ -91,21 +85,13 @@ interface ConditionState {
   toneClassName: string;
 }
 
-function SortHeader({
-  column,
-  label,
-  sortDir,
-  sortKey,
-  toggleSort,
-}: SortHeaderProps): JSX.Element {
+function SortHeader({ column, label, sortDir, sortKey, toggleSort }: SortHeaderProps): JSX.Element {
   const isActive = sortKey === column;
 
   return (
     <th
       className={`cursor-pointer select-none px-4 py-2.5 font-heading font-bold uppercase tracking-wider transition-colors hover:text-primary-400 ${
-        isActive
-          ? "text-primary-500 dark:text-primary-400"
-          : "text-gray-500 dark:text-gray-400"
+        isActive ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"
       }`}
       onClick={() => toggleSort(column)}
     >
@@ -209,7 +195,6 @@ function getConditionState(
   };
 }
 
-
 function getStyleFitBadge(
   fit: ReturnType<typeof getPlayStyleFit>,
   translate: (key: string, fallback?: string) => string,
@@ -285,7 +270,6 @@ function buildResponsibilityChips(
   return responsibilities;
 }
 
-
 function TacticsTableRow({
   activePlayStyle,
   comparePlayerId,
@@ -313,10 +297,7 @@ function TacticsTableRow({
   highlightedPlayerId: string | null;
   matchRoles?: TeamMatchRolesData;
   onAssignBestFit?: (playerId: string) => void;
-  onAssignMatchRole?: (
-    role: keyof TeamMatchRolesData,
-    playerId: string,
-  ) => void;
+  onAssignMatchRole?: (role: keyof TeamMatchRolesData, playerId: string) => void;
   onAssignSlot?: (playerId: string, targetSlotIndex: number) => void;
   onClearTacticsSelection?: () => void;
   onDemoteStarter?: (playerId: string) => void;
@@ -333,34 +314,27 @@ function TacticsTableRow({
   xiSlotIndexByPlayerId: Map<string, number>;
 }): JSX.Element {
   const { t } = useTranslation();
-  const translateLabel = (key: string, fallback?: string) =>
-    t(key, fallback ?? key);
-  const currentSlotIndex =
-    section === "xi" ? (xiSlotIndexByPlayerId.get(player.id) ?? null) : null;
+  const translateLabel = (key: string, fallback?: string) => t(key, fallback ?? key);
+  const currentSlotIndex = section === "xi" ? (xiSlotIndexByPlayerId.get(player.id) ?? null) : null;
   const currentSlotOption =
     currentSlotIndex != null
-      ? slotOptions.find((slotOption) => slotOption.index === currentSlotIndex) ?? null
+      ? (slotOptions.find((slotOption) => slotOption.index === currentSlotIndex) ?? null)
       : null;
   const activePosition =
     section === "xi"
-      ? currentSlotOption?.position ?? xiActivePosition.get(player.id) ?? player.position
+      ? (currentSlotOption?.position ?? xiActivePosition.get(player.id) ?? player.position)
       : player.natural_position || player.position;
   const preferredPositions = getPreferredPositions(player);
   const visiblePreferredPositions = preferredPositions.slice(0, 3);
   const hiddenPreferredPositionCount = Math.max(0, preferredPositions.length - 3);
-  const responsibilities = buildResponsibilityChips(
-    player.id,
-    matchRoles,
-    translateLabel,
-  );
+  const responsibilities = buildResponsibilityChips(player.id, matchRoles, translateLabel);
   const tacticalFit = getSquadTacticalFit(player, activePosition);
   // Functions available to a player follow their current field position. If a
   // previously-assigned function is no longer valid for where they now play
   // (e.g. a striker's Poacher after being moved to defence), show Standard
   // rather than the stale attacker function.
   const roleOptions = getRolesForPosition(canonicalPosition(activePosition));
-  const effectiveRole =
-    playerRole && roleOptions.includes(playerRole) ? playerRole : "Standard";
+  const effectiveRole = playerRole && roleOptions.includes(playerRole) ? playerRole : "Standard";
   const styleFitBadge = getStyleFitBadge(
     getPlayStyleFit(player, activePlayStyle, activePosition),
     translateLabel,
@@ -370,8 +344,7 @@ function TacticsTableRow({
   const overallRating = getPlayerOvr(player);
   const isHighlighted = highlightedPlayerId === player.id;
   const isComparing = comparePlayerId === player.id;
-  const isWrongPosition =
-    section === "xi" && isPlayerOutOfPosition(player, activePosition);
+  const isWrongPosition = section === "xi" && isPlayerOutOfPosition(player, activePosition);
   const primaryName = player.match_name || player.full_name;
   const secondaryName =
     player.full_name && player.full_name !== primaryName ? player.full_name : null;
@@ -449,10 +422,7 @@ function TacticsTableRow({
               ) : null}
             </div>
           ) : (
-            <Badge
-              variant={positionBadgeVariant(normalisePosition(activePosition))}
-              size="sm"
-            >
+            <Badge variant={positionBadgeVariant(normalisePosition(activePosition))} size="sm">
               {translatePositionAbbreviation(t, activePosition)}
             </Badge>
           )}
@@ -493,9 +463,7 @@ function TacticsTableRow({
             <td className="w-40 px-4 py-3 align-top">
               <div className="min-w-[8rem]">
                 <div className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-heading font-bold uppercase tracking-[0.16em]">
-                  <span className={conditionState.toneClassName}>
-                    {conditionState.label}
-                  </span>
+                  <span className={conditionState.toneClassName}>{conditionState.label}</span>
                   <span className="tabular-nums text-gray-500 dark:text-gray-400">
                     {player.condition}%
                   </span>
@@ -510,7 +478,9 @@ function TacticsTableRow({
             </td>
 
             <td className="px-4 py-3 align-top">
-              <div className={`flex items-center gap-2 text-sm font-semibold ${moraleState.toneClassName}`}>
+              <div
+                className={`flex items-center gap-2 text-sm font-semibold ${moraleState.toneClassName}`}
+              >
                 <moraleState.icon className="h-4 w-4" />
                 <span>{moraleState.label}</span>
               </div>
@@ -537,7 +507,8 @@ function TacticsTableRow({
                   </span>
                 </div>
                 <div className="text-gray-500 dark:text-gray-400">
-                  {t("squad.hasLabel")}: {preferredPositions.map((p) => translatePositionAbbreviation(t, p)).join(", ")}
+                  {t("squad.hasLabel")}:{" "}
+                  {preferredPositions.map((p) => translatePositionAbbreviation(t, p)).join(", ")}
                 </div>
               </div>
             </td>
@@ -653,9 +624,7 @@ export default function TacticsPlayerTable({
     <Card>
       <div className={headingClassName}>
         <h3 className={titleClassName}>
-          {section === "xi" ? (
-            <Star className="h-4 w-4 fill-current text-accent-400" />
-          ) : null}
+          {section === "xi" ? <Star className="h-4 w-4 fill-current text-accent-400" /> : null}
           {title}
         </h3>
         <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
@@ -670,9 +639,7 @@ export default function TacticsPlayerTable({
               {" · "}
               {formation}
             </span>
-            <span>
-              {t("tactics.tableInteractionHint")}
-            </span>
+            <span>{t("tactics.tableInteractionHint")}</span>
           </div>
         </div>
       </div>

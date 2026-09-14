@@ -16,8 +16,7 @@ interface DashboardBlockerModalProps {
 }
 
 function getBlockerButtonClassName(severity: string): string {
-  const baseClassName =
-    "w-full rounded-xl border p-3 text-left transition-all hover:shadow-sm";
+  const baseClassName = "w-full rounded-xl border p-3 text-left transition-all hover:shadow-sm";
 
   if (severity === "warn") {
     return `${baseClassName} border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10`;
@@ -68,9 +67,7 @@ export default function DashboardBlockerModal({
             onClick={() => onNavigate(blocker.tab)}
             className={getBlockerButtonClassName(blocker.severity)}
           >
-            <p className={getBlockerTextClassName(blocker.severity)}>
-              {getBlockerText(blocker)}
-            </p>
+            <p className={getBlockerTextClassName(blocker.severity)}>{getBlockerText(blocker)}</p>
             <p className="mt-1 text-[10px] font-heading uppercase tracking-widest text-gray-400">
               {t("notifications.goTo")} {getBlockerTabLabel(t, blocker.tab)} →
             </p>

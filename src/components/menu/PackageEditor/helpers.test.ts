@@ -392,9 +392,14 @@ describe("PLAY_STYLES", () => {
     // to Balanced for anything else, silently. The editor previously offered
     // "Pressing", which is not a variant, so picking it produced a Balanced
     // club with no warning — and Possession and HighPress were unreachable.
-    expect([...PLAY_STYLES].sort()).toEqual(
-      ["Attacking", "Balanced", "Counter", "Defensive", "HighPress", "Possession"],
-    );
+    expect([...PLAY_STYLES].sort()).toEqual([
+      "Attacking",
+      "Balanced",
+      "Counter",
+      "Defensive",
+      "HighPress",
+      "Possession",
+    ]);
   });
 
   it("has a translation in every supported locale for every style it offers", () => {

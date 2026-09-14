@@ -21,7 +21,8 @@ vi.mock("react-i18next", () => ({
       if (key === "tournaments.awardsTab") return "Awards";
       if (key === "tournaments.leagueTable") return "League Table";
       if (key === "tournaments.awards.managerOfSeasonTitle") return "Manager of the Season";
-      if (key === "tournaments.awards.managerOfSeasonSubtitle") return "Best campaign on the touchline";
+      if (key === "tournaments.awards.managerOfSeasonSubtitle")
+        return "Best campaign on the touchline";
       if (key === "tournaments.awards.noDataYet") return "No data yet";
       if (key === "tournaments.awards.units.winRate") return "win rate";
       if (key === "tournaments.nTeams") return `${params?.count} teams`;
@@ -214,33 +215,33 @@ function createGameState(withLeague = true): GameStateData {
     news: [],
     league: withLeague
       ? {
-        id: "league-1",
-        name: "Premier League",
-        season: 1,
-        fixtures: [createFixture()],
-        standings: [
-          {
-            team_id: "team-1",
-            played: 1,
-            won: 1,
-            drawn: 0,
-            lost: 0,
-            goals_for: 1,
-            goals_against: 0,
-            points: 3,
-          },
-          {
-            team_id: "team-2",
-            played: 1,
-            won: 0,
-            drawn: 0,
-            lost: 1,
-            goals_for: 0,
-            goals_against: 1,
-            points: 0,
-          },
-        ],
-      }
+          id: "league-1",
+          name: "Premier League",
+          season: 1,
+          fixtures: [createFixture()],
+          standings: [
+            {
+              team_id: "team-1",
+              played: 1,
+              won: 1,
+              drawn: 0,
+              lost: 0,
+              goals_for: 1,
+              goals_against: 0,
+              points: 3,
+            },
+            {
+              team_id: "team-2",
+              played: 1,
+              won: 0,
+              drawn: 0,
+              lost: 1,
+              goals_for: 0,
+              goals_against: 1,
+              points: 0,
+            },
+          ],
+        }
       : null,
     scouting_assignments: [],
     board_objectives: [],

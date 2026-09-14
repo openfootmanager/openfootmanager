@@ -72,7 +72,7 @@ export default function DashboardOverlays({
 }: DashboardOverlaysProps) {
   return (
     <>
-      {(isDigestVisible || isAdvancing) ? (
+      {isDigestVisible || isAdvancing ? (
         <DashboardSimulatingModal
           // While a batch advance is still crunching there is no feed yet:
           // withhold the entries so the modal shows the plain spinner, then

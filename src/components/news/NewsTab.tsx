@@ -137,20 +137,14 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
   const categories = Array.from(new Set(sortedNews.map((n) => n.category)));
 
   // Collect teams that appear in news for the team filter
-  const newsTeamIds = Array.from(
-    new Set(sortedNews.flatMap((n) => n.team_ids || [])),
-  );
+  const newsTeamIds = Array.from(new Set(sortedNews.flatMap((n) => n.team_ids || [])));
   const teamsInNews = newsTeamIds
     .map((id) => ({ id, name: teamNames[id] ?? id }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   let filtered = sortedNews;
-  if (filterCategory)
-    filtered = filtered.filter((n) => n.category === filterCategory);
-  if (filterTeamId)
-    filtered = filtered.filter((n) =>
-      (n.team_ids || []).includes(filterTeamId),
-    );
+  if (filterCategory) filtered = filtered.filter((n) => n.category === filterCategory);
+  if (filterTeamId) filtered = filtered.filter((n) => (n.team_ids || []).includes(filterTeamId));
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -158,8 +152,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
   const pageArticles = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
   const selectedArticle = selectedId
-    ? filtered.find((a) => a.id === selectedId) ||
-    sortedNews.find((a) => a.id === selectedId)
+    ? filtered.find((a) => a.id === selectedId) || sortedNews.find((a) => a.id === selectedId)
     : null;
 
   // Empty state
@@ -167,12 +160,8 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
     return (
       <div className="text-center py-16">
         <Newspaper className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          {t("news.noNews")}
-        </p>
-        <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
-          {t("news.newsWillAppear")}
-        </p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">{t("news.noNews")}</p>
+        <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">{t("news.newsWillAppear")}</p>
       </div>
     );
   }
@@ -212,10 +201,11 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
             setFilterCategory(null);
             setPage(0);
           }}
-          className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${!filterCategory
-            ? "bg-primary-500 text-white shadow-sm"
-            : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
-            }`}
+          className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
+            !filterCategory
+              ? "bg-primary-500 text-white shadow-sm"
+              : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
+          }`}
         >
           {t("common.all")}
         </button>
@@ -226,10 +216,11 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
               setFilterCategory(filterCategory === cat ? null : cat);
               setPage(0);
             }}
-            className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${filterCategory === cat
-              ? "bg-primary-500 text-white shadow-sm"
-              : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
-              }`}
+            className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
+              filterCategory === cat
+                ? "bg-primary-500 text-white shadow-sm"
+                : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
+            }`}
           >
             {t(`news.categories.${cat}`)}
           </button>
@@ -369,8 +360,7 @@ function HeroArticle({
               {teamNames[article.match_score.home_team_id] ?? article.match_score.home_team_id}
             </span>
             <span className="text-lg font-heading font-bold text-primary-500 bg-primary-500/10 px-3 py-1 rounded-lg">
-              {article.match_score.home_goals} –{" "}
-              {article.match_score.away_goals}
+              {article.match_score.home_goals} – {article.match_score.away_goals}
             </span>
             <span className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300">
               {teamNames[article.match_score.away_team_id] ?? article.match_score.away_team_id}
@@ -461,8 +451,7 @@ function ArticleCard({
               {teamNames[article.match_score.home_team_id] ?? article.match_score.home_team_id}
             </span>
             <span className="text-xs font-heading font-bold text-primary-500 bg-primary-500/10 px-1.5 py-0.5 rounded">
-              {article.match_score.home_goals} –{" "}
-              {article.match_score.away_goals}
+              {article.match_score.home_goals} – {article.match_score.away_goals}
             </span>
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
               {teamNames[article.match_score.away_team_id] ?? article.match_score.away_team_id}
@@ -554,8 +543,7 @@ function ArticleDetail({
                 </p>
               </div>
               <div className="text-2xl font-heading font-bold text-primary-500 bg-primary-500/10 px-4 py-2 rounded-xl">
-                {article.match_score.home_goals} –{" "}
-                {article.match_score.away_goals}
+                {article.match_score.home_goals} – {article.match_score.away_goals}
               </div>
               <div className="text-center">
                 <p className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300">

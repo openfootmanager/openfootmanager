@@ -30,14 +30,8 @@ export default function InboxDeleteConfirmModal({
       : t("inbox.deleteSelectedTitle");
   const message =
     deleteModalState.mode === "single"
-      ? t(
-        "inbox.deleteMessageBody",
-        { subject: deleteModalState.subject },
-      )
-      : t(
-        "inbox.deleteSelectedBody",
-        { count: deleteModalState.messageIds.length },
-      );
+      ? t("inbox.deleteMessageBody", { subject: deleteModalState.subject })
+      : t("inbox.deleteSelectedBody", { count: deleteModalState.messageIds.length });
 
   return (
     <DashboardModalFrame maxWidthClassName="max-w-md">
@@ -46,9 +40,7 @@ export default function InboxDeleteConfirmModal({
           <h3 className="text-lg font-heading font-bold text-gray-900 dark:text-gray-100">
             {title}
           </h3>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            {message}
-          </p>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</p>
         </div>
         <div className="flex items-center justify-end gap-3">
           <Button

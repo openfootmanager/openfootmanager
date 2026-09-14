@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Copy, Download, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
+import {
+  Plus,
+  Copy,
+  Download,
+  Edit2,
+  Trash2,
+  ArrowLeft,
+  CheckCircle,
+  Loader2,
+  X,
+} from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
@@ -129,9 +139,7 @@ export function EntityRow({
         <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200 truncate">
           {title}
         </p>
-        {subtitle && (
-          <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>}
       </div>
       {confirming ? (
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -153,7 +161,10 @@ export function EntityRow({
       ) : (
         <>
           <button
-            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
             className="text-gray-400 hover:text-primary-500 transition-colors flex-shrink-0"
             title={editLabel}
           >
@@ -161,7 +172,10 @@ export function EntityRow({
           </button>
           {onDuplicate && (
             <button
-              onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate();
+              }}
               className="text-gray-400 hover:text-primary-500 transition-colors flex-shrink-0"
               title={duplicateLabel}
               aria-label={duplicateLabel}
@@ -226,7 +240,11 @@ export function EntityFormShell({
         disabled={isBusy || saveDisabled}
         className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+        {isBusy ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <CheckCircle className="w-4 h-4" />
+        )}
         {saveLabel}
       </button>
     </div>

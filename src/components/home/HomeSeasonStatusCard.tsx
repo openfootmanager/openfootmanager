@@ -48,9 +48,7 @@ export default function HomeSeasonStatusCard({
                 {t(`season.transferWindowStatus.${transferWindowStatus}`)}
               </Badge>
             </div>
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              {t("season.preseasonFocus")}
-            </p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">{t("season.preseasonFocus")}</p>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:min-w-[22rem]">
             <div className="rounded-xl bg-gray-50 px-4 py-3 dark:bg-navy-700/50">

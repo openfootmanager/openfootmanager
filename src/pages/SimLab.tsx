@@ -77,25 +77,9 @@ const STYLES: { value: PlayStyleDto; label: string }[] = [
   { value: "high_press", label: "High Press" },
 ];
 
-const FORMATIONS = [
-  "4-4-2",
-  "4-3-3",
-  "4-5-1",
-  "3-5-2",
-  "5-3-2",
-  "4-2-3-1",
-  "3-4-3",
-];
+const FORMATIONS = ["4-4-2", "4-3-3", "4-5-1", "3-5-2", "5-3-2", "4-2-3-1", "3-4-3"];
 
-const BUCKET_LABELS = [
-  "1–15",
-  "16–30",
-  "31–45",
-  "46–60",
-  "61–75",
-  "76–90",
-  "90+",
-];
+const BUCKET_LABELS = ["1–15", "16–30", "31–45", "46–60", "61–75", "76–90", "90+"];
 
 const TABS = ["Overview", "Shooting", "Discipline", "Heatmap", "Timeline", "Benchmark"] as const;
 type Tab = (typeof TABS)[number];
@@ -164,7 +148,10 @@ export default function SimLab() {
     setCfg((prev) => ({ ...prev, [key]: value }));
 
   return (
-    <div className="min-h-screen bg-navy-900 text-slate-100 flex flex-col" style={{ fontFamily: "system-ui, sans-serif" }}>
+    <div
+      className="min-h-screen bg-navy-900 text-slate-100 flex flex-col"
+      style={{ fontFamily: "system-ui, sans-serif" }}
+    >
       {/* Header */}
       <div className="border-b border-navy-700 px-6 py-3 flex items-center justify-between bg-navy-900">
         <div>
@@ -174,7 +161,9 @@ export default function SimLab() {
           </p>
         </div>
         <button
-          onClick={() => { void run(); }}
+          onClick={() => {
+            void run();
+          }}
           disabled={running}
           className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm transition-colors"
         >
@@ -218,7 +207,10 @@ export default function SimLab() {
               placeholder="e.g. 42"
               value={cfg.seed ?? ""}
               onChange={(e) =>
-                update("seed", e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))))
+                update(
+                  "seed",
+                  e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))),
+                )
               }
               className={inputCls}
             />
@@ -314,9 +306,7 @@ export default function SimLab() {
             </div>
           )}
 
-          {!results && !running && (
-            <EmptyState />
-          )}
+          {!results && !running && <EmptyState />}
 
           {running && (
             <div className="flex items-center gap-3 text-slate-400">
@@ -488,8 +478,16 @@ function OverviewTab({ r }: { r: SimBatchResults }) {
 
       {/* Key numbers */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Goals/game" value={r.goals_per_game.toFixed(2)} sub={`H: ${r.home_goals_per_game.toFixed(2)} — A: ${r.away_goals_per_game.toFixed(2)}`} />
-        <StatCard label="Clean sheets (H)" value={`${r.clean_sheet_home_pct.toFixed(1)}%`} sub="Home team kept" />
+        <StatCard
+          label="Goals/game"
+          value={r.goals_per_game.toFixed(2)}
+          sub={`H: ${r.home_goals_per_game.toFixed(2)} — A: ${r.away_goals_per_game.toFixed(2)}`}
+        />
+        <StatCard
+          label="Clean sheets (H)"
+          value={`${r.clean_sheet_home_pct.toFixed(1)}%`}
+          sub="Home team kept"
+        />
         <StatCard label="BTTS" value={`${r.btts_pct.toFixed(1)}%`} sub="Both scored" />
       </div>
 
@@ -497,7 +495,7 @@ function OverviewTab({ r }: { r: SimBatchResults }) {
       <Card title="Goals per Game Distribution">
         <Histogram
           data={r.goals_per_game_hist}
-          labels={["0","1","2","3","4","5","6","7","8","9+"]}
+          labels={["0", "1", "2", "3", "4", "5", "6", "7", "8", "9+"]}
           color="#4f8ef7"
         />
       </Card>
@@ -523,7 +521,9 @@ function OverviewTab({ r }: { r: SimBatchResults }) {
                   <td className="py-1.5 text-right font-mono font-semibold">{v.toFixed(2)}</td>
                   <td className="py-1.5 text-right text-slate-500 text-xs">{target}</td>
                   <td className="py-1.5 text-right">
-                    <span className={`text-xs font-semibold ${ok ? "text-green-400" : "text-red-400"}`}>
+                    <span
+                      className={`text-xs font-semibold ${ok ? "text-green-400" : "text-red-400"}`}
+                    >
                       {ok ? "✓" : "✗"}
                     </span>
                   </td>
@@ -544,21 +544,45 @@ function ShootingTab({ r }: { r: SimBatchResults }) {
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="Shots/game" value={r.shots_per_game.toFixed(1)} sub="Total both teams" />
-        <StatCard label="On target %" value={`${r.shots_on_target_pct.toFixed(1)}%`} sub="Target: 32–45%" />
-        <StatCard label="Conversion %" value={`${r.goal_conversion_pct.toFixed(1)}%`} sub="Target: 20–40%" />
+        <StatCard
+          label="On target %"
+          value={`${r.shots_on_target_pct.toFixed(1)}%`}
+          sub="Target: 32–45%"
+        />
+        <StatCard
+          label="Conversion %"
+          value={`${r.goal_conversion_pct.toFixed(1)}%`}
+          sub="Target: 20–40%"
+        />
       </div>
 
       <Card title="Shooting Funnel">
         <div className="space-y-4">
-          <FunnelRow label="Total shots" value={r.shots_per_game} max={r.shots_per_game} color="#64748b" />
-          <FunnelRow label="On target" value={r.shots_per_game * r.shots_on_target_pct / 100} max={r.shots_per_game} color="#4f8ef7" />
-          <FunnelRow label="Goals" value={r.goals_per_game} max={r.shots_per_game} color="#34d399" />
+          <FunnelRow
+            label="Total shots"
+            value={r.shots_per_game}
+            max={r.shots_per_game}
+            color="#64748b"
+          />
+          <FunnelRow
+            label="On target"
+            value={(r.shots_per_game * r.shots_on_target_pct) / 100}
+            max={r.shots_per_game}
+            color="#4f8ef7"
+          />
+          <FunnelRow
+            label="Goals"
+            value={r.goals_per_game}
+            max={r.shots_per_game}
+            color="#34d399"
+          />
         </div>
       </Card>
 
       <Card title="Expected Goals (Proxy)">
         <p className="text-xs text-slate-500 mb-4">
-          xG proxy = shots on target/game × goal_conversion_base. Not per-shot (engine doesn't emit shot quality in static path).
+          xG proxy = shots on target/game × goal_conversion_base. Not per-shot (engine doesn't emit
+          shot quality in static path).
         </p>
         <div className="grid grid-cols-3 gap-4">
           <StatCard label="xG/game" value={xg.toFixed(2)} sub="Proxy estimate" />
@@ -574,8 +598,16 @@ function ShootingTab({ r }: { r: SimBatchResults }) {
 
       <Card title="Set Piece Shooting">
         <div className="grid grid-cols-3 gap-4">
-          <StatCard label="Penalties/game" value={r.penalties_per_game.toFixed(2)} sub="Target: 0.20–0.50" />
-          <StatCard label="Pen. conversion" value={`${r.penalty_conversion_pct.toFixed(1)}%`} sub="Target: 65–85%" />
+          <StatCard
+            label="Penalties/game"
+            value={r.penalties_per_game.toFixed(2)}
+            sub="Target: 0.20–0.50"
+          />
+          <StatCard
+            label="Pen. conversion"
+            value={`${r.penalty_conversion_pct.toFixed(1)}%`}
+            sub="Target: 65–85%"
+          />
           <StatCard label="Corners/game" value={r.corners_per_game.toFixed(1)} sub="Target: 8–14" />
         </div>
       </Card>
@@ -587,9 +619,24 @@ function DisciplineTab({ r }: { r: SimBatchResults }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Fouls/game" value={r.fouls_per_game.toFixed(1)} sub="Target: 18–28" valueClass={inRange(r.fouls_per_game, 18, 28)} />
-        <StatCard label="Yellow cards/game" value={r.yellow_cards_per_game.toFixed(2)} sub="Target: 2.0–4.0" valueClass={inRange(r.yellow_cards_per_game, 2, 4)} />
-        <StatCard label="Red cards/game" value={r.red_cards_per_game.toFixed(3)} sub="Target: 0.05–0.15" valueClass={inRange(r.red_cards_per_game, 0.05, 0.15)} />
+        <StatCard
+          label="Fouls/game"
+          value={r.fouls_per_game.toFixed(1)}
+          sub="Target: 18–28"
+          valueClass={inRange(r.fouls_per_game, 18, 28)}
+        />
+        <StatCard
+          label="Yellow cards/game"
+          value={r.yellow_cards_per_game.toFixed(2)}
+          sub="Target: 2.0–4.0"
+          valueClass={inRange(r.yellow_cards_per_game, 2, 4)}
+        />
+        <StatCard
+          label="Red cards/game"
+          value={r.red_cards_per_game.toFixed(3)}
+          sub="Target: 0.05–0.15"
+          valueClass={inRange(r.red_cards_per_game, 0.05, 0.15)}
+        />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <StatCard label="Injuries/game" value={r.injuries_per_game.toFixed(2)} sub="" />
@@ -598,14 +645,16 @@ function DisciplineTab({ r }: { r: SimBatchResults }) {
 
       <Card title="Discipline Notes">
         <p className="text-sm text-slate-400 leading-relaxed">
-          The static simulation engine only triggers fouls in the midfield and attacking-third zones.
-          Box fouls (leading to penalties) are not generated via this path — penalties will show as 0
-          regardless of the <code className="bg-navy-800 px-1 rounded">penalty_probability</code> config.
-          This is a known limitation of the static engine path. The live match engine handles this correctly.
+          The static simulation engine only triggers fouls in the midfield and attacking-third
+          zones. Box fouls (leading to penalties) are not generated via this path — penalties will
+          show as 0 regardless of the{" "}
+          <code className="bg-navy-800 px-1 rounded">penalty_probability</code> config. This is a
+          known limitation of the static engine path. The live match engine handles this correctly.
         </p>
         <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-          If fouls per game is below 18, consider increasing <code className="bg-navy-800 px-1 rounded">foul_probability</code> or
-          reviewing how often tackle events occur in the zone resolution logic.
+          If fouls per game is below 18, consider increasing{" "}
+          <code className="bg-navy-800 px-1 rounded">foul_probability</code> or reviewing how often
+          tackle events occur in the zone resolution logic.
         </p>
       </Card>
     </div>
@@ -623,7 +672,7 @@ function HeatmapTab({ r }: { r: SimBatchResults }) {
             <thead>
               <tr>
                 <th className="w-10 h-10" />
-                {[0,1,2,3,4,5].map((ag) => (
+                {[0, 1, 2, 3, 4, 5].map((ag) => (
                   <th key={ag} className="w-14 h-10 text-xs text-slate-500 text-center font-normal">
                     {ag === 5 ? "5+" : ag}
                   </th>
@@ -689,12 +738,15 @@ function TimelineTab({ r }: { r: SimBatchResults }) {
         </div>
         <p className="text-xs text-slate-500 mt-4">
           A fairly even distribution across all periods is expected. Goals should increase slightly
-          in the 76–90 window as teams push for results. Check for anomalies in the extra time bucket.
+          in the 76–90 window as teams push for results. Check for anomalies in the extra time
+          bucket.
         </p>
       </Card>
 
       <Card title="Possession">
-        <div className="mb-2 text-xs text-slate-500">Average possession split across {r.games.toLocaleString()} games</div>
+        <div className="mb-2 text-xs text-slate-500">
+          Average possession split across {r.games.toLocaleString()} games
+        </div>
         <div className="flex h-7 rounded overflow-hidden gap-px">
           <div
             className="flex items-center justify-center text-xs font-bold text-white"
@@ -724,19 +776,24 @@ function BenchmarkTab({ r }: { r: SimBatchResults }) {
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="Games simulated" value={r.games.toLocaleString()} sub="" />
         <StatCard label="Total time" value={`${r.total_time_secs.toFixed(2)}s`} sub="" />
-        <StatCard label="Throughput" value={`${Math.round(r.games_per_sec).toLocaleString()}`} sub="games / second" />
+        <StatCard
+          label="Throughput"
+          value={`${Math.round(r.games_per_sec).toLocaleString()}`}
+          sub="games / second"
+        />
       </div>
 
       <Card title="Interpretation">
         <p className="text-sm text-slate-400 leading-relaxed">
           This is single-threaded throughput for the static simulation engine (
-          <code className="bg-navy-800 px-1 rounded">engine::simulate_with_rng</code>).
-          For deeper analysis, use the <code className="bg-navy-800 px-1 rounded">ofm-sim-bench --bench</code> CLI
-          which measures per-game latency distribution (p50/p95/p99).
+          <code className="bg-navy-800 px-1 rounded">engine::simulate_with_rng</code>). For deeper
+          analysis, use the <code className="bg-navy-800 px-1 rounded">ofm-sim-bench --bench</code>{" "}
+          CLI which measures per-game latency distribution (p50/p95/p99).
         </p>
         <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-          At {Math.round(r.games_per_sec).toLocaleString()} games/sec you can run 100,000 games in approximately{" "}
-          {(100000 / r.games_per_sec).toFixed(1)} seconds — useful for large parameter sweeps.
+          At {Math.round(r.games_per_sec).toLocaleString()} games/sec you can run 100,000 games in
+          approximately {(100000 / r.games_per_sec).toFixed(1)} seconds — useful for large parameter
+          sweeps.
         </p>
       </Card>
     </div>
@@ -764,7 +821,11 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
-  return <label htmlFor={htmlFor} className="text-xs text-slate-500 mb-1 mt-2 block">{children}</label>;
+  return (
+    <label htmlFor={htmlFor} className="text-xs text-slate-500 mb-1 mt-2 block">
+      {children}
+    </label>
+  );
 }
 
 function StatCard({
@@ -813,15 +874,7 @@ function OutcomeBar({
   );
 }
 
-function Histogram({
-  data,
-  labels,
-  color,
-}: {
-  data: number[];
-  labels: string[];
-  color: string;
-}) {
+function Histogram({ data, labels, color }: { data: number[]; labels: string[]; color: string }) {
   const max = Math.max(...data, 0.001);
   return (
     <div className="flex items-end gap-1.5" style={{ height: 100 }}>

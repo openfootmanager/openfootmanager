@@ -9,31 +9,31 @@ const ATTRIBUTE_GROUPS: {
   labelKey: string;
   attrs: Array<keyof PlayerData["attributes"]>;
 }[] = [
-    {
-      labelKey: "common.attrGroups.physical",
-      attrs: ["pace", "stamina", "strength", "agility"],
-    },
-    {
-      labelKey: "common.attrGroups.technical",
-      attrs: ["passing", "shooting", "tackling", "dribbling", "defending"],
-    },
-    {
-      labelKey: "common.attrGroups.mental",
-      attrs: [
-        "positioning",
-        "vision",
-        "decisions",
-        "composure",
-        "aggression",
-        "teamwork",
-        "leadership",
-      ],
-    },
-    {
-      labelKey: "common.attrGroups.goalkeeper",
-      attrs: ["handling", "reflexes", "aerial"],
-    },
-  ];
+  {
+    labelKey: "common.attrGroups.physical",
+    attrs: ["pace", "stamina", "strength", "agility"],
+  },
+  {
+    labelKey: "common.attrGroups.technical",
+    attrs: ["passing", "shooting", "tackling", "dribbling", "defending"],
+  },
+  {
+    labelKey: "common.attrGroups.mental",
+    attrs: [
+      "positioning",
+      "vision",
+      "decisions",
+      "composure",
+      "aggression",
+      "teamwork",
+      "leadership",
+    ],
+  },
+  {
+    labelKey: "common.attrGroups.goalkeeper",
+    attrs: ["handling", "reflexes", "aerial"],
+  },
+];
 
 interface TacticsPlayerFocusPanelProps {
   canConfirmSwap: boolean;
@@ -61,13 +61,7 @@ function getNormalizedPlayerPosition(player: PlayerData): string {
   return normalisePosition(player.natural_position || player.position);
 }
 
-function PlayerSummary({
-  label,
-  player,
-}: {
-  label: string;
-  player: PlayerData;
-}) {
+function PlayerSummary({ label, player }: { label: string; player: PlayerData }) {
   const { t } = useTranslation();
   const normalizedPosition = getNormalizedPlayerPosition(player);
   const displayPosition = player.natural_position || player.position;
@@ -88,10 +82,7 @@ function PlayerSummary({
               {translatePositionLabel(t, displayPosition)}
             </Badge>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              <CountryFlag
-                code={player.nationality}
-                className="text-xs leading-none mr-1"
-              />
+              <CountryFlag code={player.nationality} className="text-xs leading-none mr-1" />
               {t("common.age")} {calcAge(player.date_of_birth)}
             </span>
           </div>
@@ -116,8 +107,7 @@ function SinglePlayerAttributes({ player }: { player: PlayerData }) {
   return (
     <div className="space-y-4">
       {ATTRIBUTE_GROUPS.filter(
-        (group) =>
-          group.labelKey !== "common.attrGroups.goalkeeper" || isGoalkeeper,
+        (group) => group.labelKey !== "common.attrGroups.goalkeeper" || isGoalkeeper,
       ).map((group) => (
         <div key={group.labelKey}>
           <h4 className="text-sm font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">
@@ -127,10 +117,7 @@ function SinglePlayerAttributes({ player }: { player: PlayerData }) {
             {group.attrs.map((attr) => {
               const value = player.attributes[attr];
               return (
-                <div
-                  key={attr}
-                  className="grid grid-cols-[minmax(0,1fr)_40px] gap-3 items-center"
-                >
+                <div key={attr} className="grid grid-cols-[minmax(0,1fr)_40px] gap-3 items-center">
                   <div>
                     <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">
                       {t(`common.attributes.${attr}`)}
@@ -176,32 +163,19 @@ function CompareAttributes({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <PlayerSummary
-          label={t("tactics.selectedPlayer")}
-          player={selectedPlayer}
-        />
-        <PlayerSummary
-          label={t("tactics.comparePlayer")}
-          player={comparePlayer}
-        />
+        <PlayerSummary label={t("tactics.selectedPlayer")} player={selectedPlayer} />
+        <PlayerSummary label={t("tactics.comparePlayer")} player={comparePlayer} />
       </div>
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-gray-600 dark:text-gray-300">
           {t("tactics.compareSelectionHint")}
         </p>
-        <Button
-          type="button"
-          size="sm"
-          onClick={onConfirmSwap}
-          disabled={!canConfirmSwap}
-        >
+        <Button type="button" size="sm" onClick={onConfirmSwap} disabled={!canConfirmSwap}>
           {t("tactics.confirmSwap")}
         </Button>
       </div>
       {ATTRIBUTE_GROUPS.filter(
-        (group) =>
-          group.labelKey !== "common.attrGroups.goalkeeper" ||
-          showGoalkeeperAttrs,
+        (group) => group.labelKey !== "common.attrGroups.goalkeeper" || showGoalkeeperAttrs,
       ).map((group) => (
         <div key={group.labelKey}>
           <h4 className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">
@@ -222,11 +196,7 @@ function CompareAttributes({
                     className={`rounded-lg px-2 py-2 ${leftWins ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "bg-gray-50 dark:bg-navy-800/70"}`}
                   >
                     <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span
-                        className={`font-heading font-bold ${valueTone(left)}`}
-                      >
-                        {left}
-                      </span>
+                      <span className={`font-heading font-bold ${valueTone(left)}`}>{left}</span>
                     </div>
                     <div className="h-2 rounded-full bg-white dark:bg-navy-700 overflow-hidden">
                       <div
@@ -242,11 +212,7 @@ function CompareAttributes({
                     className={`rounded-lg px-2 py-2 ${rightWins ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "bg-gray-50 dark:bg-navy-800/70"}`}
                   >
                     <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span
-                        className={`font-heading font-bold ${valueTone(right)}`}
-                      >
-                        {right}
-                      </span>
+                      <span className={`font-heading font-bold ${valueTone(right)}`}>{right}</span>
                     </div>
                     <div className="h-2 rounded-full bg-white dark:bg-navy-700 overflow-hidden">
                       <div
@@ -304,10 +270,7 @@ export default function TacticsPlayerFocusPanel({
             />
           ) : (
             <div className="space-y-4">
-              <PlayerSummary
-                label={t("tactics.selectedPlayer")}
-                player={selectedPlayer}
-              />
+              <PlayerSummary label={t("tactics.selectedPlayer")} player={selectedPlayer} />
               <div className="rounded-xl border border-dashed border-gray-200 dark:border-navy-600 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                 {t("tactics.selectSecondPlayer")}
               </div>

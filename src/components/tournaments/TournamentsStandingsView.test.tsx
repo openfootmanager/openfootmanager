@@ -59,9 +59,7 @@ const round = {
   completed: false,
 } as unknown as NonNullable<LeagueData["knockout_rounds"]>[number];
 
-function renderView(
-  props: Partial<React.ComponentProps<typeof TournamentsStandingsView>> = {},
-) {
+function renderView(props: Partial<React.ComponentProps<typeof TournamentsStandingsView>> = {}) {
   return render(
     <TournamentsStandingsView
       league={league}

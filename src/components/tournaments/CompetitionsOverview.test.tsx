@@ -15,7 +15,10 @@ function fixture(
     away_team_id: "t2",
     competition,
     status,
-    result: status === "Completed" ? { home_goals: 1, away_goals: 0, home_scorers: [], away_scorers: [] } : null,
+    result:
+      status === "Completed"
+        ? { home_goals: 1, away_goals: 0, home_scorers: [], away_scorers: [] }
+        : null,
   };
 }
 
@@ -85,10 +88,7 @@ describe("getCompetitionStatus", () => {
     // Preseason completed + one real scheduled → notStarted (preseason not counted)
     expect(
       getCompetitionStatus({
-        fixtures: [
-          fixture("Completed", "PreseasonTournament"),
-          fixture("Scheduled"),
-        ],
+        fixtures: [fixture("Completed", "PreseasonTournament"), fixture("Scheduled")],
         id: "c1",
         name: "X",
         season: 1,

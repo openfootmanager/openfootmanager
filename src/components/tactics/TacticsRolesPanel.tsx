@@ -1,20 +1,9 @@
 import { useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  Award,
-  CircleDot,
-  CornerDownRight,
-  Crown,
-  Footprints,
-  Sparkles,
-} from "lucide-react";
+import { Award, CircleDot, CornerDownRight, Crown, Footprints, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type {
-  GameStateData,
-  PlayerData,
-  TeamMatchRolesData,
-} from "../../store/types";
+import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/types";
 import SetPieceSelector from "../match/SetPieceSelector";
 import { Card, CardBody, CardHeader } from "../ui";
 import {
@@ -51,9 +40,7 @@ export default function TacticsRolesPanel({
     return resolveEffectiveMatchRoles(startingPlayers, matchRoles);
   }, [matchRoles, startingPlayers]);
 
-  async function persistMatchRoles(
-    nextRoles: TeamMatchRolesData,
-  ): Promise<void> {
+  async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {
     try {
       const updated = await invoke<GameStateData>("set_team_match_roles", {
         matchRoles: nextRoles,
@@ -64,17 +51,9 @@ export default function TacticsRolesPanel({
     }
   }
 
-  async function handleRoleChange(
-    role: keyof TeamMatchRolesData,
-    playerId: string,
-  ): Promise<void> {
+  async function handleRoleChange(role: keyof TeamMatchRolesData, playerId: string): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(
-        effectiveRoles,
-        startingPlayers,
-        role,
-        playerId,
-      ),
+      buildUpdatedMatchRolesForAssignment(effectiveRoles, startingPlayers, role, playerId),
     );
   }
 
@@ -100,9 +79,7 @@ export default function TacticsRolesPanel({
         <CardHeader>{t("tactics.teamRoles")}</CardHeader>
         <CardBody>
           <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-navy-600 dark:bg-navy-800/70">
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {t("tactics.rolesHint")}
-            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{t("tactics.rolesHint")}</p>
             <button
               type="button"
               onClick={() => {

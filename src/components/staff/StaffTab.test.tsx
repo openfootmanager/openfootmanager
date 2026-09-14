@@ -31,7 +31,8 @@ vi.mock("react-i18next", () => ({
       if (key === "staff.best") return "Best";
       if (key.startsWith("staff.roles.")) return key.replace("staff.roles.", "");
       if (key.startsWith("staff.attrs.")) return key.replace("staff.attrs.", "");
-      if (key.startsWith("staff.specializations.")) return key.replace("staff.specializations.", "");
+      if (key.startsWith("staff.specializations."))
+        return key.replace("staff.specializations.", "");
       return fallback ?? key;
     },
     i18n: { language: "en" },
@@ -130,7 +131,13 @@ function createGameState(staff: StaffData[]): GameStateData {
   };
 }
 
-function makeStaffSlice(staff: StaffData[], overrides: Partial<{ scouting_assignments: unknown[]; youth_scouting_assignments: unknown[] }> = {}) {
+function makeStaffSlice(
+  staff: StaffData[],
+  overrides: Partial<{
+    scouting_assignments: unknown[];
+    youth_scouting_assignments: unknown[];
+  }> = {},
+) {
   return {
     team_staff: staff.filter((s) => s.team_id),
     available_staff: staff.filter((s) => !s.team_id),
@@ -170,7 +177,13 @@ describe("StaffTab", () => {
       return createGameState([physio]);
     });
 
-    render(<StaffTab gameState={createGameState([physio])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+    render(
+      <StaffTab
+        gameState={createGameState([physio])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
 
     const card = await screen.findByTestId("staff-card-staff-physio");
     expect(within(card).getByText("90 OVR")).toBeInTheDocument();
@@ -196,7 +209,13 @@ describe("StaffTab", () => {
       return createGameState([assistant]);
     });
 
-    render(<StaffTab gameState={createGameState([assistant])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+    render(
+      <StaffTab
+        gameState={createGameState([assistant])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
 
     const card = await screen.findByTestId("staff-card-staff-assistant");
     // (80*4 + 60*3 + 40*3) / 10 = 62 — physiotherapy must not count.
@@ -224,7 +243,13 @@ describe("StaffTab", () => {
       return createGameState([scout]);
     });
 
-    render(<StaffTab gameState={createGameState([scout])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+    render(
+      <StaffTab
+        gameState={createGameState([scout])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
 
     const card = await screen.findByTestId("staff-card-staff-scout");
     // (80 + 60) / 2 = 70 — coaching and physiotherapy must not count.
@@ -253,7 +278,9 @@ describe("StaffTab", () => {
       return createGameState([odd]);
     });
 
-    render(<StaffTab gameState={createGameState([odd])} onGameUpdate={() => {}} onNavigate={() => {}} />);
+    render(
+      <StaffTab gameState={createGameState([odd])} onGameUpdate={() => {}} onNavigate={() => {}} />,
+    );
 
     const card = await screen.findByTestId("staff-card-staff-odd");
     // (40 + 60 + 80 + 20) / 4 = 50 — not coaching's 40.
@@ -263,8 +290,20 @@ describe("StaffTab", () => {
   it("switches to available staff and filters by role and search", async () => {
     const staff = [
       createStaff(),
-      createStaff({ id: "staff-2", first_name: "Sam", last_name: "Scout", role: "Scout", team_id: null }),
-      createStaff({ id: "staff-3", first_name: "Pat", last_name: "Physio", role: "Physio", team_id: null }),
+      createStaff({
+        id: "staff-2",
+        first_name: "Sam",
+        last_name: "Scout",
+        role: "Scout",
+        team_id: null,
+      }),
+      createStaff({
+        id: "staff-3",
+        first_name: "Pat",
+        last_name: "Physio",
+        role: "Physio",
+        team_id: null,
+      }),
     ];
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_staff") return makeStaffSlice(staff);
@@ -288,7 +327,13 @@ describe("StaffTab", () => {
   });
 
   it("hires an available staff member and forwards the updated state", async () => {
-    const scout = createStaff({ id: "staff-2", first_name: "Sam", last_name: "Scout", role: "Scout", team_id: null });
+    const scout = createStaff({
+      id: "staff-2",
+      first_name: "Sam",
+      last_name: "Scout",
+      role: "Scout",
+      team_id: null,
+    });
     const updatedState = createGameState([]);
     const onGameUpdate = vi.fn();
     invokeMock.mockImplementation(async (command: string) => {
@@ -311,7 +356,13 @@ describe("StaffTab", () => {
   });
 
   it("offers a hire action from the staff card context menu", async () => {
-    const scout = createStaff({ id: "staff-2", first_name: "Sam", last_name: "Scout", role: "Scout", team_id: null });
+    const scout = createStaff({
+      id: "staff-2",
+      first_name: "Sam",
+      last_name: "Scout",
+      role: "Scout",
+      team_id: null,
+    });
     const updatedState = createGameState([]);
     const onGameUpdate = vi.fn();
     invokeMock.mockImplementation(async (command: string) => {
@@ -326,9 +377,7 @@ describe("StaffTab", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Available 1/i }));
     fireEvent.contextMenu(screen.getByTestId("staff-card-staff-2"));
-    fireEvent.click(
-      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Hire staff" }),
-    );
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Hire staff" }));
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("hire_staff", { staffId: "staff-2" });
@@ -394,15 +443,31 @@ describe("StaffTab", () => {
   });
 
   it("shows scout workload details and opens the scouting workflow", async () => {
-    const scout = createStaff({ id: "staff-2", first_name: "Sam", last_name: "Scout", role: "Scout" });
+    const scout = createStaff({
+      id: "staff-2",
+      first_name: "Sam",
+      last_name: "Scout",
+      role: "Scout",
+    });
     const scoutingAssignments = [
       { id: "sa-1", scout_id: "staff-2", player_id: "player-1", days_remaining: 2 },
     ];
     const youthAssignments = [
-      { id: "ysa-1", scout_id: "staff-2", region: "Domestic", objective: "Balanced", target_position: "Defender", days_remaining: 5 },
+      {
+        id: "ysa-1",
+        scout_id: "staff-2",
+        region: "Domestic",
+        objective: "Balanced",
+        target_position: "Defender",
+        days_remaining: 5,
+      },
     ];
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([scout], { scouting_assignments: scoutingAssignments, youth_scouting_assignments: youthAssignments });
+      if (command === "get_staff")
+        return makeStaffSlice([scout], {
+          scouting_assignments: scoutingAssignments,
+          youth_scouting_assignments: youthAssignments,
+        });
       return createGameState([scout]);
     });
     const onNavigate = vi.fn();

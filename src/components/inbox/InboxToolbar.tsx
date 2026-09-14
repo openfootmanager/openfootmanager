@@ -51,10 +51,7 @@ export default function InboxToolbar({
 
   return (
     <div className="flex gap-2 mb-4 flex-wrap shrink-0">
-      <button
-        onClick={onShowAll}
-        className={getFilterButtonClassName(!categoryFilter)}
-      >
+      <button onClick={onShowAll} className={getFilterButtonClassName(!categoryFilter)}>
         {t("common.all")} ({allMessagesCount})
       </button>
       {unreadCount > 0 ? (
@@ -94,9 +91,7 @@ export default function InboxToolbar({
           <Select
             id="inbox-sort-order"
             value={sortOrder}
-            onChange={(event) =>
-              onSortOrderChange(event.target.value as MessageSortOrder)
-            }
+            onChange={(event) => onSortOrderChange(event.target.value as MessageSortOrder)}
             selectSize="sm"
             wrapperClassName="min-w-[170px]"
             aria-label={t("inbox.sortByDate")}
@@ -112,9 +107,7 @@ export default function InboxToolbar({
           onClick={onToggleBulkSelectionMode}
           data-testid="inbox-toggle-selection-mode"
         >
-          {bulkSelectionEnabled
-            ? t("inbox.cancelSelection")
-            : t("inbox.selectMessages")}
+          {bulkSelectionEnabled ? t("inbox.cancelSelection") : t("inbox.selectMessages")}
         </Button>
         {bulkSelectionEnabled ? (
           <>

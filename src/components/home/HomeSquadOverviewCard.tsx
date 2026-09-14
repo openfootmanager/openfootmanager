@@ -53,9 +53,7 @@ export default function HomeSquadOverviewCard({
           <ProgressBar value={avgCondition} variant="auto" size="md" />
 
           <div className="flex items-center justify-between mt-1">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {t("home.avgOvr")}
-            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{t("home.avgOvr")}</span>
             <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100">
               {avgOvr}
             </span>
@@ -75,7 +73,9 @@ export default function HomeSquadOverviewCard({
             <span className="text-xs text-gray-500 dark:text-gray-400">
               {t("home.scheduleLabel")}
             </span>
-            <span className={`text-xs font-heading font-bold flex items-center gap-1 ${scheduleColorClass}`}>
+            <span
+              className={`text-xs font-heading font-bold flex items-center gap-1 ${scheduleColorClass}`}
+            >
               {scheduleIcon} {scheduleLabel}
             </span>
             <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">

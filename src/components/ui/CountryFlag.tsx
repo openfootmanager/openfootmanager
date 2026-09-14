@@ -42,15 +42,8 @@ export function CountryFlag({
   const flagCode = resolveCountryFlagCode(normalisedCode);
   const FlagIcon = flagCode ? flagIcons[flagCode.replace(/-/g, "_")] : null;
 
-  const accessibleLabel =
-    title ?? countryName(normalisedCode, locale) ?? normalisedCode;
-  const classes = [
-    "inline-flex",
-    "items-center",
-    "justify-center",
-    "shrink-0",
-    className,
-  ]
+  const accessibleLabel = title ?? countryName(normalisedCode, locale) ?? normalisedCode;
+  const classes = ["inline-flex", "items-center", "justify-center", "shrink-0", className]
     .filter(Boolean)
     .join(" ");
 

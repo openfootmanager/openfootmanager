@@ -36,13 +36,7 @@ describe("HomeLeagueDigestCard", () => {
   it("renders digest articles and delegates navigation", () => {
     const onNavigate = vi.fn();
 
-    render(
-      <HomeLeagueDigestCard
-        articles={[createArticle()]}
-        lang="en"
-        onNavigate={onNavigate}
-      />,
-    );
+    render(<HomeLeagueDigestCard articles={[createArticle()]} lang="en" onNavigate={onNavigate} />);
 
     expect(screen.getByText("League Digest")).toBeInTheDocument();
     expect(screen.getByText("Standings headline")).toBeInTheDocument();

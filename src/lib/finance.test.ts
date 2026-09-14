@@ -126,10 +126,7 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
 
 describe("finance helpers", () => {
   it("converts annual contracts to weekly commitments using per-person flooring", () => {
-    const players = [
-      createPlayer({ wage: 51 }),
-      createPlayer({ id: "player-2", wage: 51 }),
-    ];
+    const players = [createPlayer({ wage: 51 }), createPlayer({ id: "player-2", wage: 51 })];
     const staff = [createStaff({ wage: 103 })];
 
     expect(annualAmountToWeeklyCommitment(103)).toBe(1);
@@ -190,18 +187,10 @@ describe("finance helpers", () => {
 
     expect(getPlayerAnnualWageCommitment(loanedPlayer, "parent")).toBe(208000);
     expect(getPlayerAnnualWageCommitment(loanedPlayer, "loan")).toBe(312000);
-    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).annualWageBill).toBe(
-      208000,
-    );
-    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).weeklyWageSpend).toBe(
-      4000,
-    );
-    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).annualWageBill).toBe(
-      312000,
-    );
-    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).weeklyWageSpend).toBe(
-      6000,
-    );
+    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).annualWageBill).toBe(208000);
+    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).weeklyWageSpend).toBe(4000);
+    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).annualWageBill).toBe(312000);
+    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).weeklyWageSpend).toBe(6000);
   });
 
   it("assigns the loan wage remainder to the parent club like the backend", () => {

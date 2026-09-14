@@ -80,9 +80,7 @@ export default function TeamSelectionSidebar({
                       <p className="font-semibold text-gray-900 dark:text-white">
                         {player.match_name}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {player.position}
-                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{player.position}</p>
                     </div>
                     <Badge variant="accent">{getPlayerOvr(player)}</Badge>
                   </div>
@@ -116,15 +114,7 @@ export default function TeamSelectionSidebar({
   );
 }
 
-function DetailTile({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
+function DetailTile({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-xl bg-gray-50 px-3 py-3 dark:bg-navy-800">
       <p className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">

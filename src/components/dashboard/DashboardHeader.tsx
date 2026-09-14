@@ -115,9 +115,7 @@ function getContinueButtonClassName(
   return className;
 }
 
-function getContinueDropdownButtonClassName(
-  modeMeta: DashboardMatchModeMeta,
-): string {
+function getContinueDropdownButtonClassName(modeMeta: DashboardMatchModeMeta): string {
   return `bg-linear-to-r ${modeMeta.dropdownColorClass} rounded-r-lg border-l border-white/20 px-2 py-2.5 text-white transition-colors hover:brightness-110`;
 }
 
@@ -158,9 +156,7 @@ function renderContinueButtonContent(
   return (
     <>
       {matchModeMeta.icon}
-      <span>
-        {hasMatchToday ? matchModeMeta.label : t("dashboard.continue")}
-      </span>
+      <span>{hasMatchToday ? matchModeMeta.label : t("dashboard.continue")}</span>
     </>
   );
 }
@@ -173,20 +169,12 @@ function renderSearchResults(props: {
   teams: TeamData[];
   t: (key: string) => string;
 }): JSX.Element {
-  const {
-    matchedPlayers,
-    matchedTeams,
-    onSelectSearchPlayer,
-    onSelectSearchTeam,
-    t,
-    teams,
-  } = props;
+  const { matchedPlayers, matchedTeams, onSelectSearchPlayer, onSelectSearchTeam, t, teams } =
+    props;
 
   if (matchedPlayers.length === 0 && matchedTeams.length === 0) {
     return (
-      <p className="p-3 text-xs text-gray-400 dark:text-gray-500">
-        {t("dashboard.noResults")}
-      </p>
+      <p className="p-3 text-xs text-gray-400 dark:text-gray-500">{t("dashboard.noResults")}</p>
     );
   }
 
@@ -198,9 +186,7 @@ function renderSearchResults(props: {
             {t("dashboard.searchTeams")}
           </p>
           {matchedTeams.map((team) => {
-            const contextItems = [
-              buildViewTeamMenuItem(t, () => onSelectSearchTeam(team.id)),
-            ];
+            const contextItems = [buildViewTeamMenuItem(t, () => onSelectSearchTeam(team.id))];
 
             return (
               <ContextMenu items={contextItems} key={team.id}>
@@ -413,11 +399,7 @@ export default function DashboardHeader({
               <button
                 onClick={handleContinueClick}
                 disabled={isAdvancing || seasonComplete}
-                className={getContinueButtonClassName(
-                  currentModeMeta,
-                  isAdvancing,
-                  seasonComplete,
-                )}
+                className={getContinueButtonClassName(currentModeMeta, isAdvancing, seasonComplete)}
               >
                 {renderContinueButtonContent(
                   t,
@@ -426,9 +408,7 @@ export default function DashboardHeader({
                   seasonComplete,
                   currentModeMeta,
                 )}
-                <ChevronRight
-                  className={`h-4 w-4 ${isAdvancing ? "animate-pulse" : ""}`}
-                />
+                <ChevronRight className={`h-4 w-4 ${isAdvancing ? "animate-pulse" : ""}`} />
               </button>
               <button
                 onClick={handleContinueMenuToggleClick}
@@ -461,11 +441,7 @@ export default function DashboardHeader({
                           {optionMeta.desc}
                         </p>
                       </div>
-                      {isActive && (
-                        <span className="text-xs font-bold text-primary-500">
-                          ✓
-                        </span>
-                      )}
+                      {isActive && <span className="text-xs font-bold text-primary-500">✓</span>}
                     </button>
                   );
                 })}

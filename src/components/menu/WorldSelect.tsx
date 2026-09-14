@@ -73,9 +73,12 @@ function historyDepthOptionLabel(
 // ---------------------------------------------------------------------------
 
 function StepIndicator({ current }: { current: 2 | 3 }) {
-  const active = "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-xs font-bold";
-  const done = "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500/30 text-primary-400 text-xs font-bold";
-  const future = "flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-navy-600 text-gray-400 dark:text-gray-500 text-xs font-bold";
+  const active =
+    "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-xs font-bold";
+  const done =
+    "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500/30 text-primary-400 text-xs font-bold";
+  const future =
+    "flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-navy-600 text-gray-400 dark:text-gray-500 text-xs font-bold";
   const filledLine = "h-0.5 flex-1 bg-primary-500";
   const emptyLine = "h-0.5 flex-1 bg-gray-200 dark:bg-navy-600";
 
@@ -176,8 +179,14 @@ export default function GenerationStep({
         </div>
         <p className="mt-2 text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
           {hasActiveDatabases
-            ? t(`worldSelect.summary.${startPhase}.reference`, { year: startYear, count: historyDepthYears })
-            : t(`worldSelect.summary.${startPhase}.generated`, { year: startYear, count: historyDepthYears })}
+            ? t(`worldSelect.summary.${startPhase}.reference`, {
+                year: startYear,
+                count: historyDepthYears,
+              })
+            : t(`worldSelect.summary.${startPhase}.generated`, {
+                year: startYear,
+                count: historyDepthYears,
+              })}
         </p>
       </div>
 
@@ -189,13 +198,16 @@ export default function GenerationStep({
           </p>
           <div className="flex items-center gap-3 flex-wrap mb-2">
             <span className="text-[10px] font-heading uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
-              <Globe className="w-3 h-3" />{t("worldSelect.teams", { count: totalTeams })}
+              <Globe className="w-3 h-3" />
+              {t("worldSelect.teams", { count: totalTeams })}
             </span>
             <span className="text-[10px] font-heading uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
-              <Users className="w-3 h-3" />{t("worldSelect.players", { count: totalPlayers })}
+              <Users className="w-3 h-3" />
+              {t("worldSelect.players", { count: totalPlayers })}
             </span>
             <span className="text-[10px] font-heading uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
-              <Trophy className="w-3 h-3" />{t("worldSelect.competitions", { count: totalCompetitions })}
+              <Trophy className="w-3 h-3" />
+              {t("worldSelect.competitions", { count: totalCompetitions })}
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">

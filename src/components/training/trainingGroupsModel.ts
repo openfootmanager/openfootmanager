@@ -25,9 +25,7 @@ export function reassignPlayerTrainingGroup(
 
   if (groupId) {
     nextGroups = nextGroups.map((group) =>
-      group.id === groupId
-        ? { ...group, player_ids: [...group.player_ids, playerId] }
-        : group,
+      group.id === groupId ? { ...group, player_ids: [...group.player_ids, playerId] } : group,
     );
   }
 
@@ -44,8 +42,7 @@ export function sortTrainingRoster(roster: PlayerData[]): PlayerData[] {
 
   return [...roster].sort((left, right) => {
     const leftOrder = positionOrder[left.natural_position || left.position] || 99;
-    const rightOrder =
-      positionOrder[right.natural_position || right.position] || 99;
+    const rightOrder = positionOrder[right.natural_position || right.position] || 99;
 
     return leftOrder - rightOrder || left.match_name.localeCompare(right.match_name);
   });

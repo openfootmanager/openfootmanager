@@ -4,16 +4,20 @@ import { getCommentary } from "./commentary";
 import type { MatchEvent, MatchSnapshot, EnginePlayerData } from "./types";
 
 const makePlayer = (id: string, name: string): EnginePlayerData =>
-  ({ id, name, position: "FW" } as unknown as EnginePlayerData);
+  ({ id, name, position: "FW" }) as unknown as EnginePlayerData;
 
 const snapshot = (events: MatchEvent[] = []): MatchSnapshot =>
   ({
     home_team: { id: "h", name: "Home FC", players: [makePlayer("p1", "Haaland")] },
-    away_team: { id: "a", name: "Away FC", players: [makePlayer("p2", "Mbappe"), makePlayer("p3", "Marquinhos")] },
+    away_team: {
+      id: "a",
+      name: "Away FC",
+      players: [makePlayer("p2", "Mbappe"), makePlayer("p3", "Marquinhos")],
+    },
     home_bench: [],
     away_bench: [],
     events,
-  } as unknown as MatchSnapshot);
+  }) as unknown as MatchSnapshot;
 
 const goal = (minute: number, player_id: string): MatchEvent => ({
   minute,

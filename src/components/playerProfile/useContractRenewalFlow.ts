@@ -113,32 +113,23 @@ export function useContractRenewalFlow({
   const [renewalSubmitting, setRenewalSubmitting] = useState(false);
   const [renewalStatus, setRenewalStatus] = useState<RenewalStatus>("idle");
   const [renewalError, setRenewalError] = useState<string | null>(null);
-  const [renewalSuggestedWage, setRenewalSuggestedWage] = useState<
-    number | null
-  >(null);
-  const [renewalSuggestedYears, setRenewalSuggestedYears] = useState<
-    number | null
-  >(null);
+  const [renewalSuggestedWage, setRenewalSuggestedWage] = useState<number | null>(null);
+  const [renewalSuggestedYears, setRenewalSuggestedYears] = useState<number | null>(null);
   const [renewalSessionStatus, setRenewalSessionStatus] =
     useState<RenewalResponseData["session_status"]>("idle");
   const [renewalIsTerminal, setRenewalIsTerminal] = useState(false);
   const [renewalCooledOff, setRenewalCooledOff] = useState(false);
-  const [renewalFeedback, setRenewalFeedback] =
-    useState<NegotiationFeedbackData | null>(null);
+  const [renewalFeedback, setRenewalFeedback] = useState<NegotiationFeedbackData | null>(null);
   const [renewalProjection, setRenewalProjection] = useState<
     RenewalProjectionData["projection"] | null
   >(null);
 
   const renewalOfferedWage = Number(renewalWage);
   const renewalOfferedYears = Number(renewalLength);
-  const isRenewalWageValid =
-    Number.isFinite(renewalOfferedWage) && renewalOfferedWage > 0;
-  const isRenewalLengthValid =
-    Number.isInteger(renewalOfferedYears) && renewalOfferedYears > 0;
+  const isRenewalWageValid = Number.isFinite(renewalOfferedWage) && renewalOfferedWage > 0;
+  const isRenewalLengthValid = Number.isInteger(renewalOfferedYears) && renewalOfferedYears > 0;
   const renewalViolatesSoftCap =
-    isRenewalWageValid &&
-    renewalProjection !== null &&
-    !renewalProjection.policy_allows;
+    isRenewalWageValid && renewalProjection !== null && !renewalProjection.policy_allows;
   const renewalSubmitDisabled = shouldDisableRenewalSubmit({
     renewalSubmitting,
     renewalIsTerminal,
@@ -176,8 +167,7 @@ export function useContractRenewalFlow({
     const blockedUntil = renewalState?.manager_blocked_until;
     const hasActiveManagerBlock =
       renewalState?.status === "Blocked" &&
-      (!blockedUntil ||
-        blockedUntil.slice(0, 10) >= gameState.clock.current_date.slice(0, 10));
+      (!blockedUntil || blockedUntil.slice(0, 10) >= gameState.clock.current_date.slice(0, 10));
     if (hasActiveManagerBlock) {
       setRenewalSessionStatus("blocked");
       setRenewalIsTerminal(true);
@@ -204,13 +194,10 @@ export function useContractRenewalFlow({
 
     const loadProjection = async (): Promise<void> => {
       try {
-        const result = await invoke<RenewalProjectionData>(
-          "preview_renewal_financial_impact",
-          {
-            playerId: player.id,
-            weeklyWage: renewalOfferedWage,
-          },
-        );
+        const result = await invoke<RenewalProjectionData>("preview_renewal_financial_impact", {
+          playerId: player.id,
+          weeklyWage: renewalOfferedWage,
+        });
 
         if (!cancelled) {
           setRenewalProjection(result.projection ?? null);
@@ -277,15 +264,12 @@ export function useContractRenewalFlow({
     }
   }
 
-  function applyDelegatedOutcome(
-    delegatedCase: DelegatedRenewalCaseData,
-  ): void {
+  function applyDelegatedOutcome(delegatedCase: DelegatedRenewalCaseData): void {
     // `failed` is also the fallback, matching the `else` this map replaced: a
     // status the frontend does not recognise closes the talks rather than
     // leaving the modal in a half-open state.
     const outcome =
-      DELEGATED_RENEWAL_OUTCOMES[delegatedCase.status] ??
-      DELEGATED_RENEWAL_OUTCOMES.failed;
+      DELEGATED_RENEWAL_OUTCOMES[delegatedCase.status] ?? DELEGATED_RENEWAL_OUTCOMES.failed;
 
     setRenewalStatus(outcome.status);
     setRenewalSessionStatus(outcome.sessionStatus);
@@ -300,11 +284,7 @@ export function useContractRenewalFlow({
 
     if (outcome.showsAssistantNote) {
       setRenewalError(
-        resolveBackendText(
-          delegatedCase.note_key,
-          delegatedCase.note,
-          delegatedCase.note_params,
-        ),
+        resolveBackendText(delegatedCase.note_key, delegatedCase.note, delegatedCase.note_params),
       );
     }
   }
@@ -317,10 +297,7 @@ export function useContractRenewalFlow({
     if (!hasAssistantManager) {
       setRenewalStatus("error");
       setRenewalError(
-        resolveTranslatedErrorMessage(
-          "be.error.contracts.noAssistantManagerAssigned",
-          t,
-        ),
+        resolveTranslatedErrorMessage("be.error.contracts.noAssistantManagerAssigned", t),
       );
       setRenewalCooledOff(false);
       return;
@@ -331,20 +308,16 @@ export function useContractRenewalFlow({
     setRenewalCooledOff(false);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>(
-        "delegate_renewals",
-        {
-          playerIds: [player.id],
-          maxWageIncreasePct: 35,
-          maxContractYears: 3,
-        },
-      );
+      const result = await invoke<DelegatedRenewalResponseData>("delegate_renewals", {
+        playerIds: [player.id],
+        maxWageIncreasePct: 35,
+        maxContractYears: 3,
+      });
 
       onGameUpdate?.(result.game);
-      const delegatedCase: DelegatedRenewalCaseData | undefined =
-        result.report.cases.find(
-          (renewalCase) => renewalCase.player_id === player.id,
-        );
+      const delegatedCase: DelegatedRenewalCaseData | undefined = result.report.cases.find(
+        (renewalCase) => renewalCase.player_id === player.id,
+      );
 
       if (!delegatedCase) {
         setRenewalStatus("error");

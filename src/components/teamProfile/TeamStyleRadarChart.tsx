@@ -26,10 +26,7 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100));
 }
 
-export function TeamStyleRadarChart({
-  overview,
-  labels,
-}: TeamStyleRadarChartProps) {
+export function TeamStyleRadarChart({ overview, labels }: TeamStyleRadarChartProps) {
   const theme = useChartTheme();
 
   if (overview.matchesPlayed === 0) {
@@ -94,7 +91,7 @@ export function TeamStyleRadarChart({
               color: theme.tooltipText,
             }}
             formatter={(_value, _name, props: { payload?: { raw?: string } }) => [
-              props.payload?.raw ?? (_value ?? ""),
+              props.payload?.raw ?? _value ?? "",
               "",
             ]}
           />

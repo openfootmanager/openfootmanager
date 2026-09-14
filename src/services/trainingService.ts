@@ -9,27 +9,20 @@ export interface TrainingGroupData {
   player_ids: string[];
 }
 
-export async function setTraining(
-  focus: string,
-  intensity: string,
-): Promise<GameStateData> {
+export async function setTraining(focus: string, intensity: string): Promise<GameStateData> {
   return invoke<GameStateData>("set_training", {
     focus,
     intensity,
   });
 }
 
-export async function setTrainingSchedule(
-  schedule: string,
-): Promise<GameStateData> {
+export async function setTrainingSchedule(schedule: string): Promise<GameStateData> {
   return invoke<GameStateData>("set_training_schedule", {
     schedule,
   });
 }
 
-export async function setTrainingGroups(
-  groups: TrainingGroupData[],
-): Promise<GameStateData> {
+export async function setTrainingGroups(groups: TrainingGroupData[]): Promise<GameStateData> {
   return invoke<GameStateData>("set_training_groups", {
     groups,
   });

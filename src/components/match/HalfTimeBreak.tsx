@@ -14,16 +14,7 @@ import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { SubPanel } from "./SubPanel";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
-import {
-  Play,
-  RefreshCw,
-  Shield,
-  Zap,
-  Target,
-  Crosshair,
-  Flag,
-  MessageCircle,
-} from "lucide-react";
+import { Play, RefreshCw, Shield, Zap, Target, Crosshair, Flag, MessageCircle } from "lucide-react";
 
 interface HalfTimeBreakProps {
   snapshot: MatchSnapshot;
@@ -73,8 +64,7 @@ export default function HalfTimeBreak({
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
-  const userTeam =
-    userSide === "Home" ? snapshot.home_team : snapshot.away_team;
+  const userTeam = userSide === "Home" ? snapshot.home_team : snapshot.away_team;
 
   // First half key events
   const firstHalfEvents = importantEvents.filter((e) =>
@@ -111,10 +101,7 @@ export default function HalfTimeBreak({
     }
   };
 
-  const handleSubstitution = async (
-    playerOffId: string,
-    playerOnId: string,
-  ) => {
+  const handleSubstitution = async (playerOffId: string, playerOnId: string) => {
     try {
       const snap = await invoke<MatchSnapshot>("apply_match_command", {
         command: {
@@ -134,16 +121,9 @@ export default function HalfTimeBreak({
 
   const handleDeliverTalk = async () => {
     if (!selectedTalk) return;
-    const userScore =
-      userSide === "Home" ? snapshot.home_score : snapshot.away_score;
-    const oppScore =
-      userSide === "Home" ? snapshot.away_score : snapshot.home_score;
-    const context =
-      userScore > oppScore
-        ? "winning"
-        : userScore < oppScore
-          ? "losing"
-          : "drawing";
+    const userScore = userSide === "Home" ? snapshot.home_score : snapshot.away_score;
+    const oppScore = userSide === "Home" ? snapshot.away_score : snapshot.home_score;
+    const context = userScore > oppScore ? "winning" : userScore < oppScore ? "losing" : "drawing";
     try {
       const results = await invoke<
         {
@@ -276,15 +256,10 @@ export default function HalfTimeBreak({
                           {evt.minute}'
                         </span>
                         <span>{display.icon}</span>
-                        <span
-                          className={`${display.color} font-medium truncate`}
-                        >
+                        <span className={`${display.color} font-medium truncate`}>
                           {getPlayerName(snapshot, evt.player_id)}
                         </span>
-                        <Badge
-                          variant={evt.side === "Home" ? "primary" : "accent"}
-                          size="sm"
-                        >
+                        <Badge variant={evt.side === "Home" ? "primary" : "accent"} size="sm">
                           {evt.side === "Home"
                             ? snapshot.home_team.name.substring(0, 3)
                             : snapshot.away_team.name.substring(0, 3)}
@@ -324,22 +299,20 @@ export default function HalfTimeBreak({
                               : "bg-gray-100 hover:bg-gray-200 dark:bg-navy-700/50 dark:hover:bg-navy-700"
                           }`}
                         >
-                          <span className="text-xl">
-                            {getTalkIcon(opt.icon)}
-                          </span>
+                          <span className="text-xl">{getTalkIcon(opt.icon)}</span>
                           <div>
                             <p
-                                className={`text-sm font-heading font-bold ${
-                                  selectedTalk === opt.id
-                                    ? "text-primary-400"
-                                    : "text-gray-800 dark:text-gray-200"
-                                }`}
-                              >
-                                {opt.label}
-                              </p>
-                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                {opt.description}
-                              </p>
+                              className={`text-sm font-heading font-bold ${
+                                selectedTalk === opt.id
+                                  ? "text-primary-400"
+                                  : "text-gray-800 dark:text-gray-200"
+                              }`}
+                            >
+                              {opt.label}
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                              {opt.description}
+                            </p>
                           </div>
                         </button>
                       ))}
@@ -358,10 +331,7 @@ export default function HalfTimeBreak({
                     <div className="flex items-center gap-2 mb-1">
                       {getTalkIcon(selectedTalk || "")}
                       <p className="text-sm font-heading font-bold text-primary-400">
-                        {
-                          teamTalkOptions.find((o) => o.id === selectedTalk)
-                            ?.label
-                        }
+                        {teamTalkOptions.find((o) => o.id === selectedTalk)?.label}
                       </p>
                       <Badge variant="success" size="sm">
                         {t("match.delivered")}
@@ -467,10 +437,8 @@ export default function HalfTimeBreak({
                       {t("match.substitutions")}
                     </h3>
                     <Badge variant="neutral" size="sm">
-                      {userSide === "Home"
-                        ? snapshot.home_subs_made
-                        : snapshot.away_subs_made}
-                      /{snapshot.max_subs}
+                      {userSide === "Home" ? snapshot.home_subs_made : snapshot.away_subs_made}/
+                      {snapshot.max_subs}
                     </Badge>
                   </div>
 

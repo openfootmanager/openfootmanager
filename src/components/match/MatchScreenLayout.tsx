@@ -31,24 +31,13 @@ export default function MatchScreenLayout({
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
       {header && (
         <header
-          className={joinClasses(
-            "border-b border-gray-200 dark:border-navy-700",
-            headerClassName,
-          )}
+          className={joinClasses("border-b border-gray-200 dark:border-navy-700", headerClassName)}
         >
-          <div
-            className={joinClasses(
-              "relative mx-auto w-full px-6",
-              headerContentClassName,
-            )}
-          >
+          <div className={joinClasses("relative mx-auto w-full px-6", headerContentClassName)}>
             <div className={showThemeToggle ? "pr-14" : undefined}>{header}</div>
             {showThemeToggle && (
               <ThemeToggle
-                className={joinClasses(
-                  "absolute right-6 top-4",
-                  themeToggleClassName,
-                )}
+                className={joinClasses("absolute right-6 top-4", themeToggleClassName)}
               />
             )}
           </div>

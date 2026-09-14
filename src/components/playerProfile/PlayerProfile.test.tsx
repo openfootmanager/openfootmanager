@@ -3,12 +3,7 @@ import { useState } from "react";
 import { beforeEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import type {
-  GameStateData,
-  PlayerData,
-  StaffData,
-  TeamData,
-} from "../../store/gameStore";
+import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import PlayerProfile from "./PlayerProfile";
 
 function hasAnnualWage(text: string, amount: string): boolean {
@@ -22,7 +17,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   initReactI18next: {
     type: "3rdParty",
-    init: () => { },
+    init: () => {},
   },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
@@ -46,8 +41,7 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.contractRiskCritical") return "Critical";
       if (key === "finances.contractRiskWarning") return "Warning";
       if (key === "finances.contractRiskStable") return "Stable";
-      if (key === "finances.contractExpiresOn")
-        return `Expires ${params?.date}`;
+      if (key === "finances.contractExpiresOn") return `Expires ${params?.date}`;
       if (key === "playerProfile.contractInfo") return "Contract Info";
       if (key === "playerProfile.dateOfBirth") return "Date of Birth";
       if (key === "playerProfile.weeklyWage") return "Weekly Wage";
@@ -58,13 +52,10 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalTitle") return "Renew Contract";
       if (key === "playerProfile.renewalWage") return "Offered Wage";
       if (key === "playerProfile.renewalLength") return "Contract Length";
-      if (key === "playerProfile.renewalLengthYears")
-        return `${params?.count} years`;
+      if (key === "playerProfile.renewalLengthYears") return `${params?.count} years`;
       if (key === "playerProfile.renewalSubmit") return "Submit Offer";
-      if (key === "playerProfile.renewalBudgetWarning")
-        return "Exceeds wage budget";
-      if (key === "playerProfile.renewalInvalidWage")
-        return "Enter a valid weekly wage";
+      if (key === "playerProfile.renewalBudgetWarning") return "Exceeds wage budget";
+      if (key === "playerProfile.renewalInvalidWage") return "Enter a valid weekly wage";
       if (key === "playerProfile.renewalAccepted") return "Offer accepted";
       if (key === "playerProfile.renewalRejected") return "Offer rejected";
       if (key === "playerProfile.renewalCounter")
@@ -76,37 +67,30 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.letContractExpire") return "Let Expire";
       if (key === "playerProfile.reopenContractTalks") return "Reopen Talks";
       if (key === "playerProfile.terminateContract") return "Terminate Now";
-      if (key === "playerProfile.terminateContractTitle")
-        return "Terminate Contract";
+      if (key === "playerProfile.terminateContractTitle") return "Terminate Contract";
       if (key === "playerProfile.terminateContractBody")
         return `Release ${params?.name} immediately.`;
       if (key === "playerProfile.terminationSeverance") return "Severance";
-      if (key === "playerProfile.projectedHealthyPlayers")
-        return "Healthy players after release";
+      if (key === "playerProfile.projectedHealthyPlayers") return "Healthy players after release";
       if (key === "playerProfile.terminationUnsafe")
         return "This release would leave the squad unable to field a matchday XI.";
-      if (key === "playerProfile.confirmTerminateContract")
-        return "Terminate Contract";
-      if (key === "playerProfile.delegateRenewal")
-        return "Delegate to Assistant";
+      if (key === "playerProfile.confirmTerminateContract") return "Terminate Contract";
+      if (key === "playerProfile.delegateRenewal") return "Delegate to Assistant";
       if (key === "playerProfile.renewalDelegateMissingReport")
         return "Assistant report did not include this player.";
       if (key === "be.error.contracts.noAssistantManagerAssigned")
         return "Hire an assistant manager before delegating contract talks.";
       if (key === "be.error.contracts.playerHasNoActiveContract")
         return "This player does not have an active contract.";
-      if (key === "playerProfile.renewalConversationTitle")
-        return "Negotiation pulse";
-      if (key === "playerProfile.renewalProjectionTitle")
-        return "Projected financial impact";
+      if (key === "playerProfile.renewalConversationTitle") return "Negotiation pulse";
+      if (key === "playerProfile.renewalProjectionTitle") return "Projected financial impact";
       if (key === "playerProfile.renewalProjectionWageBill")
         return `Weekly wage bill ${params?.before} -> ${params?.after}`;
       if (key === "playerProfile.renewalProjectionBudgetUsage")
         return `Wage budget use ${params?.before}% -> ${params?.after}%`;
       if (key === "playerProfile.renewalProjectionRunway")
         return `Cash runway ${params?.before} -> ${params?.after}`;
-      if (key === "playerProfile.renewalRound")
-        return `Round ${params?.count}`;
+      if (key === "playerProfile.renewalRound") return `Round ${params?.count}`;
       if (key === "playerProfile.renewalPatience") return "Patience";
       if (key === "playerProfile.renewalTension") return "Tension";
       if (key === "playerProfile.renewalFeedbackFirmHeadline")
@@ -114,17 +98,14 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalFeedbackFirmDetail")
         return "The discussion is still open, but wage level and contract length need to feel clearly worthwhile from their side.";
       if (key === "playerProfile.loanStatus") return "Loan Status";
-      if (key === "playerProfile.loanedInFrom")
-        return `On loan from ${params?.team}`;
-      if (key === "playerProfile.loanedOutTo")
-        return `On loan at ${params?.team}`;
+      if (key === "playerProfile.loanedInFrom") return `On loan from ${params?.team}`;
+      if (key === "playerProfile.loanedOutTo") return `On loan at ${params?.team}`;
       if (key === "playerProfile.loanBetweenClubs")
         return `On loan from ${params?.parent} to ${params?.loanTeam}`;
       if (key === "playerProfile.loanUntil") return `Until ${params?.date}`;
       if (key === "playerProfile.loanWageSplit")
         return `${params?.percent}% wages covered by loan club`;
-      if (key === "playerProfile.loanBuyOption")
-        return `Buy option ${params?.fee}`;
+      if (key === "playerProfile.loanBuyOption") return `Buy option ${params?.fee}`;
       if (key === "playerProfile.attributes") return "Attributes";
       if (key === "playerProfile.seasonStats") return "Season Stats";
       if (key === "playerProfile.advancedStats") return "Advanced Stats";
@@ -137,8 +118,7 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.per90") return "Per 90";
       if (key === "playerProfile.passAccuracy") return "Pass Accuracy";
       if (key === "playerProfile.percentile") return "Percentile";
-      if (key === "playerProfile.percentileUnavailable")
-        return "Percentile unavailable";
+      if (key === "playerProfile.percentileUnavailable") return "Percentile unavailable";
       if (key === "playerProfile.recentMatches") return "Recent Matches";
       if (key === "playerProfile.vs") return "vs";
       if (key === "playerProfile.noRecentMatches") return "No recent match data";
@@ -152,13 +132,11 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.movementLoanToBuy") return "Loan-to-buy";
       if (key === "playerProfile.movementFreeAgentSigning") return "Free agent";
       if (key === "playerProfile.movementReleased") return "Released";
-      if (key === "playerProfile.movementFromTo")
-        return `${params?.from} -> ${params?.to}`;
+      if (key === "playerProfile.movementFromTo") return `${params?.from} -> ${params?.to}`;
       if (key === "playerProfile.movementTo") return `Joined ${params?.to}`;
       if (key === "playerProfile.movementFrom") return `Left ${params?.from}`;
       if (key === "playerProfile.movementFee") return `Fee ${params?.fee}`;
-      if (key === "playerProfile.movementLoanUntil")
-        return `Loan until ${params?.date}`;
+      if (key === "playerProfile.movementLoanUntil") return `Loan until ${params?.date}`;
       if (key === "scouting.noScoutsHint") return "Hire a scout first";
       if (key === "scouting.scoutingInProgress") return "Scouting in progress";
       if (key === "scouting.scoutBtn") return "Scout";
@@ -174,11 +152,8 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendText: (
-    _key?: string,
-    fallback?: string,
-    _params?: Record<string, string>,
-  ) => fallback ?? "",
+  resolveBackendText: (_key?: string, fallback?: string, _params?: Record<string, string>) =>
+    fallback ?? "",
 }));
 
 vi.mock("../../lib/countries", () => ({
@@ -400,9 +375,7 @@ function RenewalHarness({ initialPlayer }: { initialPlayer?: PlayerData }) {
 describe("PlayerProfile contract surfaces", () => {
   beforeEach(() => {
     vi.mocked(invoke).mockReset();
-    vi.mocked(invoke).mockImplementation(async (command: string) =>
-      defaultInvokeResponse(command),
-    );
+    vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
   });
 
   // The dashboard opens a profile straight into one of these modals when the
@@ -423,9 +396,7 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Submit Offer" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Submit Offer" })).toBeInTheDocument();
     });
   });
 
@@ -498,24 +469,14 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("Contract Info")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: "Submit Offer" })).toBeNull();
-    expect(invoke).not.toHaveBeenCalledWith(
-      "preview_contract_termination",
-      expect.anything(),
-    );
+    expect(invoke).not.toHaveBeenCalledWith("preview_contract_termination", expect.anything());
   });
 
   it("renders expiry date, years remaining, and contract risk for the selected player", () => {
     const player = createPlayer();
     const gameState = createGameState(player);
 
-    render(
-      <PlayerProfile
-        player={player}
-        gameState={gameState}
-        isOwnClub
-        onClose={vi.fn()}
-      />,
-    );
+    render(<PlayerProfile player={player} gameState={gameState} isOwnClub onClose={vi.fn()} />);
 
     expect(screen.getByText("Contract Info")).toBeInTheDocument();
     expect(screen.getByText("Expires 2026-10-15")).toBeInTheDocument();
@@ -524,9 +485,7 @@ describe("PlayerProfile contract surfaces", () => {
     expect(screen.getByText("Critical")).toBeInTheDocument();
     expect(screen.getByText("Annual Wage")).toBeInTheDocument();
     expect(
-      screen.getAllByText((_, element) =>
-        hasAnnualWage(element?.textContent ?? "", "12K"),
-      ).length,
+      screen.getAllByText((_, element) => hasAnnualWage(element?.textContent ?? "", "12K")).length,
     ).toBeGreaterThan(0);
   });
 
@@ -569,15 +528,9 @@ describe("PlayerProfile contract surfaces", () => {
 
     expect(screen.getByText("Loan Status")).toBeInTheDocument();
     expect(screen.getByText("On loan from Beta FC")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Renew Contract" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Let Expire" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Terminate Now" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Renew Contract" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Let Expire" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Terminate Now" })).not.toBeInTheDocument();
   });
 
   it("shows contract actions for players loaned out by the manager club", () => {
@@ -750,14 +703,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
-      <PlayerProfile
-        player={player}
-        gameState={gameState}
-        isOwnClub
-        onClose={vi.fn()}
-      />,
-    );
+    render(<PlayerProfile player={player} gameState={gameState} isOwnClub onClose={vi.fn()} />);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_player_stats_overview", {
@@ -880,31 +826,27 @@ describe("PlayerProfile contract surfaces", () => {
   });
 
   it("validates renewal offers before submission", async () => {
-    vi.mocked(invoke).mockImplementation(
-      async (command: string, payload?: any) => {
-        if (command === "preview_renewal_financial_impact") {
-          const offered = Number(payload?.weeklyWage ?? 0);
-          return {
-            projection: {
-              current_annual_wage_bill: 24000,
-              projected_annual_wage_bill: 24000 - 12000 + offered,
-              annual_wage_budget: 50000,
-              annual_soft_cap: 55000,
-              current_weekly_wage_spend: 461,
-              projected_weekly_wage_spend: Math.round(
-                (24000 - 12000 + offered) / 52,
-              ),
-              current_cash_runway_weeks: 1084,
-              projected_cash_runway_weeks: 500,
-              currently_over_budget: false,
-              policy_allows: offered <= 55000,
-            },
-          };
-        }
+    vi.mocked(invoke).mockImplementation(async (command: string, payload?: any) => {
+      if (command === "preview_renewal_financial_impact") {
+        const offered = Number(payload?.weeklyWage ?? 0);
+        return {
+          projection: {
+            current_annual_wage_bill: 24000,
+            projected_annual_wage_bill: 24000 - 12000 + offered,
+            annual_wage_budget: 50000,
+            annual_soft_cap: 55000,
+            current_weekly_wage_spend: 461,
+            projected_weekly_wage_spend: Math.round((24000 - 12000 + offered) / 52),
+            current_cash_runway_weeks: 1084,
+            projected_cash_runway_weeks: 500,
+            currently_over_budget: false,
+            policy_allows: offered <= 55000,
+          },
+        };
+      }
 
-        return defaultInvokeResponse(command);
-      },
-    );
+      return defaultInvokeResponse(command);
+    });
 
     render(<RenewalHarness />);
 
@@ -922,9 +864,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Exceeds wage budget")).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Submit Offer" }),
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Submit Offer" })).toBeDisabled();
       expect(screen.getByText("Projected financial impact")).toBeInTheDocument();
     });
   });
@@ -974,15 +914,12 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("Offer accepted")).toBeInTheDocument();
       expect(screen.getByText("Expires 2029-08-01")).toBeInTheDocument();
       expect(
-        screen.getAllByText((_, element) =>
-          hasAnnualWage(element?.textContent ?? "", "15K"),
-        ).length,
+        screen.getAllByText((_, element) => hasAnnualWage(element?.textContent ?? "", "15K"))
+          .length,
       ).toBeGreaterThan(0);
       expect(screen.getByText("Stable")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Submit Offer" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Submit Offer" })).not.toBeInTheDocument();
     });
   });
 
@@ -1055,13 +992,9 @@ describe("PlayerProfile contract surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit Offer" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Wants more: €16,000/wk for 4 years"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Wants more: €16,000/wk for 4 years")).toBeInTheDocument();
       expect(screen.getByText("Negotiation pulse")).toBeInTheDocument();
-      expect(
-        screen.getByText("They want stronger terms before moving."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("They want stronger terms before moving.")).toBeInTheDocument();
       expect(screen.getByText("Round 1")).toBeInTheDocument();
       expect(screen.getByText("Patience")).toBeInTheDocument();
       expect(screen.getByText("Tension")).toBeInTheDocument();
@@ -1107,9 +1040,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(
-          "Previous talks cooled off, so this starts as a fresh conversation.",
-        ),
+        screen.getByText("Previous talks cooled off, so this starts as a fresh conversation."),
       ).toBeInTheDocument();
       expect(screen.getByText("Round 1")).toBeInTheDocument();
     });
@@ -1158,9 +1089,7 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delegate to Assistant" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Delegate to Assistant" }));
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("delegate_renewals", {
@@ -1204,14 +1133,10 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delegate to Assistant" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Delegate to Assistant" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Assistant report did not include this player."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Assistant report did not include this player.")).toBeInTheDocument();
     });
   });
 
@@ -1254,18 +1179,14 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delegate to Assistant" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Delegate to Assistant" }));
 
     await waitFor(() => {
       expect(screen.getByText("Offer rejected")).toBeInTheDocument();
     });
 
     // Not terminal: the manager can still put an offer in themselves.
-    expect(
-      screen.getByRole("button", { name: "Submit Offer" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit Offer" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
   });
 
@@ -1304,14 +1225,10 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delegate to Assistant" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Delegate to Assistant" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Talks are blocked after your earlier decision"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Talks are blocked after your earlier decision")).toBeInTheDocument();
     });
 
     // Terminal: nothing left for the manager to offer.
@@ -1324,9 +1241,7 @@ describe("PlayerProfile contract surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Delegate to Assistant" }),
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Delegate to Assistant" })).toBeDisabled();
     });
   });
 
@@ -1350,15 +1265,11 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delegate to Assistant" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Delegate to Assistant" }));
 
     await waitFor(() => {
       expect(
-        screen.getByText(
-          "Hire an assistant manager before delegating contract talks.",
-        ),
+        screen.getByText("Hire an assistant manager before delegating contract talks."),
       ).toBeInTheDocument();
     });
   });
@@ -1449,9 +1360,7 @@ describe("PlayerProfile contract surfaces", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
     });
-    expect(
-      screen.queryByRole("button", { name: "Submit Offer" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit Offer" })).not.toBeInTheDocument();
   });
 
   it("localizes contract action failures instead of showing raw backend keys", async () => {
@@ -1468,9 +1377,7 @@ describe("PlayerProfile contract surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("This player does not have an active contract."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("This player does not have an active contract.")).toBeInTheDocument();
     });
   });
 
@@ -1506,16 +1413,11 @@ describe("PlayerProfile contract surfaces", () => {
     expect(terminate).toBeDisabled();
 
     fireEvent.click(terminate);
-    expect(invoke).not.toHaveBeenCalledWith(
-      "preview_contract_termination",
-      expect.anything(),
-    );
+    expect(invoke).not.toHaveBeenCalledWith("preview_contract_termination", expect.anything());
 
     releaseExitIntent?.();
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Terminate Now" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Terminate Now" })).toBeEnabled();
     });
   });
 
@@ -1594,9 +1496,7 @@ describe("PlayerProfile contract surfaces", () => {
 describe("PlayerProfile switching between players", () => {
   beforeEach(() => {
     vi.mocked(invoke).mockReset();
-    vi.mocked(invoke).mockImplementation(async (command: string) =>
-      defaultInvokeResponse(command),
-    );
+    vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
   });
 
   function scoutStaff(): StaffData {
@@ -1714,9 +1614,7 @@ describe("PlayerProfile switching between players", () => {
 describe("PlayerProfile free agent signing", () => {
   beforeEach(() => {
     vi.mocked(invoke).mockReset();
-    vi.mocked(invoke).mockImplementation(async (command: string) =>
-      defaultInvokeResponse(command),
-    );
+    vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
   });
 
   it("shows Offer Contract button for a free agent player", () => {
@@ -1737,9 +1635,7 @@ describe("PlayerProfile free agent signing", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: "Offer Contract" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Offer Contract" })).toBeInTheDocument();
   });
 
   it("does not show Offer Contract for a retired free agent", () => {
@@ -1761,9 +1657,7 @@ describe("PlayerProfile free agent signing", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "Offer Contract" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Offer Contract" })).not.toBeInTheDocument();
   });
 
   it("opens the contract modal when Offer Contract is clicked", async () => {
@@ -1788,9 +1682,7 @@ describe("PlayerProfile free agent signing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Offer Contract" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("dialog", { name: "Offer Contract" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Offer Contract" })).toBeInTheDocument();
     });
   });
 

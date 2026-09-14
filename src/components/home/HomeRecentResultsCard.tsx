@@ -17,10 +17,7 @@ export default function HomeRecentResultsCard({
   onNavigate,
 }: HomeRecentResultsCardProps) {
   const { t } = useTranslation();
-  const teamsById = useMemo(
-    () => new Map(teams.map((team) => [team.id, team])),
-    [teams],
-  );
+  const teamsById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
 
   return (
     <Card>
@@ -38,9 +35,7 @@ export default function HomeRecentResultsCard({
       </CardHeader>
       <CardBody className="p-0">
         {recentResults.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-xs p-5">
-            {t("home.noMatches")}
-          </p>
+          <p className="text-gray-500 dark:text-gray-400 text-xs p-5">{t("home.noMatches")}</p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-navy-600">
             {recentResults
@@ -50,10 +45,7 @@ export default function HomeRecentResultsCard({
                 const opponent = teamsById.get(result.opponentId);
 
                 return (
-                  <div
-                    key={result.fixture.id}
-                    className="flex items-center px-4 py-2.5 gap-3"
-                  >
+                  <div key={result.fixture.id} className="flex items-center px-4 py-2.5 gap-3">
                     <span
                       className={`w-5 h-5 rounded flex items-center justify-center text-[9px] font-heading font-bold text-white flex-shrink-0 ${
                         result.resultCode === "W"

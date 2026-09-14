@@ -39,9 +39,7 @@ export default function DashboardMatchConfirmModal({
           <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
             {t("continueMenu.matchDayTitle")}
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {modeMeta.label}
-          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{modeMeta.label}</p>
         </div>
       </div>
       {todayMatchFixture && (
@@ -56,9 +54,7 @@ export default function DashboardMatchConfirmModal({
           </p>
         </div>
       )}
-      <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">
-        {modeMeta.desc}
-      </p>
+      <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">{modeMeta.desc}</p>
       {matchMode === "delegate" && (
         <p className="mt-1 flex items-center gap-1 text-xs text-amber-500 dark:text-amber-400">
           <AlertCircle className="h-3.5 w-3.5" />

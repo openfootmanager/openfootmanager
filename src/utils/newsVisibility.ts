@@ -14,10 +14,7 @@ export function articleDay(date: string): string {
 }
 
 /** Whether an article dated `date` is visible at clock date `today`. */
-export function isNewsArticleVisible(
-  date: string,
-  today: string | undefined | null,
-): boolean {
+export function isNewsArticleVisible(date: string, today: string | undefined | null): boolean {
   if (!today) return true;
   return articleDay(date) <= articleDay(today);
 }

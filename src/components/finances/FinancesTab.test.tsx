@@ -1,12 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import type {
-  GameStateData,
-  MessageData,
-  PlayerData,
-  TeamData,
-} from "../../store/gameStore";
+import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
 import FinancesTab from "./FinancesTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -19,7 +14,7 @@ vi.mock("react-i18next", async () => {
   return {
     initReactI18next: {
       type: "3rdParty",
-      init: () => { },
+      init: () => {},
     },
     useTranslation: () => {
       // The real useTranslation consumes context and state, so it always costs
@@ -32,108 +27,91 @@ vi.mock("react-i18next", async () => {
 
       return {
         t: (key: string, params?: Record<string, string | number>) => {
-      if (key === "finances.facilities") return "Facilities";
-      if (key === "finances.sponsors") return "Sponsors";
-      if (key === "finances.activeSponsor") return "Active Sponsor";
-      if (key === "finances.noActiveSponsor") return "No active sponsor";
-      if (key === "finances.sponsorWeeklyValue")
-        return `Weekly value: ${params?.amount}`;
-      if (key === "finances.sponsorRemainingWeeks")
-        return `${params?.count} weeks remaining`;
-      if (key === "finances.pendingSponsorOffers") return "Pending Offers";
-      if (key === "finances.noPendingSponsorOffers")
-        return "No pending sponsor offers";
-      if (key === "finances.pitchSponsor") return "Pitch Sponsor";
-      if (key === "finances.sponsorPitchDescription")
-        return "Ask the commercial team to chase a short-term sponsor deal.";
-      if (key === "finances.marketingCampaign") return "Marketing Campaign";
-      if (key === "finances.launchMarketingCampaign")
-        return "Launch Campaign";
-      if (key === "finances.marketingCampaignDescription")
-        return "Push a one-off merchandise and outreach campaign for immediate cash.";
-      if (key === "finances.marketingCampaignUnavailable")
-        return "Marketing campaigns are reserved for clubs under wage or cash pressure.";
-      if (key === "finances.marketingCampaignCoolingDown")
-        return `Marketing campaign available again in ${params?.days} days`;
-      if (key === "finances.marketingCampaignSummary")
-        return `Campaign netted ${params?.netIncome} after ${params?.cost} in spend (${params?.grossRevenue} gross). Cooldown: ${params?.days} days`;
-      if (key === "finances.sponsorPitchUnavailable")
-        return "Sponsor pitches are reserved for clubs under wage or cash pressure.";
-      if (key === "finances.sponsorPitchActiveSponsor")
-        return "An active sponsorship is already in place.";
-      if (key === "finances.sponsorPitchPendingOffer")
-        return "Review the pending offer first.";
-      if (key === "finances.sponsorPitchSummary")
-        return `${params?.sponsor} will pay ${params?.amount} for ${params?.weeks} weeks`;
-      if (key === "finances.boardSupportSummary")
-        return `Board could inject ${params?.amount}, cut transfer budget by ${params?.transferBudgetReduction}, confidence -${params?.satisfactionPenalty}`;
-      if (key === "finances.cashFlow") return "Cash Flow";
-      if (key === "finances.weeklyWageSpend") return "Weekly Wage Spend";
-      if (key === "finances.weeklySponsorIncome")
-        return "Weekly Sponsor Income";
-      if (key === "finances.projectedWeeklyNet") return "Projected Weekly Net";
-      if (key === "finances.cashRunway") return "Cash Runway";
-      if (key === "finances.runwayWeeks")
-        return `${params?.count} weeks at current pace`;
-      if (key === "finances.runwayStable") return "Stable at current pace";
-      if (key === "finances.wagePressure") return "Wage Pressure";
-      if (key === "finances.wageBudgetUsed")
-        return `${params?.percent}% of wage budget used`;
-      if (key === "finances.contractRisk") return "Contract Risk";
-      if (key === "finances.delegateMostRenewals")
-        return "Delegate Most Renewals";
-      if (key === "finances.delegateSelectedRenewals")
-        return "Delegate Selected Renewals";
-      if (key === "finances.selectAllAtRisk") return "Select all";
-      if (key === "finances.delegatedRenewalsSummary")
-        return `${params?.successes} done, ${params?.stalled} pending, ${params?.failures} failed`;
-      if (key === "finances.contractRiskCritical") return "Critical";
-      if (key === "finances.contractRiskWarning") return "Warning";
-      if (key === "finances.contractRiskStable") return "Stable";
-      if (key === "finances.contractExpiresOn")
-        return `Expires ${params?.date}`;
-      if (key === "finances.atRiskWages")
-        return `${params?.amount}/wk at risk`;
-      if (key === "finances.noContractRisks")
-        return "No imminent contract risks";
-      if (key === "finances.selectRiskPlayer")
-        return `Select ${params?.player}`;
-      if (key === "common.renewContract") return "Renew Contract";
-      if (key === "finances.facilityTraining") return "Training Facility";
-      if (key === "finances.facilityMedical") return "Medical Facility";
-      if (key === "finances.facilityScouting") return "Scouting Facility";
-      if (key === "finances.facilityLevel") return `Level ${params?.level}`;
-      if (key === "finances.upgradeFacility") return "Upgrade";
-      if (key === "finances.insufficientFunds") return "Insufficient funds";
-      if (key === "finances.nextUpgradeCost")
-        return `Next upgrade: ${params?.amount}`;
-      if (key === "finances.facilityTrainingEffect")
-        return "Improves training quality";
-      if (key === "finances.facilityMedicalEffect") return "Improves recovery";
-      if (key === "finances.facilityScoutingEffect")
-        return "Improves scouting reports";
-      if (key === "finances.overview") return "Overview";
-      if (key === "finances.wageBill") return "Wage Bill";
-      if (key === "finances.weeklyTotal") return "Weekly Total";
-      if (key === "finances.budget") return "Budget";
-      if (key === "finances.underBudget") return "Under budget";
-      if (key === "finances.overBudget") return "Over budget";
-      if (key === "finances.payroll") return "Payroll";
-      if (key === "finances.squadValue") return "Squad Value";
-      if (key === "finances.clubBalance") return "Club Balance";
-      if (key === "finances.wageBudget") return "Wage Budget";
-      if (key === "finances.transferBudget") return "Transfer Budget";
-      if (key === "finances.seasonIncome") return "Season Income";
-      if (key === "finances.seasonExpenses") return "Season Expenses";
-      if (key === "finances.perWeekSuffix") return "/wk";
-      if (key === "finances.wagePerWeek") return "Wage/wk";
-      if (key === "finances.marketValue") return "Market Value";
-      if (key === "finances.until") return `Until ${params?.year}`;
-      if (key === "common.player") return "Player";
-      if (key === "common.position") return "Position";
-      if (key === "common.contract") return "Contract";
-      if (key === "common.noTeam") return "No team";
-      return key;
+          if (key === "finances.facilities") return "Facilities";
+          if (key === "finances.sponsors") return "Sponsors";
+          if (key === "finances.activeSponsor") return "Active Sponsor";
+          if (key === "finances.noActiveSponsor") return "No active sponsor";
+          if (key === "finances.sponsorWeeklyValue") return `Weekly value: ${params?.amount}`;
+          if (key === "finances.sponsorRemainingWeeks") return `${params?.count} weeks remaining`;
+          if (key === "finances.pendingSponsorOffers") return "Pending Offers";
+          if (key === "finances.noPendingSponsorOffers") return "No pending sponsor offers";
+          if (key === "finances.pitchSponsor") return "Pitch Sponsor";
+          if (key === "finances.sponsorPitchDescription")
+            return "Ask the commercial team to chase a short-term sponsor deal.";
+          if (key === "finances.marketingCampaign") return "Marketing Campaign";
+          if (key === "finances.launchMarketingCampaign") return "Launch Campaign";
+          if (key === "finances.marketingCampaignDescription")
+            return "Push a one-off merchandise and outreach campaign for immediate cash.";
+          if (key === "finances.marketingCampaignUnavailable")
+            return "Marketing campaigns are reserved for clubs under wage or cash pressure.";
+          if (key === "finances.marketingCampaignCoolingDown")
+            return `Marketing campaign available again in ${params?.days} days`;
+          if (key === "finances.marketingCampaignSummary")
+            return `Campaign netted ${params?.netIncome} after ${params?.cost} in spend (${params?.grossRevenue} gross). Cooldown: ${params?.days} days`;
+          if (key === "finances.sponsorPitchUnavailable")
+            return "Sponsor pitches are reserved for clubs under wage or cash pressure.";
+          if (key === "finances.sponsorPitchActiveSponsor")
+            return "An active sponsorship is already in place.";
+          if (key === "finances.sponsorPitchPendingOffer") return "Review the pending offer first.";
+          if (key === "finances.sponsorPitchSummary")
+            return `${params?.sponsor} will pay ${params?.amount} for ${params?.weeks} weeks`;
+          if (key === "finances.boardSupportSummary")
+            return `Board could inject ${params?.amount}, cut transfer budget by ${params?.transferBudgetReduction}, confidence -${params?.satisfactionPenalty}`;
+          if (key === "finances.cashFlow") return "Cash Flow";
+          if (key === "finances.weeklyWageSpend") return "Weekly Wage Spend";
+          if (key === "finances.weeklySponsorIncome") return "Weekly Sponsor Income";
+          if (key === "finances.projectedWeeklyNet") return "Projected Weekly Net";
+          if (key === "finances.cashRunway") return "Cash Runway";
+          if (key === "finances.runwayWeeks") return `${params?.count} weeks at current pace`;
+          if (key === "finances.runwayStable") return "Stable at current pace";
+          if (key === "finances.wagePressure") return "Wage Pressure";
+          if (key === "finances.wageBudgetUsed") return `${params?.percent}% of wage budget used`;
+          if (key === "finances.contractRisk") return "Contract Risk";
+          if (key === "finances.delegateMostRenewals") return "Delegate Most Renewals";
+          if (key === "finances.delegateSelectedRenewals") return "Delegate Selected Renewals";
+          if (key === "finances.selectAllAtRisk") return "Select all";
+          if (key === "finances.delegatedRenewalsSummary")
+            return `${params?.successes} done, ${params?.stalled} pending, ${params?.failures} failed`;
+          if (key === "finances.contractRiskCritical") return "Critical";
+          if (key === "finances.contractRiskWarning") return "Warning";
+          if (key === "finances.contractRiskStable") return "Stable";
+          if (key === "finances.contractExpiresOn") return `Expires ${params?.date}`;
+          if (key === "finances.atRiskWages") return `${params?.amount}/wk at risk`;
+          if (key === "finances.noContractRisks") return "No imminent contract risks";
+          if (key === "finances.selectRiskPlayer") return `Select ${params?.player}`;
+          if (key === "common.renewContract") return "Renew Contract";
+          if (key === "finances.facilityTraining") return "Training Facility";
+          if (key === "finances.facilityMedical") return "Medical Facility";
+          if (key === "finances.facilityScouting") return "Scouting Facility";
+          if (key === "finances.facilityLevel") return `Level ${params?.level}`;
+          if (key === "finances.upgradeFacility") return "Upgrade";
+          if (key === "finances.insufficientFunds") return "Insufficient funds";
+          if (key === "finances.nextUpgradeCost") return `Next upgrade: ${params?.amount}`;
+          if (key === "finances.facilityTrainingEffect") return "Improves training quality";
+          if (key === "finances.facilityMedicalEffect") return "Improves recovery";
+          if (key === "finances.facilityScoutingEffect") return "Improves scouting reports";
+          if (key === "finances.overview") return "Overview";
+          if (key === "finances.wageBill") return "Wage Bill";
+          if (key === "finances.weeklyTotal") return "Weekly Total";
+          if (key === "finances.budget") return "Budget";
+          if (key === "finances.underBudget") return "Under budget";
+          if (key === "finances.overBudget") return "Over budget";
+          if (key === "finances.payroll") return "Payroll";
+          if (key === "finances.squadValue") return "Squad Value";
+          if (key === "finances.clubBalance") return "Club Balance";
+          if (key === "finances.wageBudget") return "Wage Budget";
+          if (key === "finances.transferBudget") return "Transfer Budget";
+          if (key === "finances.seasonIncome") return "Season Income";
+          if (key === "finances.seasonExpenses") return "Season Expenses";
+          if (key === "finances.perWeekSuffix") return "/wk";
+          if (key === "finances.wagePerWeek") return "Wage/wk";
+          if (key === "finances.marketValue") return "Market Value";
+          if (key === "finances.until") return `Until ${params?.year}`;
+          if (key === "common.player") return "Player";
+          if (key === "common.position") return "Position";
+          if (key === "common.contract") return "Contract";
+          if (key === "common.noTeam") return "No team";
+          return key;
         },
         i18n: { language: "en" },
       };
@@ -144,7 +122,7 @@ vi.mock("react-i18next", async () => {
 const mockedInvoke = vi.mocked(invoke);
 
 function pendingPromise<T>(): Promise<T> {
-  return new Promise(() => { });
+  return new Promise(() => {});
 }
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -251,9 +229,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   };
 }
 
-function createSponsorOfferMessage(
-  overrides: Partial<MessageData> = {},
-): MessageData {
+function createSponsorOfferMessage(overrides: Partial<MessageData> = {}): MessageData {
   return {
     id: "sponsor_2025-06-15",
     subject: "Sponsorship Offer — GreenTech Industries",
@@ -401,9 +377,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(
-      <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
-    );
+    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     const upgradeButtons = screen.getAllByRole("button", { name: "Upgrade" });
     fireEvent.click(upgradeButtons[1]);
@@ -437,18 +411,10 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Weekly value: €125,000")).toBeInTheDocument();
     expect(screen.getByText("8 weeks remaining")).toBeInTheDocument();
     expect(screen.getByText("Pending Offers")).toBeInTheDocument();
-    expect(
-      screen.getByText("Sponsorship Offer — GreenTech Industries"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Receive €100,000 in sponsorship income."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Accept the deal" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Decline politely" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Sponsorship Offer — GreenTech Industries")).toBeInTheDocument();
+    expect(screen.getByText("Receive €100,000 in sponsorship income.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Accept the deal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Decline politely" })).toBeInTheDocument();
   });
 
   it("accepts a sponsor offer through resolve_message_action and publishes the updated state", async () => {
@@ -481,9 +447,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(
-      <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
-    );
+    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
 
@@ -548,9 +512,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(
-      <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
-    );
+    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Pitch Sponsor" }));
 
@@ -559,9 +521,7 @@ describe("FinancesTab facilities", () => {
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
-    expect(
-      screen.getByText("Summit Capital will pay €85,000 for 12 weeks"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Summit Capital will pay €85,000 for 12 weeks")).toBeInTheDocument();
   });
 
   it("launches a marketing campaign for a pressured club and publishes the updated state", async () => {
@@ -615,9 +575,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(
-      <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
-    );
+    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Launch Campaign" }));
 
@@ -695,9 +653,7 @@ describe("FinancesTab facilities", () => {
       ).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText("Summit Capital will pay €85,000 for 12 weeks"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Summit Capital will pay €85,000 for 12 weeks")).toBeInTheDocument();
     expect(
       screen.getByText(
         (_, node) =>
@@ -742,14 +698,10 @@ describe("FinancesTab facilities", () => {
     render(<FinancesTab gameState={initialState} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Launch Campaign" }),
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Launch Campaign" })).toBeDisabled();
     });
 
-    expect(
-      screen.getByText("Marketing campaign available again in 9 days"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Marketing campaign available again in 9 days")).toBeInTheDocument();
   });
 
   it("blocks facility upgrades when the backend reports warning-level financial distress", async () => {
@@ -843,9 +795,7 @@ describe("FinancesTab facilities", () => {
       ],
     );
 
-    render(
-      <FinancesTab gameState={gameState} onSelectPlayer={onSelectPlayer} />,
-    );
+    render(<FinancesTab gameState={gameState} onSelectPlayer={onSelectPlayer} />);
 
     expect(screen.getAllByText("Wage Pressure").length).toBeGreaterThan(0);
     expect(screen.getByText("130% of wage budget used")).toBeInTheDocument();
@@ -857,13 +807,9 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Expires 2025-04-30")).toBeInTheDocument();
     expect(screen.getByText("Expires 2025-10-15")).toBeInTheDocument();
     expect(screen.getByText("€1,153/wk at risk")).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("button", { name: "Renew Contract" }),
-    ).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Renew Contract" })).toHaveLength(2);
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Renew Contract" })[0],
-    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Renew Contract" })[0]);
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-critical", {
       openRenewal: true,
@@ -885,11 +831,7 @@ describe("FinancesTab facilities", () => {
         contract_end: "2025-10-15",
       }),
     ];
-    const initialState = createGameState(
-      { wage_budget: 50000 },
-      [],
-      riskyPlayers,
-    );
+    const initialState = createGameState({ wage_budget: 50000 }, [], riskyPlayers);
     const updatedState = createGameState(
       { wage_budget: 50000 },
       [],
@@ -930,15 +872,11 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(
-      <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
-    );
+    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByLabelText("Select Ben Warning"));
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delegate Selected Renewals" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Delegate Selected Renewals" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {

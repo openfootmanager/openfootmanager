@@ -30,22 +30,33 @@ interface StaffTabProps {
   onSelect?: (index: number) => void;
 }
 
-export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: StaffTabProps) {
+export function StaffTab({
+  staff,
+  teams,
+  onAdd,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  selectedIndex,
+  onSelect,
+}: StaffTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
   const filtered = q
-    ? staff.map((s, i) => ({ s, i })).filter(({ s }) => {
-        const name = `${s.firstName} ${s.lastName}`.toLowerCase();
-        return (
-          name.includes(q) ||
-          s.id.toLowerCase().includes(q) ||
-          s.role.toLowerCase().includes(q) ||
-          s.nationality.toLowerCase().includes(q) ||
-          s.club.toLowerCase().includes(q)
-        );
-      })
+    ? staff
+        .map((s, i) => ({ s, i }))
+        .filter(({ s }) => {
+          const name = `${s.firstName} ${s.lastName}`.toLowerCase();
+          return (
+            name.includes(q) ||
+            s.id.toLowerCase().includes(q) ||
+            s.role.toLowerCase().includes(q) ||
+            s.nationality.toLowerCase().includes(q) ||
+            s.club.toLowerCase().includes(q)
+          );
+        })
     : staff.map((s, i) => ({ s, i }));
 
   return (
@@ -79,12 +90,13 @@ export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, s
           <EntityRow
             key={entityRowKey(s.id, i)}
             title={name}
-            subtitle={[
-              t(`worldEditor.staffRole.${s.role}`, { defaultValue: s.role }),
-              clubName,
-            ].filter(Boolean).join(" · ")}
+            subtitle={[t(`worldEditor.staffRole.${s.role}`, { defaultValue: s.role }), clubName]
+              .filter(Boolean)
+              .join(" · ")}
             badge={
-              <div className={`flex items-center justify-center w-9 h-9 rounded-full text-white text-[10px] font-bold flex-shrink-0 ${roleColor}`}>
+              <div
+                className={`flex items-center justify-center w-9 h-9 rounded-full text-white text-[10px] font-bold flex-shrink-0 ${roleColor}`}
+              >
                 {roleAbbr}
               </div>
             }

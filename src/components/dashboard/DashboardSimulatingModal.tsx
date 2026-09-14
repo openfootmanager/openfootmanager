@@ -63,7 +63,9 @@ function ResultBadge({ result }: { result: RecapMatch["userResult"] }): JSX.Elem
     loss: t("common.lost"),
   } as const;
   return (
-    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${styles[result]}`}>
+    <span
+      className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${styles[result]}`}
+    >
       {labels[result]}
     </span>
   );
@@ -98,7 +100,14 @@ function MatchCard({ match, idx }: { match: RecapMatch; idx: number }): JSX.Elem
   );
 }
 
-function TransferCard({ player, from, to, fee, involvesUser, idx }: {
+function TransferCard({
+  player,
+  from,
+  to,
+  fee,
+  involvesUser,
+  idx,
+}: {
   player: string;
   from: string;
   to: string;
@@ -116,10 +125,14 @@ function TransferCard({ player, from, to, fee, involvesUser, idx }: {
         <ArrowRightLeft className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className={`text-xs truncate ${involvesUser ? "font-bold text-primary-600 dark:text-primary-400" : "font-medium text-gray-800 dark:text-gray-200"}`}>
+        <p
+          className={`text-xs truncate ${involvesUser ? "font-bold text-primary-600 dark:text-primary-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
+        >
           {player}
         </p>
-        <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{from} → {to}</p>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+          {from} → {to}
+        </p>
       </div>
       {feeLabel && (
         <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
@@ -144,7 +157,15 @@ function NewsCard({ text, idx }: { text: string; idx: number }): JSX.Element {
   );
 }
 
-function InboxCard({ text, category, idx }: { text: string; category?: string; idx: number }): JSX.Element {
+function InboxCard({
+  text,
+  category,
+  idx,
+}: {
+  text: string;
+  category?: string;
+  idx: number;
+}): JSX.Element {
   // Always go through getCategoryIcon so the fallback (System/Info) stays consistent with the inbox
   const icon = getCategoryIcon(category ?? "System");
   return (
@@ -155,7 +176,9 @@ function InboxCard({ text, category, idx }: { text: string; category?: string; i
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
         {icon}
       </div>
-      <p className="min-w-0 flex-1 text-xs font-medium text-amber-800 dark:text-amber-300 line-clamp-2">{text}</p>
+      <p className="min-w-0 flex-1 text-xs font-medium text-amber-800 dark:text-amber-300 line-clamp-2">
+        {text}
+      </p>
       <Square className="h-2 w-2 shrink-0 fill-current text-amber-500 dark:text-amber-400" />
     </div>
   );
@@ -196,7 +219,11 @@ function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
 
       <div className="space-y-1">
         {recap.matches.map((match, i) => (
-          <MatchCard key={`${match.date}-${match.home_team}-${match.away_team}`} match={match} idx={matchOffset + i} />
+          <MatchCard
+            key={`${match.date}-${match.home_team}-${match.away_team}`}
+            match={match}
+            idx={matchOffset + i}
+          />
         ))}
 
         {recap.transfers.map((transfer, i) => (
@@ -247,9 +274,7 @@ export default function DashboardSimulatingModal({
   const { t } = useTranslation();
   const listEndRef = useRef<HTMLDivElement>(null);
   const isDigestMode =
-    digestEntries !== undefined ||
-    isDigestRunning === true ||
-    stopReason != null;
+    digestEntries !== undefined || isDigestRunning === true || stopReason != null;
   const isRunning = isDigestRunning ?? false;
   const isInProgress = isRunning || (isBatchAdvancing ?? false);
 
@@ -290,9 +315,7 @@ export default function DashboardSimulatingModal({
             )}
           </div>
           <h3 className="flex-1 text-base font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-            {isInProgress
-              ? t("dashboard.digestAdvancing")
-              : t("dashboard.digestDone")}
+            {isInProgress ? t("dashboard.digestAdvancing") : t("dashboard.digestDone")}
           </h3>
           {isRunning && onStop && (
             <button
@@ -428,7 +451,10 @@ export default function DashboardSimulatingModal({
                       <button
                         key={blocker.id}
                         type="button"
-                        onClick={() => { onDismiss?.(); onNavigate?.(blocker.tab); }}
+                        onClick={() => {
+                          onDismiss?.();
+                          onNavigate?.(blocker.tab);
+                        }}
                         className="w-full rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-left hover:bg-amber-500/10 transition-colors"
                       >
                         <p className="text-xs font-medium text-amber-700 dark:text-amber-300">

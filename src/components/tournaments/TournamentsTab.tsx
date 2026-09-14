@@ -14,9 +14,7 @@ import TournamentsFixturesView from "./TournamentsFixturesView";
 import TournamentsLeagueHeader from "./TournamentsLeagueHeader";
 import TournamentsOverview from "./TournamentsOverview";
 import TournamentsStandingsView from "./TournamentsStandingsView";
-import TournamentsViewTabs, {
-  type TournamentsView,
-} from "./TournamentsViewTabs";
+import TournamentsViewTabs, { type TournamentsView } from "./TournamentsViewTabs";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import { nationalTeamDisplayName } from "../../lib/nationalTeams";
 import { Card, CardBody, Badge } from "../ui";
@@ -66,9 +64,7 @@ export default function TournamentsTab({
     return (
       <div className="max-w-4xl mx-auto text-center py-12">
         <Trophy className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          {t("tournaments.noActive")}
-        </p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">{t("tournaments.noActive")}</p>
       </div>
     );
   }
@@ -108,11 +104,7 @@ export default function TournamentsTab({
   const isClubTeam = (id: string) => id in teamNames;
   const resolveTeamName = (id: string) => {
     if (id in teamNames) return teamNames[id];
-    return nationalTeamDisplayName(
-      nationalTeamNameKeys[id],
-      nationalTeamNames[id] ?? id,
-      t,
-    );
+    return nationalTeamDisplayName(nationalTeamNameKeys[id], nationalTeamNames[id] ?? id, t);
   };
 
   const teams: TournamentsTeamLookup = {
@@ -135,8 +127,8 @@ export default function TournamentsTab({
                 <span className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100">
                   {seasonContext.season_start
                     ? t("season.startsOn", {
-                      date: formatMatchDate(seasonContext.season_start),
-                    })
+                        date: formatMatchDate(seasonContext.season_start),
+                      })
                     : t("season.noOpener")}
                 </span>
               </div>
@@ -157,11 +149,7 @@ export default function TournamentsTab({
         worldCupChampion={worldCupChampion}
       />
 
-      <TournamentsViewTabs
-        view={view}
-        onSelectView={setView}
-        isKnockout={isKnockout}
-      />
+      <TournamentsViewTabs view={view} onSelectView={setView} isKnockout={isKnockout} />
 
       {view === "overview" && (
         <TournamentsOverview
@@ -201,10 +189,7 @@ export default function TournamentsTab({
 
       {/* Fixtures */}
       {view === "fixtures" && (
-        <TournamentsFixturesView
-          sortedMatchdays={sortedMatchdays}
-          teams={teams}
-        />
+        <TournamentsFixturesView sortedMatchdays={sortedMatchdays} teams={teams} />
       )}
       {/* Awards */}
       {view === "awards" && (

@@ -104,7 +104,11 @@ export default function JerseyNumberInput({
       type="button"
       onClick={startEdit}
       disabled={disabled || saving}
-      title={value != null ? t("squad.jerseyNumberClickToChange", { number: value }) : t("squad.jerseyNumberClickToAssign")}
+      title={
+        value != null
+          ? t("squad.jerseyNumberClickToChange", { number: value })
+          : t("squad.jerseyNumberClickToAssign")
+      }
       className="flex items-center justify-center cursor-pointer disabled:cursor-default
                  rounded hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary-500/30"
     >

@@ -34,7 +34,9 @@ function PlayerAvatarCell({ player, posAbbr, projectDir }: PlayerAvatarCellProps
           className="w-9 h-9"
         />
       )}
-      <span className={`absolute -bottom-0.5 -right-0.5 text-[7px] font-bold text-white px-0.5 rounded leading-tight ${posColor}`}>
+      <span
+        className={`absolute -bottom-0.5 -right-0.5 text-[7px] font-bold text-white px-0.5 rounded leading-tight ${posColor}`}
+      >
         {posAbbr}
       </span>
     </div>
@@ -55,14 +57,29 @@ interface PlayersTabProps {
   youthOnly?: boolean;
 }
 
-export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, onDuplicate, onExportCsv, selectedIndex, onSelect, projectDir, youthOnly }: PlayersTabProps) {
+export function PlayersTab({
+  players,
+  teams,
+  onAdd,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onExportCsv,
+  selectedIndex,
+  onSelect,
+  projectDir,
+  youthOnly,
+}: PlayersTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
-  const scoped = youthOnly !== undefined
-    ? players.map((player, i) => ({ player, i })).filter(({ player }) => !!(player.youth) === youthOnly)
-    : players.map((player, i) => ({ player, i }));
+  const scoped =
+    youthOnly !== undefined
+      ? players
+          .map((player, i) => ({ player, i }))
+          .filter(({ player }) => !!player.youth === youthOnly)
+      : players.map((player, i) => ({ player, i }));
   const filtered = q
     ? scoped.filter(({ player }) => {
         const name = (player.name || `${player.firstName} ${player.lastName}`).toLowerCase();
@@ -110,11 +127,15 @@ export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, onDuplicat
           subtitle={[
             t(`common.positions.${player.position}`),
             player.club ? (teams?.find((tm) => tm.id === player.club)?.name ?? player.club) : null,
-          ].filter(Boolean).join(" · ")}
+          ]
+            .filter(Boolean)
+            .join(" · ")}
           badge={
             <PlayerAvatarCell
               player={player}
-              posAbbr={t(`common.posAbbr.${player.position as Position}`, { defaultValue: player.position.slice(0, 2).toUpperCase() })}
+              posAbbr={t(`common.posAbbr.${player.position as Position}`, {
+                defaultValue: player.position.slice(0, 2).toUpperCase(),
+              })}
               projectDir={projectDir}
             />
           }

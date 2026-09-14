@@ -37,9 +37,7 @@ describe("TraitBadge", () => {
     render(<TraitBadge trait="HotHead" />);
 
     expect(
-      screen.getByLabelText(
-        "Juega al límite | Agresividad 85+, Compostura < 50",
-      ),
+      screen.getByLabelText("Juega al límite | Agresividad 85+, Compostura < 50"),
     ).toBeInTheDocument();
   });
 
@@ -47,9 +45,7 @@ describe("TraitBadge", () => {
     render(<TraitBadge trait="Wonderkid" />);
 
     expect(
-      screen.getByLabelText(
-        "Talento especial | Edad <= 20, Potencial 90+, Crecimiento 14+",
-      ),
+      screen.getByLabelText("Talento especial | Edad <= 20, Potencial 90+, Crecimiento 14+"),
     ).toBeInTheDocument();
   });
 });

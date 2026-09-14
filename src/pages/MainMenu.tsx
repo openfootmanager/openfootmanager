@@ -8,27 +8,14 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
-import type {
-  CareerStartPhase,
-  CreateManagerFormData,
-} from "../components/menu/CreateManagerForm";
-import type {
-  PackageInfo,
-  PackageIssue,
-} from "../components/menu/WorldSelect";
+import type { CareerStartPhase, CreateManagerFormData } from "../components/menu/CreateManagerForm";
+import type { PackageInfo, PackageIssue } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import { formatAppVersion } from "../lib/appVersion";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
-import {
-  FolderOpen,
-  Settings,
-  PlusCircle,
-  ChevronRight,
-  Power,
-  Package,
-} from "lucide-react";
+import { FolderOpen, Settings, PlusCircle, ChevronRight, Power, Package } from "lucide-react";
 
 const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
 const GITHUB_REPO_URL = "https://github.com/openfootmanager/openfootmanager";
@@ -49,12 +36,8 @@ function GithubIcon({ className }: { className?: string }) {
   );
 }
 
-const CreateManagerForm = lazy(
-  () => import("../components/menu/CreateManagerForm"),
-);
-const ProfileSaveConfirm = lazy(
-  () => import("../components/menu/ProfileSaveConfirm"),
-);
+const CreateManagerForm = lazy(() => import("../components/menu/CreateManagerForm"));
+const ProfileSaveConfirm = lazy(() => import("../components/menu/ProfileSaveConfirm"));
 const SavesList = lazy(() => import("../components/menu/SavesList"));
 const PackageBuildStep = lazy(() => import("../components/menu/PackageBuildStep"));
 const GenerationStep = lazy(() => import("../components/menu/WorldSelect"));
@@ -90,8 +73,6 @@ type StartupOptionsPayload = {
   historyDepthYears: number;
 };
 
-
-
 function defaultCareerStartYear(): string {
   return String(new Date().getFullYear());
 }
@@ -120,18 +101,13 @@ function initialHistoryDepthYears(): number {
     return DEFAULT_GENERATED_HISTORY_DEPTH_YEARS;
   }
 
-  const storedValue = window.localStorage.getItem(
-    GENERATED_HISTORY_DEPTH_STORAGE_KEY,
-  );
+  const storedValue = window.localStorage.getItem(GENERATED_HISTORY_DEPTH_STORAGE_KEY);
   if (storedValue === null) {
     return DEFAULT_GENERATED_HISTORY_DEPTH_YEARS;
   }
 
   const parsedValue = Number(storedValue);
-  return (
-    normalizeHistoryDepthYears(parsedValue) ??
-    DEFAULT_GENERATED_HISTORY_DEPTH_YEARS
-  );
+  return normalizeHistoryDepthYears(parsedValue) ?? DEFAULT_GENERATED_HISTORY_DEPTH_YEARS;
 }
 
 function buildStartupOptions(
@@ -145,9 +121,7 @@ function buildStartupOptions(
   if (!isCareerStartPhase(formData.startPhase)) {
     return null;
   }
-  const normalizedHistoryDepthYears = normalizeHistoryDepthYears(
-    historyDepthYears,
-  );
+  const normalizedHistoryDepthYears = normalizeHistoryDepthYears(historyDepthYears);
   if (normalizedHistoryDepthYears === null) {
     return null;
   }
@@ -188,10 +162,7 @@ function parseIsoDateParts(isoDob: string): IsoDateParts | null {
   return { year, month, day };
 }
 
-function careerStartReferenceDate(
-  startYear: number,
-  startPhase: CareerStartPhase,
-): Date {
+function careerStartReferenceDate(startYear: number, startPhase: CareerStartPhase): Date {
   const referenceDate = new Date(Date.UTC(startYear, 6, 1));
   if (startPhase === "midSeason") {
     referenceDate.setUTCDate(referenceDate.getUTCDate() + 120);
@@ -199,18 +170,14 @@ function careerStartReferenceDate(
   return referenceDate;
 }
 
-function flooredAgeFromIsoDate(
-  isoDob: string,
-  referenceDate: Date,
-): number | null {
+function flooredAgeFromIsoDate(isoDob: string, referenceDate: Date): number | null {
   const parts = parseIsoDateParts(isoDob);
   if (!parts) return null;
 
   let age = referenceDate.getUTCFullYear() - parts.year;
   const hasHadBirthdayThisYear =
     referenceDate.getUTCMonth() > parts.month - 1 ||
-    (referenceDate.getUTCMonth() === parts.month - 1 &&
-      referenceDate.getUTCDate() >= parts.day);
+    (referenceDate.getUTCMonth() === parts.month - 1 && referenceDate.getUTCDate() >= parts.day);
 
   if (!hasHadBirthdayThisYear) {
     age -= 1;
@@ -294,7 +261,9 @@ export default function MainMenu() {
   const setGameState = useGameStore((state) => state.setGameState);
   const { t } = useTranslation();
 
-  const [menuState, setMenuState] = useState<"main" | "create" | "packages" | "generation" | "load">("main");
+  const [menuState, setMenuState] = useState<
+    "main" | "create" | "packages" | "generation" | "load"
+  >("main");
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
@@ -322,15 +291,10 @@ export default function MainMenu() {
   const [activePackageIds, setActivePackageIds] = useState<string[]>([]);
   const [isInstallingPackage, setIsInstallingPackage] = useState(false);
   const [packageStackErrors, setPackageStackErrors] = useState<PackageIssue[]>([]);
-  const [historyDepthYears, setHistoryDepthYears] = useState(
-    initialHistoryDepthYears,
-  );
+  const [historyDepthYears, setHistoryDepthYears] = useState(initialHistoryDepthYears);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      GENERATED_HISTORY_DEPTH_STORAGE_KEY,
-      String(historyDepthYears),
-    );
+    window.localStorage.setItem(GENERATED_HISTORY_DEPTH_STORAGE_KEY, String(historyDepthYears));
   }, [historyDepthYears]);
 
   useEffect(() => {
@@ -469,7 +433,6 @@ export default function MainMenu() {
     proceedToPackages();
   };
 
-
   const loadInstalledPackages = async () => {
     try {
       const pkgs = await invoke<PackageInfo[]>("list_installed_packages");
@@ -530,9 +493,7 @@ export default function MainMenu() {
     if (!startupOptions) {
       const validation = validateForm();
       setMenuState("create");
-      deferFocusToNextPaint(() =>
-        focusFirstCreateManagerError(validation.errors),
-      );
+      deferFocusToNextPaint(() => focusFirstCreateManagerError(validation.errors));
       return;
     }
 
@@ -676,9 +637,7 @@ export default function MainMenu() {
       setProfiles((prev) => {
         const exists = prev.some((p) => p.id === saved.id);
         const next =
-          !forceNew && exists
-            ? prev.map((p) => (p.id === saved.id ? saved : p))
-            : [...prev, saved];
+          !forceNew && exists ? prev.map((p) => (p.id === saved.id ? saved : p)) : [...prev, saved];
         return next.sort((a, b) => {
           const aDate = a.last_used_at ?? a.created_at;
           const bDate = b.last_used_at ?? b.created_at;
@@ -826,8 +785,12 @@ export default function MainMenu() {
             <Suspense fallback={null}>
               <ProfileSaveConfirm
                 loadedProfile={loadedProfile}
-                onUpdate={() => { void handleUpdateProfile(); }}
-                onSaveNew={() => { void handleSaveAsNewProfile(); }}
+                onUpdate={() => {
+                  void handleUpdateProfile();
+                }}
+                onSaveNew={() => {
+                  void handleSaveAsNewProfile();
+                }}
                 onSkip={proceedToPackages}
                 onClose={() => setShowProfileConfirm(false)}
               />
@@ -886,7 +849,6 @@ export default function MainMenu() {
           )}
 
           {/* Package Editor */}
-
         </div>
       </div>
 
@@ -896,7 +858,9 @@ export default function MainMenu() {
           type="button"
           aria-label={t("menu.openDiscord")}
           title={t("menu.openDiscord")}
-          onClick={() => { void openUrl(DISCORD_INVITE_URL); }}
+          onClick={() => {
+            void openUrl(DISCORD_INVITE_URL);
+          }}
           className="p-1.5 rounded-lg text-gray-400 dark:text-gray-600 hover:text-[#5865F2] dark:hover:text-[#7289DA] hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
         >
           <DiscordIcon className="w-5 h-5" />
@@ -905,7 +869,9 @@ export default function MainMenu() {
           type="button"
           aria-label={t("menu.openGithub")}
           title={t("menu.openGithub")}
-          onClick={() => { void openUrl(GITHUB_REPO_URL); }}
+          onClick={() => {
+            void openUrl(GITHUB_REPO_URL);
+          }}
           className="p-1.5 rounded-lg text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
         >
           <GithubIcon className="w-5 h-5" />

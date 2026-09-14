@@ -28,22 +28,15 @@ export function QuickStat({
   return (
     <div className="mb-2 last:mb-0">
       <div className="flex justify-between text-xs mb-0.5">
-        <span className="font-heading font-bold text-primary-400 tabular-nums">
-          {home}
-        </span>
+        <span className="font-heading font-bold text-primary-400 tabular-nums">{home}</span>
         <span className="text-gray-600 dark:text-gray-500 font-heading uppercase tracking-wider text-[10px]">
           {label}
         </span>
-        <span className="font-heading font-bold text-indigo-400 tabular-nums">
-          {away}
-        </span>
+        <span className="font-heading font-bold text-indigo-400 tabular-nums">{away}</span>
       </div>
       <div className="flex h-1 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden transition-colors duration-300">
         <div className="h-full bg-primary-500" style={{ width: `${pct}%` }} />
-        <div
-          className="h-full bg-indigo-500"
-          style={{ width: `${100 - pct}%` }}
-        />
+        <div className="h-full bg-indigo-500" style={{ width: `${100 - pct}%` }} />
       </div>
     </div>
   );
@@ -59,9 +52,7 @@ export function renderScorers(
   side: "Home" | "Away",
 ) {
   const goals = events.filter(
-    (e) =>
-      e.side === side &&
-      (e.event_type === "Goal" || e.event_type === "PenaltyGoal"),
+    (e) => e.side === side && (e.event_type === "Goal" || e.event_type === "PenaltyGoal"),
   );
   if (goals.length === 0) return null;
 
@@ -121,10 +112,7 @@ export function PlayerRatingsPanel({
     if (!ratings[evt.player_id] && ratings[evt.player_id] !== 0) return;
     if (evt.event_type === "Goal" || evt.event_type === "PenaltyGoal")
       ratings[evt.player_id] = (ratings[evt.player_id] || 6) + 1.2;
-    else if (
-      evt.event_type === "ShotSaved" ||
-      evt.event_type === "ShotOnTarget"
-    )
+    else if (evt.event_type === "ShotSaved" || evt.event_type === "ShotOnTarget")
       ratings[evt.player_id] = (ratings[evt.player_id] || 6) + 0.2;
     else if (evt.event_type === "ShotOffTarget")
       ratings[evt.player_id] = (ratings[evt.player_id] || 6) - 0.1;
@@ -134,17 +122,11 @@ export function PlayerRatingsPanel({
       ratings[evt.player_id] = (ratings[evt.player_id] || 6) + 0.15;
     else if (evt.event_type === "Foul")
       ratings[evt.player_id] = (ratings[evt.player_id] || 6) - 0.2;
-    else if (
-      evt.event_type === "YellowCard" ||
-      evt.event_type === "SecondYellow"
-    )
+    else if (evt.event_type === "YellowCard" || evt.event_type === "SecondYellow")
       ratings[evt.player_id] = (ratings[evt.player_id] || 6) - 0.5;
     else if (evt.event_type === "RedCard")
       ratings[evt.player_id] = (ratings[evt.player_id] || 6) - 1.5;
-    if (
-      evt.secondary_player_id &&
-      ratings[evt.secondary_player_id] !== undefined
-    ) {
+    if (evt.secondary_player_id && ratings[evt.secondary_player_id] !== undefined) {
       if (evt.event_type === "Goal" || evt.event_type === "PenaltyGoal")
         ratings[evt.secondary_player_id] += 0.7;
     }
@@ -171,10 +153,7 @@ export function PlayerRatingsPanel({
         <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
           {t("match.ratings", { team: team.name })}
         </h3>
-        <div
-          className="w-2 h-2 rounded-full ml-auto"
-          style={{ backgroundColor: teamColor }}
-        />
+        <div className="w-2 h-2 rounded-full ml-auto" style={{ backgroundColor: teamColor }} />
       </div>
       {motm && side === (userSide || "Home") && (
         <div className="flex items-center gap-3 mb-3 p-2 bg-accent-50 dark:bg-accent-500/10 rounded-lg border border-accent-200 dark:border-accent-500/20 transition-colors duration-300">
@@ -193,19 +172,16 @@ export function PlayerRatingsPanel({
       )}
       <div className="flex flex-col gap-0.5 max-h-40 overflow-auto">
         {sorted.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-center gap-2 px-1 py-0.5 text-xs"
-          >
+          <div key={p.id} className="flex items-center gap-2 px-1 py-0.5 text-xs">
             <span
               className={`font-heading font-bold tabular-nums w-8 ${
                 p.rating >= 8
                   ? "text-accent-700 dark:text-accent-400"
                   : p.rating >= 7
                     ? "text-green-700 dark:text-green-400"
-                  : p.rating >= 6
+                    : p.rating >= 6
                       ? "text-gray-600 dark:text-gray-300"
-                  : p.rating >= 5
+                      : p.rating >= 5
                         ? "text-yellow-700 dark:text-yellow-400"
                         : "text-red-400"
               }`}

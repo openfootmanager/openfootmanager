@@ -32,10 +32,8 @@ vi.mock("react-i18next", () => ({
       if (key === "youthAcademy.recruitmentWorkflowHint")
         return "Start, cancel, or reassign academy searches without leaving the Youth Academy view.";
       if (key === "youthAcademy.noYouthPlayers") return "No youth players";
-      if (key === "youthAcademy.delegateToYouthAcademy")
-        return "Delegate to youth academy";
-      if (key === "youthAcademy.promoteToSeniorSquad")
-        return "Promote to senior squad";
+      if (key === "youthAcademy.delegateToYouthAcademy") return "Delegate to youth academy";
+      if (key === "youthAcademy.promoteToSeniorSquad") return "Promote to senior squad";
       if (key === "youthAcademy.player") return "Player";
       if (key === "youthAcademy.pos") return "Pos";
       if (key === "youthAcademy.age") return "Age";
@@ -47,7 +45,8 @@ vi.mock("react-i18next", () => ({
       if (key.startsWith("youthAcademy.pot")) return key.replace("youthAcademy.", "");
       if (key.startsWith("common.posAbbr.")) return key.replace("common.posAbbr.", "");
       if (key === "scouting.youthRecruitment") return "Youth Recruitment";
-      if (key === "scouting.youthRecruitmentHint") return "Use a scout to search for academy prospects.";
+      if (key === "scouting.youthRecruitmentHint")
+        return "Use a scout to search for academy prospects.";
       if (key === "scouting.startYouthSearch") return "Start youth search";
       if (key === "scouting.activeYouthSearches") return `${params?.count} active youth searches`;
       if (key === "scouting.noYouthSearches") return "No youth searches running";
@@ -233,7 +232,12 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
 }
 
 function makeEmptyStaffSlice() {
-  return { team_staff: [], available_staff: [], scouting_assignments: [], youth_scouting_assignments: [] };
+  return {
+    team_staff: [],
+    available_staff: [],
+    scouting_assignments: [],
+    youth_scouting_assignments: [],
+  };
 }
 
 describe("YouthAcademyTab", () => {
@@ -242,7 +246,11 @@ describe("YouthAcademyTab", () => {
   });
 
   it("renders the empty state when the squad has no youth players", async () => {
-    const player = createPlayer({ id: "player-young-senior", full_name: "Senior Prospect", date_of_birth: "2008-01-01" });
+    const player = createPlayer({
+      id: "player-young-senior",
+      full_name: "Senior Prospect",
+      date_of_birth: "2008-01-01",
+    });
     const state = createGameState([player]);
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
@@ -261,7 +269,11 @@ describe("YouthAcademyTab", () => {
   });
 
   it("delegates eligible senior players from the recovery card", async () => {
-    const player = createPlayer({ id: "player-young-senior", full_name: "Senior Prospect", date_of_birth: "2008-01-01" });
+    const player = createPlayer({
+      id: "player-young-senior",
+      full_name: "Senior Prospect",
+      date_of_birth: "2008-01-01",
+    });
     const gameState = createGameState([player]);
     const updatedGameState = {
       ...gameState,
@@ -276,7 +288,13 @@ describe("YouthAcademyTab", () => {
       return updatedGameState;
     });
 
-    render(<YouthAcademyTab gameState={gameState} onGameUpdate={onGameUpdate} onSelectPlayer={vi.fn()} />);
+    render(
+      <YouthAcademyTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={vi.fn()}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delegate to youth academy" })).toBeInTheDocument();
@@ -284,7 +302,10 @@ describe("YouthAcademyTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delegate to youth academy" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", { playerId: "player-young-senior", squadRole: "Youth" });
+      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        playerId: "player-young-senior",
+        squadRole: "Youth",
+      });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
     // The delegated player moves to the prospects table immediately, without
@@ -298,7 +319,11 @@ describe("YouthAcademyTab", () => {
   });
 
   it("opens the scouting tab from the recovery card", async () => {
-    const player = createPlayer({ id: "player-young-senior", full_name: "Senior Prospect", date_of_birth: "2008-01-01" });
+    const player = createPlayer({
+      id: "player-young-senior",
+      full_name: "Senior Prospect",
+      date_of_birth: "2008-01-01",
+    });
     const state = createGameState([player]);
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
@@ -319,17 +344,34 @@ describe("YouthAcademyTab", () => {
 
   it("starts youth recruitment directly from the youth academy view", async () => {
     const scout = createScout();
-    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
+    const youthPlayer = createPlayer({
+      id: "player-young",
+      full_name: "Rising Star",
+      date_of_birth: "2008-01-01",
+      squad_role: "Youth",
+    });
     const baseState = createGameState([youthPlayer]);
     const gameState = { ...baseState, staff: [scout] };
     const onGameUpdate = vi.fn();
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team-1");
-      if (command === "get_staff") return { team_staff: [scout], available_staff: [], scouting_assignments: [], youth_scouting_assignments: [] };
+      if (command === "get_staff")
+        return {
+          team_staff: [scout],
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
       return gameState;
     });
 
-    render(<YouthAcademyTab gameState={gameState} onGameUpdate={onGameUpdate} onSelectPlayer={vi.fn()} />);
+    render(
+      <YouthAcademyTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={vi.fn()}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole("combobox", { name: "Youth target" })).toBeInTheDocument();
@@ -350,8 +392,17 @@ describe("YouthAcademyTab", () => {
   });
 
   it("shows youth prospects only and routes row selection", async () => {
-    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
-    const seniorPlayer = createPlayer({ id: "player-older", full_name: "Senior Pro", date_of_birth: "1998-01-01" });
+    const youthPlayer = createPlayer({
+      id: "player-young",
+      full_name: "Rising Star",
+      date_of_birth: "2008-01-01",
+      squad_role: "Youth",
+    });
+    const seniorPlayer = createPlayer({
+      id: "player-older",
+      full_name: "Senior Pro",
+      date_of_birth: "1998-01-01",
+    });
     const state = createGameState([youthPlayer, seniorPlayer]);
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
@@ -378,7 +429,12 @@ describe("YouthAcademyTab", () => {
   // response, or the promoted player lingers in the list until the user
   // switches pages.
   it("removes a promoted player from the prospects list without a refetch", async () => {
-    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
+    const youthPlayer = createPlayer({
+      id: "player-young",
+      full_name: "Rising Star",
+      date_of_birth: "2008-01-01",
+      squad_role: "Youth",
+    });
     const gameState = createGameState([youthPlayer]);
     const updatedGameState = {
       ...gameState,
@@ -395,7 +451,9 @@ describe("YouthAcademyTab", () => {
       return updatedGameState;
     });
 
-    render(<YouthAcademyTab gameState={gameState} onGameUpdate={vi.fn()} onSelectPlayer={vi.fn()} />);
+    render(
+      <YouthAcademyTab gameState={gameState} onGameUpdate={vi.fn()} onSelectPlayer={vi.fn()} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Rising Star")).toBeInTheDocument();
@@ -412,7 +470,12 @@ describe("YouthAcademyTab", () => {
   });
 
   it("promotes youth academy players through the context menu", async () => {
-    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
+    const youthPlayer = createPlayer({
+      id: "player-young",
+      full_name: "Rising Star",
+      date_of_birth: "2008-01-01",
+      squad_role: "Youth",
+    });
     const gameState = createGameState([youthPlayer]);
     const updatedGameState = {
       ...gameState,
@@ -427,7 +490,13 @@ describe("YouthAcademyTab", () => {
       return updatedGameState;
     });
 
-    render(<YouthAcademyTab gameState={gameState} onGameUpdate={onGameUpdate} onSelectPlayer={vi.fn()} />);
+    render(
+      <YouthAcademyTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={vi.fn()}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Rising Star")).toBeInTheDocument();
@@ -438,7 +507,10 @@ describe("YouthAcademyTab", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Promote to senior squad" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", { playerId: "player-young", squadRole: "Senior" });
+      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        playerId: "player-young",
+        squadRole: "Senior",
+      });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });

@@ -37,10 +37,7 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-export function getPlayerAnnualWageCommitment(
-  player: PlayerData,
-  teamId?: string | null,
-): number {
+export function getPlayerAnnualWageCommitment(player: PlayerData, teamId?: string | null): number {
   const annualWage = Math.max(0, player.wage);
 
   if (!teamId) {
@@ -52,12 +49,8 @@ export function getPlayerAnnualWageCommitment(
     return player.team_id === teamId ? annualWage : 0;
   }
 
-  const loanTeamContributionPct = clampPercent(
-    activeLoan.wage_contribution_pct,
-  );
-  const loanTeamShare = Math.floor(
-    (annualWage * loanTeamContributionPct) / 100,
-  );
+  const loanTeamContributionPct = clampPercent(activeLoan.wage_contribution_pct);
+  const loanTeamShare = Math.floor((annualWage * loanTeamContributionPct) / 100);
 
   if (activeLoan.loan_team_id === teamId) {
     return loanTeamShare;
@@ -95,12 +88,7 @@ export function getWeeklyWageSpend(
   teamId?: string | null,
 ): number {
   const playerWages = players.reduce((sum, player) => {
-    return (
-      sum +
-      annualAmountToWeeklyCommitment(
-        getPlayerAnnualWageCommitment(player, teamId),
-      )
-    );
+    return sum + annualAmountToWeeklyCommitment(getPlayerAnnualWageCommitment(player, teamId));
   }, 0);
   const staffWages = staff.reduce((sum, staffMember) => {
     if (teamId && staffMember.team_id !== teamId) {
@@ -113,10 +101,7 @@ export function getWeeklyWageSpend(
   return playerWages + staffWages;
 }
 
-export function getCashRunwayWeeks(
-  balance: number,
-  projectedWeeklyNet: number,
-): number | null {
+export function getCashRunwayWeeks(balance: number, projectedWeeklyNet: number): number | null {
   if (projectedWeeklyNet >= 0) {
     return null;
   }
@@ -140,10 +125,7 @@ function getWageBudgetStatus(usagePercent: number): FinanceHealthLevel {
   return "stable";
 }
 
-function getRunwayStatus(
-  balance: number,
-  runwayWeeks: number | null,
-): FinanceHealthLevel {
+function getRunwayStatus(balance: number, runwayWeeks: number | null): FinanceHealthLevel {
   if (balance < 0) {
     return "critical";
   }
@@ -184,10 +166,7 @@ function parseIsoDate(dateText: string | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function getMarketingCampaignCooldownDaysRemaining(
-  team: TeamData,
-  currentDate?: string,
-): number {
+function getMarketingCampaignCooldownDaysRemaining(team: TeamData, currentDate?: string): number {
   const today = parseIsoDate(currentDate);
   if (!today) {
     return 0;
@@ -224,9 +203,7 @@ export function getTeamFinanceSnapshot(
   const weeklySponsorIncome = team.sponsorship?.base_value ?? 0;
   const projectedWeeklyNet = weeklySponsorIncome - weeklyWageSpend;
   const cashRunwayWeeks = getCashRunwayWeeks(team.finance, projectedWeeklyNet);
-  const wageBudgetUsagePercent = Math.round(
-    (annualWageBill / Math.max(1, team.wage_budget)) * 100,
-  );
+  const wageBudgetUsagePercent = Math.round((annualWageBill / Math.max(1, team.wage_budget)) * 100);
   const wageBudgetStatus = getWageBudgetStatus(wageBudgetUsagePercent);
   const runwayStatus = getRunwayStatus(team.finance, cashRunwayWeeks);
 
@@ -241,7 +218,9 @@ export function getTeamFinanceSnapshot(
     wageBudgetStatus,
     runwayStatus,
     overallStatus: getMostSevereLevel(wageBudgetStatus, runwayStatus),
-    marketingCampaignCooldownDaysRemaining:
-      getMarketingCampaignCooldownDaysRemaining(team, currentDate),
+    marketingCampaignCooldownDaysRemaining: getMarketingCampaignCooldownDaysRemaining(
+      team,
+      currentDate,
+    ),
   };
 }

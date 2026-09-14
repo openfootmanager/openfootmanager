@@ -52,7 +52,10 @@ export default function HomePlayerMomentumCard({
                     key={player.id}
                     className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-green-500/5 dark:bg-green-500/10"
                   >
-                    <PlayerAvatar player={player} className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300" />
+                    <PlayerAvatar
+                      player={player}
+                      className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300"
+                    />
                     <span className="text-xs font-medium text-gray-800 dark:text-gray-200 flex-1 truncate">
                       {player.full_name}
                     </span>
@@ -81,7 +84,10 @@ export default function HomePlayerMomentumCard({
                     key={player.id}
                     className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-red-500/5 dark:bg-red-500/10"
                   >
-                    <PlayerAvatar player={player} className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300" />
+                    <PlayerAvatar
+                      player={player}
+                      className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300"
+                    />
                     <span className="text-xs font-medium text-gray-800 dark:text-gray-200 flex-1 truncate">
                       {player.full_name}
                     </span>

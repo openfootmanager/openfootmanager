@@ -26,10 +26,7 @@ function getRatingColor(rating: number, primary: string): string {
   return "#ef4444";
 }
 
-export function PlayerRatingTrendChart({
-  matches,
-  ratingLabel,
-}: PlayerRatingTrendChartProps) {
+export function PlayerRatingTrendChart({ matches, ratingLabel }: PlayerRatingTrendChartProps) {
   const theme = useChartTheme();
 
   if (matches.length < 2) {
@@ -70,7 +67,10 @@ export function PlayerRatingTrendChart({
               fontSize: 11,
               color: theme.tooltipText,
             }}
-            formatter={(value) => [typeof value === "number" ? value.toFixed(1) : String(value ?? ""), ratingLabel]}
+            formatter={(value) => [
+              typeof value === "number" ? value.toFixed(1) : String(value ?? ""),
+              ratingLabel,
+            ]}
             labelFormatter={(label, payload) => {
               const item = payload?.[0]?.payload;
               return item ? `${item.opponent} (${item.result})` : label;
@@ -84,7 +84,17 @@ export function PlayerRatingTrendChart({
             dot={(props) => {
               const { cx, cy, payload } = props;
               const color = getRatingColor(payload.rating, theme.primary);
-              return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill={color} stroke={theme.tooltipBg} strokeWidth={1.5} />;
+              return (
+                <Dot
+                  key={`dot-${cx}-${cy}`}
+                  cx={cx}
+                  cy={cy}
+                  r={4}
+                  fill={color}
+                  stroke={theme.tooltipBg}
+                  strokeWidth={1.5}
+                />
+              );
             }}
             activeDot={{ r: 5, fill: theme.primary }}
           />

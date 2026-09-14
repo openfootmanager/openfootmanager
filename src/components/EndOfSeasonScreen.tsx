@@ -42,27 +42,34 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
 
   const league = gameState.league;
   const userTeamId = gameState.manager.team_id;
-  const userTeam = gameState.teams.find(t => t.id === userTeamId);
+  const userTeam = gameState.teams.find((t) => t.id === userTeamId);
 
   // Compute standings for display
   const standings = league
-    ? [...league.standings].sort((a, b) =>
-      b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against) || b.goals_for - a.goals_for
-    )
+    ? [...league.standings].sort(
+        (a, b) =>
+          b.points - a.points ||
+          b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
+          b.goals_for - a.goals_for,
+      )
     : [];
 
-  const userStandingIdx = standings.findIndex(s => s.team_id === userTeamId);
+  const userStandingIdx = standings.findIndex((s) => s.team_id === userTeamId);
   const userStanding = standings[userStandingIdx];
   const userPosition = userStandingIdx + 1;
   const champion = standings[0];
-  const championName = gameState.teams.find(t => t.id === champion?.team_id)?.name || "";
+  const championName = gameState.teams.find((t) => t.id === champion?.team_id)?.name || "";
   const isChampion = champion?.team_id === userTeamId;
 
   const handleAdvance = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      const result = await invoke<{ action?: string; game: GameStateData; summary: EndOfSeasonSummary }>("advance_to_next_season");
+      const result = await invoke<{
+        action?: string;
+        game: GameStateData;
+        summary: EndOfSeasonSummary;
+      }>("advance_to_next_season");
       if (result.action === "fired") {
         onGameUpdate(result.game);
         setShowFiredModal(true);
@@ -91,14 +98,21 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
         <>
           {/* Hero */}
           <div className="text-center mb-8">
-            <div className={`w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4 ${isChampion
-                ? "bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30"
-                : "bg-gradient-to-br from-navy-700 to-navy-800"
-              }`}>
-              {isChampion ? <Crown className="w-10 h-10 text-white" /> : <Trophy className="w-10 h-10 text-gray-300" />}
+            <div
+              className={`w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4 ${
+                isChampion
+                  ? "bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30"
+                  : "bg-gradient-to-br from-navy-700 to-navy-800"
+              }`}
+            >
+              {isChampion ? (
+                <Crown className="w-10 h-10 text-white" />
+              ) : (
+                <Trophy className="w-10 h-10 text-gray-300" />
+              )}
             </div>
             <h1 className="text-3xl font-heading font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
-              {t('endOfSeason.seasonComplete')}
+              {t("endOfSeason.seasonComplete")}
             </h1>
             <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">
               {t("endOfSeason.seasonLine", {
@@ -108,7 +122,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
             </p>
             {isChampion && (
               <p className="text-xl font-heading font-bold text-accent-500 mt-2 uppercase tracking-wider animate-pulse">
-                {t('endOfSeason.champions')}
+                {t("endOfSeason.champions")}
               </p>
             )}
           </div>
@@ -122,21 +136,39 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
                 </p>
                 <div className="flex items-center justify-center gap-6 mb-4">
                   <div>
-                    <p className="text-4xl font-heading font-bold text-gray-900 dark:text-gray-100">{posLabel(userPosition)}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">{t('endOfSeason.position')}</p>
+                    <p className="text-4xl font-heading font-bold text-gray-900 dark:text-gray-100">
+                      {posLabel(userPosition)}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                      {t("endOfSeason.position")}
+                    </p>
                   </div>
                   <div className="w-px h-12 bg-gray-200 dark:bg-navy-600" />
                   <div>
-                    <p className="text-4xl font-heading font-bold text-primary-500">{userStanding?.points || 0}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">{t('endOfSeason.points')}</p>
+                    <p className="text-4xl font-heading font-bold text-primary-500">
+                      {userStanding?.points || 0}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">
+                      {t("endOfSeason.points")}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-center gap-8 text-sm">
-                  <span className="text-green-500 font-heading font-bold">{userStanding?.won || 0}{t('common.won')}</span>
-                  <span className="text-gray-500 font-heading font-bold">{userStanding?.drawn || 0}{t('common.drawn')}</span>
-                  <span className="text-red-500 font-heading font-bold">{userStanding?.lost || 0}{t('common.lost')}</span>
+                  <span className="text-green-500 font-heading font-bold">
+                    {userStanding?.won || 0}
+                    {t("common.won")}
+                  </span>
+                  <span className="text-gray-500 font-heading font-bold">
+                    {userStanding?.drawn || 0}
+                    {t("common.drawn")}
+                  </span>
+                  <span className="text-red-500 font-heading font-bold">
+                    {userStanding?.lost || 0}
+                    {t("common.lost")}
+                  </span>
                   <span className="text-gray-400">
-                    {userStanding?.goals_for || 0} {t('common.gf')} — {userStanding?.goals_against || 0} {t('common.ga')}
+                    {userStanding?.goals_for || 0} {t("common.gf")} —{" "}
+                    {userStanding?.goals_against || 0} {t("common.ga")}
                   </span>
                 </div>
               </div>
@@ -147,20 +179,39 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
           <Card className="mb-6">
             <CardBody>
               <h3 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-accent-500" /> {t('endOfSeason.finalStandings')}
+                <Trophy className="w-4 h-4 text-accent-500" /> {t("endOfSeason.finalStandings")}
               </h3>
               <div className="divide-y divide-gray-100 dark:divide-navy-600">
                 {standings.slice(0, 5).map((entry, idx) => {
-                  const teamName = gameState.teams.find(t => t.id === entry.team_id)?.name || "";
+                  const teamName = gameState.teams.find((t) => t.id === entry.team_id)?.name || "";
                   const isUser = entry.team_id === userTeamId;
                   const gd = entry.goals_for - entry.goals_against;
                   return (
-                    <div key={entry.team_id} className={`flex items-center py-2.5 gap-3 ${isUser ? "bg-primary-50/50 dark:bg-primary-500/5 -mx-2 px-2 rounded-lg" : ""}`}>
-                      <span className={`font-heading font-bold text-sm w-6 text-center ${idx === 0 ? "text-accent-500" : "text-gray-400"}`}>{idx + 1}</span>
-                      <span className={`flex-1 text-sm font-semibold ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}>{teamName}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums w-16 text-center">{entry.won}W {entry.drawn}D {entry.lost}L</span>
-                      <span className={`text-xs font-semibold tabular-nums w-8 text-center ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}>{gd > 0 ? `+${gd}` : gd}</span>
-                      <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums w-8 text-right">{entry.points}</span>
+                    <div
+                      key={entry.team_id}
+                      className={`flex items-center py-2.5 gap-3 ${isUser ? "bg-primary-50/50 dark:bg-primary-500/5 -mx-2 px-2 rounded-lg" : ""}`}
+                    >
+                      <span
+                        className={`font-heading font-bold text-sm w-6 text-center ${idx === 0 ? "text-accent-500" : "text-gray-400"}`}
+                      >
+                        {idx + 1}
+                      </span>
+                      <span
+                        className={`flex-1 text-sm font-semibold ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                      >
+                        {teamName}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums w-16 text-center">
+                        {entry.won}W {entry.drawn}D {entry.lost}L
+                      </span>
+                      <span
+                        className={`text-xs font-semibold tabular-nums w-8 text-center ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
+                      >
+                        {gd > 0 ? `+${gd}` : gd}
+                      </span>
+                      <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums w-8 text-right">
+                        {entry.points}
+                      </span>
                     </div>
                   );
                 })}
@@ -175,7 +226,9 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
                 <div className="flex items-center gap-3">
                   <Crown className="w-6 h-6 text-accent-500" />
                   <div>
-                    <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">{t('endOfSeason.leagueChampions')}</p>
+                    <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                      {t("endOfSeason.leagueChampions")}
+                    </p>
                     <p className="text-lg font-heading font-bold text-accent-500">{championName}</p>
                   </div>
                 </div>
@@ -190,11 +243,11 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
               disabled={loading}
               className="px-8 py-4 bg-primary-500 text-white rounded-xl font-heading font-bold text-lg uppercase tracking-wider hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 disabled:opacity-50 flex items-center gap-3 mx-auto"
             >
-              {loading ? t('endOfSeason.processing') : t('endOfSeason.startNextSeason')}
+              {loading ? t("endOfSeason.processing") : t("endOfSeason.startNextSeason")}
               <ArrowRight className="w-5 h-5" />
             </button>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-              {t('endOfSeason.statsArchived')}
+              {t("endOfSeason.statsArchived")}
             </p>
           </div>
         </>
@@ -216,10 +269,10 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
             <Star className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-heading font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">
-            {t('endOfSeason.newSeason', { n: summary.season + 1 })}
+            {t("endOfSeason.newSeason", { n: summary.season + 1 })}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mb-8">
-            {t('endOfSeason.newScheduleReleased')}
+            {t("endOfSeason.newScheduleReleased")}
           </p>
 
           <button
@@ -230,7 +283,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
             }}
             className="px-8 py-3 bg-primary-500 text-white rounded-xl font-heading font-bold uppercase tracking-wider hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20"
           >
-            {t('endOfSeason.continueDashboard')}
+            {t("endOfSeason.continueDashboard")}
           </button>
         </div>
       )}

@@ -1,12 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  PlayerData,
-  ScoutingAssignment,
-  StaffData,
-  TeamData,
-} from "../../store/gameStore";
+import type { PlayerData, ScoutingAssignment, StaffData, TeamData } from "../../store/gameStore";
 import ScoutingAssignmentsList from "./ScoutingAssignmentsList";
 
 vi.mock("react-i18next", () => ({
@@ -146,9 +141,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
   };
 }
 
-function createAssignment(
-  overrides: Partial<ScoutingAssignment> = {},
-): ScoutingAssignment {
+function createAssignment(overrides: Partial<ScoutingAssignment> = {}): ScoutingAssignment {
   return {
     id: "assignment-1",
     scout_id: "staff-1",

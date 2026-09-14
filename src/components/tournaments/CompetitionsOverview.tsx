@@ -20,9 +20,7 @@ export const SCOPE_ORDER: CompetitionScope[] = [
   "International",
 ];
 
-export function getCompetitionStatus(
-  comp: LeagueData,
-): "notStarted" | "inProgress" | "completed" {
+export function getCompetitionStatus(comp: LeagueData): "notStarted" | "inProgress" | "completed" {
   const competitive = getCompetitiveFixtures(comp.fixtures);
   if (competitive.length === 0) return "notStarted";
   let completed = 0;
@@ -34,11 +32,7 @@ export function getCompetitionStatus(
   return "inProgress";
 }
 
-export default function CompetitionsOverview({
-  competitions,
-  userTeamId,
-  onSelect,
-}: Props) {
+export default function CompetitionsOverview({ competitions, userTeamId, onSelect }: Props) {
   const { t } = useTranslation();
 
   if (competitions.length === 0) {
@@ -47,9 +41,7 @@ export default function CompetitionsOverview({
         <CardBody>
           <div className="flex flex-col items-center gap-2 py-6 text-center">
             <Trophy className="w-8 h-8 text-gray-300 dark:text-navy-600" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t("tournaments.noActive")}
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t("tournaments.noActive")}</p>
           </div>
         </CardBody>
       </Card>
@@ -82,8 +74,7 @@ export default function CompetitionsOverview({
               {comps.map((comp) => {
                 const status = getCompetitionStatus(comp);
                 const isParticipating =
-                  userTeamId != null &&
-                  (comp.participant_ids?.includes(userTeamId) ?? false);
+                  userTeamId != null && (comp.participant_ids?.includes(userTeamId) ?? false);
 
                 return (
                   <button

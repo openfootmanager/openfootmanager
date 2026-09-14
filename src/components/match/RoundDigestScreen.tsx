@@ -6,15 +6,7 @@ import { MatchSnapshot, MatchEvent, RoundSummary } from "./types";
 import { getEventDisplay, makeTeamFallback } from "./helpers";
 import { QuickStat } from "./PostMatchHelpers";
 import { Badge, TeamLogo } from "../ui";
-import {
-  Trophy,
-  TrendingDown,
-  Minus,
-  ChevronRight,
-  ArrowUp,
-  ArrowDown,
-  Flame,
-} from "lucide-react";
+import { Trophy, TrendingDown, Minus, ChevronRight, ArrowUp, ArrowDown, Flame } from "lucide-react";
 
 interface RoundDigestScreenProps {
   snapshot: MatchSnapshot;
@@ -37,9 +29,7 @@ export default function RoundDigestScreen({
   onFinish,
 }: RoundDigestScreenProps) {
   const { t } = useTranslation();
-  const [selectedOtherFixtureId, setSelectedOtherFixtureId] = useState<
-    string | null
-  >(null);
+  const [selectedOtherFixtureId, setSelectedOtherFixtureId] = useState<string | null>(null);
   const modalCloseRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -63,10 +53,7 @@ export default function RoundDigestScreen({
 
   const getPlayerDisplayName = (playerId: string | null | undefined) => {
     if (!playerId) return t("common.unknown");
-    return (
-      gameState.players.find((player) => player.id === playerId)?.match_name ||
-      playerId
-    );
+    return gameState.players.find((player) => player.id === playerId)?.match_name || playerId;
   };
 
   const getFixtureReport = (fixture: FixtureData | null | undefined) =>
@@ -74,10 +61,7 @@ export default function RoundDigestScreen({
 
   const formatOtherMatchScorers = (fixture: FixtureData) => {
     if (!fixture.result) return null;
-    const scorers = [
-      ...fixture.result.home_scorers,
-      ...fixture.result.away_scorers,
-    ]
+    const scorers = [...fixture.result.home_scorers, ...fixture.result.away_scorers]
       .sort((a, b) => a.minute - b.minute)
       .map((s) => `${getPlayerDisplayName(s.player_id)} ${s.minute}'`);
     if (scorers.length === 0) return null;
@@ -87,8 +71,7 @@ export default function RoundDigestScreen({
   const formatOtherMatchStats = (fixture: FixtureData) => {
     const report = getFixtureReport(fixture);
     if (!report) return null;
-    const totalYellow =
-      report.home_stats.yellow_cards + report.away_stats.yellow_cards;
+    const totalYellow = report.home_stats.yellow_cards + report.away_stats.yellow_cards;
     return [
       `${report.home_stats.possession_pct}-${report.away_stats.possession_pct} ${t("match.possession")}`,
       `${report.home_stats.shots + report.away_stats.shots} ${t("match.shots")}`,
@@ -118,9 +101,7 @@ export default function RoundDigestScreen({
     ? (roundSummary?.completed_results || [])
         .filter((r) => r.fixture_id !== currentFixture?.id)
         .map((r) => {
-          const fixture = gameState.league?.fixtures.find(
-            (f) => f.id === r.fixture_id,
-          );
+          const fixture = gameState.league?.fixtures.find((f) => f.id === r.fixture_id);
           if (!fixture?.result) return null;
           return {
             fixture,
@@ -153,18 +134,13 @@ export default function RoundDigestScreen({
         }));
 
   const selectedOtherFixture = selectedOtherFixtureId
-    ? otherMatchEntries.find((e) => e.fixture.id === selectedOtherFixtureId)
-        ?.fixture || null
+    ? otherMatchEntries.find((e) => e.fixture.id === selectedOtherFixtureId)?.fixture || null
     : null;
   const selectedOtherFixtureReport = getFixtureReport(selectedOtherFixture);
 
   // User result
-  const homeFullTeam = gameState.teams.find(
-    (t) => t.id === snapshot.home_team.id,
-  );
-  const awayFullTeam = gameState.teams.find(
-    (t) => t.id === snapshot.away_team.id,
-  );
+  const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
+  const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
@@ -184,9 +160,7 @@ export default function RoundDigestScreen({
         : "neutral";
 
   // Position context from standings delta
-  const userStanding = roundSummary?.standings_delta.find(
-    (s) => s.team_id === userTeamId,
-  );
+  const userStanding = roundSummary?.standings_delta.find((s) => s.team_id === userTeamId);
   const positionChange = userStanding
     ? userStanding.previous_position - userStanding.current_position
     : 0;
@@ -209,9 +183,7 @@ export default function RoundDigestScreen({
               </p>
             )}
             <h1 className="text-lg font-heading font-bold text-gray-900 dark:text-white">
-              {isLeagueFixture
-                ? t("match.roundSummary")
-                : t("match.otherMatches")}
+              {isLeagueFixture ? t("match.roundSummary") : t("match.otherMatches")}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -282,9 +254,7 @@ export default function RoundDigestScreen({
             <div className="flex items-center justify-center gap-8">
               <div className="flex items-center gap-3">
                 <TeamLogo
-                  team={
-                    homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)
-                  }
+                  team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
                   className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                   imageClassName="h-9 w-9 object-contain drop-shadow"
                   style={{
@@ -311,9 +281,7 @@ export default function RoundDigestScreen({
                   {snapshot.away_team.name}
                 </p>
                 <TeamLogo
-                  team={
-                    awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)
-                  }
+                  team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
                   className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                   imageClassName="h-9 w-9 object-contain drop-shadow"
                   style={{
@@ -348,16 +316,12 @@ export default function RoundDigestScreen({
             {/* Other Results — 2 cols for league (leaves room for table), full width for friendly */}
             <div className={`flex flex-col gap-3 ${isLeagueFixture ? "col-span-2" : "col-span-3"}`}>
               <h2 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                {isLeagueFixture
-                  ? t("match.otherMatchesToday")
-                  : t("match.otherMatches")}
+                {isLeagueFixture ? t("match.otherMatchesToday") : t("match.otherMatches")}
               </h2>
               {otherMatchEntries.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3">
                   {otherMatchEntries.map((entry) => {
-                    const scorerSummary = formatOtherMatchScorers(
-                      entry.fixture,
-                    );
+                    const scorerSummary = formatOtherMatchScorers(entry.fixture);
                     const statSummary = formatOtherMatchStats(entry.fixture);
                     return (
                       <div
@@ -366,17 +330,13 @@ export default function RoundDigestScreen({
                       >
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200 truncate">
-                            {entry.homeTeamName}{" "}
-                            {entry.fixture.result?.home_goals} –{" "}
-                            {entry.fixture.result?.away_goals}{" "}
-                            {entry.awayTeamName}
+                            {entry.homeTeamName} {entry.fixture.result?.home_goals} –{" "}
+                            {entry.fixture.result?.away_goals} {entry.awayTeamName}
                           </span>
                           {entry.fixture.result?.report && (
                             <button
                               type="button"
-                              onClick={() =>
-                                setSelectedOtherFixtureId(entry.fixture.id)
-                              }
+                              onClick={() => setSelectedOtherFixtureId(entry.fixture.id)}
                               className="shrink-0 text-[10px] font-heading font-bold uppercase tracking-widest text-accent-400 hover:text-accent-300 transition-colors"
                             >
                               {t("match.viewDetails")}
@@ -416,16 +376,13 @@ export default function RoundDigestScreen({
                   </h3>
                   <div className="flex flex-col gap-1.5">
                     {roundSummary.standings_delta.slice(0, 6).map((entry) => {
-                      const change =
-                        entry.previous_position - entry.current_position;
+                      const change = entry.previous_position - entry.current_position;
                       const isUserTeam = entry.team_id === userTeamId;
                       return (
                         <div
                           key={entry.team_id}
                           className={`flex items-center gap-2 text-xs rounded-md px-2 py-1 ${
-                            isUserTeam
-                              ? "bg-primary-50 dark:bg-primary-500/10 font-bold"
-                              : ""
+                            isUserTeam ? "bg-primary-50 dark:bg-primary-500/10 font-bold" : ""
                           }`}
                         >
                           <span className="w-4 text-right tabular-nums text-gray-500 dark:text-gray-400 font-heading">
@@ -462,10 +419,7 @@ export default function RoundDigestScreen({
                       {roundSummary.top_scorer_delta.slice(0, 5).map((entry) => {
                         const isUserTeamScorer = entry.team_id === userTeamId;
                         return (
-                          <div
-                            key={entry.player_id}
-                            className="flex items-center gap-2 text-xs"
-                          >
+                          <div key={entry.player_id} className="flex items-center gap-2 text-xs">
                             <span className="w-4 text-right tabular-nums text-gray-500 dark:text-gray-400 font-heading">
                               {entry.current_rank}.
                             </span>
@@ -499,8 +453,7 @@ export default function RoundDigestScreen({
                 </p>
                 <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-200">
                   {roundSummary.notable_upset.underdog_team_name}{" "}
-                  {roundSummary.notable_upset.home_goals} –{" "}
-                  {roundSummary.notable_upset.away_goals}{" "}
+                  {roundSummary.notable_upset.home_goals} – {roundSummary.notable_upset.away_goals}{" "}
                   {roundSummary.notable_upset.favorite_team_name}
                 </p>
               </div>
@@ -573,15 +526,10 @@ export default function RoundDigestScreen({
                             {event.minute}'
                           </span>
                           <span>{display.icon}</span>
-                          <span
-                            className={`${display.color} flex-1 truncate font-medium`}
-                          >
+                          <span className={`${display.color} flex-1 truncate font-medium`}>
                             {formatOtherMatchEvent(event)}
                           </span>
-                          <Badge
-                            variant={event.side === "Home" ? "primary" : "accent"}
-                            size="sm"
-                          >
+                          <Badge variant={event.side === "Home" ? "primary" : "accent"} size="sm">
                             {getTeamShortName(sideTeamId, sideFallbackName)}
                           </Badge>
                         </div>
@@ -641,9 +589,7 @@ export default function RoundDigestScreen({
                       {formatOtherMatchScorers(selectedOtherFixture)}
                     </p>
                   ) : (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {t("match.noGoals")}
-                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t("match.noGoals")}</p>
                   )}
                 </div>
               </div>

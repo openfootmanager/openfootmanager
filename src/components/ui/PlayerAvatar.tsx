@@ -47,13 +47,7 @@ function RuntimePortraitFallback({
       nationality: player.nationality ?? null,
       date_of_birth: player.date_of_birth ?? null,
     }),
-    [
-      player.id,
-      player.full_name,
-      player.match_name,
-      player.nationality,
-      player.date_of_birth,
-    ],
+    [player.id, player.full_name, player.match_name, player.nationality, player.date_of_birth],
   );
   const identityKey = useMemo(
     () => runtimePortraitIdentityKey(portraitIdentity),
@@ -123,14 +117,13 @@ export function PlayerAvatar({
   enableRuntimePortrait = true,
 }: PlayerAvatarProps) {
   const faceSrc = usePackageAssetSrc(player.media?.face);
-  const defaultFallback =
-    fallback ?? (
-      <GeneratedAvatar
-        name={player.full_name || player.match_name}
-        initials={playerInitials(player)}
-        className="h-full w-full"
-      />
-    );
+  const defaultFallback = fallback ?? (
+    <GeneratedAvatar
+      name={player.full_name || player.match_name}
+      initials={playerInitials(player)}
+      className="h-full w-full"
+    />
+  );
 
   return (
     <div className={className}>

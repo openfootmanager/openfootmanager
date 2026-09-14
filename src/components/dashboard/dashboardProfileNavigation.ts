@@ -166,12 +166,8 @@ export function openDashboardSearchTeam(
   };
 }
 
-export function hasDashboardProfileHistory(
-  state: DashboardProfileNavigationState,
-): boolean {
+export function hasDashboardProfileHistory(state: DashboardProfileNavigationState): boolean {
   return (
-    state.navHistory.length > 0 ||
-    state.selectedPlayerId !== null ||
-    state.selectedTeamId !== null
+    state.navHistory.length > 0 || state.selectedPlayerId !== null || state.selectedTeamId !== null
   );
 }

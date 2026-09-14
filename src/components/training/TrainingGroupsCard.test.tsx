@@ -9,8 +9,7 @@ const setPlayerTrainingFocusMock = vi.fn();
 
 vi.mock("../../services/trainingService", () => ({
   setTrainingGroups: (...args: unknown[]) => setTrainingGroupsMock(...args),
-  setPlayerTrainingFocus: (...args: unknown[]) =>
-    setPlayerTrainingFocusMock(...args),
+  setPlayerTrainingFocus: (...args: unknown[]) => setPlayerTrainingFocusMock(...args),
 }));
 
 vi.mock("react-i18next", () => ({

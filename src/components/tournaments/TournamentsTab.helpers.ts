@@ -54,9 +54,7 @@ export function summarizeCompetitionProgress(
     matchdays.set(fixture.matchday, list);
   });
 
-  const sortedMatchdays = Array.from(matchdays.entries()).sort(
-    (a, b) => a[0] - b[0],
-  );
+  const sortedMatchdays = Array.from(matchdays.entries()).sort((a, b) => a[0] - b[0]);
   const completedMatchdays = sortedMatchdays.filter(([, fixtures]) =>
     fixtures.every((fixture) => fixture.status === "Completed"),
   ).length;
@@ -69,14 +67,9 @@ export function summarizeCompetitionProgress(
     seasonComplete: totalMatchdays > 0 && completedMatchdays >= totalMatchdays,
     totalGoals: competitiveFixtures
       .filter((fixture) => fixture.result)
-      .reduce(
-        (sum, fixture) =>
-          sum + (fixture.result!.home_goals + fixture.result!.away_goals),
-        0,
-      ),
-    completedMatches: competitiveFixtures.filter(
-      (fixture) => fixture.status === "Completed",
-    ).length,
+      .reduce((sum, fixture) => sum + (fixture.result!.home_goals + fixture.result!.away_goals), 0),
+    completedMatches: competitiveFixtures.filter((fixture) => fixture.status === "Completed")
+      .length,
   };
 }
 
@@ -102,11 +95,9 @@ export function buildTopScorers(
   competitiveFixtures.forEach((fixture) => {
     if (!fixture.result) return;
 
-    [...fixture.result.home_scorers, ...fixture.result.away_scorers].forEach(
-      (scorer) => {
-        goals[scorer.player_id] = (goals[scorer.player_id] || 0) + 1;
-      },
-    );
+    [...fixture.result.home_scorers, ...fixture.result.away_scorers].forEach((scorer) => {
+      goals[scorer.player_id] = (goals[scorer.player_id] || 0) + 1;
+    });
   });
 
   return Object.entries(goals)

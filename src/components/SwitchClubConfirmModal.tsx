@@ -42,13 +42,7 @@ export default function SwitchClubConfirmModal({
           </p>
         </div>
         <div className="flex items-center justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            disabled={busy}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={busy}>
             {t("common.cancel")}
           </Button>
           <Button

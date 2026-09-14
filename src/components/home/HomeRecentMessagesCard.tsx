@@ -5,9 +5,7 @@ import type { MessageData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
 import { Card, CardBody, CardHeader } from "../ui";
-import {
-  buildOpenMessageMenuItem,
-} from "../inbox/inboxContextMenuItems";
+import { buildOpenMessageMenuItem } from "../inbox/inboxContextMenuItems";
 
 interface HomeRecentMessagesCardProps {
   messages: MessageData[];
@@ -39,15 +37,11 @@ export default function HomeRecentMessagesCard({
       <CardBody className="p-0">
         <div className="divide-y divide-gray-100 dark:divide-navy-600">
           {messages.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 p-6 text-sm">
-              {t("home.noMessages")}
-            </p>
+            <p className="text-gray-500 dark:text-gray-400 p-6 text-sm">{t("home.noMessages")}</p>
           ) : (
             messages.map((message) => {
               const contextItems: ContextMenuItem[] = [
-                buildOpenMessageMenuItem(t, () =>
-                  onNavigate?.("Inbox", { messageId: message.id }),
-                ),
+                buildOpenMessageMenuItem(t, () => onNavigate?.("Inbox", { messageId: message.id })),
                 {
                   label: t("home.viewAll"),
                   onClick: () => onNavigate?.("Inbox"),
@@ -58,27 +52,37 @@ export default function HomeRecentMessagesCard({
                 <ContextMenu items={contextItems} key={message.id}>
                   <div
                     onClick={() => onNavigate?.("Inbox", { messageId: message.id })}
-                    className={`flex gap-4 px-6 py-3.5 hover:bg-gray-50 dark:hover:bg-navy-600/50 cursor-pointer transition-colors ${!message.read ? "border-l-4 border-l-primary-500" : "border-l-4 border-l-transparent"
-                      }`}
+                    className={`flex gap-4 px-6 py-3.5 hover:bg-gray-50 dark:hover:bg-navy-600/50 cursor-pointer transition-colors ${
+                      !message.read
+                        ? "border-l-4 border-l-primary-500"
+                        : "border-l-4 border-l-transparent"
+                    }`}
                   >
                     <div
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-heading font-bold text-sm ${message.read
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-heading font-bold text-sm ${
+                        message.read
                           ? "bg-gray-100 dark:bg-navy-600 text-gray-400 dark:text-gray-500"
                           : "bg-primary-500/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400"
-                        }`}
+                      }`}
                     >
                       {message.sender.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4
-                        className={`font-semibold text-sm ${message.read ? "text-gray-500 dark:text-gray-400" : "text-gray-900 dark:text-gray-100"
-                          }`}
+                        className={`font-semibold text-sm ${
+                          message.read
+                            ? "text-gray-500 dark:text-gray-400"
+                            : "text-gray-900 dark:text-gray-100"
+                        }`}
                       >
                         {message.subject}
                       </h4>
                       <p
-                        className={`text-xs truncate mt-0.5 ${message.read ? "text-gray-400 dark:text-gray-500" : "text-gray-600 dark:text-gray-300"
-                          }`}
+                        className={`text-xs truncate mt-0.5 ${
+                          message.read
+                            ? "text-gray-400 dark:text-gray-500"
+                            : "text-gray-600 dark:text-gray-300"
+                        }`}
                       >
                         {message.body}
                       </p>

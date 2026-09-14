@@ -71,9 +71,18 @@ vi.mock("../components/match/MatchLive", () => ({
   }) => (
     <div data-testid="match-live-container" data-preferred-speed={preferredSpeed ?? "normal"}>
       {snapshot.home_team.name}
-      <button data-testid="match-live" onClick={onFullTime}>Full Time</button>
-      <button data-testid="match-trigger-halftime" onClick={onHalfTime}>Half Time</button>
-      <button data-testid="match-trigger-speed-fast" onClick={() => onPreferredSpeedChange?.("fast")}>Fast</button>
+      <button data-testid="match-live" onClick={onFullTime}>
+        Full Time
+      </button>
+      <button data-testid="match-trigger-halftime" onClick={onHalfTime}>
+        Half Time
+      </button>
+      <button
+        data-testid="match-trigger-speed-fast"
+        onClick={() => onPreferredSpeedChange?.("fast")}
+      >
+        Fast
+      </button>
     </div>
   ),
 }));
@@ -81,19 +90,15 @@ vi.mock("../components/match/MatchLive", () => ({
 vi.mock("../components/match/HalfTimeBreak", () => ({
   default: ({ onResume }: { onResume?: () => void }) => (
     <div data-testid="halftime">
-      <button data-testid="halftime-resume" onClick={onResume}>Resume</button>
+      <button data-testid="halftime-resume" onClick={onResume}>
+        Resume
+      </button>
     </div>
   ),
 }));
 
 vi.mock("../components/match/PostMatchScreen", () => ({
-  default: ({
-    onContinue,
-    onFinish,
-  }: {
-    onContinue?: () => void;
-    onFinish?: () => void;
-  }) => (
+  default: ({ onContinue, onFinish }: { onContinue?: () => void; onFinish?: () => void }) => (
     <div>
       <button data-testid="postmatch-continue" onClick={onContinue}>
         Continue
@@ -121,9 +126,7 @@ vi.mock("../components/match/RoundDigestScreen", () => ({
       <div data-testid="digest-round-summary">
         {roundSummary ? JSON.stringify(roundSummary) : "null"}
       </div>
-      <div data-testid="digest-is-league">
-        {isLeagueFixture ? "true" : "false"}
-      </div>
+      <div data-testid="digest-is-league">{isLeagueFixture ? "true" : "false"}</div>
       <button data-testid="digest-press" onClick={onPressConference}>
         Press Conference
       </button>
@@ -172,9 +175,7 @@ function makeEnginePlayer(
   };
 }
 
-function makeSnapshot(
-  overrides: Partial<Record<string, unknown>> = {},
-): Record<string, unknown> {
+function makeSnapshot(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
   return {
     phase: "PreKickOff",
     current_minute: 0,
@@ -368,9 +369,7 @@ describe("MatchSimulation", function (): void {
   });
 
   it("restores the live match session when no snapshot exists but fixture index is provided", async function (): Promise<void> {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => { });
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       locationState = {
         fixtureIndex: 4,
@@ -394,9 +393,7 @@ describe("MatchSimulation", function (): void {
             name: "Restored FC",
             formation: "4-4-2",
             play_style: "Balanced",
-            players: [
-              makeEnginePlayer({ id: "restore-p1", name: "Restore Keeper" }),
-            ],
+            players: [makeEnginePlayer({ id: "restore-p1", name: "Restore Keeper" })],
           },
         }),
       );
@@ -526,9 +523,7 @@ describe("MatchSimulation", function (): void {
       expect(screen.getByTestId("digest-round-summary")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("digest-round-summary")).toHaveTextContent(
-      '"matchday":1',
-    );
+    expect(screen.getByTestId("digest-round-summary")).toHaveTextContent('"matchday":1');
 
     fireEvent.click(screen.getByTestId("digest-finish"));
 
@@ -549,12 +544,10 @@ describe("MatchSimulation", function (): void {
       setGameState: setGameStateMock,
     };
 
-    mockedInvoke
-      .mockResolvedValueOnce(makeSnapshot())
-      .mockResolvedValueOnce({
-        game: makeGameState(),
-        round_summary: null,
-      });
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot()).mockResolvedValueOnce({
+      game: makeGameState(),
+      round_summary: null,
+    });
 
     render(<MatchSimulation />);
 

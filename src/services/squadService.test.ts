@@ -4,26 +4,24 @@ import { invoke } from "@tauri-apps/api/core";
 import { setPlayerSquadRole } from "./squadService";
 
 vi.mock("@tauri-apps/api/core", () => ({
-    invoke: vi.fn(),
+  invoke: vi.fn(),
 }));
 
 const mockedInvoke = vi.mocked(invoke);
 
 describe("squadService", () => {
-    beforeEach(() => {
-        mockedInvoke.mockReset();
-    });
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+  });
 
-    it("calls the set player squad role backend command", async () => {
-        const response = { manager: { id: "manager-1" } };
-        mockedInvoke.mockResolvedValueOnce(response);
+  it("calls the set player squad role backend command", async () => {
+    const response = { manager: { id: "manager-1" } };
+    mockedInvoke.mockResolvedValueOnce(response);
 
-        await expect(setPlayerSquadRole("player-1", "Youth")).resolves.toBe(
-            response,
-        );
-        expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
-            playerId: "player-1",
-            squadRole: "Youth",
-        });
+    await expect(setPlayerSquadRole("player-1", "Youth")).resolves.toBe(response);
+    expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+      playerId: "player-1",
+      squadRole: "Youth",
     });
+  });
 });

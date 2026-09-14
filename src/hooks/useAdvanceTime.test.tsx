@@ -29,14 +29,13 @@ function HookHarness(props: {
     handleContinue,
     handleSkipToMatchDay,
     showMatchConfirm,
-  } =
-    useAdvanceTime(
-      (state) => setGameState(state),
-      props.hasMatchToday,
-      props.defaultMatchMode,
-      true,
-      false,
-    );
+  } = useAdvanceTime(
+    (state) => setGameState(state),
+    props.hasMatchToday,
+    props.defaultMatchMode,
+    true,
+    false,
+  );
 
   return (
     <div>
@@ -44,9 +43,7 @@ function HookHarness(props: {
       <button onClick={handleConfirmMatch}>Confirm Match</button>
       <button onClick={() => void handleSkipToMatchDay()}>Skip</button>
       <div data-testid="show-match-confirm">{String(showMatchConfirm)}</div>
-      <div data-testid="blocker-count">
-        {blockerModal?.blockers.length ?? 0}
-      </div>
+      <div data-testid="blocker-count">{blockerModal?.blockers.length ?? 0}</div>
     </div>
   );
 }
@@ -63,9 +60,7 @@ describe("useAdvanceTime", function (): void {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(function (): void {
-      expect(screen.getByTestId("show-match-confirm")).toHaveTextContent(
-        "true",
-      );
+      expect(screen.getByTestId("show-match-confirm")).toHaveTextContent("true");
     });
 
     expect(mockedInvoke).not.toHaveBeenCalled();
@@ -150,13 +145,9 @@ describe("useAdvanceTime", function (): void {
 
     await waitFor(function (): void {
       expect(mockedInvoke).toHaveBeenNthCalledWith(1, "check_blocking_actions");
-      expect(mockedInvoke).toHaveBeenNthCalledWith(
-        2,
-        "advance_time_with_mode",
-        {
-          mode: "live",
-        },
-      );
+      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "advance_time_with_mode", {
+        mode: "live",
+      });
     });
 
     expect(navigateMock).not.toHaveBeenCalled();

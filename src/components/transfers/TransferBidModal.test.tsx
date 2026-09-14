@@ -1,14 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  PlayerData,
-  TeamData,
-  TransferOfferData,
-} from "../../store/gameStore";
-import type {
-  TransferBidProjectionData,
-} from "../../services/transfersService";
+import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import type { TransferBidProjectionData } from "../../services/transfersService";
 import { formatExactMoney } from "../../lib/helpers";
 import TransferBidModal from "./TransferBidModal";
 
@@ -237,9 +231,7 @@ describe("TransferBidModal", () => {
     );
 
     expect(screen.getByText("John Smith")).toBeInTheDocument();
-    expect(
-      screen.getByRole("dialog", { name: "Make Transfer Bid" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Make Transfer Bid" })).toBeInTheDocument();
     expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Bid countered")).toBeInTheDocument();
@@ -249,16 +241,10 @@ describe("TransferBidModal", () => {
     // the same formatter the component uses, so the assertion stays locale-robust
     // while still catching abbreviation / interpolation / wrong-value regressions.
     expect(
-      screen.getByText(
-        `Weekly wage bill ${formatExactMoney(1000)} -> ${formatExactMoney(2000)}`,
-      ),
+      screen.getByText(`Weekly wage bill ${formatExactMoney(1000)} -> ${formatExactMoney(2000)}`),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(`Incoming wage ${formatExactMoney(1000)}`),
-    ).toBeInTheDocument();
+    expect(screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Incoming wage ${formatExactMoney(1000)}`)).toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions through props", () => {
@@ -331,9 +317,7 @@ describe("TransferBidModal", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Already agreed — awaiting registration"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Already agreed — awaiting registration")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit Bid" })).toBeDisabled();
   });
 
@@ -374,9 +358,7 @@ describe("TransferBidModal", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Already agreed — awaiting registration"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Already agreed — awaiting registration")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit Bid" })).toBeDisabled();
   });
 });

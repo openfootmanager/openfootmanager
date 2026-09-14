@@ -138,10 +138,7 @@ function createGameState(players: PlayerData[]): GameStateData {
       },
       career_history: [],
     },
-    teams: [
-      createTeam(),
-      createTeam({ id: "team-2", manager_id: null, name: "Buyer FC" }),
-    ],
+    teams: [createTeam(), createTeam({ id: "team-2", manager_id: null, name: "Buyer FC" })],
     players,
     staff: [],
     messages: [],
@@ -234,21 +231,11 @@ describe("TransfersTab.model", () => {
 
     const collections = deriveTransferCollections(gameState, "team-1");
 
-    expect(collections.myTransferList.map((player) => player.id)).toEqual([
-      "user-listed",
-    ]);
-    expect(collections.myLoanList.map((player) => player.id)).toEqual([
-      "user-loan",
-    ]);
-    expect(collections.marketPlayers.map((player) => player.id)).toEqual([
-      "market-player",
-    ]);
-    expect(collections.freeAgentPlayers.map((player) => player.id)).toEqual([
-      "free-agent",
-    ]);
-    expect(collections.loanPlayers.map((player) => player.id)).toEqual([
-      "loan-player",
-    ]);
+    expect(collections.myTransferList.map((player) => player.id)).toEqual(["user-listed"]);
+    expect(collections.myLoanList.map((player) => player.id)).toEqual(["user-loan"]);
+    expect(collections.marketPlayers.map((player) => player.id)).toEqual(["market-player"]);
+    expect(collections.freeAgentPlayers.map((player) => player.id)).toEqual(["free-agent"]);
+    expect(collections.loanPlayers.map((player) => player.id)).toEqual(["loan-player"]);
     expect(collections.availablePlayers.map((player) => player.id)).toEqual([
       "market-player",
       "loan-player",
@@ -292,15 +279,11 @@ describe("TransfersTab.model", () => {
     const gameState = createGameState([dualListedPlayer]);
     const collections = deriveTransferCollections(gameState, "team-1");
 
-    expect(collections.myTransferList.map((player) => player.id)).toEqual([
+    expect(collections.myTransferList.map((player) => player.id)).toEqual(["dual-listed"]);
+    expect(collections.myLoanList.map((player) => player.id)).toEqual(["dual-listed"]);
+    expect(getCurrentTransferList("my_list", collections).map((player) => player.id)).toEqual([
       "dual-listed",
     ]);
-    expect(collections.myLoanList.map((player) => player.id)).toEqual([
-      "dual-listed",
-    ]);
-    expect(
-      getCurrentTransferList("my_list", collections).map((player) => player.id),
-    ).toEqual(["dual-listed"]);
   });
 
   it("hides transfer-listed players with a pending registration from the market", () => {
@@ -334,13 +317,9 @@ describe("TransfersTab.model", () => {
 
     const collections = deriveTransferCollections(gameState, "team-1");
 
-    expect(collections.marketPlayers.map((player) => player.id)).toEqual([
-      "available",
-    ]);
+    expect(collections.marketPlayers.map((player) => player.id)).toEqual(["available"]);
     // It still surfaces under "offers" so the manager can track the agreed deal.
-    expect(collections.playersWithOffers.map((player) => player.id)).toContain(
-      "bought",
-    );
+    expect(collections.playersWithOffers.map((player) => player.id)).toContain("bought");
   });
 
   it("hides loan-listed players with a pending loan registration from the loan market", () => {
@@ -372,13 +351,9 @@ describe("TransfersTab.model", () => {
 
     const collections = deriveTransferCollections(gameState, "team-1");
 
-    expect(collections.loanPlayers.map((player) => player.id)).toEqual([
-      "loan-available",
-    ]);
+    expect(collections.loanPlayers.map((player) => player.id)).toEqual(["loan-available"]);
     // It still surfaces under "offers" so the manager can track the agreed loan.
-    expect(collections.playersWithOffers.map((player) => player.id)).toContain(
-      "loan-bought",
-    );
+    expect(collections.playersWithOffers.map((player) => player.id)).toContain("loan-bought");
   });
 
   it("filters by position and search text", () => {
@@ -443,9 +418,12 @@ describe("TransfersTab.model", () => {
       }).map((player) => player.id),
     ).toEqual(["cheap-transfer", "loan-only", "free-agent"]);
 
-    expect(
-      filterTransferPlayers(players, "", null, "all").map((player) => player.id),
-    ).toEqual(["cheap-transfer", "expensive-transfer", "loan-only", "free-agent"]);
+    expect(filterTransferPlayers(players, "", null, "all").map((player) => player.id)).toEqual([
+      "cheap-transfer",
+      "expensive-transfer",
+      "loan-only",
+      "free-agent",
+    ]);
   });
 
   it("hides transfer-listed players whose fee would push the club into debt", () => {
@@ -492,31 +470,26 @@ describe("TransfersTab.model", () => {
 
     // Specific narrowing: only CB and LB.
     expect(
-      filterTransferPlayers(players, "", null, "all", null, [
-        "CenterBack",
-        "LeftBack",
-      ]).map((player) => player.id),
+      filterTransferPlayers(players, "", null, "all", null, ["CenterBack", "LeftBack"]).map(
+        (player) => player.id,
+      ),
     ).toEqual(["cb", "lb"]);
 
     // Broad + specific narrower than broad: CB only.
     expect(
-      filterTransferPlayers(players, "", "Defender", "all", null, [
-        "CenterBack",
-      ]).map((player) => player.id),
+      filterTransferPlayers(players, "", "Defender", "all", null, ["CenterBack"]).map(
+        (player) => player.id,
+      ),
     ).toEqual(["cb"]);
 
     // Specific incompatible with broad → empty.
-    expect(
-      filterTransferPlayers(players, "", "Forward", "all", null, [
-        "CenterBack",
-      ]),
-    ).toHaveLength(0);
+    expect(filterTransferPlayers(players, "", "Forward", "all", null, ["CenterBack"])).toHaveLength(
+      0,
+    );
 
     // Empty specifics behaves like no specific constraint.
     expect(
-      filterTransferPlayers(players, "", null, "all", null, []).map(
-        (player) => player.id,
-      ),
+      filterTransferPlayers(players, "", null, "all", null, []).map((player) => player.id),
     ).toEqual(["cb", "lb", "st"]);
   });
 
@@ -539,18 +512,14 @@ describe("TransfersTab.model", () => {
       }),
     ];
 
+    expect(filterTransferPlayers(players, "", null, "transfer").map((player) => player.id)).toEqual(
+      ["transfer"],
+    );
+    expect(filterTransferPlayers(players, "", null, "loan").map((player) => player.id)).toEqual([
+      "loan",
+    ]);
     expect(
-      filterTransferPlayers(players, "", null, "transfer").map(
-        (player) => player.id,
-      ),
-    ).toEqual(["transfer"]);
-    expect(
-      filterTransferPlayers(players, "", null, "loan").map((player) => player.id),
-    ).toEqual(["loan"]);
-    expect(
-      filterTransferPlayers(players, "", null, "free_agent").map(
-        (player) => player.id,
-      ),
+      filterTransferPlayers(players, "", null, "free_agent").map((player) => player.id),
     ).toEqual(["free-agent"]);
   });
 });

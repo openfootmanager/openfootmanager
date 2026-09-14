@@ -21,9 +21,7 @@ export default function DashboardCloseConfirmModal({
       <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
         {t("closeConfirm.title")}
       </h3>
-      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        {t("closeConfirm.message")}
-      </p>
+      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t("closeConfirm.message")}</p>
       <div className="mt-6 flex flex-col gap-2">
         <button
           onClick={onSaveAndQuit}

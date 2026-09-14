@@ -1,8 +1,4 @@
-import type {
-  FixtureData,
-  GameStateData,
-  PlayerData,
-} from "../store/gameStore";
+import type { FixtureData, GameStateData, PlayerData } from "../store/gameStore";
 
 /**
  * All national-team fixtures: window friendlies (stored on the home nation)
@@ -12,9 +8,7 @@ import type {
 export function getNationalTeamFixtures(
   gameState: Pick<GameStateData, "national_teams" | "competitions">,
 ): FixtureData[] {
-  const windowFixtures = (gameState.national_teams ?? []).flatMap(
-    (team) => team.fixtures ?? [],
-  );
+  const windowFixtures = (gameState.national_teams ?? []).flatMap((team) => team.fixtures ?? []);
   const tournamentFixtures = (gameState.competitions ?? [])
     .filter((competition) => competition.kind === "InternationalNation")
     .flatMap((competition) => competition.fixtures);
@@ -52,9 +46,7 @@ export function getNationalTeamName(
   nationalTeamId: string,
   t?: TranslateFn,
 ): string {
-  const team = (gameState.national_teams ?? []).find(
-    (nation) => nation.id === nationalTeamId,
-  );
+  const team = (gameState.national_teams ?? []).find((nation) => nation.id === nationalTeamId);
   if (!team) return nationalTeamId;
   return nationalTeamDisplayName(team.name_key, team.name, t);
 }
@@ -92,9 +84,7 @@ export function getUserCalledUpPlayers(
       continue;
     }
     const nation = nationalTeams.find(
-      (team) =>
-        participatingNationIds.has(team.id) &&
-        team.squad_player_ids.includes(player.id),
+      (team) => participatingNationIds.has(team.id) && team.squad_player_ids.includes(player.id),
     );
     if (nation) {
       calledUp.push({

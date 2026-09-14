@@ -27,10 +27,7 @@ function save(overrides: Partial<{ id: string; name: string }> = {}) {
   };
 }
 
-function renderList(
-  saves: ReturnType<typeof save>[],
-  confirmDeleteId: string | null = null,
-) {
+function renderList(saves: ReturnType<typeof save>[], confirmDeleteId: string | null = null) {
   render(
     <SavesList
       saves={saves}

@@ -3,14 +3,8 @@ import { useState, useRef } from "react";
 import type { GameStateData } from "../store/gameStore";
 import type { BlockerData } from "../services/advanceTimeService";
 import { advanceOneDay } from "../services/advanceTimeService";
-import {
-  buildAdvanceRecap,
-  detectAttentionEvents,
-} from "../components/dashboard/advanceRecap";
-import type {
-  AttentionEventKind,
-  DigestEntry,
-} from "../components/dashboard/advanceRecap";
+import { buildAdvanceRecap, detectAttentionEvents } from "../components/dashboard/advanceRecap";
+import type { AttentionEventKind, DigestEntry } from "../components/dashboard/advanceRecap";
 
 export type { DigestEntry } from "../components/dashboard/advanceRecap";
 
@@ -107,10 +101,7 @@ export function useDigestAdvance(
   // Present an already-completed batch advance (Skip to Match Day, plain
   // Continue) in the same digest feed the streaming loop fills, so every
   // advance flow shares one UI.
-  const showStaticDigest = (
-    staticEntries: DigestEntry[],
-    reason: DigestStopReason | null,
-  ) => {
+  const showStaticDigest = (staticEntries: DigestEntry[], reason: DigestStopReason | null) => {
     if (inFlightRef.current) return;
     setEntries(staticEntries);
     setStopReason(reason);

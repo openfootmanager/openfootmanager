@@ -16,18 +16,11 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("../playerProfile/PlayerProfile", () => ({
-  default: ({
-    onClose,
-    onSelectTeam,
-    startWithRenewalModal,
-    startWithTerminationModal,
-  }: any) => (
+  default: ({ onClose, onSelectTeam, startWithRenewalModal, startWithTerminationModal }: any) => (
     <div>
       <span>Player Profile Mock</span>
       <span>{startWithRenewalModal ? "renewal-open" : "renewal-closed"}</span>
-      <span>
-        {startWithTerminationModal ? "termination-open" : "termination-closed"}
-      </span>
+      <span>{startWithTerminationModal ? "termination-open" : "termination-closed"}</span>
       <button onClick={onClose}>close-player</button>
       <button onClick={() => onSelectTeam("team-2")}>select-team</button>
     </div>
@@ -207,9 +200,7 @@ describe("DashboardWorkspaceContent", () => {
 
     render(
       <DashboardWorkspaceContent
-        dashboardAlerts={[
-          { id: "alert-1", text: "Alert", tab: "Inbox", severity: "info" },
-        ]}
+        dashboardAlerts={[{ id: "alert-1", text: "Alert", tab: "Inbox", severity: "info" }]}
         gameState={gameState}
         profileNavigation={createDashboardProfileNavigationState("Home")}
         dashboardTabContentModel={createDashboardTabContentModel({

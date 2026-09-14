@@ -36,26 +36,17 @@ function championSeasonsByTeam(gameState: GameStateData): Map<string, Set<number
   return champions;
 }
 
-export function deriveHallOfFameLegends(
-  gameState: GameStateData,
-): HallOfFameLegend[] {
+export function deriveHallOfFameLegends(gameState: GameStateData): HallOfFameLegend[] {
   const championSeasons = championSeasonsByTeam(gameState);
 
   return gameState.players
     .filter((player) => player.retired && player.career.length > 0)
     .map((player) => {
-      const appearances = player.career.reduce(
-        (total, entry) => total + entry.appearances,
-        0,
-      );
+      const appearances = player.career.reduce((total, entry) => total + entry.appearances, 0);
       const goals = player.career.reduce((total, entry) => total + entry.goals, 0);
-      const assists = player.career.reduce(
-        (total, entry) => total + entry.assists,
-        0,
-      );
-      const lastEntry = [...player.career].sort(
-        (left, right) => right.season - left.season,
-      )[0] ?? null;
+      const assists = player.career.reduce((total, entry) => total + entry.assists, 0);
+      const lastEntry =
+        [...player.career].sort((left, right) => right.season - left.season)[0] ?? null;
       const titles = player.career.reduce((count, entry) => {
         return count + (championSeasons.get(entry.team_id)?.has(entry.season) ? 1 : 0);
       }, 0);
@@ -71,10 +62,12 @@ export function deriveHallOfFameLegends(
       };
     })
     .sort((left, right) => {
-      return right.titles - left.titles
-        || right.appearances - left.appearances
-        || right.goals - left.goals
-        || left.player.full_name.localeCompare(right.player.full_name);
+      return (
+        right.titles - left.titles ||
+        right.appearances - left.appearances ||
+        right.goals - left.goals ||
+        left.player.full_name.localeCompare(right.player.full_name)
+      );
     });
 }
 
@@ -86,8 +79,10 @@ export function derivePastChampions(gameState: GameStateData): PastChampionEntry
         .map((record) => ({ season: record.season, team, record }));
     })
     .sort((left, right) => {
-      return right.season - left.season
-        || right.record.won - left.record.won
-        || left.team.name.localeCompare(right.team.name);
+      return (
+        right.season - left.season ||
+        right.record.won - left.record.won ||
+        left.team.name.localeCompare(right.team.name)
+      );
     });
 }

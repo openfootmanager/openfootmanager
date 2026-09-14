@@ -97,9 +97,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
   useEffect(() => {
     if (expansionInitialized.current || !userLocation) return;
     setExpandedRegions(new Set([userLocation.regionId]));
-    setExpandedLeagues(
-      new Set([`${userLocation.regionId}:${userLocation.leagueId}`]),
-    );
+    setExpandedLeagues(new Set([`${userLocation.regionId}:${userLocation.leagueId}`]));
     expansionInitialized.current = true;
   }, [userLocation]);
 
@@ -169,9 +167,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
                     <div key={leagueKey} className="flex flex-col gap-2 pl-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          setExpandedLeagues((set) => toggle(set, leagueKey))
-                        }
+                        onClick={() => setExpandedLeagues((set) => toggle(set, leagueKey))}
                         className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-navy-700/40"
                       >
                         {leagueOpen ? (
@@ -242,7 +238,9 @@ function TeamCardView({
       <div onClick={() => onSelect(team.id)} className="overflow-hidden rounded-xl">
         <div
           className="p-5 flex items-center gap-4"
-          style={{ background: `linear-gradient(135deg, ${team.colors.primary}, ${team.colors.secondary}40)` }}
+          style={{
+            background: `linear-gradient(135deg, ${team.colors.primary}, ${team.colors.secondary}40)`,
+          }}
         >
           <TeamLogo
             team={team}

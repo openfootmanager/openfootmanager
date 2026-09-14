@@ -1,15 +1,8 @@
-import type {
-  LoanOfferData,
-  PlayerData,
-  TransferOfferData,
-} from "../../store/gameStore";
+import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
 import type { TransferNegotiationFeedbackData } from "../../services/transfersService";
 import { formatExactMoney } from "../../lib/helpers";
 
-type Translate = (
-  key: string,
-  options?: Record<string, string | number>,
-) => string;
+type Translate = (key: string, options?: Record<string, string | number>) => string;
 
 export type LoanPeriodPresetId =
   | "three_months"
@@ -49,13 +42,7 @@ function parseUtcDate(value: string | null | undefined): Date | null {
     return null;
   }
 
-  return new Date(
-    Date.UTC(
-      parsed.getUTCFullYear(),
-      parsed.getUTCMonth(),
-      parsed.getUTCDate(),
-    ),
-  );
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
 }
 
 function addUtcDays(date: Date, days: number): Date {
@@ -92,8 +79,7 @@ function buildLoanPeriodOption(
 ): LoanPeriodOption {
   const loanDays = daysBetween(currentDate, endDate);
   const outsideLoanRules = loanDays < MIN_LOAN_DAYS || loanDays > MAX_LOAN_DAYS;
-  const afterContractEnd =
-    contractEnd !== null && endDate.getTime() >= contractEnd.getTime();
+  const afterContractEnd = contractEnd !== null && endDate.getTime() >= contractEnd.getTime();
 
   return {
     id,
@@ -143,13 +129,7 @@ export function buildLoanPeriodOptions(
   ];
 
   const presetOptions = presets.map((preset) =>
-    buildLoanPeriodOption(
-      preset.id,
-      preset.labelKey,
-      currentDate,
-      preset.date,
-      contractEnd,
-    ),
+    buildLoanPeriodOption(preset.id, preset.labelKey, currentDate, preset.date, contractEnd),
   );
   const currentOfferEndDate = parseUtcDate(currentOfferEndDateValue);
   if (!currentOfferEndDate) {
@@ -194,9 +174,7 @@ export function getDefaultLoanPeriodId(
 
   return (
     currentOfferOption?.id ??
-    priority.find((id) =>
-      options.some((option) => option.id === id && !option.disabled),
-    ) ??
+    priority.find((id) => options.some((option) => option.id === id && !option.disabled)) ??
     options.find((option) => !option.disabled)?.id ??
     ""
   );
@@ -220,10 +198,7 @@ export function getLoanPeriodIdForEndDate(
     (option) => !option.disabled && option.endDate === normalizedEndDateValue,
   );
 
-  return (
-    matchingOption?.id ??
-    getDefaultLoanPeriodId(currentDateValue, contractEndValue)
-  );
+  return matchingOption?.id ?? getDefaultLoanPeriodId(currentDateValue, contractEndValue);
 }
 
 export function parseTransferFeeInput(value: string): number | null {
@@ -268,8 +243,7 @@ export function getOutgoingNegotiationOffer(
 
   return (
     player.transfer_offers.find(
-      (offer) =>
-        offer.from_team_id === userTeamId && offer.status === "Pending",
+      (offer) => offer.from_team_id === userTeamId && offer.status === "Pending",
     ) ?? null
   );
 }
@@ -360,10 +334,7 @@ export function getTransferOfferBadgeVariant(
   }
 }
 
-export function mapTransferNegotiationError(
-  t: Translate,
-  error: string,
-): string {
+export function mapTransferNegotiationError(t: Translate, error: string): string {
   if (error.includes("Offer not found or not pending")) {
     return t("transfers.negotiationExpiredError");
   }

@@ -27,9 +27,7 @@ function penaltyFixture(): FixtureData {
 function renderBracket(fixture: FixtureData) {
   return render(
     <KnockoutBracket
-      rounds={[
-        { id: "r1", name: "Final", fixture_ids: [fixture.id], completed: true },
-      ]}
+      rounds={[{ id: "r1", name: "Final", fixture_ids: [fixture.id], completed: true }]}
       fixtures={[fixture]}
       resolveTeamName={(id) => (id === "home" ? "Brazil" : "France")}
       localizedRoundName={(name) => name}

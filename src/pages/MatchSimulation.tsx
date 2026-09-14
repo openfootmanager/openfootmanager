@@ -4,12 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
 import { useSettingsStore } from "../store/settingsStore";
-import {
-  MatchSnapshot,
-  MatchEvent,
-  MatchDayStage,
-  RoundSummary,
-} from "../components/match/types";
+import { MatchSnapshot, MatchEvent, MatchDayStage, RoundSummary } from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
 import PreMatchSetup from "../components/match/PreMatchSetup";
 import MatchLive from "../components/match/MatchLive";
@@ -42,9 +37,7 @@ export default function MatchSimulation() {
   const matchMode = routeState?.mode || "live";
   const { gameState, setGameState } = useGameStore();
   const { settings } = useSettingsStore();
-  const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(
-    routeState?.snapshot ?? null,
-  );
+  const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(routeState?.snapshot ?? null);
   const [stage, setStage] = useState<MatchDayStage>("prematch");
   const [importantEvents, setImportantEvents] = useState<MatchEvent[]>([]);
   const [userSide, setUserSide] = useState<"Home" | "Away" | null>(null);
@@ -93,11 +86,7 @@ export default function MatchSimulation() {
       matchMode,
       managerTeamId: utid,
       resolvedUserSide:
-        snapshot.home_team.id === utid
-          ? "Home"
-          : snapshot.away_team.id === utid
-            ? "Away"
-            : null,
+        snapshot.home_team.id === utid ? "Home" : snapshot.away_team.id === utid ? "Away" : null,
     });
   }, [gameState, snapshot?.home_team.id, snapshot?.away_team.id, matchMode]);
 
@@ -143,22 +132,26 @@ export default function MatchSimulation() {
             matchMode,
           });
           const fixture = gameState?.league?.fixtures?.[routeState.fixtureIndex];
-          const competitionsWithET: string[] = ["Cup", "ContinentalClub", "InternationalClub", "InternationalNation", "FriendlyCup"];
-          const allowsExtraTime = routeState?.snapshot?.allows_extra_time
-            ?? competitionsWithET.includes(fixture?.competition ?? "");
+          const competitionsWithET: string[] = [
+            "Cup",
+            "ContinentalClub",
+            "InternationalClub",
+            "InternationalNation",
+            "FriendlyCup",
+          ];
+          const allowsExtraTime =
+            routeState?.snapshot?.allows_extra_time ??
+            competitionsWithET.includes(fixture?.competition ?? "");
           // Identify the fixture by its teams so the backend can resolve it
           // across all competitions — the raw index may point into a cup while
           // game.league mirrors the domestic league after a restart.
-          const restoredSnapshot = await invoke<MatchSnapshot>(
-            "start_live_match",
-            {
-              allowsExtraTime,
-              fixtureIndex: routeState.fixtureIndex,
-              mode: matchMode,
-              homeTeamId: routeState?.snapshot?.home_team?.id ?? null,
-              awayTeamId: routeState?.snapshot?.away_team?.id ?? null,
-            },
-          );
+          const restoredSnapshot = await invoke<MatchSnapshot>("start_live_match", {
+            allowsExtraTime,
+            fixtureIndex: routeState.fixtureIndex,
+            mode: matchMode,
+            homeTeamId: routeState?.snapshot?.home_team?.id ?? null,
+            awayTeamId: routeState?.snapshot?.away_team?.id ?? null,
+          });
 
           console.info("[MatchSimulation] restoreLiveMatch:success", {
             awayPlayers: restoredSnapshot.away_team.players.length,
@@ -183,7 +176,14 @@ export default function MatchSimulation() {
     return () => {
       isCancelled = true;
     };
-  }, [hasFinalizedMatch, gameState, matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
+  }, [
+    hasFinalizedMatch,
+    gameState,
+    matchMode,
+    navigate,
+    routeState?.fixtureIndex,
+    routeState?.snapshot,
+  ]);
 
   // Skip pre-match for spectators
   useEffect(() => {
@@ -224,8 +224,7 @@ export default function MatchSimulation() {
 
     try {
       console.info("[MatchSimulation] finalizeMatch:start");
-      const response =
-        await invoke<FinishLiveMatchResponse>("finish_live_match");
+      const response = await invoke<FinishLiveMatchResponse>("finish_live_match");
       console.info("[MatchSimulation] finalizeMatch:success", {
         hasRoundSummary: !!response.round_summary,
         hasUpdatedGame: !!response.game,
@@ -288,13 +287,10 @@ export default function MatchSimulation() {
     setImportantEvents((prev) => [...prev, evt]);
   }, []);
 
-  const handlePreferredSpeedChange = useCallback(
-    (speed: "slow" | "normal" | "fast") => {
-      setHasUserOverriddenSpeed(true);
-      setPreferredSpeed(speed);
-    },
-    [],
-  );
+  const handlePreferredSpeedChange = useCallback((speed: "slow" | "normal" | "fast") => {
+    setHasUserOverriddenSpeed(true);
+    setPreferredSpeed(speed);
+  }, []);
 
   // Loading state
   if (!snapshot || !gameState) {
@@ -310,11 +306,7 @@ export default function MatchSimulation() {
     );
   }
 
-  const currentFixture = resolveMatchFixture(
-    gameState,
-    snapshot,
-    routeState?.fixtureIndex,
-  );
+  const currentFixture = resolveMatchFixture(gameState, snapshot, routeState?.fixtureIndex);
 
   // Render the current stage
   switch (stage) {

@@ -13,7 +13,15 @@ interface CountriesTabProps {
   onSelect?: (index: number) => void;
 }
 
-export function CountriesTab({ countries, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: CountriesTabProps) {
+export function CountriesTab({
+  countries,
+  onAdd,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  selectedIndex,
+  onSelect,
+}: CountriesTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell

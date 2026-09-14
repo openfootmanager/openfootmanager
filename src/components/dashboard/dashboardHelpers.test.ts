@@ -167,10 +167,7 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
   };
 }
 
-function translateDashboardAlert(
-  key: string,
-  options?: Record<string, unknown>,
-): string {
+function translateDashboardAlert(key: string, options?: Record<string, unknown>): string {
   return options ? `${key}:${JSON.stringify(options)}` : key;
 }
 
@@ -236,10 +233,7 @@ describe("dashboardHelpers", function (): void {
 
   it("returns manager team name and unread count", function (): void {
     const gameState = createGameState({
-      messages: [
-        createMessage({ id: "m1", read: false }),
-        createMessage({ id: "m2", read: true }),
-      ],
+      messages: [createMessage({ id: "m1", read: false }), createMessage({ id: "m2", read: true })],
     });
 
     expect(getManagerTeamName(gameState)).toBe("Alpha FC");
@@ -248,10 +242,7 @@ describe("dashboardHelpers", function (): void {
 
   it("filters dashboard search results for teams and players", function (): void {
     const gameState = createGameState({
-      teams: [
-        createTeam(),
-        createTeam({ id: "team-2", name: "Bravo United", short_name: "BRV" }),
-      ],
+      teams: [createTeam(), createTeam({ id: "team-2", name: "Bravo United", short_name: "BRV" })],
       players: [
         createPlayer(),
         createPlayer({
@@ -290,19 +281,7 @@ describe("dashboardHelpers", function (): void {
       createPlayer({ id: "p11", condition: 80 }),
     ];
     const team = createTeam({
-      starting_xi_ids: [
-        "p1",
-        "p2",
-        "p3",
-        "p4",
-        "p5",
-        "p6",
-        "p7",
-        "p8",
-        "p9",
-        "p10",
-        "p11",
-      ],
+      starting_xi_ids: ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11"],
     });
     const gameState = createGameState({
       teams: [team],
@@ -326,10 +305,7 @@ describe("dashboardHelpers", function (): void {
     });
     const gameState = createGameState({
       teams: [team],
-      players: [
-        createPlayer({ id: "p1", wage: 300000 }),
-        createPlayer({ id: "p2", wage: 300000 }),
-      ],
+      players: [createPlayer({ id: "p1", wage: 300000 }), createPlayer({ id: "p2", wage: 300000 })],
     });
 
     const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);

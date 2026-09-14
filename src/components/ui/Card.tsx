@@ -38,7 +38,9 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, action, className = "" }: CardHeaderProps) {
   return (
-    <div className={`px-6 py-4 border-b border-gray-100 dark:border-navy-600 flex items-center justify-between ${className}`}>
+    <div
+      className={`px-6 py-4 border-b border-gray-100 dark:border-navy-600 flex items-center justify-between ${className}`}
+    >
       <h3 className="text-lg font-bold font-heading uppercase tracking-wide text-gray-800 dark:text-gray-100">
         {children}
       </h3>

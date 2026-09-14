@@ -21,10 +21,9 @@ describe("useFetchedSquad", () => {
   it("fetches the team's squad and returns it", async () => {
     mockedGetSquad.mockResolvedValue(squad("p1"));
 
-    const { result } = renderHook(
-      ({ teamId, clockDate }) => useFetchedSquad(teamId, clockDate),
-      { initialProps: { teamId: "team1", clockDate: "2026-08-01" } },
-    );
+    const { result } = renderHook(({ teamId, clockDate }) => useFetchedSquad(teamId, clockDate), {
+      initialProps: { teamId: "team1", clockDate: "2026-08-01" },
+    });
 
     await waitFor(() => expect(result.current[0]).not.toBeNull());
     expect(mockedGetSquad).toHaveBeenCalledWith("team1");
@@ -36,10 +35,9 @@ describe("useFetchedSquad", () => {
   it("refetches when the game clock advances", async () => {
     mockedGetSquad.mockResolvedValue(squad("p1"));
 
-    const { rerender } = renderHook(
-      ({ teamId, clockDate }) => useFetchedSquad(teamId, clockDate),
-      { initialProps: { teamId: "team1", clockDate: "2026-08-01" } },
-    );
+    const { rerender } = renderHook(({ teamId, clockDate }) => useFetchedSquad(teamId, clockDate), {
+      initialProps: { teamId: "team1", clockDate: "2026-08-01" },
+    });
 
     await waitFor(() => expect(mockedGetSquad).toHaveBeenCalledTimes(1));
 
@@ -51,10 +49,9 @@ describe("useFetchedSquad", () => {
   it("does not refetch when neither team nor clock changes", async () => {
     mockedGetSquad.mockResolvedValue(squad("p1"));
 
-    const { rerender } = renderHook(
-      ({ teamId, clockDate }) => useFetchedSquad(teamId, clockDate),
-      { initialProps: { teamId: "team1", clockDate: "2026-08-01" } },
-    );
+    const { rerender } = renderHook(({ teamId, clockDate }) => useFetchedSquad(teamId, clockDate), {
+      initialProps: { teamId: "team1", clockDate: "2026-08-01" },
+    });
 
     await waitFor(() => expect(mockedGetSquad).toHaveBeenCalledTimes(1));
 

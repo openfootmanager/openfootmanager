@@ -12,10 +12,7 @@ interface InjuryBadgeProps {
   showName?: boolean;
 }
 
-export function InjuryBadge({
-  injury,
-  showName = true,
-}: InjuryBadgeProps) {
+export function InjuryBadge({ injury, showName = true }: InjuryBadgeProps) {
   const { t } = useTranslation();
   const injuryName = resolveInjuryName(injury.name, t);
   const daysLabel = t("playerProfile.injuryDaysShort", {

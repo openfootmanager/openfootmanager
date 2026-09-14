@@ -72,7 +72,9 @@ describe("useAssetDataUrl", () => {
   });
 
   it("returns null when the IPC call rejects", async () => {
-    mockedInvoke.mockImplementation(async () => { throw new Error("missing"); });
+    mockedInvoke.mockImplementation(async () => {
+      throw new Error("missing");
+    });
     const { result } = renderHook(() => useAssetDataUrl("d/missing.png", "/proj4"));
     // Stays null; one failed attempt, no crash.
     await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(1));

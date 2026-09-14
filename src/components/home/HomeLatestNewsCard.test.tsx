@@ -71,7 +71,10 @@ describe("HomeLatestNewsCard", () => {
     render(
       <HomeLatestNewsCard
         articles={[createArticle()]}
-        teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" })]}
+        teams={[
+          createTeam(),
+          createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" }),
+        ]}
         lang="en"
       />,
     );

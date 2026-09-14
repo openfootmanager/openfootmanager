@@ -398,10 +398,7 @@ describe("HomeTab.helpers", function (): void {
 
     const result = getLeagueDigestArticles(gameState);
 
-    expect(result.map((article) => article.id)).toEqual([
-      "standings-news",
-      "roundup-news",
-    ]);
+    expect(result.map((article) => article.id)).toEqual(["standings-news", "roundup-news"]);
   });
 
   it("builds roster overview metrics, unavailable players, and momentum groups", function (): void {
@@ -438,13 +435,9 @@ describe("HomeTab.helpers", function (): void {
     expect(result.avgCondition).toBe(61);
     expect(result.avgOvr).toBe(65);
     expect(result.exhaustedCount).toBe(1);
-    expect(result.unavailablePlayers.map((player) => player.id)).toEqual([
-      "player-injured",
-    ]);
+    expect(result.unavailablePlayers.map((player) => player.id)).toEqual(["player-injured"]);
     expect(result.hotPlayers.map((player) => player.id)).toEqual(["player-hot"]);
-    expect(result.coldPlayers.map((player) => player.id)).toEqual([
-      "player-cold",
-    ]);
+    expect(result.coldPlayers.map((player) => player.id)).toEqual(["player-cold"]);
   });
 
   it("returns the latest completed results for the managed team", function (): void {
@@ -495,10 +488,7 @@ describe("HomeTab.helpers", function (): void {
 
     const result = getRecentResultsForTeam(gameState, "team-1");
 
-    expect(result.map((entry) => entry.fixture.id)).toEqual([
-      "fixture-1",
-      "fixture-2",
-    ]);
+    expect(result.map((entry) => entry.fixture.id)).toEqual(["fixture-1", "fixture-2"]);
     expect(result[0]).toMatchObject({
       isHome: true,
       myGoals: 2,
@@ -517,10 +507,7 @@ describe("HomeTab.helpers", function (): void {
 
   it("reads recent results from the user's competitions, ignoring a stale league", function (): void {
     const gameState = createGameState({
-      teams: [
-        createTeam(),
-        createTeam({ id: "team-2", name: "Beta FC" }),
-      ],
+      teams: [createTeam(), createTeam({ id: "team-2", name: "Beta FC" })],
       active_competition_ids: ["comp-domestic"],
       competitions: [
         {
@@ -661,19 +648,13 @@ describe("HomeTab.helpers", function (): void {
       },
     });
 
-    saveVisitedOnboardingTabs(
-      gameState,
-      new Set<string>(["Squad", "Training"]),
-      localStorage,
-    );
+    saveVisitedOnboardingTabs(gameState, new Set<string>(["Squad", "Training"]), localStorage);
 
     expect(Array.from(loadVisitedOnboardingTabs(gameState, localStorage))).toEqual([
       "Squad",
       "Training",
     ]);
-    expect(Array.from(loadVisitedOnboardingTabs(otherGameState, localStorage))).toEqual(
-      [],
-    );
+    expect(Array.from(loadVisitedOnboardingTabs(otherGameState, localStorage))).toEqual([]);
   });
 
   it("isolates visited onboarding tabs by active save id", function (): void {
@@ -686,12 +667,11 @@ describe("HomeTab.helpers", function (): void {
       "save-a",
     );
 
-    expect(
-      Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-a")),
-    ).toEqual(["Squad", "Training"]);
-    expect(
-      Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-b")),
-    ).toEqual([]);
+    expect(Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-a"))).toEqual([
+      "Squad",
+      "Training",
+    ]);
+    expect(Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-b"))).toEqual([]);
   });
 
   it("keeps onboarding completed after reloading persisted progress", function (): void {

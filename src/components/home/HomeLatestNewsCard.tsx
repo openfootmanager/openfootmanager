@@ -38,9 +38,7 @@ export default function HomeLatestNewsCard({
         {articles.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-6">
             <Newspaper className="w-8 h-8 text-gray-300 dark:text-navy-600" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {t("home.noNews")}
-            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t("home.noNews")}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-navy-600">

@@ -132,9 +132,7 @@ function pickLine(
   // Try the refined variant first, then fall back to the base key.
   const candidates = variant ? [`${baseKey}.${variant}`, baseKey] : [baseKey];
   for (const key of candidates) {
-    const lines = t(`${key}.lines`, { returnObjects: true }) as
-      | Record<string, string>
-      | string;
+    const lines = t(`${key}.lines`, { returnObjects: true }) as Record<string, string> | string;
     if (!lines || typeof lines !== "object") continue;
     const values = Object.values(lines);
     if (values.length === 0) continue;

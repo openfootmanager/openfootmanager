@@ -16,20 +16,9 @@
     "seasonStartMonth",
     "type"
   ],
-  "confederation": [
-    "id",
-    "name"
-  ],
-  "country": [
-    "confederation",
-    "id",
-    "name"
-  ],
-  "names": [
-    "description",
-    "pools",
-    "version"
-  ],
+  "confederation": ["id", "name"],
+  "country": ["confederation", "id", "name"],
+  "names": ["description", "pools", "version"],
   "player": [
     "age",
     "attributes",

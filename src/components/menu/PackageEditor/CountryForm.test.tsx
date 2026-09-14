@@ -251,9 +251,9 @@ describe("CountryForm nation picker", () => {
 
     // The trigger renders the code until the name resources resolve.
     await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: /worldEditor\.countryNation/ }),
-      ).toHaveTextContent("Brazil"),
+      expect(screen.getByRole("button", { name: /worldEditor\.countryNation/ })).toHaveTextContent(
+        "Brazil",
+      ),
     );
     expect(screen.queryByLabelText("worldEditor.countryId")).not.toBeInTheDocument();
   });
@@ -311,8 +311,6 @@ describe("CountryForm nation picker", () => {
     invoke.mockRejectedValue(new Error("offline"));
     renderForm({ id: "BR", name: "Brazil", confederation: "south-america" });
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("worldEditor.countryId")).toHaveValue("BR"),
-    );
+    await waitFor(() => expect(screen.getByLabelText("worldEditor.countryId")).toHaveValue("BR"));
   });
 });

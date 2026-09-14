@@ -20,9 +20,7 @@ vi.mock("../components/dashboard/advanceRecap", () => ({
 }));
 
 const { advanceOneDay } = await import("../services/advanceTimeService");
-const { detectAttentionEvents } = await import(
-  "../components/dashboard/advanceRecap"
-);
+const { detectAttentionEvents } = await import("../components/dashboard/advanceRecap");
 const mockedAdvanceOneDay = vi.mocked(advanceOneDay);
 const mockedDetectAttentionEvents = vi.mocked(detectAttentionEvents);
 
@@ -44,9 +42,7 @@ describe("useDigestAdvance", () => {
   });
 
   it("starts not running and with empty entries", () => {
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
     expect(result.current.isRunning).toBe(false);
     expect(result.current.entries).toEqual([]);
     expect(result.current.stopReason).toBeNull();
@@ -59,9 +55,7 @@ describe("useDigestAdvance", () => {
       .mockResolvedValueOnce(makeAdvancedResponse("2026-09-02"))
       .mockResolvedValueOnce({ action: "match_day", date: "2026-09-03", results: [] });
 
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
 
     await act(async () => {
       await result.current.startDigest();
@@ -83,9 +77,7 @@ describe("useDigestAdvance", () => {
       results: [],
     });
 
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
 
     await act(async () => {
       await result.current.startDigest();
@@ -106,9 +98,7 @@ describe("useDigestAdvance", () => {
       game: { clock: { current_date: "2026-09-02T00:00:00Z" } } as never,
     });
 
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
 
     await act(async () => {
       await result.current.startDigest();
@@ -122,13 +112,9 @@ describe("useDigestAdvance", () => {
     mockedAdvanceOneDay
       .mockResolvedValueOnce(makeAdvancedResponse("2026-09-01"))
       .mockResolvedValueOnce(makeAdvancedResponse("2026-09-02"));
-    mockedDetectAttentionEvents
-      .mockReturnValueOnce([])
-      .mockReturnValueOnce(["userTransfer"]);
+    mockedDetectAttentionEvents.mockReturnValueOnce([]).mockReturnValueOnce(["userTransfer"]);
 
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
 
     await act(async () => {
       await result.current.startDigest();
@@ -148,9 +134,7 @@ describe("useDigestAdvance", () => {
     mockedAdvanceOneDay.mockResolvedValueOnce(makeAdvancedResponse("2026-09-01"));
     mockedDetectAttentionEvents.mockReturnValueOnce(["highPriorityInbox"]);
 
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
 
     await act(async () => {
       await result.current.startDigest();
@@ -165,17 +149,12 @@ describe("useDigestAdvance", () => {
       await result.current.startDigest({ resume: true });
     });
 
-    expect(result.current.entries.map((entry) => entry.date)).toEqual([
-      "2026-09-01",
-      "2026-09-02",
-    ]);
+    expect(result.current.entries.map((entry) => entry.date)).toEqual(["2026-09-01", "2026-09-02"]);
     expect(result.current.stopReason).toEqual({ kind: "match_day" });
   });
 
   it("showStaticDigest presents a finished batch advance in the feed", () => {
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
 
     const entry = {
       date: "2026-09-01",
@@ -202,11 +181,13 @@ describe("useDigestAdvance", () => {
   });
 
   it("dismissDigest resets all state", async () => {
-    mockedAdvanceOneDay.mockResolvedValueOnce({ action: "match_day", date: "2026-09-01", results: [] });
+    mockedAdvanceOneDay.mockResolvedValueOnce({
+      action: "match_day",
+      date: "2026-09-01",
+      results: [],
+    });
 
-    const { result } = renderHook(() =>
-      useDigestAdvance(setGameState, onFired),
-    );
+    const { result } = renderHook(() => useDigestAdvance(setGameState, onFired));
 
     await act(async () => {
       await result.current.startDigest();

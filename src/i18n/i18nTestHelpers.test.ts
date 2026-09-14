@@ -29,9 +29,7 @@ describe("collectOrphanKeys", () => {
 
   it("reports a candidate-only table that has no leaves to name", () => {
     expect(collectOrphanKeys({}, { gone: {} })).toEqual(["gone"]);
-    expect(collectOrphanKeys({}, { gone: { alsoEmpty: {} } })).toEqual([
-      "gone.alsoEmpty",
-    ]);
+    expect(collectOrphanKeys({}, { gone: { alsoEmpty: {} } })).toEqual(["gone.alsoEmpty"]);
   });
 
   it("does not mistake an Object.prototype member for an English key", () => {

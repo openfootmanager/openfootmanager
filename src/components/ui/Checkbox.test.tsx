@@ -4,18 +4,14 @@ import { Checkbox } from "./Checkbox";
 
 describe("Checkbox", () => {
   it("renders unchecked with no checkmark icon", () => {
-    render(
-      <Checkbox checked={false} onChange={vi.fn()} aria-label="Select item" />,
-    );
+    render(<Checkbox checked={false} onChange={vi.fn()} aria-label="Select item" />);
 
     expect(screen.getByRole("checkbox", { name: "Select item" })).not.toBeChecked();
     expect(document.querySelector("svg")).not.toBeInTheDocument();
   });
 
   it("renders checked with a checkmark icon", () => {
-    render(
-      <Checkbox checked={true} onChange={vi.fn()} aria-label="Select item" />,
-    );
+    render(<Checkbox checked={true} onChange={vi.fn()} aria-label="Select item" />);
 
     expect(screen.getByRole("checkbox", { name: "Select item" })).toBeChecked();
     expect(document.querySelector("svg")).toBeInTheDocument();
@@ -24,9 +20,7 @@ describe("Checkbox", () => {
   it("calls onChange when clicked", () => {
     const onChange = vi.fn();
 
-    render(
-      <Checkbox checked={false} onChange={onChange} aria-label="Select item" />,
-    );
+    render(<Checkbox checked={false} onChange={onChange} aria-label="Select item" />);
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Select item" }));
 
@@ -34,14 +28,7 @@ describe("Checkbox", () => {
   });
 
   it("is disabled when the disabled prop is set", () => {
-    render(
-      <Checkbox
-        checked={false}
-        onChange={vi.fn()}
-        disabled
-        aria-label="Select item"
-      />,
-    );
+    render(<Checkbox checked={false} onChange={vi.fn()} disabled aria-label="Select item" />);
 
     expect(screen.getByRole("checkbox", { name: "Select item" })).toBeDisabled();
   });

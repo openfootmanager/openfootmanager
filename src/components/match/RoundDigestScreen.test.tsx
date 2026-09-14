@@ -342,20 +342,10 @@ describe("RoundDigestScreen", function () {
   });
 
   it("does not render standings or top scorers for a friendly", function () {
-    render(
-      <RoundDigestScreen
-        {...defaultProps}
-        isLeagueFixture={false}
-        roundSummary={null}
-      />,
-    );
+    render(<RoundDigestScreen {...defaultProps} isLeagueFixture={false} roundSummary={null} />);
 
-    expect(
-      screen.queryByText("tournaments.leagueTable"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("tournaments.topScorers"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("tournaments.leagueTable")).not.toBeInTheDocument();
+    expect(screen.queryByText("tournaments.topScorers")).not.toBeInTheDocument();
     expect(screen.getAllByText("match.otherMatches").length).toBeGreaterThan(0);
   });
 
@@ -390,9 +380,7 @@ describe("RoundDigestScreen", function () {
 
   it("calls onPressConference when the press conference button is clicked", function () {
     const onPressConference = vi.fn();
-    render(
-      <RoundDigestScreen {...defaultProps} onPressConference={onPressConference} />,
-    );
+    render(<RoundDigestScreen {...defaultProps} onPressConference={onPressConference} />);
 
     fireEvent.click(screen.getByText("match.pressConference"));
     expect(onPressConference).toHaveBeenCalledOnce();
@@ -451,12 +439,7 @@ describe("RoundDigestScreen", function () {
       },
     } as unknown as GameStateData;
 
-    render(
-      <RoundDigestScreen
-        {...defaultProps}
-        gameState={gameStateWithReport}
-      />,
-    );
+    render(<RoundDigestScreen {...defaultProps} gameState={gameStateWithReport} />);
 
     fireEvent.click(screen.getByText("match.viewDetails"));
 

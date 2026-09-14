@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 
-import {
-  fetchTeamRecentMatches,
-  fetchTeamStatsOverview,
-} from "./TeamProfile.gateway";
+import { fetchTeamRecentMatches, fetchTeamStatsOverview } from "./TeamProfile.gateway";
 import type { TeamRecentMatchEntry, TeamStatsOverview } from "./TeamProfile.types";
 
 interface TeamProfileStatsState {
@@ -12,8 +9,7 @@ interface TeamProfileStatsState {
 }
 
 export function useTeamProfileStats(teamId: string): TeamProfileStatsState {
-  const [teamStatsOverview, setTeamStatsOverview] =
-    useState<TeamStatsOverview | null>(null);
+  const [teamStatsOverview, setTeamStatsOverview] = useState<TeamStatsOverview | null>(null);
   const [recentMatches, setRecentMatches] = useState<TeamRecentMatchEntry[]>([]);
 
   useEffect(() => {
@@ -29,12 +25,8 @@ export function useTeamProfileStats(teamId: string): TeamProfileStatsState {
         return;
       }
 
-      setTeamStatsOverview(
-        overviewResult.status === "fulfilled" ? overviewResult.value : null,
-      );
-      setRecentMatches(
-        historyResult.status === "fulfilled" ? historyResult.value : [],
-      );
+      setTeamStatsOverview(overviewResult.status === "fulfilled" ? overviewResult.value : null);
+      setRecentMatches(historyResult.status === "fulfilled" ? historyResult.value : []);
     };
 
     void loadTeamProfileStats();

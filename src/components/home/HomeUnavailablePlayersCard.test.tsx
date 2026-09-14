@@ -82,10 +82,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 describe("HomeUnavailablePlayersCard", () => {
   it("renders unavailable players with injury details", () => {
     render(
-      <HomeUnavailablePlayersCard
-        players={[createPlayer()]}
-        resolveInjuryName={(name) => name}
-      />,
+      <HomeUnavailablePlayersCard players={[createPlayer()]} resolveInjuryName={(name) => name} />,
     );
 
     expect(screen.getByText("Unavailable Players")).toBeInTheDocument();

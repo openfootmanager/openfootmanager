@@ -1,20 +1,9 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 
-import type {
-  GameStateData,
-  MessageAction,
-  MessageData,
-} from "../../store/gameStore";
+import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import InboxTab from "./InboxTab";
 
@@ -84,10 +73,7 @@ vi.mock("react-i18next", async (importOriginal) => {
     ...actual,
     useTranslation: () => ({
       t: (key: string, value?: unknown) => {
-        const resolved =
-          mockTranslationState.translations[mockTranslationState.language]?.[
-          key
-          ];
+        const resolved = mockTranslationState.translations[mockTranslationState.language]?.[key];
 
         if (resolved) {
           return resolved;
@@ -126,14 +112,12 @@ beforeAll(function defineMatchMedia(): void {
     "translation",
     {
       "test.effectFeedback": "Resolved morale {{delta}}",
-      "be.msg.delegatedRenewals.subject":
-        "Assistant Report — Contract Renewals",
+      "be.msg.delegatedRenewals.subject": "Assistant Report — Contract Renewals",
       "be.msg.delegatedRenewals.body":
         "Boss, I went through our renewal list at {{team}}. {{successes}} completed, {{stalled}} still pending, {{failures}} failed.",
       "be.msg.delegatedRenewals.case.successful":
         "Completed: {{player}} agreed to {{years}} year(s) on {{wage}}/wk.",
-      "be.msg.delegatedRenewals.case.stalled":
-        "Still difficult: {{player}} — {{detail}}",
+      "be.msg.delegatedRenewals.case.stalled": "Still difficult: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.case.failed": "Failed: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.notes.beyondLimits":
         "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
@@ -141,8 +125,7 @@ beforeAll(function defineMatchMedia(): void {
         "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
       "be.msg.delegatedRenewals.notes.relationshipBlocked":
         "They are not willing to commit through me under the current relationship and contract situation.",
-      "be.msg.youthRecruitmentReport.subject":
-        "Scout Report — Youth Recruitment",
+      "be.msg.youthRecruitmentReport.subject": "Scout Report — Youth Recruitment",
       "be.msg.youthRecruitmentReport.bodyAny":
         "{{scout}} has completed the latest youth recruitment search for {{team}}. I found {{count}} prospects in the {{regionLabel}} market with a {{objectiveLabel}} profile.\n\nReview the attached cards and decide who should join the academy.",
       "be.msg.youthRecruitmentReport.bodyTargeted":
@@ -402,9 +385,7 @@ describe("InboxTab", function (): void {
     expect(within(rows[1]).getByText("Middle Message")).toBeInTheDocument();
     expect(within(rows[2]).getByText("Oldest Message")).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByRole("combobox", { name: "Sort messages by date" }),
-    );
+    fireEvent.click(screen.getByRole("combobox", { name: "Sort messages by date" }));
     fireEvent.click(screen.getByRole("option", { name: "Oldest first" }));
 
     rows = screen.getAllByTestId(/inbox-row-/);
@@ -427,9 +408,7 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByTestId("inbox-delete-message"));
 
-    expect(
-      screen.getByTestId("inbox-delete-confirm-modal"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-delete-confirm-modal")).toBeInTheDocument();
     expect(mockedInvoke).not.toHaveBeenCalledWith("delete_message", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
@@ -452,16 +431,12 @@ describe("InboxTab", function (): void {
     fireEvent.contextMenu(screen.getByTestId("inbox-row-m1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete message" }));
 
-    expect(
-      screen.getByTestId("inbox-delete-confirm-modal"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-delete-confirm-modal")).toBeInTheDocument();
   });
 
   it("confirms before deleting selected messages in bulk", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
-    const updatedMessages = [
-      createMessage({ id: "m3", subject: "Keep Me", read: true }),
-    ];
+    const updatedMessages = [createMessage({ id: "m3", subject: "Keep Me", read: true })];
 
     mockedInvoke.mockResolvedValue(updatedMessages);
 
@@ -479,9 +454,7 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByTestId("inbox-select-message-m2"));
     fireEvent.click(screen.getByTestId("inbox-delete-selected"));
 
-    expect(
-      screen.getByTestId("inbox-delete-confirm-modal"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-delete-confirm-modal")).toBeInTheDocument();
     expect(mockedInvoke).not.toHaveBeenCalledWith("delete_messages", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
@@ -506,9 +479,7 @@ describe("InboxTab", function (): void {
     };
 
     await renderInboxTab({
-      gameState: createGameState([
-        createMessage({ id: "m1", read: true, actions: [action] }),
-      ]),
+      gameState: createGameState([createMessage({ id: "m1", read: true, actions: [action] })]),
       initialMessageId: "m1",
       onNavigate,
     });
@@ -534,9 +505,7 @@ describe("InboxTab", function (): void {
     };
 
     await renderInboxTab({
-      gameState: createGameState([
-        createMessage({ id: "m1", read: true, actions: [action] }),
-      ]),
+      gameState: createGameState([createMessage({ id: "m1", read: true, actions: [action] })]),
       initialMessageId: "m1",
       onNavigate,
     });
@@ -555,9 +524,7 @@ describe("InboxTab", function (): void {
   it("navigates to a dashboard tab and still resolves the action", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
     const onNavigate = vi.fn();
-    const resolvedGameState = createGameState([
-      createMessage({ id: "m1", read: true }),
-    ]);
+    const resolvedGameState = createGameState([createMessage({ id: "m1", read: true })]);
     const action: MessageAction = {
       id: "action-1",
       label: "Open Squad",
@@ -568,9 +535,7 @@ describe("InboxTab", function (): void {
     mockedInvoke.mockResolvedValue({ game: resolvedGameState, effect: null });
 
     await renderInboxTab({
-      gameState: createGameState([
-        createMessage({ id: "m1", read: true, actions: [action] }),
-      ]),
+      gameState: createGameState([createMessage({ id: "m1", read: true, actions: [action] })]),
       initialMessageId: "m1",
       onGameUpdate,
       onNavigate,
@@ -630,9 +595,7 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByText("Return the praise"));
 
     await waitFor(function (): void {
-      expect(
-        screen.getByText("Outcome: Resolved morale +3"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Outcome: Resolved morale +3")).toBeInTheDocument();
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(resolvedGameState);
@@ -686,9 +649,7 @@ describe("InboxTab", function (): void {
       fireEvent.click(screen.getByText("Return the praise"));
 
       await waitFor(function (): void {
-        expect(
-          screen.getByText("Desfecho: Resolved morale +3"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("Desfecho: Resolved morale +3")).toBeInTheDocument();
       });
     } finally {
       mockTranslationState.language = previousLanguage;
@@ -747,8 +708,7 @@ describe("InboxTab", function (): void {
                   player_id: "p3",
                   player_name: "Chris Failed",
                   status: "failed",
-                  note_key:
-                    "be.msg.delegatedRenewals.notes.relationshipBlocked",
+                  note_key: "be.msg.delegatedRenewals.notes.relationshipBlocked",
                   note_params: {},
                 },
               ],
@@ -761,9 +721,7 @@ describe("InboxTab", function (): void {
 
     expect(screen.getByTestId("delegated-renewal-report")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Completed: Alex Done agreed to 3 year(s) on £24,000/wk.",
-      ),
+      screen.getByText("Completed: Alex Done agreed to 3 year(s) on £24,000/wk."),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -911,10 +869,7 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByText("Accept the position"));
 
     expect(screen.getByTestId("switch-club-confirm-modal")).toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalledWith(
-      "resolve_message_action",
-      expect.anything(),
-    );
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
   it("does not invoke the action when the switch-club dialog is cancelled", async function (): Promise<void> {
@@ -940,13 +895,8 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByText("Accept the position"));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(
-      screen.queryByTestId("switch-club-confirm-modal"),
-    ).not.toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalledWith(
-      "resolve_message_action",
-      expect.anything(),
-    );
+    expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
   it("invokes the action with optionId=accept when the switch-club dialog is confirmed", async function (): Promise<void> {
@@ -1015,9 +965,7 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByText("Decline the offer"));
 
-    expect(
-      screen.queryByTestId("switch-club-confirm-modal"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
     await waitFor(function (): void {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
         messageId: "job_offer_team2_2025-01-01",
@@ -1055,9 +1003,7 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByText("Accept the position"));
 
-    expect(
-      screen.queryByTestId("switch-club-confirm-modal"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
     await waitFor(function (): void {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
         messageId: "job_offer_team2_2025-01-01",
@@ -1117,9 +1063,7 @@ describe("InboxTab", function (): void {
       });
 
       expect(
-        screen.getByText(
-          "Completed: Alex Done agreed to 3 year(s) on €24.000/wk.",
-        ),
+        screen.getByText("Completed: Alex Done agreed to 3 year(s) on €24.000/wk."),
       ).toBeInTheDocument();
       expect(
         screen.getByText(
@@ -1164,9 +1108,7 @@ describe("InboxTab", function (): void {
       initialMessageId: "morale_talk_p1",
     });
 
-    expect(
-      screen.getByText("Choose your response — outcome varies"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Choose your response — outcome varies")).toBeInTheDocument();
   });
 
   it("shows the selected youth scouting target on youth recruitment reports", async function (): Promise<void> {
@@ -1198,12 +1140,7 @@ describe("InboxTab", function (): void {
     mockedInvoke.mockResolvedValueOnce([]);
 
     await act(async () => {
-      render(
-        <InboxTab
-          gameState={null}
-          onGameUpdate={vi.fn()}
-        />,
-      );
+      render(<InboxTab gameState={null} onGameUpdate={vi.fn()} />);
     });
 
     // Empty inbox — no message rows.
@@ -1276,24 +1213,21 @@ describe("InboxTab", function (): void {
                       label: "placeholder",
                       description: "placeholder",
                       label_key: "be.msg.youthRecruitment.option.sign.label",
-                      description_key:
-                        "be.msg.youthRecruitment.option.sign.description",
+                      description_key: "be.msg.youthRecruitment.option.sign.description",
                     },
                     {
                       id: "shortlist",
                       label: "placeholder",
                       description: "placeholder",
                       label_key: "be.msg.youthRecruitment.option.shortlist.label",
-                      description_key:
-                        "be.msg.youthRecruitment.option.shortlist.description",
+                      description_key: "be.msg.youthRecruitment.option.shortlist.description",
                     },
                     {
                       id: "discard",
                       label: "placeholder",
                       description: "placeholder",
                       label_key: "be.msg.youthRecruitment.option.discard.label",
-                      description_key:
-                        "be.msg.youthRecruitment.option.discard.description",
+                      description_key: "be.msg.youthRecruitment.option.discard.description",
                     },
                   ],
                 },
@@ -1313,9 +1247,7 @@ describe("InboxTab", function (): void {
     expect(screen.getByRole("button", { name: "View profile" })).toBeInTheDocument();
     expect(screen.getAllByText(/Wage\/yr:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Market Value:/).length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("button", { name: "Sign to academy" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign to academy" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Shortlist" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
   });

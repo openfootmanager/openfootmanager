@@ -14,10 +14,7 @@ import {
   Package2,
 } from "lucide-react";
 import type { WorldMetaDef } from "../menu/PackageEditor/types";
-import {
-  SAMPLE_PACKAGES,
-  type SamplePackage,
-} from "../menu/PackageEditor/sampleData";
+import { SAMPLE_PACKAGES, type SamplePackage } from "../menu/PackageEditor/sampleData";
 import type { PackageInfo } from "../menu/WorldSelect";
 
 export interface RecentProject {
@@ -272,9 +269,7 @@ export function WorldEditorHome({
                 <p className="font-heading font-bold text-lg uppercase tracking-wide">
                   {t("worldEditor.newPackage")}
                 </p>
-                <p className="text-sm text-primary-100 mt-0.5">
-                  {t("worldEditor.newPackageDesc")}
-                </p>
+                <p className="text-sm text-primary-100 mt-0.5">{t("worldEditor.newPackageDesc")}</p>
               </div>
             </button>
 
@@ -315,25 +310,23 @@ export function WorldEditorHome({
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 {t("worldEditor.startFromExample")}
               </p>
-              {SAMPLE_PACKAGES.map(
-                (sample) => (
-                  <button
-                    key={sample.meta.id}
-                    onClick={() => openNewForm(sample)}
-                    disabled={isBusy}
-                    className="flex items-start gap-3 w-full px-4 py-3 bg-white dark:bg-navy-800 hover:bg-amber-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-amber-400 dark:hover:border-amber-500 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-left"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold uppercase tracking-wide text-sm truncate">
-                        {sample.meta.name}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">
-                        {sample.meta.description}
-                      </p>
-                    </div>
-                  </button>
-                ),
-              )}
+              {SAMPLE_PACKAGES.map((sample) => (
+                <button
+                  key={sample.meta.id}
+                  onClick={() => openNewForm(sample)}
+                  disabled={isBusy}
+                  className="flex items-start gap-3 w-full px-4 py-3 bg-white dark:bg-navy-800 hover:bg-amber-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-amber-400 dark:hover:border-amber-500 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-heading font-bold uppercase tracking-wide text-sm truncate">
+                      {sample.meta.name}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">
+                      {sample.meta.description}
+                    </p>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
