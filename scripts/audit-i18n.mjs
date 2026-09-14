@@ -4,17 +4,13 @@ import ts from "typescript";
 
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, "src");
-const RUST_DIRS = [
-  path.join(ROOT, "src-tauri", "src"),
-  path.join(ROOT, "src-tauri", "crates"),
-];
+const RUST_DIRS = [path.join(ROOT, "src-tauri", "src"), path.join(ROOT, "src-tauri", "crates")];
 const LOCALES_DIR = path.join(SRC_DIR, "i18n", "locales");
 
 const FRONTEND_EXTENSIONS = new Set([".ts", ".tsx"]);
 const FRONTEND_IGNORE_RE =
   /(?:\.test\.|\.spec\.|[\\/]i18n[\\/]locales[\\/]|node_modules|dist|src-tauri[\\/]target)/;
-const RUST_IGNORE_RE =
-  /(?:[\\/]tests[\\/]|tests\.rs$|node_modules|dist|src-tauri[\\/]target)/;
+const RUST_IGNORE_RE = /(?:[\\/]tests[\\/]|tests\.rs$|node_modules|dist|src-tauri[\\/]target)/;
 const RUST_DATA_FILE_RE =
   /(?:src-tauri[\\/]crates[\\/]ofm_core[\\/]src[\\/]generator[\\/](?:data|definitions|generation|mod)\.rs$|src-tauri[\\/]crates[\\/]domain[\\/]src[\\/]identity\.rs$|src-tauri[\\/]crates[\\/]ofm_core[\\/]src[\\/]football_identity\.rs$)/;
 
@@ -127,10 +123,7 @@ function looksLikeRouteOrIdentifier(text) {
   if (/^[./\\]/.test(text)) return true;
   if (!/[./\\:\d_-]/.test(text)) return false;
 
-  return (
-    /^[a-z0-9_-]+$/i.test(text) ||
-    /^[a-z0-9_-]+:[a-z0-9:_-]+$/i.test(text)
-  );
+  return /^[a-z0-9_-]+$/i.test(text) || /^[a-z0-9_-]+:[a-z0-9:_-]+$/i.test(text);
 }
 
 function looksLikeUserFacingText(text) {
@@ -156,9 +149,7 @@ function isCommentLine(line) {
 }
 
 function isSqlLiteral(text) {
-  return /^(?:SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|PRAGMA|WITH)\b/i.test(
-    text.trim(),
-  );
+  return /^(?:SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|PRAGMA|WITH)\b/i.test(text.trim());
 }
 
 function isIgnoredRustLiteral(filePath, line, text) {
@@ -294,8 +285,7 @@ function scanFrontend() {
   const files = walkFiles(
     SRC_DIR,
     (filePath) =>
-      FRONTEND_EXTENSIONS.has(path.extname(filePath)) &&
-      !FRONTEND_IGNORE_RE.test(filePath),
+      FRONTEND_EXTENSIONS.has(path.extname(filePath)) && !FRONTEND_IGNORE_RE.test(filePath),
   );
 
   return files.flatMap((filePath) => scanFrontendFile(filePath));
@@ -305,8 +295,7 @@ function scanRust() {
   const files = RUST_DIRS.flatMap((dir) =>
     walkFiles(
       dir,
-      (filePath) =>
-        path.extname(filePath) === ".rs" && !RUST_IGNORE_RE.test(filePath),
+      (filePath) => path.extname(filePath) === ".rs" && !RUST_IGNORE_RE.test(filePath),
     ),
   );
   const findings = [];

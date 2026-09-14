@@ -156,6 +156,22 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # There is an unrelated package on npm literally called `biome`, last published at 0.3.3.
+      # `npx biome` finds it, prints nothing and exits 0 — so for most of this project's life the
+      # documented lint command was a no-op that looked like a pass. That is the exact shape of
+      # failure this repository's gates exist to prevent, so the version is asserted rather than
+      # assumed before anything relies on it.
+      #
+      # `npm exec --no` refuses to fetch from the registry, so it can only resolve the local
+      # install. That is the spelling to use anywhere a bare `npx <tool>` is tempting.
+      - name: Verify Biome is the real one
+        run: npm exec --no -- biome --version | grep -qE '^2\.'
+
+      # Formatting is gated for the same reason `cargo fmt --check` is: the sweep that made this
+      # green is worth nothing if the tree drifts straight back.
+      - name: Check frontend formatting
+        run: npm run format:check
+
       - name: Run frontend tests
         run: npm test
 

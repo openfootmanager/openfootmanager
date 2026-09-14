@@ -15,9 +15,7 @@ const host = process.env.TAURI_DEV_HOST;
 // commit and build date are injected here so nothing has to be committed per build.
 
 function readBaseVersion(): string {
-  const configPath = fileURLToPath(
-    new URL("./src-tauri/tauri.conf.json", import.meta.url),
-  );
+  const configPath = fileURLToPath(new URL("./src-tauri/tauri.conf.json", import.meta.url));
   const config = JSON.parse(readFileSync(configPath, "utf8")) as {
     version?: string;
   };
@@ -73,10 +71,7 @@ function isNodeModulePackage(id: string, packageName: string): boolean {
   const normalizedId = normalizeModuleId(id);
   const packagePath = `/node_modules/${packageName}`;
 
-  return (
-    normalizedId.includes(`${packagePath}/`) ||
-    normalizedId.endsWith(packagePath)
-  );
+  return normalizedId.includes(`${packagePath}/`) || normalizedId.endsWith(packagePath);
 }
 
 function matchesAnyPackage(id: string, packageNames: string[]): boolean {
@@ -108,13 +103,7 @@ function manualChunks(id: string): string | undefined {
     return "router";
   }
 
-  if (
-    matchesAnyPackage(id, [
-      "i18next",
-      "react-i18next",
-      "i18next-resources-to-backend",
-    ])
-  ) {
+  if (matchesAnyPackage(id, ["i18next", "react-i18next", "i18next-resources-to-backend"])) {
     return "i18n";
   }
 
@@ -141,9 +130,7 @@ export default defineConfig(async ({ command }) => ({
 
     return {
       __APP_VERSION__: JSON.stringify(version),
-      __APP_CHANNEL__: JSON.stringify(
-        resolveChannel(version, command === "build"),
-      ),
+      __APP_CHANNEL__: JSON.stringify(resolveChannel(version, command === "build")),
       __APP_COMMIT__: JSON.stringify(readCommitSha()),
       __APP_BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
     };
@@ -176,10 +163,10 @@ export default defineConfig(async ({ command }) => ({
     host: host || false,
     hmr: host
       ? {
-        protocol: "ws",
-        host,
-        port: 1421,
-      }
+          protocol: "ws",
+          host,
+          port: 1421,
+        }
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`

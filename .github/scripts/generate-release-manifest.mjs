@@ -1,14 +1,14 @@
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
 
-const INCLUDED_EXTENSIONS = new Set(['.exe', '.msi', '.dmg', '.pkg', '.appimage', '.deb', '.rpm']);
+const INCLUDED_EXTENSIONS = new Set([".exe", ".msi", ".dmg", ".pkg", ".appimage", ".deb", ".rpm"]);
 const EXCLUDED_FILENAMES = new Set([
-  'release-manifest.json',
-  'checksums.txt',
-  'nightly-release-manifest.json',
-  'nightly-checksums.txt',
+  "release-manifest.json",
+  "checksums.txt",
+  "nightly-release-manifest.json",
+  "nightly-checksums.txt",
 ]);
-const EXCLUDED_SUFFIXES = ['.sig', '.blockmap', '.spdx.json'];
+const EXCLUDED_SUFFIXES = [".sig", ".blockmap", ".spdx.json"];
 
 function getOptionalEnv(name, fallback) {
   return process.env[name] || fallback;
@@ -45,13 +45,13 @@ function delay(ms) {
 function getExtension(filename) {
   const lowerName = filename.toLowerCase();
 
-  if (lowerName.endsWith('.appimage')) {
-    return '.appimage';
+  if (lowerName.endsWith(".appimage")) {
+    return ".appimage";
   }
 
-  const lastDotIndex = lowerName.lastIndexOf('.');
+  const lastDotIndex = lowerName.lastIndexOf(".");
   if (lastDotIndex === -1) {
-    return '';
+    return "";
   }
 
   return lowerName.slice(lastDotIndex);
@@ -77,86 +77,93 @@ function inferPlatform(filename) {
   const lowerName = filename.toLowerCase();
   const extension = getExtension(filename);
 
-  if (extension === '.exe' || extension === '.msi') {
-    return 'windows';
+  if (extension === ".exe" || extension === ".msi") {
+    return "windows";
   }
 
-  if (extension === '.dmg' || extension === '.pkg') {
-    return 'macos';
+  if (extension === ".dmg" || extension === ".pkg") {
+    return "macos";
   }
 
-  if (extension === '.appimage' || extension === '.deb' || extension === '.rpm') {
-    return 'linux';
+  if (extension === ".appimage" || extension === ".deb" || extension === ".rpm") {
+    return "linux";
   }
 
-  if (lowerName.includes('windows') || lowerName.includes('win')) {
-    return 'windows';
+  if (lowerName.includes("windows") || lowerName.includes("win")) {
+    return "windows";
   }
 
-  if (lowerName.includes('macos') || lowerName.includes('darwin') || lowerName.includes('osx')) {
-    return 'macos';
+  if (lowerName.includes("macos") || lowerName.includes("darwin") || lowerName.includes("osx")) {
+    return "macos";
   }
 
-  if (lowerName.includes('linux')) {
-    return 'linux';
+  if (lowerName.includes("linux")) {
+    return "linux";
   }
 
-  return 'unknown';
+  return "unknown";
 }
 
 function inferArch(filename) {
   const lowerName = filename.toLowerCase();
 
   if (/(aarch64|arm64)/.test(lowerName)) {
-    return 'arm64';
+    return "arm64";
   }
 
   if (/(x86_64|x64|amd64)/.test(lowerName)) {
-    return 'x64';
+    return "x64";
   }
 
   if (/(i386|i686|x86)/.test(lowerName)) {
-    return 'x86';
+    return "x86";
   }
 
-  if (lowerName.includes('universal')) {
-    return 'universal';
+  if (lowerName.includes("universal")) {
+    return "universal";
   }
 
-  return 'unknown';
+  return "unknown";
 }
 
 function inferKind(filename) {
   const extension = getExtension(filename);
 
-  if (extension === '.exe' || extension === '.msi' || extension === '.dmg' || extension === '.pkg') {
-    return 'installer';
+  if (
+    extension === ".exe" ||
+    extension === ".msi" ||
+    extension === ".dmg" ||
+    extension === ".pkg"
+  ) {
+    return "installer";
   }
 
-  if (extension === '.deb' || extension === '.rpm') {
-    return 'package';
+  if (extension === ".deb" || extension === ".rpm") {
+    return "package";
   }
 
-  if (extension === '.appimage') {
-    return 'portable';
+  if (extension === ".appimage") {
+    return "portable";
   }
 
-  return 'unknown';
+  return "unknown";
 }
 
 function compareAssets(left, right) {
-  return left.platform.localeCompare(right.platform)
-    || left.arch.localeCompare(right.arch)
-    || left.name.localeCompare(right.name);
+  return (
+    left.platform.localeCompare(right.platform) ||
+    left.arch.localeCompare(right.arch) ||
+    left.name.localeCompare(right.name)
+  );
 }
 
 async function githubJsonRequest(url, token) {
   const response = await fetch(url, {
     headers: {
-      Accept: 'application/vnd.github+json',
+      Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
-      'User-Agent': 'openfootmanager-release-manifest',
-      'X-GitHub-Api-Version': '2022-11-28',
+      "User-Agent": "openfootmanager-release-manifest",
+      "X-GitHub-Api-Version": "2022-11-28",
     },
   });
 
@@ -169,7 +176,7 @@ async function githubJsonRequest(url, token) {
 }
 
 function isFullSha(value) {
-  return /^[0-9a-f]{40}$/i.test(value ?? '');
+  return /^[0-9a-f]{40}$/i.test(value ?? "");
 }
 
 function parsePositiveInteger(value, fallback) {
@@ -182,10 +189,10 @@ function parsePositiveInteger(value, fallback) {
 }
 
 async function listWorkflowRuns(repository, workflowFile, token, branch) {
-  const searchParams = new URLSearchParams({ per_page: '100' });
+  const searchParams = new URLSearchParams({ per_page: "100" });
 
   if (branch) {
-    searchParams.set('branch', branch);
+    searchParams.set("branch", branch);
   }
 
   const url = `https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}/runs?${searchParams.toString()}`;
@@ -194,20 +201,26 @@ async function listWorkflowRuns(repository, workflowFile, token, branch) {
 }
 
 async function waitForWorkflowRunsToComplete(repository, workflowFile, token, branch, headSha) {
-  const pollIntervalMs = parsePositiveInteger(process.env.RELEASE_SOURCE_WORKFLOW_POLL_INTERVAL_MS, 10000);
-  const timeoutMs = parsePositiveInteger(process.env.RELEASE_SOURCE_WORKFLOW_TIMEOUT_MS, 30 * 60 * 1000);
+  const pollIntervalMs = parsePositiveInteger(
+    process.env.RELEASE_SOURCE_WORKFLOW_POLL_INTERVAL_MS,
+    10000,
+  );
+  const timeoutMs = parsePositiveInteger(
+    process.env.RELEASE_SOURCE_WORKFLOW_TIMEOUT_MS,
+    30 * 60 * 1000,
+  );
   const deadline = Date.now() + timeoutMs;
-  const normalizedHeadSha = isFullSha(headSha) ? headSha.toLowerCase() : '';
+  const normalizedHeadSha = isFullSha(headSha) ? headSha.toLowerCase() : "";
 
   while (true) {
     const workflowRuns = await listWorkflowRuns(repository, workflowFile, token, branch);
     const activeRuns = workflowRuns.filter((run) => {
-      if (!run.status || run.status === 'completed') {
+      if (!run.status || run.status === "completed") {
         return false;
       }
 
       if (normalizedHeadSha) {
-        return (run.head_sha ?? '').toLowerCase() === normalizedHeadSha;
+        return (run.head_sha ?? "").toLowerCase() === normalizedHeadSha;
       }
 
       return true;
@@ -218,10 +231,12 @@ async function waitForWorkflowRunsToComplete(repository, workflowFile, token, br
     }
 
     const runSummary = activeRuns
-      .map((run) => `${run.id}:${run.status}:${run.head_branch ?? 'unknown'}`)
-      .join(', ');
+      .map((run) => `${run.id}:${run.status}:${run.head_branch ?? "unknown"}`)
+      .join(", ");
 
-    console.log(`Waiting for ${workflowFile} to finish before generating the manifest: ${runSummary}`);
+    console.log(
+      `Waiting for ${workflowFile} to finish before generating the manifest: ${runSummary}`,
+    );
 
     if (Date.now() >= deadline) {
       throw new Error(`Timed out waiting for ${workflowFile} to complete.`);
@@ -234,11 +249,11 @@ async function waitForWorkflowRunsToComplete(repository, workflowFile, token, br
 async function downloadAsset(url, token) {
   const response = await fetch(url, {
     headers: {
-      Accept: 'application/octet-stream',
+      Accept: "application/octet-stream",
       Authorization: `Bearer ${token}`,
-      'User-Agent': 'openfootmanager-release-manifest',
+      "User-Agent": "openfootmanager-release-manifest",
     },
-    redirect: 'follow',
+    redirect: "follow",
   });
 
   if (!response.ok) {
@@ -255,7 +270,10 @@ async function resolveReleaseTag() {
     return process.env.RELEASE_TAG;
   }
 
-  const configContents = await readFile(new URL('../../src-tauri/tauri.conf.json', import.meta.url), 'utf8');
+  const configContents = await readFile(
+    new URL("../../src-tauri/tauri.conf.json", import.meta.url),
+    "utf8",
+  );
   const config = JSON.parse(configContents);
   return `v${config.version}`;
 }
@@ -282,17 +300,23 @@ async function fetchReleaseByTag(repository, tag, token) {
 }
 
 async function buildManifest() {
-  const repository = getRequiredEnv('GITHUB_REPOSITORY');
-  const token = getRequiredEnv('GITHUB_TOKEN');
-  const releaseStream = getOptionalEnv('RELEASE_STREAM', 'stable');
-  const manifestFilename = getOptionalEnv('RELEASE_MANIFEST_FILE', 'release-manifest.json');
-  const checksumsFilename = getOptionalEnv('RELEASE_CHECKSUMS_FILE', 'checksums.txt');
+  const repository = getRequiredEnv("GITHUB_REPOSITORY");
+  const token = getRequiredEnv("GITHUB_TOKEN");
+  const releaseStream = getOptionalEnv("RELEASE_STREAM", "stable");
+  const manifestFilename = getOptionalEnv("RELEASE_MANIFEST_FILE", "release-manifest.json");
+  const checksumsFilename = getOptionalEnv("RELEASE_CHECKSUMS_FILE", "checksums.txt");
   const sourceWorkflowFile = process.env.RELEASE_SOURCE_WORKFLOW_FILE;
   const sourceWorkflowBranch = process.env.RELEASE_SOURCE_WORKFLOW_BRANCH;
   const sourceWorkflowHeadSha = process.env.RELEASE_SOURCE_WORKFLOW_HEAD_SHA;
 
   if (sourceWorkflowFile) {
-    await waitForWorkflowRunsToComplete(repository, sourceWorkflowFile, token, sourceWorkflowBranch, sourceWorkflowHeadSha);
+    await waitForWorkflowRunsToComplete(
+      repository,
+      sourceWorkflowFile,
+      token,
+      sourceWorkflowBranch,
+      sourceWorkflowHeadSha,
+    );
   }
 
   const tag = await resolveReleaseTag();
@@ -301,14 +325,14 @@ async function buildManifest() {
 
   for (const asset of release.assets.filter(shouldIncludeAsset)) {
     const fileBuffer = await downloadAsset(asset.browser_download_url, token);
-    const sha256 = createHash('sha256').update(fileBuffer).digest('hex');
+    const sha256 = createHash("sha256").update(fileBuffer).digest("hex");
 
     assets.push({
       id: asset.id,
       name: asset.name,
-      label: asset.label ?? '',
+      label: asset.label ?? "",
       size: asset.size,
-      contentType: asset.content_type ?? 'application/octet-stream',
+      contentType: asset.content_type ?? "application/octet-stream",
       downloadUrl: asset.browser_download_url,
       sha256,
       platform: inferPlatform(asset.name),
@@ -326,24 +350,24 @@ async function buildManifest() {
 
   const manifest = {
     schemaVersion: 1,
-    product: 'Openfoot Manager',
+    product: "Openfoot Manager",
     repository,
     tag,
     // Rolling tags (e.g. `nightly`) carry no version, so the workflow supplies one.
-    version: process.env.RELEASE_VERSION || (tag.startsWith('v') ? tag.slice(1) : tag),
-    commit: release.target_commitish ?? '',
+    version: process.env.RELEASE_VERSION || (tag.startsWith("v") ? tag.slice(1) : tag),
+    commit: release.target_commitish ?? "",
     prerelease: Boolean(release.prerelease),
     publishedAt: release.published_at ?? release.created_at ?? new Date().toISOString(),
     releaseName: release.name ?? tag,
     releaseUrl: release.html_url,
-    notes: release.body ?? '',
+    notes: release.body ?? "",
     assets,
   };
 
   const checksumLines = assets.map((asset) => `${asset.sha256}  ${asset.name}`);
 
   await writeFile(manifestFilename, `${JSON.stringify(manifest, null, 2)}\n`);
-  await writeFile(checksumsFilename, `${checksumLines.join('\n')}\n`);
+  await writeFile(checksumsFilename, `${checksumLines.join("\n")}\n`);
 }
 
 buildManifest().catch((error) => {

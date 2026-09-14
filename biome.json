@@ -1,7 +1,17 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
   "files": {
-    "includes": ["**", "!src/App.css", "!src/i18n/locales/**", "!dist/**", "!src-tauri/target/**"]
+    "includes": [
+      "**",
+      "!src/App.css",
+      "!src/i18n/locales/**",
+      "!dist/**",
+      "!src-tauri/target/**",
+      "!src-tauri/gen/**",
+      "!src-tauri/crates/**/data/**",
+      "!docs/modding/examples/**",
+      "!package-lock.json"
+    ]
   },
   "formatter": {
     "enabled": true,

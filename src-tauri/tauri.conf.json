@@ -24,10 +24,7 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "$APPDATA/generated-player-portraits/**",
-          "$APPDATA/package-assets/**"
-        ]
+        "scope": ["$APPDATA/generated-player-portraits/**", "$APPDATA/package-assets/**"]
       }
     }
   },

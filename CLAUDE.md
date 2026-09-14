@@ -23,7 +23,7 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before your first non-trivia
 ```bash
 npm install                 # once
 npm test                    # vitest run — the full frontend suite (~150 test files)
-npx vitest run <path>        # a single file or directory, e.g. npx vitest run src/i18n
+npm exec --no -- vitest run <path>   # one file or directory (see the npx note below)
 npm run build               # tsc && vite build — type errors fail here
 npm run tauri dev           # run the real app (Vite + Tauri together)
 npm run audit:i18n          # advisory hardcoded-string report (see caveat below)
@@ -49,7 +49,19 @@ repository root.
   (`src-tauri/Cargo.toml`), so the binary target contains almost nothing.
 - **`npm run audit:i18n` never fails.** It is a heuristic reporter that prints candidates and
   exits 0 (`scripts/audit-i18n.mjs`). Read its output; do not treat a clean run as a pass. The
-  real i18n gate is `npx vitest run src/i18n`.
+  real i18n gate is `npm exec --no -- vitest run src/i18n`.
+
+### Never `npx <tool>` for a devDependency
+
+Use `npm run <script>`, or `npm exec --no -- <tool>` when you need an ad-hoc flag. `npm run` puts
+`node_modules/.bin` first on `PATH` and `npm exec --no` refuses to fetch from the registry, so
+neither can reach an impostor.
+
+This is not hypothetical here. There is an unrelated package on npm literally called `biome`,
+last published at 0.3.3. `npx biome` finds *that*, prints nothing, and exits 0 — so for most of
+this project's life the documented lint command was a no-op that looked like a pass. CI now
+asserts the version before trusting it, but the rule is what stops it recurring with the next
+tool.
 
 ---
 
