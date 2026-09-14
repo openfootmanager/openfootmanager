@@ -118,6 +118,7 @@ Read-only reviewers. Point them at your diff before you open a PR.
 | `ofm-architecture-reviewer` | Crate-boundary violations, layering inversions, SOLID and encapsulation smells, files that should be decomposed |
 | `i18n-auditor` | Untranslated user-facing strings, missing locale keys, `INTENTIONAL_SAME.json` misuse |
 | `ui-accessibility-reviewer` | Hardcoded colours, missing `dark:` pairs, missing focus rings, unlabelled controls, keyboard traps |
+| `ofm-dedup-reviewer` | A helper reimplemented under a new name, a second copy of an ordering or mapping, a modal shell rebuilt from scratch |
 
 ---
 
