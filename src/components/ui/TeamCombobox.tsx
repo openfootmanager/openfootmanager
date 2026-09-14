@@ -1,9 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
-import { useAssetDataUrl } from "../../hooks/useAssetDataUrl";
 import { TeamColorsDef } from "../menu/PackageEditor/types";
-import { GeneratedCrest } from "./GeneratedCrest";
 
 type TeamOption = {
   id: string;
@@ -26,22 +24,7 @@ function normaliseSearch(value: string): string {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-function TeamOptionLogo({ option, projectDir }: { option: TeamOption; projectDir?: string }) {
-  const logoUrl = useAssetDataUrl(option.logo, projectDir);
-
-  return logoUrl ? (
-    <img src={logoUrl} alt="" className="h-6 w-6 shrink-0 rounded object-contain border border-gray-200 dark:border-navy-600 dark:bg-navy-800" />
-  ) : (
-    <GeneratedCrest
-        name={option.label || "?"}
-        label={option.shortName || option.label?.slice(0, 3) || "?"}
-        colors={option.colors}
-        className="h-6 w-6"
-    />
-  );
-}
-
-export function TeamCombobox({ label, value, options, onChange, projectDir, placeholder }: TeamComboboxProps) {
+export function TeamCombobox({ label, value, options, onChange, placeholder }: TeamComboboxProps) {
   const { t } = useTranslation();
   const labelId = useId();
   const buttonId = useId();
@@ -74,7 +57,7 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
         normaliseSearch(option.label).includes(query) || normaliseSearch(option.id).includes(query),
     );
   }, [options, search]);
-  const active = Math.min(activeIndex, Math.max(filtered.length - 1, 0));
+  const active = Math.min(activeIndex, filtered.length);
   const selected = options.find((option) => option.id === value);
   const optionId = (index: number) => `${listboxId}-option-${index}`;
 
@@ -90,14 +73,15 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (filtered.length === 0 && event.key !== "Escape") return;
+    const optionCount = filtered.length + 1;
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        setActiveIndex((active + 1) % filtered.length);
+        setActiveIndex((active + 1) % optionCount);
         break;
       case "ArrowUp":
         event.preventDefault();
-        setActiveIndex((active - 1 + filtered.length) % filtered.length);
+        setActiveIndex((active - 1 + optionCount) % optionCount);
         break;
       case "Home":
         event.preventDefault();
@@ -105,11 +89,11 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
         break;
       case "End":
         event.preventDefault();
-        setActiveIndex(filtered.length - 1);
+        setActiveIndex(filtered.length);
         break;
       case "Enter":
         event.preventDefault();
-        select(filtered[active].id);
+        select(active === 0 ? "" : filtered[active - 1].id);
         break;
       case "Escape":
         event.preventDefault();
@@ -150,11 +134,6 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
           className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-left transition focus:outline-none focus:ring-2 focus:ring-primary-400 min-h-[38px]"
         >
           <span className={selected ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"}>
-            {selected && (
-              <span className="mr-2 inline-flex align-middle">
-                <TeamOptionLogo option={selected} projectDir={projectDir} />
-              </span>
-            )}
             {selected?.label ?? placeholder ?? "—"}
           </span>
           <ChevronDown className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -191,7 +170,9 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
                   <button
                     type="button"
                     role="option"
+                    id={optionId(0)}
                     aria-selected={value === ""}
+                    data-active={active === 0}
                     tabIndex={-1}
                     onMouseDown={(event) => {
                       event.preventDefault();
@@ -200,7 +181,7 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
                     onClick={(event) => {
                       if (event.detail === 0) select("");
                     }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${value === "" ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"}`}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${value === "" ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"} ${active === 0 ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
                   >
                     <span>{placeholder ?? "—"}</span>
                     {value === "" && <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />}
@@ -209,11 +190,11 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
                 {filtered.map((option, index) => (
                   <button
                     key={option.id}
-                    id={optionId(index)}
+                    id={optionId(index + 1)}
                     type="button"
                     role="option"
                     aria-selected={value === option.id}
-                    data-active={index === active}
+                    data-active={index + 1 === active}
                     tabIndex={-1}
                     onMouseDown={(event) => {
                       event.preventDefault();
@@ -222,10 +203,9 @@ export function TeamCombobox({ label, value, options, onChange, projectDir, plac
                     onClick={(event) => {
                       if (event.detail === 0) select(option.id);
                     }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${value === option.id ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"} ${index === active ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${value === option.id ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"} ${index + 1 === active ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
                   >
                     <span className="flex items-center gap-2">
-                      <TeamOptionLogo option={option} projectDir={projectDir} />
                       <span>{option.label}</span>
                     </span>
                     {value === option.id && <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />}

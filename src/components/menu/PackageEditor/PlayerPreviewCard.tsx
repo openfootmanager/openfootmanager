@@ -72,6 +72,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams, projectDir }: 
 
   const club = teams?.find((t) => t.id === editing.club);
   const clubName = club?.name ?? editing.club;
+  const clubLogoUrl = useAssetDataUrl(club?.logo, projectDir);
 
   const displayAttrs = editing.attributes
     ?? (editing.overall !== null ? estimateAttributesFromOvr(editing.overall, editing.position) : null);
@@ -185,8 +186,8 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams, projectDir }: 
               <span className="shrink-0">{t("worldEditor.playerClub")}:</span>
               {club ? (
                 <div className="flex items-center gap-1 min-w-0">
-                  {club.logo ? (
-                    <img src={useAssetDataUrl(club.logo, projectDir)??""} alt="" className="h-4 w-4 shrink-0 rounded object-contain border border-gray-200 dark:border-navy-600 dark:bg-navy-800" />
+                  {clubLogoUrl ? (
+                    <img src={clubLogoUrl} alt="" className="h-4 w-4 shrink-0 rounded object-contain border border-gray-200 dark:border-navy-600 dark:bg-navy-800" />
                   ) : (
                     <GeneratedCrest
                       name={club.name || club.id}
