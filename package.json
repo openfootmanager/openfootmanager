@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "biome lint",
+    "lint": "biome lint --error-on-warnings",
     "lint:fix": "biome lint --write",
     "format:check": "biome format",
     "test": "vitest run",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
+import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Card, CardBody, Badge, Select, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";

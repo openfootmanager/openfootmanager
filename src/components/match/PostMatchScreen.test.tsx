@@ -407,8 +407,8 @@ function makeGameState() {
   } as unknown as GameStateData;
 }
 
-describe("PostMatchScreen", function (): void {
-  it("renders the Team Talk tab by default for a manager", function (): void {
+describe("PostMatchScreen", (): void => {
+  it("renders the Team Talk tab by default for a manager", (): void => {
     render(
       <ThemeProvider>
         <PostMatchScreen
@@ -428,7 +428,7 @@ describe("PostMatchScreen", function (): void {
     expect(screen.getByText("match.playerRatings")).toBeInTheDocument();
   });
 
-  it("switches to Match Report tab and shows scorers section", function (): void {
+  it("switches to Match Report tab and shows scorers section", (): void => {
     render(
       <ThemeProvider>
         <PostMatchScreen
@@ -449,7 +449,7 @@ describe("PostMatchScreen", function (): void {
     expect(screen.getByText("match.quickStats")).toBeInTheDocument();
   });
 
-  it("renders Match Report tab by default for a spectator", function (): void {
+  it("renders Match Report tab by default for a spectator", (): void => {
     render(
       <ThemeProvider>
         <PostMatchScreen
@@ -467,7 +467,7 @@ describe("PostMatchScreen", function (): void {
     expect(screen.getByText("match.scorers")).toBeInTheDocument();
   });
 
-  it("calls onContinue when manager clicks Continue", function (): void {
+  it("calls onContinue when manager clicks Continue", (): void => {
     const onContinue = vi.fn();
     const onFinish = vi.fn();
     render(
@@ -489,7 +489,7 @@ describe("PostMatchScreen", function (): void {
     expect(onFinish).not.toHaveBeenCalled();
   });
 
-  it("calls onFinish when spectator clicks Continue to Dashboard", function (): void {
+  it("calls onFinish when spectator clicks Continue to Dashboard", (): void => {
     const onContinue = vi.fn();
     const onFinish = vi.fn();
     render(
@@ -511,7 +511,7 @@ describe("PostMatchScreen", function (): void {
     expect(onContinue).not.toHaveBeenCalled();
   });
 
-  it("resolves a level score via the shootout and shows the pens score", function (): void {
+  it("resolves a level score via the shootout and shows the pens score", (): void => {
     // Regression: shootout kicks used to be folded into the match score, so a
     // 1-1 tie won on penalties displayed as 5-4 and the verdict came from the
     // inflated score. Now the score stays level and the shootout decides.
@@ -546,7 +546,7 @@ describe("PostMatchScreen", function (): void {
     expect(screen.getByText(/match\.pen 5–4/)).toBeInTheDocument();
   });
 
-  it("keeps a level score without a shootout as a draw", function (): void {
+  it("keeps a level score without a shootout as a draw", (): void => {
     const snapshot = {
       ...makeSnapshot(),
       home_score: 1,
@@ -571,7 +571,7 @@ describe("PostMatchScreen", function (): void {
     expect(screen.queryByText(/match\.pen \d/)).not.toBeInTheDocument();
   });
 
-  it("shows a defeat verdict when the user loses the shootout", function (): void {
+  it("shows a defeat verdict when the user loses the shootout", (): void => {
     const snapshot = {
       ...makeSnapshot(),
       home_score: 1,
@@ -601,7 +601,7 @@ describe("PostMatchScreen", function (): void {
     expect(screen.getByText("match.defeat")).toBeInTheDocument();
   });
 
-  it("calls onFinish when manager clicks Skip", function (): void {
+  it("calls onFinish when manager clicks Skip", (): void => {
     const onContinue = vi.fn();
     const onFinish = vi.fn();
     render(
@@ -632,8 +632,8 @@ function makeEvent(event_type: string, side: "Home" | "Away", zone = "Midfield")
   return { minute: 1, event_type, side, zone, player_id: null, secondary_player_id: null };
 }
 
-describe("computeGoalSources", function (): void {
-  it("counts open-play goals", function (): void {
+describe("computeGoalSources", (): void => {
+  it("counts open-play goals", (): void => {
     const events: MatchEvent[] = [makeEvent("Goal", "Home")];
     expect(computeGoalSources(events, "Home")).toEqual({
       openPlay: 1,
@@ -643,7 +643,7 @@ describe("computeGoalSources", function (): void {
     });
   });
 
-  it("counts corner goals for the correct side only", function (): void {
+  it("counts corner goals for the correct side only", (): void => {
     // Away earns a corner, but Home scores — should be open play for Home, not corner
     const events: MatchEvent[] = [makeEvent("Corner", "Away"), makeEvent("Goal", "Home")];
     expect(computeGoalSources(events, "Home")).toEqual({
@@ -662,7 +662,7 @@ describe("computeGoalSources", function (): void {
     });
   });
 
-  it("only counts attacking-third free kicks as set-piece windows", function (): void {
+  it("only counts attacking-third free kicks as set-piece windows", (): void => {
     // Home FK in HomeDefense (their own third) should NOT open a set-piece window
     const defensive = makeEvent("FreeKick", "Home", "HomeDefense");
     const goal = makeEvent("Goal", "Home");
@@ -682,7 +682,7 @@ describe("computeGoalSources", function (): void {
     });
   });
 
-  it("clears the set-piece window on defensive events", function (): void {
+  it("clears the set-piece window on defensive events", (): void => {
     const events: MatchEvent[] = [
       makeEvent("Corner", "Home"),
       makeEvent("Clearance", "Away"),
@@ -696,7 +696,7 @@ describe("computeGoalSources", function (): void {
     });
   });
 
-  it("counts penalty goals", function (): void {
+  it("counts penalty goals", (): void => {
     const events: MatchEvent[] = [makeEvent("PenaltyGoal", "Home")];
     expect(computeGoalSources(events, "Home")).toEqual({
       openPlay: 0,

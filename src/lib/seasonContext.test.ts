@@ -79,8 +79,8 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
   };
 }
 
-describe("seasonContext", function (): void {
-  it("derives preseason state when backend season_context is missing", function (): void {
+describe("seasonContext", (): void => {
+  it("derives preseason state when backend season_context is missing", (): void => {
     const context = resolveSeasonContext(createGameState());
 
     expect(context.phase).toBe("Preseason");
@@ -90,7 +90,7 @@ describe("seasonContext", function (): void {
     expect(hasCompetitiveStandings(createGameState())).toBe(false);
   });
 
-  it("prefers the backend-provided season_context when present", function (): void {
+  it("prefers the backend-provided season_context when present", (): void => {
     const gameState = createGameState({
       season_context: {
         phase: "InSeason",
@@ -114,7 +114,7 @@ describe("seasonContext", function (): void {
     expect(hasCompetitiveStandings(gameState)).toBe(true);
   });
 
-  it("ignores preseason friendlies when deriving the competitive season start", function (): void {
+  it("ignores preseason friendlies when deriving the competitive season start", (): void => {
     const gameState = createGameState({
       league: {
         id: "league-1",
@@ -173,7 +173,7 @@ describe("seasonContext", function (): void {
     expect(context.season_start).toBe("2026-08-01");
   });
 
-  it("keeps the transfer window closed before the preseason opening threshold", function (): void {
+  it("keeps the transfer window closed before the preseason opening threshold", (): void => {
     const context = resolveSeasonContext(
       createGameState({
         clock: {
@@ -189,7 +189,7 @@ describe("seasonContext", function (): void {
     expect(context.transfer_window.closes_on).toBe("2026-08-31");
   });
 
-  it("rolls the next transfer opening forward after the current window closes", function (): void {
+  it("rolls the next transfer opening forward after the current window closes", (): void => {
     const context = resolveSeasonContext(
       createGameState({
         clock: {
@@ -205,7 +205,7 @@ describe("seasonContext", function (): void {
     expect(context.transfer_window.closes_on).toBe("2027-08-31");
   });
 
-  it("marks deadline day when the transfer window reaches its closing threshold", function (): void {
+  it("marks deadline day when the transfer window reaches its closing threshold", (): void => {
     const context = resolveSeasonContext(
       createGameState({
         clock: {

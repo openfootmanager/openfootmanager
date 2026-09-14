@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { LeagueData, WorldRegionData } from "../store/gameStore";
+import type { LeagueData, WorldRegionData } from "../store/gameStore";
 import { countryName } from "../lib/countries";
 import { competitionDisplayName } from "../lib/competitionName";
 import { buildRegionLabel } from "../lib/teamRegions";

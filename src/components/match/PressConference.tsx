@@ -2,8 +2,8 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot } from "./types";
+import type { GameStateData } from "../../store/gameStore";
+import type { MatchSnapshot } from "./types";
 import { Badge, ThemeToggle } from "../ui";
 import { ChevronRight, Mic, MessageSquare } from "lucide-react";
 
@@ -127,7 +127,7 @@ function generateQuestions(
       (e.event_type === "Goal" || e.event_type === "PenaltyGoal") &&
       e.player_id,
   );
-  let focusPlayer =
+  const focusPlayer =
     goalEvents.length > 0
       ? userTeam.players.find((p) => p.id === goalEvents[0].player_id)
       : userTeam.players[Math.floor(Math.random() * Math.min(userTeam.players.length, 5))];

@@ -134,8 +134,8 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   };
 }
 
-describe("PlayerProfile.helpers", function (): void {
-  it("resolves the player team name with free-agent and unknown fallbacks", function (): void {
+describe("PlayerProfile.helpers", (): void => {
+  it("resolves the player team name with free-agent and unknown fallbacks", (): void => {
     const teams = [createTeam()];
 
     expect(
@@ -158,26 +158,26 @@ describe("PlayerProfile.helpers", function (): void {
     ).toBe("Unknown");
   });
 
-  it("calculates age relative to an as-of date instead of just the birth year", function (): void {
+  it("calculates age relative to an as-of date instead of just the birth year", (): void => {
     expect(getPlayerAge("2000-07-02", "2026-07-01")).toBe(25);
     expect(getPlayerAge("2000-07-01", "2026-07-01")).toBe(26);
   });
 
-  it("formats market values across value ranges", function (): void {
+  it("formats market values across value ranges", (): void => {
     expect(formatPlayerMarketValue(999)).toBe("€999");
     expect(formatPlayerMarketValue(125000)).toBe("€125K");
     expect(formatPlayerMarketValue(2500000)).toBe("€2.5M");
   });
 
-  it("formats annual wages as weekly display values", function (): void {
+  it("formats annual wages as weekly display values", (): void => {
     expect(formatPlayerWage(52000, "/wk")).toMatch(/^€1[.,]000\/wk$/);
   });
 
-  it("formats current player wages as annual display values", function (): void {
+  it("formats current player wages as annual display values", (): void => {
     expect(formatPlayerAnnualWage(52000, "/yr")).toBe("€52K/yr");
   });
 
-  it("respects the selected settings currency for market values and wages", function (): void {
+  it("respects the selected settings currency for market values and wages", (): void => {
     useSettingsStore.setState({
       settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
       currency: SUPPORTED_CURRENCIES.GBP,
@@ -187,7 +187,7 @@ describe("PlayerProfile.helpers", function (): void {
     expect(formatPlayerWage(52000, "/wk")).toBe("£860/wk");
   });
 
-  it("maps attribute values to readable shared color classes", function (): void {
+  it("maps attribute values to readable shared color classes", (): void => {
     expect(getAttributeColorClass(85)).toContain("text-success-600");
     expect(getAttributeColorClass(70)).toContain("text-success-600");
     expect(getAttributeColorClass(65)).toContain("text-accent-700");
@@ -196,7 +196,7 @@ describe("PlayerProfile.helpers", function (): void {
     expect(getAttributeColorClass(20)).toContain("text-red-600");
   });
 
-  it("resolves injury names for explicit keys and plain injuries", function (): void {
+  it("resolves injury names for explicit keys and plain injuries", (): void => {
     const translate = (key: string, options?: { defaultValue?: unknown }): string => {
       return typeof options?.defaultValue === "string" ? `${key}:${options.defaultValue}` : key;
     };
@@ -209,7 +209,7 @@ describe("PlayerProfile.helpers", function (): void {
     );
   });
 
-  it("builds advanced stats with per-90 values, pass accuracy, and exact-position percentiles", function (): void {
+  it("builds advanced stats with per-90 values, pass accuracy, and exact-position percentiles", (): void => {
     const player = createPlayer();
     const peers = [
       player,
@@ -260,7 +260,7 @@ describe("PlayerProfile.helpers", function (): void {
     expect(summary.metrics.foulsCommitted.per90).toBe(1);
   });
 
-  it("hides percentiles when the player is below the minutes threshold or the cohort is too small", function (): void {
+  it("hides percentiles when the player is below the minutes threshold or the cohort is too small", (): void => {
     const basePlayer = createPlayer();
     const underThresholdPlayer = createPlayer({
       stats: {

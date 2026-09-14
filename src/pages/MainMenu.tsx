@@ -6,7 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useGameStore, GameStateData } from "../store/gameStore";
+import { useGameStore, type GameStateData } from "../store/gameStore";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import type { CareerStartPhase, CreateManagerFormData } from "../components/menu/CreateManagerForm";
 import type { PackageInfo, PackageIssue } from "../components/menu/WorldSelect";

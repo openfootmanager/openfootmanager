@@ -316,15 +316,15 @@ const defaultProps = {
   onFinish: vi.fn(),
 };
 
-describe("RoundDigestScreen", function () {
-  it("renders the matchday heading and league name for a league fixture", function () {
+describe("RoundDigestScreen", () => {
+  it("renders the matchday heading and league name for a league fixture", () => {
     render(<RoundDigestScreen {...defaultProps} />);
 
     expect(screen.getByText(/Matchday 1/)).toBeInTheDocument();
     expect(screen.getByText("match.roundSummary")).toBeInTheDocument();
   });
 
-  it("renders the hero result card with score and win badge", function () {
+  it("renders the hero result card with score and win badge", () => {
     render(<RoundDigestScreen {...defaultProps} />);
 
     expect(screen.getByText("match.yourResult")).toBeInTheDocument();
@@ -333,7 +333,7 @@ describe("RoundDigestScreen", function () {
     expect(screen.getAllByText("Beta FC").length).toBeGreaterThan(0);
   });
 
-  it("renders the standings and top scorers for a league fixture", function () {
+  it("renders the standings and top scorers for a league fixture", () => {
     render(<RoundDigestScreen {...defaultProps} />);
 
     expect(screen.getByText("tournaments.leagueTable")).toBeInTheDocument();
@@ -341,7 +341,7 @@ describe("RoundDigestScreen", function () {
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
-  it("does not render standings or top scorers for a friendly", function () {
+  it("does not render standings or top scorers for a friendly", () => {
     render(<RoundDigestScreen {...defaultProps} isLeagueFixture={false} roundSummary={null} />);
 
     expect(screen.queryByText("tournaments.leagueTable")).not.toBeInTheDocument();
@@ -349,13 +349,13 @@ describe("RoundDigestScreen", function () {
     expect(screen.getAllByText("match.otherMatches").length).toBeGreaterThan(0);
   });
 
-  it("renders position context with points when standings are available", function () {
+  it("renders position context with points when standings are available", () => {
     render(<RoundDigestScreen {...defaultProps} />);
 
     expect(screen.getByText(/match\.pts/)).toBeInTheDocument();
   });
 
-  it("renders the notable upset card when one is present", function () {
+  it("renders the notable upset card when one is present", () => {
     const summary = {
       ...makeRoundSummary(),
       notable_upset: {
@@ -378,7 +378,7 @@ describe("RoundDigestScreen", function () {
     expect(screen.getAllByText(/Beta FC/).length).toBeGreaterThan(0);
   });
 
-  it("calls onPressConference when the press conference button is clicked", function () {
+  it("calls onPressConference when the press conference button is clicked", () => {
     const onPressConference = vi.fn();
     render(<RoundDigestScreen {...defaultProps} onPressConference={onPressConference} />);
 
@@ -386,7 +386,7 @@ describe("RoundDigestScreen", function () {
     expect(onPressConference).toHaveBeenCalledOnce();
   });
 
-  it("calls onFinish when the skip button is clicked", function () {
+  it("calls onFinish when the skip button is clicked", () => {
     const onFinish = vi.fn();
     render(<RoundDigestScreen {...defaultProps} onFinish={onFinish} />);
 
@@ -394,7 +394,7 @@ describe("RoundDigestScreen", function () {
     expect(onFinish).toHaveBeenCalledOnce();
   });
 
-  it("opens and closes the other-match details modal", function () {
+  it("opens and closes the other-match details modal", () => {
     const gameStateWithReport = {
       ...makeGameState(),
       league: {

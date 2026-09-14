@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { GameStateData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import {
-  MatchSnapshot,
-  MatchEvent,
-  MinuteResult,
-  SimSpeed,
+  type MatchSnapshot,
+  type MatchEvent,
+  type MinuteResult,
+  type SimSpeed,
   SPEED_MS,
   MINUTES_PER_TICK,
   FORMATIONS,

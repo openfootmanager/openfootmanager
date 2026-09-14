@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { useSettingsStore, AppSettings } from "../store/settingsStore";
+import { useSettingsStore, type AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";

@@ -40,8 +40,8 @@ function createGameState(): GameStateData {
   };
 }
 
-describe("dashboardTabContentModel", function (): void {
-  it("derives the manager id and preserves handler references", function (): void {
+describe("dashboardTabContentModel", (): void => {
+  it("derives the manager id and preserves handler references", (): void => {
     const onSelectPlayer = vi.fn();
     const onSelectTeam = vi.fn();
     const onGameUpdate = vi.fn();

@@ -42,14 +42,14 @@ const matchOnDay: AdvanceMatchResultData = {
   involves_user: true,
 };
 
-describe("advanceRecap", function (): void {
-  it("derives the advanced-to date from the new clock", function (): void {
+describe("advanceRecap", (): void => {
+  it("derives the advanced-to date from the new clock", (): void => {
     expect(toDatePart("2026-07-02T00:00:00Z")).toBe("2026-07-02");
     const recap = buildAdvanceRecap(createGame(), "2026-07-01", []);
     expect(recap.advancedTo).toBe("2026-07-02");
   });
 
-  it("reports no events on a quiet advance", function (): void {
+  it("reports no events on a quiet advance", (): void => {
     const recap = buildAdvanceRecap(createGame(), "2026-07-01", []);
     expect(recap.hasEvents).toBe(false);
     expect(recap.matches).toEqual([]);
@@ -58,7 +58,7 @@ describe("advanceRecap", function (): void {
     expect(recap.inbox).toEqual([]);
   });
 
-  it("collects transfers from the advance, resolving names and user involvement", function (): void {
+  it("collects transfers from the advance, resolving names and user involvement", (): void => {
     const game = createGame({
       league: {
         id: "league-1",
@@ -100,7 +100,7 @@ describe("advanceRecap", function (): void {
     expect(recap.hasEvents).toBe(true);
   });
 
-  it("keeps key news but drops routine and transfer-duplicate categories", function (): void {
+  it("keeps key news but drops routine and transfer-duplicate categories", (): void => {
     const game = createGame({
       news: [
         {
@@ -147,7 +147,7 @@ describe("advanceRecap", function (): void {
     });
   });
 
-  it("keeps completed loan move news in the advance recap", function (): void {
+  it("keeps completed loan move news in the advance recap", (): void => {
     const game = createGame({
       news: [
         {
@@ -200,7 +200,7 @@ describe("advanceRecap", function (): void {
     expect(recap.hasEvents).toBe(true);
   });
 
-  it("collects only high-priority inbox items from the advance", function (): void {
+  it("collects only high-priority inbox items from the advance", (): void => {
     const game = createGame({
       messages: [
         {
@@ -238,7 +238,7 @@ describe("advanceRecap", function (): void {
     expect(recap.inbox[0].textKey).toBe("be.msg.transferInterest.subject");
   });
 
-  it("reads transfer_log from competitions, not the deprecated league mirror", function (): void {
+  it("reads transfer_log from competitions, not the deprecated league mirror", (): void => {
     // When competitions are present they take precedence over game.league.
     const game = createGame({
       competitions: [
@@ -269,7 +269,7 @@ describe("advanceRecap", function (): void {
     expect(recap.transfers[0].fee).toBe(5_000_000);
   });
 
-  it("flags match results as events", function (): void {
+  it("flags match results as events", (): void => {
     const recap = buildAdvanceRecap(createGame(), "2026-07-01", [matchOnDay]);
     expect(recap.matches).toHaveLength(1);
     expect(recap.hasEvents).toBe(true);
@@ -294,7 +294,7 @@ describe("advanceRecap", function (): void {
     };
   }
 
-  it("keeps future-dated news out of days before the event", function (): void {
+  it("keeps future-dated news out of days before the event", (): void => {
     // Advancing Jan 1 → Jan 2 with the kickoff article dated June 11. A
     // same-day article proves the window is the non-empty [Jan 1, Jan 2) and
     // only the future-dated item is excluded.
@@ -319,7 +319,7 @@ describe("advanceRecap", function (): void {
     expect(recap.news.map((article) => article.id)).toEqual(["same-day-editorial"]);
   });
 
-  it("surfaces future-dated news exactly on the day it is dated", function (): void {
+  it("surfaces future-dated news exactly on the day it is dated", (): void => {
     // The digest builds each entry with sinceDate == the day just processed
     // and the clock already moved to the next day, so the window is
     // [sinceDate, clock): the article appears in the June 11 entry only.
@@ -347,7 +347,7 @@ describe("advanceRecap", function (): void {
     expect(dayAfter.news).toEqual([]);
   });
 
-  it("keeps future-dated inbox messages and transfers out of earlier days", function (): void {
+  it("keeps future-dated inbox messages and transfers out of earlier days", (): void => {
     const game = createGame({
       clock: { current_date: "2026-01-02T00:00:00Z", start_date: "2026-01-01T00:00:00Z" },
       messages: [
@@ -401,7 +401,7 @@ describe("advanceRecap", function (): void {
     expect(recap.transfers.map((transfer) => transfer.fee)).toEqual([500_000]);
   });
 
-  it("accepts a full timestamp as sinceDate, not just a bare day", function (): void {
+  it("accepts a full timestamp as sinceDate, not just a bare day", (): void => {
     // Defence-in-depth: current callers pass YYYY-MM-DD, but the lower bound
     // is day-normalized so an rfc3339 timestamp compares correctly too
     // ("2026-07-01T00:00:00Z" > "2026-07-01" would wrongly exclude same-day items).
@@ -424,7 +424,7 @@ describe("advanceRecap", function (): void {
     expect(recap.news.map((article) => article.id)).toEqual(["same-day-editorial"]);
   });
 
-  it("still includes same-window items when the clock is missing", function (): void {
+  it("still includes same-window items when the clock is missing", (): void => {
     // A defensive path: with no clock the window has no upper bound, so
     // behavior falls back to the old `>= sinceDate` filter.
     const game = createGame({
@@ -437,16 +437,16 @@ describe("advanceRecap", function (): void {
   });
 });
 
-describe("nextDay", function (): void {
-  it("advances a day, crossing month and year boundaries", function (): void {
+describe("nextDay", (): void => {
+  it("advances a day, crossing month and year boundaries", (): void => {
     expect(nextDay("2026-07-01")).toBe("2026-07-02");
     expect(nextDay("2026-06-30")).toBe("2026-07-01");
     expect(nextDay("2026-12-31")).toBe("2027-01-01");
   });
 });
 
-describe("buildDigestEntries", function (): void {
-  it("splits a batch advance into per-day entries scoped to each day", function (): void {
+describe("buildDigestEntries", (): void => {
+  it("splits a batch advance into per-day entries scoped to each day", (): void => {
     // Three processed days (clock landed on Jul 4). Each item must appear in
     // exactly the entry of the day it is dated on.
     const game = createGame({
@@ -481,7 +481,7 @@ describe("buildDigestEntries", function (): void {
     expect(entries[1].recap.advancedTo).toBe("2026-07-03");
   });
 
-  it("splits per day even when sinceDate arrives as a full timestamp", function (): void {
+  it("splits per day even when sinceDate arrives as a full timestamp", (): void => {
     const game = createGame({
       clock: { current_date: "2026-07-03T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
     });
@@ -490,7 +490,7 @@ describe("buildDigestEntries", function (): void {
     expect(entries[0].recap.matches).toHaveLength(1);
   });
 
-  it("includes quiet days so the feed mirrors the streaming digest", function (): void {
+  it("includes quiet days so the feed mirrors the streaming digest", (): void => {
     const game = createGame({
       clock: { current_date: "2026-07-03T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
     });
@@ -499,7 +499,7 @@ describe("buildDigestEntries", function (): void {
     expect(entries.every((entry) => !entry.recap.hasEvents)).toBe(true);
   });
 
-  it("falls back to a single catch-all entry when no day window can be derived", function (): void {
+  it("falls back to a single catch-all entry when no day window can be derived", (): void => {
     const game = createGame({ clock: null } as unknown as Partial<GameStateData>);
 
     // Even a quiet advance renders one entry rather than an empty feed.
@@ -520,17 +520,17 @@ describe("buildDigestEntries", function (): void {
   });
 });
 
-describe("detectAttentionEvents", function (): void {
+describe("detectAttentionEvents", (): void => {
   function recapFor(game: GameStateData, sinceDate = "2026-07-01") {
     return buildAdvanceRecap(game, sinceDate, []);
   }
 
-  it("reports nothing on a quiet day", function (): void {
+  it("reports nothing on a quiet day", (): void => {
     const game = createGame();
     expect(detectAttentionEvents(game, recapFor(game))).toEqual([]);
   });
 
-  it("stops on a new high-priority inbox item", function (): void {
+  it("stops on a new high-priority inbox item", (): void => {
     const game = createGame({
       messages: [
         {
@@ -550,7 +550,7 @@ describe("detectAttentionEvents", function (): void {
     expect(detectAttentionEvents(game, recapFor(game))).toEqual(["highPriorityInbox"]);
   });
 
-  it("stops on a transfer involving the user's club, not on others", function (): void {
+  it("stops on a transfer involving the user's club, not on others", (): void => {
     const transfer = (from: string, to: string) => ({
       date: "2026-07-01",
       from_team_id: from,
@@ -577,7 +577,7 @@ describe("detectAttentionEvents", function (): void {
     expect(detectAttentionEvents(otherGame, recapFor(otherGame))).toEqual([]);
   });
 
-  it("stops on key news tagging the user's club or squad players", function (): void {
+  it("stops on key news tagging the user's club or squad players", (): void => {
     const article = (id: string, teamIds: string[], playerIds: string[]) => ({
       id,
       headline: "",
@@ -606,7 +606,7 @@ describe("detectAttentionEvents", function (): void {
     expect(detectAttentionEvents(rivalGame, recapFor(rivalGame))).toEqual([]);
   });
 
-  it("detects a user transfer pushed out of the displayed section by truncation", function (): void {
+  it("detects a user transfer pushed out of the displayed section by truncation", (): void => {
     // Nine same-day transfers: the user's carries the lexicographically
     // smallest date, so the newest-first sort + MAX_PER_SECTION slice drops
     // it from the displayed list — detection must still fire.
@@ -637,7 +637,7 @@ describe("detectAttentionEvents", function (): void {
     expect(detectAttentionEvents(game, recap)).toEqual(["userTransfer"]);
   });
 
-  it("detects user news pushed out of the displayed section by truncation", function (): void {
+  it("detects user news pushed out of the displayed section by truncation", (): void => {
     const article = (id: string, teamIds: string[], date: string) => ({
       id,
       headline: "",
@@ -663,7 +663,7 @@ describe("detectAttentionEvents", function (): void {
     expect(detectAttentionEvents(game, recap)).toEqual(["userNews"]);
   });
 
-  it("stops when landing on a transfer-window open or deadline day", function (): void {
+  it("stops when landing on a transfer-window open or deadline day", (): void => {
     const withWindow = (window: Record<string, unknown>) =>
       createGame({
         season_context: {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
+import type {
   GameStateData,
   LoanOfferData,
   PlayerData,
@@ -37,7 +37,7 @@ import { countryName } from "../../lib/countries";
 import { translatePositionAbbreviation, translatePositionLabel } from "../squad/SquadTab.helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { formatDate } from "../../lib/dateFormatting";
-import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
+import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import TransferBidModal, { TransferBidForm } from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
 import LoanOfferModal, { LoanOfferForm } from "./LoanOfferModal";

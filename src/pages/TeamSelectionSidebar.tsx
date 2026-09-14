@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { LeagueData, PlayerData, TeamData } from "../store/gameStore";
+import type { LeagueData, PlayerData, TeamData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
 import { competitionDisplayName } from "../lib/competitionName";
 import { Badge, Card, CardBody, TeamLocation } from "../components/ui";

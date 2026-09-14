@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS } from "./types";
+import type { GameStateData } from "../../store/gameStore";
+import { type MatchSnapshot, type MatchEvent, type MinuteResult, type SimSpeed, SPEED_MS } from "./types";
 import { Play, Pause, FastForward, SkipForward } from "lucide-react";
 import { TeamLogo } from "../ui";
 

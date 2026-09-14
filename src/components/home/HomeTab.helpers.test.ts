@@ -18,7 +18,7 @@ import {
   saveVisitedOnboardingTabs,
 } from "./HomeTab.helpers";
 
-beforeEach(function (): void {
+beforeEach((): void => {
   localStorage.clear();
 });
 
@@ -210,8 +210,8 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
   };
 }
 
-describe("HomeTab.helpers", function (): void {
-  it("derives the next opponent widget data from the next scheduled fixture", function (): void {
+describe("HomeTab.helpers", (): void => {
+  it("derives the next opponent widget data from the next scheduled fixture", (): void => {
     const gameState = createGameState({
       teams: [
         createTeam(),
@@ -282,7 +282,7 @@ describe("HomeTab.helpers", function (): void {
     expect(result?.recentForm).toEqual(["W", "D", "W"]);
   });
 
-  it("derives the next opponent from the user's competition when game.league is a stale all-teams league", function (): void {
+  it("derives the next opponent from the user's competition when game.league is a stale all-teams league", (): void => {
     const gameState = createGameState({
       season_context: {
         phase: "InSeason",
@@ -375,7 +375,7 @@ describe("HomeTab.helpers", function (): void {
     expect(result?.standingPoints).toBe(3);
   });
 
-  it("returns the latest league digest articles in reverse chronological order", function (): void {
+  it("returns the latest league digest articles in reverse chronological order", (): void => {
     const gameState = createGameState({
       news: [
         createNewsArticle({
@@ -401,7 +401,7 @@ describe("HomeTab.helpers", function (): void {
     expect(result.map((article) => article.id)).toEqual(["standings-news", "roundup-news"]);
   });
 
-  it("builds roster overview metrics, unavailable players, and momentum groups", function (): void {
+  it("builds roster overview metrics, unavailable players, and momentum groups", (): void => {
     const roster = [
       createPlayer({
         id: "player-hot",
@@ -440,7 +440,7 @@ describe("HomeTab.helpers", function (): void {
     expect(result.coldPlayers.map((player) => player.id)).toEqual(["player-cold"]);
   });
 
-  it("returns the latest completed results for the managed team", function (): void {
+  it("returns the latest completed results for the managed team", (): void => {
     const gameState = createGameState({
       teams: [
         createTeam(),
@@ -505,7 +505,7 @@ describe("HomeTab.helpers", function (): void {
     });
   });
 
-  it("reads recent results from the user's competitions, ignoring a stale league", function (): void {
+  it("reads recent results from the user's competitions, ignoring a stale league", (): void => {
     const gameState = createGameState({
       teams: [createTeam(), createTeam({ id: "team-2", name: "Beta FC" })],
       active_competition_ids: ["comp-domestic"],
@@ -561,7 +561,7 @@ describe("HomeTab.helpers", function (): void {
     expect(result[0]).toMatchObject({ myGoals: 3, opponentGoals: 1, resultCode: "W" });
   });
 
-  it("starts with no visited onboarding pages and no read inbox step", function (): void {
+  it("starts with no visited onboarding pages and no read inbox step", (): void => {
     const state = getOnboardingCompletionState(createGameState(), new Set<string>());
 
     expect(state.hasVisitedSquadPage).toBe(false);
@@ -572,7 +572,7 @@ describe("HomeTab.helpers", function (): void {
     expect(state.completedSteps).toBe(0);
   });
 
-  it("marks visited onboarding pages as done", function (): void {
+  it("marks visited onboarding pages as done", (): void => {
     const state = getOnboardingCompletionState(
       createGameState(),
       new Set<string>(["Squad", "Tactics"]),
@@ -585,7 +585,7 @@ describe("HomeTab.helpers", function (): void {
     expect(state.completedSteps).toBe(2);
   });
 
-  it("marks inbox complete after at least one message is read", function (): void {
+  it("marks inbox complete after at least one message is read", (): void => {
     const gameState = createGameState({
       messages: [
         createMessage({
@@ -605,7 +605,7 @@ describe("HomeTab.helpers", function (): void {
     expect(state.hasReadInbox).toBe(true);
   });
 
-  it("counts page visits together with the inbox step", function (): void {
+  it("counts page visits together with the inbox step", (): void => {
     const gameState = createGameState({
       messages: [
         createMessage({
@@ -622,7 +622,7 @@ describe("HomeTab.helpers", function (): void {
     expect(state.completedSteps).toBe(4);
   });
 
-  it("hides onboarding after the first week", function (): void {
+  it("hides onboarding after the first week", (): void => {
     const gameState = createGameState({
       clock: {
         current_date: "2025-01-10T00:00:00Z",
@@ -635,7 +635,7 @@ describe("HomeTab.helpers", function (): void {
     expect(state.showOnboarding).toBe(false);
   });
 
-  it("persists visited onboarding tabs per save", function (): void {
+  it("persists visited onboarding tabs per save", (): void => {
     const gameState = createGameState();
     const otherGameState = createGameState({
       clock: {
@@ -657,7 +657,7 @@ describe("HomeTab.helpers", function (): void {
     expect(Array.from(loadVisitedOnboardingTabs(otherGameState, localStorage))).toEqual([]);
   });
 
-  it("isolates visited onboarding tabs by active save id", function (): void {
+  it("isolates visited onboarding tabs by active save id", (): void => {
     const gameState = createGameState();
 
     saveVisitedOnboardingTabs(
@@ -674,7 +674,7 @@ describe("HomeTab.helpers", function (): void {
     expect(Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-b"))).toEqual([]);
   });
 
-  it("keeps onboarding completed after reloading persisted progress", function (): void {
+  it("keeps onboarding completed after reloading persisted progress", (): void => {
     const gameState = createGameState({
       messages: [
         createMessage({

@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 
-import { GameStateData, LeagueData, PlayerData, WorldRegionData } from "../store/gameStore";
+import type { GameStateData, LeagueData, PlayerData, WorldRegionData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FixtureData, GameStateData } from "../../store/gameStore";
+import type { FixtureData, GameStateData } from "../../store/gameStore";
 import type { CompactMatchEventData } from "../../store/types";
-import { MatchSnapshot, MatchEvent, RoundSummary } from "./types";
+import type { MatchSnapshot, MatchEvent, RoundSummary } from "./types";
 import { getEventDisplay, makeTeamFallback } from "./helpers";
 import { QuickStat } from "./PostMatchHelpers";
 import { Badge, TeamLogo } from "../ui";

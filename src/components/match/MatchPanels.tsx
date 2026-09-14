@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
+import type { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
 import { getEventDisplay, getEventTypeLabel, getPlayerName } from "./helpers";
 import { getCommentary } from "./commentary";
 import { Badge } from "../ui";

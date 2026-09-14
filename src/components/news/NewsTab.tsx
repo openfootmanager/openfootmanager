@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { GameStateData, NewsArticle } from "../../store/gameStore";
+import type { GameStateData, NewsArticle } from "../../store/gameStore";
 import {
   Newspaper,
   Trophy,

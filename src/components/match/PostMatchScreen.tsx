@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot, MatchEvent, getTeamTalkOptions, TeamTalkTone } from "./types";
+import type { GameStateData } from "../../store/gameStore";
+import { type MatchSnapshot, type MatchEvent, getTeamTalkOptions, type TeamTalkTone } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";

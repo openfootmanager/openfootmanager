@@ -1,5 +1,5 @@
-import React from "react";
-import { MatchEvent, MatchSnapshot } from "./types";
+import type React from "react";
+import type { MatchEvent, MatchSnapshot } from "./types";
 import type { FixtureData, GameStateData } from "../../store/gameStore";
 import {
   Circle,

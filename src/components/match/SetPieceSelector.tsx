@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PlayerData } from "../../store/gameStore";
+import type { PlayerData } from "../../store/gameStore";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { normalisePosition } from "../squad/SquadTab.helpers";
 import { Badge } from "../ui";

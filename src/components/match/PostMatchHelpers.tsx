@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { MatchSnapshot, MatchEvent } from "./types";
+import type { MatchSnapshot, MatchEvent } from "./types";
 import { getPlayerName } from "./helpers";
 import { Badge } from "../ui";
 import { Circle, Star } from "lucide-react";

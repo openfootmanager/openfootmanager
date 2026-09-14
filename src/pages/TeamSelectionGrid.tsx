@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { TeamData } from "../store/gameStore";
+import type { TeamData } from "../store/gameStore";
 import { formatVal } from "../lib/helpers";
 import { Badge, Card, CardBody, TeamLocation, TeamLogo } from "../components/ui";
 import { Landmark, Star, Trophy, Users } from "lucide-react";

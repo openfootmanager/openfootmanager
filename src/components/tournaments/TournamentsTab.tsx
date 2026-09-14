@@ -9,7 +9,7 @@ import {
 } from "./TournamentsTab.helpers";
 import { useSeasonAwards } from "./useSeasonAwards";
 import { useTournamentsData } from "./useTournamentsData";
-import { GameStateData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import TournamentsFixturesView from "./TournamentsFixturesView";
 import TournamentsLeagueHeader from "./TournamentsLeagueHeader";
 import TournamentsOverview from "./TournamentsOverview";

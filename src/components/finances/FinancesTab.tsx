@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
-import { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
+import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import {
   formatExactMoney,

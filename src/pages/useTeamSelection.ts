@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
-import { GameStateData, LeagueData, PlayerData, TeamData } from "../store/gameStore";
+import type { GameStateData, LeagueData, PlayerData, TeamData } from "../store/gameStore";
 import { getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";

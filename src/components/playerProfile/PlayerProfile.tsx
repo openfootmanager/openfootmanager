@@ -1,5 +1,5 @@
 import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
-import { PlayerData, GameStateData } from "../../store/gameStore";
+import type { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Select } from "../ui";

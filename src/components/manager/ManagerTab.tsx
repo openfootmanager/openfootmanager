@@ -1,4 +1,4 @@
-import { GameStateData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, ProgressBar, CountryFlag } from "../ui";
 import { ManagerCareerChart } from "./ManagerCareerChart";
 import { formatDate } from "../../lib/helpers";

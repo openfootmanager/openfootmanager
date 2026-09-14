@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { GameStateData } from "../store/gameStore";
+import type { GameStateData } from "../store/gameStore";
 import { Badge, TeamLogo } from "./ui";
 import {
   getTeamName,

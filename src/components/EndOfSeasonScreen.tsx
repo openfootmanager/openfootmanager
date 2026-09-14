@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { GameStateData, SeasonAwardsData } from "../store/gameStore";
+import type { GameStateData, SeasonAwardsData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
 import { Card, CardBody } from "./ui";
 import { competitionDisplayName } from "../lib/competitionName";

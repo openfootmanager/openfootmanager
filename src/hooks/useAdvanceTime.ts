@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { GameStateData } from "../store/gameStore";
+import type { GameStateData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
 import type { BlockerModal } from "./useAdvanceTime.helpers";
 import {

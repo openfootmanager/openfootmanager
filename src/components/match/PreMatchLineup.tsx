@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MatchSnapshot, EnginePlayerData } from "./types";
+import type { MatchSnapshot, EnginePlayerData } from "./types";
 import { Badge } from "../ui";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";

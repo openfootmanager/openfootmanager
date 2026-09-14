@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GameStateData, StaffData, useGameStore } from "../../store/gameStore";
+import { type GameStateData, type StaffData, useGameStore } from "../../store/gameStore";
 import { getStaff, type StaffSlice } from "../../services/staffService";
 import { Card, CardBody, Badge, CountryFlag, ProgressBar } from "../ui";
 import {

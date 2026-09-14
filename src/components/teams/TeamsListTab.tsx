@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, Search, Trophy, Users } from "lucide-react";
 import { formatVal } from "../../lib/helpers";
 import { buildRegionLabel } from "../../lib/teamRegions";
 import { competitionDisplayName } from "../../lib/competitionName";
-import { GameStateData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import {
   fetchTeamsDirectory,
   UNGROUPED_LEAGUE_ID,

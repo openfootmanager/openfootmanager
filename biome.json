@@ -35,6 +35,12 @@
       "correctness": {
         "useHookAtTopLevel": "error",
         "noNestedComponentDefinitions": "error"
+      },
+      "style": {
+        "preset": "recommended"
+      },
+      "complexity": {
+        "preset": "recommended"
       }
     }
   }
