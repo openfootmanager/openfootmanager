@@ -306,10 +306,9 @@ pub(super) fn execute_transfer(
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == from_team_id) {
         t.finance += fee as i64;
         t.transfer_budget += fee as i64;
-        // Remove from starting XI
-        if let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id) {
-            t.starting_xi_ids.remove(pos);
-        }
+        // A departing player gives up every role, not just his place in the XI. Trimming the XI by
+        // hand here used to leave him as the old club's captain and penalty taker.
+        t.remove_player_references(player_id);
     }
 
     if should_generate_major_transfer_news(&player_snapshot, fee) {
@@ -332,15 +331,20 @@ pub(super) fn execute_transfer(
         }
     }
 
-    if let Some(league) = &mut game.league {
-        league.transfer_log.push(CompletedTransfer {
+    // Route through the competition log rather than writing straight to `game.league`.
+    // `Game::sync_legacy_league` replaces that field with a clone of a competition, so a record
+    // written only there is discarded the next time it runs, not merely misfiled. The loan
+    // buy-option path has always gone through here.
+    log_completed_transfer(
+        game,
+        CompletedTransfer {
             date: today,
             from_team_id: from_team_id.to_string(),
             to_team_id: to_team_id.to_string(),
             player_id: player_id.to_string(),
             fee,
-        });
-    }
+        },
+    );
 
     Ok(())
 }
