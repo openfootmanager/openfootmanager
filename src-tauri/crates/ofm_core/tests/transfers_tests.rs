@@ -79,6 +79,7 @@ fn make_pending_incoming_offer(id: &str, fee: u64) -> TransferOffer {
         status: TransferOfferStatus::Pending,
         date: "2026-08-01".to_string(),
         registration_date: None,
+        closed_on: None,
     }
 }
 
@@ -104,6 +105,7 @@ fn make_pending_incoming_loan_offer(
         suggested_buy_option_fee: None,
         status: LoanOfferStatus::Pending,
         date: "2026-08-01".to_string(),
+        closed_on: None,
     }
 }
 
@@ -769,6 +771,12 @@ fn accepted_closed_window_loan_is_registered_when_the_window_opens() {
     assert_eq!(
         registered_player.loan_offers[0].status,
         LoanOfferStatus::Accepted
+    );
+    // Registering runs through `execute_loan`, which withdraws every live loan offer on the
+    // player — including this one. The agreement must not be left wearing that closure stamp.
+    assert!(
+        registered_player.loan_offers[0].closed_on.is_none(),
+        "a registered agreement must not carry a closure date"
     );
     let active_loan = registered_player.active_loan.as_ref().unwrap();
     assert_eq!(active_loan.start_date, "2027-01-01");
@@ -1610,6 +1618,7 @@ fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
         suggested_buy_option_fee: None,
         status: LoanOfferStatus::Pending,
         date: "2026-08-01".to_string(),
+        closed_on: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -1792,6 +1801,7 @@ fn incoming_loan_offer_rejects_end_date_after_player_contract() {
         suggested_buy_option_fee: None,
         status: LoanOfferStatus::Pending,
         date: "2026-08-01".to_string(),
+        closed_on: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -1951,6 +1961,7 @@ fn stale_outgoing_transfer_negotiation_is_withdrawn_before_new_bid() {
         status: TransferOfferStatus::Pending,
         date: "2026-07-15".to_string(),
         registration_date: None,
+        closed_on: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2121,6 +2132,7 @@ fn does_not_duplicate_pending_incoming_offer_from_same_club() {
         status: TransferOfferStatus::Pending,
         date: "2026-08-01".to_string(),
         registration_date: None,
+        closed_on: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2821,4 +2833,363 @@ fn executed_transfer_debits_the_buying_team_transfer_budget() {
     let buyer = game.teams.iter().find(|t| t.id == "team-1").unwrap();
     assert_eq!(buyer.finance, starting_finance - 950_000);
     assert_eq!(buyer.transfer_budget, starting_budget - 950_000);
+}
+
+/// Builds a loan-listed user player plus `ai_teams` extra clubs, all able to afford him.
+fn make_loan_pileup_game(player_id: &str, ai_teams: usize) -> Game {
+    let mut player = make_user_player(player_id);
+    player.loan_listed = true;
+    player.ovr = 68;
+    player.potential = 80;
+    player.stats.appearances = 0;
+    player.wage = 260_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    for index in 0..ai_teams {
+        game.teams.push(make_ai_team(
+            &format!("team-pileup-{index}"),
+            &format!("Buyer {index}"),
+            10_000_000,
+            5_000_000,
+        ));
+    }
+    game
+}
+
+fn find_player<'a>(game: &'a Game, player_id: &str) -> &'a Player {
+    game.players
+        .iter()
+        .find(|player| player.id == player_id)
+        .expect("player should exist")
+}
+
+fn pending_incoming_approaches(game: &Game, player_id: &str) -> usize {
+    let player = find_player(game, player_id);
+    player
+        .transfer_offers
+        .iter()
+        .filter(|offer| offer.status == TransferOfferStatus::Pending)
+        .count()
+        + player
+            .loan_offers
+            .iter()
+            .filter(|offer| offer.status == LoanOfferStatus::Pending)
+            .count()
+}
+
+/// The daily caps only bound *arrivals*. With a fourteen-day expiry and one new club a day,
+/// thirteen offers survive alongside each new one, so a loan-listed player accumulates a
+/// fourteen-deep stack of live proposals. Every existing guard asserts on a single call and
+/// stays green throughout, which is why this reached a shipped save.
+#[test]
+fn pending_incoming_offers_never_exceed_the_cap_over_a_full_window() {
+    let mut game = make_loan_pileup_game("player-user-loan-pileup", 12);
+
+    let mut worst_seen = 0_usize;
+    for _ in 0..60 {
+        generate_incoming_transfer_offers(&mut game);
+        worst_seen = worst_seen.max(pending_incoming_approaches(
+            &game,
+            "player-user-loan-pileup",
+        ));
+        game.clock.advance_days(1);
+    }
+
+    assert!(
+        worst_seen <= 3,
+        "a user player should never face more than \
+         MAX_PENDING_INCOMING_OFFERS_PER_USER_PLAYER live approaches, saw {worst_seen}"
+    );
+    // A cap that worked by never generating an offer would satisfy the assertion above, so
+    // pin the other side too: twelve able clubs should fill the queue.
+    assert_eq!(
+        worst_seen, 3,
+        "the queue should still fill to the cap, saw {worst_seen}"
+    );
+}
+
+/// The cap counts both deal types together, so a club cannot switch from a loan approach to a
+/// permanent bid to claim a second slot on the same player.
+#[test]
+fn a_club_holding_a_pending_loan_offer_does_not_also_open_a_transfer_bid() {
+    // The player has to be worth a permanent bid, or the club would never reach the shortlist
+    // and the test would pass without the rule it is supposed to be checking. He is no longer
+    // loan-listed, so the loan path cannot fire and mask the result by consuming the club's
+    // action for the day — the standing loan offer is a leftover from when he was listed.
+    let mut player = make_user_player("player-user-loan-crosstype");
+    player.loan_listed = false;
+    player.transfer_listed = true;
+    player.contract_end = Some("2026-09-01".to_string());
+    player.market_value = 1_200_000;
+    player
+        .loan_offers
+        .push(make_pending_incoming_loan_offer("existing-loan", 75, None));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 8_000_000;
+    game.teams[1].transfer_budget = 5_000_000;
+
+    // team-2 already holds the loan approach, so it must not open a second, permanent one.
+    let holder = game.teams[1].id.clone();
+    assert_eq!(
+        find_player(&game, "player-user-loan-crosstype").loan_offers[0].from_team_id,
+        holder
+    );
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = find_player(&game, "player-user-loan-crosstype");
+    assert!(
+        player
+            .transfer_offers
+            .iter()
+            .all(|offer| offer.from_team_id != holder),
+        "{holder} holds a pending loan offer and must not also open a transfer bid"
+    );
+}
+
+/// Outgoing bids close through `upsert_transfer_offer` rather than the closing helper, so that
+/// path has to honour the same rule: an offer the selling club turns down keeps its arrival date
+/// and records when talks ended.
+#[test]
+fn a_rejected_outgoing_bid_records_its_closure_without_moving_the_arrival_date() {
+    let mut target = make_player("player-outgoing-reject");
+    target.team_id = Some("team-2".to_string());
+    target.market_value = 5_000_000;
+    target.transfer_listed = true;
+
+    let mut game = make_game_with_player(target, vec![], 50_000_000, 40_000_000);
+    game.clock.advance_days(9);
+    let bid_day = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    // Far below what the selling club would entertain, so the bid is turned down outright.
+    make_transfer_bid(&mut game, "player-outgoing-reject", 1)
+        .expect("a bid should return an outcome");
+
+    let offer = &find_player(&game, "player-outgoing-reject").transfer_offers[0];
+    assert_eq!(offer.status, TransferOfferStatus::Rejected);
+    assert_eq!(
+        offer.closed_on.as_deref(),
+        Some(bid_day.as_str()),
+        "a rejected outgoing bid should record when it closed"
+    );
+    assert_eq!(
+        offer.date, bid_day,
+        "an offer created already rejected arrived the same day it closed"
+    );
+}
+
+/// The other half of the same rule: the cap counts both deal types, so live loan talks consume
+/// the budget a permanent bid would otherwise use.
+#[test]
+fn pending_loan_offers_count_towards_the_same_cap_as_transfer_bids() {
+    let mut player = make_user_player("player-user-crosstype-cap");
+    player.loan_listed = true;
+    player.transfer_listed = true;
+    player.contract_end = Some("2026-09-01".to_string());
+    player.market_value = 1_200_000;
+    for index in 0..3 {
+        let mut offer =
+            make_pending_incoming_loan_offer(&format!("existing-loan-{index}"), 75, None);
+        offer.from_team_id = format!("team-holder-{index}");
+        player.loan_offers.push(offer);
+    }
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    for index in 0..3 {
+        game.teams.push(make_ai_team(
+            &format!("team-holder-{index}"),
+            &format!("Holder {index}"),
+            10_000_000,
+            5_000_000,
+        ));
+    }
+    game.teams[1].finance = 8_000_000;
+    game.teams[1].transfer_budget = 5_000_000;
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = find_player(&game, "player-user-crosstype-cap");
+    let pending = player
+        .transfer_offers
+        .iter()
+        .filter(|offer| offer.status == TransferOfferStatus::Pending)
+        .count();
+    assert_eq!(
+        pending, 0,
+        "three live loan approaches already fill the queue, so no transfer bid should arrive"
+    );
+}
+
+/// `date` is the arrival date and is rewritten whenever a club re-opens talks, so it cannot
+/// answer "when did this close". Expiry has to record that separately.
+#[test]
+fn an_expired_loan_offer_records_the_date_it_closed() {
+    let mut game = make_loan_pileup_game("player-user-loan-closed-on", 2);
+
+    generate_incoming_transfer_offers(&mut game);
+    let arrival = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    game.clock.advance_days(20);
+    generate_incoming_transfer_offers(&mut game);
+    let expiry_day = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    let expired = find_player(&game, "player-user-loan-closed-on")
+        .loan_offers
+        .iter()
+        .find(|offer| offer.status == LoanOfferStatus::Withdrawn)
+        .expect("the first offer should have expired");
+
+    assert_eq!(expired.date, arrival, "arrival date must be preserved");
+    assert_eq!(
+        expired.closed_on.as_deref(),
+        Some(expiry_day.as_str()),
+        "expiry should record when talks cooled"
+    );
+}
+
+/// Closing an offer must not move `date`. Expiry never did, but the manager-driven paths used to
+/// stamp `date = today` on the way out, which quietly destroyed the arrival date on exactly the
+/// offers whose history the UI wants to show ("received 27 Dec, talks cooled 10 Jan").
+#[test]
+fn rejecting_a_loan_offer_preserves_the_arrival_date() {
+    let mut player = make_user_player("player-reject-keeps-arrival");
+    player.loan_listed = true;
+    player
+        .loan_offers
+        .push(make_pending_incoming_loan_offer("loan-offer-1", 75, None));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.advance_days(6);
+    let rejected_on = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    respond_to_loan_offer(
+        &mut game,
+        "player-reject-keeps-arrival",
+        "loan-offer-1",
+        false,
+    )
+    .expect("rejecting an incoming loan offer should succeed");
+
+    let offer = &find_player(&game, "player-reject-keeps-arrival").loan_offers[0];
+    assert_eq!(offer.status, LoanOfferStatus::Rejected);
+    assert_eq!(offer.date, "2026-08-01", "arrival date must be preserved");
+    assert_eq!(offer.closed_on.as_deref(), Some(rejected_on.as_str()));
+}
+
+/// Same rule on the permanent side: a counter the club walks away from closes the offer without
+/// rewriting when it arrived.
+#[test]
+fn a_counter_that_ends_talks_preserves_the_transfer_offer_arrival_date() {
+    let mut player = make_user_player("player-counter-keeps-arrival");
+    player.transfer_listed = true;
+    player.market_value = 1_000_000;
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-1", 900_000));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    game.clock.advance_days(4);
+
+    // Far above anything the buyer would entertain, so talks end rather than continue.
+    counter_offer(
+        &mut game,
+        "player-counter-keeps-arrival",
+        "offer-1",
+        900_000_000,
+    )
+    .expect("countering should return an outcome");
+
+    let offer = &find_player(&game, "player-counter-keeps-arrival").transfer_offers[0];
+    assert_eq!(offer.status, TransferOfferStatus::Rejected);
+    assert_eq!(offer.date, "2026-08-01", "arrival date must be preserved");
+    assert!(offer.closed_on.is_some(), "closure should be recorded");
+}
+
+/// A deal agreed in a closed window registers months later, so by the time a failed registration
+/// withdraws the offer its arrival date is already older than the retention window. Without a
+/// closure stamp the prune falls back to arrival and drops the record on the spot, instead of
+/// keeping it the usual 120 days after it was withdrawn.
+#[test]
+fn a_failed_scheduled_registration_records_the_withdrawal_date() {
+    let mut player = make_user_player("player-failed-registration");
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-scheduled", 1_400_000));
+    player.transfer_offers[0].date = "2026-08-01".to_string();
+
+    let mut game = make_game_with_player(
+        player,
+        vec!["player-failed-registration".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+    game.teams[1].finance = 3_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+
+    respond_to_offer(
+        &mut game,
+        "player-failed-registration",
+        "offer-scheduled",
+        true,
+    )
+    .expect("accepting in a closed window should schedule registration");
+
+    // The buyer's finances collapse before the window opens, so registration cannot go through.
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    game.teams[1].finance = 0;
+    game.teams[1].transfer_budget = 0;
+    process_pending_transfer_registrations(&mut game);
+
+    let offer = &find_player(&game, "player-failed-registration").transfer_offers[0];
+    assert_eq!(offer.status, TransferOfferStatus::Withdrawn);
+    assert_eq!(
+        offer.closed_on.as_deref(),
+        Some("2027-01-01"),
+        "a failed registration should record when the offer was withdrawn"
+    );
+
+    // Retention runs from the withdrawal, not from an arrival five months earlier.
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 2, 1, 12, 0, 0).unwrap();
+    evaluate_transfer_market(&mut game);
+    assert_eq!(
+        find_player(&game, "player-failed-registration")
+            .transfer_offers
+            .len(),
+        1,
+        "the withdrawn offer should still be inside its retention window"
+    );
+}
+
+/// Terminal offers are kept for a while so the UI can show recent history, then dropped —
+/// otherwise every rejected approach stays on the player for the life of the save.
+#[test]
+fn closed_offers_are_pruned_once_they_fall_outside_the_retention_window() {
+    let mut game = make_loan_pileup_game("player-user-loan-retention", 12);
+
+    for _ in 0..60 {
+        generate_incoming_transfer_offers(&mut game);
+        game.clock.advance_days(1);
+    }
+    let before = find_player(&game, "player-user-loan-retention")
+        .loan_offers
+        .len();
+
+    game.clock.advance_days(200);
+    generate_incoming_transfer_offers(&mut game);
+
+    let after = find_player(&game, "player-user-loan-retention")
+        .loan_offers
+        .len();
+
+    assert!(
+        after < before,
+        "closed offers older than the retention window should be pruned ({before} -> {after})"
+    );
 }

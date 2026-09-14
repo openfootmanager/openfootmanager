@@ -81,6 +81,9 @@ pub(super) fn execute_loan(
         team.remove_player_references(player_id);
     }
 
+    // Captured before the player is borrowed mutably below.
+    let closed_on = game.clock.current_date.format("%Y-%m-%d").to_string();
+
     let player = game
         .players
         .iter_mut()
@@ -114,14 +117,14 @@ pub(super) fn execute_loan(
         loan_end_date: Some(end_date.to_string()),
     });
 
-    withdraw_pending_transfer_offers(player);
+    withdraw_pending_transfer_offers(player, &closed_on);
 
     for offer in &mut player.loan_offers {
         if matches!(
             offer.status,
             LoanOfferStatus::Pending | LoanOfferStatus::PendingRegistration
         ) {
-            offer.status = LoanOfferStatus::Withdrawn;
+            super::close_loan_offer(offer, LoanOfferStatus::Withdrawn, &closed_on);
         }
     }
 
@@ -151,6 +154,7 @@ pub(super) fn reserve_player_for_pending_loan(
     player_id: &str,
     accepted_offer_id: &str,
 ) -> Result<(), String> {
+    let closed_on = game.clock.current_date.format("%Y-%m-%d").to_string();
     let player = game
         .players
         .iter_mut()
@@ -163,10 +167,10 @@ pub(super) fn reserve_player_for_pending_loan(
 
     player.transfer_listed = false;
     player.loan_listed = false;
-    withdraw_pending_transfer_offers(player);
+    withdraw_pending_transfer_offers(player, &closed_on);
     for offer in &mut player.loan_offers {
         if offer.id != accepted_offer_id && offer.status == LoanOfferStatus::Pending {
-            offer.status = LoanOfferStatus::Withdrawn;
+            super::close_loan_offer(offer, LoanOfferStatus::Withdrawn, &closed_on);
         }
     }
 

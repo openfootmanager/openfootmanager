@@ -11,6 +11,19 @@ pub(super) const AWARD_LEADERBOARD_INTEREST_BONUS: i32 = 25;
 pub(super) const MAX_NEW_INCOMING_OFFERS_PER_USER_PLAYER_PER_DAY: usize = 1;
 /// Ceiling on brand-new incoming offers across the whole user squad per day.
 pub(super) const MAX_NEW_INCOMING_USER_OFFERS_PER_DAY: usize = 3;
+/// Ceiling on offers a user player may face *at once*, counting transfer and loan talks
+/// together.
+///
+/// The per-day limits above only throttle arrivals. With a fourteen-day expiry and one new
+/// club a day, thirteen offers survive alongside each new one, so a listed player ended up
+/// fielding fourteen simultaneous proposals. Counting both deal types in one budget also stops
+/// a club dropping a loan approach and returning as a permanent bid to claim a second slot.
+pub(super) const MAX_PENDING_INCOMING_OFFERS_PER_USER_PLAYER: usize = 3;
+/// How long a rejected or withdrawn offer is kept before being dropped.
+///
+/// Long enough for the UI to show recent history and for later work to tell how recently a club
+/// was turned away; short enough that a save does not carry every approach ever made.
+pub(super) const CLOSED_OFFER_RETENTION_DAYS: i64 = 120;
 /// A club won't pursue a player whose current club out-reputes it by more than
 /// this margin — the player wouldn't realistically drop to a much smaller side.
 pub(super) const MAX_BUYER_REPUTATION_DEFICIT: i32 = 150;

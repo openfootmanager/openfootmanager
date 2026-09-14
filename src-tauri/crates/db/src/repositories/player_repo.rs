@@ -360,7 +360,8 @@ mod tests {
     use crate::game_database::GameDatabase;
     use domain::player::{
         ActiveLoan, Injury, LoanOffer, LoanOfferStatus, PlayerIssue, PlayerIssueCategory,
-        PlayerMoraleCore, PlayerMovementEntry, PlayerMovementKind,
+        PlayerMoraleCore, PlayerMovementEntry, PlayerMovementKind, TransferOffer,
+        TransferOfferStatus,
     };
     use rusqlite::Connection;
 
@@ -534,6 +535,65 @@ mod tests {
         assert_eq!(stored.potential, 85);
     }
 
+    /// Offers ride in JSON blob columns, so a field added inside one needs no migration — but
+    /// only a round trip through SQLite proves it, and both offer types carry the field.
+    #[test]
+    fn test_closed_offer_dates_survive_a_round_trip() {
+        let db = test_db();
+        let mut player = sample_player("p-closed", Some("team-a"));
+        player.transfer_offers.push(TransferOffer {
+            id: "transfer-offer-1".to_string(),
+            from_team_id: "team-b".to_string(),
+            fee: 2_000_000,
+            wage_offered: 0,
+            last_manager_fee: None,
+            negotiation_round: 1,
+            suggested_counter_fee: None,
+            status: TransferOfferStatus::Rejected,
+            date: "2026-08-01".to_string(),
+            registration_date: None,
+            closed_on: Some("2026-08-14".to_string()),
+        });
+        player.loan_offers.push(LoanOffer {
+            id: "loan-offer-closed".to_string(),
+            from_team_id: "team-b".to_string(),
+            parent_team_id: "team-a".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::Withdrawn,
+            date: "2026-08-02".to_string(),
+            closed_on: Some("2026-08-16".to_string()),
+        });
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded
+            .iter()
+            .find(|candidate| candidate.id == "p-closed")
+            .expect("stored player should exist");
+
+        // Arrival and closure are distinct dates and both have to survive.
+        assert_eq!(stored.transfer_offers[0].date, "2026-08-01");
+        assert_eq!(
+            stored.transfer_offers[0].closed_on.as_deref(),
+            Some("2026-08-14")
+        );
+        assert_eq!(stored.loan_offers[0].date, "2026-08-02");
+        assert_eq!(
+            stored.loan_offers[0].closed_on.as_deref(),
+            Some("2026-08-16")
+        );
+    }
+
     #[test]
     fn test_player_loan_state_roundtrip() {
         let db = test_db();
@@ -555,6 +615,7 @@ mod tests {
             suggested_buy_option_fee: None,
             status: LoanOfferStatus::Accepted,
             date: "2026-08-01".to_string(),
+            closed_on: None,
         });
         player.active_loan = Some(ActiveLoan {
             parent_team_id: "team-parent".to_string(),
@@ -579,6 +640,10 @@ mod tests {
         assert_eq!(stored.loan_offers.len(), 1);
         assert_eq!(stored.loan_offers[0].status, LoanOfferStatus::Accepted);
         assert_eq!(stored.loan_offers[0].buy_option_fee, Some(1_250_000));
+        assert!(
+            stored.loan_offers[0].closed_on.is_none(),
+            "a live agreement carries no closure date"
+        );
         assert_eq!(
             stored
                 .active_loan
