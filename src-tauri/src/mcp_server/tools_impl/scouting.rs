@@ -1,13 +1,17 @@
 //! MCP tool implementations: scouting
 
-use std::sync::Arc;
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::require_game;
 use crate::mcp_server::formatting::translate_error;
+use crate::mcp_server::tools_impl::helpers::require_game;
+use std::sync::Arc;
 
 // ─── scout_send ─────────────────────────────────────────────────────────────
 
-pub fn scout_send(ctx: Arc<McpContext>, scout_id: String, player_id: String) -> Result<String, String> {
+pub fn scout_send(
+    ctx: Arc<McpContext>,
+    scout_id: String,
+    player_id: String,
+) -> Result<String, String> {
     // `send_scout` validates fully before its single push, so an error path
     // leaves the game untouched even though `update_game` cannot roll back.
     ctx.state_manager
@@ -15,24 +19,37 @@ pub fn scout_send(ctx: Arc<McpContext>, scout_id: String, player_id: String) -> 
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
         .map_err(|e| translate_error(&e))?;
 
-    let scout_name = ctx.state_manager.get_game(|g| {
-        g.staff.iter().find(|s| s.id == scout_id)
-            .map(|s| format!("{} {}", s.first_name, s.last_name))
-            .unwrap_or_default()
-    }).unwrap_or_default();
+    let scout_name = ctx
+        .state_manager
+        .get_game(|g| {
+            g.staff
+                .iter()
+                .find(|s| s.id == scout_id)
+                .map(|s| format!("{} {}", s.first_name, s.last_name))
+                .unwrap_or_default()
+        })
+        .unwrap_or_default();
 
-    let player_name = ctx.state_manager.get_game(|g| {
-        g.players.iter().find(|p| p.id == player_id)
-            .map(|p| p.match_name.clone())
-            .unwrap_or_default()
-    }).unwrap_or_default();
+    let player_name = ctx
+        .state_manager
+        .get_game(|g| {
+            g.players
+                .iter()
+                .find(|p| p.id == player_id)
+                .map(|p| p.match_name.clone())
+                .unwrap_or_default()
+        })
+        .unwrap_or_default();
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!("## Scout Dispatched\n\n**{}** will report on **{}**.", scout_name, player_name))
+    Ok(format!(
+        "## Scout Dispatched\n\n**{}** will report on **{}**.",
+        scout_name, player_name
+    ))
 }
 
 // ─── scout_get_reports ─────────────────────────────────────────────────────
@@ -42,12 +59,15 @@ pub fn scout_send(ctx: Arc<McpContext>, scout_id: String, player_id: String) -> 
 pub fn scout_get_reports(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
 
-    let reports: Vec<_> = game.messages.iter()
+    let reports: Vec<_> = game
+        .messages
+        .iter()
         .filter(|m| matches!(m.category, domain::message::MessageCategory::ScoutReport))
         .filter_map(|m| {
-            m.context.scout_report.as_ref().map(|r| {
-                (m.id.clone(), m.read, r)
-            })
+            m.context
+                .scout_report
+                .as_ref()
+                .map(|r| (m.id.clone(), m.read, r))
         })
         .collect();
 
@@ -58,7 +78,10 @@ pub fn scout_get_reports(ctx: Arc<McpContext>) -> Result<String, String> {
     let mut output = format!("## Scout Reports ({} reports)\n\n| ID | Player | Pos | Rating | Team | Read |\n|----|--------|-----|--------|------|------|\n", reports.len());
     for (id, read, r) in &reports {
         let read_marker = if *read { "✓" } else { "●" };
-        let rating = r.avg_rating.map(|v| format!("{}/100", v)).unwrap_or_else(|| "?".to_string());
+        let rating = r
+            .avg_rating
+            .map(|v| format!("{}/100", v))
+            .unwrap_or_else(|| "?".to_string());
         let team = r.team_name.as_deref().unwrap_or("Free");
         output.push_str(&format!(
             "| {} | {} | {} | {} | {} | {} |\n",
@@ -71,13 +94,22 @@ pub fn scout_get_reports(ctx: Arc<McpContext>) -> Result<String, String> {
     if !active.is_empty() {
         output.push_str(&format!("\n### Active Assignments ({} pending)\n\n| ID | Scout | Player | Days Left |\n|----|-------|--------|------------|\n", active.len()));
         for a in &active {
-            let scout_name = game.staff.iter().find(|s| s.id == a.scout_id)
+            let scout_name = game
+                .staff
+                .iter()
+                .find(|s| s.id == a.scout_id)
                 .map(|s| format!("{} {}", s.first_name, s.last_name))
                 .unwrap_or_default();
-            let player_name = game.players.iter().find(|p| p.id == a.player_id)
+            let player_name = game
+                .players
+                .iter()
+                .find(|p| p.id == a.player_id)
                 .map(|p| p.match_name.clone())
                 .unwrap_or_default();
-            output.push_str(&format!("| {} | {} | {} | {} |\n", a.id, scout_name, player_name, a.days_remaining));
+            output.push_str(&format!(
+                "| {} | {} | {} | {} |\n",
+                a.id, scout_name, player_name, a.days_remaining
+            ));
         }
     }
 
@@ -88,7 +120,13 @@ pub fn scout_get_reports(ctx: Arc<McpContext>) -> Result<String, String> {
 
 // ─── scout_youth_start ──────────────────────────────────────────────────────
 
-pub fn scout_youth_start(ctx: Arc<McpContext>, scout_id: String, region: Option<String>, objective: Option<String>, target_position: Option<String>) -> Result<String, String> {
+pub fn scout_youth_start(
+    ctx: Arc<McpContext>,
+    scout_id: String,
+    region: Option<String>,
+    objective: Option<String>,
+    target_position: Option<String>,
+) -> Result<String, String> {
     let region = parse_youth_region(region.as_deref())?;
     let objective = parse_youth_objective(objective.as_deref())?;
     let target_position = parse_youth_target_position(target_position.as_deref())?;
@@ -124,7 +162,9 @@ fn parse_youth_region(region: Option<&str>) -> Result<ofm_core::game::YouthScout
     }
 }
 
-fn parse_youth_objective(objective: Option<&str>) -> Result<ofm_core::game::YouthScoutingObjective, String> {
+fn parse_youth_objective(
+    objective: Option<&str>,
+) -> Result<ofm_core::game::YouthScoutingObjective, String> {
     match objective.unwrap_or("Balanced") {
         "Balanced" => Ok(ofm_core::game::YouthScoutingObjective::Balanced),
         "HighPotential" | "Potential" => Ok(ofm_core::game::YouthScoutingObjective::HighPotential),
@@ -133,17 +173,25 @@ fn parse_youth_objective(objective: Option<&str>) -> Result<ofm_core::game::Yout
     }
 }
 
-fn parse_youth_target_position(pos: Option<&str>) -> Result<Option<domain::player::Position>, String> {
+fn parse_youth_target_position(
+    pos: Option<&str>,
+) -> Result<Option<domain::player::Position>, String> {
     let Some(pos_str) = pos else { return Ok(None) };
     match pos_str.to_uppercase().as_str() {
         // Goalkeeper
         "GK" | "GOALKEEPER" => Ok(Some(domain::player::Position::Goalkeeper)),
         // Defender — broad + specific codes
-        "DF" | "DEFENDER" | "CB" | "LCB" | "RCB" | "LB" | "RB" | "LWB" | "RWB" => Ok(Some(domain::player::Position::Defender)),
+        "DF" | "DEFENDER" | "CB" | "LCB" | "RCB" | "LB" | "RB" | "LWB" | "RWB" => {
+            Ok(Some(domain::player::Position::Defender))
+        }
         // Midfielder — broad + specific codes
-        "MF" | "MIDFIELDER" | "DM" | "CDM" | "CM" | "LCM" | "RCM" | "AM" | "CAM" | "LM" | "RM" => Ok(Some(domain::player::Position::Midfielder)),
+        "MF" | "MIDFIELDER" | "DM" | "CDM" | "CM" | "LCM" | "RCM" | "AM" | "CAM" | "LM" | "RM" => {
+            Ok(Some(domain::player::Position::Midfielder))
+        }
         // Forward — broad + specific codes
-        "FW" | "FORWARD" | "ST" | "CF" | "LS" | "RS" | "LW" | "RW" | "LF" | "RF" => Ok(Some(domain::player::Position::Forward)),
+        "FW" | "FORWARD" | "ST" | "CF" | "LS" | "RS" | "LW" | "RW" | "LF" | "RF" => {
+            Ok(Some(domain::player::Position::Forward))
+        }
         _ => Err(format!("Unknown position: {}", pos_str)),
     }
 }
@@ -173,7 +221,11 @@ pub fn scout_youth_cancel(ctx: Arc<McpContext>, assignment_id: String) -> Result
 
 // ─── scout_youth_reassign ───────────────────────────────────────────────────
 
-pub fn scout_youth_reassign(ctx: Arc<McpContext>, assignment_id: String, scout_id: String) -> Result<String, String> {
+pub fn scout_youth_reassign(
+    ctx: Arc<McpContext>,
+    assignment_id: String,
+    scout_id: String,
+) -> Result<String, String> {
     // Validates fully before the one field it assigns.
     ctx.state_manager
         .update_game(|game| {
@@ -189,4 +241,3 @@ pub fn scout_youth_reassign(ctx: Arc<McpContext>, assignment_id: String, scout_i
 
     Ok("## Youth Scouting Reassigned\n\nScout has been changed.".to_string())
 }
-

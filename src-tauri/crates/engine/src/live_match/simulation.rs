@@ -185,10 +185,8 @@ impl LiveMatchState {
         let def_side = poss_side.opposite();
         let poss_tactics = self.team_ref(poss_side).tactics.clone();
         let def_tactics = self.team_ref(def_side).tactics.clone();
-        let mid_att =
-            self.effective_midfield(poss_side) * tactics_tempo_retention(&poss_tactics);
-        let mid_def =
-            self.effective_midfield(def_side) * tactics_pressing_contest(&def_tactics);
+        let mid_att = self.effective_midfield(poss_side) * tactics_tempo_retention(&poss_tactics);
+        let mid_def = self.effective_midfield(def_side) * tactics_pressing_contest(&def_tactics);
         let retain = mid_att / (mid_att + mid_def);
         if rng.random_range(0.0..1.0f64) > retain {
             // Counter-press: the side losing the ball may win it straight back.

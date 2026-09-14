@@ -36,6 +36,43 @@ jobs:
       - name: Check Rust toolchain pins agree
         run: ./scripts/check-toolchain-pin.sh
 
+  # Also its own job, and for the same reason: `cargo fmt --check` compiles nothing, so it can
+  # answer in well under a minute rather than sitting behind `backend`'s twenty. Finding out
+  # about a misplaced brace twenty minutes into a run is how people learn to ignore a formatter.
+  #
+  # `fetch-depth: 0` is needed by the blame-revs step below, which has to resolve a commit that
+  # is not the tip. It is not needed by the format check itself.
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt
+
+      # Default style, deliberately — there is no `rustfmt.toml`, so this asks the pinned
+      # toolchain's formatter what it thinks and takes the answer. `--manifest-path` because the
+      # workspace lives under `src-tauri/`; a bare `cargo fmt --all` from the repository root
+      # fails, which is its own small trap.
+      - name: Check formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
+
+      # The fixtures run first, for the reason `toolchain-pin` does the same: the real file is
+      # correct, so a check that had stopped working would sail through the step below and
+      # report success. They also pin the other direction — that this stays no stricter than
+      # git, which is the failure mode that reds a build over a file git is happy with.
+      - name: Check the blame-revs check still rejects violations
+        run: ./scripts/check-blame-ignore-revs.test.sh
+
+      - name: Check .git-blame-ignore-revs still resolves
+        run: ./scripts/check-blame-ignore-revs.sh
+
   # Separate from `backend` for the same reason `toolchain-pin` is: this compiles nothing,
   # so it answers in about a minute under its own check name instead of waiting behind a
   # twenty-minute job whose failures are usually about something else.
@@ -171,8 +208,9 @@ jobs:
 
       # Keep this version equal to `rust-toolchain.toml`'s channel; scripts/check-toolchain-pin.sh
       # fails the build if they drift. `rustfmt` is installed alongside clippy so the components
-      # match what the toolchain file declares, and so the pending repo-wide format sweep has a
-      # formatter from the same compiler CI uses.
+      # match what the toolchain file declares. `rustfmt` is not used by this job — the `format`
+      # job above owns that — but a toolchain that installs a different component set here than
+      # anywhere else is a difference nobody would think to look for.
       - name: Install Rust 1.95.0
         uses: dtolnay/rust-toolchain@1.95.0
         with:
@@ -220,13 +258,9 @@ jobs:
 
 # ── Gates deliberately NOT enabled yet ───────────────────────────────────────
 #
-# `cargo fmt --check`  — reports ~630 diffs across 82 files today. The repo has
-#     never had a formatting gate, so enabling one requires a standalone
-#     `cargo fmt --all` sweep first; doing it here would bury every real change
-#     and conflict with every open branch.
-#
-# `biome lint`  — a first run reports ~480 findings plus a large formatter diff.
-#     Same reasoning: the sweep is its own piece of work.
+# `biome lint`  — a first run reports 724 findings under `recommended`, plus a
+#     large formatter diff. Same reasoning the fmt gate above was parked for:
+#     the sweep is its own piece of work, and it has not been done yet.
 #
 # `npm run audit:i18n`  — a heuristic reporter that always exits 0, so it cannot
 #     gate anything. Locale coverage is already enforced by

@@ -725,21 +725,22 @@ mod tests {
             .iter()
             .find(|entry| entry.team_id == "team2")
             .expect("opponent team standings entry");
-        assert_eq!(opp_entry.played, 1, "opponent played count must also update");
+        assert_eq!(
+            opp_entry.played, 1,
+            "opponent played count must also update"
+        );
         assert_eq!(
             user_entry.points + opp_entry.points,
-            user_entry.won * 3
-                + opp_entry.won * 3
-                + (user_entry.drawn + opp_entry.drawn),
+            user_entry.won * 3 + opp_entry.won * 3 + (user_entry.drawn + opp_entry.drawn),
             "points must agree with W/D record",
         );
 
-        let user_fixture = competition
-            .fixtures
-            .first()
-            .expect("user fixture retained");
+        let user_fixture = competition.fixtures.first().expect("user fixture retained");
         assert!(
-            matches!(user_fixture.status, domain::league::FixtureStatus::Completed),
+            matches!(
+                user_fixture.status,
+                domain::league::FixtureStatus::Completed
+            ),
             "user fixture must be marked Completed",
         );
         assert!(
@@ -828,10 +829,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_round());
 
-        crate::application::live_match::start_live_match(
-            &state, 0, "spectator", false, None, None,
-        )
-        .expect("start live match");
+        crate::application::live_match::start_live_match(&state, 0, "spectator", false, None, None)
+            .expect("start live match");
 
         let (user_fixture, other_fixture) = state
             .get_game(|g| {
@@ -849,7 +848,9 @@ mod tests {
             FixtureStatus::Completed,
             "the same-day AI fixture must be simulated"
         );
-        let first_result = other_fixture.result.expect("simulated fixture has a result");
+        let first_result = other_fixture
+            .result
+            .expect("simulated fixture has a result");
 
         // The modern competitions list must receive the results too.
         let competition_fixture = state
@@ -859,10 +860,8 @@ mod tests {
 
         // Session restore: starting again must not re-simulate completed
         // fixtures (simulate_other_matches only touches Scheduled ones).
-        crate::application::live_match::start_live_match(
-            &state, 0, "spectator", false, None, None,
-        )
-        .expect("restore live match");
+        crate::application::live_match::start_live_match(&state, 0, "spectator", false, None, None)
+            .expect("restore live match");
         let restored_result = state
             .get_game(|g| g.league.as_ref().unwrap().fixtures[1].result.clone())
             .unwrap()
@@ -942,7 +941,10 @@ mod tests {
             .find(|c| c.id == "cup1")
             .expect("cup competition");
         assert_eq!(cup.fixtures[0].status, FixtureStatus::Completed);
-        assert!(cup.fixtures[0].result.is_some(), "cup fixture gets the result");
+        assert!(
+            cup.fixtures[0].result.is_some(),
+            "cup fixture gets the result"
+        );
         assert!(cup.knockout_rounds[0].completed, "cup bracket advances");
 
         let league = response
@@ -980,7 +982,10 @@ mod tests {
         state.set_live_match(session);
 
         let result = finish_live_match_internal(&state);
-        assert!(result.is_err(), "out-of-range fixture index must error, not panic");
+        assert!(
+            result.is_err(),
+            "out-of-range fixture index must error, not panic"
+        );
     }
 
     #[test]

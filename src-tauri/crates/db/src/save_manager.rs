@@ -67,8 +67,7 @@ fn snapshot_db_before_write(db_path: &Path) -> Result<(), String> {
         .ok_or_else(|| "save-snapshot: invalid db filename".to_string())?;
     let snap_name = format!("{}.snap-{}", file_name, stamp);
     let snap_path = db_path.with_file_name(&snap_name);
-    fs::copy(db_path, &snap_path)
-        .map_err(|err| format!("save-snapshot: copy failed: {err}"))?;
+    fs::copy(db_path, &snap_path).map_err(|err| format!("save-snapshot: copy failed: {err}"))?;
     info!(
         "[save_manager] snapshot {} -> {}",
         db_path.display(),
@@ -1748,9 +1747,8 @@ mod tests {
         // manager comes back identical down to the id. Reading the file settles
         // it — the save itself has to carry the manager.
         let manager_id = manager.id.clone();
-        let db =
-            crate::game_database::GameDatabase::open(&saves_dir.join(format!("{save_id}.db")))
-                .unwrap();
+        let db = crate::game_database::GameDatabase::open(&saves_dir.join(format!("{save_id}.db")))
+            .unwrap();
         let stored = crate::repositories::manager_repo::load_all_managers(db.conn()).unwrap();
         assert!(
             stored.iter().any(|candidate| candidate.id == manager_id),

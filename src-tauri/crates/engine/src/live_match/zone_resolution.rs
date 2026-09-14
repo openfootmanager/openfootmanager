@@ -53,7 +53,8 @@ impl LiveMatchState {
         let ball_zone = self.ball_zone;
 
         let buildup_mod = tactics_buildup_mod(&self.team_ref(att_side).tactics);
-        let success_chance = (pass_skill * 1.3 * buildup_mod) / (pass_skill * 1.3 * buildup_mod + press);
+        let success_chance =
+            (pass_skill * 1.3 * buildup_mod) / (pass_skill * 1.3 * buildup_mod + press);
         if rng.random_range(0.0..1.0f64) < success_chance {
             let evt = MatchEvent::new(minute, EventType::PassCompleted, att_side, ball_zone)
                 .with_player(&passer.id);
@@ -131,8 +132,15 @@ impl LiveMatchState {
                 self.events.push(evt.clone());
                 events.push(evt);
                 let foul_mod = tactics_foul_modifier(&self.team_ref(def_side).tactics);
-                let foul_events =
-                    self.maybe_foul(minute, def_side, &attacker, &defender, Zone::Midfield, rng, foul_mod);
+                let foul_events = self.maybe_foul(
+                    minute,
+                    def_side,
+                    &attacker,
+                    &defender,
+                    Zone::Midfield,
+                    rng,
+                    foul_mod,
+                );
                 let fouled = foul_events.iter().any(|e| e.event_type == EventType::Foul);
                 events.extend(foul_events);
                 if fouled {
@@ -220,9 +228,8 @@ impl LiveMatchState {
                     let shot_events = self.resolve_shot(minute, att_side, rng);
                     events.extend(shot_events);
                 } else {
-                    let clear_evt =
-                        MatchEvent::new(minute, EventType::Clearance, def_side, zone)
-                            .with_player(&def_header.id);
+                    let clear_evt = MatchEvent::new(minute, EventType::Clearance, def_side, zone)
+                        .with_player(&def_header.id);
                     self.events.push(clear_evt.clone());
                     events.push(clear_evt);
                     self.possession = def_side;
@@ -296,8 +303,7 @@ impl LiveMatchState {
             events.push(foul_evt);
 
             if rng.random_range(0.0..1.0f64) < self.config.penalty_probability {
-                let pen_evt =
-                    MatchEvent::new(minute, EventType::PenaltyAwarded, att_side, zone);
+                let pen_evt = MatchEvent::new(minute, EventType::PenaltyAwarded, att_side, zone);
                 self.events.push(pen_evt.clone());
                 events.push(pen_evt);
                 let pen_events = self.resolve_in_match_penalty(minute, att_side, rng);
@@ -359,7 +365,8 @@ impl LiveMatchState {
         }
 
         let def_line_mod = tactics_defensive_conversion_mod(&self.team_ref(def_side).tactics);
-        let conversion = (self.config.goal_conversion_base * def_line_mod + (shoot_rating - gk_rating) / 150.0)
+        let conversion = (self.config.goal_conversion_base * def_line_mod
+            + (shoot_rating - gk_rating) / 150.0)
             .clamp(0.10, 0.70);
 
         if rng.random_range(0.0..1.0f64) < conversion {

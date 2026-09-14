@@ -527,7 +527,8 @@ pub(super) fn generate_random_player_from_def(
     // player will be shown with, so a keeper is priced on keeping.
     let current_year: u32 = opening_year;
 
-    let approx_ovr = crate::player_rating::ovr_from_attributes(&attributes, &position).round() as u32;
+    let approx_ovr =
+        crate::player_rating::ovr_from_attributes(&attributes, &position).round() as u32;
 
     let age_factor = if age <= 23 {
         1.5
@@ -729,7 +730,11 @@ pub(super) fn generate_staff_from_authored_def(
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
 ) -> Staff {
-    let nationality = if def.nationality.is_empty() { "ENG" } else { def.nationality.as_str() };
+    let nationality = if def.nationality.is_empty() {
+        "ENG"
+    } else {
+        def.nationality.as_str()
+    };
     let first_name = if def.first_name.is_empty() {
         let (f, _) = pick_name_from_def(nationality, names_def, rng);
         f
@@ -745,13 +750,18 @@ pub(super) fn generate_staff_from_authored_def(
 
     let current_year: u32 = opening_year;
     let birth_year = if let Some(dob) = &def.date_of_birth {
-        dob.split('-').next().and_then(|y| y.parse::<u32>().ok()).unwrap_or(current_year.saturating_sub(40))
+        dob.split('-')
+            .next()
+            .and_then(|y| y.parse::<u32>().ok())
+            .unwrap_or(current_year.saturating_sub(40))
     } else if let Some(age) = def.age {
         current_year.saturating_sub(age)
     } else {
         current_year.saturating_sub(rng.random_range(30..55))
     };
-    let dob = def.date_of_birth.clone()
+    let dob = def
+        .date_of_birth
+        .clone()
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
 
     let attributes = def.attributes.clone().unwrap_or_else(|| {
@@ -766,7 +776,11 @@ pub(super) fn generate_staff_from_authored_def(
         .attributes
     });
 
-    let id = if def.id.is_empty() { Uuid::new_v4().to_string() } else { def.id.clone() };
+    let id = if def.id.is_empty() {
+        Uuid::new_v4().to_string()
+    } else {
+        def.id.clone()
+    };
     let mut s = Staff::new(id, first_name, last_name, dob, def.role.clone(), attributes);
     s.nationality = nationality.to_string();
     s.team_id = team_id.map(|t| t.to_string());
@@ -1305,7 +1319,9 @@ mod tests {
         );
 
         assert!(
-            player.traits.contains(&domain::player::PlayerTrait::Wonderkid),
+            player
+                .traits
+                .contains(&domain::player::PlayerTrait::Wonderkid),
             "17, ceiling 92, ovr {} — that is a wonderkid: {:?}",
             player.ovr,
             player.traits
@@ -1328,7 +1344,9 @@ mod tests {
             2026,
         );
         assert!(
-            !veteran.traits.contains(&domain::player::PlayerTrait::Wonderkid),
+            !veteran
+                .traits
+                .contains(&domain::player::PlayerTrait::Wonderkid),
             "a 30-year-old is not a wonderkid whatever his ceiling: {:?}",
             veteran.traits
         );
@@ -1346,7 +1364,9 @@ mod tests {
             2026,
         );
         assert!(
-            !ordinary.traits.contains(&domain::player::PlayerTrait::Wonderkid),
+            !ordinary
+                .traits
+                .contains(&domain::player::PlayerTrait::Wonderkid),
             "a ceiling of 70 is not wonderkid territory: {:?}",
             ordinary.traits
         );
@@ -1473,7 +1493,10 @@ mod tests {
     /// to name.
     #[test]
     fn declaring_a_country_the_catalog_already_has_does_not_promote_it() {
-        let baseline = nationality_distribution().iter().filter(|c| *c == "BR").count();
+        let baseline = nationality_distribution()
+            .iter()
+            .filter(|c| *c == "BR")
+            .count();
         let pool = nationality_distribution_including(["BR", "br"].into_iter());
         let after = pool.iter().filter(|c| *c == "BR").count();
 
@@ -1509,9 +1532,24 @@ mod tests {
 
         // Top of its region beats a lower-ranked neighbour, which beats a
         // merely-selectable nation.
-        assert!(count("FR") > count("PL"), "FR {} vs PL {}", count("FR"), count("PL"));
-        assert!(count("PL") > count("AD"), "PL {} vs AD {}", count("PL"), count("AD"));
-        assert!(count("BR") > count("BO"), "BR {} vs BO {}", count("BR"), count("BO"));
+        assert!(
+            count("FR") > count("PL"),
+            "FR {} vs PL {}",
+            count("FR"),
+            count("PL")
+        );
+        assert!(
+            count("PL") > count("AD"),
+            "PL {} vs AD {}",
+            count("PL"),
+            count("AD")
+        );
+        assert!(
+            count("BR") > count("BO"),
+            "BR {} vs BO {}",
+            count("BR"),
+            count("BO")
+        );
     }
 
     /// Rank is only meaningful inside a region, so the assertions above cannot
@@ -1524,12 +1562,32 @@ mod tests {
 
         // Each pair is top-of-region against top-of-region, so rank alone ties
         // them and only the region factor can separate them.
-        assert!(count("BR") > count("CR"), "BR {} vs CR {}", count("BR"), count("CR"));
-        assert!(count("FR") > count("CR"), "FR {} vs CR {}", count("FR"), count("CR"));
-        assert!(count("BR") > count("NZ"), "BR {} vs NZ {}", count("BR"), count("NZ"));
+        assert!(
+            count("BR") > count("CR"),
+            "BR {} vs CR {}",
+            count("BR"),
+            count("CR")
+        );
+        assert!(
+            count("FR") > count("CR"),
+            "FR {} vs CR {}",
+            count("FR"),
+            count("CR")
+        );
+        assert!(
+            count("BR") > count("NZ"),
+            "BR {} vs NZ {}",
+            count("BR"),
+            count("NZ")
+        );
 
         // And a mid-table European outranks the best of a shallow region.
-        assert!(count("IT") > count("NZ"), "IT {} vs NZ {}", count("IT"), count("NZ"));
+        assert!(
+            count("IT") > count("NZ"),
+            "IT {} vs NZ {}",
+            count("IT"),
+            count("NZ")
+        );
 
         // South America must out-supply Central America overall, which was
         // inverted while rank was the only factor.

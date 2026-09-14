@@ -43,8 +43,6 @@ fn write_json_atomic(path: &Path, value: &serde_json::Value) -> Result<(), Strin
     std::fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
 
-
-
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
@@ -59,7 +57,9 @@ fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), Strin
 }
 
 fn dir_is_nonempty(path: &Path) -> bool {
-    std::fs::read_dir(path).map(|mut d| d.next().is_some()).unwrap_or(false)
+    std::fs::read_dir(path)
+        .map(|mut d| d.next().is_some())
+        .unwrap_or(false)
 }
 
 /// Create a new package project directory with an empty scaffold.
@@ -81,7 +81,10 @@ pub fn create_world_project(
     meta: WorldMetaDef,
 ) -> Result<String, String> {
     sanitize_entity_id(&slug)?;
-    let base_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let base_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let project_dir = base_dir.join("world-editor").join(&slug);
     if project_dir.exists() && dir_is_nonempty(&project_dir) {
         return Err("be.error.package.projectAlreadyExists".to_string());
@@ -129,7 +132,9 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
         // Carries the error's params too, in the `key?param=value` form
         // `resolveBackendError` understands, so the message can name the
         // offending version or schema rather than leaving blanks.
-        return Err(crate::commands::game::first_package_error_message(&blocking));
+        return Err(crate::commands::game::first_package_error_message(
+            &blocking,
+        ));
     }
 
     // Nothing resolved *and* nothing went wrong: the directory is simply not a
@@ -189,7 +194,10 @@ pub fn save_package_project(
 ) -> Result<(), String> {
     let pkg_dir = Path::new(&dir);
 
-    write_json_atomic(&pkg_dir.join("package.json"), &ofm_core::generator::manifest_json(&meta)?)?;
+    write_json_atomic(
+        &pkg_dir.join("package.json"),
+        &ofm_core::generator::manifest_json(&meta)?,
+    )?;
 
     let confs = serde_json::to_value(&confederations).map_err(|e| e.to_string())?;
     write_json_atomic(
@@ -222,7 +230,10 @@ pub fn save_package_project(
         &json!({"schema": "staff", "items": stf}),
     )?;
 
-    write_json_atomic(&pkg_dir.join("names").join("names.json"), &ofm_core::generator::names_json(&names)?)?;
+    write_json_atomic(
+        &pkg_dir.join("names").join("names.json"),
+        &ofm_core::generator::names_json(&names)?,
+    )?;
 
     let comps = serde_json::to_value(&competitions).map_err(|e| e.to_string())?;
     write_json_atomic(
@@ -329,12 +340,24 @@ mod tests {
             )],
         );
 
-        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+        open_project_for_archive(
+            &archive,
+            &project,
+            &legacy,
+            project.file_name().unwrap().to_str().unwrap(),
+        )
+        .unwrap();
         let edited = project.join("countries/added-by-the-author.json");
         std::fs::create_dir_all(edited.parent().unwrap()).unwrap();
         std::fs::write(&edited, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
 
-        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+        open_project_for_archive(
+            &archive,
+            &project,
+            &legacy,
+            project.file_name().unwrap().to_str().unwrap(),
+        )
+        .unwrap();
 
         assert!(
             edited.exists(),
@@ -356,10 +379,20 @@ mod tests {
                 r#"{"schema":"world","id":"same","name":"One"}"#,
             )],
         );
-        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+        open_project_for_archive(
+            &archive,
+            &project,
+            &legacy,
+            project.file_name().unwrap().to_str().unwrap(),
+        )
+        .unwrap();
         let authored = project.join("countries/mine.json");
         std::fs::create_dir_all(authored.parent().unwrap()).unwrap();
-        std::fs::write(&authored, r#"{"schema":"country","id":"ES","name":"Spain"}"#).unwrap();
+        std::fs::write(
+            &authored,
+            r#"{"schema":"country","id":"ES","name":"Spain"}"#,
+        )
+        .unwrap();
 
         // Same id, new contents — as an update or a reinstall would leave it.
         let replacement = temp_project(
@@ -372,7 +405,13 @@ mod tests {
         std::fs::remove_file(&archive).unwrap();
         export_directory_to_ofm(&replacement, &archive).unwrap();
 
-        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+        open_project_for_archive(
+            &archive,
+            &project,
+            &legacy,
+            project.file_name().unwrap().to_str().unwrap(),
+        )
+        .unwrap();
 
         assert!(authored.exists(), "the author's work stays");
         let manifest = std::fs::read_to_string(project.join("package.json")).unwrap();
@@ -409,7 +448,13 @@ mod tests {
         )
         .unwrap();
 
-        open_project_for_archive(&archive, &project, &legacy, project.file_name().unwrap().to_str().unwrap()).unwrap();
+        open_project_for_archive(
+            &archive,
+            &project,
+            &legacy,
+            project.file_name().unwrap().to_str().unwrap(),
+        )
+        .unwrap();
 
         assert!(
             project.join("countries/from-the-old-place.json").exists(),
@@ -432,7 +477,10 @@ mod tests {
                 "{name} produced the project name {derived:?}"
             );
             assert_eq!(
-                Path::new("/app/world-editor").join(&derived).parent().unwrap(),
+                Path::new("/app/world-editor")
+                    .join(&derived)
+                    .parent()
+                    .unwrap(),
                 Path::new("/app/world-editor"),
                 "{name} escaped the projects root"
             );
@@ -473,7 +521,10 @@ mod tests {
             "and must not be adopted into this package's project"
         );
         let manifest = std::fs::read_to_string(project.join("package.json")).unwrap();
-        assert!(manifest.contains("mine"), "the archive was extracted: {manifest}");
+        assert!(
+            manifest.contains("mine"),
+            "the archive was extracted: {manifest}"
+        );
 
         std::fs::remove_dir_all(project.parent().unwrap().parent().unwrap()).ok();
     }
@@ -612,7 +663,11 @@ mod tests {
         assert_eq!(data.meta.id, "brazil-1962");
         assert_eq!(data.teams.len(), 2);
         assert_eq!(data.players.len(), 1);
-        assert!(data.issues.is_empty(), "unexpected issues: {}", data.issues.len());
+        assert!(
+            data.issues.is_empty(),
+            "unexpected issues: {}",
+            data.issues.len()
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -648,7 +703,10 @@ mod tests {
 
         let result = read_package_project(dir.to_string_lossy().to_string());
 
-        assert!(result.is_err(), "a missing directory must not open as a blank project");
+        assert!(
+            result.is_err(),
+            "a missing directory must not open as a blank project"
+        );
     }
 
     #[test]
@@ -659,7 +717,10 @@ mod tests {
 
         let result = read_package_project(dir.to_string_lossy().to_string());
 
-        assert!(result.is_err(), "a folder with no manifest and no entities is not a package");
+        assert!(
+            result.is_err(),
+            "a folder with no manifest and no entities is not a package"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -767,7 +828,8 @@ mod tests {
 
         let via_core = std::env::temp_dir().join("ofm-editor-parity-core");
         std::fs::remove_dir_all(&via_core).ok();
-        ofm_core::generator::scaffold_package(&via_core, &meta).expect("the shared scaffolder runs");
+        ofm_core::generator::scaffold_package(&via_core, &meta)
+            .expect("the shared scaffolder runs");
 
         let listing = |root: &std::path::Path| {
             let mut found: Vec<(String, String)> = Vec::new();
@@ -977,14 +1039,20 @@ mod tests {
         assert_eq!(p.last_name, "Rooney");
         assert_eq!(p.position, Position::Striker);
         assert_eq!(p.date_of_birth.as_deref(), Some("1985-10-24"));
-        let attrs = p.attributes.as_ref().expect("attributes must survive round-trip");
+        let attrs = p
+            .attributes
+            .as_ref()
+            .expect("attributes must survive round-trip");
         assert_eq!(attrs.shooting, 88);
         assert_eq!(attrs.pace, 75);
         // An authored ceiling has to come back out of the project the editor wrote.
         assert_eq!(p.potential, Some(93), "potential must survive round-trip");
 
         let names_rt = loaded.names.expect("names must survive round-trip");
-        let eng = names_rt.pools.get("ENG").expect("ENG pool must survive round-trip");
+        let eng = names_rt
+            .pools
+            .get("ENG")
+            .expect("ENG pool must survive round-trip");
         assert_eq!(eng.first_names, ["James", "John"]);
         assert_eq!(eng.last_names, ["Smith", "Jones"]);
 
@@ -995,7 +1063,10 @@ mod tests {
         assert_eq!(s.first_name, "Alex");
         assert_eq!(s.role, StaffRole::AssistantManager);
         assert_eq!(s.club, "man-utd");
-        let s_attrs = s.attributes.as_ref().expect("staff attributes must survive round-trip");
+        let s_attrs = s
+            .attributes
+            .as_ref()
+            .expect("staff attributes must survive round-trip");
         assert_eq!(s_attrs.coaching, 90);
 
         // Exercises competition type PascalCase and selector kind camelCase
@@ -1044,8 +1115,11 @@ mod tests {
         assert_eq!(denied, Err("be.error.invalidPath".to_string()));
 
         // A relative traversal that escapes the base is likewise rejected.
-        let traversal = format!("{}/assets/images/../../../{}", base.display(),
-            secret.file_name().unwrap().to_str().unwrap());
+        let traversal = format!(
+            "{}/assets/images/../../../{}",
+            base.display(),
+            secret.file_name().unwrap().to_str().unwrap()
+        );
         let denied2 = read_file_as_data_url(traversal, base.to_str().unwrap().to_string());
         assert_eq!(denied2, Err("be.error.invalidPath".to_string()));
 
@@ -1103,7 +1177,13 @@ fn slugify(ofm: &Path) -> String {
         .and_then(|n| n.to_str())
         .unwrap_or_default()
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect::<String>()
         .trim_matches('-')
         .to_string()
@@ -1182,9 +1262,14 @@ pub fn extract_ofm_for_editing(
     // The old layout keyed on the filename, so that is where to look — but the
     // same stem that was unsafe as a project name is unsafe here too.
     let legacy_stem = ofm.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
-    let legacy_dir = base_dir.join("world-editor-temp").join(
-        if is_safe_project_name(legacy_stem) { legacy_stem } else { &name },
-    );
+    let legacy_dir =
+        base_dir
+            .join("world-editor-temp")
+            .join(if is_safe_project_name(legacy_stem) {
+                legacy_stem
+            } else {
+                &name
+            });
 
     open_project_for_archive(ofm, &project_dir, &legacy_dir, &name)?;
 
@@ -1203,8 +1288,7 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
     // Prevent the output archive from being written inside the source directory,
     // which would cause it to zip itself into the archive.
     let out_parent = out_path.parent().unwrap_or(out_path);
-    if let (Ok(abs_dir), Ok(abs_out_parent)) =
-        (dir_path.canonicalize(), out_parent.canonicalize())
+    if let (Ok(abs_dir), Ok(abs_out_parent)) = (dir_path.canonicalize(), out_parent.canonicalize())
     {
         if abs_out_parent == abs_dir || abs_out_parent.starts_with(&abs_dir) {
             return Err("be.error.package.outputInsideSource".to_string());
@@ -1218,7 +1302,10 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
             .map(|e| format!("{}: {}", e.file, e.code))
             .collect::<Vec<_>>()
             .join("; ");
-        return Err(format!("be.error.package.validationFailed?errors={}", summary));
+        return Err(format!(
+            "be.error.package.validationFailed?errors={}",
+            summary
+        ));
     }
 
     export_directory_to_ofm(dir_path, out_path)

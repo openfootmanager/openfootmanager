@@ -123,7 +123,12 @@ fn select_field(game: &Game, format: &WorldCupFormat) -> Vec<String> {
             .or_default()
             .push(code);
     }
-    let strength = |code: &str| pools.get(code).map(|ovrs| pool_strength(ovrs)).unwrap_or(0.0);
+    let strength = |code: &str| {
+        pools
+            .get(code)
+            .map(|ovrs| pool_strength(ovrs))
+            .unwrap_or(0.0)
+    };
     for codes in by_region.values_mut() {
         codes.sort_by(|a, b| {
             strength(b)
@@ -133,8 +138,10 @@ fn select_field(game: &Game, format: &WorldCupFormat) -> Vec<String> {
         });
     }
 
-    let counts: BTreeMap<String, usize> =
-        by_region.iter().map(|(region, codes)| (region.clone(), codes.len())).collect();
+    let counts: BTreeMap<String, usize> = by_region
+        .iter()
+        .map(|(region, codes)| (region.clone(), codes.len()))
+        .collect();
     let berths = berths_by_region(format.field, &counts);
 
     let mut field: Vec<String> = Vec::new();
@@ -154,11 +161,31 @@ fn national_team_id(code: &str) -> String {
 /// generated world honours actual history for these years and never reuses a
 /// recent real host when awarding new ones.
 const REAL_WORLD_HOSTS: &[(u32, &str)] = &[
-    (1930, "UY"), (1934, "IT"), (1938, "FR"), (1950, "BR"), (1954, "CH"),
-    (1958, "SE"), (1962, "CL"), (1966, "ENG"), (1970, "MX"), (1974, "DE"),
-    (1978, "AR"), (1982, "ES"), (1986, "MX"), (1990, "IT"), (1994, "US"),
-    (1998, "FR"), (2002, "JP"), (2006, "DE"), (2010, "ZA"), (2014, "BR"),
-    (2018, "RU"), (2022, "QA"), (2026, "US"), (2030, "ES"), (2034, "SA"),
+    (1930, "UY"),
+    (1934, "IT"),
+    (1938, "FR"),
+    (1950, "BR"),
+    (1954, "CH"),
+    (1958, "SE"),
+    (1962, "CL"),
+    (1966, "ENG"),
+    (1970, "MX"),
+    (1974, "DE"),
+    (1978, "AR"),
+    (1982, "ES"),
+    (1986, "MX"),
+    (1990, "IT"),
+    (1994, "US"),
+    (1998, "FR"),
+    (2002, "JP"),
+    (2006, "DE"),
+    (2010, "ZA"),
+    (2014, "BR"),
+    (2018, "RU"),
+    (2022, "QA"),
+    (2026, "US"),
+    (2030, "ES"),
+    (2034, "SA"),
 ];
 
 /// The host nation code for a World Cup `year`: a host the game awarded, else
@@ -188,8 +215,12 @@ fn seed_points_for(strength: f64) -> f64 {
 /// accumulated results are preserved across tournaments.
 fn seed_world_ranking(game: &mut Game, field: &[String], pools: &BTreeMap<String, Vec<u8>>) {
     for code in field {
-        let strength = pools.get(code).map(|ovrs| pool_strength(ovrs)).unwrap_or(0.0);
-        game.world_history.seed_ranking(code, seed_points_for(strength));
+        let strength = pools
+            .get(code)
+            .map(|ovrs| pool_strength(ovrs))
+            .unwrap_or(0.0);
+        game.world_history
+            .seed_ranking(code, seed_points_for(strength));
     }
 }
 
@@ -207,7 +238,12 @@ fn ranked_field_with_pools(
 ) -> Vec<String> {
     let points_of = |code: &str| -> f64 {
         game.world_history.ranking_points(code).unwrap_or_else(|| {
-            seed_points_for(pools.get(code).map(|ovrs| pool_strength(ovrs)).unwrap_or(0.0))
+            seed_points_for(
+                pools
+                    .get(code)
+                    .map(|ovrs| pool_strength(ovrs))
+                    .unwrap_or(0.0),
+            )
         })
     };
     let mut ordered: Vec<String> = codes.to_vec();
@@ -289,8 +325,10 @@ fn draw_world_cup_groups(
     }
     // Confederation per nation, resolved once via the world's region map (which
     // honours league-defined overrides), shared by every cap check below.
-    let regions: HashMap<String, String> =
-        ranked.iter().map(|code| (code.clone(), region_of_code(game, code))).collect();
+    let regions: HashMap<String, String> = ranked
+        .iter()
+        .map(|code| (code.clone(), region_of_code(game, code)))
+        .collect();
     // Round up so every team lands in a group: a field that is not a multiple of
     // four yields a few groups of three rather than silently dropping teams.
     let group_count = ranked.len().div_ceil(GROUP_SIZE).max(1);
@@ -373,8 +411,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
             .map(|player| (player.id.clone(), player.ovr))
             .collect();
         squad.sort_by_key(|entry| std::cmp::Reverse(entry.1));
-        let squad_player_ids: Vec<String> =
-            squad.into_iter().take(23).map(|(id, _)| id).collect();
+        let squad_player_ids: Vec<String> = squad.into_iter().take(23).map(|(id, _)| id).collect();
 
         let nation_name_key = Some(format!("nations.{}", code.to_lowercase()));
         if let Some(team) = game
@@ -461,7 +498,12 @@ pub fn schedule_world_cup_with_field(
     let group_ids: Vec<Vec<String>> =
         draw_world_cup_groups(game, &field, host_code.as_deref(), &pools, &mut draw_rng)
             .iter()
-            .map(|group| group.iter().map(|code| national_team_id_for(game, code)).collect())
+            .map(|group| {
+                group
+                    .iter()
+                    .map(|code| national_team_id_for(game, code))
+                    .collect()
+            })
             .collect();
 
     let mut cup = crate::group_stage::generate_group_knockout_cup_with_groups(
@@ -492,7 +534,11 @@ pub fn schedule_world_cup_with_field(
 
     // The whole world hears about a World Cup, participant or not.
     let kickoff_news_id = format!("world_cup_kickoff_{year}");
-    if !game.news.iter().any(|article| article.id == kickoff_news_id) {
+    if !game
+        .news
+        .iter()
+        .any(|article| article.id == kickoff_news_id)
+    {
         let mut params = std::collections::HashMap::new();
         params.insert("year".to_string(), year.to_string());
         params.insert("nations".to_string(), field.len().to_string());
@@ -795,8 +841,8 @@ fn date_fixtures_into_slots(
 /// ahead can date its second half exactly (and the intermediate rollover
 /// re-anchors it anyway).
 fn season_window_dates(start_year: i32) -> Vec<String> {
-    let start = crate::schedule::date_str_to_utc(&format!("{start_year}-08-01"))
-        .unwrap_or_else(Utc::now);
+    let start =
+        crate::schedule::date_str_to_utc(&format!("{start_year}-08-01")).unwrap_or_else(Utc::now);
     crate::national_team::international_window_dates(start)
 }
 
@@ -817,11 +863,7 @@ fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
 /// campaign is **compressed**: single-leg groups of up to
 /// [`QUALIFYING_GROUP_SIZE`], one matchday per window, as before. National
 /// squads are prepared for every candidate nation.
-pub fn schedule_world_cup_qualifying(
-    game: &mut Game,
-    wc_year: i32,
-    window_dates: &[String],
-) {
+pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates: &[String]) {
     if window_dates.is_empty() {
         return;
     }
@@ -843,10 +885,22 @@ pub fn schedule_world_cup_qualifying(
             let mut windows = window_dates.to_vec();
             windows.extend(season_window_dates(first_window_year + 1));
             let slots = full_campaign_slots(windows.len());
-            (windows, MATCHDAYS_PER_WINDOW, slots, FULL_CAMPAIGN_GROUP_SIZE, 2u8)
+            (
+                windows,
+                MATCHDAYS_PER_WINDOW,
+                slots,
+                FULL_CAMPAIGN_GROUP_SIZE,
+                2u8,
+            )
         } else {
             let slots = window_dates.len();
-            (window_dates.to_vec(), 1usize, slots, QUALIFYING_GROUP_SIZE, 1u8)
+            (
+                window_dates.to_vec(),
+                1usize,
+                slots,
+                QUALIFYING_GROUP_SIZE,
+                1u8,
+            )
         };
 
     let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}{wc_year}");
@@ -924,7 +978,10 @@ pub fn schedule_world_cup_qualifying(
     // Slots share windows; spread each slot's matches across its share of the
     // window's multi-day block so no single calendar day is swamped.
     date_fixtures_into_slots(&mut dated_fixtures, &campaign_windows, matchdays_per_window);
-    competition.fixtures = dated_fixtures.into_iter().map(|(_, fixture)| fixture).collect();
+    competition.fixtures = dated_fixtures
+        .into_iter()
+        .map(|(_, fixture)| fixture)
+        .collect();
     competition.participant_ids = participant_ids;
     let competition_id = competition.id.clone();
     game.competitions.push(competition);
@@ -964,11 +1021,7 @@ pub fn schedule_world_cup_qualifying(
 /// (the second half of the campaign's slot layout), and refresh national
 /// squads after a summer of transfers and retirements. Fixtures already
 /// played keep their dates and results untouched.
-pub fn continue_world_cup_qualifying(
-    game: &mut Game,
-    window_dates: &[String],
-    rng: &mut impl Rng,
-) {
+pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String], rng: &mut impl Rng) {
     if window_dates.is_empty() {
         return;
     }
@@ -1064,8 +1117,13 @@ pub fn continue_world_cup_qualifying(
 /// each confederation's direct quota. CONCACAF (the host confederation) sends
 /// two, the other non-UEFA confederations one each — six teams contesting the
 /// final two berths, as in the real 2026 format.
-const PLAYOFF_ENTRANTS_BY_CONFED: &[(&str, usize)] =
-    &[("caf", 1), ("afc", 1), ("conmebol", 1), ("ofc", 1), ("concacaf", 2)];
+const PLAYOFF_ENTRANTS_BY_CONFED: &[(&str, usize)] = &[
+    ("caf", 1),
+    ("afc", 1),
+    ("conmebol", 1),
+    ("ofc", 1),
+    ("concacaf", 2),
+];
 
 /// Nation codes finishing across a confederation's groups, best first: every
 /// group winner (ordered among themselves by `standing_order`), then every
@@ -1077,7 +1135,11 @@ fn rank_confederation_finishers(groups: &[Vec<StandingEntry>]) -> Vec<String> {
         let mut at_rank: Vec<&StandingEntry> =
             groups.iter().filter_map(|group| group.get(rank)).collect();
         at_rank.sort_by(|a, b| standing_order(a, b));
-        finishers.extend(at_rank.into_iter().map(|e| nation_code_of_national_team(&e.team_id)));
+        finishers.extend(
+            at_rank
+                .into_iter()
+                .map(|e| nation_code_of_national_team(&e.team_id)),
+        );
     }
     finishers
 }
@@ -1094,7 +1156,11 @@ fn play_playoff_tie(game: &mut Game, home: &str, away: &str, rng: &mut impl Rng)
     } else {
         home_pens.unwrap_or(0) >= away_pens.unwrap_or(0)
     };
-    if home_advances { home.to_string() } else { away.to_string() }
+    if home_advances {
+        home.to_string()
+    } else {
+        away.to_string()
+    }
 }
 
 /// The inter-confederation playoff: `entrants` (ranking order) contest the final
@@ -1117,7 +1183,12 @@ fn resolve_inter_confed_playoff(
     let mut prelim_winners: Vec<String> = Vec::new();
     let half = rest.len() / 2;
     for i in 0..half {
-        prelim_winners.push(play_playoff_tie(game, &rest[i], &rest[rest.len() - 1 - i], rng));
+        prelim_winners.push(play_playoff_tie(
+            game,
+            &rest[i],
+            &rest[rest.len() - 1 - i],
+            rng,
+        ));
     }
     if rest.len() % 2 == 1 {
         prelim_winners.push(rest[half].clone());
@@ -1146,7 +1217,10 @@ fn announce_inter_confed_playoff(game: &mut Game, year: u32, winners: &[String])
     }
     let mut params = std::collections::HashMap::new();
     params.insert("year".to_string(), year.to_string());
-    let names: Vec<String> = winners.iter().map(|code| nations::nation_display_name(code)).collect();
+    let names: Vec<String> = winners
+        .iter()
+        .map(|code| nations::nation_display_name(code))
+        .collect();
     params.insert("nations".to_string(), names.join(", "));
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     game.news.push(
@@ -1179,7 +1253,10 @@ fn playoff_winners_of(cup: &League) -> Option<Vec<String>> {
     }
     let mut winners = Vec::new();
     for fixture_id in &finals.fixture_ids {
-        let fixture = cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id)?;
+        let fixture = cup
+            .fixtures
+            .iter()
+            .find(|fixture| &fixture.id == fixture_id)?;
         winners.push(nation_code_of_national_team(fixture.advancing_team_id()?));
     }
     (winners.len() == INTER_CONFED_PLAYOFF_SPOTS).then_some(winners)
@@ -1291,7 +1368,14 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
         let rest = &ranked[INTER_CONFED_PLAYOFF_SPOTS..];
         // Seeds first (they bye to the finals), then the preliminaries pair
         // the strongest of the rest against the weakest.
-        let order = [seeds[0].clone(), seeds[1].clone(), rest[0].clone(), rest[3].clone(), rest[1].clone(), rest[2].clone()];
+        let order = [
+            seeds[0].clone(),
+            seeds[1].clone(),
+            rest[0].clone(),
+            rest[3].clone(),
+            rest[1].clone(),
+            rest[2].clone(),
+        ];
         order
             .iter()
             .map(|code| national_team_id_for(game, code))
@@ -1336,8 +1420,10 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
     if !game.news.iter().any(|article| article.id == news_id) {
         let mut params = std::collections::HashMap::new();
         params.insert("year".to_string(), year.to_string());
-        let names: Vec<String> =
-            ranked.iter().map(|code| nations::nation_display_name(code)).collect();
+        let names: Vec<String> = ranked
+            .iter()
+            .map(|code| nations::nation_display_name(code))
+            .collect();
         params.insert("nations".to_string(), names.join(", "));
         game.news.push(
             NewsArticle::new(
@@ -1418,7 +1504,10 @@ fn qualifying_groups_by_confederation(
             .unwrap_or_else(|| "uefa".to_string());
         let sorted = crate::group_stage::sorted_group_standings(group);
         *entrants_by_confed.entry(confederation.clone()).or_insert(0) += sorted.len();
-        groups_by_confed.entry(confederation).or_default().push(sorted);
+        groups_by_confed
+            .entry(confederation)
+            .or_default()
+            .push(sorted);
     }
     Some((competition.season, groups_by_confed, entrants_by_confed))
 }
@@ -1441,7 +1530,9 @@ fn split_qualifying_outcome(
 ) -> QualifyingOutcome {
     let directs = direct_berths(entrants_by_confed);
     let host = host_code.map(str::to_string);
-    let host_confed = host.as_deref().map(|code| confederation_of_code(game, code));
+    let host_confed = host
+        .as_deref()
+        .map(|code| confederation_of_code(game, code));
 
     let mut direct_field: Vec<String> = Vec::new();
     let mut playoff_entrants: Vec<String> = Vec::new();
@@ -1512,8 +1603,7 @@ pub fn qualified_field_from_game(
         return Some(field);
     }
 
-    let outcome =
-        split_qualifying_outcome(game, &groups_by_confed, &entrants_by_confed, host_code);
+    let outcome = split_qualifying_outcome(game, &groups_by_confed, &entrants_by_confed, host_code);
     let mut field = outcome.direct_field;
     let reserves = outcome.reserves;
 
@@ -1539,8 +1629,10 @@ pub fn qualified_field_from_game(
     // per-confederation formats keep the pools full too, leaving it a B1 net.
     if field.len() < field_size {
         let chosen: std::collections::HashSet<String> = field.iter().cloned().collect();
-        let leftovers: Vec<String> =
-            reserves.into_iter().filter(|code| !chosen.contains(code)).collect();
+        let leftovers: Vec<String> = reserves
+            .into_iter()
+            .filter(|code| !chosen.contains(code))
+            .collect();
         for code in ranked_field(game, &leftovers) {
             if field.len() >= field_size {
                 break;
@@ -1603,7 +1695,14 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
             } else {
                 let (home_goals, away_goals, home_scorers, away_scorers) =
                     crate::national_team::play_national_match(game, &home_id, &away_id, rng);
-                (home_goals, away_goals, home_scorers, away_scorers, None, None)
+                (
+                    home_goals,
+                    away_goals,
+                    home_scorers,
+                    away_scorers,
+                    None,
+                    None,
+                )
             };
 
             let competition = &mut game.competitions[competition_index];
@@ -1781,11 +1880,12 @@ fn award_next_world_cup_host(game: &mut Game, played_year: u32, today: &str, rng
     let chosen = shortlist[rng.random_range(0..shortlist_len)].clone();
     let nation_name = nations::nation_display_name(&chosen);
 
-    game.world_history.record_world_cup_host(WorldCupHostRecord {
-        year: next_year,
-        nation_code: chosen,
-        nation_name: nation_name.clone(),
-    });
+    game.world_history
+        .record_world_cup_host(WorldCupHostRecord {
+            year: next_year,
+            nation_code: chosen,
+            nation_name: nation_name.clone(),
+        });
 
     let bid_id = format!("world_cup_host_bid_{next_year}");
     if !game.news.iter().any(|article| article.id == bid_id) {
@@ -1869,8 +1969,14 @@ mod tests {
         let berths = berths_by_region(16, &counts);
 
         assert_eq!(berths.values().sum::<usize>(), 16);
-        assert!((1..=2).contains(&berths["oceania"]), "small region keeps a berth but is capped");
-        assert!(berths["europe"] > berths["asia"], "berths scale with region size");
+        assert!(
+            (1..=2).contains(&berths["oceania"]),
+            "small region keeps a berth but is capped"
+        );
+        assert!(
+            berths["europe"] > berths["asia"],
+            "berths scale with region size"
+        );
     }
 
     #[test]
@@ -1898,7 +2004,9 @@ mod tests {
             }));
         }
         assert!(
-            game.news.iter().any(|a| a.id == "world_cup_qualifying_2026"),
+            game.news
+                .iter()
+                .any(|a| a.id == "world_cup_qualifying_2026"),
             "the qualifying campaign makes the news"
         );
 
@@ -1916,12 +2024,19 @@ mod tests {
             .groups
             .iter()
             .any(|g| g.standings.iter().any(|s| s.played > 0));
-        assert!(played, "qualifying group tables update as matches are played");
+        assert!(
+            played,
+            "qualifying group tables update as matches are played"
+        );
 
         let field = qualified_field_from_game(&mut game, FORMAT_16.field, None).expect("a field");
         assert_eq!(field.len(), FORMAT_16.field);
         let distinct: std::collections::HashSet<&String> = field.iter().collect();
-        assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+        assert_eq!(
+            distinct.len(),
+            field.len(),
+            "qualified nations are distinct"
+        );
     }
 
     #[test]
@@ -1952,15 +2067,24 @@ mod tests {
         short.insert("ofc".to_string(), 0);
         let berths = direct_berths(&short);
         assert_eq!(berths.get("ofc").copied().unwrap_or(0), 0);
-        assert_eq!(berths.values().sum::<usize>(), 46, "the OFC slot is redistributed");
-        assert!(berths["uefa"] >= 16, "slack goes to the biggest quota first");
+        assert_eq!(
+            berths.values().sum::<usize>(),
+            46,
+            "the OFC slot is redistributed"
+        );
+        assert!(
+            berths["uefa"] >= 16,
+            "slack goes to the biggest quota first"
+        );
     }
 
     #[test]
     fn inter_confederation_playoff_returns_two_distinct_qualifiers() {
         let mut game = empty_game();
-        let entrants: Vec<String> =
-            ["BR", "AR", "NG", "EG", "JP", "KR"].iter().map(|c| c.to_string()).collect();
+        let entrants: Vec<String> = ["BR", "AR", "NG", "EG", "JP", "KR"]
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
         prepare_national_squads(&mut game, &entrants);
 
         let mut rng = StdRng::seed_from_u64(3);
@@ -1981,8 +2105,12 @@ mod tests {
         let mut game = empty_game();
         let codes: Vec<String> = (0..50).map(|i| format!("ZZ{i}")).collect();
         let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}2026");
-        let mut competition =
-            League::new(competition_id.clone(), "WC Qualifying 2026".to_string(), 2026, &[]);
+        let mut competition = League::new(
+            competition_id.clone(),
+            "WC Qualifying 2026".to_string(),
+            2026,
+            &[],
+        );
         competition.kind = CompetitionType::InternationalNation;
         competition.scope = CompetitionScope::International;
         for (group_index, chunk) in codes.chunks(QUALIFYING_GROUP_SIZE).enumerate() {
@@ -1990,7 +2118,10 @@ mod tests {
             competition.groups.push(GroupState {
                 id: format!("{competition_id}-uefa-{group_index}"),
                 name: format!("uefa {}", group_index + 1),
-                standings: team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect(),
+                standings: team_ids
+                    .iter()
+                    .map(|id| StandingEntry::new(id.clone()))
+                    .collect(),
                 team_ids,
             });
         }
@@ -1998,9 +2129,17 @@ mod tests {
 
         let field = qualified_field_from_game(&mut game, FORMAT_48.field, None)
             .expect("a field is derived even from a one-confederation world");
-        assert_eq!(field.len(), FORMAT_48.field, "the starved playoff pool is backfilled to 48");
+        assert_eq!(
+            field.len(),
+            FORMAT_48.field,
+            "the starved playoff pool is backfilled to 48"
+        );
         let distinct: std::collections::HashSet<&String> = field.iter().collect();
-        assert_eq!(distinct.len(), field.len(), "the backfilled field stays distinct");
+        assert_eq!(
+            distinct.len(),
+            field.len(),
+            "the backfilled field stays distinct"
+        );
     }
 
     #[test]
@@ -2023,7 +2162,11 @@ mod tests {
             qualified_field_from_game(&mut game, FORMAT_48.field, Some(host)).expect("a field");
         assert_eq!(field.len(), FORMAT_48.field, "48 nations qualify");
         let distinct: std::collections::HashSet<&String> = field.iter().collect();
-        assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+        assert_eq!(
+            distinct.len(),
+            field.len(),
+            "qualified nations are distinct"
+        );
         assert!(field.iter().any(|code| code == host), "the host qualifies");
 
         // Per-confederation counts follow the real FIFA quotas; the two playoff
@@ -2033,7 +2176,11 @@ mod tests {
             let confed = nations::confederation_of_region(nations::region_for_code(code));
             *counts.entry(confed.to_string()).or_insert(0) += 1;
         }
-        assert_eq!(counts.get("uefa").copied().unwrap_or(0), 16, "UEFA gets its 16 directs");
+        assert_eq!(
+            counts.get("uefa").copied().unwrap_or(0),
+            16,
+            "UEFA gets its 16 directs"
+        );
         assert!((9..=10).contains(&counts.get("caf").copied().unwrap_or(0)));
         assert!((8..=9).contains(&counts.get("afc").copied().unwrap_or(0)));
         assert!((6..=7).contains(&counts.get("conmebol").copied().unwrap_or(0)));
@@ -2061,7 +2208,10 @@ mod tests {
             }
             for (region, count) in per_region {
                 let cap = if region == "europe" { 2 } else { 1 };
-                assert!(count <= cap, "group respects the {region} cap ({count} > {cap})");
+                assert!(
+                    count <= cap,
+                    "group respects the {region} cap ({count} > {cap})"
+                );
             }
         }
     }
@@ -2110,8 +2260,7 @@ mod tests {
             .iter()
             .filter_map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
             .collect();
-        let span_days =
-            (*dates.iter().max().unwrap() - *dates.iter().min().unwrap()).num_days();
+        let span_days = (*dates.iter().max().unwrap() - *dates.iter().min().unwrap()).num_days();
         assert!(
             span_days <= 42,
             "finals should fit a real World Cup window, spanned {span_days} days"
@@ -2141,10 +2290,10 @@ mod tests {
         );
 
         // Every match still falls inside a reserved international-window block.
-        let block: std::collections::HashSet<String> = crate::national_team::
-            international_window_span_dates(&windows)
-            .into_iter()
-            .collect();
+        let block: std::collections::HashSet<String> =
+            crate::national_team::international_window_span_dates(&windows)
+                .into_iter()
+                .collect();
         assert!(
             qualifying.fixtures.iter().all(|f| block.contains(&f.date)),
             "qualifying matches must stay inside the window span blocks"
@@ -2284,7 +2433,10 @@ mod tests {
             kickoff_news.headline_key.as_deref(),
             Some("be.news.worldCupKickoff.headline")
         );
-        assert_eq!(kickoff_news.i18n_params.get("nations"), Some(&"16".to_string()));
+        assert_eq!(
+            kickoff_news.i18n_params.get("nations"),
+            Some(&"16".to_string())
+        );
     }
 
     #[test]
@@ -2292,11 +2444,12 @@ mod tests {
         let mut game = empty_game();
         // Award an obscure, weak nation the 2030 hosting rights — one that would
         // never reach the finals on strength alone.
-        game.world_history.record_world_cup_host(WorldCupHostRecord {
-            year: 2030,
-            nation_code: "AND".to_string(),
-            nation_name: "Andorra".to_string(),
-        });
+        game.world_history
+            .record_world_cup_host(WorldCupHostRecord {
+                year: 2030,
+                nation_code: "AND".to_string(),
+                nation_name: "Andorra".to_string(),
+            });
 
         schedule_world_cup(&mut game, kickoff(2030), &FORMAT_16);
 
@@ -2310,7 +2463,10 @@ mod tests {
                 .iter()
                 .any(|team| &team.id == id && team.football_nation == "AND")
         });
-        assert!(host_qualified, "the host auto-qualifies into the finals field");
+        assert!(
+            host_qualified,
+            "the host auto-qualifies into the finals field"
+        );
         assert_eq!(cup.participant_ids.len(), 16, "the field size is preserved");
     }
 
@@ -2323,15 +2479,20 @@ mod tests {
         // of what should happen.
         let field: Vec<String> = (0..16).map(|i| format!("N{i:02}")).collect();
         for (index, code) in field.iter().enumerate() {
-            let points = if code == "N07" { 100.0 } else { 2000.0 - index as f64 };
+            let points = if code == "N07" {
+                100.0
+            } else {
+                2000.0 - index as f64
+            };
             game.world_history.set_ranking_points(code, points);
         }
         // The host is a 17th nation absent from the already-full field.
-        game.world_history.record_world_cup_host(WorldCupHostRecord {
-            year: 2030,
-            nation_code: "HOST".to_string(),
-            nation_name: "Host".to_string(),
-        });
+        game.world_history
+            .record_world_cup_host(WorldCupHostRecord {
+                year: 2030,
+                nation_code: "HOST".to_string(),
+                nation_name: "Host".to_string(),
+            });
 
         schedule_world_cup_with_field(&mut game, kickoff(2030), &FORMAT_16, Some(field));
 
@@ -2374,8 +2535,12 @@ mod tests {
         // nations through region_of_code, so the override must win — otherwise
         // the FIFA per-group caps and berth split are computed against the wrong
         // confederation than qualifying used.
-        let mut league =
-            League::new("br-league".to_string(), "Brazil League".to_string(), 2030, &[]);
+        let mut league = League::new(
+            "br-league".to_string(),
+            "Brazil League".to_string(),
+            2030,
+            &[],
+        );
         league.country_id = Some("BR".to_string());
         league.region_id = Some("europe".to_string());
         game.competitions.push(league);
@@ -2544,15 +2709,24 @@ mod tests {
             &season_two[..season_two.len() - 1],
         ));
         assert!(
-            qualifying.fixtures.iter().all(|f| campaign_days.contains(&f.date)),
+            qualifying
+                .fixtures
+                .iter()
+                .all(|f| campaign_days.contains(&f.date)),
             "every match sits on a campaign window, none on the playoff window"
         );
         assert!(
-            qualifying.fixtures.iter().any(|f| f.date.starts_with("2024")),
+            qualifying
+                .fixtures
+                .iter()
+                .any(|f| f.date.starts_with("2024")),
             "the campaign opens in the first season"
         );
         assert!(
-            qualifying.fixtures.iter().any(|f| f.date.starts_with("2026-03")),
+            qualifying
+                .fixtures
+                .iter()
+                .any(|f| f.date.starts_with("2026-03")),
             "the campaign runs to the second season's March window"
         );
     }
@@ -2604,7 +2778,10 @@ mod tests {
                 .filter(|f| f.status == FixtureStatus::Scheduled && f.date.starts_with("2025-06"))
                 .count()
         };
-        assert!(stranded_before > 0, "the June window is outrun by the rollover");
+        assert!(
+            stranded_before > 0,
+            "the June window is outrun by the rollover"
+        );
 
         let season_two = season_windows(2025);
         continue_world_cup_qualifying(&mut game, &season_two, &mut rng);
@@ -2686,10 +2863,17 @@ mod tests {
                 "the two seeds bye straight to the finals"
             );
             assert!(
-                playoff.fixtures.iter().all(|f| f.date.starts_with("2026-06")),
+                playoff
+                    .fixtures
+                    .iter()
+                    .all(|f| f.date.starts_with("2026-06")),
                 "the playoff owns the June window"
             );
-            assert!(game.news.iter().any(|a| a.id == "world_cup_playoff_draw_2026"));
+            assert!(
+                game.news
+                    .iter()
+                    .any(|a| a.id == "world_cup_playoff_draw_2026")
+            );
         }
 
         // June: preliminaries, then two parallel finals; two berths decided.
@@ -2720,7 +2904,11 @@ mod tests {
             .expect("a field");
         assert_eq!(field.len(), FORMAT_48.field);
         let distinct: std::collections::HashSet<&String> = field.iter().collect();
-        assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+        assert_eq!(
+            distinct.len(),
+            field.len(),
+            "qualified nations are distinct"
+        );
         for winner in &winners {
             assert!(
                 field.contains(winner),
@@ -2753,7 +2941,10 @@ mod tests {
                 .find(|c| is_world_cup_playoff(c))
                 .expect("the playoff is staged for June");
             assert!(
-                playoff.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled),
+                playoff
+                    .fixtures
+                    .iter()
+                    .all(|f| f.status == FixtureStatus::Scheduled),
                 "the playoff has not been played yet"
             );
         }
@@ -2780,7 +2971,10 @@ mod tests {
             .expect("a field");
         assert_eq!(field.len(), FORMAT_48.field);
         for winner in &winners {
-            assert!(field.contains(winner), "settled winner {winner} is in the field");
+            assert!(
+                field.contains(winner),
+                "settled winner {winner} is in the field"
+            );
         }
     }
 }

@@ -1150,7 +1150,8 @@ mod tests {
     }
 
     #[test]
-    fn preview_transfer_bid_financial_impact_reports_pending_registration_date_when_window_closed() {
+    fn preview_transfer_bid_financial_impact_reports_pending_registration_date_when_window_closed()
+    {
         let state = StateManager::new();
         let mut game = make_bid_game();
         game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();

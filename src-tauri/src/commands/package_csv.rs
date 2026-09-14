@@ -248,7 +248,11 @@ fn player_row(player: &PlayerDef) -> Vec<String> {
         optional(&player.footedness),
         // Only written when set, so the common non-youth case stays blank rather
         // than filling a column with "false".
-        if player.youth { "true".to_string() } else { String::new() },
+        if player.youth {
+            "true".to_string()
+        } else {
+            String::new()
+        },
         optional(&player.photo),
         optional(&player.overall),
         optional(&player.potential),
@@ -260,7 +264,10 @@ fn player_row(player: &PlayerDef) -> Vec<String> {
     // `overall` when no block is present.
     match &player.attributes {
         Some(attributes) => row.extend(attribute_values(attributes)),
-        None => row.extend(std::iter::repeat_n(String::new(), PLAYER_ATTRIBUTE_HEADERS.len())),
+        None => row.extend(std::iter::repeat_n(
+            String::new(),
+            PLAYER_ATTRIBUTE_HEADERS.len(),
+        )),
     }
 
     row
@@ -279,8 +286,8 @@ fn write_csv(
 ) -> Result<(), String> {
     let is_text: Vec<bool> = headers.iter().map(|h| text_headers.contains(h)).collect();
 
-    let mut writer =
-        csv::Writer::from_path(Path::new(output)).map_err(|_| "be.error.csv.writeFailed".to_string())?;
+    let mut writer = csv::Writer::from_path(Path::new(output))
+        .map_err(|_| "be.error.csv.writeFailed".to_string())?;
     writer
         .write_record(headers)
         .map_err(|_| "be.error.csv.writeFailed".to_string())?;
@@ -389,11 +396,16 @@ mod tests {
         }));
         let row = player_row(&player);
 
-        assert_eq!(row.len(), PLAYER_IDENTITY_HEADERS.len() + PLAYER_ATTRIBUTE_HEADERS.len());
+        assert_eq!(
+            row.len(),
+            PLAYER_IDENTITY_HEADERS.len() + PLAYER_ATTRIBUTE_HEADERS.len()
+        );
         assert_eq!(row[12], "70", "overall is written");
         assert_eq!(row[13], "", "an unset ceiling leaves its column blank");
         assert!(
-            row[PLAYER_IDENTITY_HEADERS.len()..].iter().all(String::is_empty),
+            row[PLAYER_IDENTITY_HEADERS.len()..]
+                .iter()
+                .all(String::is_empty),
             "attribute columns stay blank so import falls back to overall"
         );
     }
@@ -433,7 +445,11 @@ mod tests {
         let written = &row[PLAYER_IDENTITY_HEADERS.len()..];
         assert_eq!(written.len(), PLAYER_ATTRIBUTE_HEADERS.len());
         for (index, value) in written.iter().enumerate() {
-            assert_eq!(value, &(index + 40).to_string(), "column {index} out of order");
+            assert_eq!(
+                value,
+                &(index + 40).to_string(),
+                "column {index} out of order"
+            );
         }
     }
 
@@ -485,7 +501,11 @@ mod tests {
 
         let mut reader = csv::Reader::from_path(&path).expect("written file should parse");
         assert_eq!(reader.headers().expect("headers"), TEAM_HEADERS);
-        let record = reader.records().next().expect("one row").expect("valid row");
+        let record = reader
+            .records()
+            .next()
+            .expect("one row")
+            .expect("valid row");
         assert_eq!(&record[1], r#"Preston "North End", Lancashire"#);
         assert_eq!(&record[2], "TST", "the comma must not shift later columns");
     }
@@ -507,7 +527,10 @@ mod tests {
         // A typo here would silently leave a column unescaped, so pin the text
         // lists to the header lists rather than trusting they stay in step.
         for header in TEAM_TEXT_HEADERS {
-            assert!(TEAM_HEADERS.contains(header), "unknown team column {header}");
+            assert!(
+                TEAM_HEADERS.contains(header),
+                "unknown team column {header}"
+            );
         }
         let player_headers: Vec<&str> = PLAYER_IDENTITY_HEADERS
             .iter()
@@ -515,7 +538,10 @@ mod tests {
             .copied()
             .collect();
         for header in PLAYER_TEXT_HEADERS {
-            assert!(player_headers.contains(header), "unknown player column {header}");
+            assert!(
+                player_headers.contains(header),
+                "unknown player column {header}"
+            );
         }
     }
 
@@ -532,9 +558,21 @@ mod tests {
         .expect("export should succeed");
 
         let mut reader = csv::Reader::from_path(&path).expect("written file should parse");
-        let record = reader.records().next().expect("one row").expect("valid row");
-        assert_eq!(&record[1], format!("'{hostile}"), "a spreadsheet would execute this");
-        assert_eq!(unescape_formula(&record[1]), hostile, "and it must survive import");
+        let record = reader
+            .records()
+            .next()
+            .expect("one row")
+            .expect("valid row");
+        assert_eq!(
+            &record[1],
+            format!("'{hostile}"),
+            "a spreadsheet would execute this"
+        );
+        assert_eq!(
+            unescape_formula(&record[1]),
+            hostile,
+            "and it must survive import"
+        );
     }
 
     #[test]
@@ -547,14 +585,15 @@ mod tests {
 
         let mut json = base_team("FC Test");
         json["financeRange"] = serde_json::json!([-2_000_000i64, -1_000_000i64]);
-        export_teams_csv(
-            vec![team_def(json)],
-            path.to_string_lossy().to_string(),
-        )
-        .expect("export should succeed");
+        export_teams_csv(vec![team_def(json)], path.to_string_lossy().to_string())
+            .expect("export should succeed");
 
         let mut reader = csv::Reader::from_path(&path).expect("written file should parse");
-        let record = reader.records().next().expect("one row").expect("valid row");
+        let record = reader
+            .records()
+            .next()
+            .expect("one row")
+            .expect("valid row");
         assert_eq!(&record[11], "-2000000");
         assert_eq!(&record[12], "-1000000");
     }
@@ -562,14 +601,14 @@ mod tests {
     #[test]
     fn escaping_round_trips_for_every_shape_of_cell() {
         for original in [
-            "Preston North End",   // ordinary text, untouched
-            "=1+1",                // formula
-            "+44",                 // phone-like
-            "-Rangers",            // leading dash
-            "@here",               // mention
-            "'=already",           // the author's own apostrophe
+            "Preston North End", // ordinary text, untouched
+            "=1+1",              // formula
+            "+44",               // phone-like
+            "-Rangers",          // leading dash
+            "@here",             // mention
+            "'=already",         // the author's own apostrophe
             "''=doubled",
-            "'tis",                // apostrophe that isn't an escape
+            "'tis", // apostrophe that isn't an escape
             "",
         ] {
             let escaped = escape_formula(original.to_string());

@@ -78,7 +78,9 @@ fn normalize_world(mut world: WorldData) -> WorldData {
         &mut world.staff,
     );
     crate::football_identity::upgrade_world_manager_identities(&world.teams, &mut world.managers);
-    if world.competitions.is_empty() && let Some(league) = world.league.clone() {
+    if world.competitions.is_empty()
+        && let Some(league) = world.league.clone()
+    {
         world.competitions.push(league);
     }
     if world.metadata.world_id.is_empty() {
@@ -223,7 +225,10 @@ pub fn export_world_to_json(world: &WorldData) -> Result<String, String> {
     serde_json::to_string_pretty(&normalized).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())
 }
 
-fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Result<WorldData, String> {
+fn load_world_from_manifest_path(
+    path: &Path,
+    manifest: WorldManifestV2,
+) -> Result<WorldData, String> {
     fn read_json_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
         let json =
             std::fs::read_to_string(path).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
@@ -239,8 +244,7 @@ fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Resu
         read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
     let news = read_json_file(&manifest_shard_path(path, &manifest.shards.news))?;
     let stats = read_json_file(&manifest_shard_path(path, &manifest.shards.stats))?;
-    let world_history =
-        read_json_file(&manifest_shard_path(path, &manifest.shards.world_history))?;
+    let world_history = read_json_file(&manifest_shard_path(path, &manifest.shards.world_history))?;
 
     Ok(normalize_world(WorldData {
         name: manifest.name,
@@ -259,11 +263,13 @@ fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Resu
         news,
         stats,
         world_history,
-        metadata: manifest.compatibility.unwrap_or_else(|| super::definitions::WorldDataMetadata {
-            format_version: manifest.format_version,
-            world_id: manifest.world_id,
-            ..Default::default()
-        }),
+        metadata: manifest
+            .compatibility
+            .unwrap_or_else(|| super::definitions::WorldDataMetadata {
+                format_version: manifest.format_version,
+                world_id: manifest.world_id,
+                ..Default::default()
+            }),
         extra_translations: std::collections::HashMap::new(),
         build_notices: Vec::new(),
     }))
@@ -302,11 +308,20 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
     write_json(&shard_dir.join("players.json"), &normalized.players)?;
     write_json(&shard_dir.join("staff.json"), &normalized.staff)?;
     write_json(&shard_dir.join("managers.json"), &normalized.managers)?;
-    write_json(&shard_dir.join("competitions.json"), &normalized.competitions)?;
-    write_json(&shard_dir.join("national_teams.json"), &normalized.national_teams)?;
+    write_json(
+        &shard_dir.join("competitions.json"),
+        &normalized.competitions,
+    )?;
+    write_json(
+        &shard_dir.join("national_teams.json"),
+        &normalized.national_teams,
+    )?;
     write_json(&shard_dir.join("news.json"), &normalized.news)?;
     write_json(&shard_dir.join("stats.json"), &normalized.stats)?;
-    write_json(&shard_dir.join("world_history.json"), &normalized.world_history)?;
+    write_json(
+        &shard_dir.join("world_history.json"),
+        &normalized.world_history,
+    )?;
 
     let manifest = WorldManifestV2 {
         format_version: 2,
@@ -345,8 +360,7 @@ pub fn export_directory_to_ofm(dir: &Path, output: &Path) -> Result<(), String> 
     let file =
         std::fs::File::create(output).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
-    let options =
-        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     fn add_dir(
         zip: &mut zip::ZipWriter<std::fs::File>,
@@ -369,8 +383,8 @@ pub fn export_directory_to_ofm(dir: &Path, output: &Path) -> Result<(), String> 
                     .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?
                     .to_string_lossy()
                     .replace('\\', "/");
-                let data = std::fs::read(&path)
-                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+                let data =
+                    std::fs::read(&path).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
                 zip.start_file(rel, options)
                     .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
                 zip.write_all(&data)
@@ -828,7 +842,8 @@ mod tests {
         let src = temp.path().join("src");
         fs::create_dir_all(src.join("assets/logos")).expect("nested dirs should be created");
         fs::write(src.join("world.json"), b"{}").expect("root file should be written");
-        fs::write(src.join("assets/logos/team.png"), b"PNG").expect("nested file should be written");
+        fs::write(src.join("assets/logos/team.png"), b"PNG")
+            .expect("nested file should be written");
 
         let out = temp.path().join("out.ofm");
         export_directory_to_ofm(&src, &out).expect("export of a valid tree should succeed");
@@ -855,6 +870,9 @@ mod tests {
         let missing = temp.path().join("does-not-exist");
         let out = temp.path().join("out.ofm");
         let result = export_directory_to_ofm(&missing, &out);
-        assert!(result.is_err(), "unreadable source dir should surface an error");
+        assert!(
+            result.is_err(),
+            "unreadable source dir should surface an error"
+        );
     }
 }

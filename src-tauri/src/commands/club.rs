@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use log::info;
+use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::finances::{self, FinanceHealthLevel};
@@ -9,7 +9,10 @@ use ofm_core::state::StateManager;
 use crate::commands::util::mutate_active_game;
 
 #[tauri::command]
-pub fn upgrade_facility(state: State<'_, Arc<StateManager>>, facility: String) -> Result<Game, String> {
+pub fn upgrade_facility(
+    state: State<'_, Arc<StateManager>>,
+    facility: String,
+) -> Result<Game, String> {
     upgrade_facility_internal(&state, &facility)
 }
 

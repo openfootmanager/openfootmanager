@@ -482,7 +482,10 @@ fn accepted_incoming_transfer_credits_selling_team_transfer_budget() {
         .find(|player| player.id == "player-sale-budget-credit")
         .unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-2"));
-    assert_eq!(player.transfer_offers[0].status, TransferOfferStatus::Accepted);
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::Accepted
+    );
 }
 
 #[test]

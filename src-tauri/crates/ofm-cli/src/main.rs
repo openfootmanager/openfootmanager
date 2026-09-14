@@ -36,9 +36,7 @@ enum Commands {
         r#type: String,
     },
     /// Print an annotated schema template for an entity type
-    Schema {
-        entity: EntityKind,
-    },
+    Schema { entity: EntityKind },
     /// Add a scaffolded entity file to an existing package directory
     Add {
         entity: EntityKind,
@@ -55,9 +53,7 @@ enum Commands {
         format: String,
     },
     /// Validate a package directory or .ofm archive
-    Validate {
-        path: PathBuf,
-    },
+    Validate { path: PathBuf },
     /// Pack a package directory into a .ofm archive
     Pack {
         dir: PathBuf,
@@ -66,9 +62,7 @@ enum Commands {
         output: Option<PathBuf>,
     },
     /// Show metadata from a .ofm file
-    Info {
-        file: PathBuf,
-    },
+    Info { file: PathBuf },
 }
 
 /// Clap's view of the entity list. It exists only so `clap` can parse the
@@ -134,10 +128,6 @@ fn main() {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-
-
-
 
 fn write_json(path: &Path, value: &Value) -> Result<(), String> {
     let content = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
@@ -349,9 +339,16 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
         return 1;
     }
 
-    println!("{} Created package directory: {}", "✓".green().bold(), pkg_dir.display());
+    println!(
+        "{} Created package directory: {}",
+        "✓".green().bold(),
+        pkg_dir.display()
+    );
     println!("  Edit {} to fill in metadata.", "package.json".cyan());
-    println!("  Add entities with {}.", "ofm-cli add <entity> \"Name\"".cyan());
+    println!(
+        "  Add entities with {}.",
+        "ofm-cli add <entity> \"Name\"".cyan()
+    );
     println!("  Validate with {}.", "ofm-cli validate .".cyan());
     0
 }
@@ -392,7 +389,9 @@ fn cmd_add(
     let pkg_dir = dir.map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
     let kind = CoreEntityKind::from(entity);
     // `World` is rejected above, so every kind reaching here has a directory.
-    let sub = kind.dir().expect("non-world entities live in a subdirectory");
+    let sub = kind
+        .dir()
+        .expect("non-world entities live in a subdirectory");
     let schema = kind.schema_name();
     let template = entity_template(kind, name);
 
@@ -413,17 +412,29 @@ fn cmd_add(
         }
         let target = pkg_dir.join(sub).join(target_file);
         if !target.exists() {
-            eprintln!("{} File not found: {}", "error:".red().bold(), target.display());
+            eprintln!(
+                "{} File not found: {}",
+                "error:".red().bold(),
+                target.display()
+            );
             return 1;
         }
         let raw = match std::fs::read_to_string(&target) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("{} Failed to read {}: {}", "error:".red().bold(), target.display(), e);
+                eprintln!(
+                    "{} Failed to read {}: {}",
+                    "error:".red().bold(),
+                    target.display(),
+                    e
+                );
                 return 1;
             }
         };
-        let ext = target.extension().and_then(|e| e.to_str()).unwrap_or("json");
+        let ext = target
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("json");
         let mut value: Value = if ext == "yaml" || ext == "yml" {
             match serde_yaml::from_str(&raw) {
                 Ok(v) => v,
@@ -465,10 +476,20 @@ fn cmd_add(
             write_json(&target, &value)
         };
         if let Err(e) = result {
-            eprintln!("{} Failed to write {}: {}", "error:".red().bold(), target.display(), e);
+            eprintln!(
+                "{} Failed to write {}: {}",
+                "error:".red().bold(),
+                target.display(),
+                e
+            );
             return 1;
         }
-        println!("{} Appended {} to {}", "✓".green().bold(), schema, target.display());
+        println!(
+            "{} Appended {} to {}",
+            "✓".green().bold(),
+            schema,
+            target.display()
+        );
     } else {
         let slug = name
             .map(slugify)
@@ -494,7 +515,11 @@ fn cmd_add(
 
         if !entity_subdir.exists() {
             if let Err(e) = std::fs::create_dir_all(&entity_subdir) {
-                eprintln!("{} Failed to create directory: {}", "error:".red().bold(), e);
+                eprintln!(
+                    "{} Failed to create directory: {}",
+                    "error:".red().bold(),
+                    e
+                );
                 return 1;
             }
         }
@@ -509,17 +534,31 @@ fn cmd_add(
             write_json(&target, &container)
         };
         if let Err(e) = result {
-            eprintln!("{} Failed to write {}: {}", "error:".red().bold(), target.display(), e);
+            eprintln!(
+                "{} Failed to write {}: {}",
+                "error:".red().bold(),
+                target.display(),
+                e
+            );
             return 1;
         }
-        println!("{} Created {} at {}", "✓".green().bold(), schema, target.display());
+        println!(
+            "{} Created {} at {}",
+            "✓".green().bold(),
+            schema,
+            target.display()
+        );
     }
     0
 }
 
 fn cmd_validate(path: &Path) -> i32 {
     if !path.exists() {
-        eprintln!("{} Path not found: {}", "error:".red().bold(), path.display());
+        eprintln!(
+            "{} Path not found: {}",
+            "error:".red().bold(),
+            path.display()
+        );
         return 1;
     }
     println!("Validating {}...", path.display());
@@ -554,8 +593,11 @@ fn cmd_validate(path: &Path) -> i32 {
     } else {
         println!("{} {} error(s):", "✗".red().bold(), errors.len());
         for err in &errors {
-            let params: Vec<String> =
-                err.params.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
+            let params: Vec<String> = err
+                .params
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect();
             let param_str = if params.is_empty() {
                 String::new()
             } else {
@@ -590,17 +632,27 @@ fn default_pack_path(meta_id: Option<&str>, dir: &Path) -> PathBuf {
 
 fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
     if !dir.exists() {
-        eprintln!("{} Directory not found: {}", "error:".red().bold(), dir.display());
+        eprintln!(
+            "{} Directory not found: {}",
+            "error:".red().bold(),
+            dir.display()
+        );
         return 1;
     }
 
     println!("Validating {}...", dir.display());
     let (pkg, errors) = load_world_package(dir);
     if !errors.is_empty() {
-        println!("{} Validation failed — fix these errors before packing:", "✗".red().bold());
+        println!(
+            "{} Validation failed — fix these errors before packing:",
+            "✗".red().bold()
+        );
         for err in &errors {
-            let params: Vec<String> =
-                err.params.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
+            let params: Vec<String> = err
+                .params
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect();
             let param_str = if params.is_empty() {
                 String::new()
             } else {
@@ -636,7 +688,11 @@ fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
 
 fn cmd_info(file: &Path) -> i32 {
     if !file.exists() {
-        eprintln!("{} File not found: {}", "error:".red().bold(), file.display());
+        eprintln!(
+            "{} File not found: {}",
+            "error:".red().bold(),
+            file.display()
+        );
         return 1;
     }
 
@@ -669,7 +725,10 @@ fn cmd_info(file: &Path) -> i32 {
     table.add_row(vec!["Competitions", &pkg.competitions.len().to_string()]);
     table.add_row(vec!["Staff", &pkg.staff.len().to_string()]);
     table.add_row(vec!["Countries", &pkg.countries.len().to_string()]);
-    table.add_row(vec!["Confederations", &pkg.confederations.len().to_string()]);
+    table.add_row(vec![
+        "Confederations",
+        &pkg.confederations.len().to_string(),
+    ]);
     table.add_row(vec!["Name Pools", &pkg.name_pool_count().to_string()]);
 
     if !errors.is_empty() {
@@ -679,7 +738,11 @@ fn cmd_info(file: &Path) -> i32 {
     println!("{}", table);
 
     if !errors.is_empty() {
-        println!("{} {} validation error(s)", "⚠".yellow().bold(), errors.len());
+        println!(
+            "{} {} validation error(s)",
+            "⚠".yellow().bold(),
+            errors.len()
+        );
         for err in &errors {
             println!("  {} {}", err.file.yellow(), err.code.red());
         }
@@ -701,8 +764,11 @@ mod tests {
     fn pack_refuses_a_manifest_with_no_metadata_and_writes_nothing() {
         let dir = scratch_dir("pack-incomplete-manifest");
         std::fs::create_dir_all(dir.join("world")).expect("temp dir");
-        std::fs::write(dir.join("world").join("world.json"), r#"{"schema":"world"}"#)
-            .expect("manifest written");
+        std::fs::write(
+            dir.join("world").join("world.json"),
+            r#"{"schema":"world"}"#,
+        )
+        .expect("manifest written");
         let out = dir.join("out.ofm");
 
         let code = cmd_pack(&dir, Some(&out));
@@ -797,7 +863,10 @@ mod tests {
         // `position` that is not a variant, a `confederation-id` that resolves
         // to nothing, and a `club-id` naming a team that cannot exist yet.
         let dir = scratch_dir("scaffold-validates");
-        assert_eq!(cmd_new("demo", Some(&dir), "Author", "1.0.0", "database"), 0);
+        assert_eq!(
+            cmd_new("demo", Some(&dir), "Author", "1.0.0", "database"),
+            0
+        );
 
         for entity in ALL_ENTITIES {
             // `world` is the manifest `new` already wrote; `add` rejects it.
@@ -892,7 +961,10 @@ mod tests {
 
         // And what the template scaffolds has to be one of them.
         let template = entity_template(CoreEntityKind::from(&EntityKind::Player), Some("Sam Doe"));
-        let scaffolded = template["position"].as_str().unwrap_or_default().to_string();
+        let scaffolded = template["position"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
         assert!(
             documented.contains(&scaffolded),
             "`ofm-cli add player` scaffolds position {scaffolded:?}, which the schema does not list"
@@ -942,7 +1014,10 @@ mod tests {
 
     #[test]
     fn staff_template_carries_role_and_split_name() {
-        let tpl = entity_template(CoreEntityKind::from(&EntityKind::Staff), Some("Alex Ferguson"));
+        let tpl = entity_template(
+            CoreEntityKind::from(&EntityKind::Staff),
+            Some("Alex Ferguson"),
+        );
         assert_eq!(tpl["id"], "alex-ferguson");
         assert_eq!(tpl["firstName"], "Alex");
         assert_eq!(tpl["lastName"], "Ferguson");

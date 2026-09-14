@@ -12,19 +12,17 @@ pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
-    extract_package_assets, hash_package_file, is_manifest_metadata_error, is_unreadable,
-    is_valid_package_id,
-    load_world_package, load_world_package_files, load_world_package_from_ofm,
-    qualify_package_asset_paths, merge_world_packages, read_logo_from_ofm,
-    read_package_manifest_from_ofm, validate_manifest, validate_package,
-    validate_package_stack,
-    validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
-    PackageLock, PlayerDef, StaffDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
-    RESERVED_PACKAGE_ID,
+    ConfederationDef, ConflictSeverity, CountryDef, MAX_ARCHIVE_BYTES, PackageError, PackageInfo,
+    PackageLock, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef, WorldMetaDef,
+    WorldPackage, extract_package_assets, hash_package_file, is_manifest_metadata_error,
+    is_unreadable, is_valid_package_id, load_world_package, load_world_package_files,
+    load_world_package_from_ofm, merge_world_packages, qualify_package_asset_paths,
+    read_logo_from_ofm, read_package_manifest_from_ofm, validate_manifest, validate_package,
+    validate_package_stack, validate_references,
 };
 pub use scaffold::{
-    entity_template, manifest_json, names_json, new_package_meta, scaffold_package, slugify,
-    EntityKind,
+    EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
+    slugify,
 };
 pub use world_io::*;
 
@@ -281,15 +279,14 @@ pub fn generate_youth_academy_recruit_with_nationality(
         });
     let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
-    let mut player =
-        generate_random_player_from_def(
-            &team.id,
-            slot_index,
-            &nationality,
-            current_year,
-            &names_def,
-            &mut rng,
-        );
+    let mut player = generate_random_player_from_def(
+        &team.id,
+        slot_index,
+        &nationality,
+        current_year,
+        &names_def,
+        &mut rng,
+    );
     player.squad_role = SquadRole::Youth;
     player.transfer_listed = false;
     player.loan_listed = false;
@@ -310,15 +307,14 @@ pub fn generate_national_team_player(
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
     let slot = senior_slot(squad_slot % SQUAD_SLOTS);
-    let mut player =
-        generate_random_player_from_def(
-            "national-pool",
-            slot,
-            &nationality,
-            opening_year,
-            &names_def,
-            &mut rng,
-        );
+    let mut player = generate_random_player_from_def(
+        "national-pool",
+        slot,
+        &nationality,
+        opening_year,
+        &names_def,
+        &mut rng,
+    );
     player.team_id = None;
     player.contract_end = None;
     player.wage = 0;
@@ -382,11 +378,8 @@ fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool
                 continue;
             }
 
-            let nationality = pick_nationality_from_def(
-                team_local_nationality(team),
-                &country_codes,
-                &mut rng,
-            );
+            let nationality =
+                pick_nationality_from_def(team_local_nationality(team), &country_codes, &mut rng);
             generated_staff.push(generate_random_staff_from_def(
                 &team.id,
                 role.clone(),
@@ -493,7 +486,10 @@ fn available_staff_count(staff: &[Staff]) -> usize {
 
 fn replace_available_staff_market(staff: &mut Vec<Staff>, teams: &[Team], opening_year: u32) {
     staff.retain(|staff_member| staff_member.team_id.is_some());
-    staff.extend(generate_standard_available_staff_for_teams(teams, opening_year));
+    staff.extend(generate_standard_available_staff_for_teams(
+        teams,
+        opening_year,
+    ));
 }
 
 pub fn replenish_available_staff_market(
@@ -689,8 +685,14 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
     // `min > max`, but `build_team` also serves the procedural generator and
     // `default_teams` definition files, which nothing validates. Two comparisons
     // are a cheap price for a failure mode with no diagnostic.
-    let (fin_lo, fin_hi) = (fin_range[0].min(fin_range[1]), fin_range[0].max(fin_range[1]));
-    let (rep_lo, rep_hi) = (rep_range[0].min(rep_range[1]), rep_range[0].max(rep_range[1]));
+    let (fin_lo, fin_hi) = (
+        fin_range[0].min(fin_range[1]),
+        fin_range[0].max(fin_range[1]),
+    );
+    let (rep_lo, rep_hi) = (
+        rep_range[0].min(rep_range[1]),
+        rep_range[0].max(rep_range[1]),
+    );
     team.finance = rng.random_range(fin_lo..=fin_hi);
     team.reputation = rng.random_range(rep_lo..=rep_hi);
     team.wage_budget = (team.finance as f64 * 0.06) as i64;
@@ -726,8 +728,14 @@ fn build_club(
     let mut team_players = Vec::with_capacity(SQUAD_SLOTS);
     for slot in 0..SQUAD_SLOTS {
         let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
-        let mut player =
-            generate_random_player_from_def(&team_id, slot, &nationality, opening_year, names_def, rng);
+        let mut player = generate_random_player_from_def(
+            &team_id,
+            slot,
+            &nationality,
+            opening_year,
+            names_def,
+            rng,
+        );
         if rng.random_range(0..100) < 12 {
             player.transfer_listed = true;
         } else if rng.random_range(0..100) < 8 {
@@ -877,8 +885,7 @@ fn build_package_club(
 
     let mut placed = vec![false; players.len()];
     for def in authored {
-        let authored_player =
-            generate_player_from_def(def, &team.id, opening_year, names_def, rng);
+        let authored_player = generate_player_from_def(def, &team.id, opening_year, names_def, rng);
         let group = authored_player.position.to_group_position();
         let slot = players
             .iter()
@@ -992,7 +999,10 @@ fn filler_club_defs(
         .nations
         .iter()
         .find(|n| n.code == country)
-        .map(|n| clubs::NationGen { tiers: 1, ..n.clone() }) // force single-division
+        .map(|n| clubs::NationGen {
+            tiers: 1,
+            ..n.clone()
+        }) // force single-division
         .unwrap_or_else(|| clubs::NationGen {
             code: "??".to_string(),
             style: clubs::NamingStyle::Generic,
@@ -1039,7 +1049,9 @@ fn build_fallback_competition(
         id: "ofm-fallback-league".to_string(),
         // A custom name is used verbatim; otherwise keep the localized default
         // name (driven by name_key, with `name` as the raw fallback).
-        name: custom_name.clone().unwrap_or_else(|| "Default League".to_string()),
+        name: custom_name
+            .clone()
+            .unwrap_or_else(|| "Default League".to_string()),
         r#type: domain::league::CompetitionType::League,
         scope,
         priority: 10,
@@ -1159,8 +1171,14 @@ pub fn build_world_data_from_package(
             .get(tdef.id.as_str())
             .map(Vec::as_slice)
             .unwrap_or(NO_AUTHORED_STAFF);
-        let (team, team_players, mut team_staff) =
-            build_package_club(tdef, authored, &country_codes, opening_year, &names_def, &mut rng);
+        let (team, team_players, mut team_staff) = build_package_club(
+            tdef,
+            authored,
+            &country_codes,
+            opening_year,
+            &names_def,
+            &mut rng,
+        );
         // Replace auto-generated staff with authored versions, consuming each slot
         // at most once so multiple authored staff of the same role all survive.
         let mut replaced_staff_slots = vec![false; team_staff.len()];
@@ -1236,7 +1254,10 @@ pub fn build_world_data_from_package(
         // for the frontend to surface; it is not persisted to the save.
         build_notices.push("be.error.notice.fallbackLeagueGenerated".to_string());
         let explicit: Vec<String> = teams.iter().map(|t| t.id.clone()).collect();
-        let cfg = package.meta.as_ref().and_then(|m| m.fallback_league.as_ref());
+        let cfg = package
+            .meta
+            .as_ref()
+            .and_then(|m| m.fallback_league.as_ref());
         let fallback = build_fallback_competition(cfg, explicit);
         Some(CompetitionDefinitionFile {
             format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
@@ -1331,8 +1352,13 @@ fn generate_world_with_rng(
     // Generate free-agent staff
     for role in standard_available_staff_roles() {
         let nat = &country_codes[rng.random_range(0..country_codes.len())];
-        let s =
-            generate_random_staff_unattached_from_def(role, nat, opening_year, &names_def, &mut rng);
+        let s = generate_random_staff_unattached_from_def(
+            role,
+            nat,
+            opening_year,
+            &names_def,
+            &mut rng,
+        );
         staff.push(s);
     }
 
@@ -1427,16 +1453,14 @@ mod tests {
         tdef.reputation_range = Some([500, 501]);
         tdef.finance_range = Some([1_000_000, 1_000_001]);
 
-        let (saw_top_reputation, saw_top_finance) = (0..64).fold(
-            (false, false),
-            |(reputation, finance), _| {
+        let (saw_top_reputation, saw_top_finance) =
+            (0..64).fold((false, false), |(reputation, finance), _| {
                 let team = build_team(&tdef, &mut rng);
                 (
                     reputation || team.reputation == 501,
                     finance || team.finance == 1_000_001,
                 )
-            },
-        );
+            });
 
         assert!(
             saw_top_reputation,
@@ -1486,7 +1510,11 @@ mod tests {
     }
 
     /// An authored player born in `birth_year`, for era-sensitive assertions.
-    fn authored_player_born(index: usize, position: Position, birth_year: i32) -> package::PlayerDef {
+    fn authored_player_born(
+        index: usize,
+        position: Position,
+        birth_year: i32,
+    ) -> package::PlayerDef {
         let mut def = authored_player(index, position);
         def.date_of_birth = Some(format!("{birth_year}-10-23"));
         def
@@ -1665,11 +1693,25 @@ mod tests {
         keeper.date_of_birth = Some("1994-01-01".to_string());
         keeper.overall = None;
         keeper.attributes = Some(domain::player::PlayerAttributes {
-            pace: 58, stamina: 70, strength: 74, agility: 84,
-            passing: 58, shooting: 20, tackling: 30, dribbling: 30,
-            defending: 55, positioning: 88, vision: 68, decisions: 84,
-            composure: 88, aggression: 45, teamwork: 78, leadership: 84,
-            handling: 87, reflexes: 90, aerial: 83,
+            pace: 58,
+            stamina: 70,
+            strength: 74,
+            agility: 84,
+            passing: 58,
+            shooting: 20,
+            tackling: 30,
+            dribbling: 30,
+            defending: 55,
+            positioning: 88,
+            vision: 68,
+            decisions: 84,
+            composure: 88,
+            aggression: 45,
+            teamwork: 78,
+            leadership: 84,
+            handling: 87,
+            reflexes: 90,
+            aerial: 83,
         });
 
         // A striker of comparable standing, same age.
@@ -1782,7 +1824,11 @@ mod tests {
 
     #[test]
     fn fallback_competition_ignores_out_of_range_legs() {
-        let cfg = package::FallbackLeagueConfig { name: None, legs: Some(7), scope: None };
+        let cfg = package::FallbackLeagueConfig {
+            name: None,
+            legs: Some(7),
+            scope: None,
+        };
         let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string()]);
         assert_eq!(comp.format.legs, Some(2)); // 7 is meaningless → default 2
     }
@@ -1796,7 +1842,11 @@ mod tests {
             country_codes.insert(nation.code);
             region_ids.insert(nation.region_id);
         }
-        let ctx = WorldValidationContext { team_ids, country_codes, region_ids };
+        let ctx = WorldValidationContext {
+            team_ids,
+            country_codes,
+            region_ids,
+        };
 
         for scope in [
             CompetitionScope::Domestic,
@@ -1804,14 +1854,22 @@ mod tests {
             CompetitionScope::Continental,
             CompetitionScope::International,
         ] {
-            let cfg = package::FallbackLeagueConfig { name: None, legs: None, scope: Some(scope.clone()) };
-            let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string(), "b".to_string()]);
+            let cfg = package::FallbackLeagueConfig {
+                name: None,
+                legs: None,
+                scope: Some(scope.clone()),
+            };
+            let comp =
+                build_fallback_competition(Some(&cfg), vec!["a".to_string(), "b".to_string()]);
             let file = CompetitionDefinitionFile {
                 format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
                 competitions: vec![comp],
             };
             let errors = validate_definitions(&file, &ctx);
-            assert!(errors.is_empty(), "scope {scope:?} produced errors: {errors:?}");
+            assert!(
+                errors.is_empty(),
+                "scope {scope:?} produced errors: {errors:?}"
+            );
         }
     }
 
@@ -1836,7 +1894,8 @@ mod tests {
     #[test]
     fn a_generated_world_is_not_limited_to_the_name_pool_nationalities() {
         let sources = definitions::DefinitionSources::embedded_only();
-        let (_teams, players, staff) = generate_world_with(&WorldGenConfig::standard_from(&sources), &sources);
+        let (_teams, players, staff) =
+            generate_world_with(&WorldGenConfig::standard_from(&sources), &sources);
 
         let nationalities: std::collections::HashSet<&str> = players
             .iter()
@@ -1869,7 +1928,8 @@ mod tests {
     fn test_generate_world_team_count() {
         let config = WorldGenConfig::compact();
         let expected = config.total_clubs();
-        let (teams, players, staff) = generate_world_with(&config, &definitions::DefinitionSources::embedded_only());
+        let (teams, players, staff) =
+            generate_world_with(&config, &definitions::DefinitionSources::embedded_only());
         assert_eq!(teams.len(), expected);
         assert_eq!(players.len(), expected * 22);
         assert_eq!(staff.len(), expected * 4 + 12);
@@ -1878,7 +1938,8 @@ mod tests {
     #[test]
     fn standard_world_fills_every_nation_and_spans_confederations() {
         let config = WorldGenConfig::standard();
-        let (teams, _, _) = generate_world_with(&config, &definitions::DefinitionSources::embedded_only());
+        let (teams, _, _) =
+            generate_world_with(&config, &definitions::DefinitionSources::embedded_only());
         assert_eq!(teams.len(), config.total_clubs());
 
         // Every configured nation fields at least a full division.
@@ -1898,7 +1959,10 @@ mod tests {
 
     #[test]
     fn test_generate_world_all_players_assigned() {
-        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
+        let (teams, players, _) = generate_world_with(
+            &WorldGenConfig::compact(),
+            &definitions::DefinitionSources::embedded_only(),
+        );
         let team_ids: Vec<&str> = teams.iter().map(|t| t.id.as_str()).collect();
         for p in &players {
             assert!(p.team_id.is_some(), "Player {} has no team", p.full_name);
@@ -1911,7 +1975,10 @@ mod tests {
 
     #[test]
     fn test_generate_world_positions_per_team() {
-        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
+        let (teams, players, _) = generate_world_with(
+            &WorldGenConfig::compact(),
+            &definitions::DefinitionSources::embedded_only(),
+        );
         for team in &teams {
             let team_players: Vec<_> = players
                 .iter()
@@ -1929,7 +1996,10 @@ mod tests {
     #[test]
     fn test_generate_world_normalizes_opening_financials() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
+            let (teams, players, _) = generate_world_with(
+                &WorldGenConfig::compact(),
+                &definitions::DefinitionSources::embedded_only(),
+            );
             for team in &teams {
                 let annual_wages: i64 = players
                     .iter()
@@ -1963,7 +2033,10 @@ mod tests {
 
     #[test]
     fn test_generate_world_seeds_opening_youth_academies() {
-        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
+        let (teams, players, _) = generate_world_with(
+            &WorldGenConfig::compact(),
+            &definitions::DefinitionSources::embedded_only(),
+        );
 
         for team in &teams {
             let youth_players: Vec<_> = players
@@ -2000,7 +2073,10 @@ mod tests {
     #[test]
     fn test_generate_world_limits_immediate_contract_pressure() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
+            let (teams, players, _) = generate_world_with(
+                &WorldGenConfig::compact(),
+                &definitions::DefinitionSources::embedded_only(),
+            );
             for team in &teams {
                 let expiring_contracts = players
                     .iter()
@@ -2199,8 +2275,7 @@ mod tests {
     #[test]
     fn test_pick_nationality_weighted() {
         let mut rng = rand::rng();
-        let codes: Vec<String> =
-            default_names_definition().pools.keys().cloned().collect();
+        let codes: Vec<String> = default_names_definition().pools.keys().cloned().collect();
         let mut eng_count = 0;
         for _ in 0..100 {
             let nat = pick_nationality_from_def("England", &codes, &mut rng);
@@ -2246,8 +2321,13 @@ mod tests {
 
         let drawn: Vec<String> = (0..200)
             .map(|_| {
-                generate_youth_academy_recruit_with_nationality(&team, None, None, TEST_OPENING_YEAR)
-                    .nationality
+                generate_youth_academy_recruit_with_nationality(
+                    &team,
+                    None,
+                    None,
+                    TEST_OPENING_YEAR,
+                )
+                .nationality
             })
             .collect();
 
@@ -2273,8 +2353,12 @@ mod tests {
             20000,
         );
 
-        let player =
-            generate_youth_academy_recruit_with_nationality(&team, None, Some("GB"), TEST_OPENING_YEAR);
+        let player = generate_youth_academy_recruit_with_nationality(
+            &team,
+            None,
+            Some("GB"),
+            TEST_OPENING_YEAR,
+        );
 
         assert_eq!(player.nationality, "ENG");
         assert_eq!(player.football_nation, "ENG");
@@ -2340,7 +2424,10 @@ mod tests {
 
     #[test]
     fn test_all_nationalities_use_short_uppercase_codes() {
-        let (_, players, staff) = generate_world_with(&WorldGenConfig::compact(), &definitions::DefinitionSources::embedded_only());
+        let (_, players, staff) = generate_world_with(
+            &WorldGenConfig::compact(),
+            &definitions::DefinitionSources::embedded_only(),
+        );
         for p in &players {
             assert!(
                 p.nationality.len() == 2 || p.nationality.len() == 3,
@@ -2421,12 +2508,22 @@ mod tests {
 
         assert_eq!(parsed.pools.len(), names_def.pools.len());
         for (code, pool) in &names_def.pools {
-            let round_tripped = parsed.pools.get(code).expect("pool survives the round trip");
-            assert_eq!(&round_tripped.first_names, &pool.first_names, "{code} first names");
-            assert_eq!(&round_tripped.last_names, &pool.last_names, "{code} last names");
+            let round_tripped = parsed
+                .pools
+                .get(code)
+                .expect("pool survives the round trip");
+            assert_eq!(
+                &round_tripped.first_names, &pool.first_names,
+                "{code} first names"
+            );
+            assert_eq!(
+                &round_tripped.last_names, &pool.last_names,
+                "{code} last names"
+            );
         }
 
-        let nations_def = definitions::nations_definition(&definitions::DefinitionSources::embedded_only());
+        let nations_def =
+            definitions::nations_definition(&definitions::DefinitionSources::embedded_only());
         let json = serde_json::to_string(&nations_def).unwrap();
         let parsed: definitions::NationsDefinition = serde_json::from_str(&json).unwrap();
 

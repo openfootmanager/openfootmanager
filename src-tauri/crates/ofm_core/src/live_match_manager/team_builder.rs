@@ -6,7 +6,7 @@ use domain::player::Position as DomainPosition;
 use engine::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, PlayStyle,
     PlayerData, PlayerRole as EnginePlayerRole, Position, PressingIntensity, TacticsBuildUpStyle,
-    TacticsConfig, TacticsPitchWidth, Tempo, TeamData,
+    TacticsConfig, TacticsPitchWidth, TeamData, Tempo,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -92,7 +92,10 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let bench = bench_domain.into_iter().map(|p| convert_player(p, None)).collect();
+    let bench = bench_domain
+        .into_iter()
+        .map(|p| convert_player(p, None))
+        .collect();
 
     let team_data = TeamData {
         id: team_id.to_string(),
@@ -669,7 +672,7 @@ mod tests {
     #[test]
     fn rotation_preserves_formation_position_distribution() {
         use DomainPos::{
-            CentralMidfielder, CenterBack, Forward, Goalkeeper, LeftBack, LeftMidfielder,
+            CenterBack, CentralMidfielder, Forward, Goalkeeper, LeftBack, LeftMidfielder,
             RightBack, RightMidfielder, Striker,
         };
         let squad = vec![
@@ -698,8 +701,16 @@ mod tests {
                 .count()
         };
         assert_eq!(group_count(Goalkeeper), 1, "exactly one keeper");
-        assert_eq!(group_count(DomainPos::Defender), 4, "must field four defenders");
-        assert_eq!(group_count(DomainPos::Midfielder), 4, "must field four midfielders");
+        assert_eq!(
+            group_count(DomainPos::Defender),
+            4,
+            "must field four defenders"
+        );
+        assert_eq!(
+            group_count(DomainPos::Midfielder),
+            4,
+            "must field four midfielders"
+        );
         assert_eq!(group_count(Forward), 2, "must field two forwards");
     }
 

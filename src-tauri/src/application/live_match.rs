@@ -49,68 +49,66 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     // captures are appended after the lock is released.
     let mut captures = Vec::new();
     let (game, round_summary) = state
-        .update_game(
-            |game| -> Result<(Game, Option<RoundSummaryDto>), String> {
-                // `fixture_index` indexes the fixtures of the competition the
-                // session was created for (possibly a cup). `game.league` was
-                // reset to the user's domestic league by sync_legacy_league when
-                // the match day started, so applying the report through it would
-                // write the result onto an unrelated fixture of the wrong
-                // competition (or panic on an out-of-range index). Swap the
-                // session's competition back in first.
-                if let Some(idx) = game
-                    .competitions
-                    .iter()
-                    .position(|c| c.id == competition_id)
-                {
-                    game.league = Some(game.competitions[idx].clone());
-                } else if !game.competitions.is_empty() {
-                    // The session's competition no longer exists; applying by
-                    // index to whatever game.league holds would corrupt an
-                    // unrelated fixture.
-                    return Err("be.error.liveMatch.fixtureNotFound".to_string());
+        .update_game(|game| -> Result<(Game, Option<RoundSummaryDto>), String> {
+            // `fixture_index` indexes the fixtures of the competition the
+            // session was created for (possibly a cup). `game.league` was
+            // reset to the user's domestic league by sync_legacy_league when
+            // the match day started, so applying the report through it would
+            // write the result onto an unrelated fixture of the wrong
+            // competition (or panic on an out-of-range index). Swap the
+            // session's competition back in first.
+            if let Some(idx) = game
+                .competitions
+                .iter()
+                .position(|c| c.id == competition_id)
+            {
+                game.league = Some(game.competitions[idx].clone());
+            } else if !game.competitions.is_empty() {
+                // The session's competition no longer exists; applying by
+                // index to whatever game.league holds would corrupt an
+                // unrelated fixture.
+                return Err("be.error.liveMatch.fixtureNotFound".to_string());
+            }
+            // Legacy saves (no competitions) keep game.league, which the
+            // session was created against.
+            let fixture_count = game.league.as_ref().map_or(0, |l| l.fixtures.len());
+            if fixture_index >= fixture_count {
+                return Err("be.error.liveMatch.fixtureNotFound".to_string());
+            }
+
+            ofm_core::turn::apply_match_report_with_capture(
+                game,
+                fixture_index,
+                &home_team_id,
+                &away_team_id,
+                &report,
+                &mut |capture| captures.push(capture),
+            );
+
+            // apply_match_report_with_capture mutates the legacy `game.league`
+            // mirror (fixture status, fixture.result, standings). The modern
+            // `game.competitions` is the source of truth, and
+            // finish_live_match_day's sync_legacy_league would otherwise
+            // overwrite our changes with the stale competition copy.
+            if let Some(league) = game.league.clone() {
+                if let Some(idx) = game.competitions.iter().position(|c| c.id == league.id) {
+                    game.competitions[idx] = league;
                 }
-                // Legacy saves (no competitions) keep game.league, which the
-                // session was created against.
-                let fixture_count = game.league.as_ref().map_or(0, |l| l.fixtures.len());
-                if fixture_index >= fixture_count {
-                    return Err("be.error.liveMatch.fixtureNotFound".to_string());
-                }
+            }
+            // Restore the legacy mirror to the user's domestic league before
+            // the rest of the day runs (legacy saves without competitions
+            // keep game.league).
+            if !game.competitions.is_empty() {
+                game.sync_legacy_league();
+            }
 
-                ofm_core::turn::apply_match_report_with_capture(
-                    game,
-                    fixture_index,
-                    &home_team_id,
-                    &away_team_id,
-                    &report,
-                    &mut |capture| captures.push(capture),
-                );
+            let round_summary =
+                build_round_summary_dto(game, round_matchday, &round_previous_standings);
 
-                // apply_match_report_with_capture mutates the legacy `game.league`
-                // mirror (fixture status, fixture.result, standings). The modern
-                // `game.competitions` is the source of truth, and
-                // finish_live_match_day's sync_legacy_league would otherwise
-                // overwrite our changes with the stale competition copy.
-                if let Some(league) = game.league.clone() {
-                    if let Some(idx) = game.competitions.iter().position(|c| c.id == league.id) {
-                        game.competitions[idx] = league;
-                    }
-                }
-                // Restore the legacy mirror to the user's domestic league before
-                // the rest of the day runs (legacy saves without competitions
-                // keep game.league).
-                if !game.competitions.is_empty() {
-                    game.sync_legacy_league();
-                }
+            ofm_core::turn::finish_live_match_day(game);
 
-                let round_summary =
-                    build_round_summary_dto(game, round_matchday, &round_previous_standings);
-
-                ofm_core::turn::finish_live_match_day(game);
-
-                Ok((game.clone(), round_summary))
-            },
-        )
+            Ok((game.clone(), round_summary))
+        })
         .ok_or("be.error.noActiveGameSession")??;
     for capture in captures {
         state.append_stats_state(capture);

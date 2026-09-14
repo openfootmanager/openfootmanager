@@ -546,7 +546,10 @@ fn step_many_reaches_full_time_when_resumed() {
             break;
         }
     }
-    assert!(finished, "match never reached full time after {total} minutes");
+    assert!(
+        finished,
+        "match never reached full time after {total} minutes"
+    );
     assert!(session.is_finished());
 }
 

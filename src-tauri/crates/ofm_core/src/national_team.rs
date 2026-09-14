@@ -199,7 +199,12 @@ pub(crate) fn squad_ids_for(game: &Game, national_team_id: &str) -> Vec<String> 
 fn match_day_xi(squad_player_ids: &[String], players: &[Player]) -> Vec<String> {
     let mut rated: Vec<(String, u8)> = squad_player_ids
         .iter()
-        .filter_map(|pid| players.iter().find(|p| &p.id == pid).map(|p| (p.id.clone(), p.ovr)))
+        .filter_map(|pid| {
+            players
+                .iter()
+                .find(|p| &p.id == pid)
+                .map(|p| (p.id.clone(), p.ovr))
+        })
         .collect();
     rated.sort_by_key(|entry| std::cmp::Reverse(entry.1));
     rated
@@ -291,7 +296,14 @@ pub fn play_national_knockout_match(
     home_national_team_id: &str,
     away_national_team_id: &str,
     rng: &mut impl Rng,
-) -> (u8, u8, Vec<GoalEvent>, Vec<GoalEvent>, Option<u8>, Option<u8>) {
+) -> (
+    u8,
+    u8,
+    Vec<GoalEvent>,
+    Vec<GoalEvent>,
+    Option<u8>,
+    Option<u8>,
+) {
     let home_squad = squad_ids_for(game, home_national_team_id);
     let away_squad = squad_ids_for(game, away_national_team_id);
     let home_strength = squad_strength(&home_squad, &game.players);
@@ -336,13 +348,17 @@ pub fn simulate_goal_scorers(
     if goal_count == 0 || squad_player_ids.is_empty() {
         return Vec::new();
     }
-    let player_ovr: HashMap<&str, u8> =
-        players.iter().map(|p| (p.id.as_str(), p.ovr)).collect();
+    let player_ovr: HashMap<&str, u8> = players.iter().map(|p| (p.id.as_str(), p.ovr)).collect();
     // Clamp OVR to at least 1 so zero-rated players still get a uniform chance
     // rather than being silently collapsed to candidates[0].
     let candidates: Vec<(&String, u8)> = squad_player_ids
         .iter()
-        .filter_map(|pid| player_ovr.get(pid.as_str()).copied().map(|ovr| (pid, ovr.max(1))))
+        .filter_map(|pid| {
+            player_ovr
+                .get(pid.as_str())
+                .copied()
+                .map(|ovr| (pid, ovr.max(1)))
+        })
         .collect();
     if candidates.is_empty() {
         return Vec::new();
@@ -361,7 +377,10 @@ pub fn simulate_goal_scorers(
             .map(|(pid, _)| (*pid).clone())
             .unwrap_or_else(|| candidates[0].0.clone());
         let minute = rng.random_range(1u8..=90);
-        scorers.push(GoalEvent { player_id: scorer_id, minute });
+        scorers.push(GoalEvent {
+            player_id: scorer_id,
+            minute,
+        });
     }
     scorers.sort_by_key(|g| g.minute);
     scorers
@@ -570,10 +589,7 @@ mod tests {
     #[test]
     fn process_due_fixtures_completes_match_and_carries_fatigue_back() {
         let mut game = empty_game();
-        game.players = vec![
-            make_player("p1", 80),
-            make_player("p2", 60),
-        ];
+        game.players = vec![make_player("p1", 80), make_player("p2", 60)];
         let mut home = make_national_team("nt-eng", "ENG", &["p1"]);
         home.fixtures.push(Fixture {
             id: "ntf-0".to_string(),

@@ -24,8 +24,8 @@ mod startup;
 // from here and from the tests below. The names the rest of the crate calls are
 // re-exported explicitly, and they are the only promise this module makes.
 use helpers::*;
-use startup::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+use startup::*;
 pub(crate) use startup::{start_phase_for_game, StartPhase};
 
 fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::WorldData, String> {
@@ -516,9 +516,7 @@ fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
         .fixtures
         .iter()
         .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
-        .filter(|fixture| {
-            fixture.home_team_id == team_id || fixture.away_team_id == team_id
-        })
+        .filter(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id)
         .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
         .min()
         .and_then(|date| date.and_hms_opt(0, 0, 0))
@@ -2072,8 +2070,9 @@ mod tests {
             "the World Cup keeps its June schedule through a February re-anchor"
         );
         assert!(
-            after.iter().all(|date| date.starts_with("2026-06")
-                || date.starts_with("2026-07")),
+            after
+                .iter()
+                .all(|date| date.starts_with("2026-06") || date.starts_with("2026-07")),
             "World Cup fixtures stay in the cup window, not pulled back to February"
         );
     }
@@ -2327,7 +2326,9 @@ competitions:
         use std::time::Instant;
 
         let t = Instant::now();
-        let world = ofm_core::generator::generate_world_data(&ofm_core::generator::DefinitionSources::embedded_only());
+        let world = ofm_core::generator::generate_world_data(
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        );
         let gen = t.elapsed();
         let teams = world.teams.len();
         let players = world.players.len();

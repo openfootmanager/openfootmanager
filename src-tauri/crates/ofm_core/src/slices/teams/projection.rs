@@ -53,7 +53,9 @@ fn project_team_data(team: &Team) -> TeamCardTeam {
         play_style: play_style_name(&team.play_style),
         founded_year: team.founded_year,
         reputation: team.reputation,
-        media: TeamCardMedia { logo: team.media.logo.clone() },
+        media: TeamCardMedia {
+            logo: team.media.logo.clone(),
+        },
     }
 }
 

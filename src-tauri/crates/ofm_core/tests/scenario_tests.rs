@@ -36,7 +36,11 @@ use std::collections::HashSet;
 fn make_scenario_game(seed: u64) -> Game {
     // A small, reproducible world keeps the full-season simulation fast; the
     // invariants under test hold for any world size.
-    let world = generate_world_data_seeded_with(seed, &WorldGenConfig::compact(), &DefinitionSources::embedded_only());
+    let world = generate_world_data_seeded_with(
+        seed,
+        &WorldGenConfig::compact(),
+        &DefinitionSources::embedded_only(),
+    );
 
     let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
     let clock = GameClock::new(start);

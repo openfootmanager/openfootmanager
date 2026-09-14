@@ -140,7 +140,9 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
         .into_iter()
         .map(|(region_id, leagues_map)| build_region_group(region_id, leagues_map))
         .collect();
-    TeamsDirectory { regions: region_groups }
+    TeamsDirectory {
+        regions: region_groups,
+    }
 }
 
 fn build_region_group(
@@ -162,7 +164,11 @@ fn build_region_group(
     });
 
     let team_count = leagues.iter().map(|l| l.teams.len()).sum();
-    RegionGroup { id: region_id, leagues, team_count }
+    RegionGroup {
+        id: region_id,
+        leagues,
+        team_count,
+    }
 }
 
 fn build_league_group(
@@ -173,9 +179,23 @@ fn build_league_group(
     mut teams: Vec<TeamCard>,
 ) -> LeagueGroup {
     teams.sort_by(|a, b| {
-        let pa = if a.league_pos == 0 { u32::MAX } else { a.league_pos };
-        let pb = if b.league_pos == 0 { u32::MAX } else { b.league_pos };
+        let pa = if a.league_pos == 0 {
+            u32::MAX
+        } else {
+            a.league_pos
+        };
+        let pb = if b.league_pos == 0 {
+            u32::MAX
+        } else {
+            b.league_pos
+        };
         pa.cmp(&pb).then_with(|| a.team.name.cmp(&b.team.name))
     });
-    LeagueGroup { id, name, name_key, country_id, teams }
+    LeagueGroup {
+        id,
+        name,
+        name_key,
+        country_id,
+        teams,
+    }
 }

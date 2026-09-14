@@ -53,11 +53,8 @@ pub fn match_start(
 
 /// Step the live match forward by N minutes.
 pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> {
-    let results = crate::application::live_match::step_live_match(
-        &ctx.state_manager,
-        minutes,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let results = crate::application::live_match::step_live_match(&ctx.state_manager, minutes)
+        .map_err(|e| translate_error(&e))?;
 
     let mut lines: Vec<String> = Vec::new();
     for result in &results {
@@ -99,18 +96,12 @@ pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> 
 }
 
 /// Apply a match command (substitution, tactic change, set piece taker, etc.)
-pub fn match_command(
-    ctx: Arc<McpContext>,
-    command_json: String,
-) -> Result<String, String> {
+pub fn match_command(ctx: Arc<McpContext>, command_json: String) -> Result<String, String> {
     let command: engine::MatchCommand = serde_json::from_str(&command_json)
         .map_err(|e| format!("Invalid match command JSON: {}", e))?;
 
-    let snapshot = crate::application::live_match::apply_match_command(
-        &ctx.state_manager,
-        command,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let snapshot = crate::application::live_match::apply_match_command(&ctx.state_manager, command)
+        .map_err(|e| translate_error(&e))?;
 
     {
         use tauri::Emitter;
@@ -119,9 +110,7 @@ pub fn match_command(
 
     Ok(format!(
         "## Command Applied\n\n**Minute**: {}\n**Score**: {} - {}",
-        snapshot.current_minute,
-        snapshot.home_score,
-        snapshot.away_score
+        snapshot.current_minute, snapshot.home_score, snapshot.away_score
     ))
 }
 
@@ -152,9 +141,16 @@ pub fn match_finish(ctx: Arc<McpContext>) -> Result<String, String> {
     }
 
     let round_text = if let Some(ref summary) = response.round_summary {
-        let results: Vec<String> = summary.completed_results.iter().map(|r| {
-            format!("- {} {} - {} {}", r.home_team_name, r.home_goals, r.away_goals, r.away_team_name)
-        }).collect();
+        let results: Vec<String> = summary
+            .completed_results
+            .iter()
+            .map(|r| {
+                format!(
+                    "- {} {} - {} {}",
+                    r.home_team_name, r.home_goals, r.away_goals, r.away_team_name
+                )
+            })
+            .collect();
         format!("\n\n### Round Results\n{}", results.join("\n"))
     } else {
         String::new()
@@ -194,7 +190,13 @@ pub fn match_team_talk(
     for result in &results {
         let pid = result["player_id"].as_str().unwrap_or("?");
         let delta = result["delta"].as_i64().unwrap_or(0);
-        let emoji = if delta > 0 { "📈" } else if delta < 0 { "📉" } else { "➡️" };
+        let emoji = if delta > 0 {
+            "📈"
+        } else if delta < 0 {
+            "📉"
+        } else {
+            "➡️"
+        };
         lines.push(format!("- {} {}: morale {:+}", emoji, pid, delta));
     }
 

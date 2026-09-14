@@ -628,8 +628,21 @@ mod tests {
 
     #[test]
     fn regeneration_preserves_single_leg_weekly_group_schedule() {
-        let config = GroupStageConfig { legs: 1, matchday_gap_days: 7, knockout_round_gap_days: 7, ..Default::default() };
-        let mut cup = generate_group_knockout_cup_with("State Series", 2026, &clubs(8), start(), CompetitionType::Cup, CompetitionScope::Regional, &config);
+        let config = GroupStageConfig {
+            legs: 1,
+            matchday_gap_days: 7,
+            knockout_round_gap_days: 7,
+            ..Default::default()
+        };
+        let mut cup = generate_group_knockout_cup_with(
+            "State Series",
+            2026,
+            &clubs(8),
+            start(),
+            CompetitionType::Cup,
+            CompetitionScope::Regional,
+            &config,
+        );
         regenerate_for_season(&mut cup, 2027, start());
         assert_eq!(cup.rules.group_stage_legs, 1);
         assert_eq!(cup.rules.group_matchday_gap_days, 7);
