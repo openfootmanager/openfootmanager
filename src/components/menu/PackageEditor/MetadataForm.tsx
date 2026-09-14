@@ -200,7 +200,7 @@ export function MetadataForm({
             label={t("worldEditor.baseYear")}
             value={meta.baseYear?.toString() ?? ""}
             type="number"
-            onChange={(v) => set({ baseYear: v === "" ? null : parseInt(v) })}
+            onChange={(v) => set({ baseYear: v === "" ? null : parseInt(v, 10) })}
             placeholder="2026"
           />
         </div>

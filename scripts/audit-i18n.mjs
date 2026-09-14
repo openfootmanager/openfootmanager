@@ -139,6 +139,10 @@ function looksLikeUserFacingText(text) {
   if (/\s/.test(trimmed)) return true;
   if (/[!?]/.test(trimmed)) return true;
   if (/^[A-Z][a-z]/.test(trimmed)) return true;
+  // The range is the point: this asks "is there any non-ASCII character here", one of the
+  // signals that a literal is prose meant for a player rather than an identifier. The low end
+  // has to be \u0000 for that to mean what it says.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: deliberate, see above.
   if (/[^\u0000-\u007F]/.test(trimmed)) return true;
 
   return false;
@@ -214,6 +218,9 @@ function templateExpressionText(node) {
   const parts = [node.head.text];
 
   for (const span of node.templateSpans) {
+    // Not a mistyped template literal: this is the placeholder marker the report prints where
+    // an interpolation was.
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: deliberate, see above.
     parts.push("${...}", span.literal.text);
   }
 

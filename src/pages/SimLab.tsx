@@ -191,7 +191,7 @@ export default function SimLab() {
               value={cfg.games}
               onChange={(e) => {
                 const v = Math.max(1, Math.min(100000, Math.floor(Number(e.target.value))));
-                if (!isNaN(v)) update("games", v);
+                if (!Number.isNaN(v)) update("games", v);
               }}
               className={inputCls}
             />

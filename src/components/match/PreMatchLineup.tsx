@@ -118,7 +118,7 @@ export function parseFormationNeeds(formation: string): Record<string, number> {
   const parts = formation
     .split("-")
     .map(Number)
-    .filter((n) => !isNaN(n));
+    .filter((n) => !Number.isNaN(n));
   if (parts.length === 3)
     return {
       Goalkeeper: 1,

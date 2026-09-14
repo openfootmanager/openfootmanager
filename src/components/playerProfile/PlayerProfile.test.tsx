@@ -3,8 +3,20 @@ import { useState } from "react";
 import { beforeEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import type { InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import PlayerProfile from "./PlayerProfile";
+
+/**
+ * The fields these mocks read out of an invoke payload. Tauri's IPC boundary is untyped by
+ * nature — every command takes a different shape — so this names what is actually touched
+ * rather than reaching for `any` and switching type-checking off for the whole object.
+ */
+type MockInvokePayload = {
+  request?: { playerId?: string };
+  fee?: number;
+  weeklyWage?: number;
+};
 
 function hasAnnualWage(text: string, amount: string): boolean {
   return text.replace(/\s+/g, "").includes(`€${amount}/yr`);
@@ -826,9 +838,10 @@ describe("PlayerProfile contract surfaces", () => {
   });
 
   it("validates renewal offers before submission", async () => {
-    vi.mocked(invoke).mockImplementation(async (command: string, payload?: any) => {
+    vi.mocked(invoke).mockImplementation(async (command: string, payload?: InvokeArgs) => {
+      const args = payload as MockInvokePayload | undefined;
       if (command === "preview_renewal_financial_impact") {
-        const offered = Number(payload?.weeklyWage ?? 0);
+        const offered = Number(args?.weeklyWage ?? 0);
         return {
           projection: {
             current_annual_wage_bill: 24000,

@@ -42,7 +42,7 @@ export default function JerseyNumberInput({
       next = null;
     } else {
       const parsed = parseInt(trimmed, 10);
-      if (isNaN(parsed)) {
+      if (Number.isNaN(parsed)) {
         // Revert non-numeric entry
         committingRef.current = false;
         setEditing(false);

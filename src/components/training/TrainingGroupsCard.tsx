@@ -39,7 +39,12 @@ export default function TrainingGroupsCard({
   trainingFocusIcons,
 }: TrainingGroupsCardProps) {
   const { t } = useTranslation();
-  const groups: TrainingGroup[] = (team as any)?.training_groups ?? [];
+  // `training_groups` is a real backend field — `db` has persisted it since migration v002 —
+  // but `TeamData` never declared it, and `as any` was hiding that rather than fixing it.
+  // Narrowed to the shape this actually reads. Putting the field on `TeamData` is the real
+  // fix and needs `TrainingGroupData` to move out of `services/` first, to avoid a cycle.
+  const groups: TrainingGroup[] =
+    (team as (TeamData & { training_groups?: TrainingGroup[] }) | null)?.training_groups ?? [];
   const teamFocus = team?.training_focus || "Physical";
 
   const saveGroups = useCallback(

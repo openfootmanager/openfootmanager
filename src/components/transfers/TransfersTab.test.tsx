@@ -1,9 +1,21 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import type { InvokeArgs } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import TransfersTab from "./TransfersTab";
+
+/**
+ * The fields these mocks read out of an invoke payload. Tauri's IPC boundary is untyped by
+ * nature — every command takes a different shape — so this names what is actually touched
+ * rather than reaching for `any` and switching type-checking off for the whole object.
+ */
+type MockInvokePayload = {
+  request?: { playerId?: string };
+  fee?: number;
+  weeklyWage?: number;
+};
 
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => path),
@@ -388,9 +400,10 @@ describe("TransfersTab", (): void => {
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
     mockedIsTauri.mockReturnValue(false);
-    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+    mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
+      const args = payload as MockInvokePayload | undefined;
       if (command === "generate_player_portrait") {
-        const playerId = String(payload?.request?.playerId ?? "player");
+        const playerId = String(args?.request?.playerId ?? "player");
         return {
           generator: "test",
           cacheKey: playerId,
@@ -406,7 +419,7 @@ describe("TransfersTab", (): void => {
       }
 
       if (command === "preview_transfer_bid_financial_impact") {
-        const fee = Number(payload?.fee ?? 0);
+        const fee = Number(args?.fee ?? 0);
         const transferBudgetBefore = 2000000;
         const financeBefore = 5000000;
         return {
@@ -426,7 +439,7 @@ describe("TransfersTab", (): void => {
       }
 
       if (command === "preview_free_agent_contract_impact") {
-        const wage = Number(payload?.weeklyWage ?? 0);
+        const wage = Number(args?.weeklyWage ?? 0);
         return {
           projection: {
             current_annual_wage_bill: 0,
@@ -851,9 +864,10 @@ describe("TransfersTab", (): void => {
       }),
     ]);
 
-    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+    mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
+      const args = payload as MockInvokePayload | undefined;
       if (command === "preview_transfer_bid_financial_impact") {
-        const fee = Number(payload?.fee ?? 0);
+        const fee = Number(args?.fee ?? 0);
         return {
           projection: {
             transfer_budget_before: 2000000,
@@ -1130,9 +1144,10 @@ describe("TransfersTab", (): void => {
       },
     ];
 
-    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+    mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
+      const args = payload as MockInvokePayload | undefined;
       if (command === "preview_transfer_bid_financial_impact") {
-        const fee = Number(payload?.fee ?? 0);
+        const fee = Number(args?.fee ?? 0);
         return {
           projection: {
             transfer_budget_before: 2_000_000,

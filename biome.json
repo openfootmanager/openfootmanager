@@ -4,12 +4,12 @@
     "includes": [
       "**",
       "!src/App.css",
-      "!src/i18n/locales/**",
-      "!dist/**",
-      "!src-tauri/target/**",
-      "!src-tauri/gen/**",
-      "!src-tauri/crates/**/data/**",
-      "!docs/modding/examples/**",
+      "!src/i18n/locales",
+      "!dist",
+      "!src-tauri/target",
+      "!src-tauri/gen",
+      "!src-tauri/crates/**/data",
+      "!docs/modding/examples",
       "!package-lock.json"
     ]
   },
@@ -34,13 +34,17 @@
       },
       "correctness": {
         "useHookAtTopLevel": "error",
-        "noNestedComponentDefinitions": "error"
+        "noNestedComponentDefinitions": "error",
+        "preset": "recommended"
       },
       "style": {
         "preset": "recommended",
         "noNonNullAssertion": "off"
       },
       "complexity": {
+        "preset": "recommended"
+      },
+      "suspicious": {
         "preset": "recommended"
       }
     }

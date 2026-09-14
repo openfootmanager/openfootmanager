@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PreMatchSetup from "./PreMatchSetup";
+import type { GameStateData } from "../../store/gameStore";
+import type { MatchSnapshot } from "./types";
 
 // Mock the few external dependencies PreMatchSetup pulls in at render time so we
 // can exercise the real component tree (the opponent scout panel in particular).
@@ -118,10 +120,12 @@ function gameState(): Record<string, unknown> {
 function renderSetup() {
   return render(
     <PreMatchSetup
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      snapshot={snapshot() as any}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      gameState={gameState() as any}
+      // The two fixtures build partial objects deliberately — this test exercises the setup
+      // screen, not the full match snapshot — so the cast is the honest spelling of "stands in
+      // for". It goes through `unknown` because the shapes genuinely do not overlap, and the
+      // two `eslint-disable` lines it used to carry were decorative: there is no ESLint here.
+      snapshot={snapshot() as unknown as MatchSnapshot}
+      gameState={gameState() as unknown as GameStateData}
       userSide="Home"
       onStart={vi.fn()}
       onUpdateSnapshot={vi.fn()}

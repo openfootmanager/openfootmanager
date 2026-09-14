@@ -52,7 +52,7 @@ function calcAge(dob: string | null): number | null {
   if (!dob) return null;
   const ms = Date.now() - new Date(dob).getTime();
   const age = Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
-  return isNaN(age) || age < 0 || age > 80 ? null : age;
+  return Number.isNaN(age) || age < 0 || age > 80 ? null : age;
 }
 
 interface PlayerPreviewCardProps {

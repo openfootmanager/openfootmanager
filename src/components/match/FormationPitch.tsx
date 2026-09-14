@@ -64,7 +64,7 @@ export function buildFormationSlots(
   // or non-numeric ("442", "5-5", "abc") can't be laid out by the row logic
   // below without dropping the midfield/forward rows, so fall back to an even
   // single-row spread that still renders every player.
-  if (nums.length < 3 || nums.some((n) => isNaN(n))) {
+  if (nums.length < 3 || nums.some((n) => Number.isNaN(n))) {
     return active.map((p, i) => ({
       player: p,
       x: Math.round((100 * (i + 1)) / (active.length + 1)),

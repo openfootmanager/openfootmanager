@@ -79,6 +79,10 @@ export function collectOrphanKeys(
     // `reference[key]` would also find `Object.prototype` members, so a locale
     // key literally named `constructor` or `toString` would look present in
     // English and escape the check.
+    // Biome offers `Object.hasOwn` here and it does not compile: `tsconfig.json` sets
+    // `lib: ["ES2020", ...]` and `Object.hasOwn` is ES2022. Raising the lib is a
+    // compiler-wide decision and does not belong in a lint sweep, so the call stays as it is.
+    // biome-ignore lint/suspicious/noPrototypeBuiltins: ES2022 API unavailable at this lib level.
     const referenceHasKey = Object.prototype.hasOwnProperty.call(reference, key);
     const referenceValue = reference[key];
 

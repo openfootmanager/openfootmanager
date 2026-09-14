@@ -302,6 +302,12 @@ async function fetchReleaseByTag(repository, tag, token) {
 async function buildManifest() {
   const repository = getRequiredEnv("GITHUB_REPOSITORY");
   const token = getRequiredEnv("GITHUB_TOKEN");
+  // A real defect, not dead code. `nightly-release-manifest.yml` sets RELEASE_STREAM=nightly
+  // and nothing here consumes it, so every manifest is published without saying which stream
+  // it came from. Adding a `stream` field changes a published artefact that OFMHub reads, so
+  // that is the maintainer's call rather than a lint fix — and renaming this to `_` would
+  // have silenced the linter and buried the bug.
+  // biome-ignore lint/correctness/noUnusedVariables: tracked defect, see the note above.
   const releaseStream = getOptionalEnv("RELEASE_STREAM", "stable");
   const manifestFilename = getOptionalEnv("RELEASE_MANIFEST_FILE", "release-manifest.json");
   const checksumsFilename = getOptionalEnv("RELEASE_CHECKSUMS_FILE", "checksums.txt");

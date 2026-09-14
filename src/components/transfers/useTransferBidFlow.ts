@@ -133,8 +133,12 @@ export function useTransferBidFlow({
       if (response.suggested_fee !== null) {
         setBidAmount((response.suggested_fee / 1_000_000).toFixed(2));
       }
-    } catch (error: any) {
-      setBidResult(error?.toString() || "error");
+    } catch {
+      // `bidResult` is a decision, not a message: the union is the backend's decision values
+      // plus "error". The old `catch (error: any)` passed `error.toString()` straight into it,
+      // and `any` made that type-check — so any thrown value could land in a field the UI
+      // switches on. Removing the `any` is what surfaced it.
+      setBidResult("error");
       setBidFeedback(null);
     } finally {
       setBidLoading(false);

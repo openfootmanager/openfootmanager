@@ -419,7 +419,7 @@ export default function TransfersTab({
         }
       }
       if (onGameUpdate) onGameUpdate(response.game);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoanResult("error");
       setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
     } finally {
@@ -469,7 +469,7 @@ export default function TransfersTab({
         }
       }
       if (onGameUpdate) onGameUpdate(response.game);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoanCounterResult("error");
       setLoanCounterError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
     } finally {
@@ -509,8 +509,8 @@ export default function TransfersTab({
       if (response.suggested_fee !== null) {
         setCounterAmount(formatTransferFeeInput(response.suggested_fee));
       }
-    } catch (err: any) {
-      setCounterError(mapTransferNegotiationError(t, err?.toString() || "error"));
+    } catch (err: unknown) {
+      setCounterError(mapTransferNegotiationError(t, String(err) || "error"));
     } finally {
       setCounterLoading(false);
     }

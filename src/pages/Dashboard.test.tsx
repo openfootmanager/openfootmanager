@@ -264,7 +264,13 @@ vi.mock("../hooks/useAdvanceTime", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardSidebar", () => ({
-  default: ({ onNavClick, activeTab }: any) => (
+  default: ({
+    onNavClick,
+    activeTab,
+  }: {
+    onNavClick: (tab: string) => void;
+    activeTab: string;
+  }) => (
     <div>
       <span>Sidebar {activeTab}</span>
       <button onClick={() => onNavClick("Inbox")}>nav-inbox</button>
@@ -274,7 +280,17 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardHeader", () => ({
-  default: ({ activeTabLabel, onBack, onSelectSearchPlayer, onSelectSearchTeam }: any) => (
+  default: ({
+    activeTabLabel,
+    onBack,
+    onSelectSearchPlayer,
+    onSelectSearchTeam,
+  }: {
+    activeTabLabel: string;
+    onBack: () => void;
+    onSelectSearchPlayer: (playerId: string) => void;
+    onSelectSearchTeam: (teamId: string) => void;
+  }) => (
     <div>
       <span>Header {activeTabLabel}</span>
       <button onClick={onBack}>header-back</button>
@@ -285,7 +301,13 @@ vi.mock("../components/dashboard/DashboardHeader", () => ({
 }));
 
 vi.mock("../components/playerProfile/PlayerProfile", () => ({
-  default: ({ onClose, onSelectTeam }: any) => (
+  default: ({
+    onClose,
+    onSelectTeam,
+  }: {
+    onClose: () => void;
+    onSelectTeam: (teamId: string) => void;
+  }) => (
     <div>
       <span>Player Profile Mock</span>
       <button onClick={onClose}>player-close</button>
@@ -295,7 +317,13 @@ vi.mock("../components/playerProfile/PlayerProfile", () => ({
 }));
 
 vi.mock("../components/teamProfile", () => ({
-  default: ({ onClose, onSelectPlayer }: any) => (
+  default: ({
+    onClose,
+    onSelectPlayer,
+  }: {
+    onClose: () => void;
+    onSelectPlayer: (playerId: string) => void;
+  }) => (
     <div>
       <span>Team Profile Mock</span>
       <button onClick={onClose}>team-close</button>
@@ -309,7 +337,9 @@ vi.mock("../components/dashboard/DashboardAlerts", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardTabContent", () => ({
-  default: ({ viewModel }: any) => <div>Tab Content {viewModel.activeTab}</div>,
+  default: ({ viewModel }: { viewModel: { activeTab: string } }) => (
+    <div>Tab Content {viewModel.activeTab}</div>
+  ),
 }));
 
 vi.mock("../components/dashboard/DashboardBlockerModal", () => ({

@@ -16,7 +16,17 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("../playerProfile/PlayerProfile", () => ({
-  default: ({ onClose, onSelectTeam, startWithRenewalModal, startWithTerminationModal }: any) => (
+  default: ({
+    onClose,
+    onSelectTeam,
+    startWithRenewalModal,
+    startWithTerminationModal,
+  }: {
+    onClose: () => void;
+    onSelectTeam: (teamId: string) => void;
+    startWithRenewalModal?: boolean;
+    startWithTerminationModal?: boolean;
+  }) => (
     <div>
       <span>Player Profile Mock</span>
       <span>{startWithRenewalModal ? "renewal-open" : "renewal-closed"}</span>
@@ -28,7 +38,13 @@ vi.mock("../playerProfile/PlayerProfile", () => ({
 }));
 
 vi.mock("../teamProfile", () => ({
-  default: ({ onClose, onSelectPlayer }: any) => (
+  default: ({
+    onClose,
+    onSelectPlayer,
+  }: {
+    onClose: () => void;
+    onSelectPlayer: (playerId: string) => void;
+  }) => (
     <div>
       <span>Team Profile Mock</span>
       <button onClick={onClose}>close-team</button>
@@ -38,13 +54,15 @@ vi.mock("../teamProfile", () => ({
 }));
 
 vi.mock("./DashboardAlerts", () => ({
-  default: ({ onNavigate }: any) => (
+  default: ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
     <button onClick={() => onNavigate("Inbox")}>alerts-mock</button>
   ),
 }));
 
 vi.mock("./DashboardTabContent", () => ({
-  default: ({ viewModel }: any) => <div>Tab Content {viewModel.activeTab}</div>,
+  default: ({ viewModel }: { viewModel: { activeTab: string } }) => (
+    <div>Tab Content {viewModel.activeTab}</div>
+  ),
 }));
 
 function createGameState(): GameStateData {
