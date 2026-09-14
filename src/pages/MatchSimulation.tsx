@@ -4,7 +4,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useGameStore, type GameStateData } from "../store/gameStore";
 import { useSettingsStore } from "../store/settingsStore";
-import type { MatchSnapshot, MatchEvent, MatchDayStage, RoundSummary } from "../components/match/types";
+import type {
+  MatchSnapshot,
+  MatchEvent,
+  MatchDayStage,
+  RoundSummary,
+} from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
 import PreMatchSetup from "../components/match/PreMatchSetup";
 import MatchLive from "../components/match/MatchLive";

@@ -38,7 +38,7 @@ export function ManagerCareerChart({
   }
 
   const data = history.map((entry) => ({
-    club: entry.team_name.length > 10 ? entry.team_name.slice(0, 10) + "…" : entry.team_name,
+    club: entry.team_name.length > 10 ? `${entry.team_name.slice(0, 10)}…` : entry.team_name,
     won: entry.wins,
     drawn: entry.draws,
     lost: entry.losses,

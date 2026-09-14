@@ -163,7 +163,7 @@ export default function HalfTimeBreak({
                 className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                 imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
-                  backgroundColor: homeTeamColor + "30",
+                  backgroundColor: `${homeTeamColor}30`,
                   borderColor: homeTeamColor,
                   borderWidth: 2,
                 }}
@@ -201,7 +201,7 @@ export default function HalfTimeBreak({
                 className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                 imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
-                  backgroundColor: awayTeamColor + "30",
+                  backgroundColor: `${awayTeamColor}30`,
                   borderColor: awayTeamColor,
                   borderWidth: 2,
                 }}

@@ -37,7 +37,8 @@
         "noNestedComponentDefinitions": "error"
       },
       "style": {
-        "preset": "recommended"
+        "preset": "recommended",
+        "noNonNullAssertion": "off"
       },
       "complexity": {
         "preset": "recommended"

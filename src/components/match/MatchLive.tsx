@@ -276,7 +276,7 @@ export default function MatchLive({
                   className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
                   imageClassName="h-8 w-8 object-contain drop-shadow"
                   style={{
-                    backgroundColor: homeTeamColor + "30",
+                    backgroundColor: `${homeTeamColor}30`,
                     borderColor: homeTeamColor,
                     borderWidth: 2,
                   }}
@@ -306,7 +306,7 @@ export default function MatchLive({
                   className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
                   imageClassName="h-8 w-8 object-contain drop-shadow"
                   style={{
-                    backgroundColor: awayTeamColor + "30",
+                    backgroundColor: `${awayTeamColor}30`,
                     borderColor: awayTeamColor,
                     borderWidth: 2,
                   }}

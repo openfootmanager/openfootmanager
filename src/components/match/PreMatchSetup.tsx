@@ -619,7 +619,7 @@ export default function PreMatchSetup({
               className="h-14 w-14 shrink-0 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
               imageClassName="h-11 w-11 object-contain drop-shadow"
               style={{
-                backgroundColor: homeTeamColor + "30",
+                backgroundColor: `${homeTeamColor}30`,
                 borderColor: homeTeamColor,
                 borderWidth: 2,
               }}
@@ -659,7 +659,7 @@ export default function PreMatchSetup({
               className="h-14 w-14 shrink-0 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
               imageClassName="h-11 w-11 object-contain drop-shadow"
               style={{
-                backgroundColor: awayTeamColor + "30",
+                backgroundColor: `${awayTeamColor}30`,
                 borderColor: awayTeamColor,
                 borderWidth: 2,
               }}

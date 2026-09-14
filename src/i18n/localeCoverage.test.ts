@@ -71,7 +71,7 @@ describe("locale coverage", () => {
 
   it("has no untranslated strings (only explicitly allowed same-language exceptions)", () => {
     const intentionalSame = INTENTIONAL_SAME as Record<string, string[]>;
-    const globalExceptions = new Set(intentionalSame["global"] ?? []);
+    const globalExceptions = new Set(intentionalSame.global ?? []);
 
     const violationsByLocale = Object.entries(LOCALES).reduce<Record<string, string[]>>(
       (accumulator, [localeCode, translations]) => {

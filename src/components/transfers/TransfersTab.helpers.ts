@@ -328,7 +328,6 @@ export function getTransferOfferBadgeVariant(
       return "success" as const;
     case "Withdrawn":
       return "neutral" as const;
-    case "Rejected":
     default:
       return "danger" as const;
   }

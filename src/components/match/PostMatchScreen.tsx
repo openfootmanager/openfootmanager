@@ -2,7 +2,12 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
-import { type MatchSnapshot, type MatchEvent, getTeamTalkOptions, type TeamTalkTone } from "./types";
+import {
+  type MatchSnapshot,
+  type MatchEvent,
+  getTeamTalkOptions,
+  type TeamTalkTone,
+} from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
@@ -274,7 +279,7 @@ export default function PostMatchScreen({
                 className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
                 imageClassName="h-10 w-10 object-contain drop-shadow"
                 style={{
-                  backgroundColor: homeTeamColor + "30",
+                  backgroundColor: `${homeTeamColor}30`,
                   borderColor: homeTeamColor,
                   borderWidth: 2,
                 }}
@@ -315,7 +320,7 @@ export default function PostMatchScreen({
                 className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
                 imageClassName="h-10 w-10 object-contain drop-shadow"
                 style={{
-                  backgroundColor: awayTeamColor + "30",
+                  backgroundColor: `${awayTeamColor}30`,
                   borderColor: awayTeamColor,
                   borderWidth: 2,
                 }}

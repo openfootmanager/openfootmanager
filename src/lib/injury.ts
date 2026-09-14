@@ -33,7 +33,6 @@ export function getInjuryBadgeClassName(daysRemaining: number): string {
       return "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-300";
     case "serious":
       return "border-orange-300 bg-orange-100 text-orange-800 dark:border-orange-700/70 dark:bg-orange-950/45 dark:text-orange-300";
-    case "major":
     default:
       return "border-red-300 bg-red-100 text-red-800 dark:border-red-700/80 dark:bg-red-950/50 dark:text-red-300";
   }

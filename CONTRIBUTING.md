@@ -117,6 +117,28 @@ If you're working on a new feature that has no prior **Issue** related to it, pl
   - Use TailwindCSS for styling instead of raw CSS where possible.
   - Ensure type safety across the application (avoid `any` types).
 
+### Which Biome lint rules are on, and why the list is short
+
+`biome.json` starts from `preset: none` and admits rules one group at a time. A group is only
+turned on once its findings have actually been cleared, so the lint step is green the day it
+lands. A rule that reports findings nobody has fixed is a reporter, not a gate, and this project
+has already watched two of those sit switched off for a year.
+
+`biome.json` is strict JSON and cannot carry comments, so the decisions live here:
+
+- **`noNonNullAssertion` — off, deliberately.** 59 findings, and the automatic fix is *wrong*:
+  Biome rewrites `game.league!.standings` to `game.league?.standings`, which turns a crash into
+  a silent `undefined`. In a test that means `expect(a?.b).toBe(c)` passes vacuously when the
+  value goes missing — the assertion-free test this project's review rules exist to catch. The
+  honest fix is a real guard at each of the 59 sites, which is feature work, not a sweep. The
+  count is recorded in `quality-baseline.json` instead, so it cannot grow.
+- **`nursery` — never.** Its rules change meaning between Biome minors, which would make every
+  Biome upgrade a red build, for the same reason the Rust toolchain is pinned.
+
+Everything else is on. If you want to add a rule, measure it first
+(`npm exec --no -- biome lint --only=<rule>`), and only send the PR if the same PR can clear
+what it finds.
+
 ### The format sweep, and `git blame`
 
 Formatting was gated for the first time in this repository's history, and that required one
