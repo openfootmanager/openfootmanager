@@ -232,6 +232,19 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         .filter(|player| player.team_id.as_deref() == user_team_id.as_deref())
         .map(|player| (player.id.clone(), pending_approach_clubs(player)))
         .collect();
+    // Clubs turned away recently. Unlike the queue above this is fixed for the day: a rejection
+    // made today already carries its closure date, so it is in here from the next sweep onwards.
+    let cooled_clubs: std::collections::HashMap<String, HashSet<String>> = game
+        .players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == user_team_id.as_deref())
+        .map(|player| {
+            (
+                player.id.clone(),
+                clubs_in_rebid_cooldown(player, current_date),
+            )
+        })
+        .collect();
 
     // A player's transfer appeal and asking fee don't depend on who's buying, so
     // score every player once and keep only the genuinely attractive targets.
@@ -285,6 +298,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
                     IncomingOfferBudget {
                         new_today: &new_loan_offers_per_player,
                         approach_clubs: &approach_clubs,
+                        cooled_clubs: &cooled_clubs,
                     },
                 )
             } else {
@@ -317,6 +331,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
                 let budget = IncomingOfferBudget {
                     new_today: &new_offers_per_player,
                     approach_clubs: &approach_clubs,
+                    cooled_clubs: &cooled_clubs,
                 };
                 if !budget.accepts(
                     &target.player_id,
