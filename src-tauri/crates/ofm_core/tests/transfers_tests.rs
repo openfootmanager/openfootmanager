@@ -3434,3 +3434,138 @@ fn a_club_refused_a_transfer_cannot_return_immediately_as_a_loan_approach() {
         "a club refused a permanent bid should not reappear as a loan approach inside the cooldown"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Completing a deal has to leave the selling club's books straight. The two
+// completion paths, a permanent sale and an exercised buy option, each got this
+// right where the other got it wrong.
+// ---------------------------------------------------------------------------
+
+/// Selling a player has to release every role he held, not only his place in the XI. The loan and
+/// release paths both call `remove_player_references`; the permanent sale trimmed the XI by hand
+/// and left the rest, so a departed player could still be the old club's captain.
+#[test]
+fn selling_a_player_releases_every_role_he_held() {
+    let mut player = make_user_player("player-departing-captain");
+    player.transfer_listed = true;
+    player.market_value = 900_000;
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-captain", 1_000_000));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 9_000_000;
+    game.teams[1].transfer_budget = 6_000_000;
+
+    let seller = game.teams[0].id.clone();
+    if let Some(team) = game.teams.iter_mut().find(|team| team.id == seller) {
+        team.starting_xi_ids = vec!["player-departing-captain".to_string()];
+        team.match_roles.captain = Some("player-departing-captain".to_string());
+        team.match_roles.penalty_taker = Some("player-departing-captain".to_string());
+        team.match_roles.corner_taker = Some("player-departing-captain".to_string());
+    }
+
+    respond_to_offer(&mut game, "player-departing-captain", "offer-captain", true)
+        .expect("accepting the offer should complete the sale");
+
+    let old_club = game.teams.iter().find(|team| team.id == seller).unwrap();
+    assert!(
+        !old_club
+            .starting_xi_ids
+            .contains(&"player-departing-captain".to_string()),
+        "the sold player should leave the XI"
+    );
+    assert_eq!(
+        old_club.match_roles.captain, None,
+        "a sold player cannot still captain the club that sold him"
+    );
+    assert_eq!(old_club.match_roles.penalty_taker, None);
+    assert_eq!(old_club.match_roles.corner_taker, None);
+}
+
+/// Selling through an exercised buy option has to leave the parent club as well off as selling the
+/// same player permanently. The permanent path credits the current-season envelope as well as the
+/// balance; the buy-option path credited only the balance.
+#[test]
+fn a_buy_option_sale_credits_the_parent_club_the_same_as_a_permanent_sale() {
+    let mut player = make_user_player("player-option-proceeds");
+    player.team_id = Some("team-2".to_string());
+    player.market_value = 1_000_000;
+    player.ovr = 64;
+    player.potential = 75;
+    player.stats.appearances = 12;
+    player.stats.minutes_played = 1_080;
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 60,
+        buy_option_fee: Some(1_200_000),
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    attach_transfer_log_league(&mut game);
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 2, 12, 0, 0).unwrap();
+
+    let parent_before = game.teams.iter().find(|team| team.id == "team-1").unwrap();
+    let finance_before = parent_before.finance;
+    let budget_before = parent_before.transfer_budget;
+
+    process_loan_returns(&mut game);
+
+    let parent = game.teams.iter().find(|team| team.id == "team-1").unwrap();
+    assert_eq!(
+        parent.finance,
+        finance_before + 1_200_000,
+        "the fee should reach the parent club's balance"
+    );
+    assert_eq!(
+        parent.transfer_budget,
+        budget_before + 1_200_000,
+        "and its spending room, as a permanent sale would"
+    );
+}
+
+/// A completed transfer has to reach the competition its clubs actually play in.
+/// `Game::sync_legacy_league` overwrites `game.league` with a clone of a competition, so a record
+/// written only there is discarded rather than merely misfiled.
+#[test]
+fn a_completed_transfer_reaches_the_competition_log() {
+    let mut player = make_user_player("player-logged-transfer");
+    player.transfer_listed = true;
+    player.market_value = 1_500_000;
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-logged", 1_600_000));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 9_000_000;
+    game.teams[1].transfer_budget = 6_000_000;
+
+    let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+    game.competitions.push(ofm_core::schedule::generate_league(
+        "Competition League",
+        2026,
+        &team_ids,
+        game.clock.current_date,
+    ));
+
+    respond_to_offer(&mut game, "player-logged-transfer", "offer-logged", true)
+        .expect("accepting the offer should complete the sale");
+
+    assert!(
+        game.competitions.iter().any(|competition| competition
+            .transfer_log
+            .iter()
+            .any(|entry| entry.player_id == "player-logged-transfer")),
+        "the completed transfer should be recorded against the competition, \
+         not only on the legacy league mirror that gets overwritten"
+    );
+}
