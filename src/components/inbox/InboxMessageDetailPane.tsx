@@ -4,12 +4,7 @@ import type { JSX } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  calcAge,
-  formatAnnualAmount,
-  formatDateFull,
-  formatVal,
-} from "../../lib/helpers";
+import { calcAge, formatAnnualAmount, formatDateFull, formatVal } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/playerRating";
 import type { MessageData } from "../../store/gameStore";
@@ -58,9 +53,7 @@ export default function InboxMessageDetailPane({
   onScoutPlayerClick,
 }: InboxMessageDetailPaneProps): JSX.Element {
   const { t } = useTranslation();
-  const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(
-    null,
-  );
+  const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(null);
 
   // Drop any in-flight switch-confirm when the selected message changes —
   // otherwise the modal can survive selection changes and confirm an action
@@ -70,16 +63,10 @@ export default function InboxMessageDetailPane({
   }, [selectedMessage?.id]);
 
   const currentClubName = currentTeamName ?? "";
-  const hasYouthProspects = Boolean(
-    selectedMessage?.context?.youth_prospects?.length,
-  );
+  const hasYouthProspects = Boolean(selectedMessage?.context?.youth_prospects?.length);
   const linkedPlayerId = selectedMessage?.context?.player_id ?? null;
 
-  const handleOptionClick = (
-    messageId: string,
-    actionId: string,
-    optionId: string,
-  ) => {
+  const handleOptionClick = (messageId: string, actionId: string, optionId: string) => {
     const offerTeamId = selectedMessage?.context?.team_id ?? null;
     const isSwitch =
       messageId.startsWith("job_offer_") &&
@@ -116,6 +103,7 @@ export default function InboxMessageDetailPane({
     <>
       <div className="shrink-0 border-b border-gray-100 p-5 dark:border-navy-600">
         <button
+          type="button"
           onClick={onCloseSelectedMessage}
           className="md:hidden flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 mb-3"
         >
@@ -135,9 +123,7 @@ export default function InboxMessageDetailPane({
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                   {selectedMessage.sender}
-                  {selectedMessage.sender_role
-                    ? ` — ${selectedMessage.sender_role}`
-                    : ""}
+                  {selectedMessage.sender_role ? ` — ${selectedMessage.sender_role}` : ""}
                 </span>
                 <span className="text-xs text-gray-400 dark:text-gray-500">
                   {formatDateFull(selectedMessage.date, language)}
@@ -179,11 +165,10 @@ export default function InboxMessageDetailPane({
             .split("\n")
             .map((line, index) => renderMessageBodyLine(line, index))}
 
-          {linkedPlayerId
-            && !selectedMessage.context?.scout_report
-            && !hasYouthProspects
-            && !selectedMessage.context?.delegated_renewal_report
-            ? (
+          {linkedPlayerId &&
+          !selectedMessage.context?.scout_report &&
+          !hasYouthProspects &&
+          !selectedMessage.context?.delegated_renewal_report ? (
             <div className="mt-4 flex">
               <Button
                 type="button"
@@ -208,8 +193,7 @@ export default function InboxMessageDetailPane({
             />
           ) : null}
 
-          {selectedMessage.category === "ScoutReport" &&
-            !selectedMessage.context?.scout_report ? (
+          {selectedMessage.category === "ScoutReport" && !selectedMessage.context?.scout_report ? (
             <div className="mt-6 flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-navy-600 dark:bg-navy-700/60">
                 <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -217,17 +201,12 @@ export default function InboxMessageDetailPane({
                 </span>
                 <Badge variant="neutral" size="sm">
                   {selectedMessage.context?.youth_target_position
-                    ? t(
-                      `common.positions.${selectedMessage.context.youth_target_position}`,
-                    )
+                    ? t(`common.positions.${selectedMessage.context.youth_target_position}`)
                     : t("scouting.youthAnyPosition")}
                 </Badge>
                 {selectedMessage.context?.youth_search_region ? (
                   <Badge variant="neutral" size="sm">
-                    {translateYouthSearchRegion(
-                      t,
-                      selectedMessage.context.youth_search_region,
-                    )}
+                    {translateYouthSearchRegion(t, selectedMessage.context.youth_search_region)}
                   </Badge>
                 ) : null}
                 {selectedMessage.context?.youth_search_objective ? (
@@ -254,17 +233,10 @@ export default function InboxMessageDetailPane({
                     const options = chooseOptionActionType
                       ? chooseOptionActionType.ChooseOption.options
                       : [];
-                    const signedToAcademy =
-                      prospect.team_id === currentTeamId;
+                    const signedToAcademy = prospect.team_id === currentTeamId;
                     const potential = prospect.potential ?? 0;
-                    const potentialLabel = getProspectPotentialLabel(
-                      potential,
-                      t,
-                    );
-                    const growthRoom = Math.max(
-                      0,
-                      potential - (prospect.ovr ?? 0),
-                    );
+                    const potentialLabel = getProspectPotentialLabel(potential, t);
+                    const growthRoom = Math.max(0, potential - (prospect.ovr ?? 0));
 
                     return (
                       <Card key={prospect.id}>
@@ -275,10 +247,7 @@ export default function InboxMessageDetailPane({
                                 <p className="font-heading font-bold text-base text-gray-900 dark:text-gray-100">
                                   {prospect.full_name}
                                 </p>
-                                <Badge
-                                  variant={positionBadgeVariant(prospect.position)}
-                                  size="sm"
-                                >
+                                <Badge variant={positionBadgeVariant(prospect.position)} size="sm">
                                   {translatePositionAbbreviation(t, prospect.position)}
                                 </Badge>
                                 {signedToAcademy ? (
@@ -288,9 +257,7 @@ export default function InboxMessageDetailPane({
                                 ) : null}
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                                <span>
-                                  {t(`common.positions.${prospect.position}`)}
-                                </span>
+                                <span>{t(`common.positions.${prospect.position}`)}</span>
                                 <span>
                                   {t("common.age")} {calcAge(prospect.date_of_birth)}
                                 </span>
@@ -300,9 +267,7 @@ export default function InboxMessageDetailPane({
                                     locale={language}
                                     className="text-xs leading-none"
                                   />
-                                  <span>
-                                    {countryName(prospect.nationality, language)}
-                                  </span>
+                                  <span>{countryName(prospect.nationality, language)}</span>
                                 </span>
                               </div>
                             </div>
@@ -326,16 +291,10 @@ export default function InboxMessageDetailPane({
                                 <ProgressBar
                                   value={Math.min(
                                     100,
-                                    potential > 0
-                                      ? ((prospect.ovr ?? 0) / potential) * 100
-                                      : 0,
+                                    potential > 0 ? ((prospect.ovr ?? 0) / potential) * 100 : 0,
                                   )}
                                   variant={
-                                    growthRoom > 15
-                                      ? "accent"
-                                      : growthRoom > 5
-                                        ? "primary"
-                                        : "auto"
+                                    growthRoom > 15 ? "accent" : growthRoom > 5 ? "primary" : "auto"
                                   }
                                   size="sm"
                                 />
@@ -343,7 +302,9 @@ export default function InboxMessageDetailPane({
                                   +{growthRoom}
                                 </span>
                               </div>
-                              <p className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${potentialLabel.color}`}>
+                              <p
+                                className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${potentialLabel.color}`}
+                              >
                                 {potentialLabel.label}
                               </p>
                             </div>
@@ -354,7 +315,8 @@ export default function InboxMessageDetailPane({
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <Badge variant="neutral" size="sm">
-                                  {t("finances.wagePerYear")}: {formatAnnualAmount(formatVal(prospect.wage ?? 0), annualSuffix)}
+                                  {t("finances.wagePerYear")}:{" "}
+                                  {formatAnnualAmount(formatVal(prospect.wage ?? 0), annualSuffix)}
                                 </Badge>
                                 {prospect.contract_end ? (
                                   <Badge variant="neutral" size="sm">
@@ -362,7 +324,8 @@ export default function InboxMessageDetailPane({
                                   </Badge>
                                 ) : null}
                                 <Badge variant="neutral" size="sm">
-                                  {t("finances.marketValue")}: {formatVal(prospect.market_value ?? 0)}
+                                  {t("finances.marketValue")}:{" "}
+                                  {formatVal(prospect.market_value ?? 0)}
                                 </Badge>
                               </div>
                             </div>
@@ -395,11 +358,7 @@ export default function InboxMessageDetailPane({
                                   size="sm"
                                   variant={option.id === "discard" ? "outline" : "primary"}
                                   onClick={() =>
-                                    onAction(
-                                      selectedMessage.id,
-                                      chooseOptionActionId,
-                                      option.id,
-                                    )
+                                    onAction(selectedMessage.id, chooseOptionActionId, option.id)
                                   }
                                 >
                                   {option.label}
@@ -472,13 +431,10 @@ export default function InboxMessageDetailPane({
                       </p>
                       {options.map((option) => (
                         <button
+                          type="button"
                           key={option.id}
                           onClick={() =>
-                            handleOptionClick(
-                              selectedMessage.id,
-                              action.id,
-                              option.id,
-                            )
+                            handleOptionClick(selectedMessage.id, action.id, option.id)
                           }
                           className="w-full text-left p-4 rounded-xl border border-gray-200 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-500/5 transition-all group"
                         >
@@ -496,6 +452,7 @@ export default function InboxMessageDetailPane({
 
                 return (
                   <button
+                    type="button"
                     key={action.id}
                     disabled={action.resolved}
                     onClick={() => onAction(selectedMessage.id, action.id)}
@@ -525,10 +482,7 @@ export default function InboxMessageDetailPane({
   );
 }
 
-function translateYouthSearchRegion(
-  t: TFunction,
-  value: string,
-): string {
+function translateYouthSearchRegion(t: TFunction, value: string): string {
   if (value === "International") {
     return t("scouting.regionInternational");
   }
@@ -536,10 +490,7 @@ function translateYouthSearchRegion(
   return t("scouting.regionDomestic");
 }
 
-function translateYouthSearchObjective(
-  t: TFunction,
-  value: string,
-): string {
+function translateYouthSearchObjective(t: TFunction, value: string): string {
   if (value === "HighPotential") {
     return t("scouting.objectiveHighPotential");
   }

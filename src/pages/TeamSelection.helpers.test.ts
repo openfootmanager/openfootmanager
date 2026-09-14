@@ -43,23 +43,17 @@ describe("competitionScopeLabel / competitionKindLabel", () => {
 
 describe("competitionRequiredRegions", () => {
   it("adds the region_id for Domestic and Regional scopes", () => {
-    expect(
-      competitionRequiredRegions(
-        league({ scope: "Domestic", region_id: "europe" }),
-      ),
-    ).toEqual(["europe"]);
-    expect(
-      competitionRequiredRegions(
-        league({ scope: "Regional", region_id: "asia" }),
-      ),
-    ).toEqual(["asia"]);
+    expect(competitionRequiredRegions(league({ scope: "Domestic", region_id: "europe" }))).toEqual([
+      "europe",
+    ]);
+    expect(competitionRequiredRegions(league({ scope: "Regional", region_id: "asia" }))).toEqual([
+      "asia",
+    ]);
   });
 
   it("does not add the region_id for Continental/International scopes", () => {
     expect(
-      competitionRequiredRegions(
-        league({ scope: "Continental", region_id: "europe" }),
-      ),
+      competitionRequiredRegions(league({ scope: "Continental", region_id: "europe" })),
     ).toEqual([]);
   });
 
@@ -85,9 +79,7 @@ describe("teamCompetitions", () => {
   });
 
   it("falls back to fixture membership when participant_ids is absent", () => {
-    const fixtures = [
-      { home_team_id: "t1", away_team_id: "t9" },
-    ] as unknown as FixtureData[];
+    const fixtures = [{ home_team_id: "t1", away_team_id: "t9" }] as unknown as FixtureData[];
     const a = league({ id: "a", fixtures });
 
     expect(teamCompetitions("t1", [a])).toEqual([a]);
@@ -113,9 +105,7 @@ describe("likelyXi", () => {
 
     expect(result).toHaveLength(11);
     for (let i = 1; i < result.length; i += 1) {
-      expect(getPlayerOvr(result[i - 1])).toBeGreaterThanOrEqual(
-        getPlayerOvr(result[i]),
-      );
+      expect(getPlayerOvr(result[i - 1])).toBeGreaterThanOrEqual(getPlayerOvr(result[i]));
     }
   });
 
@@ -163,9 +153,7 @@ describe("buildFallbackRegions", () => {
     ];
 
     const regions = buildFallbackRegions(t, gameState, competitions);
-    const byId = Object.fromEntries(
-      regions.map((region) => [region.id, region.country_codes]),
-    );
+    const byId = Object.fromEntries(regions.map((region) => [region.id, region.country_codes]));
 
     expect(byId.europe).toEqual(["ES", "FR"]);
     expect(byId.south_america).toEqual(["BR"]);

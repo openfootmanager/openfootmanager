@@ -36,13 +36,10 @@ export default function DashboardWorkspaceContent({
 }: DashboardWorkspaceContentProps) {
   const { t } = useTranslation();
   const selectedPlayer = profileNavigation.selectedPlayerId
-    ? gameState.players.find(
-      (player) => player.id === profileNavigation.selectedPlayerId,
-    ) ?? null
+    ? (gameState.players.find((player) => player.id === profileNavigation.selectedPlayerId) ?? null)
     : null;
   const selectedTeam = profileNavigation.selectedTeamId
-    ? gameState.teams.find((team) => team.id === profileNavigation.selectedTeamId) ??
-    null
+    ? (gameState.teams.find((team) => team.id === profileNavigation.selectedTeamId) ?? null)
     : null;
 
   return (
@@ -65,9 +62,7 @@ export default function DashboardWorkspaceContent({
           player={selectedPlayer}
           gameState={gameState}
           isOwnClub={selectedPlayer.team_id === gameState.manager.team_id}
-          startWithRenewalModal={
-            profileNavigation.selectedPlayerOptions?.openRenewal === true
-          }
+          startWithRenewalModal={profileNavigation.selectedPlayerOptions?.openRenewal === true}
           startWithTerminationModal={
             profileNavigation.selectedPlayerOptions?.openTermination === true
           }

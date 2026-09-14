@@ -97,9 +97,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   };
 }
 
-function createAssignment(
-  overrides: Partial<ScoutingAssignment> = {},
-): ScoutingAssignment {
+function createAssignment(overrides: Partial<ScoutingAssignment> = {}): ScoutingAssignment {
   return {
     id: "assignment-1",
     scout_id: "staff-1",
@@ -118,9 +116,72 @@ describe("ScoutingTab.model", () => {
     ];
     const players = [
       createPlayer({ id: "self", team_id: "team-1", full_name: "Own Player" }),
-      createPlayer({ id: "defender", team_id: "team-2", full_name: "Alan Back", natural_position: "Defender", position: "Defender", ovr: 66, attributes: { pace: 50, stamina: 60, strength: 65, agility: 55, passing: 58, shooting: 30, tackling: 72, dribbling: 40, defending: 74, positioning: 70, vision: 50, decisions: 63, composure: 60, aggression: 62, teamwork: 64, leadership: 55, handling: 20, reflexes: 20, aerial: 66 } }),
-      createPlayer({ id: "forward", team_id: "team-3", full_name: "Carlos Goal", nationality: "BR", natural_position: "Forward", position: "Forward", ovr: 74, attributes: { pace: 78, stamina: 70, strength: 65, agility: 75, passing: 63, shooting: 80, tackling: 30, dribbling: 79, defending: 28, positioning: 76, vision: 64, decisions: 68, composure: 72, aggression: 45, teamwork: 58, leadership: 49, handling: 20, reflexes: 20, aerial: 62 } }),
-      createPlayer({ id: "retired", team_id: null, full_name: "Retired Legend", retired: true, ovr: 99 }),
+      createPlayer({
+        id: "defender",
+        team_id: "team-2",
+        full_name: "Alan Back",
+        natural_position: "Defender",
+        position: "Defender",
+        ovr: 66,
+        attributes: {
+          pace: 50,
+          stamina: 60,
+          strength: 65,
+          agility: 55,
+          passing: 58,
+          shooting: 30,
+          tackling: 72,
+          dribbling: 40,
+          defending: 74,
+          positioning: 70,
+          vision: 50,
+          decisions: 63,
+          composure: 60,
+          aggression: 62,
+          teamwork: 64,
+          leadership: 55,
+          handling: 20,
+          reflexes: 20,
+          aerial: 66,
+        },
+      }),
+      createPlayer({
+        id: "forward",
+        team_id: "team-3",
+        full_name: "Carlos Goal",
+        nationality: "BR",
+        natural_position: "Forward",
+        position: "Forward",
+        ovr: 74,
+        attributes: {
+          pace: 78,
+          stamina: 70,
+          strength: 65,
+          agility: 75,
+          passing: 63,
+          shooting: 80,
+          tackling: 30,
+          dribbling: 79,
+          defending: 28,
+          positioning: 76,
+          vision: 64,
+          decisions: 68,
+          composure: 72,
+          aggression: 45,
+          teamwork: 58,
+          leadership: 49,
+          handling: 20,
+          reflexes: 20,
+          aerial: 62,
+        },
+      }),
+      createPlayer({
+        id: "retired",
+        team_id: null,
+        full_name: "Retired Legend",
+        retired: true,
+        ovr: 99,
+      }),
     ];
 
     expect(

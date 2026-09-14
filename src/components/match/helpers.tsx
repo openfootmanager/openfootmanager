@@ -1,5 +1,5 @@
-import React from "react";
-import { MatchEvent, MatchSnapshot } from "./types";
+import type React from "react";
+import type { MatchEvent, MatchSnapshot } from "./types";
 import type { FixtureData, GameStateData } from "../../store/gameStore";
 import {
   Circle,
@@ -168,21 +168,13 @@ export function getEventDisplay(evt: MatchEvent) {
   return EVENT_ICONS[evt.event_type] || DEFAULT_DISPLAY;
 }
 
-export function getEventTypeLabel(
-  eventType: string,
-  t?: TranslateFn,
-): string {
+export function getEventTypeLabel(eventType: string, t?: TranslateFn): string {
   const fallbackLabel = humanizeEventType(eventType);
 
-  return t
-    ? t(`match.eventTypes.${eventType}`, { defaultValue: fallbackLabel })
-    : fallbackLabel;
+  return t ? t(`match.eventTypes.${eventType}`, { defaultValue: fallbackLabel }) : fallbackLabel;
 }
 
-export function getPlayerName(
-  snapshot: MatchSnapshot,
-  playerId: string | null,
-): string {
+export function getPlayerName(snapshot: MatchSnapshot, playerId: string | null): string {
   if (!playerId) return "";
   for (const p of snapshot.home_team.players) {
     if (p.id === playerId) return p.name;
@@ -207,9 +199,7 @@ export function getPlayerName(
 export function phaseLabel(phase: string, t?: TranslateFn): string {
   const fallbackLabel = PHASE_LABELS[phase] ?? humanizeEventType(phase);
 
-  return t
-    ? t(`match.phases.${phase}`, { defaultValue: fallbackLabel })
-    : fallbackLabel;
+  return t ? t(`match.phases.${phase}`, { defaultValue: fallbackLabel }) : fallbackLabel;
 }
 
 export function resolveMatchFixture(
@@ -220,11 +210,7 @@ export function resolveMatchFixture(
   const fixtures = gameState?.league?.fixtures;
   if (!fixtures || !snapshot) return null;
 
-  if (
-    typeof fixtureIndex === "number" &&
-    fixtureIndex >= 0 &&
-    fixtureIndex < fixtures.length
-  ) {
+  if (typeof fixtureIndex === "number" && fixtureIndex >= 0 && fixtureIndex < fixtures.length) {
     return fixtures[fixtureIndex];
   }
 

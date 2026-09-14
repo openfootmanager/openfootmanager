@@ -18,23 +18,16 @@ export const SUPPORTED_LANGUAGES = [
 ] as const;
 
 const SUPPORTED_CODES = new Map(
-  SUPPORTED_LANGUAGES.map((language) => [
-    language.code.toLowerCase(),
-    language.code,
-  ]),
+  SUPPORTED_LANGUAGES.map((language) => [language.code.toLowerCase(), language.code]),
 );
 
 const SIMPLIFIED_CHINESE_LOCALES = new Set(["zh", "zh-cn", "zh-sg", "zh-my"]);
 
 type TranslationResource = Record<string, unknown>;
 
-const localeModules = import.meta.glob<{ default: TranslationResource }>(
-  "./locales/*.json",
-);
+const localeModules = import.meta.glob<{ default: TranslationResource }>("./locales/*.json");
 
-const SUPPORTED_LANGUAGE_CODES = SUPPORTED_LANGUAGES.map(
-  ({ code }) => code,
-);
+const SUPPORTED_LANGUAGE_CODES = SUPPORTED_LANGUAGES.map(({ code }) => code);
 
 function localeModulePath(language: string): string {
   return `./locales/${language}.json`;
@@ -45,9 +38,7 @@ function localeBackendLoader(language: string): Promise<TranslationResource> {
   const loader = localeModules[localeModulePath(resolvedLanguage)];
 
   if (!loader) {
-    return Promise.reject(
-      new Error(`Unsupported locale module: ${resolvedLanguage}`),
-    );
+    return Promise.reject(new Error(`Unsupported locale module: ${resolvedLanguage}`));
   }
 
   return loader().then((module) => module.default);
@@ -58,10 +49,7 @@ export function resolveSupportedLanguage(locale: string): string {
   const exactMatch = SUPPORTED_CODES.get(normalized);
   if (exactMatch) return exactMatch;
 
-  if (
-    SIMPLIFIED_CHINESE_LOCALES.has(normalized) ||
-    normalized.startsWith("zh-hans")
-  ) {
+  if (SIMPLIFIED_CHINESE_LOCALES.has(normalized) || normalized.startsWith("zh-hans")) {
     return "zh-CN";
   }
 

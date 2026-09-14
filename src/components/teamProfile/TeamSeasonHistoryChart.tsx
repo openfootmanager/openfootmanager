@@ -86,9 +86,29 @@ export function TeamSeasonHistoryChart({
           <Legend
             wrapperStyle={{ fontSize: 10, paddingTop: 4, fontFamily: "var(--font-heading)" }}
           />
-          <Bar yAxisId="left" dataKey="won" stackId="a" fill={theme.success} name={wonLabel} radius={[0, 0, 0, 0]} />
-          <Bar yAxisId="left" dataKey="drawn" stackId="a" fill={theme.axisColor} name={drawnLabel} />
-          <Bar yAxisId="left" dataKey="lost" stackId="a" fill={theme.danger} name={lostLabel} radius={[2, 2, 0, 0]} />
+          <Bar
+            yAxisId="left"
+            dataKey="won"
+            stackId="a"
+            fill={theme.success}
+            name={wonLabel}
+            radius={[0, 0, 0, 0]}
+          />
+          <Bar
+            yAxisId="left"
+            dataKey="drawn"
+            stackId="a"
+            fill={theme.axisColor}
+            name={drawnLabel}
+          />
+          <Bar
+            yAxisId="left"
+            dataKey="lost"
+            stackId="a"
+            fill={theme.danger}
+            name={lostLabel}
+            radius={[2, 2, 0, 0]}
+          />
           <Line
             yAxisId="right"
             type="monotone"

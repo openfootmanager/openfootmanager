@@ -20,11 +20,7 @@ export function applyExtraTranslations(
 
   if (!extra) return;
   for (const [rawLocale, bundle] of Object.entries(extra)) {
-    if (
-      typeof bundle !== "object" ||
-      bundle === null ||
-      Array.isArray(bundle)
-    ) {
+    if (typeof bundle !== "object" || bundle === null || Array.isArray(bundle)) {
       continue;
     }
     const locale = resolveSupportedLanguage(rawLocale);

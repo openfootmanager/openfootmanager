@@ -26,12 +26,7 @@ export type SquadRoleCoverage = {
   status: SquadRoleCoverageStatus;
 };
 
-export const CORE_POSITIONS = [
-  "Goalkeeper",
-  "Defender",
-  "Midfielder",
-  "Forward",
-] as const;
+export const CORE_POSITIONS = ["Goalkeeper", "Defender", "Midfielder", "Forward"] as const;
 
 const CANONICAL_POSITION_MAP: Record<string, string> = {
   gk: "Goalkeeper",
@@ -214,9 +209,7 @@ export function normalisePosition(position: string): string {
 
 export function positionCode(position: string): string {
   const normalized = canonicalPosition(position);
-  return (
-    POSITION_CODES[normalized] || normalized.substring(0, 3).toUpperCase()
-  );
+  return POSITION_CODES[normalized] || normalized.substring(0, 3).toUpperCase();
 }
 
 export function translatePositionLabel(
@@ -251,18 +244,13 @@ export function getCurrentPosition(
   player: PlayerData,
   xiActivePosition: Map<string, string>,
 ): string {
-  return (
-    xiActivePosition.get(player.id) || player.natural_position || player.position
-  );
+  return xiActivePosition.get(player.id) || player.natural_position || player.position;
 }
 
 export function getPreferredPositions(player: PlayerData): string[] {
   return [
     ...new Set(
-      [
-        player.natural_position || player.position,
-        ...(player.alternate_positions || []),
-      ]
+      [player.natural_position || player.position, ...(player.alternate_positions || [])]
         .filter(Boolean)
         .map(canonicalPosition),
     ),
@@ -282,13 +270,7 @@ export function buildPitchRows(formation: string): PitchRow[] {
       case 4:
         return ["LeftBack", "CenterBack", "CenterBack", "RightBack"];
       case 5:
-        return [
-          "LeftWingBack",
-          "CenterBack",
-          "CenterBack",
-          "CenterBack",
-          "RightWingBack",
-        ];
+        return ["LeftWingBack", "CenterBack", "CenterBack", "CenterBack", "RightWingBack"];
       default:
         return Array(count).fill("CenterBack");
     }
@@ -299,18 +281,9 @@ export function buildPitchRows(formation: string): PitchRow[] {
       case 2:
         return ["CentralMidfielder", "CentralMidfielder"];
       case 3:
-        return [
-          "DefensiveMidfielder",
-          "CentralMidfielder",
-          "AttackingMidfielder",
-        ];
+        return ["DefensiveMidfielder", "CentralMidfielder", "AttackingMidfielder"];
       case 4:
-        return [
-          "LeftMidfielder",
-          "CentralMidfielder",
-          "CentralMidfielder",
-          "RightMidfielder",
-        ];
+        return ["LeftMidfielder", "CentralMidfielder", "CentralMidfielder", "RightMidfielder"];
       case 5:
         return [
           "LeftMidfielder",
@@ -422,9 +395,9 @@ export function comparePlayersForSlot(
 ): number {
   return (
     Number(isPlayerOutOfPosition(leftPlayer, slotPosition)) -
-    Number(isPlayerOutOfPosition(rightPlayer, slotPosition)) ||
+      Number(isPlayerOutOfPosition(rightPlayer, slotPosition)) ||
     Number(!isPlayerExactForSlot(leftPlayer, slotPosition)) -
-    Number(!isPlayerExactForSlot(rightPlayer, slotPosition)) ||
+      Number(!isPlayerExactForSlot(rightPlayer, slotPosition)) ||
     getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer) ||
     rightPlayer.condition - leftPlayer.condition ||
     leftPlayer.full_name.localeCompare(rightPlayer.full_name)
@@ -515,9 +488,7 @@ export function getDeployedPosition(
   return slots[slotIndex] ?? null;
 }
 
-export function buildActivePositionMap(
-  pitchSlotRows: PitchSlotRow[],
-): Map<string, string> {
+export function buildActivePositionMap(pitchSlotRows: PitchSlotRow[]): Map<string, string> {
   const map = new Map<string, string>();
   pitchSlotRows.forEach((row) => {
     row.slots.forEach((slot) => {
@@ -529,30 +500,22 @@ export function buildActivePositionMap(
   return map;
 }
 
-export function isPlayerOutOfPosition(
-  player: PlayerData,
-  currentPos: string,
-): boolean {
+export function isPlayerOutOfPosition(player: PlayerData, currentPos: string): boolean {
   const canonicalCurrentPos = canonicalPosition(currentPos);
   const normalizedCurrentPos = normalisePosition(currentPos);
   return !getPreferredPositions(player).some(
     (position) =>
-      position === canonicalCurrentPos ||
-      normalisePosition(position) === normalizedCurrentPos,
+      position === canonicalCurrentPos || normalisePosition(position) === normalizedCurrentPos,
   );
 }
 
-export function isPlayerExactForSlot(
-  player: PlayerData,
-  currentPos: string,
-): boolean {
-  return canonicalPosition(player.natural_position || player.position) === canonicalPosition(currentPos);
+export function isPlayerExactForSlot(player: PlayerData, currentPos: string): boolean {
+  return (
+    canonicalPosition(player.natural_position || player.position) === canonicalPosition(currentPos)
+  );
 }
 
-export function getSquadTacticalFit(
-  player: PlayerData,
-  currentPos: string,
-): SquadTacticalFit {
+export function getSquadTacticalFit(player: PlayerData, currentPos: string): SquadTacticalFit {
   if (isPlayerExactForSlot(player, currentPos)) {
     return "natural";
   }
@@ -569,15 +532,11 @@ function averageAttributes(
   attributeKeys: Array<keyof PlayerData["attributes"]>,
 ): number {
   return (
-    attributeKeys.reduce((total, key) => total + player.attributes[key], 0) /
-    attributeKeys.length
+    attributeKeys.reduce((total, key) => total + player.attributes[key], 0) / attributeKeys.length
   );
 }
 
-export function getBestRoleForFormation(
-  player: PlayerData,
-  formation: string,
-): string {
+export function getBestRoleForFormation(player: PlayerData, formation: string): string {
   const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
   // Best role is an ability recommendation, so it is driven by the player's
   // natural position (not player.position, which is only a coarse bucket).
@@ -676,9 +635,7 @@ export function buildRoleCoverageSummary(
   const naturalStartersByRole = new Map<string, number>();
   const benchOptionsByRole = new Map<string, number>();
   const xiSet = new Set(currentXiIds);
-  const playersById = new Map(
-    availablePlayers.map((player) => [player.id, player] as const),
-  );
+  const playersById = new Map(availablePlayers.map((player) => [player.id, player] as const));
 
   slotPositions.forEach((role) => {
     requiredByRole.set(role, (requiredByRole.get(role) ?? 0) + 1);
@@ -693,10 +650,7 @@ export function buildRoleCoverageSummary(
     }
 
     if (getSquadTacticalFit(player, slotPosition) === "natural") {
-      naturalStartersByRole.set(
-        slotPosition,
-        (naturalStartersByRole.get(slotPosition) ?? 0) + 1,
-      );
+      naturalStartersByRole.set(slotPosition, (naturalStartersByRole.get(slotPosition) ?? 0) + 1);
     }
   });
 
@@ -777,7 +731,7 @@ export function buildPromoteToStartingXi(
   const targetSlotIndex = slotPositions
     .map((slotPosition, slotIndex) => {
       const incumbentId = currentXiIds[slotIndex];
-      const incumbentPlayer = incumbentId ? playersById.get(incumbentId) ?? null : null;
+      const incumbentPlayer = incumbentId ? (playersById.get(incumbentId) ?? null) : null;
 
       return {
         incumbentPlayer,
@@ -874,10 +828,7 @@ export function buildAssignBestFitSlot(
       slotIndex,
     }))
     .sort((leftSlot, rightSlot) => {
-      return (
-        rightSlot.fitScore - leftSlot.fitScore ||
-        leftSlot.slotIndex - rightSlot.slotIndex
-      );
+      return rightSlot.fitScore - leftSlot.fitScore || leftSlot.slotIndex - rightSlot.slotIndex;
     })[0]?.slotIndex;
 
   if (bestSlotIndex == null) {
@@ -928,15 +879,11 @@ export function applyLineupDrop(
   }
 
   if (dragState.from === "xi") {
-    const fromIndex =
-      dragState.slotIndex ?? nextXiIds.indexOf(dragState.playerId);
+    const fromIndex = dragState.slotIndex ?? nextXiIds.indexOf(dragState.playerId);
     if (fromIndex < 0 || fromIndex === slotIndex) {
       return nextXiIds;
     }
-    [nextXiIds[fromIndex], nextXiIds[slotIndex]] = [
-      nextXiIds[slotIndex],
-      nextXiIds[fromIndex],
-    ];
+    [nextXiIds[fromIndex], nextXiIds[slotIndex]] = [nextXiIds[slotIndex], nextXiIds[fromIndex]];
     return nextXiIds;
   }
 

@@ -1,7 +1,4 @@
-type Translate = (
-  key: string,
-  params?: Record<string, string | number>,
-) => string;
+type Translate = (key: string, params?: Record<string, string | number>) => string;
 
 export interface TrainingAdviceParams {
   criticalCount: number;
@@ -61,11 +58,7 @@ export function getTrainingStaffAdvice(
     };
   }
 
-  if (
-    avgCondition >= 80 &&
-    currentSchedule === "Light" &&
-    currentFocus !== "Recovery"
-  ) {
+  if (avgCondition >= 80 && currentSchedule === "Light" && currentFocus !== "Recovery") {
     return {
       level: "ok",
       message: t("training.staffAdvice.ok"),

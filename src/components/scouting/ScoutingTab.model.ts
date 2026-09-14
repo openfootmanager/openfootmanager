@@ -1,8 +1,4 @@
-import type {
-  PlayerData,
-  ScoutingAssignment,
-  TeamData,
-} from "../../store/gameStore";
+import type { PlayerData, ScoutingAssignment, TeamData } from "../../store/gameStore";
 import { getPlayerOvr, getTeamName } from "../../lib/helpers";
 import { normalisePosition } from "../squad/SquadTab.helpers";
 
@@ -38,21 +34,13 @@ export function filterScoutablePlayers({
       return (
         player.full_name.toLowerCase().includes(query) ||
         player.nationality.toLowerCase().includes(query) ||
-        (player.team_id &&
-          getTeamName(teams, player.team_id).toLowerCase().includes(query))
+        (player.team_id && getTeamName(teams, player.team_id).toLowerCase().includes(query))
       );
     })
-    .sort(
-      (left, right) =>
-        getPlayerOvr(right) - getPlayerOvr(left),
-    );
+    .sort((left, right) => getPlayerOvr(right) - getPlayerOvr(left));
 }
 
-export function paginateScoutablePlayers(
-  players: PlayerData[],
-  page: number,
-  pageSize: number,
-) {
+export function paginateScoutablePlayers(players: PlayerData[], page: number, pageSize: number) {
   const totalPages = Math.max(1, Math.ceil(players.length / pageSize));
   const safePage = Math.min(page, totalPages - 1);
 

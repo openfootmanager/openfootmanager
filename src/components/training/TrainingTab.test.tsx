@@ -17,8 +17,10 @@ vi.mock("react-i18next", () => ({
       if (key === "training.staffAlert") return "Staff alert";
       if (key === "training.staffWarning") return "Staff warning";
       if (key === "training.staffSuggestion") return "Staff suggestion";
-      if (key === "training.staffAdvice.critical") return `Critical advice ${params?.criticalCount} ${params?.scheduleAdvice}`;
-      if (key === "training.staffAdvice.warn") return `Warning advice ${params?.avgCondition} ${params?.exhaustedCount} ${params?.scheduleAdvice}`;
+      if (key === "training.staffAdvice.critical")
+        return `Critical advice ${params?.criticalCount} ${params?.scheduleAdvice}`;
+      if (key === "training.staffAdvice.warn")
+        return `Warning advice ${params?.avgCondition} ${params?.exhaustedCount} ${params?.scheduleAdvice}`;
       if (key === "training.staffAdvice.ok") return "Squad is in a good place";
       if (key === "training.weeklySchedule") return "Weekly Schedule";
       if (key === "training.trainingFocus") return "Training Focus";
@@ -177,9 +179,7 @@ describe("TrainingTab", () => {
   beforeEach(() => {
     invokeMock.mockReset();
     const defaultState = createGameState(true);
-    const defaultRoster = defaultState.players.filter(
-      (p) => p.team_id === "team-1",
-    );
+    const defaultRoster = defaultState.players.filter((p) => p.team_id === "team-1");
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return defaultRoster;
       return defaultState;
@@ -194,18 +194,14 @@ describe("TrainingTab", () => {
 
   it("updates the weekly schedule and forwards the refreshed state", async () => {
     const updatedState = createGameState(true);
-    const defaultRoster = updatedState.players.filter(
-      (p) => p.team_id === "team-1",
-    );
+    const defaultRoster = updatedState.players.filter((p) => p.team_id === "team-1");
     const onGameUpdate = vi.fn();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return defaultRoster;
       return updatedState;
     });
 
-    render(
-      <TrainingTab gameState={createGameState(true)} onGameUpdate={onGameUpdate} />,
-    );
+    render(<TrainingTab gameState={createGameState(true)} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Intense.label/i }));
 
@@ -246,8 +242,7 @@ describe("TrainingTab", () => {
       createPlayer({ id: "youth-1", condition: 10, squad_role: "Youth" }),
     ];
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_squad")
-        return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
       return state;
     });
 

@@ -7,11 +7,7 @@ interface TeamProfileRecentMatchesCardProps {
   t: TeamProfileTranslate;
 }
 
-function resolveLabel(
-  t: TeamProfileTranslate,
-  key: string,
-  fallback: string,
-): string {
+function resolveLabel(t: TeamProfileTranslate, key: string, fallback: string): string {
   return t(key, { defaultValue: fallback });
 }
 

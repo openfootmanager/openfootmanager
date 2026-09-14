@@ -21,23 +21,15 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.makeBid") return "Make Transfer Bid";
       if (key === "transfers.makeLoanOffer") return "Make Loan Offer";
       if (key === "transfers.offerContract") return "Offer Contract";
-      if (key === "transfers.dealTransferDescription")
-        return "Open a transfer negotiation.";
-      if (key === "transfers.dealLoanDescription")
-        return "Open a loan negotiation.";
-      if (key === "transfers.dealContractDescription")
-        return "Offer a contract.";
-      if (key === "transfers.dealAvailableTransfer")
-        return "Available for transfer.";
-      if (key === "transfers.dealUnavailableTransfer")
-        return "Not available for transfer.";
+      if (key === "transfers.dealTransferDescription") return "Open a transfer negotiation.";
+      if (key === "transfers.dealLoanDescription") return "Open a loan negotiation.";
+      if (key === "transfers.dealContractDescription") return "Offer a contract.";
+      if (key === "transfers.dealAvailableTransfer") return "Available for transfer.";
+      if (key === "transfers.dealUnavailableTransfer") return "Not available for transfer.";
       if (key === "transfers.dealAvailableLoan") return "Available for loan.";
-      if (key === "transfers.dealUnavailableLoan")
-        return "Not available for loan.";
-      if (key === "transfers.dealAvailableContract")
-        return "Available on a free transfer.";
-      if (key === "transfers.dealUnavailableContract")
-        return "Already contracted.";
+      if (key === "transfers.dealUnavailableLoan") return "Not available for loan.";
+      if (key === "transfers.dealAvailableContract") return "Available on a free transfer.";
+      if (key === "transfers.dealUnavailableContract") return "Already contracted.";
       return key;
     },
     i18n: { language: "en" },
@@ -140,10 +132,7 @@ describe("PlayerDealWorkspace", () => {
     render(
       <PlayerDealWorkspace
         player={createPlayer()}
-        teams={[
-          createTeam(),
-          createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
-        ]}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
         annualSuffix="/yr"
         transferWindowBlocksRegistration={false}
@@ -156,9 +145,7 @@ describe("PlayerDealWorkspace", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "Cancel" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
@@ -193,10 +180,7 @@ describe("PlayerDealWorkspace", () => {
     render(
       <PlayerDealWorkspace
         player={createPlayer()}
-        teams={[
-          createTeam(),
-          createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
-        ]}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
         annualSuffix="/yr"
         transferWindowBlocksRegistration={false}
@@ -218,10 +202,7 @@ describe("PlayerDealWorkspace", () => {
     render(
       <PlayerDealWorkspace
         player={createPlayer({ transfer_listed: false, loan_listed: true })}
-        teams={[
-          createTeam(),
-          createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
-        ]}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
         annualSuffix="/yr"
         transferWindowBlocksRegistration={false}
@@ -237,8 +218,6 @@ describe("PlayerDealWorkspace", () => {
     // The disabled (and unselected) transfer route shows its disabledReason as the
     // subtitle — not the route description, and with no availability metadata line.
     expect(screen.getByText("Not available for transfer.")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Open a transfer negotiation."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Open a transfer negotiation.")).not.toBeInTheDocument();
   });
 });

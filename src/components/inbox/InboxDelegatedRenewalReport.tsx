@@ -39,50 +39,44 @@ export default function InboxDelegatedRenewalReport({
     >
       <div className="space-y-2">
         {report.cases.map((renewalCase, index) => {
-          const detail = resolveBackendText(
-            renewalCase.note_key,
-            "",
-            renewalCase.note_params,
-          );
+          const detail = resolveBackendText(renewalCase.note_key, "", renewalCase.note_params);
           const formattedWage = formatMoneyParam(renewalCase.agreed_wage);
 
           const line =
             renewalCase.status === "successful"
               ? resolveBackendText(
-                "be.msg.delegatedRenewals.case.successful",
-                `Completed: ${renewalCase.player_name} agreed to ${String(renewalCase.agreed_years ?? 0)} year(s) on ${formattedWage}/wk.`,
-                {
-                  player: renewalCase.player_name,
-                  years: String(renewalCase.agreed_years ?? 0),
-                  wage: String(renewalCase.agreed_wage ?? 0),
-                },
-              )
-              : renewalCase.status === "stalled"
-                ? resolveBackendText(
-                  "be.msg.delegatedRenewals.case.stalled",
-                  `Still difficult: ${renewalCase.player_name} - ${detail}`,
+                  "be.msg.delegatedRenewals.case.successful",
+                  `Completed: ${renewalCase.player_name} agreed to ${String(renewalCase.agreed_years ?? 0)} year(s) on ${formattedWage}/wk.`,
                   {
                     player: renewalCase.player_name,
-                    detail,
+                    years: String(renewalCase.agreed_years ?? 0),
+                    wage: String(renewalCase.agreed_wage ?? 0),
                   },
                 )
+              : renewalCase.status === "stalled"
+                ? resolveBackendText(
+                    "be.msg.delegatedRenewals.case.stalled",
+                    `Still difficult: ${renewalCase.player_name} - ${detail}`,
+                    {
+                      player: renewalCase.player_name,
+                      detail,
+                    },
+                  )
                 : resolveBackendText(
-                  "be.msg.delegatedRenewals.case.failed",
-                  `Failed: ${renewalCase.player_name} - ${detail}`,
-                  {
-                    player: renewalCase.player_name,
-                    detail,
-                  },
-                );
+                    "be.msg.delegatedRenewals.case.failed",
+                    `Failed: ${renewalCase.player_name} - ${detail}`,
+                    {
+                      player: renewalCase.player_name,
+                      detail,
+                    },
+                  );
 
           return (
             <div
               key={`${renewalCase.player_id}-${index}`}
               className="flex flex-wrap items-center justify-between gap-2"
             >
-              <div className="min-w-0 flex-1">
-                {renderMessageBodyLine(`• ${line}`, index)}
-              </div>
+              <div className="min-w-0 flex-1">{renderMessageBodyLine(`• ${line}`, index)}</div>
               {onPlayerClick ? (
                 <>
                   <span

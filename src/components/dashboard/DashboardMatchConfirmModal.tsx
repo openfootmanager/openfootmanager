@@ -39,9 +39,7 @@ export default function DashboardMatchConfirmModal({
           <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
             {t("continueMenu.matchDayTitle")}
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {modeMeta.label}
-          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{modeMeta.label}</p>
         </div>
       </div>
       {todayMatchFixture && (
@@ -56,9 +54,7 @@ export default function DashboardMatchConfirmModal({
           </p>
         </div>
       )}
-      <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">
-        {modeMeta.desc}
-      </p>
+      <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">{modeMeta.desc}</p>
       {matchMode === "delegate" && (
         <p className="mt-1 flex items-center gap-1 text-xs text-amber-500 dark:text-amber-400">
           <AlertCircle className="h-3.5 w-3.5" />
@@ -67,12 +63,14 @@ export default function DashboardMatchConfirmModal({
       )}
       <div className="mt-5 flex gap-3">
         <button
+          type="button"
           onClick={onCancel}
           className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-200 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600"
         >
           {t("common.cancel")}
         </button>
         <button
+          type="button"
           onClick={onConfirm}
           className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${modeMeta.buttonColorClass} px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white transition-all hover:brightness-110`}
         >

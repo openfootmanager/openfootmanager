@@ -16,9 +16,7 @@ export interface ResolveMessageActionResult {
 // Inbox-only mutations return just the updated message list (not the whole
 // game), so the UI patches its message slice instead of round-tripping the
 // entire world on every read/delete.
-export async function markMessageRead(
-  messageId: string,
-): Promise<MessageData[]> {
+export async function markMessageRead(messageId: string): Promise<MessageData[]> {
   return invoke<MessageData[]>("mark_message_read", {
     messageId,
   });
@@ -44,17 +42,13 @@ export async function clearOldMessages(): Promise<MessageData[]> {
   return invoke<MessageData[]>("clear_old_messages");
 }
 
-export async function deleteMessage(
-  messageId: string,
-): Promise<MessageData[]> {
+export async function deleteMessage(messageId: string): Promise<MessageData[]> {
   return invoke<MessageData[]>("delete_message", {
     messageId,
   });
 }
 
-export async function deleteMessages(
-  messageIds: string[],
-): Promise<MessageData[]> {
+export async function deleteMessages(messageIds: string[]): Promise<MessageData[]> {
   return invoke<MessageData[]>("delete_messages", {
     messageIds,
   });

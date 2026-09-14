@@ -47,9 +47,7 @@ const round = {
   completed: false,
 } as unknown as NonNullable<LeagueData["knockout_rounds"]>[number];
 
-function renderOverview(
-  props: Partial<React.ComponentProps<typeof TournamentsOverview>> = {},
-) {
+function renderOverview(props: Partial<React.ComponentProps<typeof TournamentsOverview>> = {}) {
   return render(
     <TournamentsOverview
       standings={[standing("team-1")]}
@@ -71,9 +69,7 @@ describe("TournamentsOverview", () => {
   it("shows a league its compact table", () => {
     renderOverview();
 
-    expect(
-      screen.getByTestId("tournaments-overview-standing-team-1"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("tournaments-overview-standing-team-1")).toBeInTheDocument();
   });
 
   // The compact table drops goals for and against; the standings view keeps them.
@@ -88,17 +84,13 @@ describe("TournamentsOverview", () => {
     renderOverview({ groups: [group] });
 
     expect(screen.getByTestId("tournaments-group-group-a")).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("tournaments-overview-standing-team-1"),
-    ).toBeNull();
+    expect(screen.queryByTestId("tournaments-overview-standing-team-1")).toBeNull();
   });
 
   it("shows a knockout how far its rounds have got", () => {
     renderOverview({ isKnockout: true, knockoutRounds: [round] });
 
-    expect(
-      screen.getByTestId("tournaments-round-summary-round-1"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("tournaments-round-summary-round-1")).toBeInTheDocument();
     expect(screen.getByText("tournaments.roundInProgress")).toBeInTheDocument();
   });
 
@@ -122,9 +114,7 @@ describe("TournamentsOverview", () => {
     renderOverview({ isPreseason: true });
 
     expect(screen.getByText("season.standingsLocked")).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("tournaments-overview-standing-team-1"),
-    ).toBeNull();
+    expect(screen.queryByTestId("tournaments-overview-standing-team-1")).toBeNull();
   });
 
   // Groups outrank the preseason lock: they are drawn before a ball is kicked.

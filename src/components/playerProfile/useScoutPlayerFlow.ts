@@ -36,8 +36,7 @@ export function useScoutPlayerFlow({
   onGameUpdate,
 }: UseScoutPlayerFlowArgs): UseScoutPlayerFlowResult {
   const { t } = useTranslation();
-  const [scoutStatus, setScoutStatus] =
-    useState<PlayerProfileScoutStatus>("idle");
+  const [scoutStatus, setScoutStatus] = useState<PlayerProfileScoutStatus>("idle");
   const [scoutError, setScoutError] = useState<string | null>(null);
 
   // The profile is not remounted when the manager moves to another player, so

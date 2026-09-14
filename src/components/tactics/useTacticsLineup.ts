@@ -2,11 +2,7 @@ import type { DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import type {
-  GameStateData,
-  PlayerData,
-  TeamMatchRolesData,
-} from "../../store/gameStore";
+import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { getSquad, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
 import type { TacticsPhaseSettings } from "../../store/types";
@@ -42,16 +38,11 @@ interface UseTacticsLineupArgs {
   onGameUpdate: (g: GameStateData) => void;
 }
 
-function isPlayerEligibleForLineup(
-  player: PlayerData | null | undefined,
-): boolean {
+function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boolean {
   return Boolean(player && !player.injury);
 }
 
-export function useTacticsLineup({
-  gameState,
-  onGameUpdate,
-}: UseTacticsLineupArgs) {
+export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
   const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
@@ -64,22 +55,20 @@ export function useTacticsLineup({
     : null;
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
-  const [pendingStartingXiIds, setPendingStartingXiIds] = useState<
-    string[] | null
-  >(null);
+  const [pendingStartingXiIds, setPendingStartingXiIds] = useState<string[] | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [selectedPlayerSection, setSelectedPlayerSection] =
-    useState<SquadSection | null>(null);
+  const [selectedPlayerSection, setSelectedPlayerSection] = useState<SquadSection | null>(null);
   const [comparePlayerId, setComparePlayerId] = useState<string | null>(null);
-  const [comparePlayerSection, setComparePlayerSection] =
-    useState<SquadSection | null>(null);
+  const [comparePlayerSection, setComparePlayerSection] = useState<SquadSection | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const hoveredSlotRef = useRef<number | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!teamId) return;
-    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
+    void getSquad(teamId)
+      .then(setFetchedSquad)
+      .catch(() => {});
   }, [teamId]);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
@@ -89,10 +78,7 @@ export function useTacticsLineup({
   const formation = team?.formation || "4-4-2";
   const activePlayStyle = team?.play_style || "Balanced";
   const savedStartingXiKey = (team?.starting_xi_ids || []).join(",");
-  const playersById = useMemo(
-    () => new Map(roster.map((player) => [player.id, player])),
-    [roster],
-  );
+  const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
   const available = roster.filter((player) => !player.injury);
   const pitchRows = useMemo(() => buildPitchRows(formation), [formation]);
 
@@ -133,16 +119,10 @@ export function useTacticsLineup({
     () => buildPitchSlotRows(pitchRows, startingXiIds, playersById),
     [pitchRows, playersById, startingXiIds],
   );
-  const pitchSlots = useMemo(
-    () => buildTacticsPitchSlots(pitchSlotRows),
-    [pitchSlotRows],
-  );
+  const pitchSlots = useMemo(() => buildTacticsPitchSlots(pitchSlotRows), [pitchSlotRows]);
   const xiIds = new Set(startingXiIds);
   const bench = roster.filter((player) => !xiIds.has(player.id));
-  const xiActivePosition = useMemo(
-    () => buildActivePositionMap(pitchSlotRows),
-    [pitchSlotRows],
-  );
+  const xiActivePosition = useMemo(() => buildActivePositionMap(pitchSlotRows), [pitchSlotRows]);
 
   const { comparePlayer, selectedPlayer } = getSelectedAndComparePlayers(
     comparePlayerId,
@@ -151,24 +131,15 @@ export function useTacticsLineup({
   );
 
   const canConfirmSwap = useMemo(() => {
-    if (
-      !selectedPlayerId ||
-      !selectedPlayerSection ||
-      !comparePlayerId ||
-      !comparePlayerSection
-    ) {
+    if (!selectedPlayerId || !selectedPlayerSection || !comparePlayerId || !comparePlayerSection) {
       return false;
     }
 
     if (
       (selectedPlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(
-          selectedPlayerId ? playersById.get(selectedPlayerId) : null,
-        )) ||
+        !isPlayerEligibleForLineup(selectedPlayerId ? playersById.get(selectedPlayerId) : null)) ||
       (comparePlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(
-          comparePlayerId ? playersById.get(comparePlayerId) : null,
-        ))
+        !isPlayerEligibleForLineup(comparePlayerId ? playersById.get(comparePlayerId) : null))
     ) {
       return false;
     }
@@ -190,10 +161,7 @@ export function useTacticsLineup({
     startingXiIds,
   ]);
 
-  const outOfPositionCount = countOutOfPositionPlayers(
-    startingXI,
-    xiActivePosition,
-  );
+  const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition);
   const effectiveMatchRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles),
     [team?.match_roles, startingXI],
@@ -239,12 +207,7 @@ export function useTacticsLineup({
   }
 
   async function handleAssignBestFit(playerId: string): Promise<void> {
-    const nextXiIds = buildAssignBestFitSlot(
-      startingXiIds,
-      playersById,
-      formation,
-      playerId,
-    );
+    const nextXiIds = buildAssignBestFitSlot(startingXiIds, playersById, formation, playerId);
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -259,12 +222,7 @@ export function useTacticsLineup({
       return;
     }
 
-    const nextXiIds = buildPromoteToStartingXi(
-      startingXiIds,
-      playersById,
-      formation,
-      playerId,
-    );
+    const nextXiIds = buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId);
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -275,12 +233,7 @@ export function useTacticsLineup({
   }
 
   async function handleDemoteStarter(playerId: string): Promise<void> {
-    const nextXiIds = buildDemoteFromStartingXi(
-      startingXiIds,
-      available,
-      formation,
-      playerId,
-    );
+    const nextXiIds = buildDemoteFromStartingXi(startingXiIds, available, formation, playerId);
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -338,10 +291,7 @@ export function useTacticsLineup({
     setDragState(nextDragState);
   }
 
-  function handleSlotDragOver(
-    event: DragEvent<HTMLElement>,
-    slotIndex: number,
-  ): void {
+  function handleSlotDragOver(event: DragEvent<HTMLElement>, slotIndex: number): void {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     setHoveredSlotValue(slotIndex);
@@ -355,10 +305,7 @@ export function useTacticsLineup({
     setHoveredSlotValue(null);
   }
 
-  async function handleSlotDrop(
-    event: DragEvent<HTMLElement>,
-    slotIndex: number,
-  ): Promise<void> {
+  async function handleSlotDrop(event: DragEvent<HTMLElement>, slotIndex: number): Promise<void> {
     event.preventDefault();
     const draggedPlayerId = event.dataTransfer.getData("text/plain");
     const currentDragState = dragStateRef.current ?? dragState;
@@ -368,9 +315,7 @@ export function useTacticsLineup({
         ? {
             playerId: draggedPlayerId,
             from: xiIds.has(draggedPlayerId) ? "xi" : "bench",
-            slotIndex: xiIds.has(draggedPlayerId)
-              ? startingXiIds.indexOf(draggedPlayerId)
-              : null,
+            slotIndex: xiIds.has(draggedPlayerId) ? startingXiIds.indexOf(draggedPlayerId) : null,
           }
         : null);
 
@@ -384,11 +329,7 @@ export function useTacticsLineup({
       return;
     }
 
-    const nextXiIds = applyLineupDrop(
-      startingXiIds,
-      resolvedDragState,
-      slotIndex,
-    );
+    const nextXiIds = applyLineupDrop(startingXiIds, resolvedDragState, slotIndex);
     if (nextXiIds.join(",") === startingXiIds.join(",")) {
       resetDragState();
       return;
@@ -399,10 +340,7 @@ export function useTacticsLineup({
     resetDragState();
   }
 
-  async function handleLineupPlayerClick(
-    playerId: string,
-    section: SquadSection,
-  ): Promise<void> {
+  async function handleLineupPlayerClick(playerId: string, section: SquadSection): Promise<void> {
     if (!selectedPlayerId || !selectedPlayerSection) {
       setSelectedPlayerId(playerId);
       setSelectedPlayerSection(section);
@@ -433,24 +371,15 @@ export function useTacticsLineup({
   }
 
   async function handleConfirmSwap(): Promise<void> {
-    if (
-      !selectedPlayerId ||
-      !selectedPlayerSection ||
-      !comparePlayerId ||
-      !comparePlayerSection
-    ) {
+    if (!selectedPlayerId || !selectedPlayerSection || !comparePlayerId || !comparePlayerSection) {
       return;
     }
 
     if (
       (selectedPlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(
-          selectedPlayerId ? playersById.get(selectedPlayerId) : null,
-        )) ||
+        !isPlayerEligibleForLineup(selectedPlayerId ? playersById.get(selectedPlayerId) : null)) ||
       (comparePlayerSection === "bench" &&
-        !isPlayerEligibleForLineup(
-          comparePlayerId ? playersById.get(comparePlayerId) : null,
-        ))
+        !isPlayerEligibleForLineup(comparePlayerId ? playersById.get(comparePlayerId) : null))
     ) {
       return;
     }
@@ -470,9 +399,7 @@ export function useTacticsLineup({
     clearLineupSelection();
   }
 
-  async function persistMatchRoles(
-    nextRoles: TeamMatchRolesData,
-  ): Promise<void> {
+  async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {
     try {
       const updated = await invoke<GameStateData>("set_team_match_roles", {
         matchRoles: nextRoles,
@@ -488,18 +415,11 @@ export function useTacticsLineup({
     playerId: string,
   ): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(
-        effectiveMatchRoles,
-        startingXI,
-        role,
-        playerId,
-      ),
+      buildUpdatedMatchRolesForAssignment(effectiveMatchRoles, startingXI, role, playerId),
     );
   }
 
-  async function handleTacticsPhaseChange(
-    patch: Partial<TacticsPhaseSettings>,
-  ): Promise<void> {
+  async function handleTacticsPhaseChange(patch: Partial<TacticsPhaseSettings>): Promise<void> {
     try {
       const updated = await setTacticsPhaseService(patch);
       onGameUpdate(updated);

@@ -36,9 +36,9 @@ export default function PlayerProfileLoanStatusBanner({
       : managerTeamId === loan.loan_team_id
         ? t("playerProfile.loanedInFrom", { team: parentTeamName })
         : t("playerProfile.loanBetweenClubs", {
-          parent: parentTeamName,
-          loanTeam: loanTeamName,
-        });
+            parent: parentTeamName,
+            loanTeam: loanTeamName,
+          });
 
   return (
     <Card accent="primary" className="mb-5">

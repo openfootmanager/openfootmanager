@@ -54,13 +54,15 @@ export default function TrainingSettingsPanel({
           <div className="flex gap-3 mb-4">
             {scheduleIds.map((scheduleId) => (
               <button
+                type="button"
                 key={scheduleId}
                 disabled={isSaving}
                 onClick={() => onSetSchedule(scheduleId)}
-                className={`flex-1 p-3 rounded-xl text-left transition-all border-2 ${currentSchedule === scheduleId
-                  ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
-                  : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
-                  } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
+                className={`flex-1 p-3 rounded-xl text-left transition-all border-2 ${
+                  currentSchedule === scheduleId
+                    ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
+                    : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
               >
                 <div className={`mb-1.5 ${scheduleColors[scheduleId]}`}>
                   {scheduleIcons[scheduleId]}
@@ -81,9 +83,7 @@ export default function TrainingSettingsPanel({
               dangerouslySetInnerHTML={{
                 __html: t("training.todayIs", {
                   day: t(`training.days.${dayKeys[todayWeekday]}`),
-                  type: isTodayTraining
-                    ? t("training.aTrainingDay")
-                    : t("training.aRestDay"),
+                  type: isTodayTraining ? t("training.aTrainingDay") : t("training.aRestDay"),
                 }),
               }}
             />
@@ -97,13 +97,15 @@ export default function TrainingSettingsPanel({
           <div className="grid grid-cols-3 gap-3">
             {trainingFocusIds.map((focusId) => (
               <button
+                type="button"
                 key={focusId}
                 disabled={isSaving}
                 onClick={() => onSetTraining(focusId, currentIntensity)}
-                className={`p-4 rounded-xl text-left transition-all border-2 ${currentFocus === focusId
-                  ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
-                  : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
-                  } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
+                className={`p-4 rounded-xl text-left transition-all border-2 ${
+                  currentFocus === focusId
+                    ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
+                    : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
               >
                 <div className="mb-2 text-gray-600 dark:text-gray-300">
                   {trainingFocusIcons[focusId]}
@@ -140,13 +142,15 @@ export default function TrainingSettingsPanel({
             <div className="flex gap-3">
               {intensityIds.map((intensityId) => (
                 <button
+                  type="button"
                   key={intensityId}
                   disabled={isSaving}
                   onClick={() => onSetTraining(currentFocus, intensityId)}
-                  className={`flex-1 p-3 rounded-lg text-left transition-all border-2 ${currentIntensity === intensityId
-                    ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10"
-                    : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
-                    } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
+                  className={`flex-1 p-3 rounded-lg text-left transition-all border-2 ${
+                    currentIntensity === intensityId
+                      ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10"
+                      : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                  } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
                 >
                   <p
                     className={`font-heading font-bold text-sm uppercase tracking-wider ${intensityColors[intensityId]}`}

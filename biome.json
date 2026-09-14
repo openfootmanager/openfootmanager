@@ -1,6 +1,66 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
-    "includes": ["**", "!src/App.css", "!src/i18n/locales/**", "!dist/**", "!src-tauri/target/**"]
+    "includes": [
+      "**",
+      "!src/App.css",
+      "!src/i18n/locales",
+      "!dist",
+      "!src-tauri/target",
+      "!src-tauri/gen",
+      "!src-tauri/crates/**/data",
+      "!docs/modding/examples",
+      "!package-lock.json",
+      "!**/*.svg",
+      "!**/*.generated.*"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "assist": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "none",
+      "security": {
+        "preset": "recommended"
+      },
+      "performance": {
+        "preset": "recommended"
+      },
+      "correctness": {
+        "useHookAtTopLevel": "error",
+        "noNestedComponentDefinitions": "error",
+        "preset": "recommended"
+      },
+      "style": {
+        "preset": "recommended",
+        "noNonNullAssertion": "info"
+      },
+      "complexity": {
+        "preset": "recommended"
+      },
+      "suspicious": {
+        "preset": "recommended"
+      },
+      "a11y": {
+        "preset": "recommended",
+        "noStaticElementInteractions": "info",
+        "useKeyWithClickEvents": "info",
+        "noLabelWithoutControl": "info",
+        "useSemanticElements": "info"
+      }
+    }
   }
 }

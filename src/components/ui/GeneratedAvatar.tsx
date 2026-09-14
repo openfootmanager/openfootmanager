@@ -25,12 +25,7 @@ export function GeneratedAvatar({ name, initials, className }: GeneratedAvatarPr
   const text = initials.slice(0, 2).toUpperCase();
 
   return (
-    <svg
-      viewBox="0 0 40 40"
-      className={className}
-      role="presentation"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 40 40" className={className} role="presentation" aria-hidden="true">
       <rect width="40" height="40" rx="9" fill={background} />
       <text
         x="20"

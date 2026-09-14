@@ -10,10 +10,7 @@ import {
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
 import type { PlayerData } from "../../store/gameStore";
-import {
-  getPlayerAttributeEntry,
-  type PlayerAttributeKey,
-} from "./PlayerProfile.attributes";
+import { getPlayerAttributeEntry, type PlayerAttributeKey } from "./PlayerProfile.attributes";
 
 interface PlayerAttributeRadarChartProps {
   player: PlayerData;
@@ -62,10 +59,7 @@ function buildRadarData(
   });
 }
 
-export function PlayerAttributeRadarChart({
-  player,
-  isGk,
-}: PlayerAttributeRadarChartProps) {
+export function PlayerAttributeRadarChart({ player, isGk }: PlayerAttributeRadarChartProps) {
   const { t } = useTranslation();
   const theme = useChartTheme();
 

@@ -43,17 +43,13 @@ export interface SkipToMatchDayResponse {
   results?: AdvanceMatchResultData[];
 }
 
-export async function advanceTimeWithMode(
-  mode: string,
-): Promise<AdvanceTimeWithModeResponse> {
+export async function advanceTimeWithMode(mode: string): Promise<AdvanceTimeWithModeResponse> {
   return invoke<AdvanceTimeWithModeResponse>("advance_time_with_mode", {
     mode,
   });
 }
 
-export async function checkBlockingActions(
-  logContext: string,
-): Promise<BlockerData[]> {
+export async function checkBlockingActions(logContext: string): Promise<BlockerData[]> {
   try {
     const blockers = await invoke<BlockerData[]>("check_blocking_actions");
     console.info(`[useAdvanceTime] ${logContext}:blockers`, {

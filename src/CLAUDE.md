@@ -130,5 +130,5 @@ Vitest + `@testing-library/react`, jsdom environment, config in `vite.config.ts`
   and `useAdvanceTime.helpers.ts` are the pattern.
 - Write the failing test first. That is the point.
 
-Run a focused file while iterating — `npx vitest run src/components/squad` — and the full suite
+Run a focused file while iterating — `npm exec --no -- vitest run src/components/squad` — and the full suite
 before you push.

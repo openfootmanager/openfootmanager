@@ -29,49 +29,50 @@ function HookHarness(props: {
     handleContinue,
     handleSkipToMatchDay,
     showMatchConfirm,
-  } =
-    useAdvanceTime(
-      (state) => setGameState(state),
-      props.hasMatchToday,
-      props.defaultMatchMode,
-      true,
-      false,
-    );
+  } = useAdvanceTime(
+    (state) => setGameState(state),
+    props.hasMatchToday,
+    props.defaultMatchMode,
+    true,
+    false,
+  );
 
   return (
     <div>
-      <button onClick={() => void handleContinue()}>Continue</button>
-      <button onClick={handleConfirmMatch}>Confirm Match</button>
-      <button onClick={() => void handleSkipToMatchDay()}>Skip</button>
+      <button type="button" onClick={() => void handleContinue()}>
+        Continue
+      </button>
+      <button type="button" onClick={handleConfirmMatch}>
+        Confirm Match
+      </button>
+      <button type="button" onClick={() => void handleSkipToMatchDay()}>
+        Skip
+      </button>
       <div data-testid="show-match-confirm">{String(showMatchConfirm)}</div>
-      <div data-testid="blocker-count">
-        {blockerModal?.blockers.length ?? 0}
-      </div>
+      <div data-testid="blocker-count">{blockerModal?.blockers.length ?? 0}</div>
     </div>
   );
 }
 
-describe("useAdvanceTime", function (): void {
+describe("useAdvanceTime", (): void => {
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
     navigateMock.mockReset();
   });
 
-  it("shows match confirmation before advancing on match day", async function (): Promise<void> {
+  it("shows match confirmation before advancing on match day", async (): Promise<void> => {
     render(<HookHarness hasMatchToday defaultMatchMode="live" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    await waitFor(function (): void {
-      expect(screen.getByTestId("show-match-confirm")).toHaveTextContent(
-        "true",
-      );
+    await waitFor((): void => {
+      expect(screen.getByTestId("show-match-confirm")).toHaveTextContent("true");
     });
 
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 
-  it("navigates to the live match with snapshot and fixture state after confirmation", async function (): Promise<void> {
+  it("navigates to the live match with snapshot and fixture state after confirmation", async (): Promise<void> => {
     const snapshot = {
       phase: "PreKickOff",
       current_minute: 0,
@@ -93,7 +94,7 @@ describe("useAdvanceTime", function (): void {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm Match" }));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("advance_time_with_mode", {
         mode: "live",
       });
@@ -108,7 +109,7 @@ describe("useAdvanceTime", function (): void {
     });
   });
 
-  it("checks blocking actions before a normal continue and stops when blockers exist", async function (): Promise<void> {
+  it("checks blocking actions before a normal continue and stops when blockers exist", async (): Promise<void> => {
     mockedInvoke.mockResolvedValueOnce([
       {
         id: "urgent_messages",
@@ -122,7 +123,7 @@ describe("useAdvanceTime", function (): void {
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("check_blocking_actions");
       expect(screen.getByTestId("blocker-count")).toHaveTextContent("1");
     });
@@ -131,7 +132,7 @@ describe("useAdvanceTime", function (): void {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it("advances time on a normal day when blocker checks return empty", async function (): Promise<void> {
+  it("advances time on a normal day when blocker checks return empty", async (): Promise<void> => {
     const advancedGame = {
       clock: {
         current_date: "2026-07-02",
@@ -148,21 +149,17 @@ describe("useAdvanceTime", function (): void {
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenNthCalledWith(1, "check_blocking_actions");
-      expect(mockedInvoke).toHaveBeenNthCalledWith(
-        2,
-        "advance_time_with_mode",
-        {
-          mode: "live",
-        },
-      );
+      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "advance_time_with_mode", {
+        mode: "live",
+      });
     });
 
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it("checks blocking actions before skipping to match day and stops when blockers exist", async function (): Promise<void> {
+  it("checks blocking actions before skipping to match day and stops when blockers exist", async (): Promise<void> => {
     mockedInvoke.mockResolvedValueOnce([
       {
         id: "contract_expiry",
@@ -176,7 +173,7 @@ describe("useAdvanceTime", function (): void {
 
     fireEvent.click(screen.getByRole("button", { name: "Skip" }));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("check_blocking_actions");
       expect(screen.getByTestId("blocker-count")).toHaveTextContent("1");
     });
@@ -184,7 +181,7 @@ describe("useAdvanceTime", function (): void {
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
   });
 
-  it("fires a single backend skip when Skip is double-clicked", async function (): Promise<void> {
+  it("fires a single backend skip when Skip is double-clicked", async (): Promise<void> => {
     // Regression: the re-entrancy guard is a ref, not `isAdvancing` — two
     // rapid clicks both read the stale pre-commit state, so without the ref
     // two concurrent skip_to_match_day calls raced to setGameState.
@@ -207,7 +204,7 @@ describe("useAdvanceTime", function (): void {
     fireEvent.click(skip);
     fireEvent.click(skip);
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(
         mockedInvoke.mock.calls.filter(([command]) => command === "skip_to_match_day"),
       ).toHaveLength(1);

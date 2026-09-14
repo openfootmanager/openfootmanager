@@ -4,9 +4,7 @@ import { GeneratedCrest } from "./GeneratedCrest";
 
 describe("GeneratedCrest", () => {
   it("renders the label inside an svg crest", () => {
-    const { container } = render(
-      <GeneratedCrest name="Media FC" label="MFC" />,
-    );
+    const { container } = render(<GeneratedCrest name="Media FC" label="MFC" />);
 
     expect(container.querySelector("svg")).toBeInTheDocument();
     expect(screen.getByText("MFC")).toBeInTheDocument();
@@ -36,10 +34,7 @@ describe("GeneratedCrest", () => {
     first.unmount();
 
     const second = render(<GeneratedCrest name="Alpha United" label="ALP" />);
-    const secondHtml = second.container.innerHTML.replace(
-      /id="[^"]*"|url\(#[^)]*\)/g,
-      "",
-    );
+    const secondHtml = second.container.innerHTML.replace(/id="[^"]*"|url\(#[^)]*\)/g, "");
 
     expect(secondHtml).toBe(firstHtml);
   });

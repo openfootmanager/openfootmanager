@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { TeamData } from "../store/gameStore";
+import type { TeamData } from "../store/gameStore";
 import { formatVal } from "../lib/helpers";
 import { Badge, Card, CardBody, TeamLocation, TeamLogo } from "../components/ui";
 import { Landmark, Star, Trophy, Users } from "lucide-react";
@@ -104,7 +104,9 @@ export default function TeamSelectionGrid({
                               <TeamLogo
                                 team={team}
                                 className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg font-heading text-lg font-bold ${
-                                  isSelected ? "bg-white/20 text-white" : "bg-white/10 text-gray-300"
+                                  isSelected
+                                    ? "bg-white/20 text-white"
+                                    : "bg-white/10 text-gray-300"
                                 }`}
                               />
                               <div>
@@ -121,7 +123,9 @@ export default function TeamSelectionGrid({
                                 />
                               </div>
                             </div>
-                            {isSelected && <Star className="h-5 w-5 fill-current text-accent-400" />}
+                            {isSelected && (
+                              <Star className="h-5 w-5 fill-current text-accent-400" />
+                            )}
                           </div>
                         </div>
 
@@ -178,15 +182,7 @@ export default function TeamSelectionGrid({
   );
 }
 
-function InfoStat({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-}) {
+function InfoStat({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">

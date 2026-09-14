@@ -34,11 +34,8 @@ export function buildPlayerProfileRelationship(
   isOwnClub: boolean,
 ): PlayerProfileRelationship {
   const managerTeamId = gameState.manager.team_id;
-  const contractOwnerTeamId =
-    player.active_loan?.parent_team_id ?? player.team_id ?? null;
-  const isContractOwnerClub = Boolean(
-    managerTeamId && contractOwnerTeamId === managerTeamId,
-  );
+  const contractOwnerTeamId = player.active_loan?.parent_team_id ?? player.team_id ?? null;
+  const isContractOwnerClub = Boolean(managerTeamId && contractOwnerTeamId === managerTeamId);
 
   // A loaned player's contract belongs to the parent club and nobody else, so
   // the caller's `isOwnClub` cannot widen it.
@@ -56,16 +53,12 @@ export function buildPlayerProfileRelationship(
     isContractOwnerClub,
     isManagerOwnedProfile,
     isManagerLoanClub,
-    isManagerSquadProfile:
-      isManagerOwnedProfile || isOwnClub || isManagerLoanClub,
+    isManagerSquadProfile: isManagerOwnedProfile || isOwnClub || isManagerLoanClub,
     isFreeAgent: player.team_id === null && !player.retired,
-    hasLetExpireIntent:
-      player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire",
+    hasLetExpireIntent: player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire",
     hasAssistantManager: managerTeamId
       ? gameState.staff.some(
-          (staff) =>
-            staff.team_id === managerTeamId &&
-            staff.role === "AssistantManager",
+          (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
         )
       : false,
   };

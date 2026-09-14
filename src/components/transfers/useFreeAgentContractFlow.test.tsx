@@ -22,9 +22,7 @@ vi.mock("../../utils/backendI18n", () => ({
 }));
 
 const mockedOfferFreeAgentContract = vi.mocked(offerFreeAgentContract);
-const mockedPreviewFreeAgentContractImpact = vi.mocked(
-  previewFreeAgentContractImpact,
-);
+const mockedPreviewFreeAgentContractImpact = vi.mocked(previewFreeAgentContractImpact);
 const mockedResolveBackendError = vi.mocked(resolveBackendError);
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -185,7 +183,9 @@ function HookHarness({
 
   return (
     <div>
-      <button onClick={() => openFreeAgentContract(target)}>Open</button>
+      <button type="button" onClick={() => openFreeAgentContract(target)}>
+        Open
+      </button>
       <label htmlFor="wage">Wage</label>
       <input
         id="wage"
@@ -198,7 +198,9 @@ function HookHarness({
         value={contractLength}
         onChange={(event) => setContractLength(event.target.value)}
       />
-      <button onClick={() => void submitFreeAgentContract()}>Submit</button>
+      <button type="button" onClick={() => void submitFreeAgentContract()}>
+        Submit
+      </button>
     </div>
   );
 }
@@ -233,10 +235,7 @@ describe("useFreeAgentContractFlow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
 
     await waitFor(() => {
-      expect(mockedPreviewFreeAgentContractImpact).toHaveBeenCalledWith(
-        target.id,
-        3000,
-      );
+      expect(mockedPreviewFreeAgentContractImpact).toHaveBeenCalledWith(target.id, 3000);
     });
 
     fireEvent.change(screen.getByLabelText("Wage"), {
@@ -274,11 +273,7 @@ describe("useFreeAgentContractFlow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
-      expect(mockedOfferFreeAgentContract).toHaveBeenCalledWith(
-        target.id,
-        4000,
-        3,
-      );
+      expect(mockedOfferFreeAgentContract).toHaveBeenCalledWith(target.id, 4000, 3);
     });
   });
 

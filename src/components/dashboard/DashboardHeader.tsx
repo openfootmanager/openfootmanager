@@ -115,9 +115,7 @@ function getContinueButtonClassName(
   return className;
 }
 
-function getContinueDropdownButtonClassName(
-  modeMeta: DashboardMatchModeMeta,
-): string {
+function getContinueDropdownButtonClassName(modeMeta: DashboardMatchModeMeta): string {
   return `bg-linear-to-r ${modeMeta.dropdownColorClass} rounded-r-lg border-l border-white/20 px-2 py-2.5 text-white transition-colors hover:brightness-110`;
 }
 
@@ -158,9 +156,7 @@ function renderContinueButtonContent(
   return (
     <>
       {matchModeMeta.icon}
-      <span>
-        {hasMatchToday ? matchModeMeta.label : t("dashboard.continue")}
-      </span>
+      <span>{hasMatchToday ? matchModeMeta.label : t("dashboard.continue")}</span>
     </>
   );
 }
@@ -173,20 +169,12 @@ function renderSearchResults(props: {
   teams: TeamData[];
   t: (key: string) => string;
 }): JSX.Element {
-  const {
-    matchedPlayers,
-    matchedTeams,
-    onSelectSearchPlayer,
-    onSelectSearchTeam,
-    t,
-    teams,
-  } = props;
+  const { matchedPlayers, matchedTeams, onSelectSearchPlayer, onSelectSearchTeam, t, teams } =
+    props;
 
   if (matchedPlayers.length === 0 && matchedTeams.length === 0) {
     return (
-      <p className="p-3 text-xs text-gray-400 dark:text-gray-500">
-        {t("dashboard.noResults")}
-      </p>
+      <p className="p-3 text-xs text-gray-400 dark:text-gray-500">{t("dashboard.noResults")}</p>
     );
   }
 
@@ -198,13 +186,12 @@ function renderSearchResults(props: {
             {t("dashboard.searchTeams")}
           </p>
           {matchedTeams.map((team) => {
-            const contextItems = [
-              buildViewTeamMenuItem(t, () => onSelectSearchTeam(team.id)),
-            ];
+            const contextItems = [buildViewTeamMenuItem(t, () => onSelectSearchTeam(team.id))];
 
             return (
               <ContextMenu items={contextItems} key={team.id}>
                 <button
+                  type="button"
                   onMouseDown={() => onSelectSearchTeam(team.id)}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
                   data-testid={`dashboard-search-team-${team.id}`}
@@ -245,6 +232,7 @@ function renderSearchResults(props: {
             return (
               <ContextMenu items={contextItems} key={player.id}>
                 <button
+                  type="button"
                   onMouseDown={() => onSelectSearchPlayer(player.id)}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
                   data-testid={`dashboard-search-player-${player.id}`}
@@ -344,6 +332,7 @@ export default function DashboardHeader({
       <div className="flex items-center gap-3">
         {hasProfileHistory && (
           <button
+            type="button"
             onClick={onBack}
             className="-ml-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-navy-700 dark:hover:text-white"
             title={t("common.back")}
@@ -390,6 +379,7 @@ export default function DashboardHeader({
       <div className="flex items-center gap-3">
         <ThemeToggle />
         <button
+          type="button"
           onClick={onSave}
           disabled={isSaving}
           className={getSaveButtonClassName(saveFlash, isSaving)}
@@ -400,6 +390,7 @@ export default function DashboardHeader({
         </button>
         {isUnemployed ? (
           <button
+            type="button"
             onClick={handleContinueClick}
             disabled={isAdvancing}
             className="bg-linear-to-r from-gray-600 to-gray-700 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white shadow-md transition-all hover:cursor-pointer hover:brightness-110 hover:shadow-lg disabled:cursor-wait disabled:opacity-70"
@@ -411,13 +402,10 @@ export default function DashboardHeader({
           <div className="relative">
             <div className="flex">
               <button
+                type="button"
                 onClick={handleContinueClick}
                 disabled={isAdvancing || seasonComplete}
-                className={getContinueButtonClassName(
-                  currentModeMeta,
-                  isAdvancing,
-                  seasonComplete,
-                )}
+                className={getContinueButtonClassName(currentModeMeta, isAdvancing, seasonComplete)}
               >
                 {renderContinueButtonContent(
                   t,
@@ -426,11 +414,10 @@ export default function DashboardHeader({
                   seasonComplete,
                   currentModeMeta,
                 )}
-                <ChevronRight
-                  className={`h-4 w-4 ${isAdvancing ? "animate-pulse" : ""}`}
-                />
+                <ChevronRight className={`h-4 w-4 ${isAdvancing ? "animate-pulse" : ""}`} />
               </button>
               <button
+                type="button"
                 onClick={handleContinueMenuToggleClick}
                 className={getContinueDropdownButtonClassName(currentModeMeta)}
               >
@@ -446,6 +433,7 @@ export default function DashboardHeader({
 
                   return (
                     <button
+                      type="button"
                       key={mode}
                       onClick={() => onSelectMatchMode(mode)}
                       className={getModeOptionClassName(isActive)}
@@ -461,16 +449,13 @@ export default function DashboardHeader({
                           {optionMeta.desc}
                         </p>
                       </div>
-                      {isActive && (
-                        <span className="text-xs font-bold text-primary-500">
-                          ✓
-                        </span>
-                      )}
+                      {isActive && <span className="text-xs font-bold text-primary-500">✓</span>}
                     </button>
                   );
                 })}
                 <div className="my-1 border-t border-gray-200 dark:border-navy-600" />
                 <button
+                  type="button"
                   onClick={handleSkipToMatchDayClick}
                   className="w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
                 >

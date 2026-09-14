@@ -1,12 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type PlayerSortKey =
-  | "name"
-  | "position"
-  | "age"
-  | "ovr"
-  | "value"
-  | "team";
+export type PlayerSortKey = "name" | "position" | "age" | "ovr" | "value" | "team";
 
 export type PlayerStatusFilter = "all" | "transfer" | "loan";
 

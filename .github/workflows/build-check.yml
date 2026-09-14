@@ -156,6 +156,43 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # There is an unrelated package on npm literally called `biome`, last published at 0.3.3.
+      # `npx biome` finds it, prints nothing and exits 0. This repository has always documented
+      # `npm run lint`, which resolves the real one, so that trap was never sprung here — but a
+      # lint step that silently passes is the exact shape of failure these gates exist to
+      # prevent, so the version is asserted rather than assumed before anything relies on it.
+      #
+      # `npm exec --no` is trustworthy *here* only because `npm ci` ran above. `--no` refuses to
+      # fetch, but it will still run whatever `~/.npm/_npx` already holds, so on a tree with no
+      # `node_modules` it reaches the impostor and exits 0 where `npm run` fails loudly with
+      # `biome: command not found`. Sprung exactly that way in a fresh worktree on 14 Sep 2026.
+      # The assertion below is what actually makes this step safe, not the spelling.
+      #
+      # The pattern matches Biome's actual output, `Version: 2.5.5`, not a bare `2.5.5`. The
+      # first version of this anchored `^2\.` and therefore never matched — a check that fails
+      # closed, which at least is the safe direction, but it would have stopped every frontend
+      # run before lint, tests or build. The impostor prints nothing at all, so it fails here too.
+      - name: Verify Biome is the real one
+        # Quoted: the colon inside the pattern would otherwise make YAML read a nested mapping.
+        run: "npm exec --no -- biome --version | grep -qE '^Version: 2\\.'"
+
+      # Formatting is gated for the same reason `cargo fmt --check` is: the sweep that made this
+      # green is worth nothing if the tree drifts straight back.
+      - name: Check frontend formatting
+        run: npm run format:check
+
+      # Enabled rule by rule rather than all at once. `biome.json` starts from `preset: none`, so
+      # a group only gates once the findings it reports have actually been cleared — which is why
+      # this step is green the day it lands instead of being a reporter somebody mutes.
+      - name: Lint frontend
+        run: npm run lint
+
+      # Runs in the frontend job because it needs node and no Rust toolchain, even though it
+      # measures both languages. It is a standalone script rather than a vitest test on purpose:
+      # it spans the whole repository and should not masquerade as a frontend unit test.
+      - name: Check the quality ratchet
+        run: npm run quality:check
+
       - name: Run frontend tests
         run: npm test
 

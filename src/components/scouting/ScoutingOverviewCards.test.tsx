@@ -31,8 +31,24 @@ describe("ScoutingOverviewCards", () => {
     render(
       <ScoutingOverviewCards
         scouts={[
-          createScout({ id: "staff-1", attributes: { coaching: 20, judgingAbility: 65, judgingPotential: 70, physiotherapy: 10 } }),
-          createScout({ id: "staff-2", attributes: { coaching: 20, judgingAbility: 80, judgingPotential: 75, physiotherapy: 10 } }),
+          createScout({
+            id: "staff-1",
+            attributes: {
+              coaching: 20,
+              judgingAbility: 65,
+              judgingPotential: 70,
+              physiotherapy: 10,
+            },
+          }),
+          createScout({
+            id: "staff-2",
+            attributes: {
+              coaching: 20,
+              judgingAbility: 80,
+              judgingPotential: 75,
+              physiotherapy: 10,
+            },
+          }),
         ]}
         assignmentCount={3}
         availableScoutCount={1}

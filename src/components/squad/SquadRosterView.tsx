@@ -30,15 +30,9 @@ import { canDelegateToYouthAcademy, isSeniorSquadPlayer } from "../../lib/player
 import { getInjurySeverity, resolveInjuryName } from "../../lib/injury";
 import { useTranslation } from "react-i18next";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
-import {
-  clearContractExitIntent,
-  setContractExitIntent,
-} from "../../services/contractService";
+import { clearContractExitIntent, setContractExitIntent } from "../../services/contractService";
 import { setPlayerSquadRole, setStartingXi } from "../../services/squadService";
-import {
-  toggleLoanList,
-  toggleTransferList,
-} from "../../services/transfersService";
+import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 import {
   buildActivePositionMap,
   buildRoleCoverageSummary,
@@ -91,6 +85,45 @@ type FilterScope =
   | "outOfPosition"
   | "injured";
 
+/**
+ * Declared at module scope on purpose. Defined inside `SquadRosterView` it was a *new component
+ * type* on every render, so React unmounted and remounted all ten header cells each time the
+ * sort changed — the thing `noNestedComponentDefinitions` exists to catch.
+ */
+function SortHeader({
+  col,
+  label,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  col: SquadListSortKey;
+  label: string;
+  sortKey: SquadListSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (col: SquadListSortKey) => void;
+}) {
+  const active = sortKey === col;
+
+  return (
+    <th
+      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+      onClick={() => onSort(col)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {active ? (
+          sortDir === "asc" ? (
+            <ChevronUp className="w-3 h-3" />
+          ) : (
+            <ChevronDown className="w-3 h-3" />
+          )
+        ) : null}
+      </div>
+    </th>
+  );
+}
+
 export default function SquadRosterView({
   players,
   team,
@@ -107,12 +140,8 @@ export default function SquadRosterView({
   const [localSortState, setLocalSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
-  const [contractActionPlayerId, setContractActionPlayerId] = useState<
-    string | null
-  >(null);
-  const [contractActionError, setContractActionError] = useState<string | null>(
-    null,
-  );
+  const [contractActionPlayerId, setContractActionPlayerId] = useState<string | null>(null);
+  const [contractActionError, setContractActionError] = useState<string | null>(null);
   const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
@@ -128,14 +157,10 @@ export default function SquadRosterView({
     .sort(
       (a, b) =>
         (posOrder[normalisePosition(a.position)] || 99) -
-        (posOrder[normalisePosition(b.position)] || 99) ||
-        getPlayerOvr(b) - getPlayerOvr(a),
+          (posOrder[normalisePosition(b.position)] || 99) || getPlayerOvr(b) - getPlayerOvr(a),
     );
 
-  const playersById = useMemo(
-    () => new Map(roster.map((player) => [player.id, player])),
-    [roster],
-  );
+  const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
 
   const available = roster.filter((player) => !player.injury);
   const formation = team.formation || "4-4-2";
@@ -145,11 +170,7 @@ export default function SquadRosterView({
     () => buildStartingXIIds(available, team.starting_xi_ids || [], formation),
     [available, team.starting_xi_ids, formation],
   );
-  const pitchSlotRows = buildPitchSlotRows(
-    buildPitchRows(formation),
-    startingXiIds,
-    playersById,
-  );
+  const pitchSlotRows = buildPitchSlotRows(buildPitchRows(formation), startingXiIds, playersById);
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
   const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
@@ -204,17 +225,12 @@ export default function SquadRosterView({
   };
 
   const getTacticalFit = (player: PlayerData) => {
-    return getSquadTacticalFit(
-      player,
-      getCurrentPosition(player, xiActivePosition),
-    );
+    return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition));
   };
 
   const matchesFilters = (player: PlayerData): boolean => {
     const inXI = xiIds.has(player.id);
-    const currentPos = normalisePosition(
-      getCurrentPosition(player, xiActivePosition),
-    );
+    const currentPos = normalisePosition(getCurrentPosition(player, xiActivePosition));
     const preferredPositions = getPreferredPositions(player);
     const search = playerSearch.trim().toLowerCase();
 
@@ -224,9 +240,7 @@ export default function SquadRosterView({
         player.match_name,
         currentPos,
         ...preferredPositions,
-        ...preferredPositions.map((position) =>
-          translatePositionAbbreviation(t, position),
-        ),
+        ...preferredPositions.map((position) => translatePositionAbbreviation(t, position)),
       ]
         .join(" ")
         .toLowerCase();
@@ -341,21 +355,13 @@ export default function SquadRosterView({
   ]);
 
   const hasActiveFilters =
-    playerSearch.trim().length > 0 ||
-    positionFilter !== "All" ||
-    statusFilter !== "all";
+    playerSearch.trim().length > 0 || positionFilter !== "All" || statusFilter !== "all";
   const starterCount = startingXiIds.length;
   const benchCount = Math.max(roster.length - starterCount, 0);
-  const naturalFitCount = roster.filter(
-    (player) => getTacticalFit(player) === "natural",
-  ).length;
-  const outOfPositionCount = roster.filter((player) =>
-    isOutOfPosition(player),
-  ).length;
+  const naturalFitCount = roster.filter((player) => getTacticalFit(player) === "natural").length;
+  const outOfPositionCount = roster.filter((player) => isOutOfPosition(player)).length;
   const injuredCount = roster.filter((player) => player.injury).length;
-  const thinCoverageCount = roleCoverage.filter(
-    (coverage) => coverage.status !== "covered",
-  ).length;
+  const thinCoverageCount = roleCoverage.filter((coverage) => coverage.status !== "covered").length;
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
     const updated = await setStartingXi(playerIds);
@@ -388,12 +394,7 @@ export default function SquadRosterView({
     const nextXiIds =
       action === "promote"
         ? buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId)
-        : buildDemoteFromStartingXi(
-            startingXiIds,
-            available,
-            formation,
-            playerId,
-          );
+        : buildDemoteFromStartingXi(startingXiIds, available, formation, playerId);
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -418,24 +419,6 @@ export default function SquadRosterView({
         </Badge>
       ))}
     </div>
-  );
-
-  const SortHeader = ({ col, label }: { col: SquadListSortKey; label: string }) => (
-    <th
-      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${sortKey === col ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
-      onClick={() => toggleSort(col)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortKey === col ? (
-          sortDir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )
-        ) : null}
-      </div>
-    </th>
   );
 
   return (
@@ -477,29 +460,15 @@ export default function SquadRosterView({
             </label>
             <Select
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as FilterScope)
-              }
+              onChange={(event) => setStatusFilter(event.target.value as FilterScope)}
               fullWidth
             >
-              <option value="all">
-                {t("common.allPlayers")}
-              </option>
-              <option value="xi">
-                {t("preMatch.startingXI")}
-              </option>
-              <option value="bench">
-                {t("preMatch.substitutes")}
-              </option>
-              <option value="naturalFit">
-                {t("squad.naturalFit")}
-              </option>
-              <option value="needsCover">
-                {t("squad.needsCover")}
-              </option>
-              <option value="outOfPosition">
-                {t("squad.outOfPosition")}
-              </option>
+              <option value="all">{t("common.allPlayers")}</option>
+              <option value="xi">{t("preMatch.startingXI")}</option>
+              <option value="bench">{t("preMatch.substitutes")}</option>
+              <option value="naturalFit">{t("squad.naturalFit")}</option>
+              <option value="needsCover">{t("squad.needsCover")}</option>
+              <option value="outOfPosition">{t("squad.outOfPosition")}</option>
               <option value="injured">{t("common.injured")}</option>
             </Select>
           </div>
@@ -511,10 +480,11 @@ export default function SquadRosterView({
               setStatusFilter("all");
             }}
             disabled={!hasActiveFilters}
-            className={`px-3 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${hasActiveFilters
-              ? "bg-gray-100 dark:bg-navy-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600"
-              : "bg-gray-100 dark:bg-navy-700 text-gray-400 cursor-not-allowed"
-              }`}
+            className={`px-3 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
+              hasActiveFilters
+                ? "bg-gray-100 dark:bg-navy-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600"
+                : "bg-gray-100 dark:bg-navy-700 text-gray-400 cursor-not-allowed"
+            }`}
           >
             {t("common.clear")}
           </button>
@@ -529,16 +499,10 @@ export default function SquadRosterView({
           <Badge variant="success" size="sm">
             {naturalFitCount} {t("squad.naturalFit")}
           </Badge>
-          <Badge
-            variant={thinCoverageCount > 0 ? "accent" : "success"}
-            size="sm"
-          >
+          <Badge variant={thinCoverageCount > 0 ? "accent" : "success"} size="sm">
             {thinCoverageCount} {t("squad.needsCover")}
           </Badge>
-          <Badge
-            variant={outOfPositionCount > 0 ? "danger" : "success"}
-            size="sm"
-          >
+          <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
             {outOfPositionCount} {t("squad.outOfPosition")}
           </Badge>
           <Badge variant={injuredCount > 0 ? "danger" : "neutral"} size="sm">
@@ -557,8 +521,7 @@ export default function SquadRosterView({
             {t("squad.title", { team: team.name })}
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {filteredRoster.length} / {roster.length}{" "}
-            {t("squad.playersLabel")}
+            {filteredRoster.length} / {roster.length} {t("squad.playersLabel")}
           </p>
           <p className="text-xs text-gray-400 mt-1">
             {t("squad.currentPlan")}: {formation} /{" "}
@@ -571,14 +534,11 @@ export default function SquadRosterView({
               <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-300">
                 {t("squad.coverageTitle")}
               </span>
-              <Badge
-                variant={thinCoverageCount > 0 ? "danger" : "success"}
-                size="sm"
-              >
+              <Badge variant={thinCoverageCount > 0 ? "danger" : "success"} size="sm">
                 {thinCoverageCount > 0
                   ? t("squad.coverageNeedsAttention", {
-                    count: thinCoverageCount,
-                  })
+                      count: thinCoverageCount,
+                    })
                   : t("squad.coverageStable")}
               </Badge>
             </div>
@@ -613,19 +573,79 @@ export default function SquadRosterView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                <SortHeader col="jersey" label="#" />
-                <SortHeader col="name" label={t("common.name")} />
-                <SortHeader col="pos" label={t("squad.pos")} />
-                <SortHeader col="fit" label={t("squad.formationFit")} />
-                <SortHeader col="style" label={t("squad.styleFit")} />
+                <SortHeader
+                  col="jersey"
+                  label="#"
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="name"
+                  label={t("common.name")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="pos"
+                  label={t("squad.pos")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="fit"
+                  label={t("squad.formationFit")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="style"
+                  label={t("squad.styleFit")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.traits")}
                 </th>
-                <SortHeader col="age" label={t("common.age")} />
-                <SortHeader col="condition" label={t("common.condition")} />
-                <SortHeader col="morale" label={t("common.morale")} />
-                <SortHeader col="ovr" label={t("common.ovr")} />
-                <SortHeader col="contract" label={t("common.contract")} />
+                <SortHeader
+                  col="age"
+                  label={t("common.age")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="condition"
+                  label={t("common.condition")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="morale"
+                  label={t("common.morale")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="ovr"
+                  label={t("common.ovr")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
+                <SortHeader
+                  col="contract"
+                  label={t("common.contract")}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">
                   <span className="sr-only">{t("common.actions")}</span>
                 </th>
@@ -639,15 +659,8 @@ export default function SquadRosterView({
                 const age = calcAge(player.date_of_birth);
                 const wrongPos = inXI && isOutOfPosition(player);
                 const tacticalFit = getTacticalFit(player);
-                const styleFit = getPlayStyleFit(
-                  player,
-                  activePlayStyle,
-                  currentPos,
-                );
-                const contractRiskLevel = getContractRiskLevel(
-                  player.contract_end,
-                  clockDate,
-                );
+                const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
+                const contractRiskLevel = getContractRiskLevel(player.contract_end, clockDate);
                 const contractRiskLabel =
                   contractRiskLevel === "critical"
                     ? t("finances.contractRiskCritical")
@@ -655,23 +668,26 @@ export default function SquadRosterView({
                       ? t("finances.contractRiskWarning")
                       : t("finances.contractRiskStable");
                 const hasLetExpireIntent =
-                  player.morale_core?.renewal_state?.exit_intent?.kind ===
-                  "let_expire";
-                const isContractActionSubmitting =
-                  contractActionPlayerId === player.id;
+                  player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
+                const isContractActionSubmitting = contractActionPlayerId === player.id;
 
                 const injurySeverity = player.injury
                   ? getInjurySeverity(player.injury.days_remaining)
                   : null;
-                const injuryDotClass = injurySeverity === "major" ? "bg-red-500"
-                  : injurySeverity === "serious" ? "bg-orange-400"
-                  : injurySeverity === "moderate" ? "bg-amber-400"
-                  : injurySeverity === "minor" ? "bg-yellow-400"
-                  : null;
+                const injuryDotClass =
+                  injurySeverity === "major"
+                    ? "bg-red-500"
+                    : injurySeverity === "serious"
+                      ? "bg-orange-400"
+                      : injurySeverity === "moderate"
+                        ? "bg-amber-400"
+                        : injurySeverity === "minor"
+                          ? "bg-yellow-400"
+                          : null;
                 const rowBorderClass = player.injury
-                  ? (injurySeverity === "major" || injurySeverity === "serious"
+                  ? injurySeverity === "major" || injurySeverity === "serious"
                     ? "border-l-2 border-l-red-500"
-                    : "border-l-2 border-l-amber-400")
+                    : "border-l-2 border-l-amber-400"
                   : contractRiskLevel === "critical"
                     ? "border-l-2 border-l-orange-500"
                     : contractRiskLevel === "warning"
@@ -680,22 +696,23 @@ export default function SquadRosterView({
                 const hasUrgentItems = Boolean(player.injury) || contractRiskLevel !== "stable";
 
                 const contextItems = [
-                  ...(player.injury ? [
-                    {
-                      type: "label" as const,
-                      label: `${resolveInjuryName(player.injury.name, t)} — ${t("playerProfile.injuryDaysShort", { count: player.injury.days_remaining })}`,
-                      icon: <AlertTriangle className="w-3.5 h-3.5" />,
-                    },
-                    buildDividerMenuItem(),
-                  ] : []),
+                  ...(player.injury
+                    ? [
+                        {
+                          type: "label" as const,
+                          label: `${resolveInjuryName(player.injury.name, t)} — ${t("playerProfile.injuryDaysShort", { count: player.injury.days_remaining })}`,
+                          icon: <AlertTriangle className="w-3.5 h-3.5" />,
+                        },
+                        buildDividerMenuItem(),
+                      ]
+                    : []),
                   buildViewProfileMenuItem(t, () => onSelectPlayer(player.id)),
                   inXI
                     ? {
                         label: t("squad.sendToBench"),
                         icon: <RotateCcw className="w-4 h-4" />,
                         disabled:
-                          available.filter((candidate) => !xiIds.has(candidate.id))
-                            .length === 0,
+                          available.filter((candidate) => !xiIds.has(candidate.id)).length === 0,
                         onClick: () => {
                           void updateSquadPlanning(player.id, "demote");
                         },
@@ -721,23 +738,21 @@ export default function SquadRosterView({
                   },
                   hasLetExpireIntent
                     ? {
-                      label: t("playerProfile.reopenContractTalks"),
-                      icon: <RotateCcw className="w-4 h-4" />,
-                      disabled:
-                        !player.contract_end || isContractActionSubmitting,
-                      onClick: () => {
-                        void updateContractExitIntent(player.id, false);
-                      },
-                    }
+                        label: t("playerProfile.reopenContractTalks"),
+                        icon: <RotateCcw className="w-4 h-4" />,
+                        disabled: !player.contract_end || isContractActionSubmitting,
+                        onClick: () => {
+                          void updateContractExitIntent(player.id, false);
+                        },
+                      }
                     : {
-                      label: t("playerProfile.letContractExpire"),
-                      icon: <TimerOff className="w-4 h-4" />,
-                      disabled:
-                        !player.contract_end || isContractActionSubmitting,
-                      onClick: () => {
-                        void updateContractExitIntent(player.id, true);
+                        label: t("playerProfile.letContractExpire"),
+                        icon: <TimerOff className="w-4 h-4" />,
+                        disabled: !player.contract_end || isContractActionSubmitting,
+                        onClick: () => {
+                          void updateContractExitIntent(player.id, true);
+                        },
                       },
-                    },
                   {
                     label: t("playerProfile.terminateContract"),
                     icon: <Trash2 className="w-4 h-4" />,
@@ -749,18 +764,14 @@ export default function SquadRosterView({
                       }),
                   },
                   buildDividerMenuItem(),
-                  buildToggleTransferListMenuItem(
-                    t,
-                    player.transfer_listed,
-                    async () => {
-                      try {
-                        const updated = await toggleTransferList(player.id);
-                        onMutationComplete?.(updated);
-                      } catch {
-                        return;
-                      }
-                    },
-                  ),
+                  buildToggleTransferListMenuItem(t, player.transfer_listed, async () => {
+                    try {
+                      const updated = await toggleTransferList(player.id);
+                      onMutationComplete?.(updated);
+                    } catch {
+                      return;
+                    }
+                  }),
                   buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
                     try {
                       const updated = await toggleLoanList(player.id);
@@ -771,18 +782,15 @@ export default function SquadRosterView({
                   }),
                   ...(canDelegateToYouthAcademy(player)
                     ? [
-                      buildDelegateToYouthAcademyMenuItem(t, async () => {
-                        try {
-                          const updated = await setPlayerSquadRole(
-                            player.id,
-                            "Youth",
-                          );
-                          onMutationComplete?.(updated);
-                        } catch {
-                          return;
-                        }
-                      }),
-                    ]
+                        buildDelegateToYouthAcademyMenuItem(t, async () => {
+                          try {
+                            const updated = await setPlayerSquadRole(player.id, "Youth");
+                            onMutationComplete?.(updated);
+                          } catch {
+                            return;
+                          }
+                        }),
+                      ]
                     : []),
                 ];
 
@@ -835,9 +843,7 @@ export default function SquadRosterView({
                         </div>
                       </td>
                       {/* Position badges: natural + alternates */}
-                      <td className="py-2.5 px-4">
-                        {renderPreferredPositionMeta(player)}
-                      </td>
+                      <td className="py-2.5 px-4">{renderPreferredPositionMeta(player)}</td>
                       {/* Formation fit: colored badge for XI (green/amber/red),
                           neutral badge showing best-role for non-XI. */}
                       <td className="py-2.5 px-4">
@@ -896,12 +902,7 @@ export default function SquadRosterView({
                         {age}
                       </td>
                       <td className="py-2.5 px-4 w-28">
-                        <ProgressBar
-                          value={player.condition}
-                          variant="auto"
-                          size="sm"
-                          showLabel
-                        />
+                        <ProgressBar value={player.condition} variant="auto" size="sm" showLabel />
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
                         {player.morale}
@@ -909,12 +910,13 @@ export default function SquadRosterView({
                       {/* OVR (moved next to identity block) */}
                       <td className="py-2.5 px-4">
                         <span
-                          className={`font-heading font-bold text-sm ${ovr >= 80
-                            ? "text-primary-500"
-                            : ovr >= 55
-                              ? "text-accent-600 dark:text-accent-400"
-                              : "text-gray-500 dark:text-gray-400"
-                            }`}
+                          className={`font-heading font-bold text-sm ${
+                            ovr >= 80
+                              ? "text-primary-500"
+                              : ovr >= 55
+                                ? "text-accent-600 dark:text-accent-400"
+                                : "text-gray-500 dark:text-gray-400"
+                          }`}
                         >
                           {ovr}
                         </span>
@@ -926,7 +928,10 @@ export default function SquadRosterView({
                             <span className="font-medium text-gray-700 dark:text-gray-300">
                               {getContractYearsRemaining(player.contract_end, clockDate)}
                             </span>
-                            <Badge variant={getContractRiskBadgeVariant(contractRiskLevel)} size="sm">
+                            <Badge
+                              variant={getContractRiskBadgeVariant(contractRiskLevel)}
+                              size="sm"
+                            >
                               {contractRiskLabel}
                             </Badge>
                           </div>
@@ -935,7 +940,7 @@ export default function SquadRosterView({
                               ? t("finances.contractExpiresOn", { date: player.contract_end })
                               : "—"}
                           </div>
-                          {(player.transfer_listed || player.loan_listed || player.injury) ? (
+                          {player.transfer_listed || player.loan_listed || player.injury ? (
                             <div className="flex flex-wrap gap-1">
                               {player.transfer_listed ? (
                                 <Badge variant="accent" size="sm">
@@ -947,9 +952,7 @@ export default function SquadRosterView({
                                   {t("transfers.loan")}
                                 </Badge>
                               ) : null}
-                              {player.injury ? (
-                                <InjuryBadge injury={player.injury} />
-                              ) : null}
+                              {player.injury ? <InjuryBadge injury={player.injury} /> : null}
                             </div>
                           ) : null}
                         </div>

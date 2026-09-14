@@ -44,10 +44,7 @@ describe("filterPlayerRows", () => {
   });
 
   it("reports the scoped total separately from the matches", () => {
-    const players = [
-      player({ id: "a", name: "Ana" }),
-      player({ id: "b", name: "Bo" }),
-    ];
+    const players = [player({ id: "a", name: "Ana" }), player({ id: "b", name: "Bo" })];
 
     const { scoped, filtered } = filterPlayerRows({
       players,
@@ -66,7 +63,10 @@ describe("filterPlayerRows", () => {
       player({ id: "a", name: "Ana", club: "nsfc" }),
       player({ id: "b", name: "Bo", club: "hav" }),
     ];
-    const teamNames = new Map([["nsfc", "Northshire FC"], ["hav", "Havenport"]]);
+    const teamNames = new Map([
+      ["nsfc", "Northshire FC"],
+      ["hav", "Havenport"],
+    ]);
 
     const { filtered } = filterPlayerRows({ players, query: "northshire", teamNames });
 
@@ -75,8 +75,18 @@ describe("filterPlayerRows", () => {
 
   it("still matches the raw id, position and nationality", () => {
     const players = [
-      player({ id: "keeper-one", name: "Ana", position: "Goalkeeper" as Position, nationality: "BRA" }),
-      player({ id: "striker-one", name: "Bo", position: "Striker" as Position, nationality: "ARG" }),
+      player({
+        id: "keeper-one",
+        name: "Ana",
+        position: "Goalkeeper" as Position,
+        nationality: "BRA",
+      }),
+      player({
+        id: "striker-one",
+        name: "Bo",
+        position: "Striker" as Position,
+        nationality: "ARG",
+      }),
     ];
 
     const byId = filterPlayerRows({ players, query: "keeper-o", teamNames: NO_TEAMS });
@@ -91,7 +101,9 @@ describe("filterPlayerRows", () => {
   it("falls back to the first and last name when there is no display name", () => {
     const players = [player({ id: "a", firstName: "Ana", lastName: "Reyes" })];
 
-    expect(filterPlayerRows({ players, query: "reyes", teamNames: NO_TEAMS }).filtered).toHaveLength(1);
+    expect(
+      filterPlayerRows({ players, query: "reyes", teamNames: NO_TEAMS }).filtered,
+    ).toHaveLength(1);
   });
 });
 
@@ -134,10 +146,12 @@ describe("positionFilterGroups", () => {
     ]);
 
     for (const key of keys) {
-      const value = key.split(".").reduce<unknown>(
-        (node, part) => (node as Record<string, unknown> | undefined)?.[part],
-        en as unknown,
-      );
+      const value = key
+        .split(".")
+        .reduce<unknown>(
+          (node, part) => (node as Record<string, unknown> | undefined)?.[part],
+          en as unknown,
+        );
       expect(typeof value, `missing en.json key: ${key}`).toBe("string");
     }
   });

@@ -35,9 +35,7 @@ const table = [
   standing({ team_id: "bottom", points: 4, goals_for: 6, goals_against: 20 }),
 ];
 
-function teamLookup(
-  overrides: Partial<TournamentsTeamLookup> = {},
-): TournamentsTeamLookup {
+function teamLookup(overrides: Partial<TournamentsTeamLookup> = {}): TournamentsTeamLookup {
   return {
     userTeamId: "mid",
     isClubTeam: () => true,
@@ -47,9 +45,7 @@ function teamLookup(
   };
 }
 
-function renderTable(
-  props: Partial<React.ComponentProps<typeof StandingsTable>> = {},
-) {
+function renderTable(props: Partial<React.ComponentProps<typeof StandingsTable>> = {}) {
   return render(
     <StandingsTable
       standings={table}
@@ -110,9 +106,7 @@ describe("StandingsTable", () => {
     renderTable({ zones: { promotionSlots: 1, relegationSlots: 1 } });
 
     expect(screen.getByTestId("tournaments-promotion-top")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("tournaments-relegation-bottom"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("tournaments-relegation-bottom")).toBeInTheDocument();
     expect(screen.queryByTestId("tournaments-promotion-mid")).toBeNull();
   });
 
@@ -127,9 +121,7 @@ describe("StandingsTable", () => {
     renderTable();
 
     expect(screen.getByTestId("row-mid").className).toContain("bg-primary-50");
-    expect(screen.getByTestId("row-top").className).not.toContain(
-      "bg-primary-50",
-    );
+    expect(screen.getByTestId("row-top").className).not.toContain("bg-primary-50");
   });
 
   it("opens a team from its row", () => {

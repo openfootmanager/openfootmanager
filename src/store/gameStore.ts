@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import type { GameStateData, MessageData, SeasonContextData } from './types';
-import type { SessionState, UserCompetitionSummary, StandingRow } from '../services/sessionService';
-import { isNewsArticleVisible } from '../utils/newsVisibility';
+import { create } from "zustand";
+import type { GameStateData, MessageData, SeasonContextData } from "./types";
+import type { SessionState, UserCompetitionSummary, StandingRow } from "../services/sessionService";
+import { isNewsArticleVisible } from "../utils/newsVisibility";
 
 type FootballIdentityCarrier = {
   nationality: string;
@@ -33,17 +33,15 @@ function normalizeNationalityList<T extends FootballIdentityCarrier>(entities: T
 
 function normalizeGameStateNationalities(state: GameStateData): GameStateData {
   const manager = normalizeNationality(state.manager);
-  const managers = state.managers
-    ? normalizeNationalityList(state.managers)
-    : state.managers;
+  const managers = state.managers ? normalizeNationalityList(state.managers) : state.managers;
   const players = normalizeNationalityList(state.players);
   const staff = normalizeNationalityList(state.staff);
 
   if (
-    manager === state.manager
-    && managers === state.managers
-    && players === state.players
-    && staff === state.staff
+    manager === state.manager &&
+    managers === state.managers &&
+    players === state.players &&
+    staff === state.staff
   ) {
     return state;
   }
@@ -58,12 +56,12 @@ function normalizeGameStateNationalities(state: GameStateData): GameStateData {
 }
 
 const DEFAULT_SEASON_CONTEXT: SeasonContextData = {
-  phase: 'Preseason',
+  phase: "Preseason",
   season_start: null,
   season_end: null,
   days_until_season_start: null,
   transfer_window: {
-    status: 'Closed',
+    status: "Closed",
     opens_on: null,
     closes_on: null,
     days_until_opens: null,
@@ -73,14 +71,10 @@ const DEFAULT_SEASON_CONTEXT: SeasonContextData = {
 
 function deriveSessionState(state: GameStateData): SessionState {
   const teamId = state.manager.team_id;
-  const team = teamId
-    ? (state.teams.find((t) => t.id === teamId) ?? null)
-    : null;
+  const team = teamId ? (state.teams.find((t) => t.id === teamId) ?? null) : null;
 
   const userComp = teamId
-    ? (state.competitions ?? []).find((c) =>
-        (c.participant_ids ?? []).includes(teamId)
-      )
+    ? (state.competitions ?? []).find((c) => (c.participant_ids ?? []).includes(teamId))
     : undefined;
 
   let user_competition: UserCompetitionSummary | null = null;
@@ -88,22 +82,18 @@ function deriveSessionState(state: GameStateData): SessionState {
     const teamNameMap = new Map(state.teams.map((t) => [t.id, t.name]));
     const standings: StandingRow[] = (userComp.standings ?? []).map((s) => ({
       ...s,
-      team_name: teamNameMap.get(s.team_id) ?? '',
+      team_name: teamNameMap.get(s.team_id) ?? "",
     }));
     const allFixtures = userComp.fixtures ?? [];
     const upcoming = allFixtures
       .filter(
-        (f) =>
-          f.status === 'Scheduled' &&
-          (f.home_team_id === teamId || f.away_team_id === teamId),
+        (f) => f.status === "Scheduled" && (f.home_team_id === teamId || f.away_team_id === teamId),
       )
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 3);
     const recent = allFixtures
       .filter(
-        (f) =>
-          f.status === 'Completed' &&
-          (f.home_team_id === teamId || f.away_team_id === teamId),
+        (f) => f.status === "Completed" && (f.home_team_id === teamId || f.away_team_id === teamId),
       )
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 2);
@@ -184,7 +174,7 @@ export type {
   ScoutingAssignment,
   YouthScoutingAssignment,
   GameStateData,
-} from './types';
+} from "./types";
 
 interface GameStore {
   hasActiveGame: boolean;
@@ -209,10 +199,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   sessionState: null,
   isDirty: false,
   showFiredModal: false,
-  setGameActive: (active, managerName) => set({
-    hasActiveGame: active,
-    managerName: managerName || null
-  }),
+  setGameActive: (active, managerName) =>
+    set({
+      hasActiveGame: active,
+      managerName: managerName || null,
+    }),
   setGameState: (state) => {
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
@@ -230,12 +221,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setSessionState: (state) => set({ sessionState: state }),
   markClean: () => set({ isDirty: false }),
   setShowFiredModal: (show) => set({ showFiredModal: show }),
-  clearGame: () => set({
-    hasActiveGame: false,
-    managerName: null,
-    gameState: null,
-    sessionState: null,
-    isDirty: false,
-    showFiredModal: false,
-  }),
+  clearGame: () =>
+    set({
+      hasActiveGame: false,
+      managerName: null,
+      gameState: null,
+      sessionState: null,
+      isDirty: false,
+      showFiredModal: false,
+    }),
 }));

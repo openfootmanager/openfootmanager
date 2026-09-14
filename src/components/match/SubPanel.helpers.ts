@@ -1,10 +1,6 @@
 import type { EnginePlayerData, MatchSnapshot } from "./types";
 
-export type MatchScenarioId =
-  | "steady"
-  | "protect-lead"
-  | "find-winner"
-  | "chase-goal";
+export type MatchScenarioId = "steady" | "protect-lead" | "find-winner" | "chase-goal";
 
 export type RecommendationReasonId =
   | "low-fitness"
@@ -40,10 +36,7 @@ function getScoreDelta(snapshot: MatchSnapshot, side: "Home" | "Away"): number {
     : snapshot.away_score - snapshot.home_score;
 }
 
-function getPositionPriority(
-  position: string,
-  scenario: MatchScenarioId,
-): number {
+function getPositionPriority(position: string, scenario: MatchScenarioId): number {
   const defensiveOrder: Record<string, number> = {
     Goalkeeper: 4,
     Defender: 3,
@@ -94,10 +87,7 @@ function buildBenchPriority(
   return exactRoleBonus + fitnessBonus + qualityBonus + scenarioBonus;
 }
 
-export function getMatchScenario(
-  snapshot: MatchSnapshot,
-  side: "Home" | "Away",
-): MatchScenario {
+export function getMatchScenario(snapshot: MatchSnapshot, side: "Home" | "Away"): MatchScenario {
   const scoreDelta = getScoreDelta(snapshot, side);
   const isLate = snapshot.current_minute >= 70;
 
@@ -193,9 +183,7 @@ export function buildRecommendedSubstitutions(
       .map((substitution) => substitution.player_off_id),
   );
 
-  const activePlayers = team.players.filter(
-    (player) => !snapshot.sent_off.includes(player.id),
-  );
+  const activePlayers = team.players.filter((player) => !snapshot.sent_off.includes(player.id));
   const availableBench = bench.filter(
     (player) => !subbedOffIds.has(player.id) && !subbedOnIds.has(player.id),
   );
@@ -219,19 +207,19 @@ export function buildRecommendedSubstitutions(
         const eligibleBench = availableBench.filter(
           (benchPlayer) => !usedOnIds.has(benchPlayer.id),
         );
-      const yellowCount = yellows[offPlayer.id] ?? 0;
+        const yellowCount = yellows[offPlayer.id] ?? 0;
         const onPlayer = [...eligibleBench].sort((leftPlayer, rightPlayer) => {
-        return (
-          buildBenchPriority(rightPlayer, offPlayer, scenario.id) -
-            buildBenchPriority(leftPlayer, offPlayer, scenario.id) ||
-          rightPlayer.condition - leftPlayer.condition ||
-          rightPlayer.ovr - leftPlayer.ovr
-        );
-      })[0];
+          return (
+            buildBenchPriority(rightPlayer, offPlayer, scenario.id) -
+              buildBenchPriority(leftPlayer, offPlayer, scenario.id) ||
+            rightPlayer.condition - leftPlayer.condition ||
+            rightPlayer.ovr - leftPlayer.ovr
+          );
+        })[0];
 
-      if (!onPlayer) {
-        return null;
-      }
+        if (!onPlayer) {
+          return null;
+        }
 
         const reasons = buildRecommendationReasons({
           benchPlayer: onPlayer,
@@ -244,23 +232,21 @@ export function buildRecommendedSubstitutions(
           return null;
         }
 
-      return {
-        offId: offPlayer.id,
-        onId: onPlayer.id,
+        return {
+          offId: offPlayer.id,
+          onId: onPlayer.id,
           reasons,
-        score:
-          buildOffPriority(offPlayer, yellowCount, scenario.id) +
-          buildBenchPriority(onPlayer, offPlayer, scenario.id),
-      };
-    })
-    .filter(
-      (
-        recommendation,
-      ): recommendation is RecommendedSubstitution & { score: number } =>
+          score:
+            buildOffPriority(offPlayer, yellowCount, scenario.id) +
+            buildBenchPriority(onPlayer, offPlayer, scenario.id),
+        };
+      })
+      .filter(
+        (recommendation): recommendation is RecommendedSubstitution & { score: number } =>
           recommendation != null,
-    )
-    .sort((leftRecommendation, rightRecommendation) => {
-      return rightRecommendation.score - leftRecommendation.score;
+      )
+      .sort((leftRecommendation, rightRecommendation) => {
+        return rightRecommendation.score - leftRecommendation.score;
       })[0];
 
     if (!nextRecommendation) {

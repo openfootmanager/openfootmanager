@@ -27,10 +27,7 @@ export default function TeamProfileLeagueStandingCard({
           <StatBox label={t("common.lost")} value={standings.lost} />
           <StatBox label={t("common.gf")} value={standings.goals_for} />
           <StatBox label={t("common.ga")} value={standings.goals_against} />
-          <StatBox
-            label={t("common.gd")}
-            value={standings.goals_for - standings.goals_against}
-          />
+          <StatBox label={t("common.gd")} value={standings.goals_for - standings.goals_against} />
           <StatBox label={t("common.pts")} value={standings.points} highlight />
         </div>
       </CardBody>

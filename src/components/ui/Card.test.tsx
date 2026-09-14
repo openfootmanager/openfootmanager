@@ -4,7 +4,11 @@ import { Card, CardHeader, CardBody } from "./Card";
 
 describe("Card", () => {
   it("renders children", () => {
-    render(<Card><p>Card content</p></Card>);
+    render(
+      <Card>
+        <p>Card content</p>
+      </Card>,
+    );
     expect(screen.getByText("Card content")).toBeInTheDocument();
   });
 
@@ -59,7 +63,7 @@ describe("CardHeader", () => {
   });
 
   it("renders action slot when provided", () => {
-    render(<CardHeader action={<button>Edit</button>}>Title</CardHeader>);
+    render(<CardHeader action={<button type="button">Edit</button>}>Title</CardHeader>);
     expect(screen.getByText("Edit")).toBeInTheDocument();
   });
 
@@ -79,7 +83,11 @@ describe("CardHeader", () => {
 
 describe("CardBody", () => {
   it("renders children", () => {
-    render(<CardBody><span>Body text</span></CardBody>);
+    render(
+      <CardBody>
+        <span>Body text</span>
+      </CardBody>,
+    );
     expect(screen.getByText("Body text")).toBeInTheDocument();
   });
 

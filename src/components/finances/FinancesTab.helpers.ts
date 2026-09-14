@@ -54,17 +54,12 @@ export function formatSignedAmount(value: number): string {
   return formatVal(value);
 }
 
-export function facilityUpgradeBlockReason(
-  snapshot: TeamFinanceSnapshotData,
-): string | null {
+export function facilityUpgradeBlockReason(snapshot: TeamFinanceSnapshotData): string | null {
   if (snapshot.currentlyOverBudget) {
     return "be.error.finance.facilityUpgradeOverBudget";
   }
 
-  if (
-    snapshot.overallStatus === "warning" ||
-    snapshot.overallStatus === "critical"
-  ) {
+  if (snapshot.overallStatus === "warning" || snapshot.overallStatus === "critical") {
     return "be.error.finance.facilityUpgradeCritical";
   }
 
@@ -112,8 +107,7 @@ export function mapLocalFinanceSnapshot(
     wageBudgetStatus: snapshot.wageBudgetStatus,
     runwayStatus: snapshot.runwayStatus,
     overallStatus: snapshot.overallStatus,
-    marketingCampaignCooldownDaysRemaining:
-      snapshot.marketingCampaignCooldownDaysRemaining,
+    marketingCampaignCooldownDaysRemaining: snapshot.marketingCampaignCooldownDaysRemaining,
   };
 }
 
@@ -168,9 +162,7 @@ export interface MarketingCampaignResponseData {
   };
 }
 
-export function isChooseOptionAction(
-  actionType: MessageAction["action_type"],
-): actionType is {
+export function isChooseOptionAction(actionType: MessageAction["action_type"]): actionType is {
   ChooseOption: {
     options: Array<{ id: string; label: string; description: string }>;
   };
@@ -182,8 +174,6 @@ export function isPendingSponsorOffer(message: MessageData): boolean {
   return (
     message.id.startsWith("sponsor_") &&
     message.category === "Finance" &&
-    message.actions.some(
-      (action) => !action.resolved && isChooseOptionAction(action.action_type),
-    )
+    message.actions.some((action) => !action.resolved && isChooseOptionAction(action.action_type))
   );
 }

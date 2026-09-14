@@ -13,8 +13,7 @@ const mockedFetch = vi.mocked(fetchSeasonAwards);
 
 const DAY = "2026-08-01";
 
-const awardsFor = (season: number) =>
-  ({ season }) as unknown as SeasonAwardsData;
+const awardsFor = (season: number) => ({ season }) as unknown as SeasonAwardsData;
 
 beforeEach(() => {
   mockedFetch.mockReset();
@@ -30,9 +29,7 @@ describe("useSeasonAwards", () => {
   // A game with no clock yet leaves asOfDate undefined. Nothing is cached, so
   // the cache lookup has to cope with having no entry to compare against.
   it("survives having no game date to key the cache on", () => {
-    expect(() =>
-      renderHook(() => useSeasonAwards(2026, false, undefined)),
-    ).not.toThrow();
+    expect(() => renderHook(() => useSeasonAwards(2026, false, undefined))).not.toThrow();
   });
 
   it("fetches once the awards view is opened", async () => {
@@ -51,10 +48,9 @@ describe("useSeasonAwards", () => {
   it("keeps each season's awards and does not refetch one already loaded", async () => {
     mockedFetch.mockImplementation(() => Promise.resolve(awardsFor(2026)));
 
-    const { result, rerender } = renderHook(
-      ({ season }) => useSeasonAwards(season, true, DAY),
-      { initialProps: { season: 2026 } },
-    );
+    const { result, rerender } = renderHook(({ season }) => useSeasonAwards(season, true, DAY), {
+      initialProps: { season: 2026 },
+    });
     await waitFor(() => expect(result.current.awards).not.toBeNull());
 
     mockedFetch.mockImplementation(() => Promise.resolve(awardsFor(2027)));
@@ -72,10 +68,9 @@ describe("useSeasonAwards", () => {
   it("refetches a season it already has once the game date moves on", async () => {
     mockedFetch.mockResolvedValue(awardsFor(2026));
 
-    const { result, rerender } = renderHook(
-      ({ day }) => useSeasonAwards(2026, true, day),
-      { initialProps: { day: DAY } },
-    );
+    const { result, rerender } = renderHook(({ day }) => useSeasonAwards(2026, true, day), {
+      initialProps: { day: DAY },
+    });
     await waitFor(() => expect(result.current.awards).not.toBeNull());
 
     rerender({ day: "2026-08-02" });
@@ -104,10 +99,9 @@ describe("useSeasonAwards", () => {
   it("keeps a cached season idle after a different season fails", async () => {
     mockedFetch.mockResolvedValueOnce(awardsFor(2026));
 
-    const { result, rerender } = renderHook(
-      ({ season }) => useSeasonAwards(season, true, DAY),
-      { initialProps: { season: 2026 } },
-    );
+    const { result, rerender } = renderHook(({ season }) => useSeasonAwards(season, true, DAY), {
+      initialProps: { season: 2026 },
+    });
     await waitFor(() => expect(result.current.awards).not.toBeNull());
 
     mockedFetch.mockRejectedValueOnce("boom");

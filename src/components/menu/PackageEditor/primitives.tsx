@@ -19,12 +19,23 @@ interface LabeledInputProps {
   rows?: number;
 }
 
-export function LabeledInput({ label, value, onChange, type = "text", placeholder, help, multiline, rows = 3 }: LabeledInputProps) {
+export function LabeledInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  help,
+  multiline,
+  rows = 3,
+}: LabeledInputProps) {
   const fieldId = useId();
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
-        <label className={labelClass} htmlFor={fieldId}>{label}</label>
+        <label className={labelClass} htmlFor={fieldId}>
+          {label}
+        </label>
         {help && <InlineHelp text={help} />}
       </div>
       {multiline ? (
@@ -59,14 +70,23 @@ interface LabeledSelectProps {
   help?: string;
 }
 
-export function LabeledSelect({ label, value, options, optionLabels, onChange, help }: LabeledSelectProps) {
+export function LabeledSelect({
+  label,
+  value,
+  options,
+  optionLabels,
+  onChange,
+  help,
+}: LabeledSelectProps) {
   // The shared Select renders an ARIA combobox (a <button>, not a native
   // <select>), so associate the label via aria-labelledby rather than htmlFor.
   const labelId = useId();
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
-        <label id={labelId} className={labelClass}>{label}</label>
+        <label id={labelId} className={labelClass}>
+          {label}
+        </label>
         {help && <InlineHelp text={help} />}
       </div>
       <Select

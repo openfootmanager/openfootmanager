@@ -76,9 +76,7 @@ export async function makeLoanOffer(
   });
 }
 
-export async function exerciseLoanBuyOption(
-  playerId: string,
-): Promise<GameStateData> {
+export async function exerciseLoanBuyOption(playerId: string): Promise<GameStateData> {
   return invoke<GameStateData>("exercise_loan_buy_option", {
     playerId,
   });
@@ -140,26 +138,19 @@ export async function previewTransferBidFinancialImpact(
   playerId: string,
   fee: number,
 ): Promise<TransferBidProjectionData> {
-  return invoke<TransferBidProjectionData>(
-    "preview_transfer_bid_financial_impact",
-    {
-      playerId,
-      fee,
-    },
-  );
+  return invoke<TransferBidProjectionData>("preview_transfer_bid_financial_impact", {
+    playerId,
+    fee,
+  });
 }
 
-export async function toggleTransferList(
-  playerId: string,
-): Promise<GameStateData> {
+export async function toggleTransferList(playerId: string): Promise<GameStateData> {
   return invoke<GameStateData>("toggle_transfer_list", {
     playerId,
   });
 }
 
-export async function toggleLoanList(
-  playerId: string,
-): Promise<GameStateData> {
+export async function toggleLoanList(playerId: string): Promise<GameStateData> {
   return invoke<GameStateData>("toggle_loan_list", {
     playerId,
   });

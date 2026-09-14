@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { GameStateData } from "../store/gameStore";
+import type { GameStateData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
 import type { BlockerModal } from "./useAdvanceTime.helpers";
 import {
@@ -9,10 +9,7 @@ import {
   skipToMatchDay,
   type SkipToMatchDayResponse,
 } from "../services/advanceTimeService";
-import {
-  buildDigestEntries,
-  toDatePart,
-} from "../components/dashboard/advanceRecap";
+import { buildDigestEntries, toDatePart } from "../components/dashboard/advanceRecap";
 import { useDigestAdvance } from "./useDigestAdvance";
 import type { DigestEntry, DigestStopReason } from "./useDigestAdvance";
 
@@ -108,8 +105,7 @@ export function useAdvanceTime(
   }
 
   const runStreamingDigest = (options?: { resume?: boolean }) => {
-    resumeAfterBlockerRef.current = () =>
-      void startDigest({ resume: true });
+    resumeAfterBlockerRef.current = () => void startDigest({ resume: true });
     void startDigest(options);
   };
 
@@ -126,9 +122,7 @@ export function useAdvanceTime(
     // Any lingering feed belongs to a previous advance.
     dismissDigest();
     // Clock date before advancing — the cursor for "what happened" in the digest.
-    const sinceDate = toDatePart(
-      useGameStore.getState().gameState?.clock?.current_date,
-    );
+    const sinceDate = toDatePart(useGameStore.getState().gameState?.clock?.current_date);
     try {
       const result = await advanceTimeWithMode(effectiveMode);
       console.info("[useAdvanceTime] doAdvance:result", {
@@ -152,10 +146,7 @@ export function useAdvanceTime(
       } else if (result.action === "advanced" && result.game) {
         const game = result.game as GameStateData;
         setGameState(game);
-        showStaticDigest(
-          buildDigestEntries(game, sinceDate, result.results ?? []),
-          null,
-        );
+        showStaticDigest(buildDigestEntries(game, sinceDate, result.results ?? []), null);
       }
     } catch (err) {
       console.error("Failed to advance time:", err);
@@ -237,9 +228,7 @@ export function useAdvanceTime(
     } else {
       dismissDigest();
     }
-    const sinceDate = toDatePart(
-      useGameStore.getState().gameState?.clock?.current_date,
-    );
+    const sinceDate = toDatePart(useGameStore.getState().gameState?.clock?.current_date);
     try {
       const result = await run();
       console.info(`[useAdvanceTime] ${label}:result`, {
@@ -275,17 +264,20 @@ export function useAdvanceTime(
   };
 
   const doSkipToMatchDay = (options?: { append?: boolean }) => {
-    resumeAfterBlockerRef.current = () =>
-      void doSkipToMatchDay({ append: true });
+    resumeAfterBlockerRef.current = () => void doSkipToMatchDay({ append: true });
     return runMultiDayAdvance(skipToMatchDay, "doSkipToMatchDay", options);
   };
 
   return {
     isAdvancing,
-    showContinueMenu, setShowContinueMenu,
-    showMatchConfirm, setShowMatchConfirm,
-    matchMode, setMatchMode,
-    blockerModal, setBlockerModal,
+    showContinueMenu,
+    setShowContinueMenu,
+    showMatchConfirm,
+    setShowMatchConfirm,
+    matchMode,
+    setMatchMode,
+    blockerModal,
+    setBlockerModal,
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,

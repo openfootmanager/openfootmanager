@@ -62,9 +62,7 @@ export default function TournamentsOverview({
             {localizedRoundName(t, round.name)}
           </span>
           <Badge variant={round.completed ? "accent" : "neutral"} size="sm">
-            {round.completed
-              ? t("tournaments.roundComplete")
-              : t("tournaments.roundInProgress")}
+            {round.completed ? t("tournaments.roundComplete") : t("tournaments.roundInProgress")}
           </Badge>
         </div>
       ))}

@@ -74,9 +74,9 @@ function resolveCurrency(
   code: AppSettings["currency"],
   supportedCurrencies: Record<string, CurrencyDefinition>,
 ): CurrencyDefinition {
-  return supportedCurrencies[code]
-    ?? supportedCurrencies[DEFAULT_SETTINGS.currency]
-    ?? DEFAULT_CURRENCY;
+  return (
+    supportedCurrencies[code] ?? supportedCurrencies[DEFAULT_SETTINGS.currency] ?? DEFAULT_CURRENCY
+  );
 }
 
 interface SettingsStore {

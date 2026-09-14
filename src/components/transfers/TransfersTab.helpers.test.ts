@@ -16,9 +16,7 @@ import {
   parseTransferFeeInput,
 } from "./TransfersTab.helpers";
 
-function createOffer(
-  overrides: Partial<TransferOfferData> = {},
-): TransferOfferData {
+function createOffer(overrides: Partial<TransferOfferData> = {}): TransferOfferData {
   return {
     id: "offer-1",
     from_team_id: "team-2",
@@ -33,9 +31,7 @@ function createOffer(
   };
 }
 
-function createPlayer(
-  overrides: Partial<PlayerData> = {},
-): PlayerData {
+function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   return {
     id: "player-1",
     match_name: "J. Smith",
@@ -140,10 +136,7 @@ describe("TransfersTab.helpers", () => {
   });
 
   it("builds loan period presets from the current game date", () => {
-    const options = buildLoanPeriodOptions(
-      "2026-08-01T12:00:00Z",
-      "2028-06-30",
-    );
+    const options = buildLoanPeriodOptions("2026-08-01T12:00:00Z", "2028-06-30");
 
     expect(options.map((option) => [option.id, option.endDate])).toEqual([
       ["three_months", "2026-10-30"],
@@ -152,16 +145,11 @@ describe("TransfersTab.helpers", () => {
       ["twelve_months", "2027-08-01"],
     ]);
     expect(options.every((option) => !option.disabled)).toBe(true);
-    expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2028-06-30")).toBe(
-      "january_window",
-    );
+    expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2028-06-30")).toBe("january_window");
   });
 
   it("disables loan period presets that outlive the player contract", () => {
-    const options = buildLoanPeriodOptions(
-      "2026-08-01T12:00:00Z",
-      "2026-11-15",
-    );
+    const options = buildLoanPeriodOptions("2026-08-01T12:00:00Z", "2026-11-15");
 
     expect(options.find((option) => option.id === "three_months")).toMatchObject({
       disabled: false,
@@ -170,17 +158,11 @@ describe("TransfersTab.helpers", () => {
       disabled: true,
       disabledReasonKey: "transfers.loanPeriodUnavailableContract",
     });
-    expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2026-11-15")).toBe(
-      "three_months",
-    );
+    expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2026-11-15")).toBe("three_months");
   });
 
   it("preserves unmatched incoming loan offer dates as counter periods", () => {
-    const options = buildLoanPeriodOptions(
-      "2026-08-01T12:00:00Z",
-      "2028-06-30",
-      "2027-01-28",
-    );
+    const options = buildLoanPeriodOptions("2026-08-01T12:00:00Z", "2028-06-30", "2027-01-28");
 
     expect(options[0]).toMatchObject({
       id: "current_offer",
@@ -188,13 +170,9 @@ describe("TransfersTab.helpers", () => {
       endDate: "2027-01-28",
       disabled: false,
     });
-    expect(
-      getLoanPeriodIdForEndDate(
-        "2026-08-01T12:00:00Z",
-        "2028-06-30",
-        "2027-01-28",
-      ),
-    ).toBe("current_offer");
+    expect(getLoanPeriodIdForEndDate("2026-08-01T12:00:00Z", "2028-06-30", "2027-01-28")).toBe(
+      "current_offer",
+    );
   });
 
   it("normalizes transfer feedback fee params for display", () => {
@@ -216,15 +194,13 @@ describe("TransfersTab.helpers", () => {
   it("maps statuses to transfer offer badge variants and labels", () => {
     expect(getTransferOfferBadgeVariant("Pending")).toBe("accent");
     expect(getTransferOfferBadgeVariant("Accepted")).toBe("success");
-    expect(getTransferOfferStatusLabel(t, "Withdrawn")).toBe(
-      "transfers.offerStatusWithdrawn",
-    );
+    expect(getTransferOfferStatusLabel(t, "Withdrawn")).toBe("transfers.offerStatusWithdrawn");
   });
 
   it("maps expired negotiation errors to the localized message", () => {
-    expect(
-      mapTransferNegotiationError(t, "Offer not found or not pending"),
-    ).toBe("transfers.negotiationExpiredError");
+    expect(mapTransferNegotiationError(t, "Offer not found or not pending")).toBe(
+      "transfers.negotiationExpiredError",
+    );
     expect(mapTransferNegotiationError(t, "other error")).toBe("other error");
   });
 });

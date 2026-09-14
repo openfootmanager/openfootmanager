@@ -23,12 +23,7 @@ import {
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-type TraitCategory =
-  | "physical"
-  | "technical"
-  | "mental"
-  | "goalkeeper"
-  | "special";
+type TraitCategory = "physical" | "technical" | "mental" | "goalkeeper" | "special";
 
 interface TraitMeta {
   icon: ReactNode;
@@ -222,10 +217,7 @@ function formatRequirement(
   return `${translate(requirement.labelKey)} ${value}`;
 }
 
-function buildTraitTooltip(
-  traitName: string,
-  translate: (key: string) => string,
-): string {
+function buildTraitTooltip(traitName: string, translate: (key: string) => string): string {
   const baseDescription = translate(`traits.${traitName}.desc`);
   const requirements =
     TRAIT_META[traitName]?.requirements.map((requirement) =>
@@ -271,14 +263,13 @@ export function TraitBadge({
   }
 
   const sizeClasses =
-    size === "xs"
-      ? "text-[9px] px-1.5 py-0.5 gap-0.5"
-      : "text-[10px] px-2 py-0.5 gap-1";
+    size === "xs" ? "text-[9px] px-1.5 py-0.5 gap-0.5" : "text-[10px] px-2 py-0.5 gap-1";
   const tooltip = buildTraitTooltip(traitName, t);
 
   return (
     <span
       className={`inline-flex items-center font-heading font-bold uppercase tracking-wider rounded-full ring-1 ${meta.color} ${sizeClasses}`}
+      role="img"
       title={tooltip}
       aria-label={tooltip}
     >
@@ -310,9 +301,7 @@ export function TraitList({
         <TraitBadge key={trait} trait={trait} size={size} />
       ))}
       {remaining > 0 ? (
-        <span className="text-[10px] text-gray-500 font-heading self-center">
-          +{remaining}
-        </span>
+        <span className="text-[10px] text-gray-500 font-heading self-center">+{remaining}</span>
       ) : null}
     </div>
   );

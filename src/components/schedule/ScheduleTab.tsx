@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Calendar as CalendarIcon,
-  Globe,
-  TableProperties,
-  Trophy,
-} from "lucide-react";
+import { Calendar as CalendarIcon, Globe, TableProperties, Trophy } from "lucide-react";
 
 import {
   getActiveCompetitions,
@@ -143,9 +138,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
 
   if (activeCompetitions.length === 0) {
     return (
-      <p className="py-8 text-center text-gray-500 dark:text-gray-400">
-        {t("schedule.noLeague")}
-      </p>
+      <p className="py-8 text-center text-gray-500 dark:text-gray-400">{t("schedule.noLeague")}</p>
     );
   }
 
@@ -202,10 +195,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
           {t("schedule.standings")}
         </ViewButton>
         {hasInternational && (
-          <ViewButton
-            active={view === "international"}
-            onClick={() => setView("international")}
-          >
+          <ViewButton active={view === "international"} onClick={() => setView("international")}>
             <Globe className="mr-1.5 inline h-4 w-4 -mt-0.5" />
             {t("schedule.international")}
           </ViewButton>
@@ -282,6 +272,7 @@ function ViewButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`rounded-lg px-4 py-2 font-heading text-sm font-bold uppercase tracking-wider transition-all ${
         active
@@ -379,6 +370,7 @@ function CalendarView({
           </div>
           {slice.past_groups.length > visiblePastCount && (
             <button
+              type="button"
               onClick={onShowMorePast}
               className="mx-auto mt-1 rounded-lg border border-gray-200 bg-white px-4 py-2 font-heading text-sm font-bold uppercase tracking-wider text-gray-500 transition-all hover:text-gray-700 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-400 dark:hover:text-gray-200"
             >
@@ -412,9 +404,7 @@ function FixturesListView({
 
   if (allGroups.length === 0) {
     return (
-      <p className="py-8 text-center text-gray-500 dark:text-gray-400">
-        {t("schedule.noLeague")}
-      </p>
+      <p className="py-8 text-center text-gray-500 dark:text-gray-400">{t("schedule.noLeague")}</p>
     );
   }
 
@@ -499,8 +489,7 @@ function MatchdayGroupCard({
           <div className="divide-y divide-gray-100 dark:divide-navy-600">
             {group.fixtures.map((fixture) => {
               const isUserMatch =
-                fixture.home_team_id === userTeamId ||
-                fixture.away_team_id === userTeamId;
+                fixture.home_team_id === userTeamId || fixture.away_team_id === userTeamId;
               const completed = fixture.status === "Completed";
               const contextItems = [
                 buildTeamMenuItem(
@@ -574,10 +563,7 @@ function InternationalView({
   nationalFixtures: ReturnType<typeof getNationalTeamFixtures>;
   t: ReturnType<typeof useTranslation>["t"];
 }) {
-  const internationalByDate = new Map<
-    string,
-    typeof nationalFixtures
-  >();
+  const internationalByDate = new Map<string, typeof nationalFixtures>();
   [...nationalFixtures]
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
     .forEach((fixture) => {
@@ -598,20 +584,22 @@ function InternationalView({
           </div>
           <CardBody className="p-0">
             <div className="divide-y divide-gray-100 dark:divide-navy-600">
-              {calledUpPlayers.map(({ player, nationalTeamId, nationalTeamName, nationalTeamNameKey }) => (
-                <div
-                  key={`${player.id}-${nationalTeamId}`}
-                  className="flex items-center justify-between px-5 py-2.5"
-                  data-testid={`schedule-callup-${player.id}`}
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    {player.match_name}
-                  </span>
-                  <Badge variant="neutral" size="sm">
-                    {nationalTeamDisplayName(nationalTeamNameKey, nationalTeamName, t)}
-                  </Badge>
-                </div>
-              ))}
+              {calledUpPlayers.map(
+                ({ player, nationalTeamId, nationalTeamName, nationalTeamNameKey }) => (
+                  <div
+                    key={`${player.id}-${nationalTeamId}`}
+                    className="flex items-center justify-between px-5 py-2.5"
+                    data-testid={`schedule-callup-${player.id}`}
+                  >
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      {player.match_name}
+                    </span>
+                    <Badge variant="neutral" size="sm">
+                      {nationalTeamDisplayName(nationalTeamNameKey, nationalTeamName, t)}
+                    </Badge>
+                  </div>
+                ),
+              )}
             </div>
           </CardBody>
         </Card>
@@ -711,8 +699,7 @@ function StandingsView({
       <div className="rounded-t-xl border-b border-gray-100 bg-gradient-to-r from-navy-700 to-navy-800 p-5 dark:border-navy-600">
         <h3 className="flex items-center gap-2 font-heading text-lg font-bold uppercase tracking-wide text-white">
           <Trophy className="h-5 w-5 text-accent-400" />
-          {(competition && competitionDisplayName(competition, t)) ||
-            t("schedule.fixtures")} –{" "}
+          {(competition && competitionDisplayName(competition, t)) || t("schedule.fixtures")} –{" "}
           {t("schedule.season", { number: competition?.season ?? 0 })}
         </h3>
       </div>
@@ -727,16 +714,25 @@ function StandingsView({
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-xs dark:border-navy-600 dark:bg-navy-800">
-                {["#", t("common.team"), t("common.played"), t("common.won"), t("common.drawn"), t("common.lost"), t("common.gf"), t("common.ga"), t("common.gd"), t("common.pts")].map(
-                  (header, idx) => (
-                    <th
-                      key={idx}
-                      className={`px-4 py-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ${idx === 0 ? "w-8" : ""} ${idx >= 2 ? "text-center" : ""}`}
-                    >
-                      {header}
-                    </th>
-                  ),
-                )}
+                {[
+                  "#",
+                  t("common.team"),
+                  t("common.played"),
+                  t("common.won"),
+                  t("common.drawn"),
+                  t("common.lost"),
+                  t("common.gf"),
+                  t("common.ga"),
+                  t("common.gd"),
+                  t("common.pts"),
+                ].map((header, idx) => (
+                  <th
+                    key={idx}
+                    className={`px-4 py-3 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 ${idx === 0 ? "w-8" : ""} ${idx >= 2 ? "text-center" : ""}`}
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
@@ -745,8 +741,7 @@ function StandingsView({
                 const gd = entry.goals_for - entry.goals_against;
                 const inPromotionZone = index < zones.promotionSlots;
                 const inRelegationZone =
-                  zones.relegationSlots > 0 &&
-                  index >= standings.length - zones.relegationSlots;
+                  zones.relegationSlots > 0 && index >= standings.length - zones.relegationSlots;
                 const contextItems = [buildTeamMenuItem(t("common.viewTeam"), entry.team_id)];
 
                 return (
@@ -787,16 +782,28 @@ function StandingsView({
                       >
                         {getTeamName(gameState.teams, entry.team_id)}
                       </td>
-                      {[entry.played, entry.won, entry.drawn, entry.lost, entry.goals_for, entry.goals_against].map(
-                        (val, i) => (
-                          <td key={i} className="px-4 py-3 text-center text-sm tabular-nums text-gray-600 dark:text-gray-400">
-                            {val}
-                          </td>
-                        ),
-                      )}
+                      {[
+                        entry.played,
+                        entry.won,
+                        entry.drawn,
+                        entry.lost,
+                        entry.goals_for,
+                        entry.goals_against,
+                      ].map((val, i) => (
+                        <td
+                          key={i}
+                          className="px-4 py-3 text-center text-sm tabular-nums text-gray-600 dark:text-gray-400"
+                        >
+                          {val}
+                        </td>
+                      ))}
                       <td
                         className={`px-4 py-3 text-center text-sm font-semibold tabular-nums ${
-                          gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500 dark:text-gray-400"
+                          gd > 0
+                            ? "text-primary-500"
+                            : gd < 0
+                              ? "text-red-500"
+                              : "text-gray-500 dark:text-gray-400"
                         }`}
                       >
                         {gd > 0 ? `+${gd}` : gd}
@@ -836,10 +843,7 @@ function LoadingPlaceholder() {
   return (
     <div className="flex flex-col gap-4">
       {[1, 2, 3].map((n) => (
-        <div
-          key={n}
-          className="h-32 rounded-xl bg-gray-100 dark:bg-navy-800 animate-pulse"
-        />
+        <div key={n} className="h-32 rounded-xl bg-gray-100 dark:bg-navy-800 animate-pulse" />
       ))}
     </div>
   );

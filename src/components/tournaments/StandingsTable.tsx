@@ -64,22 +64,14 @@ export default function StandingsTable({
             The column reads "#" because the design has 8px for it, but "number
             sign" is not a column name. The label is what assistive tech gets.
           */}
-          <th
-            scope="col"
-            aria-label={t("common.position")}
-            className={`${headClass} w-8`}
-          >
+          <th scope="col" aria-label={t("common.position")} className={`${headClass} w-8`}>
             {t("common.rank")}
           </th>
           <th scope="col" className={headClass}>
             {t("common.team")}
           </th>
           {statColumns.map((column) => (
-            <th
-              key={column.key}
-              scope="col"
-              className={`${headClass} text-center`}
-            >
+            <th key={column.key} scope="col" className={`${headClass} text-center`}>
               {column.label}
             </th>
           ))}
@@ -106,11 +98,7 @@ export default function StandingsTable({
 
           return (
             <ContextMenu
-              items={
-                clickable
-                  ? [buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))]
-                  : []
-              }
+              items={clickable ? [buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))] : []}
               key={entry.team_id}
             >
               <tr

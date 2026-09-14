@@ -62,24 +62,19 @@ export interface HomeRecentResult {
   resultCode: "W" | "D" | "L";
 }
 
-function getStandingPosition(
-  league: LeagueData,
-  teamId: string,
-): number | null {
+function getStandingPosition(league: LeagueData, teamId: string): number | null {
   // Tiebreak matches the standings table (points → goal difference → goals
   // for) so the opponent's position shown here can't disagree with it.
   const sortedStandings = [...league.standings].sort((leftEntry, rightEntry) => {
     return (
       rightEntry.points - leftEntry.points ||
       rightEntry.goals_for -
-      rightEntry.goals_against -
-      (leftEntry.goals_for - leftEntry.goals_against) ||
+        rightEntry.goals_against -
+        (leftEntry.goals_for - leftEntry.goals_against) ||
       rightEntry.goals_for - leftEntry.goals_for
     );
   });
-  const standingIndex = sortedStandings.findIndex(
-    (entry) => entry.team_id === teamId,
-  );
+  const standingIndex = sortedStandings.findIndex((entry) => entry.team_id === teamId);
 
   if (standingIndex === -1) {
     return null;
@@ -88,9 +83,7 @@ function getStandingPosition(
   return standingIndex + 1;
 }
 
-export function getNextOpponentWidgetData(
-  gameState: GameStateData,
-): NextOpponentWidgetData | null {
+export function getNextOpponentWidgetData(gameState: GameStateData): NextOpponentWidgetData | null {
   const userTeamId = gameState.manager.team_id;
 
   if (!userTeamId) {
@@ -113,9 +106,7 @@ export function getNextOpponentWidgetData(
 
   const league = getUserCompetition(gameState);
   const canShowStandings =
-    league !== null &&
-    hasCompetitiveStandings(gameState) &&
-    nextFixture.competition === "League";
+    league !== null && hasCompetitiveStandings(gameState) && nextFixture.competition === "League";
   const standingEntry =
     canShowStandings && league
       ? league.standings.find((entry) => entry.team_id === opponentId)
@@ -127,22 +118,14 @@ export function getNextOpponentWidgetData(
     opponent,
     recentForm: opponent.form.slice(-5),
     standingPoints: standingEntry?.points ?? null,
-    standingPosition:
-      canShowStandings && league
-        ? getStandingPosition(league, opponentId)
-        : null,
+    standingPosition: canShowStandings && league ? getStandingPosition(league, opponentId) : null,
   };
 }
 
-export function getLeagueDigestArticles(
-  gameState: GameStateData,
-): NewsArticle[] {
+export function getLeagueDigestArticles(gameState: GameStateData): NewsArticle[] {
   return [...(gameState.news || [])]
     .filter((article) => {
-      return (
-        article.category === "LeagueRoundup" ||
-        article.category === "StandingsUpdate"
-      );
+      return article.category === "LeagueRoundup" || article.category === "StandingsUpdate";
     })
     .sort((leftArticle, rightArticle) => {
       return rightArticle.date.localeCompare(leftArticle.date);
@@ -150,33 +133,23 @@ export function getLeagueDigestArticles(
     .slice(0, 2);
 }
 
-export function getHomeRosterOverview(
-  roster: PlayerData[],
-): HomeRosterOverview {
+export function getHomeRosterOverview(roster: PlayerData[]): HomeRosterOverview {
   const avgCondition =
     roster.length > 0
-      ? Math.round(
-        roster.reduce((total, player) => total + player.condition, 0) /
-        roster.length,
-      )
+      ? Math.round(roster.reduce((total, player) => total + player.condition, 0) / roster.length)
       : 0;
   const avgOvr =
     roster.length > 0
       ? Math.round(
-        roster.reduce(
-          (total, player) =>
-            total + getPlayerOvr(player),
-          0,
-        ) / roster.length,
-      )
+          roster.reduce((total, player) => total + getPlayerOvr(player), 0) / roster.length,
+        )
       : 0;
   const exhaustedCount = roster.filter((player) => player.condition < 40).length;
   const unavailablePlayers = roster
     .filter((player) => player.injury != null)
     .sort((leftPlayer, rightPlayer) => {
       return (
-        (rightPlayer.injury?.days_remaining ?? 0) -
-        (leftPlayer.injury?.days_remaining ?? 0) ||
+        (rightPlayer.injury?.days_remaining ?? 0) - (leftPlayer.injury?.days_remaining ?? 0) ||
         leftPlayer.full_name.localeCompare(rightPlayer.full_name)
       );
     });
@@ -253,10 +226,7 @@ export function isOnboardingPageTab(tab: string): boolean {
   return ONBOARDING_PAGE_TABS.has(tab);
 }
 
-function getOnboardingStorageKey(
-  gameState: GameStateData,
-  activeSaveId?: string | null,
-): string {
+function getOnboardingStorageKey(gameState: GameStateData, activeSaveId?: string | null): string {
   if (activeSaveId) {
     return `${ONBOARDING_STORAGE_KEY_PREFIX}:save:${activeSaveId}`;
   }
@@ -281,9 +251,7 @@ export function loadVisitedOnboardingTabs(
     return new Set<string>();
   }
 
-  const storedValue = storage.getItem(
-    getOnboardingStorageKey(gameState, activeSaveId),
-  );
+  const storedValue = storage.getItem(getOnboardingStorageKey(gameState, activeSaveId));
 
   if (!storedValue) {
     return new Set<string>();
@@ -316,14 +284,9 @@ export function saveVisitedOnboardingTabs(
     return;
   }
 
-  const persistedTabs = Array.from(visitedTabs).filter((tab) =>
-    isOnboardingPageTab(tab),
-  );
+  const persistedTabs = Array.from(visitedTabs).filter((tab) => isOnboardingPageTab(tab));
 
-  storage.setItem(
-    getOnboardingStorageKey(gameState, activeSaveId),
-    JSON.stringify(persistedTabs),
-  );
+  storage.setItem(getOnboardingStorageKey(gameState, activeSaveId), JSON.stringify(persistedTabs));
 }
 
 export function getOnboardingCompletionState(

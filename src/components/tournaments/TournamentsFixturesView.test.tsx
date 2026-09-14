@@ -42,16 +42,12 @@ function fixture(overrides: Partial<FixtureData> = {}): FixtureData {
 }
 
 function renderView(matchdays: Array<[number, FixtureData[]]>) {
-  const view = render(
-    <TournamentsFixturesView sortedMatchdays={matchdays} teams={teamLookup()} />,
-  );
+  const view = render(<TournamentsFixturesView sortedMatchdays={matchdays} teams={teamLookup()} />);
   return {
     ...view,
     // Re-renders the same mounted instance, which is what makes a changing hook count observable.
     rerenderWith: (next: Array<[number, FixtureData[]]>) =>
-      view.rerender(
-        <TournamentsFixturesView sortedMatchdays={next} teams={teamLookup()} />,
-      ),
+      view.rerender(<TournamentsFixturesView sortedMatchdays={next} teams={teamLookup()} />),
   };
 }
 
@@ -69,9 +65,7 @@ describe("TournamentsFixturesView", () => {
     ]);
     // Without this the test is about headings, not cards: dropping the <Card> wrapper entirely
     // leaves both headings in place and the assertion above still passes.
-    expect(
-      headings.map((h) => h.closest("[class*='rounded-xl']")).filter(Boolean),
-    ).toHaveLength(2);
+    expect(headings.map((h) => h.closest("[class*='rounded-xl']")).filter(Boolean)).toHaveLength(2);
   });
 
   // The mock keeps a hook inside `useTranslation` so a Rules-of-Hooks violation surfaces here
@@ -104,15 +98,9 @@ describe("TournamentsFixturesView", () => {
 
     // Each club side renders as a button named for the team, so the two rows are
     // countable without reaching for a test id.
-    expect(
-      screen.getByRole("button", { name: "Name of home" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Name of third" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("button", { name: "Name of away" }),
-    ).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Name of home" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Name of third" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Name of away" })).toHaveLength(2);
   });
 
   // Every fixture in a round shares a date, so the header takes the first one's.
@@ -121,19 +109,11 @@ describe("TournamentsFixturesView", () => {
   // same, and the test would pass either way.
   it("dates the matchday from its first fixture", () => {
     renderView([
-      [
-        4,
-        [
-          fixture({ id: "f1", date: "2026-09-12" }),
-          fixture({ id: "f2", date: "2026-09-13" }),
-        ],
-      ],
+      [4, [fixture({ id: "f1", date: "2026-09-12" }), fixture({ id: "f2", date: "2026-09-13" })]],
     ]);
 
     const heading = screen.getByRole("heading");
-    expect(heading).toHaveTextContent(
-      `Matchday 4 — ${formatMatchDate("2026-09-12")}`,
-    );
+    expect(heading).toHaveTextContent(`Matchday 4 — ${formatMatchDate("2026-09-12")}`);
     expect(heading.textContent).not.toContain(formatMatchDate("2026-09-13"));
   });
 

@@ -23,24 +23,52 @@ const CANONICAL: Record<string, PlayerRole[]> = {
   RightWinger: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
   LeftWinger: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
   Striker: [
-    "Standard", "Poacher", "TargetMan", "DeepLyingForward", "False9",
-    "PressingForward", "CompleteForward",
+    "Standard",
+    "Poacher",
+    "TargetMan",
+    "DeepLyingForward",
+    "False9",
+    "PressingForward",
+    "CompleteForward",
   ],
   // Legacy coarse buckets (canonicalised/legacy positions) — the union of their
   // group's detailed roles, matching the backend's P::Defender/Midfielder/Forward
   // deny-list branches.
   Defender: [
-    "Standard", "Stopper", "CoverCB", "BallPlayingCB",
-    "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack",
+    "Standard",
+    "Stopper",
+    "CoverCB",
+    "BallPlayingCB",
+    "AttackingFB",
+    "DefensiveFB",
+    "InvertedFB",
+    "WingBack",
   ],
   Midfielder: [
-    "Standard", "AnchorMan", "BallWinner", "DeepLyingPlaymaker",
-    "BoxToBox", "Carrilero", "Mezzala", "AdvancedPlaymaker", "ShadowStriker",
-    "WideForward", "InsideForward", "InvertedWinger",
+    "Standard",
+    "AnchorMan",
+    "BallWinner",
+    "DeepLyingPlaymaker",
+    "BoxToBox",
+    "Carrilero",
+    "Mezzala",
+    "AdvancedPlaymaker",
+    "ShadowStriker",
+    "WideForward",
+    "InsideForward",
+    "InvertedWinger",
   ],
   Forward: [
-    "Standard", "WideForward", "InsideForward", "InvertedWinger",
-    "Poacher", "TargetMan", "DeepLyingForward", "False9", "PressingForward", "CompleteForward",
+    "Standard",
+    "WideForward",
+    "InsideForward",
+    "InvertedWinger",
+    "Poacher",
+    "TargetMan",
+    "DeepLyingForward",
+    "False9",
+    "PressingForward",
+    "CompleteForward",
   ],
 };
 
@@ -56,9 +84,7 @@ describe("playerRoles position->roles parity", () => {
   it("does not offer roles the backend rejects for the position", () => {
     expect(getRolesForPosition("DefensiveMidfielder")).not.toContain("BoxToBox");
     expect(getRolesForPosition("AttackingMidfielder")).not.toContain("Mezzala");
-    expect(getRolesForPosition("CentralMidfielder")).not.toContain(
-      "AdvancedPlaymaker",
-    );
+    expect(getRolesForPosition("CentralMidfielder")).not.toContain("AdvancedPlaymaker");
     expect(getRolesForPosition("RightMidfielder")).not.toContain("Carrilero");
   });
 

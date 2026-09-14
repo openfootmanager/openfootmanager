@@ -43,14 +43,10 @@ export function useTacticsLibrary({
       ? t(`tactics.presetNames.${initialPreset.id}`, initialPreset.id)
       : t("tactics.customTactic"),
   );
-  const [presetAnchorId, setPresetAnchorId] = useState<string | null>(
-    initialPreset?.id ?? null,
-  );
+  const [presetAnchorId, setPresetAnchorId] = useState<string | null>(initialPreset?.id ?? null);
   const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
 
-  const customTacticsStorageKey = gameState
-    ? buildCustomTacticsStorageKey(gameState)
-    : null;
+  const customTacticsStorageKey = gameState ? buildCustomTacticsStorageKey(gameState) : null;
 
   useEffect(() => {
     if (!gameState || !customTacticsStorageKey) return;
@@ -70,12 +66,11 @@ export function useTacticsLibrary({
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const anchoredPreset = presetAnchorId
-    ? TACTICS_PRESETS.find((preset) => preset.id === presetAnchorId) ?? null
+    ? (TACTICS_PRESETS.find((preset) => preset.id === presetAnchorId) ?? null)
     : null;
   const isPresetDirty = Boolean(
     anchoredPreset &&
-      (formation !== anchoredPreset.formation ||
-        activePlayStyle !== anchoredPreset.playStyle),
+      (formation !== anchoredPreset.formation || activePlayStyle !== anchoredPreset.playStyle),
   );
   const translatedPresetLibrary = useMemo<TacticsLibraryEntry[]>(
     () =>
@@ -156,27 +151,18 @@ export function useTacticsLibrary({
     overrides: Partial<TacticsLibraryEntry> = {},
   ): TacticsLibraryEntry {
     const customCount = customTactics.length + 1;
-    const sourcePresetName =
-      matchedPreset
-        ? t(`tactics.presetNames.${matchedPreset.id}`, matchedPreset.id)
-        : null;
+    const sourcePresetName = matchedPreset
+      ? t(`tactics.presetNames.${matchedPreset.id}`, matchedPreset.id)
+      : null;
 
     return {
-      description:
-        overrides.description ??
-        t("tactics.customTacticDescription"),
+      description: overrides.description ?? t("tactics.customTacticDescription"),
       formation: overrides.formation ?? formation,
-      id:
-        overrides.id ??
-        `custom:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name:
-        overrides.name ??
-        t("tactics.customTacticNumber", { count: customCount }),
+      id: overrides.id ?? `custom:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: overrides.name ?? t("tactics.customTacticNumber", { count: customCount }),
       playStyle: overrides.playStyle ?? activePlayStyle,
       sourcePresetName:
-        overrides.sourcePresetName === undefined
-          ? sourcePresetName
-          : overrides.sourcePresetName,
+        overrides.sourcePresetName === undefined ? sourcePresetName : overrides.sourcePresetName,
       type: "custom",
     };
   }
@@ -230,7 +216,11 @@ export function useTacticsLibrary({
   function handleSaveTactic(): void {
     const nextName = draftTacticName.trim() || t("tactics.customTactic");
 
-    if (isActiveCustomTactic && activeTactic && customTactics.some((e) => e.id === activeTactic.id)) {
+    if (
+      isActiveCustomTactic &&
+      activeTactic &&
+      customTactics.some((e) => e.id === activeTactic.id)
+    ) {
       setCustomTactics((current) =>
         current.map((entry) =>
           entry.id === activeTactic.id

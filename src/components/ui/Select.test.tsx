@@ -12,9 +12,7 @@ describe("Select", () => {
       </Select>,
     );
 
-    expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent(
-      "English",
-    );
+    expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent("English");
   });
 
   it("opens the option list when clicked", () => {
@@ -46,9 +44,7 @@ describe("Select", () => {
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange.mock.calls[0][0].target.value).toBe("pt");
-    expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent(
-      "Português",
-    );
+    expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent("Português");
   });
 
   it("applies custom classes and renders the leading icon", () => {
@@ -103,9 +99,7 @@ describe("Select", () => {
 
     const listbox = screen.getByRole("listbox");
     expect(listbox).toBeInTheDocument();
-    expect(screen.getByTestId("clipping-ancestor")).not.toContainElement(
-      listbox,
-    );
+    expect(screen.getByTestId("clipping-ancestor")).not.toContainElement(listbox);
   });
 
   it("closes the portaled menu on an outside pointer press but not on a menu press", () => {

@@ -1,9 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type {
-  LeagueData,
-  SeasonAwardsData,
-  WorldCupChampionData,
-} from "../store/types";
+import type { LeagueData, SeasonAwardsData, WorldCupChampionData } from "../store/types";
 
 export interface PlayerNameEntry {
   match_name: string;

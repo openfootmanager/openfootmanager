@@ -42,15 +42,8 @@ export function CountryFlag({
   const flagCode = resolveCountryFlagCode(normalisedCode);
   const FlagIcon = flagCode ? flagIcons[flagCode.replace(/-/g, "_")] : null;
 
-  const accessibleLabel =
-    title ?? countryName(normalisedCode, locale) ?? normalisedCode;
-  const classes = [
-    "inline-flex",
-    "items-center",
-    "justify-center",
-    "shrink-0",
-    className,
-  ]
+  const accessibleLabel = title ?? countryName(normalisedCode, locale) ?? normalisedCode;
+  const classes = ["inline-flex", "items-center", "justify-center", "shrink-0", className]
     .filter(Boolean)
     .join(" ");
 
@@ -62,7 +55,7 @@ export function CountryFlag({
   if (!FlagIcon) {
     return (
       <span
-        role={decorative ? undefined : "img"}
+        role="img"
         aria-hidden={decorative || undefined}
         aria-label={describedLabel}
         title={describedLabel}
@@ -79,7 +72,7 @@ export function CountryFlag({
   return (
     <span className={classes} title={describedLabel}>
       <FlagIcon
-        role={decorative ? undefined : "img"}
+        role="img"
         aria-hidden={decorative || undefined}
         aria-label={describedLabel}
         focusable="false"

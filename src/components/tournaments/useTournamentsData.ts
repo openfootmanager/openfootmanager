@@ -32,14 +32,9 @@ interface UseTournamentsDataResult {
  * field falls back to the equivalent on `gameState` while it loads. That keeps
  * the screen populated on first paint instead of flashing an empty table.
  */
-export function useTournamentsData(
-  gameState: GameStateData,
-): UseTournamentsDataResult {
-  const [competitionsView, setCompetitionsView] =
-    useState<CompetitionsView | null>(null);
-  const [selectedCompetitionId, setSelectedCompetitionId] = useState<
-    string | null
-  >(null);
+export function useTournamentsData(gameState: GameStateData): UseTournamentsDataResult {
+  const [competitionsView, setCompetitionsView] = useState<CompetitionsView | null>(null);
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<string | null>(null);
 
   const currentDate = gameState.clock?.current_date;
 
@@ -68,33 +63,25 @@ export function useTournamentsData(
   );
   const teamNames = competitionsView?.team_names ?? fallbackTeamNames;
   const fallbackNationalTeamNames = useMemo<Record<string, string>>(
-    () =>
-      Object.fromEntries(
-        (gameState.national_teams ?? []).map((nt) => [nt.id, nt.name]),
-      ),
+    () => Object.fromEntries((gameState.national_teams ?? []).map((nt) => [nt.id, nt.name])),
     [gameState.national_teams],
   );
-  const nationalTeamNames =
-    competitionsView?.national_team_names ?? fallbackNationalTeamNames;
+  const nationalTeamNames = competitionsView?.national_team_names ?? fallbackNationalTeamNames;
   const nationalTeamNameKeys = competitionsView?.national_team_name_keys ?? {};
 
   // The player-name fallback stays in the component: it walks every player in
   // the world, and the component only needs it once a competition is on show.
   const playerNames = competitionsView?.player_names ?? {};
 
-  const userTeamId =
-    competitionsView?.manager_team_id ?? gameState.manager.team_id;
+  const userTeamId = competitionsView?.manager_team_id ?? gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const isPreseason = seasonContext.phase === "Preseason";
 
   // Derive active competitions from slice; fall back to gameState while loading.
   const gsLeague = gameState.league ? [gameState.league] : [];
-  const allCompetitions =
-    competitionsView?.competitions ?? gameState.competitions ?? gsLeague;
+  const allCompetitions = competitionsView?.competitions ?? gameState.competitions ?? gsLeague;
   const activeIds =
-    competitionsView?.active_competition_ids ??
-    gameState.active_competition_ids ??
-    [];
+    competitionsView?.active_competition_ids ?? gameState.active_competition_ids ?? [];
   const activeCompetitions =
     activeIds.length === 0
       ? allCompetitions
@@ -104,9 +91,7 @@ export function useTournamentsData(
     competition.participant_ids?.includes(userTeamId ?? ""),
   );
   const league =
-    activeCompetitions.find(
-      (competition) => competition.id === selectedCompetitionId,
-    ) ??
+    activeCompetitions.find((competition) => competition.id === selectedCompetitionId) ??
     userCompetitions[0] ??
     activeCompetitions[0] ??
     gameState.league ??
@@ -114,9 +99,7 @@ export function useTournamentsData(
   const currentSeason = league?.season ?? 0;
   const isWorldCup = league?.kind === "InternationalNation";
   const worldCupChampions =
-    competitionsView?.world_cup_champions ??
-    gameState.world_history?.world_cup_champions ??
-    [];
+    competitionsView?.world_cup_champions ?? gameState.world_history?.world_cup_champions ?? [];
   const worldCupChampion = isWorldCup
     ? (worldCupChampions.find((c) => c.year === currentSeason) ?? null)
     : null;
@@ -140,11 +123,11 @@ export function useTournamentsData(
     }
 
     setSelectedCompetitionId(userCompetitions[0]?.id ?? activeCompetitions[0].id);
-  // activeCompetitionIds / userCompetitionIds are stable string keys standing in
-  // for activeCompetitions and userCompetitions. Both are rebuilt by .filter()
-  // above on every render, so depending on the arrays themselves would refire
-  // this effect forever. The disable can go once they are memoized.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // activeCompetitionIds / userCompetitionIds are stable string keys standing in
+    // for activeCompetitions and userCompetitions. Both are rebuilt by .filter()
+    // above on every render, so depending on the arrays themselves would refire
+    // this effect forever. The disable can go once they are memoized.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompetitionIds, selectedCompetitionId, userCompetitionIds]);
 
   return {

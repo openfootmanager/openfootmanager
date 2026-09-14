@@ -2,8 +2,8 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot } from "./types";
+import type { GameStateData } from "../../store/gameStore";
+import type { MatchSnapshot } from "./types";
 import { Badge, ThemeToggle } from "../ui";
 import { ChevronRight, Mic, MessageSquare } from "lucide-react";
 
@@ -55,8 +55,8 @@ function response(
   const textKey = `${key}.text`;
   const textParams = params
     ? Object.fromEntries(
-      Object.entries(params).map(([paramKey, value]) => [paramKey, String(value)]),
-    )
+        Object.entries(params).map(([paramKey, value]) => [paramKey, String(value)]),
+      )
     : undefined;
 
   return {
@@ -74,14 +74,10 @@ function generateQuestions(
   _gameState: GameStateData,
   t: TFunction,
 ): PlayerFocusQuestion[] {
-  const userScore =
-    userSide === "Home" ? snapshot.home_score : snapshot.away_score;
-  const oppScore =
-    userSide === "Home" ? snapshot.away_score : snapshot.home_score;
-  const oppName =
-    userSide === "Home" ? snapshot.away_team.name : snapshot.home_team.name;
-  const userTeam =
-    userSide === "Home" ? snapshot.home_team : snapshot.away_team;
+  const userScore = userSide === "Home" ? snapshot.home_score : snapshot.away_score;
+  const oppScore = userSide === "Home" ? snapshot.away_score : snapshot.home_score;
+  const oppName = userSide === "Home" ? snapshot.away_team.name : snapshot.home_team.name;
+  const userTeam = userSide === "Home" ? snapshot.home_team : snapshot.away_team;
   const isWin = userScore > oppScore;
   const isLoss = userScore < oppScore;
 
@@ -108,11 +104,7 @@ function generateQuestions(
     responses: isWin
       ? [
           response(t, "humble", "match.press.result.responses.win.humble"),
-          response(
-            t,
-            "confident",
-            "match.press.result.responses.win.confident",
-          ),
+          response(t, "confident", "match.press.result.responses.win.confident"),
           response(t, "deflect", "match.press.result.responses.win.deflect"),
         ]
       : isLoss
@@ -123,16 +115,8 @@ function generateQuestions(
           ]
         : [
             response(t, "fair", "match.press.result.responses.draw.fair"),
-            response(
-              t,
-              "frustrated",
-              "match.press.result.responses.draw.frustrated",
-            ),
-            response(
-              t,
-              "positive",
-              "match.press.result.responses.draw.positive",
-            ),
+            response(t, "frustrated", "match.press.result.responses.draw.frustrated"),
+            response(t, "positive", "match.press.result.responses.draw.positive"),
           ],
   });
 
@@ -143,12 +127,10 @@ function generateQuestions(
       (e.event_type === "Goal" || e.event_type === "PenaltyGoal") &&
       e.player_id,
   );
-  let focusPlayer =
+  const focusPlayer =
     goalEvents.length > 0
       ? userTeam.players.find((p) => p.id === goalEvents[0].player_id)
-      : userTeam.players[
-          Math.floor(Math.random() * Math.min(userTeam.players.length, 5))
-        ];
+      : userTeam.players[Math.floor(Math.random() * Math.min(userTeam.players.length, 5))];
   if (focusPlayer) {
     const scored = goalEvents.some((e) => e.player_id === focusPlayer!.id);
     const playerName = focusPlayer.name;
@@ -164,12 +146,7 @@ function generateQuestions(
         response(t, "praise", "match.press.playerFocus.responses.praise", {
           playerName,
         }),
-        response(
-          t,
-          "demanding",
-          "match.press.playerFocus.responses.demanding",
-          { playerName },
-        ),
+        response(t, "demanding", "match.press.playerFocus.responses.demanding", { playerName }),
         response(t, "deflect", "match.press.playerFocus.responses.deflect", {
           playerName,
         }),
@@ -209,29 +186,13 @@ function generateQuestions(
           ]
         : isLoss
           ? [
-              response(
-                t,
-                "apologize",
-                "match.press.fans.responses.loss.apologize",
-              ),
-              response(
-                t,
-                "patience",
-                "match.press.fans.responses.loss.patience",
-              ),
+              response(t, "apologize", "match.press.fans.responses.loss.apologize"),
+              response(t, "patience", "match.press.fans.responses.loss.patience"),
               response(t, "curt", "match.press.fans.responses.loss.curt"),
             ]
           : [
-              response(
-                t,
-                "appreciate",
-                "match.press.fans.responses.draw.appreciate",
-              ),
-              response(
-                t,
-                "understand",
-                "match.press.fans.responses.draw.understand",
-              ),
+              response(t, "appreciate", "match.press.fans.responses.draw.appreciate"),
+              response(t, "understand", "match.press.fans.responses.draw.understand"),
               response(t, "curt", "match.press.fans.responses.draw.curt"),
             ],
     },
@@ -262,9 +223,7 @@ export default function PressConference({
   onGameUpdate,
 }: PressConferenceProps) {
   const { t } = useTranslation();
-  const [questions] = useState(() =>
-    generateQuestions(snapshot, userSide, gameState, t),
-  );
+  const [questions] = useState(() => generateQuestions(snapshot, userSide, gameState, t));
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -323,8 +282,7 @@ export default function PressConference({
     }
   };
 
-  const userTeamName =
-    userSide === "Home" ? snapshot.home_team.name : snapshot.away_team.name;
+  const userTeamName = userSide === "Home" ? snapshot.home_team.name : snapshot.away_team.name;
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
@@ -364,21 +322,21 @@ export default function PressConference({
           <div className="max-w-2xl w-full">
             {/* Journalist */}
             <div className="flex items-start gap-4 mb-8">
-               <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-navy-700 flex items-center justify-center flex-shrink-0 transition-colors duration-300">
-                 <MessageSquare className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-               </div>
-               <div>
-                 <div className="flex items-center gap-2 mb-1">
-                   <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200">
-                     {currentQ.journalist}
-                   </span>
+              <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-navy-700 flex items-center justify-center flex-shrink-0 transition-colors duration-300">
+                <MessageSquare className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200">
+                    {currentQ.journalist}
+                  </span>
                   <Badge variant="neutral" size="sm">
                     {currentQ.outlet}
                   </Badge>
                 </div>
-                 <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed italic">
-                   "{currentQ.question}"
-                 </p>
+                <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed italic">
+                  "{currentQ.question}"
+                </p>
               </div>
             </div>
 
@@ -388,29 +346,27 @@ export default function PressConference({
                 const isSelected = answers[currentQ.id] === r.id;
                 return (
                   <button
+                    type="button"
                     key={r.id}
                     onClick={() => handleAnswer(r.id)}
                     disabled={hasAnswered}
-                     className={`p-4 rounded-xl text-left transition-all ${
-                       isSelected
-                         ? "bg-primary-500/20 ring-2 ring-primary-500/50"
-                       : hasAnswered
+                    className={`p-4 rounded-xl text-left transition-all ${
+                      isSelected
+                        ? "bg-primary-500/20 ring-2 ring-primary-500/50"
+                        : hasAnswered
                           ? "bg-gray-200/70 dark:bg-navy-800/50 opacity-40"
                           : "bg-white hover:bg-gray-100 border border-gray-200 dark:bg-navy-800 dark:hover:bg-navy-700 dark:border-navy-700"
-                     }`}
-                   >
+                    }`}
+                  >
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge
-                        variant={isSelected ? "primary" : "neutral"}
-                        size="sm"
-                      >
+                      <Badge variant={isSelected ? "primary" : "neutral"} size="sm">
                         {r.tone}
                       </Badge>
                     </div>
-                     <p
-                       className={`text-sm ${isSelected ? "text-gray-800 dark:text-gray-200" : "text-gray-500 dark:text-gray-400"}`}
-                     >
-                       "{r.text}"
+                    <p
+                      className={`text-sm ${isSelected ? "text-gray-800 dark:text-gray-200" : "text-gray-500 dark:text-gray-400"}`}
+                    >
+                      "{r.text}"
                     </p>
                   </button>
                 );
@@ -421,6 +377,7 @@ export default function PressConference({
             {hasAnswered && (
               <div className="flex justify-end mt-6 ml-16">
                 <button
+                  type="button"
                   onClick={handleNext}
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-xl font-heading font-bold uppercase tracking-wider text-sm text-white shadow-lg shadow-primary-500/20 transition-all"
                 >
@@ -441,6 +398,7 @@ export default function PressConference({
       <footer className="bg-white dark:bg-navy-800 border-t border-gray-200 dark:border-navy-700 px-6 py-3 transition-colors duration-300">
         <div className="max-w-3xl mx-auto flex justify-end">
           <button
+            type="button"
             onClick={onFinish}
             className="text-xs font-heading uppercase tracking-wider text-gray-600 hover:text-gray-800 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
           >

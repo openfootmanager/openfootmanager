@@ -100,18 +100,18 @@ function createGameState(withHistory: boolean): GameStateData {
       },
       career_history: withHistory
         ? [
-          {
-            team_id: "team-0",
-            team_name: "Old Town FC",
-            start_date: "2021-07-01",
-            end_date: null,
-            matches: 40,
-            wins: 20,
-            draws: 10,
-            losses: 10,
-            best_league_position: 3,
-          },
-        ]
+            {
+              team_id: "team-0",
+              team_name: "Old Town FC",
+              start_date: "2021-07-01",
+              end_date: null,
+              matches: 40,
+              wins: 20,
+              draws: 10,
+              losses: 10,
+              best_league_position: 3,
+            },
+          ]
         : [],
     },
     teams: [createTeam(), createTeam({ id: "team-0", name: "Old Town FC", short_name: "OLD" })],
@@ -139,12 +139,7 @@ describe("ManagerTab", () => {
   it("offers team navigation from the current club and career history", () => {
     const onSelectTeam = vi.fn();
 
-    render(
-      <ManagerTab
-        gameState={createGameState(true)}
-        onSelectTeam={onSelectTeam}
-      />,
-    );
+    render(<ManagerTab gameState={createGameState(true)} onSelectTeam={onSelectTeam} />);
 
     fireEvent.contextMenu(screen.getByTestId("manager-current-team"));
     fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));

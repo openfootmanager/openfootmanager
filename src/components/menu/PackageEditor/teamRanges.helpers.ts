@@ -12,12 +12,7 @@ export const REPUTATION_MAX = 1000;
 /** Share of a club's finance that becomes its transfer budget at world build. */
 export const TRANSFER_BUDGET_SHARE = 0.15;
 
-export type ReputationBandKey =
-  | "amateur"
-  | "lowerLeague"
-  | "midTable"
-  | "topFlight"
-  | "elite";
+export type ReputationBandKey = "amateur" | "lowerLeague" | "midTable" | "topFlight" | "elite";
 
 /**
  * Lower bound of each band, highest first. These match the guidance already

@@ -23,9 +23,7 @@ describe("usePackageAssetSrc", () => {
   it("routes a package asset through the asset protocol", async () => {
     // This is the fix: an authored badge used to arrive as a bare relative path
     // into a deleted temp directory, so every club fell back to a crest.
-    const { result } = renderHook(() =>
-      usePackageAssetSrc("brazil-1962/assets/images/santos.png"),
-    );
+    const { result } = renderHook(() => usePackageAssetSrc("brazil-1962/assets/images/santos.png"));
 
     await waitFor(() => {
       expect(result.current).toBe(

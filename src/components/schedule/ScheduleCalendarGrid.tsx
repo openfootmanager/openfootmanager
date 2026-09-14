@@ -77,8 +77,7 @@ export default function ScheduleCalendarGrid({
         const existing = map.get(fixture.date) ?? false;
         const involvesUser =
           userTeamId !== null &&
-          (fixture.home_team_id === userTeamId ||
-            fixture.away_team_id === userTeamId);
+          (fixture.home_team_id === userTeamId || fixture.away_team_id === userTeamId);
         map.set(fixture.date, existing || involvesUser);
       }
     }
@@ -178,6 +177,7 @@ export default function ScheduleCalendarGrid({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-navy-600">
         <button
+          type="button"
           onClick={prevMonth}
           aria-label={t("schedule.calendar.prevMonth", "Previous month")}
           className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
@@ -188,6 +188,7 @@ export default function ScheduleCalendarGrid({
           {monthLabel}
         </span>
         <button
+          type="button"
           onClick={nextMonth}
           aria-label={t("schedule.calendar.nextMonth", "Next month")}
           className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
@@ -214,6 +215,7 @@ export default function ScheduleCalendarGrid({
           const clickable = day.hasFixture;
           return (
             <button
+              type="button"
               key={day.date}
               disabled={!clickable}
               onClick={() => clickable && onSelectDate(day.date)}
@@ -222,9 +224,7 @@ export default function ScheduleCalendarGrid({
                 day.isCurrentMonth
                   ? "text-gray-800 dark:text-gray-100"
                   : "text-gray-300 dark:text-navy-600",
-                day.isToday
-                  ? "bg-primary-50 dark:bg-primary-500/10"
-                  : "",
+                day.isToday ? "bg-primary-50 dark:bg-primary-500/10" : "",
                 clickable
                   ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-navy-700/50"
                   : "cursor-default",
@@ -252,9 +252,7 @@ export default function ScheduleCalendarGrid({
               {day.hasFixture && (
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    day.hasUserMatch
-                      ? "bg-primary-500"
-                      : "bg-gray-300 dark:bg-navy-500"
+                    day.hasUserMatch ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-500"
                   }`}
                   aria-hidden="true"
                 />

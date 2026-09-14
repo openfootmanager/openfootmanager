@@ -33,8 +33,7 @@ function pickBestCandidate(
     })
     .sort((leftPlayer, rightPlayer) => {
       return (
-        getSetPieceStats(role, rightPlayer).score -
-          getSetPieceStats(role, leftPlayer).score ||
+        getSetPieceStats(role, rightPlayer).score - getSetPieceStats(role, leftPlayer).score ||
         leftPlayer.full_name.localeCompare(rightPlayer.full_name)
       );
     });
@@ -68,11 +67,7 @@ export function resolveEffectiveMatchRoles(
   const viceCaptain = resolveAssignedRole(
     storedRoles.vice_captain,
     availableIds,
-    pickBestCandidate(
-      startingPlayers,
-      "vicecaptain",
-      captain ? [captain] : [],
-    ),
+    pickBestCandidate(startingPlayers, "vicecaptain", captain ? [captain] : []),
   );
 
   return {
@@ -110,22 +105,14 @@ export function buildUpdatedMatchRolesForAssignment(
   if (role === "captain" && nextRoles.vice_captain === playerId) {
     nextRoles = {
       ...nextRoles,
-      vice_captain: pickBestCandidate(
-        startingPlayers,
-        "vicecaptain",
-        playerId ? [playerId] : [],
-      ),
+      vice_captain: pickBestCandidate(startingPlayers, "vicecaptain", playerId ? [playerId] : []),
     };
   }
 
   if (role === "vice_captain" && nextRoles.captain === playerId) {
     nextRoles = {
       ...nextRoles,
-      captain: pickBestCandidate(
-        startingPlayers,
-        "captain",
-        playerId ? [playerId] : [],
-      ),
+      captain: pickBestCandidate(startingPlayers, "captain", playerId ? [playerId] : []),
     };
   }
 

@@ -8,8 +8,13 @@ import { Checkbox } from "../../ui/Checkbox";
 import { STAFF_ROLES, COACHING_SPECIALIZATIONS, toSlug } from "./helpers";
 import type { StaffDef, TeamDef } from "./types";
 
-const STAFF_ATTR_KEYS = ["coaching", "judgingAbility", "judgingPotential", "physiotherapy"] as const;
-type StaffAttrKey = typeof STAFF_ATTR_KEYS[number];
+const STAFF_ATTR_KEYS = [
+  "coaching",
+  "judgingAbility",
+  "judgingPotential",
+  "physiotherapy",
+] as const;
+type StaffAttrKey = (typeof STAFF_ATTR_KEYS)[number];
 
 interface StaffFormProps {
   editing: StaffDef;
@@ -38,8 +43,8 @@ export function StaffForm({
   useEffect(() => {
     setUseAttributes(editing.attributes !== null);
     setIdAutoMode(editingIndex === null && !editing.id);
-  // Reset only when the selected record changes, not as auto-ID populates editing.id
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Reset only when the selected record changes, not as auto-ID populates editing.id
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingIndex]);
 
   function handleNameChange(field: "firstName" | "lastName", value: string) {
@@ -54,7 +59,12 @@ export function StaffForm({
   function handleToggleAttributes(checked: boolean) {
     setUseAttributes(checked);
     if (checked && !editing.attributes) {
-      updateField("attributes", { coaching: 50, judgingAbility: 50, judgingPotential: 50, physiotherapy: 50 });
+      updateField("attributes", {
+        coaching: 50,
+        judgingAbility: 50,
+        judgingPotential: 50,
+        physiotherapy: 50,
+      });
     } else if (!checked) {
       updateField("attributes", null);
     }
@@ -62,12 +72,22 @@ export function StaffForm({
 
   function handleAttrChange(key: StaffAttrKey, raw: string) {
     const v = Math.max(1, Math.min(99, parseInt(raw, 10) || 1));
-    updateField("attributes", { ...(editing.attributes ?? { coaching: 50, judgingAbility: 50, judgingPotential: 50, physiotherapy: 50 }), [key]: v });
+    updateField("attributes", {
+      ...(editing.attributes ?? {
+        coaching: 50,
+        judgingAbility: 50,
+        judgingPotential: 50,
+        physiotherapy: 50,
+      }),
+      [key]: v,
+    });
   }
 
   const teamOptions = teams?.map((t) => t.id) ?? [];
   const teamLabels: Record<string, string> = {};
-  teams?.forEach((t) => { teamLabels[t.id] = t.name; });
+  teams?.forEach((t) => {
+    teamLabels[t.id] = t.name;
+  });
 
   const roleLabels: Record<string, string> = {};
   STAFF_ROLES.forEach((r) => {
@@ -94,7 +114,10 @@ export function StaffForm({
           <input
             className="flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
             value={editing.id}
-            onChange={(e) => { setIdAutoMode(false); updateField("id", e.target.value); }}
+            onChange={(e) => {
+              setIdAutoMode(false);
+              updateField("id", e.target.value);
+            }}
             placeholder="e.g. alex-ferguson"
           />
         </div>
@@ -165,7 +188,9 @@ export function StaffForm({
 
       {/* Date of Birth */}
       <div className="flex flex-col gap-1">
-        <label id={dobLabelId} className={labelClass}>{t("worldEditor.staffDateOfBirth")}</label>
+        <label id={dobLabelId} className={labelClass}>
+          {t("worldEditor.staffDateOfBirth")}
+        </label>
         <DatePicker
           labelledBy={dobLabelId}
           value={editing.dateOfBirth ?? ""}
@@ -182,28 +207,30 @@ export function StaffForm({
           />
           <span className={labelClass}>{t("worldEditor.staffUseAttributes")}</span>
         </div>
-        {useAttributes && editing.attributes != null && (() => {
-          const attrs = editing.attributes!;
-          return (
-            <div className="grid grid-cols-2 gap-3">
-              {STAFF_ATTR_KEYS.map((key) => (
-                <div key={key} className="flex flex-col gap-1">
-                  <label className={labelClass}>
-                    {t(`worldEditor.staffAttr.${key}`, { defaultValue: key })}
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
-                    value={attrs[key]}
-                    onChange={(e) => handleAttrChange(key, e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+        {useAttributes &&
+          editing.attributes != null &&
+          (() => {
+            const attrs = editing.attributes!;
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                {STAFF_ATTR_KEYS.map((key) => (
+                  <div key={key} className="flex flex-col gap-1">
+                    <label className={labelClass}>
+                      {t(`worldEditor.staffAttr.${key}`, { defaultValue: key })}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
+                      value={attrs[key]}
+                      onChange={(e) => handleAttrChange(key, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
       </div>
     </EntityFormShell>
   );

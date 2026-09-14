@@ -13,7 +13,15 @@ interface ConfederationsTabProps {
   onSelect?: (index: number) => void;
 }
 
-export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: ConfederationsTabProps) {
+export function ConfederationsTab({
+  confederations,
+  onAdd,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  selectedIndex,
+  onSelect,
+}: ConfederationsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell

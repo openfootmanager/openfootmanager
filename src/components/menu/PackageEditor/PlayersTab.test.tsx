@@ -30,7 +30,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function players(count: number, overrides: (i: number) => Partial<PlayerDef> = () => ({})): PlayerDef[] {
+function players(
+  count: number,
+  overrides: (i: number) => Partial<PlayerDef> = () => ({}),
+): PlayerDef[] {
   return Array.from({ length: count }, (_, i) => ({
     ...emptyPlayer(),
     id: `p${i}`,
@@ -192,8 +195,10 @@ describe("PlayersTab", () => {
     expect(editButtons()).toHaveLength(60);
     // aria-disabled rather than disabled, so it keeps focus and its place in
     // the tab order instead of handing focus back to the document.
-    expect(screen.getByRole("button", { name: "common.loadMore" }))
-      .toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "common.loadMore" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("does nothing when the exhausted load-more button is pressed again", () => {

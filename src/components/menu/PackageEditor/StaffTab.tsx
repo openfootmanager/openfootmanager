@@ -32,7 +32,16 @@ interface StaffTabProps {
   onSelect?: (index: number) => void;
 }
 
-export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: StaffTabProps) {
+export function StaffTab({
+  staff,
+  teams,
+  onAdd,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  selectedIndex,
+  onSelect,
+}: StaffTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -54,7 +63,7 @@ export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, s
         s.role.toLowerCase().includes(q) ||
         s.nationality.toLowerCase().includes(q) ||
         s.club.toLowerCase().includes(q) ||
-        (clubName !== undefined && clubName.toLowerCase().includes(q))
+        clubName?.toLowerCase().includes(q)
       );
     });
   }, [rows, query, teamNames]);
@@ -112,12 +121,13 @@ export function StaffTab({ staff, teams, onAdd, onEdit, onDelete, onDuplicate, s
           <EntityRow
             key={entityRowKey(s.id, i)}
             title={name}
-            subtitle={[
-              t(`worldEditor.staffRole.${s.role}`, { defaultValue: s.role }),
-              clubName,
-            ].filter(Boolean).join(" · ")}
+            subtitle={[t(`worldEditor.staffRole.${s.role}`, { defaultValue: s.role }), clubName]
+              .filter(Boolean)
+              .join(" · ")}
             badge={
-              <div className={`flex items-center justify-center w-9 h-9 rounded-full text-white text-[10px] font-bold flex-shrink-0 ${roleColor}`}>
+              <div
+                className={`flex items-center justify-center w-9 h-9 rounded-full text-white text-[10px] font-bold flex-shrink-0 ${roleColor}`}
+              >
                 {roleAbbr}
               </div>
             }

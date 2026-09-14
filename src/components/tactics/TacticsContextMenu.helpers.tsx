@@ -20,10 +20,7 @@ import type { SquadSection } from "../squad/SquadTab.helpers";
 
 interface TacticsContextMenuCallbacks {
   onAssignBestFit?: (playerId: string) => void;
-  onAssignMatchRole?: (
-    role: keyof TeamMatchRolesData,
-    playerId: string,
-  ) => void;
+  onAssignMatchRole?: (role: keyof TeamMatchRolesData, playerId: string) => void;
   onClearSelection?: () => void;
   onDemoteStarter?: (playerId: string) => void;
   onOpenProfile: (playerId: string) => void;
@@ -31,8 +28,7 @@ interface TacticsContextMenuCallbacks {
   onTacticalSelect?: (playerId: string, section: SquadSection) => void;
 }
 
-interface BuildTacticsPlayerContextMenuItemsOptions
-  extends TacticsContextMenuCallbacks {
+interface BuildTacticsPlayerContextMenuItemsOptions extends TacticsContextMenuCallbacks {
   isSelected: boolean;
   matchRoles?: TeamMatchRolesData;
   player: PlayerData;
@@ -68,9 +64,7 @@ export function buildTacticsPlayerContextMenuItems({
     });
   } else if (onTacticalSelect && !isUnavailableBenchPlayer) {
     items.push({
-      label: selectedPlayerId
-        ? t("tactics.compareWithSelected")
-        : t("tactics.selectForSwap"),
+      label: selectedPlayerId ? t("tactics.compareWithSelected") : t("tactics.selectForSwap"),
       icon: <Shuffle className="h-4 w-4" />,
       onClick: () => onTacticalSelect(player.id, section),
     });

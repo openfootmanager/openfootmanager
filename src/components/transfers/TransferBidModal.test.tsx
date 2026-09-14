@@ -1,14 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  PlayerData,
-  TeamData,
-  TransferOfferData,
-} from "../../store/gameStore";
-import type {
-  TransferBidProjectionData,
-} from "../../services/transfersService";
+import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import type { TransferBidProjectionData } from "../../services/transfersService";
 import { formatExactMoney } from "../../lib/helpers";
 import TransferBidModal from "./TransferBidModal";
 
@@ -207,6 +201,36 @@ function createProjection(
 }
 
 describe("TransferBidModal", () => {
+  // Regression: `bidResult` is a *decision* the UI switches on, and the reason a bid failed used
+  // to be stuffed into the same variable — which only type-checked because the hook's catch was
+  // `any`. Typing the catch properly made the screen show the literal word "error" instead of
+  // what went wrong. This asserts the message reaches the user, so the two cannot be merged back.
+  it("shows why a bid failed, not the word error", () => {
+    render(
+      <TransferBidModal
+        bidTarget={createPlayer()}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="1.5"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1500000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        bidResult={"error"}
+        bidError="Your club cannot afford this fee."
+        bidLoading={false}
+        bidSubmitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Your club cannot afford this fee.")).toBeInTheDocument();
+    expect(screen.queryByText("error")).not.toBeInTheDocument();
+  });
+
   it("renders the active negotiation state for an existing offer", () => {
     render(
       <TransferBidModal
@@ -237,9 +261,7 @@ describe("TransferBidModal", () => {
     );
 
     expect(screen.getByText("John Smith")).toBeInTheDocument();
-    expect(
-      screen.getByRole("dialog", { name: "Make Transfer Bid" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Make Transfer Bid" })).toBeInTheDocument();
     expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Bid countered")).toBeInTheDocument();
@@ -249,16 +271,10 @@ describe("TransferBidModal", () => {
     // the same formatter the component uses, so the assertion stays locale-robust
     // while still catching abbreviation / interpolation / wrong-value regressions.
     expect(
-      screen.getByText(
-        `Weekly wage bill ${formatExactMoney(1000)} -> ${formatExactMoney(2000)}`,
-      ),
+      screen.getByText(`Weekly wage bill ${formatExactMoney(1000)} -> ${formatExactMoney(2000)}`),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(`Incoming wage ${formatExactMoney(1000)}`),
-    ).toBeInTheDocument();
+    expect(screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Incoming wage ${formatExactMoney(1000)}`)).toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions through props", () => {
@@ -331,9 +347,7 @@ describe("TransferBidModal", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Already agreed — awaiting registration"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Already agreed — awaiting registration")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit Bid" })).toBeDisabled();
   });
 
@@ -374,9 +388,7 @@ describe("TransferBidModal", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Already agreed — awaiting registration"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Already agreed — awaiting registration")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit Bid" })).toBeDisabled();
   });
 });

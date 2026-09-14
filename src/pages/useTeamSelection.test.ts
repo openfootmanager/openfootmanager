@@ -148,17 +148,14 @@ describe("useTeamSelection scope toggles", () => {
 
   it("auto-enables missing regions when enabling a competition", () => {
     const { result } = renderController();
-    const asiaCup = () =>
-      result.current.availableCompetitions.find((c) => c.id === "asia_cup")!;
+    const asiaCup = () => result.current.availableCompetitions.find((c) => c.id === "asia_cup")!;
 
     act(() => result.current.handleCompetitionToggle(asiaCup())); // turn asia_cup off
     act(() => result.current.handleCompetitionToggle(asiaCup())); // turn back on -> needs asia
 
     expect(result.current.regionSelection.asia).toBe(true);
     expect(result.current.competitionSelection.asia_cup).toBe(true);
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.autoEnabledRegions",
-    );
+    expect(result.current.scopeMessage?.key).toBe("teamSelect.scopeMessages.autoEnabledRegions");
   });
 
   it("locks mandatory competitions against being disabled", () => {
@@ -167,17 +164,13 @@ describe("useTeamSelection scope toggles", () => {
 
     act(() => result.current.handleCompetitionToggle(epl));
 
-    expect(result.current.scopeMessage?.key).toBe(
-      "teamSelect.scopeMessages.clubCompetitionLocked",
-    );
+    expect(result.current.scopeMessage?.key).toBe("teamSelect.scopeMessages.clubCompetitionLocked");
     expect(result.current.competitionSelection.epl).toBe(true);
   });
 
   it("disables an enabled non-locked competition and clears the message", () => {
     const { result } = renderController();
-    const asiaCup = result.current.availableCompetitions.find(
-      (c) => c.id === "asia_cup",
-    )!;
+    const asiaCup = result.current.availableCompetitions.find((c) => c.id === "asia_cup")!;
 
     act(() => result.current.handleCompetitionToggle(asiaCup));
 

@@ -57,12 +57,7 @@ export function GeneratedCrest({ name, label, colors, className }: GeneratedCres
   const variant = seed % 4;
 
   return (
-    <svg
-      viewBox="0 0 64 64"
-      className={className}
-      role="presentation"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 64 64" className={className} role="presentation" aria-hidden="true">
       <clipPath id={clipId}>
         <rect x="2" y="2" width="60" height="60" rx="14" />
       </clipPath>
@@ -71,9 +66,7 @@ export function GeneratedCrest({ name, label, colors, className }: GeneratedCres
         {variant === 0 && <rect x="32" y="0" width="32" height="64" fill={secondary} />}
         {variant === 1 && <rect x="0" y="40" width="64" height="24" fill={secondary} />}
         {variant === 2 && <polygon points="0,0 30,0 0,64" fill={secondary} />}
-        {variant === 3 && (
-          <polygon points="32,2 62,32 32,62 2,32" fill={secondary} opacity="0.9" />
-        )}
+        {variant === 3 && <polygon points="32,2 62,32 32,62 2,32" fill={secondary} opacity="0.9" />}
       </g>
       <rect
         x="2"

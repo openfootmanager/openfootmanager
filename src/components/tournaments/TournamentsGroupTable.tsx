@@ -18,10 +18,7 @@ interface TournamentsGroupTableProps {
  * context menu, and rows that only open when the team is a club — a World Cup
  * group is national teams, which have no page to go to.
  */
-export default function TournamentsGroupTable({
-  group,
-  teams,
-}: TournamentsGroupTableProps) {
+export default function TournamentsGroupTable({ group, teams }: TournamentsGroupTableProps) {
   const { t } = useTranslation();
   const { userTeamId, isClubTeam, resolveTeamName, onSelectTeam } = teams;
   const groupStandings = [...group.standings].sort(byTablePosition);

@@ -28,8 +28,7 @@ describe("trainingAdvice", () => {
       }),
     ).toEqual({
       level: "critical",
-      message:
-        "critical:3:training.staffAdvice.scheduleAdvice.criticalIntense",
+      message: "critical:3:training.staffAdvice.scheduleAdvice.criticalIntense",
     });
   });
 
@@ -44,8 +43,7 @@ describe("trainingAdvice", () => {
       }),
     ).toEqual({
       level: "warn",
-      message:
-        "warn:47:4:training.staffAdvice.scheduleAdvice.warnBalanced",
+      message: "warn:47:4:training.staffAdvice.scheduleAdvice.warnBalanced",
     });
   });
 

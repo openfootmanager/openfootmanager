@@ -40,13 +40,7 @@ function teams(count: number, overrides: (i: number) => Partial<TeamDef> = () =>
 function renderTab(props: Partial<React.ComponentProps<typeof TeamsTab>> = {}) {
   const onEdit = vi.fn();
   render(
-    <TeamsTab
-      teams={teams(500)}
-      onAdd={() => {}}
-      onEdit={onEdit}
-      onDelete={() => {}}
-      {...props}
-    />,
+    <TeamsTab teams={teams(500)} onAdd={() => {}} onEdit={onEdit} onDelete={() => {}} {...props} />,
   );
   return { onEdit };
 }

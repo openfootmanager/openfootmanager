@@ -58,7 +58,9 @@ export default function InboxTab({
         if (!cancelled && Array.isArray(msgs)) setFetchedMessages(msgs);
       })
       .catch(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [clockDate]);
 
   const messages = fetchedMessages ?? gameState?.messages ?? EMPTY_MESSAGES;
@@ -70,8 +72,7 @@ export default function InboxTab({
   const [sortOrder, setSortOrder] = useState<MessageSortOrder>("newest");
   const [bulkSelectionEnabled, setBulkSelectionEnabled] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
-  const [deleteModalState, setDeleteModalState] =
-    useState<DeleteModalState>(null);
+  const [deleteModalState, setDeleteModalState] = useState<DeleteModalState>(null);
   const [effectFeedback, setEffectFeedback] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const inboxSeqRef = useRef(0);
@@ -87,17 +88,10 @@ export default function InboxTab({
     return counts;
   }, [allMessages]);
 
-  const categories = useMemo(
-    () => Array.from(categoryCounts.keys()),
-    [categoryCounts],
-  );
+  const categories = useMemo(() => Array.from(categoryCounts.keys()), [categoryCounts]);
 
   const filteredMessages = useMemo(
-    () =>
-      sortInboxMessages(
-        getFilteredMessages(allMessages, categoryFilter),
-        sortOrder,
-      ),
+    () => sortInboxMessages(getFilteredMessages(allMessages, categoryFilter), sortOrder),
     [allMessages, categoryFilter, sortOrder],
   );
 
@@ -107,15 +101,12 @@ export default function InboxTab({
   );
 
   const selectedMessage = useMemo(
-    () =>
-      allMessages.find((message) => message.id === selectedMessageId) ?? null,
+    () => allMessages.find((message) => message.id === selectedMessageId) ?? null,
     [allMessages, selectedMessageId],
   );
 
   useEffect(() => {
-    const availableMessageIds = new Set(
-      allMessages.map((message) => message.id),
-    );
+    const availableMessageIds = new Set(allMessages.map((message) => message.id));
 
     setSelectedMessageIds((currentIds) =>
       currentIds.filter((messageId) => availableMessageIds.has(messageId)),
@@ -134,9 +125,7 @@ export default function InboxTab({
 
   async function handleSelectMessage(messageId: string): Promise<void> {
     setSelectedMessageId(messageId);
-    const message = allMessages.find(
-      (currentMessage) => currentMessage.id === messageId,
-    );
+    const message = allMessages.find((currentMessage) => currentMessage.id === messageId);
 
     if (message && !message.read) {
       const seq = ++inboxSeqRef.current;
@@ -145,7 +134,7 @@ export default function InboxTab({
         if (seq !== inboxSeqRef.current) return;
         setFetchedMessages(updated);
         useGameStore.getState().setMessages(updated);
-      } catch { }
+      } catch {}
     }
   }
 
@@ -154,17 +143,11 @@ export default function InboxTab({
     actionId: string,
     optionId?: string,
   ): Promise<void> {
-    const message = allMessages.find(
-      (currentMessage) => currentMessage.id === messageId,
-    );
-    const action = message?.actions.find(
-      (currentAction) => currentAction.id === actionId,
-    );
+    const message = allMessages.find((currentMessage) => currentMessage.id === messageId);
+    const action = message?.actions.find((currentAction) => currentAction.id === actionId);
 
     if (action && isNavigateAction(action.action_type)) {
-      const navigationTarget = getNavigationTarget(
-        action.action_type.NavigateTo.route,
-      );
+      const navigationTarget = getNavigationTarget(action.action_type.NavigateTo.route);
       onNavigate?.(navigationTarget.tab, navigationTarget.context);
 
       if (!navigationTarget.shouldResolveAction) {
@@ -181,11 +164,8 @@ export default function InboxTab({
       if (result.effect || result.effect_i18n_key) {
         const effectParams = result.effect_i18n_params
           ? Object.fromEntries(
-            Object.entries(result.effect_i18n_params).map(([key, value]) => [
-              key,
-              String(value),
-            ]),
-          )
+              Object.entries(result.effect_i18n_params).map(([key, value]) => [key, String(value)]),
+            )
           : undefined;
         const resolvedEffect = resolveBackendText(
           result.effect_i18n_key ?? undefined,
@@ -194,7 +174,7 @@ export default function InboxTab({
         );
         setEffectFeedback(resolvedEffect);
       }
-    } catch { }
+    } catch {}
   }
 
   async function handleMarkAllRead(): Promise<void> {
@@ -204,7 +184,7 @@ export default function InboxTab({
       if (seq !== inboxSeqRef.current) return;
       setFetchedMessages(updated);
       useGameStore.getState().setMessages(updated);
-    } catch { }
+    } catch {}
   }
 
   async function handleClearOld(): Promise<void> {
@@ -215,7 +195,7 @@ export default function InboxTab({
       setFetchedMessages(updated);
       useGameStore.getState().setMessages(updated);
       setSelectedMessageId(null);
-    } catch { }
+    } catch {}
   }
 
   async function handleConfirmDelete(): Promise<void> {

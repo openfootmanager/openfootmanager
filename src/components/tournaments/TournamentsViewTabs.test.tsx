@@ -13,16 +13,9 @@ vi.mock("react-i18next", async () => {
   };
 });
 
-function renderTabs(
-  props: Partial<React.ComponentProps<typeof TournamentsViewTabs>> = {},
-) {
+function renderTabs(props: Partial<React.ComponentProps<typeof TournamentsViewTabs>> = {}) {
   return render(
-    <TournamentsViewTabs
-      view="overview"
-      onSelectView={vi.fn()}
-      isKnockout={false}
-      {...props}
-    />,
+    <TournamentsViewTabs view="overview" onSelectView={vi.fn()} isKnockout={false} {...props} />,
   );
 }
 
@@ -32,9 +25,7 @@ describe("TournamentsViewTabs", () => {
   it("keeps the tabs in order", () => {
     renderTabs();
 
-    expect(
-      screen.getAllByRole("button").map((button) => button.textContent),
-    ).toEqual([
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
       "tournaments.overview",
       "schedule.standings",
       "schedule.fixtures",
@@ -45,9 +36,7 @@ describe("TournamentsViewTabs", () => {
   it("calls the standings tab a bracket in a knockout competition", () => {
     renderTabs({ isKnockout: true });
 
-    expect(
-      screen.getAllByRole("button").map((button) => button.textContent),
-    ).toEqual([
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
       "tournaments.overview",
       "tournaments.bracket",
       "schedule.fixtures",
@@ -63,9 +52,10 @@ describe("TournamentsViewTabs", () => {
     expect(
       screen.getByRole("button", { name: "schedule.fixtures", pressed: true }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "tournaments.overview" }),
-    ).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "tournaments.overview" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("switches view when a tab is picked", () => {

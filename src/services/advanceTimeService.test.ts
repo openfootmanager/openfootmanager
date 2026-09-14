@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import {
-  advanceTimeWithMode,
-  checkBlockingActions,
-  skipToMatchDay,
-} from "./advanceTimeService";
+import { advanceTimeWithMode, checkBlockingActions, skipToMatchDay } from "./advanceTimeService";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -45,9 +41,7 @@ describe("advanceTimeService", () => {
   });
 
   it("falls back to an empty blocker list when the blocker command fails", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => { });
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     mockedInvoke.mockRejectedValueOnce(new Error("boom"));
 
     try {

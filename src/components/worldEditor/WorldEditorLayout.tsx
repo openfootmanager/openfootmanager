@@ -30,9 +30,7 @@ export function WorldEditorLayout({
         )}
 
         {/* Col 3: form panel (spans full width when list is hidden) */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-6">
-          {formPanel}
-        </div>
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-6">{formPanel}</div>
       </div>
     </div>
   );

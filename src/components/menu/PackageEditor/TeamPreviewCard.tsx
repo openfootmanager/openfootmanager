@@ -8,7 +8,7 @@ const REP_TIERS = [
   { min: 720, label: "Top", color: "text-primary-500" },
   { min: 550, label: "Mid", color: "text-success-500" },
   { min: 300, label: "Lower", color: "text-gray-500" },
-  { min: 0,   label: "Amateur", color: "text-gray-400" },
+  { min: 0, label: "Amateur", color: "text-gray-400" },
 ];
 
 function repTier(rep: number) {
@@ -44,11 +44,7 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
         style={{ background: `linear-gradient(135deg, ${primaryColor} 40%, ${secondaryColor})` }}
       >
         {logoDataUrl ? (
-          <img
-            src={logoDataUrl}
-            alt=""
-            className="w-14 h-14 object-contain drop-shadow-md"
-          />
+          <img src={logoDataUrl} alt="" className="w-14 h-14 object-contain drop-shadow-md" />
         ) : (
           <GeneratedCrest
             name={team.name || "?"}
@@ -65,7 +61,7 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
           <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
             {team.name || <span className="text-gray-400 italic">New Team</span>}
           </p>
-          
+
           <div className="flex items-center justify-between text-[11px]">
             {team.shortName && (
               <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5">
@@ -131,9 +127,7 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
               <span className="text-gray-400 uppercase tracking-wide">
                 {t("worldEditor.teamRepMin").replace(" Reputation", "").replace(" Rep", "")} Rep
               </span>
-              {tier && (
-                <span className={`font-bold uppercase ${tier.color}`}>{tier.label}</span>
-              )}
+              {tier && <span className={`font-bold uppercase ${tier.color}`}>{tier.label}</span>}
             </div>
             <div className="flex items-center gap-1 text-[11px] text-gray-500">
               <span>{team.reputationRange[0]}</span>

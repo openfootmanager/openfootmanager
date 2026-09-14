@@ -48,7 +48,7 @@ vi.mock("../components/match/PreMatchSetup", () => ({
   }) => (
     <div data-testid="prematch">
       {snapshot.home_team.name}
-      <button data-testid="prematch-start" onClick={onStart}>
+      <button type="button" data-testid="prematch-start" onClick={onStart}>
         Start
       </button>
     </div>
@@ -71,9 +71,19 @@ vi.mock("../components/match/MatchLive", () => ({
   }) => (
     <div data-testid="match-live-container" data-preferred-speed={preferredSpeed ?? "normal"}>
       {snapshot.home_team.name}
-      <button data-testid="match-live" onClick={onFullTime}>Full Time</button>
-      <button data-testid="match-trigger-halftime" onClick={onHalfTime}>Half Time</button>
-      <button data-testid="match-trigger-speed-fast" onClick={() => onPreferredSpeedChange?.("fast")}>Fast</button>
+      <button type="button" data-testid="match-live" onClick={onFullTime}>
+        Full Time
+      </button>
+      <button type="button" data-testid="match-trigger-halftime" onClick={onHalfTime}>
+        Half Time
+      </button>
+      <button
+        type="button"
+        data-testid="match-trigger-speed-fast"
+        onClick={() => onPreferredSpeedChange?.("fast")}
+      >
+        Fast
+      </button>
     </div>
   ),
 }));
@@ -81,24 +91,20 @@ vi.mock("../components/match/MatchLive", () => ({
 vi.mock("../components/match/HalfTimeBreak", () => ({
   default: ({ onResume }: { onResume?: () => void }) => (
     <div data-testid="halftime">
-      <button data-testid="halftime-resume" onClick={onResume}>Resume</button>
+      <button type="button" data-testid="halftime-resume" onClick={onResume}>
+        Resume
+      </button>
     </div>
   ),
 }));
 
 vi.mock("../components/match/PostMatchScreen", () => ({
-  default: ({
-    onContinue,
-    onFinish,
-  }: {
-    onContinue?: () => void;
-    onFinish?: () => void;
-  }) => (
+  default: ({ onContinue, onFinish }: { onContinue?: () => void; onFinish?: () => void }) => (
     <div>
-      <button data-testid="postmatch-continue" onClick={onContinue}>
+      <button type="button" data-testid="postmatch-continue" onClick={onContinue}>
         Continue
       </button>
-      <button data-testid="postmatch-finish" onClick={onFinish}>
+      <button type="button" data-testid="postmatch-finish" onClick={onFinish}>
         Finish Match
       </button>
     </div>
@@ -121,13 +127,11 @@ vi.mock("../components/match/RoundDigestScreen", () => ({
       <div data-testid="digest-round-summary">
         {roundSummary ? JSON.stringify(roundSummary) : "null"}
       </div>
-      <div data-testid="digest-is-league">
-        {isLeagueFixture ? "true" : "false"}
-      </div>
-      <button data-testid="digest-press" onClick={onPressConference}>
+      <div data-testid="digest-is-league">{isLeagueFixture ? "true" : "false"}</div>
+      <button type="button" data-testid="digest-press" onClick={onPressConference}>
         Press Conference
       </button>
-      <button data-testid="digest-finish" onClick={onFinish}>
+      <button type="button" data-testid="digest-finish" onClick={onFinish}>
         Skip
       </button>
     </div>
@@ -172,9 +176,7 @@ function makeEnginePlayer(
   };
 }
 
-function makeSnapshot(
-  overrides: Partial<Record<string, unknown>> = {},
-): Record<string, unknown> {
+function makeSnapshot(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
   return {
     phase: "PreKickOff",
     current_minute: 0,
@@ -341,7 +343,7 @@ function makeGameStateWithFriendly() {
   };
 }
 
-describe("MatchSimulation", function (): void {
+describe("MatchSimulation", (): void => {
   beforeEach(function resetState(): void {
     mockedInvoke.mockReset();
     navigateMock.mockReset();
@@ -353,24 +355,22 @@ describe("MatchSimulation", function (): void {
     };
   });
 
-  it("renders the current live snapshot when get_match_snapshot succeeds", async function (): Promise<void> {
+  it("renders the current live snapshot when get_match_snapshot succeeds", async (): Promise<void> => {
     mockedInvoke.mockResolvedValueOnce(makeSnapshot());
 
     render(<MatchSimulation />);
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("get_match_snapshot");
     });
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("prematch")).toHaveTextContent("Home FC");
     });
   });
 
-  it("restores the live match session when no snapshot exists but fixture index is provided", async function (): Promise<void> {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => { });
+  it("restores the live match session when no snapshot exists but fixture index is provided", async (): Promise<void> => {
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       locationState = {
         fixtureIndex: 4,
@@ -394,16 +394,14 @@ describe("MatchSimulation", function (): void {
             name: "Restored FC",
             formation: "4-4-2",
             play_style: "Balanced",
-            players: [
-              makeEnginePlayer({ id: "restore-p1", name: "Restore Keeper" }),
-            ],
+            players: [makeEnginePlayer({ id: "restore-p1", name: "Restore Keeper" })],
           },
         }),
       );
 
       render(<MatchSimulation />);
 
-      await waitFor(function (): void {
+      await waitFor((): void => {
         expect(mockedInvoke).toHaveBeenCalledWith("start_live_match", {
           allowsExtraTime: false,
           fixtureIndex: 4,
@@ -419,7 +417,7 @@ describe("MatchSimulation", function (): void {
     }
   });
 
-  it("moves spectators straight into the live match stage", async function (): Promise<void> {
+  it("moves spectators straight into the live match stage", async (): Promise<void> => {
     locationState = {
       mode: "spectator",
       snapshot: makeSnapshot(),
@@ -429,12 +427,12 @@ describe("MatchSimulation", function (): void {
 
     render(<MatchSimulation />);
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
   });
 
-  it("navigates away from postmatch after the finalized game has been stored", async function (): Promise<void> {
+  it("navigates away from postmatch after the finalized game has been stored", async (): Promise<void> => {
     locationState = {
       mode: "spectator",
       snapshot: makeSnapshot(),
@@ -456,13 +454,13 @@ describe("MatchSimulation", function (): void {
 
     render(<MatchSimulation />);
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
 
     fireEvent.click(screen.getByTestId("match-live"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
@@ -471,12 +469,12 @@ describe("MatchSimulation", function (): void {
 
     fireEvent.click(screen.getByTestId("postmatch-finish"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(navigateMock).toHaveBeenCalledWith("/dashboard");
     });
   });
 
-  it("finalizes the match on full time and passes the round summary into the digest screen", async function (): Promise<void> {
+  it("finalizes the match on full time and passes the round summary into the digest screen", async (): Promise<void> => {
     locationState = {
       mode: "live",
       snapshot: makeSnapshot(),
@@ -500,19 +498,19 @@ describe("MatchSimulation", function (): void {
     render(<MatchSimulation />);
 
     // Manager sees prematch; advance to live match
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId("prematch-start"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
 
     fireEvent.click(screen.getByTestId("match-live"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
@@ -522,22 +520,20 @@ describe("MatchSimulation", function (): void {
     // Manager clicks Continue → goes to digest
     fireEvent.click(screen.getByTestId("postmatch-continue"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("digest-round-summary")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("digest-round-summary")).toHaveTextContent(
-      '"matchday":1',
-    );
+    expect(screen.getByTestId("digest-round-summary")).toHaveTextContent('"matchday":1');
 
     fireEvent.click(screen.getByTestId("digest-finish"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(navigateMock).toHaveBeenCalledWith("/dashboard");
     });
   });
 
-  it("routes a manager's friendly through digest with isLeagueFixture=false", async function (): Promise<void> {
+  it("routes a manager's friendly through digest with isLeagueFixture=false", async (): Promise<void> => {
     locationState = {
       mode: "live",
       fixtureIndex: 0,
@@ -549,52 +545,50 @@ describe("MatchSimulation", function (): void {
       setGameState: setGameStateMock,
     };
 
-    mockedInvoke
-      .mockResolvedValueOnce(makeSnapshot())
-      .mockResolvedValueOnce({
-        game: makeGameState(),
-        round_summary: null,
-      });
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot()).mockResolvedValueOnce({
+      game: makeGameState(),
+      round_summary: null,
+    });
 
     render(<MatchSimulation />);
 
     // Manager sees prematch; click Start to advance to first_half
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId("prematch-start"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("match-live")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId("match-live"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("postmatch-continue")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId("postmatch-continue"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("digest-is-league")).toHaveTextContent("false");
     });
   });
 
-  it("preserves user-selected match speed from first half into second half", async function (): Promise<void> {
+  it("preserves user-selected match speed from first half into second half", async (): Promise<void> => {
     const mockedInvoke = vi.mocked(invoke);
     mockedInvoke.mockResolvedValueOnce(makeSnapshot());
 
     render(<MatchSimulation />);
 
     // Advance to the first-half live match view.
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
     });
     fireEvent.click(screen.getByTestId("prematch-start"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("match-live-container")).toBeInTheDocument();
     });
 
@@ -610,7 +604,7 @@ describe("MatchSimulation", function (): void {
     // Trigger half-time transition.
     fireEvent.click(screen.getByTestId("match-trigger-halftime"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("halftime")).toBeInTheDocument();
     });
 
@@ -618,7 +612,7 @@ describe("MatchSimulation", function (): void {
     fireEvent.click(screen.getByTestId("halftime-resume"));
 
     // The remounted MatchLive for second half must carry the user's preferred speed.
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(screen.getByTestId("match-live-container")).toHaveAttribute(
         "data-preferred-speed",
         "fast",

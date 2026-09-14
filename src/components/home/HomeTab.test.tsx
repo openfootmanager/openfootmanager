@@ -21,14 +21,24 @@ vi.mock("../NextMatchDisplay", () => ({
 }));
 
 vi.mock("./HomeSquadOverviewCard", () => ({
-  default: ({ avgCondition, avgOvr, exhaustedCount }: { avgCondition: number; avgOvr: number; exhaustedCount: number }) => (
+  default: ({
+    avgCondition,
+    avgOvr,
+    exhaustedCount,
+  }: {
+    avgCondition: number;
+    avgOvr: number;
+    exhaustedCount: number;
+  }) => (
     <div data-testid="home-squad-overview">{`${avgCondition}|${avgOvr}|${exhaustedCount}`}</div>
   ),
 }));
 
 vi.mock("./HomeUnavailablePlayersCard", () => ({
   default: ({ players }: { players: Array<{ full_name: string }> }) => (
-    <div data-testid="home-unavailable-players">{players.map((player) => player.full_name).join(",")}</div>
+    <div data-testid="home-unavailable-players">
+      {players.map((player) => player.full_name).join(",")}
+    </div>
   ),
 }));
 
@@ -43,8 +53,7 @@ vi.mock("react-i18next", () => ({
     i18n: { language: "en" },
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "home.nextOpponent") return "Next Opponent";
-      if (key === "home.noUpcomingOpponent")
-        return "No upcoming league fixture.";
+      if (key === "home.noUpcomingOpponent") return "No upcoming league fixture.";
       if (key === "home.leagueDigest") return "League Digest";
       if (key === "home.noLeagueDigest") return "No league digest yet.";
       if (key === "dashboard.news") return "News";
@@ -191,9 +200,7 @@ function createNewsArticle(overrides: Partial<NewsArticle> = {}): NewsArticle {
   };
 }
 
-function createGameState(
-  overrides: Partial<GameStateData> = {},
-): GameStateData {
+function createGameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
     clock: {
       current_date: "2025-01-20T00:00:00Z",
@@ -266,15 +273,13 @@ function createGameState(
   };
 }
 
-describe("HomeTab", function (): void {
-  it("resolves latest news articles before rendering the home widget", function (): void {
-    backendI18nMocks.resolveNewsArticle.mockImplementationOnce(
-      (value: unknown) => ({
-        ...(value as NewsArticle),
-        headline: "Resolved headline",
-        source: "Resolved source",
-      }),
-    );
+describe("HomeTab", (): void => {
+  it("resolves latest news articles before rendering the home widget", (): void => {
+    backendI18nMocks.resolveNewsArticle.mockImplementationOnce((value: unknown) => ({
+      ...(value as NewsArticle),
+      headline: "Resolved headline",
+      source: "Resolved source",
+    }));
 
     render(
       <HomeTab
@@ -303,7 +308,7 @@ describe("HomeTab", function (): void {
     expect(screen.getByText(/Resolved source/)).toBeInTheDocument();
   });
 
-  it("renders the next opponent and league digest widgets when data is available", function (): void {
+  it("renders the next opponent and league digest widgets when data is available", (): void => {
     render(
       <HomeTab
         gameState={createGameState({
@@ -326,7 +331,7 @@ describe("HomeTab", function (): void {
     expect(screen.getAllByText("Standings headline").length).toBeGreaterThan(0);
   });
 
-  it("renders widget empty states when opponent and digest data are unavailable", function (): void {
+  it("renders widget empty states when opponent and digest data are unavailable", (): void => {
     render(
       <HomeTab
         gameState={createGameState({
@@ -347,7 +352,7 @@ describe("HomeTab", function (): void {
     expect(screen.getByText("No league digest yet.")).toBeInTheDocument();
   });
 
-  it("keeps youth academy players out of first-team home summaries", function (): void {
+  it("keeps youth academy players out of first-team home summaries", (): void => {
     render(
       <HomeTab
         gameState={createGameState({
@@ -377,21 +382,15 @@ describe("HomeTab", function (): void {
       />,
     );
 
-    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent(
-      "80|1|0",
-    );
-    expect(screen.getByTestId("home-unavailable-players")).toHaveTextContent(
-      "Senior Starter",
-    );
-    expect(screen.getByTestId("home-unavailable-players")).not.toHaveTextContent(
-      "Youth Prospect",
-    );
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("80|1|0");
+    expect(screen.getByTestId("home-unavailable-players")).toHaveTextContent("Senior Starter");
+    expect(screen.getByTestId("home-unavailable-players")).not.toHaveTextContent("Youth Prospect");
   });
 
   // Regression: HomeTab sorted gameState.news and league.standings IN PLACE
   // during render — a mutation of the Zustand store's arrays that silently
   // reordered them for every other consumer.
-  it("does not mutate the store's news or standings arrays when rendering", function (): void {
+  it("does not mutate the store's news or standings arrays when rendering", (): void => {
     const gameState = createGameState({
       news: [
         createNewsArticle({ id: "news-old", date: "2025-01-10" }),
@@ -433,18 +432,11 @@ describe("HomeTab", function (): void {
     const newsOrder = newsBefore.map((article) => article.id);
     const standingsOrder = standingsBefore.map((entry) => entry.team_id);
 
-    render(
-      <HomeTab
-        gameState={gameState}
-        visitedOnboardingTabs={new Set<string>()}
-      />,
-    );
+    render(<HomeTab gameState={gameState} visitedOnboardingTabs={new Set<string>()} />);
 
     expect(gameState.news).toBe(newsBefore);
     expect(gameState.news.map((article) => article.id)).toEqual(newsOrder);
     expect(gameState.league!.standings).toBe(standingsBefore);
-    expect(gameState.league!.standings.map((entry) => entry.team_id)).toEqual(
-      standingsOrder,
-    );
+    expect(gameState.league!.standings.map((entry) => entry.team_id)).toEqual(standingsOrder);
   });
 });

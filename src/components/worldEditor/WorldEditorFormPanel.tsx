@@ -149,9 +149,7 @@ export function WorldEditorFormPanel({
           {t("worldEditor.issuesTitle")}
         </h2>
         {issues.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">
-            {t("worldEditor.noIssues")}
-          </p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">{t("worldEditor.noIssues")}</p>
         ) : (
           <IssueList issues={issues} />
         )}
@@ -169,7 +167,9 @@ export function WorldEditorFormPanel({
           isBusy={isBusy}
           projectDir={projectDir || undefined}
           onBack={onBack}
-          onSave={() => { void teamEditor.handleSave(); }}
+          onSave={() => {
+            void teamEditor.handleSave();
+          }}
           updateField={teamEditor.updateField}
           commitField={teamEditor.commitField}
           onAssetError={onAssetError}
@@ -187,7 +187,9 @@ export function WorldEditorFormPanel({
           editingIndex={confEditor.editingIndex}
           isBusy={isBusy}
           onBack={onBack}
-          onSave={() => { void confEditor.handleSave(); }}
+          onSave={() => {
+            void confEditor.handleSave();
+          }}
           updateField={confEditor.updateField}
         />
       </div>
@@ -204,7 +206,9 @@ export function WorldEditorFormPanel({
           confederations={confederations}
           isBusy={isBusy}
           onBack={onBack}
-          onSave={() => { void countryEditor.handleSave(); }}
+          onSave={() => {
+            void countryEditor.handleSave();
+          }}
           updateField={countryEditor.updateField}
         />
       </div>
@@ -226,7 +230,9 @@ export function WorldEditorFormPanel({
           teams={teams}
           projectDir={projectDir || undefined}
           onBack={onBack}
-          onSave={() => { void editor.handleSave(); }}
+          onSave={() => {
+            void editor.handleSave();
+          }}
           updateField={editor.updateField}
           commitField={editor.commitField}
           onAssetError={onAssetError}
@@ -245,7 +251,9 @@ export function WorldEditorFormPanel({
           isBusy={isBusy}
           teams={teams}
           onBack={onBack}
-          onSave={() => { void staffEditor.handleSave(); }}
+          onSave={() => {
+            void staffEditor.handleSave();
+          }}
           updateField={staffEditor.updateField}
         />
       </div>
@@ -263,7 +271,9 @@ export function WorldEditorFormPanel({
           isBusy={isBusy}
           takenKeys={poolKeys}
           onBack={onBack}
-          onSave={(key, pool) => { onSavePool(key, pool); }}
+          onSave={(key, pool) => {
+            onSavePool(key, pool);
+          }}
         />
       </div>
     );
@@ -281,7 +291,9 @@ export function WorldEditorFormPanel({
           confederations={confederations}
           projectDir={projectDir || undefined}
           onBack={onBack}
-          onSave={() => { void compEditor.handleSave(); }}
+          onSave={() => {
+            void compEditor.handleSave();
+          }}
           updateField={compEditor.updateField}
           commitField={compEditor.commitField}
           onAssetError={onAssetError}
@@ -293,9 +305,7 @@ export function WorldEditorFormPanel({
   return (
     <div className="flex flex-col items-center justify-center h-full text-center gap-3">
       <MousePointerClick className="w-10 h-10 text-gray-300 dark:text-navy-600" />
-      <p className="text-sm text-gray-400 dark:text-gray-500">
-        {t("worldEditor.noItemSelected")}
-      </p>
+      <p className="text-sm text-gray-400 dark:text-gray-500">{t("worldEditor.noItemSelected")}</p>
     </div>
   );
 }

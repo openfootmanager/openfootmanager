@@ -13,8 +13,7 @@ vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
-      if (key === "match.shootout.shootoutScore")
-        return `Penalties: ${params?.h} - ${params?.a}`;
+      if (key === "match.shootout.shootoutScore") return `Penalties: ${params?.h} - ${params?.a}`;
       return key;
     },
     i18n: { language: "en" },
@@ -94,12 +93,7 @@ describe("DashboardSimulatingModal batch resume", () => {
   });
 
   it("returns to the done state with Close once the batch lands", () => {
-    render(
-      <DashboardSimulatingModal
-        digestEntries={[entryWith([match()])]}
-        onDismiss={vi.fn()}
-      />,
-    );
+    render(<DashboardSimulatingModal digestEntries={[entryWith([match()])]} onDismiss={vi.fn()} />);
 
     expect(screen.getByText("dashboard.digestDone")).toBeInTheDocument();
     expect(screen.getByText("common.close")).toBeInTheDocument();

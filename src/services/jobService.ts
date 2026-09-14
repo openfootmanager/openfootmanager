@@ -24,8 +24,6 @@ export async function getAvailableJobs(): Promise<JobOpportunity[]> {
   return invoke<JobOpportunity[]>("get_available_jobs");
 }
 
-export async function applyForJob(
-  teamId: string,
-): Promise<JobApplicationResponse> {
+export async function applyForJob(teamId: string): Promise<JobApplicationResponse> {
   return invoke<JobApplicationResponse>("apply_for_job", { teamId });
 }

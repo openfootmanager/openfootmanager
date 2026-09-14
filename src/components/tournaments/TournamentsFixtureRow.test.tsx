@@ -15,9 +15,7 @@ vi.mock("react-i18next", async () => {
   };
 });
 
-function teamLookup(
-  overrides: Partial<TournamentsTeamLookup> = {},
-): TournamentsTeamLookup {
+function teamLookup(overrides: Partial<TournamentsTeamLookup> = {}): TournamentsTeamLookup {
   return {
     userTeamId: "home",
     isClubTeam: () => true,
@@ -37,16 +35,9 @@ function fixture(overrides: Partial<FixtureData> = {}): FixtureData {
   } as unknown as FixtureData;
 }
 
-function renderRow(
-  props: Partial<React.ComponentProps<typeof TournamentsFixtureRow>> = {},
-) {
+function renderRow(props: Partial<React.ComponentProps<typeof TournamentsFixtureRow>> = {}) {
   return render(
-    <TournamentsFixtureRow
-      fixture={fixture()}
-      testId="row"
-      teams={teamLookup()}
-      {...props}
-    />,
+    <TournamentsFixtureRow fixture={fixture()} testId="row" teams={teamLookup()} {...props} />,
   );
 }
 

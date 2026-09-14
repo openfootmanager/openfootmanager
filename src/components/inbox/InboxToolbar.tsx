@@ -52,6 +52,7 @@ export default function InboxToolbar({
   return (
     <div className="flex gap-2 mb-4 flex-wrap shrink-0">
       <button
+        type="button"
         onClick={onShowAll}
         className={getFilterButtonClassName(!categoryFilter)}
       >
@@ -59,6 +60,7 @@ export default function InboxToolbar({
       </button>
       {unreadCount > 0 ? (
         <button
+          type="button"
           onClick={onShowUnread}
           className={getFilterButtonClassName(categoryFilter === UNREAD_FILTER)}
         >
@@ -71,6 +73,7 @@ export default function InboxToolbar({
 
         return (
           <button
+            type="button"
             key={category}
             onClick={() => onToggleCategory(category)}
             className={getFilterButtonClassName(
@@ -94,9 +97,7 @@ export default function InboxToolbar({
           <Select
             id="inbox-sort-order"
             value={sortOrder}
-            onChange={(event) =>
-              onSortOrderChange(event.target.value as MessageSortOrder)
-            }
+            onChange={(event) => onSortOrderChange(event.target.value as MessageSortOrder)}
             selectSize="sm"
             wrapperClassName="min-w-[170px]"
             aria-label={t("inbox.sortByDate")}
@@ -112,9 +113,7 @@ export default function InboxToolbar({
           onClick={onToggleBulkSelectionMode}
           data-testid="inbox-toggle-selection-mode"
         >
-          {bulkSelectionEnabled
-            ? t("inbox.cancelSelection")
-            : t("inbox.selectMessages")}
+          {bulkSelectionEnabled ? t("inbox.cancelSelection") : t("inbox.selectMessages")}
         </Button>
         {bulkSelectionEnabled ? (
           <>
@@ -138,6 +137,7 @@ export default function InboxToolbar({
         ) : null}
         {unreadCount > 0 ? (
           <button
+            type="button"
             onClick={onMarkAllRead}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600 hover:text-primary-500 hover:border-primary-300 transition-all"
           >
@@ -146,6 +146,7 @@ export default function InboxToolbar({
           </button>
         ) : null}
         <button
+          type="button"
           onClick={onClearOld}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600 hover:text-red-500 hover:border-red-300 transition-all"
         >

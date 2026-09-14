@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
-import {
-  buildPlayerAdvancedStats,
-  type PlayerAdvancedStatsSummary,
-} from "./PlayerProfile.helpers";
+import { buildPlayerAdvancedStats, type PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 import type { PlayerRecentMatchEntry } from "./PlayerProfileRecentMatchesCard";
 
 const RECENT_MATCH_LIMIT = 5;
@@ -53,14 +50,9 @@ export function usePlayerProfileData({
 }: UsePlayerProfileDataArgs): UsePlayerProfileDataResult {
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);
-  const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>(
-    [],
-  );
+  const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>([]);
 
-  const fallbackAdvancedStats = buildPlayerAdvancedStats(
-    player,
-    gameState.players,
-  );
+  const fallbackAdvancedStats = buildPlayerAdvancedStats(player, gameState.players);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,24 +61,16 @@ export function usePlayerProfileData({
 
     const loadAdvancedStats = async (): Promise<void> => {
       try {
-        const result = await invoke<PlayerAdvancedStatsSummary>(
-          "get_player_stats_overview",
-          {
-            playerId: player.id,
-          },
-        );
+        const result = await invoke<PlayerAdvancedStatsSummary>("get_player_stats_overview", {
+          playerId: player.id,
+        });
 
-        if (
-          !cancelled &&
-          !areAdvancedStatsEqual(result, fallbackAdvancedStats)
-        ) {
+        if (!cancelled && !areAdvancedStatsEqual(result, fallbackAdvancedStats)) {
           setAdvancedStatsOverride(result);
         }
       } catch {
         if (!cancelled) {
-          setAdvancedStatsOverride((current) =>
-            current === null ? current : null,
-          );
+          setAdvancedStatsOverride((current) => (current === null ? current : null));
         }
       }
     };
@@ -125,18 +109,13 @@ export function usePlayerProfileData({
 
     const loadRecentMatches = async (): Promise<void> => {
       try {
-        const result = await invoke<PlayerRecentMatchEntry[]>(
-          "get_player_match_history",
-          {
-            playerId: player.id,
-            limit: RECENT_MATCH_LIMIT,
-          },
-        );
+        const result = await invoke<PlayerRecentMatchEntry[]>("get_player_match_history", {
+          playerId: player.id,
+          limit: RECENT_MATCH_LIMIT,
+        });
 
         if (!cancelled) {
-          setRecentMatches((current) =>
-            haveSameFixtures(current, result) ? current : result,
-          );
+          setRecentMatches((current) => (haveSameFixtures(current, result) ? current : result));
         }
       } catch {
         if (!cancelled) {

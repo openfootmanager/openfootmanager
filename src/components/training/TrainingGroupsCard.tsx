@@ -39,7 +39,7 @@ export default function TrainingGroupsCard({
   trainingFocusIcons,
 }: TrainingGroupsCardProps) {
   const { t } = useTranslation();
-  const groups: TrainingGroup[] = (team as any)?.training_groups ?? [];
+  const groups: TrainingGroup[] = team?.training_groups ?? [];
   const teamFocus = team?.training_focus || "Physical";
 
   const saveGroups = useCallback(
@@ -81,19 +81,11 @@ export default function TrainingGroupsCard({
   };
 
   const updateGroupFocus = (groupId: string, focus: string) => {
-    saveGroups(
-      groups.map((group) =>
-        group.id === groupId ? { ...group, focus } : group,
-      ),
-    );
+    saveGroups(groups.map((group) => (group.id === groupId ? { ...group, focus } : group)));
   };
 
   const updateGroupName = (groupId: string, name: string) => {
-    saveGroups(
-      groups.map((group) =>
-        group.id === groupId ? { ...group, name } : group,
-      ),
-    );
+    saveGroups(groups.map((group) => (group.id === groupId ? { ...group, name } : group)));
   };
 
   const setPlayerFocus = async (playerId: string, focus: string) => {
@@ -121,6 +113,7 @@ export default function TrainingGroupsCard({
         action={
           groups.length < 5 ? (
             <button
+              type="button"
               onClick={addGroup}
               disabled={isSaving}
               className="flex items-center gap-1.5 text-xs font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-400 transition-colors disabled:opacity-50"
@@ -155,16 +148,12 @@ export default function TrainingGroupsCard({
                   <input
                     type="text"
                     value={group.name}
-                    onChange={(event) =>
-                      updateGroupName(group.id, event.target.value)
-                    }
+                    onChange={(event) => updateGroupName(group.id, event.target.value)}
                     className="bg-transparent text-xs font-heading font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200 border-none outline-none w-20"
                   />
                   <Select
                     value={group.focus}
-                    onChange={(event) =>
-                      updateGroupFocus(group.id, event.target.value)
-                    }
+                    onChange={(event) => updateGroupFocus(group.id, event.target.value)}
                     disabled={isSaving}
                     variant="muted"
                     selectSize="xs"
@@ -176,10 +165,9 @@ export default function TrainingGroupsCard({
                       </option>
                     ))}
                   </Select>
-                  <span className="text-[10px] text-gray-400 tabular-nums">
-                    {count}
-                  </span>
+                  <span className="text-[10px] text-gray-400 tabular-nums">{count}</span>
                   <button
+                    type="button"
                     onClick={() => removeGroup(group.id)}
                     disabled={isSaving}
                     className="text-red-400 hover:text-red-500 transition-colors disabled:opacity-50"
@@ -231,7 +219,8 @@ export default function TrainingGroupsCard({
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/30 transition-colors"
                     >
                       <td className="py-1.5 px-3 text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[160px]">
-                        {player.match_name}{player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
+                        {player.match_name}
+                        {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
                       </td>
                       <td className="py-1.5 px-3 text-xs text-gray-500 dark:text-gray-400">
                         {translatePositionAbbreviation(
@@ -247,18 +236,14 @@ export default function TrainingGroupsCard({
                       <td className="py-1.5 px-3">
                         <Select
                           value={playerGroup?.id || ""}
-                          onChange={(event) =>
-                            setPlayerGroup(player.id, event.target.value)
-                          }
+                          onChange={(event) => setPlayerGroup(player.id, event.target.value)}
                           disabled={isSaving}
                           variant="muted"
                           selectSize="xs"
                           fullWidth
                           wrapperClassName="w-full max-w-[120px]"
                         >
-                          <option value="">
-                            {t("training.groups.teamDefault")}
-                          </option>
+                          <option value="">{t("training.groups.teamDefault")}</option>
                           {groups.map((group) => (
                             <option key={group.id} value={group.id}>
                               {group.name}
@@ -269,20 +254,14 @@ export default function TrainingGroupsCard({
                       <td className="py-1.5 px-3">
                         <Select
                           value={player.training_focus || ""}
-                          onChange={(event) =>
-                            setPlayerFocus(player.id, event.target.value)
-                          }
+                          onChange={(event) => setPlayerFocus(player.id, event.target.value)}
                           disabled={isSaving}
-                          variant={
-                            hasIndividualFocus ? "highlighted" : "placeholder"
-                          }
+                          variant={hasIndividualFocus ? "highlighted" : "placeholder"}
                           selectSize="xs"
                           fullWidth
                           wrapperClassName="w-full max-w-[110px]"
                         >
-                          <option value="">
-                            {t(`training.focuses.${fallbackFocus}.label`)} ↩
-                          </option>
+                          <option value="">{t(`training.focuses.${fallbackFocus}.label`)} ↩</option>
                           {trainingFocusIds.map((focusId) => (
                             <option key={focusId} value={focusId}>
                               {t(`training.focuses.${focusId}.label`)}

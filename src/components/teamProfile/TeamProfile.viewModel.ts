@@ -14,8 +14,7 @@ const POSITION_ORDER: Record<string, number> = {
 function sortRoster(players: PlayerData[]): PlayerData[] {
   return [...players].sort((leftPlayer, rightPlayer) => {
     return (
-      (POSITION_ORDER[leftPlayer.position] || 99) -
-      (POSITION_ORDER[rightPlayer.position] || 99)
+      (POSITION_ORDER[leftPlayer.position] || 99) - (POSITION_ORDER[rightPlayer.position] || 99)
     );
   });
 }
@@ -41,8 +40,8 @@ function getSortedStandings(gameState: GameStateData): LeagueStanding[] {
     (leftEntry, rightEntry) =>
       rightEntry.points - leftEntry.points ||
       rightEntry.goals_for -
-      rightEntry.goals_against -
-      (leftEntry.goals_for - leftEntry.goals_against) ||
+        rightEntry.goals_against -
+        (leftEntry.goals_for - leftEntry.goals_against) ||
       rightEntry.goals_for - leftEntry.goals_for,
   );
 }
@@ -51,9 +50,7 @@ export function buildTeamProfileViewModel(
   team: TeamData,
   gameState: GameStateData,
 ): TeamProfileViewModel {
-  const roster = sortRoster(
-    gameState.players.filter((player) => player.team_id === team.id),
-  );
+  const roster = sortRoster(gameState.players.filter((player) => player.team_id === team.id));
   const allStandings = getSortedStandings(gameState);
 
   return {
@@ -66,7 +63,6 @@ export function buildTeamProfileViewModel(
     totalValue: roster.reduce((sum, player) => sum + player.market_value, 0),
     manager: gameState.manager.team_id === team.id ? gameState.manager : null,
     leaguePos: allStandings.findIndex((entry) => entry.team_id === team.id) + 1,
-    standings:
-      gameState.league?.standings.find((entry) => entry.team_id === team.id) ?? null,
+    standings: gameState.league?.standings.find((entry) => entry.team_id === team.id) ?? null,
   };
 }

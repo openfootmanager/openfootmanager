@@ -5,10 +5,7 @@ import type { ReactNode } from "react";
 import type { GameStateData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
 import { Badge, Card, CardBody, CardHeader, CountryFlag, TeamLogo } from "../ui";
-import {
-  deriveHallOfFameLegends,
-  derivePastChampions,
-} from "./HallOfFameWorldTab.model";
+import { deriveHallOfFameLegends, derivePastChampions } from "./HallOfFameWorldTab.model";
 
 interface HallOfFameWorldTabProps {
   gameState: GameStateData;
@@ -59,7 +56,9 @@ export default function HallOfFameWorldTab({
             <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
               {t("hallOfFameWorld.worldCupChampions")}
             </h3>
-            <Badge variant="accent" size="md">{worldCupChampions.length}</Badge>
+            <Badge variant="accent" size="md">
+              {worldCupChampions.length}
+            </Badge>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {worldCupChampions.map((champion) => (
@@ -98,7 +97,9 @@ export default function HallOfFameWorldTab({
           <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
             {t("hallOfFameWorld.legends")}
           </h3>
-          <Badge variant="primary" size="md">{legends.length}</Badge>
+          <Badge variant="primary" size="md">
+            {legends.length}
+          </Badge>
         </div>
 
         {legends.length === 0 ? (
@@ -115,7 +116,9 @@ export default function HallOfFameWorldTab({
               return (
                 <Card key={legend.player.id} accent="primary">
                   <CardHeader
-                    action={<Badge variant="accent">{`${t("hallOfFameWorld.titles")}: ${legend.titles}`}</Badge>}
+                    action={
+                      <Badge variant="accent">{`${t("hallOfFameWorld.titles")}: ${legend.titles}`}</Badge>
+                    }
                   >
                     <button
                       type="button"
@@ -181,7 +184,9 @@ export default function HallOfFameWorldTab({
           <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
             {t("hallOfFameWorld.pastChampions")}
           </h3>
-          <Badge variant="accent" size="md">{champions.length}</Badge>
+          <Badge variant="accent" size="md">
+            {champions.length}
+          </Badge>
         </div>
 
         {champions.length === 0 ? (
@@ -238,7 +243,9 @@ export default function HallOfFameWorldTab({
                       />
                       <StatTile
                         label={t("hallOfFameWorld.goalDifference")}
-                        value={(champion.record.goals_for - champion.record.goals_against).toString()}
+                        value={(
+                          champion.record.goals_for - champion.record.goals_against
+                        ).toString()}
                       />
                     </div>
                   </div>
@@ -267,9 +274,7 @@ function SummaryTile({ icon, label, value }: SummaryTileProps) {
           {label}
         </span>
       </div>
-      <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">
-        {value}
-      </p>
+      <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">{value}</p>
     </div>
   );
 }

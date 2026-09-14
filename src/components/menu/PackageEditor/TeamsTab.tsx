@@ -43,7 +43,17 @@ function TeamBadge({ team, projectDir }: { team: TeamDef; projectDir?: string })
   );
 }
 
-export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplicate, onExportCsv, selectedIndex, onSelect }: TeamsTabProps) {
+export function TeamsTab({
+  teams,
+  projectDir,
+  onAdd,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onExportCsv,
+  selectedIndex,
+  onSelect,
+}: TeamsTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -55,11 +65,12 @@ export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, onDuplica
     if (!q) {
       return rows;
     }
-    return rows.filter(({ team }) =>
-      team.name.toLowerCase().includes(q) ||
-      team.city.toLowerCase().includes(q) ||
-      team.country.toLowerCase().includes(q) ||
-      team.id.toLowerCase().includes(q)
+    return rows.filter(
+      ({ team }) =>
+        team.name.toLowerCase().includes(q) ||
+        team.city.toLowerCase().includes(q) ||
+        team.country.toLowerCase().includes(q) ||
+        team.id.toLowerCase().includes(q),
     );
   }, [rows, query]);
   const { visible } = capRows(

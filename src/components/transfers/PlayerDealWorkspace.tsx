@@ -98,9 +98,7 @@ export default function PlayerDealWorkspace({
   renderDealPanel,
 }: PlayerDealWorkspaceProps) {
   const { t, i18n } = useTranslation();
-  const teamName = player.team_id
-    ? getTeamName(teams, player.team_id)
-    : t("common.freeAgent");
+  const teamName = player.team_id ? getTeamName(teams, player.team_id) : t("common.freeAgent");
   const age = calcAge(player.date_of_birth);
   const ovr = getPlayerOvr(player);
   const options: DealOption[] = [
@@ -140,13 +138,11 @@ export default function PlayerDealWorkspace({
         player.team_id === null
           ? t("transfers.dealAvailableContract")
           : t("transfers.dealUnavailableContract"),
-      disabledReason:
-        player.team_id === null ? null : t("transfers.dealUnavailableContract"),
+      disabledReason: player.team_id === null ? null : t("transfers.dealUnavailableContract"),
       icon: <UserPlus className="h-4 w-4" />,
     },
   ];
-  const selectedOption =
-    options.find((option) => option.kind === selectedKind) ?? options[0];
+  const selectedOption = options.find((option) => option.kind === selectedKind) ?? options[0];
 
   return (
     <div
@@ -184,15 +180,10 @@ export default function PlayerDealWorkspace({
                     {player.full_name}
                   </h2>
                   <Badge
-                    variant={positionBadgeVariant(
-                      player.natural_position || player.position,
-                    )}
+                    variant={positionBadgeVariant(player.natural_position || player.position)}
                     size="sm"
                   >
-                    {translatePositionAbbreviation(
-                      t,
-                      player.natural_position || player.position,
-                    )}
+                    {translatePositionAbbreviation(t, player.natural_position || player.position)}
                   </Badge>
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-300">
@@ -318,19 +309,14 @@ export default function PlayerDealWorkspace({
 
             {myTeam ? (
               <div className="rounded-lg bg-white p-4 shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:bg-navy-800 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                <p className={factLabelClass()}>
-                  {t("finances.transferBudget")}
-                </p>
+                <p className={factLabelClass()}>{t("finances.transferBudget")}</p>
                 <p className={`${factValueClass()} tabular-nums`}>
                   {formatVal(myTeam.transfer_budget)}
                 </p>
                 <div className="mt-4">
                   <p className={factLabelClass()}>{t("finances.wageBudget")}</p>
                   <p className={`${factValueClass()} tabular-nums`}>
-                    {formatAnnualAmount(
-                      formatVal(myTeam.wage_budget),
-                      annualSuffix,
-                    )}
+                    {formatAnnualAmount(formatVal(myTeam.wage_budget), annualSuffix)}
                   </p>
                 </div>
               </div>

@@ -37,7 +37,7 @@ function renderWithTheme() {
   return render(
     <ThemeProvider>
       <ThemeToggle />
-    </ThemeProvider>
+    </ThemeProvider>,
   );
 }
 
@@ -69,7 +69,7 @@ describe("ThemeToggle", () => {
     render(
       <ThemeProvider>
         <ThemeToggle className="my-toggle" />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     expect(screen.getByRole("button").className).toContain("my-toggle");
   });

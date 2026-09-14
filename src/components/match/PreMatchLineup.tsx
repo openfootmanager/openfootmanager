@@ -1,16 +1,13 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MatchSnapshot, EnginePlayerData } from "./types";
+import type { MatchSnapshot, EnginePlayerData } from "./types";
 import { Badge } from "../ui";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { condColor } from "../../lib/playerConditionDisplay";
 
-export const POSITION_KEY_STATS: Record<
-  string,
-  { label: string; key: string }[]
-> = {
+export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]> = {
   Goalkeeper: [
     { label: "HAN", key: "handling" },
     { label: "REF", key: "reflexes" },
@@ -69,9 +66,13 @@ function normalizeHexColor(color: string): string | null {
     return null;
   }
 
-  const expanded = hex.length === 3
-    ? hex.split("").map((char) => char + char).join("")
-    : hex;
+  const expanded =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : hex;
 
   return `#${expanded.toLowerCase()}`;
 }
@@ -117,7 +118,7 @@ export function parseFormationNeeds(formation: string): Record<string, number> {
   const parts = formation
     .split("-")
     .map(Number)
-    .filter((n) => !isNaN(n));
+    .filter((n) => !Number.isNaN(n));
   if (parts.length === 3)
     return {
       Goalkeeper: 1,
@@ -199,39 +200,37 @@ export default function PreMatchLineup({
         </span>
         {formationControls}
         <div className="grid grid-cols-4 gap-1.5">
-          {(["Goalkeeper", "Defender", "Midfielder", "Forward"] as const).map(
-            (pos) => {
-              const needed = formationNeeds[pos] || 0;
-              const actual = userTeam.players.filter(
-                (p) => p.position === pos,
-              ).length;
-              const ok = actual === needed;
-              return (
-                <div
-                  key={pos}
-                  className="flex flex-col items-center gap-0.5 rounded-lg bg-gray-50 py-1.5 dark:bg-navy-700/40"
+          {(["Goalkeeper", "Defender", "Midfielder", "Forward"] as const).map((pos) => {
+            const needed = formationNeeds[pos] || 0;
+            const actual = userTeam.players.filter((p) => p.position === pos).length;
+            const ok = actual === needed;
+            return (
+              <div
+                key={pos}
+                className="flex flex-col items-center gap-0.5 rounded-lg bg-gray-50 py-1.5 dark:bg-navy-700/40"
+              >
+                <span className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                  {translatePositionAbbreviation(t, pos)}
+                </span>
+                <span
+                  className={`flex items-center gap-1 text-sm font-heading font-bold tabular-nums ${ok ? "text-primary-700 dark:text-primary-400" : "text-amber-600 dark:text-amber-400"}`}
                 >
-                  <span className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-400">
-                    {translatePositionAbbreviation(t, pos)}
-                  </span>
-                  <span
-                    className={`flex items-center gap-1 text-sm font-heading font-bold tabular-nums ${ok ? "text-primary-700 dark:text-primary-400" : "text-amber-600 dark:text-amber-400"}`}
-                  >
-                    {actual}/{needed}
-                    {!ok && <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
-                  </span>
-                </div>
-              );
-            },
-          )}
+                  {actual}/{needed}
+                  {!ok && <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
+                </span>
+              </div>
+            );
+          })}
         </div>
         <button
+          type="button"
           onClick={onAutoSelect}
           disabled={isAutoSelecting}
-          className={`flex w-full items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${isAutoSelecting
-            ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
-            : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
-            }`}
+          className={`flex w-full items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
+            isAutoSelecting
+              ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
+              : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
+          }`}
         >
           <Wand2 className="w-3.5 h-3.5" />
           {isAutoSelecting ? t("match.selecting") : t("match.autoSelectXI")}
@@ -240,7 +239,7 @@ export default function PreMatchLineup({
 
       {/* Starting XI */}
       {showStartingList && (
-      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+        <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
               {t("match.startingXI")}
@@ -248,6 +247,7 @@ export default function PreMatchLineup({
             <div className="flex items-center gap-2">
               {selectedStarterId && (
                 <button
+                  type="button"
                   onClick={() => onSelectStarter(null)}
                   className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 font-heading uppercase tracking-wider"
                 >
@@ -313,10 +313,11 @@ export default function PreMatchLineup({
                       key={p.id}
                       data-testid={`pre-match-starter-${p.id}`}
                       onClick={() => onSelectStarter(isSelected ? null : p.id)}
-                      className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${isSelected
-                        ? "bg-primary-500/20 ring-1 ring-primary-500/50"
-                        : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
-                        }`}
+                      className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${
+                        isSelected
+                          ? "bg-primary-500/20 ring-1 ring-primary-500/50"
+                          : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                      }`}
                     >
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-heading font-bold flex-shrink-0"
@@ -358,9 +359,7 @@ export default function PreMatchLineup({
                     <ContextMenu
                       items={[
                         {
-                          label: isSelected
-                            ? t("match.cancel")
-                            : t("match.selectForSwap"),
+                          label: isSelected ? t("match.cancel") : t("match.selectForSwap"),
                           onClick: () => onSelectStarter(isSelected ? null : p.id),
                         },
                       ]}
@@ -376,113 +375,111 @@ export default function PreMatchLineup({
         </div>
       )}
 
-        {/* Bench */}
-        <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-              {t("match.substitutes")}
-            </h3>
-            <Badge variant="neutral" size="sm">
-              {t("match.nAvailable", { count: userBench.length })}
-            </Badge>
-          </div>
-          {userBench.length === 0 ? (
-            <p className="text-xs text-gray-600 dark:text-gray-500">
-              {t("match.noBenchAvailable2")}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {/* Bench column header */}
-              <div className="flex items-center gap-2 px-2 pb-1">
-                <span className="flex-1" />
-                {/* Key stats hide at xl, where this panel is a narrow sidebar —
+      {/* Bench */}
+      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+            {t("match.substitutes")}
+          </h3>
+          <Badge variant="neutral" size="sm">
+            {t("match.nAvailable", { count: userBench.length })}
+          </Badge>
+        </div>
+        {userBench.length === 0 ? (
+          <p className="text-xs text-gray-600 dark:text-gray-500">{t("match.noBenchAvailable2")}</p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {/* Bench column header */}
+            <div className="flex items-center gap-2 px-2 pb-1">
+              <span className="flex-1" />
+              {/* Key stats hide at xl, where this panel is a narrow sidebar —
                     with them the player name gets truncated to nothing. */}
-                <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-[84px] text-center xl:hidden">
-                  {t("match.keyStats")}
-                </span>
-                <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-8 text-right">
-                  COND
-                </span>
-              </div>
-              {userBench.map((bp) => {
-                const posOvr = bp.ovr;
-                const keyStats = POSITION_KEY_STATS[bp.position] || [];
-                const canSwap = Boolean(selectedStarterId);
-                const benchButton = (
-                  <button
-                    type="button"
-                    key={bp.id}
-                    data-testid={`pre-match-bench-${bp.id}`}
-                    disabled={!canSwap}
-                    aria-disabled={!canSwap}
-                    onClick={() => {
-                      if (canSwap) {
-                        onSwap(bp.id);
-                      }
-                    }}
-                    className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${canSwap
+              <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-[84px] text-center xl:hidden">
+                {t("match.keyStats")}
+              </span>
+              <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-8 text-right">
+                COND
+              </span>
+            </div>
+            {userBench.map((bp) => {
+              const posOvr = bp.ovr;
+              const keyStats = POSITION_KEY_STATS[bp.position] || [];
+              const canSwap = Boolean(selectedStarterId);
+              const benchButton = (
+                <button
+                  type="button"
+                  key={bp.id}
+                  data-testid={`pre-match-bench-${bp.id}`}
+                  disabled={!canSwap}
+                  aria-disabled={!canSwap}
+                  onClick={() => {
+                    if (canSwap) {
+                      onSwap(bp.id);
+                    }
+                  }}
+                  className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${
+                    canSwap
                       ? "hover:bg-primary-500/20 hover:ring-1 hover:ring-primary-500/50 cursor-pointer"
                       : "opacity-60 cursor-not-allowed"
-                      }`}
+                  }`}
+                >
+                  <Badge variant="neutral" size="sm">
+                    {translatePositionAbbreviation(t, bp.position)}
+                  </Badge>
+                  {jerseyChip(bp.id)}
+                  <span className="min-w-0 text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 truncate">
+                    {bp.name}
+                  </span>
+                  <div className="flex items-center gap-0 xl:hidden">
+                    {keyStats.map((s) => (
+                      <span
+                        key={s.label}
+                        className={`text-[10px] font-heading tabular-nums w-7 text-center ${statColor(getStatVal(bp, s.key))}`}
+                      >
+                        {getStatVal(bp, s.key)}
+                      </span>
+                    ))}
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
+                      posOvr >= 80
+                        ? "bg-primary-500 text-white"
+                        : posOvr >= 60
+                          ? "bg-accent-500/20 text-accent-600 dark:text-accent-400"
+                          : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
+                    }`}
                   >
-                    <Badge variant="neutral" size="sm">
-                      {translatePositionAbbreviation(t, bp.position)}
-                    </Badge>
-                    {jerseyChip(bp.id)}
-                    <span className="min-w-0 text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 truncate">
-                      {bp.name}
-                    </span>
-                    <div className="flex items-center gap-0 xl:hidden">
-                      {keyStats.map((s) => (
-                        <span
-                          key={s.label}
-                          className={`text-[10px] font-heading tabular-nums w-7 text-center ${statColor(getStatVal(bp, s.key))}`}
-                        >
-                          {getStatVal(bp, s.key)}
-                        </span>
-                      ))}
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
-                        posOvr >= 80
-                          ? "bg-primary-500 text-white"
-                          : posOvr >= 60
-                            ? "bg-accent-500/20 text-accent-600 dark:text-accent-400"
-                            : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
-                      }`}
-                    >
-                      {posOvr}
-                    </span>
-                    <span
-                      className={`shrink-0 text-xs tabular-nums w-8 text-right ${condColor(bp.condition)}`}
-                    >
-                      {Math.round(bp.condition)}%
-                    </span>
-                  </button>
-                );
-
-                if (!selectedStarterId) {
-                  return benchButton;
-                }
-
-                return (
-                  <ContextMenu
-                    items={[
-                      {
-                        label: t("match.swapWithSelectedStarter"),
-                        onClick: () => onSwap(bp.id),
-                      },
-                    ]}
-                    key={bp.id}
+                    {posOvr}
+                  </span>
+                  <span
+                    className={`shrink-0 text-xs tabular-nums w-8 text-right ${condColor(bp.condition)}`}
                   >
-                    {benchButton}
-                  </ContextMenu>
-                );
-              })}
-            </div>
-          )}
+                    {Math.round(bp.condition)}%
+                  </span>
+                </button>
+              );
 
-        </div>
+              if (!selectedStarterId) {
+                return benchButton;
+              }
+
+              return (
+                <ContextMenu
+                  items={[
+                    {
+                      label: t("match.swapWithSelectedStarter"),
+                      onClick: () => onSwap(bp.id),
+                    },
+                  ]}
+                  key={bp.id}
+                >
+                  {benchButton}
+                </ContextMenu>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

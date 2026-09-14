@@ -12,7 +12,7 @@ vi.mock("react-i18next", () => ({
     // default forms i18next accepts are honoured, since the shared controls
     // this form renders use the bare-string one.
     t: (key: string, opts?: string | { defaultValue?: string }) =>
-      typeof opts === "string" ? opts : opts?.defaultValue ?? key,
+      typeof opts === "string" ? opts : (opts?.defaultValue ?? key),
     i18n: { language: "en" },
   }),
 }));

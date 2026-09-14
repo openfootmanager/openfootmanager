@@ -9,11 +9,7 @@ interface TeamProfileAdvancedStatsCardProps {
   t: TeamProfileTranslate;
 }
 
-function resolveLabel(
-  t: TeamProfileTranslate,
-  key: string,
-  fallback: string,
-): string {
+function resolveLabel(t: TeamProfileTranslate, key: string, fallback: string): string {
   return t(key, { defaultValue: fallback });
 }
 
@@ -90,35 +86,15 @@ export default function TeamProfileAdvancedStatsCard({
     matchesPlayed: resolveLabel(t, "teamProfile.matchesPlayed", "Matches"),
     goalsFor: resolveLabel(t, "common.gf", "GF"),
     possession: resolveLabel(t, "teamProfile.possession", "Possession"),
-    goalDifference: resolveLabel(
-      t,
-      "teamProfile.goalDifference",
-      "Goal Difference",
-    ),
+    goalDifference: resolveLabel(t, "teamProfile.goalDifference", "Goal Difference"),
     shots: resolveLabel(t, "teamProfile.shots", "Shots"),
-    shotsOnTarget: resolveLabel(
-      t,
-      "teamProfile.shotsOnTarget",
-      "Shots On Target",
-    ),
+    shotsOnTarget: resolveLabel(t, "teamProfile.shotsOnTarget", "Shots On Target"),
     passes: resolveLabel(t, "teamProfile.passes", "Passes"),
     tacklesWon: resolveLabel(t, "teamProfile.tacklesWon", "Tackles Won"),
-    interceptions: resolveLabel(
-      t,
-      "teamProfile.interceptions",
-      "Interceptions",
-    ),
-    foulsCommitted: resolveLabel(
-      t,
-      "teamProfile.foulsCommitted",
-      "Fouls Committed",
-    ),
+    interceptions: resolveLabel(t, "teamProfile.interceptions", "Interceptions"),
+    foulsCommitted: resolveLabel(t, "teamProfile.foulsCommitted", "Fouls Committed"),
     perMatch: resolveLabel(t, "teamProfile.perMatch", "Per Match"),
-    passAccuracy: resolveLabel(
-      t,
-      "teamProfile.passAccuracy",
-      "Pass Accuracy",
-    ),
+    passAccuracy: resolveLabel(t, "teamProfile.passAccuracy", "Pass Accuracy"),
   };
 
   return (
@@ -162,59 +138,56 @@ export default function TeamProfileAdvancedStatsCard({
           />
         </CardBody>
       ) : (
-      <CardBody>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <SummaryStat label={labels.matchesPlayed} value={String(overview.matchesPlayed)} />
-          <SummaryStat label={labels.goalsFor} value={String(overview.goalsFor)} />
-          <SummaryStat
-            label={labels.possession}
-            value={formatPercentage(overview.possessionAverage)}
-          />
-          <SummaryStat
-            label={labels.goalDifference}
-            value={String(overview.goalDifference)}
-          />
-        </div>
+        <CardBody>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <SummaryStat label={labels.matchesPlayed} value={String(overview.matchesPlayed)} />
+            <SummaryStat label={labels.goalsFor} value={String(overview.goalsFor)} />
+            <SummaryStat
+              label={labels.possession}
+              value={formatPercentage(overview.possessionAverage)}
+            />
+            <SummaryStat label={labels.goalDifference} value={String(overview.goalDifference)} />
+          </div>
 
-        <div className="space-y-3">
-          <MetricRow
-            label={labels.shots}
-            primaryValue={String(overview.metrics.shots.total)}
-            secondaryLabel={labels.perMatch}
-            secondaryValue={formatRate(overview.metrics.shots.perMatch)}
-          />
-          <MetricRow
-            label={labels.shotsOnTarget}
-            primaryValue={String(overview.metrics.shotsOnTarget.total)}
-            secondaryLabel={labels.perMatch}
-            secondaryValue={formatRate(overview.metrics.shotsOnTarget.perMatch)}
-          />
-          <MetricRow
-            label={labels.passes}
-            primaryValue={`${overview.metrics.passes.completed} / ${overview.metrics.passes.attempted}`}
-            secondaryLabel={labels.passAccuracy}
-            secondaryValue={formatPercentage(overview.metrics.passes.accuracy)}
-          />
-          <MetricRow
-            label={labels.tacklesWon}
-            primaryValue={String(overview.metrics.tacklesWon.total)}
-            secondaryLabel={labels.perMatch}
-            secondaryValue={formatRate(overview.metrics.tacklesWon.perMatch)}
-          />
-          <MetricRow
-            label={labels.interceptions}
-            primaryValue={String(overview.metrics.interceptions.total)}
-            secondaryLabel={labels.perMatch}
-            secondaryValue={formatRate(overview.metrics.interceptions.perMatch)}
-          />
-          <MetricRow
-            label={labels.foulsCommitted}
-            primaryValue={String(overview.metrics.foulsCommitted.total)}
-            secondaryLabel={labels.perMatch}
-            secondaryValue={formatRate(overview.metrics.foulsCommitted.perMatch)}
-          />
-        </div>
-      </CardBody>
+          <div className="space-y-3">
+            <MetricRow
+              label={labels.shots}
+              primaryValue={String(overview.metrics.shots.total)}
+              secondaryLabel={labels.perMatch}
+              secondaryValue={formatRate(overview.metrics.shots.perMatch)}
+            />
+            <MetricRow
+              label={labels.shotsOnTarget}
+              primaryValue={String(overview.metrics.shotsOnTarget.total)}
+              secondaryLabel={labels.perMatch}
+              secondaryValue={formatRate(overview.metrics.shotsOnTarget.perMatch)}
+            />
+            <MetricRow
+              label={labels.passes}
+              primaryValue={`${overview.metrics.passes.completed} / ${overview.metrics.passes.attempted}`}
+              secondaryLabel={labels.passAccuracy}
+              secondaryValue={formatPercentage(overview.metrics.passes.accuracy)}
+            />
+            <MetricRow
+              label={labels.tacklesWon}
+              primaryValue={String(overview.metrics.tacklesWon.total)}
+              secondaryLabel={labels.perMatch}
+              secondaryValue={formatRate(overview.metrics.tacklesWon.perMatch)}
+            />
+            <MetricRow
+              label={labels.interceptions}
+              primaryValue={String(overview.metrics.interceptions.total)}
+              secondaryLabel={labels.perMatch}
+              secondaryValue={formatRate(overview.metrics.interceptions.perMatch)}
+            />
+            <MetricRow
+              label={labels.foulsCommitted}
+              primaryValue={String(overview.metrics.foulsCommitted.total)}
+              secondaryLabel={labels.perMatch}
+              secondaryValue={formatRate(overview.metrics.foulsCommitted.perMatch)}
+            />
+          </div>
+        </CardBody>
       )}
     </Card>
   );

@@ -57,7 +57,16 @@ import {
   queueBackgroundPortraitPrewarm,
 } from "../services/portraitService";
 
-const CLUB_TABS = new Set(["Squad", "Tactics", "Training", "Staff", "Scouting", "Youth", "Finances", "Transfers"]);
+const CLUB_TABS = new Set([
+  "Squad",
+  "Tactics",
+  "Training",
+  "Staff",
+  "Scouting",
+  "Youth",
+  "Finances",
+  "Transfers",
+]);
 
 const TAB_TRANSLATION_KEYS: Record<string, string> = {
   Home: "dashboard.home",
@@ -112,12 +121,13 @@ export default function Dashboard(): JSX.Element {
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [visitedOnboardingTabs, setVisitedOnboardingTabs] = useState<
-    Set<string>
-  >(new Set<string>());
+  const [visitedOnboardingTabs, setVisitedOnboardingTabs] = useState<Set<string>>(
+    new Set<string>(),
+  );
   const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
-  const [squadListSortState, setSquadListSortState] =
-    useState<SquadListSortState>(DEFAULT_SQUAD_LIST_SORT_STATE);
+  const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
+    DEFAULT_SQUAD_LIST_SORT_STATE,
+  );
   const loadActiveGameState = useCallback(async () => {
     const [stateResult, saveIdResult] = await Promise.allSettled([
       invoke<GameStateData>("get_active_game"),
@@ -194,12 +204,7 @@ export default function Dashboard(): JSX.Element {
       managerTeamId: gameState.manager.team_id,
       matchMode: settings.default_match_mode,
     });
-  }, [
-    gameState,
-    hasMatchToday,
-    settings.default_match_mode,
-    todayMatchFixture,
-  ]);
+  }, [gameState, hasMatchToday, settings.default_match_mode, todayMatchFixture]);
 
   useEffect(() => {
     if (!gameState) {
@@ -207,9 +212,7 @@ export default function Dashboard(): JSX.Element {
       return;
     }
 
-    setVisitedOnboardingTabs(
-      loadVisitedOnboardingTabs(gameState, undefined, activeSaveId),
-    );
+    setVisitedOnboardingTabs(loadVisitedOnboardingTabs(gameState, undefined, activeSaveId));
   }, [gameState, activeSaveId]);
 
   useEffect(() => {
@@ -365,21 +368,15 @@ export default function Dashboard(): JSX.Element {
   const currentModeMeta = MODE_META[matchMode];
 
   function handleNavClick(tab: string): void {
-    setProfileNavigation((currentState) =>
-      navigateDashboardProfiles(currentState, tab),
-    );
+    setProfileNavigation((currentState) => navigateDashboardProfiles(currentState, tab));
   }
 
   function handleNavigate(tab: string, context?: DashboardNavigateContext): void {
-    setProfileNavigation((currentState) =>
-      navigateDashboardProfiles(currentState, tab, context),
-    );
+    setProfileNavigation((currentState) => navigateDashboardProfiles(currentState, tab, context));
   }
 
   function handleBack(): void {
-    setProfileNavigation((currentState) =>
-      goBackDashboardProfile(currentState),
-    );
+    setProfileNavigation((currentState) => goBackDashboardProfile(currentState));
   }
 
   const handleExitToMenu = async () => {
@@ -400,15 +397,11 @@ export default function Dashboard(): JSX.Element {
   };
 
   function selectPlayer(id: string, options?: PlayerSelectionOptions): void {
-    setProfileNavigation((currentState) =>
-      selectDashboardPlayer(currentState, id, options),
-    );
+    setProfileNavigation((currentState) => selectDashboardPlayer(currentState, id, options));
   }
 
   function selectTeam(id: string): void {
-    setProfileNavigation((currentState) =>
-      selectDashboardTeam(currentState, id),
-    );
+    setProfileNavigation((currentState) => selectDashboardTeam(currentState, id));
   }
 
   function handleSearchFocus(): void {
@@ -424,16 +417,12 @@ export default function Dashboard(): JSX.Element {
   }
 
   function handleSelectSearchPlayer(playerId: string): void {
-    setProfileNavigation((currentState) =>
-      openDashboardSearchPlayer(currentState, playerId),
-    );
+    setProfileNavigation((currentState) => openDashboardSearchPlayer(currentState, playerId));
     setSearchQuery("");
   }
 
   function handleSelectSearchTeam(teamId: string): void {
-    setProfileNavigation((currentState) =>
-      openDashboardSearchTeam(currentState, teamId),
-    );
+    setProfileNavigation((currentState) => openDashboardSearchTeam(currentState, teamId));
     setSearchQuery("");
   }
 
@@ -463,11 +452,9 @@ export default function Dashboard(): JSX.Element {
     );
   }
 
-  const currentDate = formatDateFull(
-    gameState.clock.current_date,
-    settings.language,
-  );
-  const unreadMessagesCount = sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
+  const currentDate = formatDateFull(gameState.clock.current_date, settings.language);
+  const unreadMessagesCount =
+    sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t);

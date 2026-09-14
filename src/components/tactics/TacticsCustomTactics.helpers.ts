@@ -17,9 +17,7 @@ function getDefaultStorage(): StorageLike | null {
   }
 }
 
-export function buildCustomTacticsStorageKey(
-  gameState: GameStateData,
-): string {
+export function buildCustomTacticsStorageKey(gameState: GameStateData): string {
   return [
     TACTICS_STORAGE_KEY_PREFIX,
     gameState.manager.id,
@@ -86,10 +84,7 @@ export function saveCustomTactics(
   );
 
   try {
-    storage.setItem(
-      buildCustomTacticsStorageKey(gameState),
-      JSON.stringify(persistedTactics),
-    );
+    storage.setItem(buildCustomTacticsStorageKey(gameState), JSON.stringify(persistedTactics));
   } catch {
     // Storage quota exceeded or access denied — skip persist
   }

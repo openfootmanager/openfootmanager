@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { useSettingsStore, AppSettings } from "../store/settingsStore";
+import { useSettingsStore, type AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
@@ -43,9 +43,7 @@ export default function Settings() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [exportPath, setExportPath] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(
-    !!document.fullscreenElement,
-  );
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
   // Where to go back to
   const returnTo = (location.state as { from?: string })?.from || "/";
@@ -135,6 +133,7 @@ export default function Settings() {
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={() => navigate(returnTo)}
               className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
             >
@@ -151,14 +150,8 @@ export default function Settings() {
       {/* Content */}
       <div className="max-w-3xl mx-auto px-6 py-8 flex flex-col gap-8">
         {/* ─── Display ─── */}
-        <Section
-          title={t("settings.display")}
-          icon={<Monitor className="w-5 h-5" />}
-        >
-          <SettingRow
-            label={t("settings.theme")}
-            description={t("settings.themeDesc")}
-          >
+        <Section title={t("settings.display")} icon={<Monitor className="w-5 h-5" />}>
+          <SettingRow label={t("settings.theme")} description={t("settings.themeDesc")}>
             <SegmentedControl
               options={THEME_OPTION_KEYS.map((key) => ({
                 value: key,
@@ -173,16 +166,11 @@ export default function Settings() {
                   ),
               }))}
               value={settings.theme}
-              onChange={(v) =>
-                handleUpdate({ theme: v as AppSettings["theme"] })
-              }
+              onChange={(v) => handleUpdate({ theme: v as AppSettings["theme"] })}
             />
           </SettingRow>
 
-          <SettingRow
-            label={t("settings.language")}
-            description={t("settings.languageDesc")}
-          >
+          <SettingRow label={t("settings.language")} description={t("settings.languageDesc")}>
             <Select
               value={settings.language}
               onChange={(e) => handleUpdate({ language: e.target.value })}
@@ -197,10 +185,7 @@ export default function Settings() {
             </Select>
           </SettingRow>
 
-          <SettingRow
-            label={t("settings.currency")}
-            description={t("settings.currencyDesc")}
-          >
+          <SettingRow label={t("settings.currency")} description={t("settings.currencyDesc")}>
             <Select
               value={settings.currency}
               onChange={(e) =>
@@ -218,10 +203,7 @@ export default function Settings() {
             </Select>
           </SettingRow>
 
-          <SettingRow
-            label={t("settings.uiScale")}
-            description={t("settings.uiScaleDesc")}
-          >
+          <SettingRow label={t("settings.uiScale")} description={t("settings.uiScaleDesc")}>
             <div className="flex items-center gap-2">
               <Type className="w-4 h-4 text-gray-400" />
               <SegmentedControl
@@ -230,9 +212,7 @@ export default function Settings() {
                   label: t(`settings.uiScaleOptions.${key}`),
                 }))}
                 value={settings.ui_scale}
-                onChange={(v) =>
-                  handleUpdate({ ui_scale: v as AppSettings["ui_scale"] })
-                }
+                onChange={(v) => handleUpdate({ ui_scale: v as AppSettings["ui_scale"] })}
               />
             </div>
           </SettingRow>
@@ -247,31 +227,20 @@ export default function Settings() {
             />
           </SettingRow>
 
-          <SettingRow
-            label={t("settings.fullscreen")}
-            description={t("settings.fullscreenDesc")}
-          >
+          <SettingRow label={t("settings.fullscreen")} description={t("settings.fullscreenDesc")}>
             <button
+              type="button"
               onClick={toggleFullscreen}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600 text-sm font-heading font-bold uppercase tracking-wider transition-colors"
             >
-              {isFullscreen ? (
-                <Minimize className="w-4 h-4" />
-              ) : (
-                <Maximize className="w-4 h-4" />
-              )}
-              {isFullscreen
-                ? t("settings.exitFullscreen")
-                : t("settings.enterFullscreen")}
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              {isFullscreen ? t("settings.exitFullscreen") : t("settings.enterFullscreen")}
             </button>
           </SettingRow>
         </Section>
 
         {/* ─── Gameplay ─── */}
-        <Section
-          title={t("settings.gameplay")}
-          icon={<Gamepad2 className="w-5 h-5" />}
-        >
+        <Section title={t("settings.gameplay")} icon={<Gamepad2 className="w-5 h-5" />}>
           <SettingRow
             label={t("settings.defaultMatchMode")}
             description={t("settings.defaultMatchModeDesc")}
@@ -280,8 +249,7 @@ export default function Settings() {
               value={settings.default_match_mode}
               onChange={(e) =>
                 handleUpdate({
-                  default_match_mode: e.target
-                    .value as AppSettings["default_match_mode"],
+                  default_match_mode: e.target.value as AppSettings["default_match_mode"],
                 })
               }
               className="min-w-48"
@@ -294,19 +262,14 @@ export default function Settings() {
             </Select>
           </SettingRow>
 
-          <SettingRow
-            label={t("settings.matchSpeed")}
-            description={t("settings.matchSpeedDesc")}
-          >
+          <SettingRow label={t("settings.matchSpeed")} description={t("settings.matchSpeedDesc")}>
             <SegmentedControl
               options={MATCH_SPEED_KEYS.map((k) => ({
                 value: k,
                 label: t(`settings.speeds.${k}`),
               }))}
               value={settings.match_speed}
-              onChange={(v) =>
-                handleUpdate({ match_speed: v as AppSettings["match_speed"] })
-              }
+              onChange={(v) => handleUpdate({ match_speed: v as AppSettings["match_speed"] })}
             />
           </SettingRow>
 
@@ -342,25 +305,14 @@ export default function Settings() {
         </Section>
 
         {/* ─── Saves & Data ─── */}
-        <Section
-          title={t("settings.savesData")}
-          icon={<Save className="w-5 h-5" />}
-        >
-          <SettingRow
-            label={t("settings.autoSave")}
-            description={t("settings.autoSaveDesc")}
-          >
-            <Toggle
-              checked={settings.auto_save}
-              onChange={(v) => handleUpdate({ auto_save: v })}
-            />
+        <Section title={t("settings.savesData")} icon={<Save className="w-5 h-5" />}>
+          <SettingRow label={t("settings.autoSave")} description={t("settings.autoSaveDesc")}>
+            <Toggle checked={settings.auto_save} onChange={(v) => handleUpdate({ auto_save: v })} />
           </SettingRow>
 
-          <SettingRow
-            label={t("settings.exportWorld")}
-            description={t("settings.exportWorldDesc")}
-          >
+          <SettingRow label={t("settings.exportWorld")} description={t("settings.exportWorldDesc")}>
             <button
+              type="button"
               onClick={handleExportWorld}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400 hover:bg-primary-500/20 text-sm font-heading font-bold uppercase tracking-wider transition-colors"
             >
@@ -383,12 +335,14 @@ export default function Settings() {
               {confirmClear ? (
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={handleClearSaves}
                     className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-heading font-bold uppercase tracking-wider hover:bg-red-600 transition-colors"
                   >
                     {t("common.confirm")}
                   </button>
                   <button
+                    type="button"
                     onClick={() => setConfirmClear(false)}
                     className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 text-sm font-heading font-bold uppercase tracking-wider hover:bg-gray-300 dark:hover:bg-navy-500 transition-colors"
                   >
@@ -401,6 +355,7 @@ export default function Settings() {
                 </span>
               ) : (
                 <button
+                  type="button"
                   onClick={() => setConfirmClear(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-sm font-heading font-bold uppercase tracking-wider transition-colors"
                 >
@@ -476,31 +431,26 @@ function SettingRow({
         >
           {label}
         </p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          {description}
-        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>
   );
 }
 
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
-        }`}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+        checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
+      }`}
     >
       <div
-        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${checked ? "translate-x-[22px]" : "translate-x-0.5"
-          }`}
+        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+          checked ? "translate-x-[22px]" : "translate-x-0.5"
+        }`}
       />
     </button>
   );
@@ -519,12 +469,14 @@ function SegmentedControl({
     <div className="flex rounded-lg bg-gray-100 dark:bg-navy-700 p-0.5 border border-gray-200 dark:border-navy-600">
       {options.map((opt) => (
         <button
+          type="button"
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${value === opt.value
-            ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
-            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${
+            value === opt.value
+              ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+          }`}
         >
           {opt.icon}
           {opt.label || opt.value}

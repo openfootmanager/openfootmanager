@@ -60,8 +60,8 @@ function deriveSeasonContext(gameState: GameStateData): SeasonContextData {
     return DEFAULT_SEASON_CONTEXT;
   }
 
-  const competitiveFixtures = league.fixtures.filter((fixture) =>
-    !fixture.competition || fixture.competition === "League",
+  const competitiveFixtures = league.fixtures.filter(
+    (fixture) => !fixture.competition || fixture.competition === "League",
   );
 
   const fixtureDates = competitiveFixtures
@@ -70,8 +70,7 @@ function deriveSeasonContext(gameState: GameStateData): SeasonContextData {
     .sort((leftDate, rightDate) => leftDate.getTime() - rightDate.getTime());
 
   const seasonStart = fixtureDates[0] ?? null;
-  const seasonEnd =
-    fixtureDates.length > 0 ? fixtureDates[fixtureDates.length - 1] : null;
+  const seasonEnd = fixtureDates.length > 0 ? fixtureDates[fixtureDates.length - 1] : null;
   const currentDate = parseUtcDate(gameState.clock.current_date);
   const hasStarted =
     league.standings.some((entry) => entry.played > 0) ||
@@ -92,9 +91,7 @@ function deriveSeasonContext(gameState: GameStateData): SeasonContextData {
     season_start: formatUtcDate(seasonStart),
     season_end: formatUtcDate(seasonEnd),
     days_until_season_start:
-      currentDate && seasonStart
-        ? positiveDayDiff(currentDate, seasonStart)
-        : null,
+      currentDate && seasonStart ? positiveDayDiff(currentDate, seasonStart) : null,
     transfer_window: deriveTransferWindowContext(currentDate, seasonStart),
   };
 }
@@ -152,9 +149,7 @@ function parseUtcDate(input: string | null | undefined): Date | null {
     return null;
   }
 
-  return new Date(
-    Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()),
-  );
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
 }
 
 function formatUtcDate(date: Date | null): string | null {
@@ -171,9 +166,7 @@ function addDays(date: Date, days: number): Date {
 
 function addYearsClamped(date: Date, years: number): Date {
   const targetYear = date.getUTCFullYear() + years;
-  const candidate = new Date(
-    Date.UTC(targetYear, date.getUTCMonth(), date.getUTCDate()),
-  );
+  const candidate = new Date(Date.UTC(targetYear, date.getUTCMonth(), date.getUTCDate()));
 
   if (candidate.getUTCMonth() === date.getUTCMonth()) {
     return candidate;

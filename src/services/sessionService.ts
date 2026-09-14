@@ -47,4 +47,3 @@ export interface SessionState {
   unread_messages_count: number;
   user_competition: UserCompetitionSummary | null;
 }
-

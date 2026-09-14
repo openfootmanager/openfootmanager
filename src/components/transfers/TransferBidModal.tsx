@@ -1,17 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
-import type {
-  PlayerData,
-  TeamData,
-  TransferOfferData,
-} from "../../store/gameStore";
-import {
-  formatExactMoney,
-  formatVal,
-  getTeamName,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
 import type {
   TransferBidProjectionData,
   TransferNegotiationResponseData,
@@ -36,6 +27,8 @@ export interface TransferBidFormProps {
   activeBidOffer: TransferOfferData | null;
   hasExistingOffer: boolean;
   bidResult: TransferNegotiationResponseData["decision"] | "error" | null;
+  /** The translated reason a bid failed. Rendered in place of the bare word "error". */
+  bidError?: string | null;
   bidLoading: boolean;
   bidSubmitDisabled: boolean;
   blockingTitle?: string | null;
@@ -59,6 +52,7 @@ export function TransferBidForm({
   activeBidOffer,
   hasExistingOffer,
   bidResult,
+  bidError,
   bidLoading,
   bidSubmitDisabled,
   blockingTitle = null,
@@ -108,9 +102,7 @@ export function TransferBidForm({
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="text-xs">
-            <p className="font-heading font-bold uppercase tracking-wider">
-              {blockingTitle}
-            </p>
+            <p className="font-heading font-bold uppercase tracking-wider">{blockingTitle}</p>
             {blockingDetail ? <p className="mt-1">{blockingDetail}</p> : null}
           </div>
         </div>
@@ -225,7 +217,7 @@ export function TransferBidForm({
               ? t("transfers.bidRejected")
               : bidResult === "counter_offer"
                 ? t("transfers.bidCountered")
-                : bidResult}
+                : bidError}
         </div>
       ) : null}
       <div className="flex gap-2">

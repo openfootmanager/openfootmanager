@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import {
-  offerFreeAgentContract,
-  previewFreeAgentContractImpact,
-} from "./freeAgentService";
+import { offerFreeAgentContract, previewFreeAgentContractImpact } from "./freeAgentService";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

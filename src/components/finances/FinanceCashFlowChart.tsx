@@ -1,5 +1,14 @@
 import { useId } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
 import type { FinancialTransactionData } from "../../store/types";
@@ -106,7 +115,10 @@ export function FinanceCashFlowChart({
               fontSize: 11,
               color: theme.tooltipText,
             }}
-            formatter={(value, name) => [typeof value === "number" ? formatShortAmount(value) : String(value ?? ""), String(name ?? "")]}
+            formatter={(value, name) => [
+              typeof value === "number" ? formatShortAmount(value) : String(value ?? ""),
+              String(name ?? ""),
+            ]}
           />
           <Legend wrapperStyle={{ fontSize: 10, fontFamily: "var(--font-heading)" }} />
           <Area

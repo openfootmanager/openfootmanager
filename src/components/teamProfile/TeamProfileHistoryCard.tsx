@@ -8,10 +8,7 @@ interface TeamProfileHistoryCardProps {
   t: TeamProfileTranslate;
 }
 
-export default function TeamProfileHistoryCard({
-  history,
-  t,
-}: TeamProfileHistoryCardProps) {
+export default function TeamProfileHistoryCard({ history, t }: TeamProfileHistoryCardProps) {
   if (history.length === 0) {
     return null;
   }
