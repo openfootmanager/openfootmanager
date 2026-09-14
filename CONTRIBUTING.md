@@ -103,7 +103,11 @@ If you're working on a new feature that has no prior **Issue** related to it, pl
 ### Code conventions
 
 - **Rust**:
-  - Run `cargo fmt` to format your Rust code.
+  - Run `cargo fmt --manifest-path src-tauri/Cargo.toml --all` to format your Rust code. CI runs
+    the same command with `--check` and fails on any difference, so this is not optional. There
+    is no `rustfmt.toml`: the style is whatever the pinned toolchain's default is, which is why
+    nobody has to agree on it. (A bare `cargo fmt --all` from the repository root fails — the
+    workspace lives under `src-tauri/`.)
   - Run `cargo clippy` to catch common mistakes and improve code quality. Address all warnings before submitting a PR.
   - Use descriptive variable names and leverage Rust's strong type system.
   - Write docstrings for public functions and complex logic.
@@ -112,6 +116,36 @@ If you're working on a new feature that has no prior **Issue** related to it, pl
   - Keep components modular.
   - Use TailwindCSS for styling instead of raw CSS where possible.
   - Ensure type safety across the application (avoid `any` types).
+
+### The format sweep, and `git blame`
+
+Formatting was gated for the first time in this repository's history, and that required one
+commit that reformatted 92 files. Two consequences worth knowing about.
+
+**`git blame` needs telling to skip it**, or every line in those files is attributed to the
+sweep. GitHub reads `.git-blame-ignore-revs` automatically; locally, once per clone:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
+`scripts/check-blame-ignore-revs.sh` runs in CI and fails if a commit named in that file no
+longer exists, because a wrong SHA there fails silently and blame quietly goes back to being
+useless.
+
+**If you have a branch that predates the sweep**, do not fight the conflicts by hand. Rebase onto
+the formatted `develop`, then run the formatter as **its own commit**:
+
+```bash
+git rebase upstream/develop
+cargo fmt --manifest-path src-tauri/Cargo.toml --all
+git commit -am "style: rustfmt after the repo-wide sweep"
+```
+
+That commit is then a no-op plus your own lines, and your real changes stay readable. This is the
+one sanctioned exception to the standing rule against reformatting code you did not touch — a
+formatting commit mixed into a feature change is how a four-file diff becomes a thirty-four-file
+one, which has happened here before.
 
 ### Dependencies and the lockfile
 

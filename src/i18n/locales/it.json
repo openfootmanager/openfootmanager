@@ -485,6 +485,7 @@
     "goalDifference": "DR",
     "nPlayersFound": "{{count}} giocatore/i trovato/i",
     "nResults": "{{count}} risultato/i",
+    "loadMore": "Carica altro",
     "showingFirst": "Mostrati i primi {{shown}} di {{total}} giocatori. Affina la ricerca per vederne altri.",
     "noPlayersMatch": "Nessun giocatore corrisponde ai filtri.",
     "positions": {
@@ -3600,6 +3601,9 @@
     }
   },
   "date": {
+    "dayLabel": "Giorno",
+    "yearLabel": "Anno",
+    "noMonth": "Nessun mese",
     "day": "GG",
     "month": "Mese",
     "year": "AAAA"
@@ -3728,6 +3732,17 @@
     "winRate": "Percentuale vittorie"
   },
   "worldEditor": {
+    "positionGroupFilter": {
+      "Goalkeeper": "Tutti i portieri",
+      "Defender": "Tutti i difensori",
+      "Midfielder": "Tutti i centrocampisti",
+      "Forward": "Tutti gli attaccanti"
+    },
+    "filterByPosition": "Filtra per ruolo",
+    "allPositions": "Tutte le posizioni",
+    "positionFilterByGroup": "Per reparto",
+    "positionFilterBySpecific": "Ruolo specifico",
+    "showingEntries": "Mostrati {{shown}} di {{total}}",
     "title": "Editor Mondo",
     "newPackage": "Nuovo Mondo",
     "openPackageFile": "Apri file .ofm",

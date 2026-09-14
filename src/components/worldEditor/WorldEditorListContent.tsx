@@ -115,7 +115,12 @@ export function WorldEditorListContent({
           onEdit={youthEditor.handleSelect}
           onDelete={youthEditor.handleDelete}
           onDuplicate={youthEditor.handleDuplicate}
-          selectedIndex={formPanel === "player" ? youthEditor.editingIndex : null}
+          // "youth", not "player": the youth editor opens its own panel, so
+          // this list was never told which row was selected. It cost only a
+          // missing highlight until the list started capping its rows —
+          // now the cap has no way to keep a just-duplicated youth player
+          // visible.
+          selectedIndex={formPanel === "youth" ? youthEditor.editingIndex : null}
           onSelect={youthEditor.handleSelect}
           projectDir={projectDir}
         />

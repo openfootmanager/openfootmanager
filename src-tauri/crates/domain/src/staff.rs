@@ -95,7 +95,8 @@ mod tests {
 
     #[test]
     fn deserializes_camelcase_attributes() {
-        let json = r#"{"coaching":70,"judgingAbility":65,"judgingPotential":60,"physiotherapy":40}"#;
+        let json =
+            r#"{"coaching":70,"judgingAbility":65,"judgingPotential":60,"physiotherapy":40}"#;
         let attrs: StaffAttributes = serde_json::from_str(json).expect("camelCase should parse");
         assert_eq!(attrs.judging_ability, 65);
         assert_eq!(attrs.judging_potential, 60);
@@ -103,8 +104,10 @@ mod tests {
 
     #[test]
     fn still_deserializes_snakecase_attributes_from_existing_saves() {
-        let json = r#"{"coaching":70,"judging_ability":65,"judging_potential":60,"physiotherapy":40}"#;
-        let attrs: StaffAttributes = serde_json::from_str(json).expect("snake_case alias should parse");
+        let json =
+            r#"{"coaching":70,"judging_ability":65,"judging_potential":60,"physiotherapy":40}"#;
+        let attrs: StaffAttributes =
+            serde_json::from_str(json).expect("snake_case alias should parse");
         assert_eq!(attrs.judging_ability, 65);
         assert_eq!(attrs.judging_potential, 60);
     }
@@ -118,8 +121,14 @@ mod tests {
             physiotherapy: 40,
         };
         let json = serde_json::to_string(&attrs).expect("should serialize");
-        assert!(json.contains("\"judgingAbility\":65"), "serialized as: {json}");
-        assert!(json.contains("\"judgingPotential\":60"), "serialized as: {json}");
+        assert!(
+            json.contains("\"judgingAbility\":65"),
+            "serialized as: {json}"
+        );
+        assert!(
+            json.contains("\"judgingPotential\":60"),
+            "serialized as: {json}"
+        );
         // Round-trips back to the same struct.
         let back: StaffAttributes = serde_json::from_str(&json).expect("round-trip");
         assert_eq!(back.judging_ability, 65);

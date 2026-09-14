@@ -40,8 +40,11 @@ impl LiveMatchState {
             }
         }
 
-        let has_shootout_data = self.penalty_state.home_taken > 0 || self.penalty_state.away_taken > 0;
-        let penalty_shootout = if self.phase == MatchPhase::PenaltyShootout || (self.phase == MatchPhase::Finished && has_shootout_data) {
+        let has_shootout_data =
+            self.penalty_state.home_taken > 0 || self.penalty_state.away_taken > 0;
+        let penalty_shootout = if self.phase == MatchPhase::PenaltyShootout
+            || (self.phase == MatchPhase::Finished && has_shootout_data)
+        {
             Some(PenaltyShootoutSnapshot {
                 home_taken: self.penalty_state.home_taken,
                 away_taken: self.penalty_state.away_taken,

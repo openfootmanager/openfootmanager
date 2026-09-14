@@ -1,0 +1,17 @@
+# Commits that changed how the code is written without changing what it does.
+#
+# `git blame` reads this only if you tell it to, once per clone:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub applies it automatically in its blame view.
+#
+# Two rules for adding a line. Full 40-character SHAs only — git ignores short ones without
+# saying so. And say what the commit was, because a bare hash is unreviewable: nobody reading a
+# pull request can tell a correct SHA from a wrong one, which is why
+# `scripts/check-blame-ignore-revs.sh` checks in CI that each still resolves.
+
+# style(rust): repo-wide cargo fmt sweep — the first `cargo fmt --all` this repository ever had,
+# 717 hunks across 92 files. It lands on the highest-churn Rust files in the project, which is
+# exactly where blame gets used.
+b078d88799dd92c2a1b358086248e05aef6a44c6

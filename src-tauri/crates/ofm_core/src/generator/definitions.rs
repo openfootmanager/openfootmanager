@@ -68,7 +68,9 @@ impl DefinitionSources {
                 continue;
             };
             match super::file_format::load_definition_file::<T>(&path) {
-                None => log::warn!("[generator] {path:?} could not be parsed; trying the next source"),
+                None => {
+                    log::warn!("[generator] {path:?} could not be parsed; trying the next source")
+                }
                 Some(value) => match value.unusable_reason() {
                     None => {
                         log::info!("[generator] loaded {stem} from {path:?}");
@@ -525,7 +527,11 @@ mod tests {
         let nations = nations_definition(&sources);
         assert_eq!(nations.nations.len(), 16, "the shipped generation nations");
         assert_eq!(
-            nations.nations.iter().map(|n| n.cities.len()).sum::<usize>(),
+            nations
+                .nations
+                .iter()
+                .map(|n| n.cities.len())
+                .sum::<usize>(),
             280,
             "every curated city survived the move out of Rust"
         );
@@ -752,7 +758,11 @@ mod tests {
 
         let def = names_definition(&DefinitionSources::searching([dir.clone()]));
         assert!(def.pools.contains_key("BR"), "the usable override is kept");
-        assert_ne!(def.pools.len(), 17, "and it is the override, not the shipped set");
+        assert_ne!(
+            def.pools.len(),
+            17,
+            "and it is the override, not the shipped set"
+        );
 
         std::fs::remove_dir_all(&dir).ok();
     }

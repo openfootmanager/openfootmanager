@@ -28,9 +28,7 @@ pub fn resolve_jersey_for(game: &Game, player: &Player, team: &Team) -> Option<u
     let occupied: std::collections::HashSet<u8> = game
         .players
         .iter()
-        .filter(|other| {
-            other.id != player.id && other.team_id.as_deref() == Some(team.id.as_str())
-        })
+        .filter(|other| other.id != player.id && other.team_id.as_deref() == Some(team.id.as_str()))
         .filter_map(|other| other.jersey_number)
         .collect();
     match player.jersey_number {
@@ -50,11 +48,25 @@ mod tests {
 
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
-            pace: 60, stamina: 60, strength: 60, agility: 60,
-            passing: 60, shooting: 60, tackling: 60, dribbling: 60,
-            defending: 60, positioning: 60, vision: 60, decisions: 60,
-            composure: 60, aggression: 60, teamwork: 60, leadership: 60,
-            handling: 30, reflexes: 30, aerial: 60,
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 30,
+            reflexes: 30,
+            aerial: 60,
         }
     }
 
@@ -88,10 +100,20 @@ mod tests {
     fn make_game(players: Vec<Player>) -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
         let manager = Manager::new(
-            "m-1".to_string(), "Test".to_string(), "Manager".to_string(),
-            "1980-01-01".to_string(), "England".to_string(),
+            "m-1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
         );
-        Game::new(clock, manager, vec![make_team("team-a")], players, vec![], vec![])
+        Game::new(
+            clock,
+            manager,
+            vec![make_team("team-a")],
+            players,
+            vec![],
+            vec![],
+        )
     }
 
     #[test]

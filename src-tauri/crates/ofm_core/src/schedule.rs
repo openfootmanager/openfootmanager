@@ -1017,14 +1017,8 @@ mod tests {
     fn spread_fixture_dates_keeps_matchday_order_without_overlap() {
         let start = Utc.with_ymd_and_hms(2026, 6, 1, 0, 0, 0).unwrap();
         let teams: Vec<String> = (0..4).map(|i| format!("t{i}")).collect();
-        let mut fixtures = build_round_robin_fixtures_with(
-            "c",
-            &teams,
-            start,
-            FixtureCompetition::Cup,
-            1,
-            2,
-        );
+        let mut fixtures =
+            build_round_robin_fixtures_with("c", &teams, start, FixtureCompetition::Cup, 1, 2);
 
         spread_fixture_dates(&mut fixtures, start, 1);
 
@@ -1065,7 +1059,12 @@ mod tests {
         // old default (mpd=1); regenerate with our updated rule.
         cup.fixtures.clear();
         cup.knockout_rounds.clear();
-        seed_knockout_round(&mut cup, &teams, start, FixtureCompetition::InternationalNation);
+        seed_knockout_round(
+            &mut cup,
+            &teams,
+            start,
+            FixtureCompetition::InternationalNation,
+        );
 
         let unique_dates: std::collections::HashSet<&str> =
             cup.fixtures.iter().map(|f| f.date.as_str()).collect();

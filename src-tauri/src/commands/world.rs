@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use chrono::Datelike;
 use log::{info, warn};
+use std::sync::Arc;
 use tauri::Manager as TauriManager;
 use tauri::State;
 
@@ -186,9 +186,7 @@ fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, Str
     Ok(app_data_dir.join("packages"))
 }
 
-fn package_info_from_path(
-    path: &std::path::Path,
-) -> Option<ofm_core::generator::PackageInfo> {
+fn package_info_from_path(path: &std::path::Path) -> Option<ofm_core::generator::PackageInfo> {
     let meta = ofm_core::generator::read_package_manifest_from_ofm(path)?;
     let id = if meta.id.is_empty() {
         path.file_stem()
@@ -203,7 +201,9 @@ fn package_info_from_path(
     if !errors.is_empty() {
         return None;
     }
-    let logo_data_url = meta.logo.as_deref()
+    let logo_data_url = meta
+        .logo
+        .as_deref()
         .and_then(|logo| ofm_core::generator::read_logo_from_ofm(path, logo));
     Some(ofm_core::generator::PackageInfo {
         id,
@@ -235,9 +235,7 @@ pub fn install_package(
     let src = std::path::Path::new(&path);
 
     // Reject archives that exceed the on-disk size limit before doing any I/O.
-    let src_size = std::fs::metadata(src)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let src_size = std::fs::metadata(src).map(|m| m.len()).unwrap_or(0);
     if src_size > ofm_core::generator::MAX_ARCHIVE_BYTES {
         return Err("be.error.package.archiveTooLarge".to_string());
     }
@@ -299,7 +297,9 @@ pub fn install_package(
         extract_assets_for_package(&dest, &assets_root, &id);
     }
 
-    let logo_data_url = meta.logo.as_deref()
+    let logo_data_url = meta
+        .logo
+        .as_deref()
         .and_then(|logo| ofm_core::generator::read_logo_from_ofm(&dest, logo));
     Ok(ofm_core::generator::PackageInfo {
         id,
@@ -381,16 +381,12 @@ fn encode_param_value(value: &str) -> String {
 
 /// Remove an installed package by id.
 #[tauri::command]
-pub fn uninstall_package(
-    app_handle: tauri::AppHandle,
-    id: String,
-) -> Result<(), String> {
+pub fn uninstall_package(app_handle: tauri::AppHandle, id: String) -> Result<(), String> {
     info!("[cmd] uninstall_package: id={}", id);
     validate_package_id(&id)?;
     let dest = packages_dir(&app_handle)?.join(format!("{id}.ofm"));
     if dest.exists() {
-        std::fs::remove_file(&dest)
-            .map_err(|_| "be.error.package.installFailed".to_string())?;
+        std::fs::remove_file(&dest).map_err(|_| "be.error.package.installFailed".to_string())?;
     }
     // The archive is not the only thing on disk: its artwork was extracted
     // alongside it at world load. Leaving that behind would accumulate an
@@ -868,7 +864,9 @@ mod tests {
             "artwork the reinstalled package no longer ships must not survive",
         );
         assert!(
-            assets_root.join("badge-pkg/assets/images/santos.png").exists(),
+            assets_root
+                .join("badge-pkg/assets/images/santos.png")
+                .exists(),
             "the reinstalled package's own artwork must still land",
         );
     }

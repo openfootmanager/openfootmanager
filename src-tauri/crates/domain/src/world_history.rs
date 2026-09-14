@@ -209,7 +209,8 @@ impl WorldHistoryArchive {
         } else {
             0.0
         };
-        let margin = 1.0 + ((f64::from(home_goals) - f64::from(away_goals)).abs() - 1.0).max(0.0) * 0.2;
+        let margin =
+            1.0 + ((f64::from(home_goals) - f64::from(away_goals)).abs() - 1.0).max(0.0) * 0.2;
         let delta = K * margin * (actual_home - expected_home);
         self.set_ranking_points(home_code, home_points + delta);
         self.set_ranking_points(away_code, away_points - delta);

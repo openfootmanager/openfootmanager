@@ -470,6 +470,7 @@
     "goalDifference": "SG",
     "nPlayersFound": "{{count}} pemain ditemukan",
     "nResults": "{{count}} hasil",
+    "loadMore": "Muat lebih banyak",
     "showingFirst": "Menampilkan {{shown}} pemain pertama dari {{total}}. Sempurnakan pencarian untuk melihat lebih banyak.",
     "noPlayersMatch": "Tidak ada pemain yang cocok dengan filter.",
     "positions": {
@@ -715,7 +716,7 @@
     "duplicateTactic": "Duplikat",
     "saveAsTactic": "Simpan sebagai taktik",
     "updateTactic": "Perbarui taktik",
-    "tacticSaved": "Disimpan",
+    "tacticSaved": "Tersimpan",
     "tacticName": "Nama taktik",
     "identitySummary": "Ringkasan identitas",
     "synced": "Tersinkron",
@@ -3600,6 +3601,9 @@
     }
   },
   "date": {
+    "dayLabel": "Tanggal",
+    "yearLabel": "Tahun",
+    "noMonth": "Tanpa bulan",
     "day": "DD",
     "month": "Bulan",
     "year": "YYYY"
@@ -3728,6 +3732,17 @@
     "winRate": "Persentase kemenangan"
   },
   "worldEditor": {
+    "positionGroupFilter": {
+      "Goalkeeper": "Semua penjaga gawang",
+      "Defender": "Semua bek",
+      "Midfielder": "Semua gelandang",
+      "Forward": "Semua penyerang"
+    },
+    "filterByPosition": "Saring menurut posisi",
+    "allPositions": "Semua posisi",
+    "positionFilterByGroup": "Menurut lini",
+    "positionFilterBySpecific": "Posisi tertentu",
+    "showingEntries": "Menampilkan {{shown}} dari {{total}}",
     "title": "Editor Dunia",
     "newPackage": "Dunia Baru",
     "openPackageFile": "Buka Berkas .ofm",

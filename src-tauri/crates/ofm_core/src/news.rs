@@ -264,7 +264,10 @@ fn preview_contenders<'a>(team_names: &'a [String], rng: &mut impl Rng) -> (&'a 
     // at random until the name differs — never terminates if every club shares a
     // name, and a package is free to do that; guarding on `team_names.len()`, as
     // this used to, does not catch it.
-    let others: Vec<&String> = team_names.iter().filter(|name| *name != favourite).collect();
+    let others: Vec<&String> = team_names
+        .iter()
+        .filter(|name| *name != favourite)
+        .collect();
     let dark_horse = if others.is_empty() {
         favourite
     } else {

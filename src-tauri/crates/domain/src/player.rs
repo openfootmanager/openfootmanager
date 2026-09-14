@@ -449,6 +449,12 @@ pub struct TransferOffer {
     pub date: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_date: Option<String>,
+    /// When talks ended, for offers that were rejected or withdrawn.
+    ///
+    /// Distinct from `date`, which is when the offer *arrived* and is rewritten whenever a club
+    /// re-opens talks — so it can never answer "how long ago was this club turned away".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closed_on: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -488,6 +494,10 @@ pub struct LoanOffer {
     pub status: LoanOfferStatus,
     #[serde(default = "default_loan_offer_date")]
     pub date: String,
+    /// When talks ended, for offers that were rejected or withdrawn. See
+    /// [`TransferOffer::closed_on`] for why `date` cannot serve this purpose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closed_on: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

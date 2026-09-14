@@ -435,9 +435,15 @@ mod phase_modifier_tests {
     fn tempo_directions() {
         // Direct is neutral; Patient progresses slower but retains more.
         assert!(tactics_tempo_progression(&cfg(|c| c.tempo = Tempo::Patient)) < 1.0);
-        assert_eq!(tactics_tempo_progression(&cfg(|c| c.tempo = Tempo::Direct)), 1.0);
+        assert_eq!(
+            tactics_tempo_progression(&cfg(|c| c.tempo = Tempo::Direct)),
+            1.0
+        );
         assert!(tactics_tempo_retention(&cfg(|c| c.tempo = Tempo::Patient)) > 1.0);
-        assert_eq!(tactics_tempo_retention(&cfg(|c| c.tempo = Tempo::Direct)), 1.0);
+        assert_eq!(
+            tactics_tempo_retention(&cfg(|c| c.tempo = Tempo::Direct)),
+            1.0
+        );
     }
 
     #[test]
@@ -469,13 +475,28 @@ mod phase_modifier_tests {
     #[test]
     fn transition_dials_are_probabilities_with_neutral_zero() {
         // Counter-press: None rolls nothing; Long > Short > 0.
-        assert_eq!(tactics_counter_press_rewin(&cfg(|c| c.counter_press_duration = CounterPressDuration::None)), 0.0);
-        let short = tactics_counter_press_rewin(&cfg(|c| c.counter_press_duration = CounterPressDuration::Short));
-        let long = tactics_counter_press_rewin(&cfg(|c| c.counter_press_duration = CounterPressDuration::Long));
+        assert_eq!(
+            tactics_counter_press_rewin(&cfg(
+                |c| c.counter_press_duration = CounterPressDuration::None
+            )),
+            0.0
+        );
+        let short = tactics_counter_press_rewin(&cfg(|c| {
+            c.counter_press_duration = CounterPressDuration::Short
+        }));
+        let long = tactics_counter_press_rewin(&cfg(|c| {
+            c.counter_press_duration = CounterPressDuration::Long
+        }));
         assert!(0.0 < short && short < long && long < 1.0);
         // Break speed: only Fast rolls; Slow and Medium are no-ops.
-        assert_eq!(tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Slow)), 0.0);
-        assert_eq!(tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Medium)), 0.0);
+        assert_eq!(
+            tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Slow)),
+            0.0
+        );
+        assert_eq!(
+            tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Medium)),
+            0.0
+        );
         let fast = tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Fast));
         assert!(0.0 < fast && fast < 1.0);
     }

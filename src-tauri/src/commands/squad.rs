@@ -604,7 +604,10 @@ pub fn set_player_role_internal(
     player_id: String,
     role: Option<String>,
 ) -> Result<Game, String> {
-    info!("[cmd] set_player_role: player={} role={:?}", player_id, role);
+    info!(
+        "[cmd] set_player_role: player={} role={:?}",
+        player_id, role
+    );
     mutate_active_game(state, |game| {
         let team_id = user_team_id(game)?;
 
@@ -620,9 +623,8 @@ pub fn set_player_role_internal(
             .map(|p| p.natural_position.clone())
             .ok_or_else(|| "be.error.playerNotOnTeam".to_string())?;
         let team = user_team_mut(game)?;
-        let validation_position =
-            ofm_core::player_rating::deployed_position(team, &player_id)
-                .unwrap_or(natural_position);
+        let validation_position = ofm_core::player_rating::deployed_position(team, &player_id)
+            .unwrap_or(natural_position);
 
         match role {
             Some(r) => {
@@ -906,8 +908,7 @@ mod tests {
             team.formation = "4-4-2".to_string();
             // Slot 0 in 4-4-2 is the Goalkeeper; a striker function is invalid there.
             team.starting_xi_ids = vec!["player-1".to_string()];
-            team
-                .player_roles
+            team.player_roles
                 .insert("player-1".to_string(), PlayerRole::Poacher);
         }
 
@@ -926,8 +927,7 @@ mod tests {
             team.formation = "4-4-2".to_string();
             // Standard is valid for every position and must be preserved.
             team.starting_xi_ids = vec!["player-1".to_string()];
-            team
-                .player_roles
+            team.player_roles
                 .insert("player-1".to_string(), PlayerRole::Standard);
         }
 
@@ -950,8 +950,7 @@ mod tests {
             // player-1 (a natural Forward) is benched; a centre-back function is
             // invalid for their natural position and must be cleared.
             team.starting_xi_ids = vec![];
-            team
-                .player_roles
+            team.player_roles
                 .insert("player-1".to_string(), PlayerRole::Stopper);
         }
 
@@ -970,8 +969,7 @@ mod tests {
             team.formation = "4-4-2".to_string();
             // A forward function is valid for a benched forward and is preserved.
             team.starting_xi_ids = vec![];
-            team
-                .player_roles
+            team.player_roles
                 .insert("player-1".to_string(), PlayerRole::Poacher);
         }
 
@@ -1021,21 +1019,21 @@ mod tests {
 
         // A full-back role is valid at the RB slot even though the player's
         // natural position is Forward (the issue #257 repro).
-        let result =
-            set_player_role_internal(&state, "player-1".to_string(), Some("DefensiveFB".to_string()))
-                .expect("DefensiveFB is valid at the RB slot");
+        let result = set_player_role_internal(
+            &state,
+            "player-1".to_string(),
+            Some("DefensiveFB".to_string()),
+        )
+        .expect("DefensiveFB is valid at the RB slot");
         assert_eq!(
             result.teams[0].player_roles.get("player-1"),
             Some(&PlayerRole::DefensiveFB)
         );
 
         // A midfield role is not valid at the RB slot.
-        let error = set_player_role_internal(
-            &state,
-            "player-1".to_string(),
-            Some("BoxToBox".to_string()),
-        )
-        .expect_err("BoxToBox is not valid at the RB slot");
+        let error =
+            set_player_role_internal(&state, "player-1".to_string(), Some("BoxToBox".to_string()))
+                .expect_err("BoxToBox is not valid at the RB slot");
         assert_eq!(error, "be.error.roleNotValidForPosition");
     }
 
@@ -1081,15 +1079,32 @@ mod tests {
         // One representative per granular branch (FB and wide-mid positions share
         // a branch in role_valid_for_position).
         let canonical: &[(P, &[R])] = &[
-            (P::Goalkeeper, &[R::Standard, R::BallPlayingKeeper, R::SweeperKeeper]),
-            (P::CenterBack, &[R::Standard, R::Stopper, R::CoverCB, R::BallPlayingCB]),
+            (
+                P::Goalkeeper,
+                &[R::Standard, R::BallPlayingKeeper, R::SweeperKeeper],
+            ),
+            (
+                P::CenterBack,
+                &[R::Standard, R::Stopper, R::CoverCB, R::BallPlayingCB],
+            ),
             (
                 P::RightBack,
-                &[R::Standard, R::AttackingFB, R::DefensiveFB, R::InvertedFB, R::WingBack],
+                &[
+                    R::Standard,
+                    R::AttackingFB,
+                    R::DefensiveFB,
+                    R::InvertedFB,
+                    R::WingBack,
+                ],
             ),
             (
                 P::DefensiveMidfielder,
-                &[R::Standard, R::AnchorMan, R::BallWinner, R::DeepLyingPlaymaker],
+                &[
+                    R::Standard,
+                    R::AnchorMan,
+                    R::BallWinner,
+                    R::DeepLyingPlaymaker,
+                ],
             ),
             (
                 P::CentralMidfielder,
@@ -1101,7 +1116,12 @@ mod tests {
             ),
             (
                 P::RightMidfielder,
-                &[R::Standard, R::WideForward, R::InsideForward, R::InvertedWinger],
+                &[
+                    R::Standard,
+                    R::WideForward,
+                    R::InsideForward,
+                    R::InvertedWinger,
+                ],
             ),
             (
                 P::Striker,

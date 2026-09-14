@@ -23,10 +23,7 @@ pub fn formation_slots(formation: &str) -> Vec<Position> {
 /// player is currently playing", since `player.position` is no longer mutated to
 /// encode the deployed slot.
 pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<Position> {
-    let slot_index = team
-        .starting_xi_ids
-        .iter()
-        .position(|id| id == player_id)?;
+    let slot_index = team.starting_xi_ids.iter().position(|id| id == player_id)?;
     formation_slots(&team.formation).get(slot_index).cloned()
 }
 

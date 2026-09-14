@@ -51,7 +51,9 @@ pub struct CompetitionRules {
     pub knockout_matches_per_day: u32,
 }
 
-fn default_knockout_matches_per_day() -> u32 { 1 }
+fn default_knockout_matches_per_day() -> u32 {
+    1
+}
 
 impl Default for CompetitionRules {
     fn default() -> Self {

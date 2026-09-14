@@ -470,6 +470,7 @@
     "goalDifference": "GD",
     "nPlayersFound": "{{count}} player(s) found",
     "nResults": "{{count}} result(s)",
+    "loadMore": "Load more",
     "showingFirst": "Showing first {{shown}} of {{total}} players. Refine your search to see more.",
     "noPlayersMatch": "No players match your filters.",
     "positions": {
@@ -3600,6 +3601,9 @@
     }
   },
   "date": {
+    "dayLabel": "Day",
+    "yearLabel": "Year",
+    "noMonth": "No month",
     "day": "DD",
     "month": "Month",
     "year": "YYYY"
@@ -3728,6 +3732,17 @@
     "winRate": "Win rate"
   },
   "worldEditor": {
+    "positionGroupFilter": {
+      "Goalkeeper": "All goalkeepers",
+      "Defender": "All defenders",
+      "Midfielder": "All midfielders",
+      "Forward": "All forwards"
+    },
+    "filterByPosition": "Filter by position",
+    "allPositions": "All positions",
+    "positionFilterByGroup": "By group",
+    "positionFilterBySpecific": "Specific position",
+    "showingEntries": "Showing {{shown}} of {{total}}",
     "title": "World Editor",
     "newPackage": "New World",
     "openPackageFile": "Open .ofm File",

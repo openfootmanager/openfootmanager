@@ -211,7 +211,11 @@ mod tests {
         replace_staff_list(db.conn(), &[sample_staff("s-002", StaffRole::Scout)]).unwrap();
 
         let all = load_all_staff(db.conn()).unwrap();
-        assert_eq!(all.len(), 1, "the omitted staff member survived the replace");
+        assert_eq!(
+            all.len(),
+            1,
+            "the omitted staff member survived the replace"
+        );
         assert_eq!(all[0].id, "s-002");
     }
 

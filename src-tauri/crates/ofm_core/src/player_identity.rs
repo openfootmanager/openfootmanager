@@ -601,7 +601,10 @@ mod tests {
         // no-op because natural_position is already granular.
         let changed = upgrade_player_identity(&mut player, Some(&Position::Striker));
 
-        assert!(!changed, "should not re-upgrade a player with a granular natural");
+        assert!(
+            !changed,
+            "should not re-upgrade a player with a granular natural"
+        );
         assert_eq!(player.natural_position, Position::LeftWinger);
         assert_eq!(
             player.alternate_positions,

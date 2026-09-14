@@ -22,9 +22,7 @@ pub(super) fn simulate_dormant_competition_day(
         .fixtures
         .iter()
         .enumerate()
-        .filter(|(_, fixture)| {
-            fixture.date == today && fixture.status == FixtureStatus::Scheduled
-        })
+        .filter(|(_, fixture)| fixture.date == today && fixture.status == FixtureStatus::Scheduled)
         .map(|(index, fixture)| {
             (
                 index,
@@ -42,9 +40,8 @@ pub(super) fn simulate_dormant_competition_day(
         let competition = &mut game.competitions[competition_index];
         // Level knockout ties are settled by a simulated shootout so the
         // bracket advances with a real winner instead of defaulting to home.
-        let penalties = (home_goals == away_goals
-            && competition.is_knockout_fixture(&fixture_id))
-        .then(|| crate::national_team::simulate_shootout(home_strength, away_strength, rng));
+        let penalties = (home_goals == away_goals && competition.is_knockout_fixture(&fixture_id))
+            .then(|| crate::national_team::simulate_shootout(home_strength, away_strength, rng));
         crate::catchup::apply_simulated_result(
             competition,
             fixture_index,
@@ -68,7 +65,7 @@ mod tests {
     };
     use domain::manager::Manager;
     use domain::team::Team;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{SeedableRng, rngs::StdRng};
 
     fn make_team(id: &str) -> Team {
         Team::new(
@@ -134,7 +131,10 @@ mod tests {
         let competition = &game.competitions[0];
         let fixture = &competition.fixtures[0];
         assert_eq!(fixture.status, FixtureStatus::Completed);
-        let result = fixture.result.as_ref().expect("fixture should have a result");
+        let result = fixture
+            .result
+            .as_ref()
+            .expect("fixture should have a result");
         // Cheap path: scoreline only, no per-minute report.
         assert!(result.report.is_none());
         assert!(result.home_scorers.is_empty());
@@ -175,7 +175,10 @@ mod tests {
                 saw_draw = true;
                 let home_pens = result.home_penalties.expect("level knockout needs pens");
                 let away_pens = result.away_penalties.expect("level knockout needs pens");
-                assert_ne!(home_pens, away_pens, "shootout must have a winner (seed {seed})");
+                assert_ne!(
+                    home_pens, away_pens,
+                    "shootout must have a winner (seed {seed})"
+                );
                 break;
             }
             assert!(
@@ -183,7 +186,10 @@ mod tests {
                 "decisive results must not carry a shootout (seed {seed})"
             );
         }
-        assert!(saw_draw, "expected at least one drawn knockout in 500 seeds");
+        assert!(
+            saw_draw,
+            "expected at least one drawn knockout in 500 seeds"
+        );
     }
 
     #[test]

@@ -519,11 +519,8 @@ where
     if is_knockout && report.home_goals == report.away_goals {
         let home_strength = crate::catchup::club_strength(&game.players, &home_team_id);
         let away_strength = crate::catchup::club_strength(&game.players, &away_team_id);
-        let (home_pens, away_pens) = crate::national_team::simulate_shootout(
-            home_strength,
-            away_strength,
-            &mut rand::rng(),
-        );
+        let (home_pens, away_pens) =
+            crate::national_team::simulate_shootout(home_strength, away_strength, &mut rand::rng());
         report.home_penalties = Some(home_pens);
         report.away_penalties = Some(away_pens);
     }

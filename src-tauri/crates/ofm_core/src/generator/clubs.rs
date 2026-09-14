@@ -39,55 +39,133 @@ impl NamingStyle {
     fn patterns(self) -> &'static [&'static str] {
         match self {
             NamingStyle::English => &[
-                "{} FC", "{} United", "{} City", "{} Town", "{} Athletic", "{} Rovers",
-                "{} Wanderers", "{} Albion", "{} County",
+                "{} FC",
+                "{} United",
+                "{} City",
+                "{} Town",
+                "{} Athletic",
+                "{} Rovers",
+                "{} Wanderers",
+                "{} Albion",
+                "{} County",
             ],
             NamingStyle::Scottish => &[
-                "{} FC", "{} United", "{} City", "{} Rovers", "{} Athletic", "{} County",
-                "{} Thistle", "Heart of {}",
+                "{} FC",
+                "{} United",
+                "{} City",
+                "{} Rovers",
+                "{} Athletic",
+                "{} County",
+                "{} Thistle",
+                "Heart of {}",
             ],
             NamingStyle::Spanish => &[
-                "{} CF", "Real {}", "Atlético {}", "Deportivo {}", "Racing {}", "{} FC",
-                "Club {}", "Unión {}",
+                "{} CF",
+                "Real {}",
+                "Atlético {}",
+                "Deportivo {}",
+                "Racing {}",
+                "{} FC",
+                "Club {}",
+                "Unión {}",
             ],
             NamingStyle::Italian => &[
-                "{} Calcio", "AC {}", "{} FC", "US {}", "Inter {}", "Virtus {}", "Real {}",
+                "{} Calcio",
+                "AC {}",
+                "{} FC",
+                "US {}",
+                "Inter {}",
+                "Virtus {}",
+                "Real {}",
                 "Pro {}",
             ],
             NamingStyle::German => &[
-                "FC {}", "{} 04", "SV {}", "VfB {}", "Borussia {}", "{} United", "TSV {}",
+                "FC {}",
+                "{} 04",
+                "SV {}",
+                "VfB {}",
+                "Borussia {}",
+                "{} United",
+                "TSV {}",
                 "SC {}",
             ],
             NamingStyle::French => &[
-                "{} FC", "Olympique {}", "AS {}", "Racing {}", "Stade {}", "RC {}", "FC {}",
+                "{} FC",
+                "Olympique {}",
+                "AS {}",
+                "Racing {}",
+                "Stade {}",
+                "RC {}",
+                "FC {}",
                 "US {}",
             ],
             NamingStyle::Portuguese => &[
-                "{} FC", "Sporting {}", "Académico {}", "União {}", "CD {}", "{} SC", "Os {}",
+                "{} FC",
+                "Sporting {}",
+                "Académico {}",
+                "União {}",
+                "CD {}",
+                "{} SC",
+                "Os {}",
                 "Real {}",
             ],
             NamingStyle::Dutch => &[
-                "{} FC", "FC {}", "SV {}", "VV {}", "{} United", "Sparta {}", "{} City",
+                "{} FC",
+                "FC {}",
+                "SV {}",
+                "VV {}",
+                "{} United",
+                "Sparta {}",
+                "{} City",
                 "Go Ahead {}",
             ],
             NamingStyle::Nordic => &[
-                "{} IF", "IFK {}", "{} FF", "{} BK", "{} FC", "{} United", "{} SK", "{} AIK",
+                "{} IF",
+                "IFK {}",
+                "{} FF",
+                "{} BK",
+                "{} FC",
+                "{} United",
+                "{} SK",
+                "{} AIK",
             ],
             NamingStyle::Balkan => &[
-                "NK {}", "{} FC", "HNK {}", "Dinamo {}", "Hajduk {}", "FK {}", "{} United",
+                "NK {}",
+                "{} FC",
+                "HNK {}",
+                "Dinamo {}",
+                "Hajduk {}",
+                "FK {}",
+                "{} United",
                 "Slaven {}",
             ],
             NamingStyle::LatinAmerican => &[
-                "Club {}", "{} FC", "Atlético {}", "Racing {}", "Deportivo {}", "Unión {}",
-                "Independiente {}", "Nacional {}",
+                "Club {}",
+                "{} FC",
+                "Atlético {}",
+                "Racing {}",
+                "Deportivo {}",
+                "Unión {}",
+                "Independiente {}",
+                "Nacional {}",
             ],
             NamingStyle::Brazilian => &[
-                "{} Esporte Clube", "Associação Atlética {}", "Grêmio Esportivo {}",
-                "Clube Atlético {}", "{} Futebol Clube", "União Esportiva {}",
+                "{} Esporte Clube",
+                "Associação Atlética {}",
+                "Grêmio Esportivo {}",
+                "Clube Atlético {}",
+                "{} Futebol Clube",
+                "União Esportiva {}",
             ],
             NamingStyle::Generic => &[
-                "{} FC", "{} United", "{} City", "Club {}", "{} Athletic", "Sporting {}",
-                "Real {}", "{} SC",
+                "{} FC",
+                "{} United",
+                "{} City",
+                "Club {}",
+                "{} Athletic",
+                "Sporting {}",
+                "Real {}",
+                "{} SC",
             ],
         }
     }
@@ -184,7 +262,6 @@ impl WorldGenConfig {
     }
 }
 
-
 const PLAY_STYLES: &[&str] = &[
     "Possession",
     "Attacking",
@@ -198,9 +275,38 @@ const PLAY_STYLES: &[&str] = &[
 /// suffixes so "Real Madrid CF" → "MAD" rather than "RMC".
 fn short_code(name: &str) -> String {
     const SKIP: &[&str] = &[
-        "FC", "AC", "AS", "SV", "CF", "CD", "SC", "US", "RC", "NK", "FK", "BK", "IF", "FF", "SK",
-        "TSV", "VfB", "HNK", "IFK", "AIK", "VV", "Pro", "Os", "Esporte", "Clube",
-        "Associação", "Atlética", "Grêmio", "Esportivo", "Atlético", "Futebol", "União",
+        "FC",
+        "AC",
+        "AS",
+        "SV",
+        "CF",
+        "CD",
+        "SC",
+        "US",
+        "RC",
+        "NK",
+        "FK",
+        "BK",
+        "IF",
+        "FF",
+        "SK",
+        "TSV",
+        "VfB",
+        "HNK",
+        "IFK",
+        "AIK",
+        "VV",
+        "Pro",
+        "Os",
+        "Esporte",
+        "Clube",
+        "Associação",
+        "Atlética",
+        "Grêmio",
+        "Esportivo",
+        "Atlético",
+        "Futebol",
+        "União",
         "Esportiva",
     ];
     // Initial of each significant word, restricted to ASCII so accented names
@@ -233,7 +339,9 @@ fn ascii_letters(value: &str) -> String {
         .chars()
         .filter_map(|c| match c {
             'A'..='Z' | 'a'..='z' => Some(c),
-            'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' | 'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' => Some('a'),
+            'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' | 'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' => {
+                Some('a')
+            }
             'Ç' | 'ç' => Some('c'),
             'È' | 'É' | 'Ê' | 'Ë' | 'è' | 'é' | 'ê' | 'ë' => Some('e'),
             'Ì' | 'Í' | 'Î' | 'Ï' | 'ì' | 'í' | 'î' | 'ï' => Some('i'),
@@ -418,7 +526,6 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
 // Standard nation content
 // ---------------------------------------------------------------------------
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -472,18 +579,17 @@ mod tests {
         let config = WorldGenConfig::standard();
         let eng = config.nations.iter().find(|n| n.code == "ENG").unwrap();
         assert_eq!(eng.tiers, 2);
-        assert!(config.clubs_per_division >= 18, "leagues should be realistic");
+        assert!(
+            config.clubs_per_division >= 18,
+            "leagues should be realistic"
+        );
     }
 
     #[test]
     fn every_standard_nation_is_in_the_catalog_with_a_region() {
         for nation in &WorldGenConfig::standard().nations {
             let region = nations::region_for_code(&nation.code);
-            assert!(
-                !region.is_empty(),
-                "{} has no region mapping",
-                nation.code
-            );
+            assert!(!region.is_empty(), "{} has no region mapping", nation.code);
             // Not merely non-empty: an uncatalogued code silently answers
             // "europe", which is exactly how a newly added African or Asian
             // nation would end up filed under Europe without anyone noticing.
@@ -542,17 +648,34 @@ mod tests {
             .expect("BR is a generation nation")
             .clone();
         let mut rng = rand::rng();
-        let defs = generate_club_defs(&WorldGenConfig {
-            clubs_per_division: 20,
-            nations: vec![brazil],
-            ..standard.clone()
-        }, &mut rng);
+        let defs = generate_club_defs(
+            &WorldGenConfig {
+                clubs_per_division: 20,
+                nations: vec![brazil],
+                ..standard.clone()
+            },
+            &mut rng,
+        );
         assert_eq!(defs.len(), 40);
-        assert!(defs.iter().all(|club| !club.name.starts_with("Club ") && !club.name.ends_with(" FC")));
-        let forms: HashSet<&str> = defs.iter().filter_map(|club| {
-            ["Esporte Clube", "Associação Atlética", "Grêmio Esportivo", "Clube Atlético", "Futebol Clube", "União Esportiva"]
-                .into_iter().find(|form| club.name.contains(form))
-        }).collect();
+        assert!(
+            defs.iter()
+                .all(|club| !club.name.starts_with("Club ") && !club.name.ends_with(" FC"))
+        );
+        let forms: HashSet<&str> = defs
+            .iter()
+            .filter_map(|club| {
+                [
+                    "Esporte Clube",
+                    "Associação Atlética",
+                    "Grêmio Esportivo",
+                    "Clube Atlético",
+                    "Futebol Clube",
+                    "União Esportiva",
+                ]
+                .into_iter()
+                .find(|form| club.name.contains(form))
+            })
+            .collect();
         assert!(forms.len() >= 4, "expected several Brazilian naming forms");
         let codes: HashSet<&str> = defs.iter().map(|club| club.short_name.as_str()).collect();
         assert_eq!(codes.len(), 40);

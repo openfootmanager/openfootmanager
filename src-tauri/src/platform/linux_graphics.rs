@@ -550,11 +550,20 @@ mod tests {
         // that survives deletes the record belonging to the one that crashed — so the crash is
         // never counted and the fallback never engages. The count must still be readable.
         let ours = format_state(1);
-        let theirs = format!("{} {} {}", env!("CARGO_PKG_VERSION"), std::process::id() + 1, 1);
+        let theirs = format!(
+            "{} {} {}",
+            env!("CARGO_PKG_VERSION"),
+            std::process::id() + 1,
+            1
+        );
 
         assert_ne!(ours, theirs, "records from two launches must not collide");
         assert_eq!(parse_state(&ours), 1);
-        assert_eq!(parse_state(&theirs), 1, "any launch's count is still readable");
+        assert_eq!(
+            parse_state(&theirs),
+            1,
+            "any launch's count is still readable"
+        );
     }
 
     #[test]
@@ -586,7 +595,10 @@ mod tests {
 
         let env = env_failing(&["nvidia"], u32::MAX);
         assert_eq!(policy_for(GpuProfile::Auto, &env), Policy::DisableDmabuf);
-        assert!(!should_track_startup(GpuProfile::Auto, Policy::DisableDmabuf));
+        assert!(!should_track_startup(
+            GpuProfile::Auto,
+            Policy::DisableDmabuf
+        ));
     }
 
     #[test]
@@ -617,7 +629,10 @@ mod tests {
         // the marker, running the benchmark matrix would force the next `auto` launch onto the
         // slow path because of a deliberate experiment.
         assert!(!should_track_startup(GpuProfile::Off, Policy::Nothing));
-        assert!(!should_track_startup(GpuProfile::Safe, Policy::DisableDmabuf));
+        assert!(!should_track_startup(
+            GpuProfile::Safe,
+            Policy::DisableDmabuf
+        ));
     }
 
     #[test]

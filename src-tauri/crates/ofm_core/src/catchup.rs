@@ -112,11 +112,10 @@ pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cuto
         let away_strength = strengths.get(&away_id).copied().unwrap_or(50.0);
         let (home_goals, away_goals) =
             crate::national_team::simulate_scoreline(home_strength, away_strength, &mut rng);
-        let penalties = (home_goals == away_goals
-            && competition.is_knockout_fixture(&fixture_id))
-        .then(|| {
-            crate::national_team::simulate_shootout(home_strength, away_strength, &mut rng)
-        });
+        let penalties = (home_goals == away_goals && competition.is_knockout_fixture(&fixture_id))
+            .then(|| {
+                crate::national_team::simulate_shootout(home_strength, away_strength, &mut rng)
+            });
         apply_simulated_result(
             competition,
             idx,

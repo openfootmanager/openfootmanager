@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, DatePicker, Select } from "../ui";
 import { AlertCircle, ChevronRight, X } from "lucide-react";
@@ -89,6 +89,7 @@ export default function CreateManagerForm({
     onSubmit,
 }: CreateManagerFormProps) {
     const { t, i18n } = useTranslation();
+    const dobLabelId = useId();
 
     return (
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -175,10 +176,11 @@ export default function CreateManagerForm({
             </div>
 
             <div id="create-manager-field-dob">
-                <label className="mb-1.5 block text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <label id={dobLabelId} className="mb-1.5 block text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t("createManager.dob")}
                 </label>
                 <DatePicker
+                    labelledBy={dobLabelId}
                     value={formData.dob}
                     onChange={(value) => {
                         onChange("dob", value);

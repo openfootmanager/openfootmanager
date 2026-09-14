@@ -6,7 +6,6 @@ use crate::application::press_conference::{
     first_player_outside_squad, last_completed_match, todays_article_id,
 };
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
 
 /// Format a match event as a readable string.
 fn fmt_event(event: &engine::MatchEvent) -> String {
@@ -37,8 +36,7 @@ pub fn match_start(
         allows_et,
         None,
         None,
-    )
-    .map_err(|e| translate_error(&e))?;
+    )?;
 
     {
         use tauri::Emitter;
@@ -53,11 +51,7 @@ pub fn match_start(
 
 /// Step the live match forward by N minutes.
 pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> {
-    let results = crate::application::live_match::step_live_match(
-        &ctx.state_manager,
-        minutes,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let results = crate::application::live_match::step_live_match(&ctx.state_manager, minutes)?;
 
     let mut lines: Vec<String> = Vec::new();
     for result in &results {
@@ -67,8 +61,7 @@ pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> 
     }
 
     // Get the latest snapshot for score
-    let snapshot = crate::application::live_match::get_match_snapshot(&ctx.state_manager)
-        .map_err(|e| translate_error(&e))?;
+    let snapshot = crate::application::live_match::get_match_snapshot(&ctx.state_manager)?;
 
     {
         use tauri::Emitter;
@@ -99,18 +92,12 @@ pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> 
 }
 
 /// Apply a match command (substitution, tactic change, set piece taker, etc.)
-pub fn match_command(
-    ctx: Arc<McpContext>,
-    command_json: String,
-) -> Result<String, String> {
+pub fn match_command(ctx: Arc<McpContext>, command_json: String) -> Result<String, String> {
     let command: engine::MatchCommand = serde_json::from_str(&command_json)
         .map_err(|e| format!("Invalid match command JSON: {}", e))?;
 
-    let snapshot = crate::application::live_match::apply_match_command(
-        &ctx.state_manager,
-        command,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let snapshot =
+        crate::application::live_match::apply_match_command(&ctx.state_manager, command)?;
 
     {
         use tauri::Emitter;
@@ -119,16 +106,13 @@ pub fn match_command(
 
     Ok(format!(
         "## Command Applied\n\n**Minute**: {}\n**Score**: {} - {}",
-        snapshot.current_minute,
-        snapshot.home_score,
-        snapshot.away_score
+        snapshot.current_minute, snapshot.home_score, snapshot.away_score
     ))
 }
 
 /// Get current match snapshot without advancing time.
 pub fn match_snapshot(ctx: Arc<McpContext>) -> Result<String, String> {
-    let snapshot = crate::application::live_match::get_match_snapshot(&ctx.state_manager)
-        .map_err(|e| translate_error(&e))?;
+    let snapshot = crate::application::live_match::get_match_snapshot(&ctx.state_manager)?;
 
     Ok(format!(
         "## Match Snapshot\n\n**Minute**: {}\n**Score**: {} - {}\n**Phase**: {:?}\n**Possession**: Home {:.0}% / Away {:.0}%",
@@ -143,8 +127,7 @@ pub fn match_snapshot(ctx: Arc<McpContext>) -> Result<String, String> {
 
 /// Finish the live match: generate report, update game state, clean up.
 pub fn match_finish(ctx: Arc<McpContext>) -> Result<String, String> {
-    let response = crate::application::live_match::finish_live_match(&ctx.state_manager)
-        .map_err(|e| translate_error(&e))?;
+    let response = crate::application::live_match::finish_live_match(&ctx.state_manager)?;
 
     {
         use tauri::Emitter;
@@ -152,9 +135,16 @@ pub fn match_finish(ctx: Arc<McpContext>) -> Result<String, String> {
     }
 
     let round_text = if let Some(ref summary) = response.round_summary {
-        let results: Vec<String> = summary.completed_results.iter().map(|r| {
-            format!("- {} {} - {} {}", r.home_team_name, r.home_goals, r.away_goals, r.away_team_name)
-        }).collect();
+        let results: Vec<String> = summary
+            .completed_results
+            .iter()
+            .map(|r| {
+                format!(
+                    "- {} {} - {} {}",
+                    r.home_team_name, r.home_goals, r.away_goals, r.away_team_name
+                )
+            })
+            .collect();
         format!("\n\n### Round Results\n{}", results.join("\n"))
     } else {
         String::new()
@@ -194,7 +184,13 @@ pub fn match_team_talk(
     for result in &results {
         let pid = result["player_id"].as_str().unwrap_or("?");
         let delta = result["delta"].as_i64().unwrap_or(0);
-        let emoji = if delta > 0 { "📈" } else if delta < 0 { "📉" } else { "➡️" };
+        let emoji = if delta > 0 {
+            "📈"
+        } else if delta < 0 {
+            "📉"
+        } else {
+            "➡️"
+        };
         lines.push(format!("- {} {}: morale {:+}", emoji, pid, delta));
     }
 
@@ -259,7 +255,7 @@ fn apply_press_conference(
     // One conference per game day.
     let (article_id, already_held) = todays_article_id(game);
     if already_held {
-        return Err("A press conference has already been held today.".to_string());
+        return Err("be.error.liveMatch.pressConferenceAlreadyHeld".to_string());
     }
 
     // Derive user team and last match result from game state
@@ -288,8 +284,7 @@ fn apply_press_conference(
     // The match the conference is about — the last one played in any competition, not the last
     // league match. Copied out of the borrow so the morale loops below can take `game` mutably.
     let (home_team_id, away_team_id, home_score, away_score) =
-        last_completed_match(game, &user_team_id)
-            .ok_or("No completed match found for your team")?;
+        last_completed_match(game, &user_team_id).ok_or("be.error.liveMatch.noCompletedMatch")?;
 
     let team_name = |id: &str| {
         game.teams

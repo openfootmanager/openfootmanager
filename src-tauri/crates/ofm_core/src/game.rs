@@ -179,7 +179,9 @@ impl Game {
     }
 
     pub fn promote_legacy_league(&mut self) {
-        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+        if self.competitions.is_empty()
+            && let Some(league) = self.league.clone()
+        {
             self.competitions.push(league);
         }
         self.sync_legacy_league();
@@ -287,7 +289,9 @@ impl Game {
     }
 
     pub fn primary_competition_mut(&mut self) -> Option<&mut League> {
-        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+        if self.competitions.is_empty()
+            && let Some(league) = self.league.clone()
+        {
             self.competitions.push(league);
         }
         self.competitions.first_mut()

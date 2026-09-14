@@ -1088,7 +1088,12 @@ fn peaked_player_does_not_gain_from_training() {
 
     // Prime-age player (age ~27 in 2025). Compute their natural OVR from
     // default_attrs, then peg potential to it so they have no headroom.
-    let year = game.clock.current_date.date_naive().format("%Y").to_string();
+    let year = game
+        .clock
+        .current_date
+        .date_naive()
+        .format("%Y")
+        .to_string();
     let year: u32 = year.parse().unwrap();
     let peaked_id = "p2".to_string();
     {
@@ -1101,11 +1106,7 @@ fn peaked_player_does_not_gain_from_training() {
         p.potential = p.ovr;
     }
 
-    let initial = game
-        .players
-        .iter()
-        .find(|p| p.id == peaked_id)
-        .unwrap();
+    let initial = game.players.iter().find(|p| p.id == peaked_id).unwrap();
     let initial_ovr = initial.ovr;
     let initial_potential = initial.potential;
     // Snapshot the exact attributes Physical focus would try to grow so the

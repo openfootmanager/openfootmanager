@@ -183,7 +183,12 @@ impl PenaltyShootoutState {
 mod tests {
     use super::PenaltyShootoutState;
 
-    fn state(home_taken: u8, away_taken: u8, home_scored: u8, away_scored: u8) -> PenaltyShootoutState {
+    fn state(
+        home_taken: u8,
+        away_taken: u8,
+        home_scored: u8,
+        away_scored: u8,
+    ) -> PenaltyShootoutState {
         PenaltyShootoutState {
             round: 0,
             home_taken,
@@ -194,7 +199,12 @@ mod tests {
         }
     }
 
-    fn sudden_death(home_taken: u8, away_taken: u8, home_scored: u8, away_scored: u8) -> PenaltyShootoutState {
+    fn sudden_death(
+        home_taken: u8,
+        away_taken: u8,
+        home_scored: u8,
+        away_scored: u8,
+    ) -> PenaltyShootoutState {
         PenaltyShootoutState {
             sudden_death: true,
             ..state(home_taken, away_taken, home_scored, away_scored)
