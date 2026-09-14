@@ -24,6 +24,7 @@ export default function HomeRecentResultsCard({
       <CardHeader
         action={
           <button
+            type="button"
             onClick={() => onNavigate?.("Schedule")}
             className="text-primary-500 dark:text-primary-400 text-xs font-heading font-bold uppercase tracking-wider hover:text-primary-600 dark:hover:text-primary-300 transition-colors"
           >

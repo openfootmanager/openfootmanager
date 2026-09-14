@@ -174,6 +174,7 @@ export function FreeAgentContractForm({
 
       <div className="flex gap-2">
         <button
+          type="button"
           onClick={onSubmit}
           disabled={submitDisabled}
           className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
@@ -181,6 +182,7 @@ export function FreeAgentContractForm({
           {submitting ? t("transfers.submitting") : t("playerProfile.renewalSubmit")}
         </button>
         <button
+          type="button"
           onClick={onClose}
           className="px-4 py-2 bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-300 rounded-lg font-heading font-bold text-sm uppercase tracking-wider hover:bg-gray-300 dark:hover:bg-navy-600 transition-colors"
         >

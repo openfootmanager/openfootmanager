@@ -148,6 +148,7 @@ export default function HalfTimeBreak({
         <div className="relative">
           <div className="absolute right-0 top-0 flex items-center gap-3">
             <button
+              type="button"
               onClick={onResume}
               className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-xl font-heading font-bold uppercase tracking-wider text-sm text-white shadow-lg shadow-primary-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
@@ -291,6 +292,7 @@ export default function HalfTimeBreak({
                     <div className="flex flex-col gap-2">
                       {teamTalkOptions.map((opt) => (
                         <button
+                          type="button"
                           key={opt.id}
                           onClick={() => setSelectedTalk(opt.id)}
                           className={`flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
@@ -319,6 +321,7 @@ export default function HalfTimeBreak({
                     </div>
                     {selectedTalk && (
                       <button
+                        type="button"
                         onClick={handleDeliverTalk}
                         className="w-full mt-3 py-2.5 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors"
                       >
@@ -393,6 +396,7 @@ export default function HalfTimeBreak({
                   <div className="grid grid-cols-3 gap-1.5">
                     {FORMATIONS.map((f) => (
                       <button
+                        type="button"
                         key={f}
                         onClick={() => handleFormationChange(f)}
                         className={`py-2 rounded-lg text-xs font-heading font-bold transition-all ${
@@ -415,6 +419,7 @@ export default function HalfTimeBreak({
                   <div className="grid grid-cols-2 gap-1.5">
                     {PLAY_STYLES.map((style) => (
                       <button
+                        type="button"
                         key={style}
                         onClick={() => handlePlayStyleChange(style)}
                         className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-xs font-heading font-bold transition-all ${
@@ -443,6 +448,7 @@ export default function HalfTimeBreak({
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => setShowSubPanel(true)}
                     className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors"
                   >

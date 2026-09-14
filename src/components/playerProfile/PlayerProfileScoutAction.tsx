@@ -32,6 +32,7 @@ export default function PlayerProfileScoutAction({
   return (
     <>
       <button
+        type="button"
         disabled={!availability.canScout || scoutStatus === "sending"}
         onClick={onScout}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-colors text-xs font-heading font-bold uppercase tracking-wider disabled:opacity-50"

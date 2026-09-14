@@ -272,6 +272,7 @@ function ViewButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`rounded-lg px-4 py-2 font-heading text-sm font-bold uppercase tracking-wider transition-all ${
         active
@@ -369,6 +370,7 @@ function CalendarView({
           </div>
           {slice.past_groups.length > visiblePastCount && (
             <button
+              type="button"
               onClick={onShowMorePast}
               className="mx-auto mt-1 rounded-lg border border-gray-200 bg-white px-4 py-2 font-heading text-sm font-bold uppercase tracking-wider text-gray-500 transition-all hover:text-gray-700 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-400 dark:hover:text-gray-200"
             >

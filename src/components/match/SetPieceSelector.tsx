@@ -127,6 +127,7 @@ export default function SetPieceSelector({
   return (
     <div className="mb-4 last:mb-0">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-navy-700/50 dark:hover:bg-navy-700 transition-colors"
       >
@@ -164,6 +165,7 @@ export default function SetPieceSelector({
             const isCurrent = p.id === currentId;
             return (
               <button
+                type="button"
                 key={p.id}
                 onClick={() => {
                   onSelect(p.id);

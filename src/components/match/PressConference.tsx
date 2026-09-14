@@ -346,6 +346,7 @@ export default function PressConference({
                 const isSelected = answers[currentQ.id] === r.id;
                 return (
                   <button
+                    type="button"
                     key={r.id}
                     onClick={() => handleAnswer(r.id)}
                     disabled={hasAnswered}
@@ -376,6 +377,7 @@ export default function PressConference({
             {hasAnswered && (
               <div className="flex justify-end mt-6 ml-16">
                 <button
+                  type="button"
                   onClick={handleNext}
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-xl font-heading font-bold uppercase tracking-wider text-sm text-white shadow-lg shadow-primary-500/20 transition-all"
                 >
@@ -396,6 +398,7 @@ export default function PressConference({
       <footer className="bg-white dark:bg-navy-800 border-t border-gray-200 dark:border-navy-700 px-6 py-3 transition-colors duration-300">
         <div className="max-w-3xl mx-auto flex justify-end">
           <button
+            type="button"
             onClick={onFinish}
             className="text-xs font-heading uppercase tracking-wider text-gray-600 hover:text-gray-800 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
           >

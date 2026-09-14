@@ -142,6 +142,7 @@ export default function GenerationStep({
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onBack}
             className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
           >

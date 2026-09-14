@@ -184,14 +184,18 @@ function HookHarness({
 
   return (
     <div>
-      <button onClick={() => openBidNegotiation(target)}>Open</button>
+      <button type="button" onClick={() => openBidNegotiation(target)}>
+        Open
+      </button>
       <label htmlFor="bid-amount">Bid amount</label>
       <input
         id="bid-amount"
         value={bidAmount}
         onChange={(event) => setBidAmount(event.target.value)}
       />
-      <button onClick={() => void handleMakeBid()}>Submit</button>
+      <button type="button" onClick={() => void handleMakeBid()}>
+        Submit
+      </button>
       <output aria-label="bid-result">{bidResult ?? "idle"}</output>
     </div>
   );

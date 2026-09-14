@@ -28,6 +28,7 @@ export default function TeamProfile({
   return (
     <div className="max-w-6xl mx-auto">
       <button
+        type="button"
         onClick={onClose}
         className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors mb-4"
       >

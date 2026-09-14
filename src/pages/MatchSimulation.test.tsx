@@ -48,7 +48,7 @@ vi.mock("../components/match/PreMatchSetup", () => ({
   }) => (
     <div data-testid="prematch">
       {snapshot.home_team.name}
-      <button data-testid="prematch-start" onClick={onStart}>
+      <button type="button" data-testid="prematch-start" onClick={onStart}>
         Start
       </button>
     </div>
@@ -71,13 +71,14 @@ vi.mock("../components/match/MatchLive", () => ({
   }) => (
     <div data-testid="match-live-container" data-preferred-speed={preferredSpeed ?? "normal"}>
       {snapshot.home_team.name}
-      <button data-testid="match-live" onClick={onFullTime}>
+      <button type="button" data-testid="match-live" onClick={onFullTime}>
         Full Time
       </button>
-      <button data-testid="match-trigger-halftime" onClick={onHalfTime}>
+      <button type="button" data-testid="match-trigger-halftime" onClick={onHalfTime}>
         Half Time
       </button>
       <button
+        type="button"
         data-testid="match-trigger-speed-fast"
         onClick={() => onPreferredSpeedChange?.("fast")}
       >
@@ -90,7 +91,7 @@ vi.mock("../components/match/MatchLive", () => ({
 vi.mock("../components/match/HalfTimeBreak", () => ({
   default: ({ onResume }: { onResume?: () => void }) => (
     <div data-testid="halftime">
-      <button data-testid="halftime-resume" onClick={onResume}>
+      <button type="button" data-testid="halftime-resume" onClick={onResume}>
         Resume
       </button>
     </div>
@@ -100,10 +101,10 @@ vi.mock("../components/match/HalfTimeBreak", () => ({
 vi.mock("../components/match/PostMatchScreen", () => ({
   default: ({ onContinue, onFinish }: { onContinue?: () => void; onFinish?: () => void }) => (
     <div>
-      <button data-testid="postmatch-continue" onClick={onContinue}>
+      <button type="button" data-testid="postmatch-continue" onClick={onContinue}>
         Continue
       </button>
-      <button data-testid="postmatch-finish" onClick={onFinish}>
+      <button type="button" data-testid="postmatch-finish" onClick={onFinish}>
         Finish Match
       </button>
     </div>
@@ -127,10 +128,10 @@ vi.mock("../components/match/RoundDigestScreen", () => ({
         {roundSummary ? JSON.stringify(roundSummary) : "null"}
       </div>
       <div data-testid="digest-is-league">{isLeagueFixture ? "true" : "false"}</div>
-      <button data-testid="digest-press" onClick={onPressConference}>
+      <button type="button" data-testid="digest-press" onClick={onPressConference}>
         Press Conference
       </button>
-      <button data-testid="digest-finish" onClick={onFinish}>
+      <button type="button" data-testid="digest-finish" onClick={onFinish}>
         Skip
       </button>
     </div>

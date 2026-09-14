@@ -133,6 +133,7 @@ export default function Settings() {
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={() => navigate(returnTo)}
               className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
             >
@@ -228,6 +229,7 @@ export default function Settings() {
 
           <SettingRow label={t("settings.fullscreen")} description={t("settings.fullscreenDesc")}>
             <button
+              type="button"
               onClick={toggleFullscreen}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600 text-sm font-heading font-bold uppercase tracking-wider transition-colors"
             >
@@ -310,6 +312,7 @@ export default function Settings() {
 
           <SettingRow label={t("settings.exportWorld")} description={t("settings.exportWorldDesc")}>
             <button
+              type="button"
               onClick={handleExportWorld}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400 hover:bg-primary-500/20 text-sm font-heading font-bold uppercase tracking-wider transition-colors"
             >
@@ -332,12 +335,14 @@ export default function Settings() {
               {confirmClear ? (
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={handleClearSaves}
                     className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-heading font-bold uppercase tracking-wider hover:bg-red-600 transition-colors"
                   >
                     {t("common.confirm")}
                   </button>
                   <button
+                    type="button"
                     onClick={() => setConfirmClear(false)}
                     className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 text-sm font-heading font-bold uppercase tracking-wider hover:bg-gray-300 dark:hover:bg-navy-500 transition-colors"
                   >
@@ -350,6 +355,7 @@ export default function Settings() {
                 </span>
               ) : (
                 <button
+                  type="button"
                   onClick={() => setConfirmClear(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-sm font-heading font-bold uppercase tracking-wider transition-colors"
                 >
@@ -435,6 +441,7 @@ function SettingRow({
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!checked)}
       className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
         checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
@@ -462,6 +469,7 @@ function SegmentedControl({
     <div className="flex rounded-lg bg-gray-100 dark:bg-navy-700 p-0.5 border border-gray-200 dark:border-navy-600">
       {options.map((opt) => (
         <button
+          type="button"
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${

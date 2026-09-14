@@ -75,6 +75,7 @@ export default function ScoutingPlayerSearchCard({
           <div className="ml-auto flex items-center gap-2">
             {POSITION_FILTERS.map((position) => (
               <button
+                type="button"
                 key={position}
                 onClick={() => onPositionFilterChange(position)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
@@ -182,6 +183,7 @@ export default function ScoutingPlayerSearchCard({
                         />
                         <div className="min-w-0">
                           <button
+                            type="button"
                             onClick={() => onSelectPlayer?.(player.id)}
                             className="font-heading font-bold text-gray-800 dark:text-gray-100 hover:text-primary-500 transition-colors text-left"
                           >
@@ -232,6 +234,7 @@ export default function ScoutingPlayerSearchCard({
                         <span className="text-xs text-gray-400">{t("scouting.noScoutsFree")}</span>
                       ) : (
                         <button
+                          type="button"
                           disabled={sendingPlayerId === player.id}
                           onClick={() => onSendScout(player.id)}
                           className="flex items-center gap-1 ml-auto px-2.5 py-1 rounded-lg bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 transition-colors text-xs font-heading font-bold uppercase tracking-wider disabled:opacity-50"
@@ -268,6 +271,7 @@ export default function ScoutingPlayerSearchCard({
             </span>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 aria-label={t("scouting.previousPage")}
                 disabled={safePage === 0}
                 onClick={onPreviousPage}
@@ -279,6 +283,7 @@ export default function ScoutingPlayerSearchCard({
                 {safePage + 1} / {totalPages}
               </span>
               <button
+                type="button"
                 aria-label={t("scouting.nextPage")}
                 disabled={safePage >= totalPages - 1}
                 onClick={onNextPage}

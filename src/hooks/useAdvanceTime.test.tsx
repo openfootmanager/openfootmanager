@@ -39,9 +39,15 @@ function HookHarness(props: {
 
   return (
     <div>
-      <button onClick={() => void handleContinue()}>Continue</button>
-      <button onClick={handleConfirmMatch}>Confirm Match</button>
-      <button onClick={() => void handleSkipToMatchDay()}>Skip</button>
+      <button type="button" onClick={() => void handleContinue()}>
+        Continue
+      </button>
+      <button type="button" onClick={handleConfirmMatch}>
+        Confirm Match
+      </button>
+      <button type="button" onClick={() => void handleSkipToMatchDay()}>
+        Skip
+      </button>
       <div data-testid="show-match-confirm">{String(showMatchConfirm)}</div>
       <div data-testid="blocker-count">{blockerModal?.blockers.length ?? 0}</div>
     </div>

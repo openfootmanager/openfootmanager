@@ -211,6 +211,7 @@ export default function PlayerProfile({
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
+          type="button"
           onClick={onClose}
           className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
         >

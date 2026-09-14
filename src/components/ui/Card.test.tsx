@@ -63,7 +63,7 @@ describe("CardHeader", () => {
   });
 
   it("renders action slot when provided", () => {
-    render(<CardHeader action={<button>Edit</button>}>Title</CardHeader>);
+    render(<CardHeader action={<button type="button">Edit</button>}>Title</CardHeader>);
     expect(screen.getByText("Edit")).toBeInTheDocument();
   });
 

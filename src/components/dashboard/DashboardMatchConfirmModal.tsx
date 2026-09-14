@@ -63,12 +63,14 @@ export default function DashboardMatchConfirmModal({
       )}
       <div className="mt-5 flex gap-3">
         <button
+          type="button"
           onClick={onCancel}
           className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-200 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600"
         >
           {t("common.cancel")}
         </button>
         <button
+          type="button"
           onClick={onConfirm}
           className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${modeMeta.buttonColorClass} px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white transition-all hover:brightness-110`}
         >

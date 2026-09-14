@@ -78,6 +78,7 @@ export default function CompetitionsOverview({ competitions, userTeamId, onSelec
 
                 return (
                   <button
+                    type="button"
                     key={comp.id}
                     onClick={() => onSelect(comp.id)}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-navy-700 text-left transition-colors"

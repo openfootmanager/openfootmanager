@@ -197,6 +197,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
       <div className="flex items-center gap-2 flex-wrap">
         {/* Category pills */}
         <button
+          type="button"
           onClick={() => {
             setFilterCategory(null);
             setPage(0);
@@ -211,6 +212,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
         </button>
         {categories.map((cat) => (
           <button
+            type="button"
             key={cat}
             onClick={() => {
               setFilterCategory(filterCategory === cat ? null : cat);
@@ -286,6 +288,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 pt-2">
           <button
+            type="button"
             disabled={safePage === 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             className="p-2 rounded-lg bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -296,6 +299,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
             {safePage + 1} / {totalPages}
           </span>
           <button
+            type="button"
             disabled={safePage >= totalPages - 1}
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             className="p-2 rounded-lg bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -331,6 +335,7 @@ function HeroArticle({
 
   const articleButton = (
     <button
+      type="button"
       data-testid={`news-article-${article.id}`}
       onClick={onSelect}
       className="w-full text-left bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm overflow-hidden hover:shadow-md dark:hover:border-navy-600 transition-all group"
@@ -427,6 +432,7 @@ function ArticleCard({
 
   const articleButton = (
     <button
+      type="button"
       data-testid={`news-article-${article.id}`}
       onClick={onSelect}
       className="w-full text-left bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm overflow-hidden hover:shadow-md dark:hover:border-navy-600 transition-all group flex flex-col"
@@ -506,6 +512,7 @@ function ArticleDetail({
   return (
     <div className="max-w-3xl mx-auto">
       <button
+        type="button"
         onClick={onBack}
         className="flex items-center gap-1.5 text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 mb-4 transition-colors"
       >
@@ -567,6 +574,7 @@ function ArticleDetail({
               <div className="flex flex-wrap gap-2">
                 {(article.team_ids ?? []).map((tid) => (
                   <button
+                    type="button"
                     key={tid}
                     onClick={() => onSelectTeam(tid)}
                     className="text-[10px] font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 bg-primary-500/5 hover:bg-primary-500/10 px-2.5 py-1 rounded-md transition-colors"

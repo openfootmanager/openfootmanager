@@ -161,6 +161,7 @@ export default function SimLab() {
           </p>
         </div>
         <button
+          type="button"
           onClick={() => {
             void run();
           }}
@@ -290,6 +291,7 @@ export default function SimLab() {
               onChange={(v) => update("injury_probability", v)}
             />
             <button
+              type="button"
               onClick={() => setCfg(defaultConfig())}
               className="w-full mt-2 text-xs text-slate-500 hover:text-slate-300 underline"
             >
@@ -321,6 +323,7 @@ export default function SimLab() {
               <div className="flex gap-1 mb-6 border-b border-navy-700">
                 {TABS.map((t) => (
                   <button
+                    type="button"
                     key={t}
                     onClick={() => setActiveTab(t)}
                     className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${

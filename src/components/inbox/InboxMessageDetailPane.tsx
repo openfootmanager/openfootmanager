@@ -103,6 +103,7 @@ export default function InboxMessageDetailPane({
     <>
       <div className="shrink-0 border-b border-gray-100 p-5 dark:border-navy-600">
         <button
+          type="button"
           onClick={onCloseSelectedMessage}
           className="md:hidden flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 mb-3"
         >
@@ -430,6 +431,7 @@ export default function InboxMessageDetailPane({
                       </p>
                       {options.map((option) => (
                         <button
+                          type="button"
                           key={option.id}
                           onClick={() =>
                             handleOptionClick(selectedMessage.id, action.id, option.id)
@@ -450,6 +452,7 @@ export default function InboxMessageDetailPane({
 
                 return (
                   <button
+                    type="button"
                     key={action.id}
                     disabled={action.resolved}
                     onClick={() => onAction(selectedMessage.id, action.id)}

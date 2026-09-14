@@ -64,6 +64,7 @@ function NavItem({ active, badge, collapsed, icon, label, onClick }: NavItemProp
 
   return (
     <button
+      type="button"
       onClick={onClick}
       title={collapsed ? label : undefined}
       aria-label={
@@ -185,6 +186,7 @@ export default function DashboardSidebar({
           </button>
         </div>
         <button
+          type="button"
           onClick={() => onNavClick("Manager")}
           title={collapsed ? t("dashboard.manager") : undefined}
           aria-label={t("dashboard.manager")}
@@ -288,6 +290,7 @@ export default function DashboardSidebar({
       {/* Settings & Exit */}
       <div className={`border-t border-navy-700 flex flex-col gap-1 ${collapsed ? "p-2" : "p-3"}`}>
         <button
+          type="button"
           onClick={onNavigateSettings}
           title={collapsed ? t("dashboard.settings") : undefined}
           aria-label={t("dashboard.settings")}
@@ -303,6 +306,7 @@ export default function DashboardSidebar({
           )}
         </button>
         <button
+          type="button"
           onClick={onExitClick}
           title={collapsed ? t("dashboard.exitToMenu") : undefined}
           aria-label={t("dashboard.exitToMenu")}

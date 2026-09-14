@@ -175,6 +175,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
       <div className="flex flex-wrap gap-3 mb-4 items-center">
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setView("mystaff")}
             className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               view === "mystaff"
@@ -185,6 +186,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             <UserCog className="w-4 h-4" /> {t("staff.myStaff", { count: myStaff.length })}
           </button>
           <button
+            type="button"
             onClick={() => setView("available")}
             className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
               view === "available"
@@ -210,6 +212,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
         <div className="flex gap-1.5">
           <button
+            type="button"
             onClick={() => setRoleFilter(null)}
             className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
               !roleFilter
@@ -221,6 +224,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
           </button>
           {roles.map((r) => (
             <button
+              type="button"
               key={r}
               onClick={() => setRoleFilter(roleFilter === r ? null : r)}
               className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
@@ -397,6 +401,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                       {/* Action button */}
                       {view === "mystaff" && (
                         <button
+                          type="button"
                           disabled={isLoading}
                           onClick={() => handleRelease(staff.id)}
                           className={`p-2 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors ${isLoading ? "opacity-50 pointer-events-none" : ""}`}
@@ -407,6 +412,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                       )}
                       {view === "available" && (
                         <button
+                          type="button"
                           disabled={isLoading}
                           onClick={() => handleHire(staff.id)}
                           className={`p-2 rounded-lg bg-primary-50 dark:bg-primary-500/10 text-primary-500 hover:bg-primary-100 dark:hover:bg-primary-500/20 transition-colors ${isLoading ? "opacity-50 pointer-events-none" : ""}`}

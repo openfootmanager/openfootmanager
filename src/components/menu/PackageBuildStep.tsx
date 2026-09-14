@@ -238,6 +238,7 @@ export default function PackageBuildStep({
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onBack}
             className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
           >
@@ -268,6 +269,7 @@ export default function PackageBuildStep({
               {t("packageBuild.databases")}
             </p>
             <button
+              type="button"
               onClick={onInstallPackage}
               disabled={isInstallingPackage}
               className="flex items-center gap-1 text-xs font-heading font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-50 transition-colors"

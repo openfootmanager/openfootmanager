@@ -690,6 +690,7 @@ export default function MainMenu() {
           {menuState === "main" && (
             <div className="flex flex-col gap-3">
               <button
+                type="button"
                 onClick={() => setMenuState("create")}
                 className="group flex items-center justify-between w-full p-4 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-primary-500/20"
               >
@@ -703,6 +704,7 @@ export default function MainMenu() {
               </button>
 
               <button
+                type="button"
                 onClick={handleOpenLoadMenu}
                 className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm"
               >
@@ -716,6 +718,7 @@ export default function MainMenu() {
               </button>
 
               <button
+                type="button"
                 onClick={() => navigate("/world-editor")}
                 className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm"
               >
@@ -729,6 +732,7 @@ export default function MainMenu() {
               </button>
 
               <button
+                type="button"
                 onClick={() => navigate("/settings", { state: { from: "/" } })}
                 className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-600 shadow-sm"
               >
@@ -742,6 +746,7 @@ export default function MainMenu() {
               </button>
 
               <button
+                type="button"
                 onClick={() => {
                   void handleExitApp();
                 }}

@@ -31,8 +31,12 @@ vi.mock("../playerProfile/PlayerProfile", () => ({
       <span>Player Profile Mock</span>
       <span>{startWithRenewalModal ? "renewal-open" : "renewal-closed"}</span>
       <span>{startWithTerminationModal ? "termination-open" : "termination-closed"}</span>
-      <button onClick={onClose}>close-player</button>
-      <button onClick={() => onSelectTeam("team-2")}>select-team</button>
+      <button type="button" onClick={onClose}>
+        close-player
+      </button>
+      <button type="button" onClick={() => onSelectTeam("team-2")}>
+        select-team
+      </button>
     </div>
   ),
 }));
@@ -47,15 +51,21 @@ vi.mock("../teamProfile", () => ({
   }) => (
     <div>
       <span>Team Profile Mock</span>
-      <button onClick={onClose}>close-team</button>
-      <button onClick={() => onSelectPlayer("player-2")}>select-player</button>
+      <button type="button" onClick={onClose}>
+        close-team
+      </button>
+      <button type="button" onClick={() => onSelectPlayer("player-2")}>
+        select-player
+      </button>
     </div>
   ),
 }));
 
 vi.mock("./DashboardAlerts", () => ({
   default: ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
-    <button onClick={() => onNavigate("Inbox")}>alerts-mock</button>
+    <button type="button" onClick={() => onNavigate("Inbox")}>
+      alerts-mock
+    </button>
   ),
 }));
 

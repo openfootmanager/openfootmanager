@@ -223,6 +223,7 @@ export default function PreMatchLineup({
           })}
         </div>
         <button
+          type="button"
           onClick={onAutoSelect}
           disabled={isAutoSelecting}
           className={`flex w-full items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
@@ -246,6 +247,7 @@ export default function PreMatchLineup({
             <div className="flex items-center gap-2">
               {selectedStarterId && (
                 <button
+                  type="button"
                   onClick={() => onSelectStarter(null)}
                   className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 font-heading uppercase tracking-wider"
                 >

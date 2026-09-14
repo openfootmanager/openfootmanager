@@ -68,6 +68,7 @@ export default function ScoutingAssignmentsList({
               >
                 <div className="flex-1 min-w-0">
                   <button
+                    type="button"
                     onClick={() => onSelectPlayer?.(player.id)}
                     className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 hover:text-primary-500 transition-colors truncate block"
                   >

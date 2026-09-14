@@ -132,6 +132,7 @@ export default function JobOpportunitiesCard({
             {t("jobs.opportunitiesTitle")}
           </div>
           <button
+            type="button"
             onClick={handleRefresh}
             disabled={loading}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -201,6 +202,7 @@ export default function JobOpportunitiesCard({
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => handleApply(job)}
                     disabled={applyingTo !== null}
                     className="ml-3 shrink-0 rounded-lg bg-primary-500 px-4 py-1.5 text-xs font-heading font-bold uppercase tracking-wider text-white transition-all hover:bg-primary-600 disabled:opacity-50"

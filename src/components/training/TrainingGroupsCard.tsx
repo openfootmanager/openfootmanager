@@ -118,6 +118,7 @@ export default function TrainingGroupsCard({
         action={
           groups.length < 5 ? (
             <button
+              type="button"
               onClick={addGroup}
               disabled={isSaving}
               className="flex items-center gap-1.5 text-xs font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-400 transition-colors disabled:opacity-50"
@@ -171,6 +172,7 @@ export default function TrainingGroupsCard({
                   </Select>
                   <span className="text-[10px] text-gray-400 tabular-nums">{count}</span>
                   <button
+                    type="button"
                     onClick={() => removeGroup(group.id)}
                     disabled={isSaving}
                     className="text-red-400 hover:text-red-500 transition-colors disabled:opacity-50"

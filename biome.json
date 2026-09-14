@@ -46,6 +46,9 @@
       },
       "suspicious": {
         "preset": "recommended"
+      },
+      "a11y": {
+        "preset": "recommended"
       }
     }
   }

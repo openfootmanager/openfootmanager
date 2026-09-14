@@ -166,6 +166,7 @@ export function SubPanel({
             </Badge>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-600 dark:hover:text-white"
           >

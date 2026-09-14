@@ -122,6 +122,7 @@ export default function PlayerProfileHeroCard({
               {player.team_id && onSelectTeam ? (
                 <ContextMenu items={teamContextItems}>
                   <button
+                    type="button"
                     data-testid="player-profile-team-link"
                     onClick={() => onSelectTeam(player.team_id!)}
                     className="hover:text-primary-400 transition-colors underline underline-offset-2"

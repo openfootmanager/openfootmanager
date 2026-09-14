@@ -107,6 +107,7 @@ export function TeamForm({
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <div className="flex items-center gap-2 mb-2">
           <button
+            type="button"
             onClick={onBack}
             className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
           >
@@ -379,6 +380,7 @@ export function TeamForm({
         </div>
 
         <button
+          type="button"
           onClick={onSave}
           disabled={
             isBusy ||

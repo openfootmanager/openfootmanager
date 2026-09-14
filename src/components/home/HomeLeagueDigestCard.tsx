@@ -22,6 +22,7 @@ export default function HomeLeagueDigestCard({
       <CardHeader
         action={
           <button
+            type="button"
             onClick={() => onNavigate?.("News")}
             className="text-primary-500 dark:text-primary-400 text-xs font-heading font-bold uppercase tracking-wider hover:text-primary-600 dark:hover:text-primary-300 transition-colors"
           >
@@ -40,6 +41,7 @@ export default function HomeLeagueDigestCard({
           <div className="divide-y divide-gray-100 dark:divide-navy-600">
             {articles.map((article) => (
               <button
+                type="button"
                 key={article.id}
                 onClick={() => onNavigate?.("News")}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors"

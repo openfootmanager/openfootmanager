@@ -9,7 +9,9 @@ function ThemeConsumer() {
     <div>
       <span data-testid="theme">{theme}</span>
       <span data-testid="isDark">{String(isDark)}</span>
-      <button onClick={toggleTheme}>Toggle</button>
+      <button type="button" onClick={toggleTheme}>
+        Toggle
+      </button>
     </div>
   );
 }

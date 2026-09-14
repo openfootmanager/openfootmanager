@@ -43,6 +43,7 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
             {myTeam && onSelectTeam ? (
               <ContextMenu items={[buildViewTeamMenuItem(t, () => onSelectTeam(myTeam.id))]}>
                 <button
+                  type="button"
                   data-testid="manager-current-team"
                   onClick={() => onSelectTeam(myTeam.id)}
                   className="text-primary-400 text-sm font-semibold mt-0.5 hover:text-primary-300 transition-colors"

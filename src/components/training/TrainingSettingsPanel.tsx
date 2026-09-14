@@ -54,6 +54,7 @@ export default function TrainingSettingsPanel({
           <div className="flex gap-3 mb-4">
             {scheduleIds.map((scheduleId) => (
               <button
+                type="button"
                 key={scheduleId}
                 disabled={isSaving}
                 onClick={() => onSetSchedule(scheduleId)}
@@ -96,6 +97,7 @@ export default function TrainingSettingsPanel({
           <div className="grid grid-cols-3 gap-3">
             {trainingFocusIds.map((focusId) => (
               <button
+                type="button"
                 key={focusId}
                 disabled={isSaving}
                 onClick={() => onSetTraining(focusId, currentIntensity)}
@@ -140,6 +142,7 @@ export default function TrainingSettingsPanel({
             <div className="flex gap-3">
               {intensityIds.map((intensityId) => (
                 <button
+                  type="button"
                   key={intensityId}
                   disabled={isSaving}
                   onClick={() => onSetTraining(currentFocus, intensityId)}

@@ -378,6 +378,7 @@ export default function PreMatchSetup({
           {t("match.setPiecesCaptain")}
         </p>
         <button
+          type="button"
           onClick={handleAutoSelectSetPieces}
           className="flex items-center gap-1.5 rounded-lg border border-accent-200 dark:border-accent-500/20 bg-accent-50 hover:bg-accent-100 dark:bg-accent-500/10 dark:hover:bg-accent-500/20 px-3 py-1.5 font-heading font-bold text-[10px] uppercase tracking-wider text-accent-700 dark:text-accent-400 transition-colors"
         >
@@ -644,6 +645,7 @@ export default function PreMatchSetup({
               <p className="text-2xl font-heading font-bold text-gray-400 dark:text-gray-600">VS</p>
             </div>
             <button
+              type="button"
               onClick={onStart}
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-3 font-heading font-bold uppercase tracking-wider text-sm text-white shadow-lg shadow-primary-500/20 transition-all hover:from-primary-600 hover:to-primary-700 hover:scale-[1.02] active:scale-[0.98]"
             >

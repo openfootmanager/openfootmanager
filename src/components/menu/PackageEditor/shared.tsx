@@ -36,6 +36,7 @@ export function EntityListShell({
   return (
     <div className="flex flex-col gap-2">
       <button
+        type="button"
         onClick={onAdd}
         className="flex items-center justify-center gap-2 w-full py-2.5 border border-dashed border-gray-300 dark:border-navy-500 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:border-primary-400 dark:hover:border-primary-500 transition-colors"
       >
@@ -144,6 +145,7 @@ export function EntityRow({
       {confirming ? (
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
+            type="button"
             onClick={handleConfirmDelete}
             className="p-1 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
             title={t("common.confirmDelete")}
@@ -151,6 +153,7 @@ export function EntityRow({
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           <button
+            type="button"
             onClick={handleCancelDelete}
             className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
             title={t("common.cancel")}
@@ -161,6 +164,7 @@ export function EntityRow({
       ) : (
         <>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
@@ -172,6 +176,7 @@ export function EntityRow({
           </button>
           {onDuplicate && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onDuplicate();
@@ -184,6 +189,7 @@ export function EntityRow({
             </button>
           )}
           <button
+            type="button"
             onClick={handleDeleteClick}
             className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
             title={deleteLabel}
@@ -223,6 +229,7 @@ export function EntityFormShell({
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 mb-2">
         <button
+          type="button"
           onClick={onBack}
           className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
         >
@@ -236,6 +243,7 @@ export function EntityFormShell({
       <div className="flex flex-col gap-3">{children}</div>
 
       <button
+        type="button"
         onClick={onSave}
         disabled={isBusy || saveDisabled}
         className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"

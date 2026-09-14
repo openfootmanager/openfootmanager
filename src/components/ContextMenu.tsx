@@ -155,6 +155,7 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
                 </div>
               ) : (
                 <button
+                  type="button"
                   key={i}
                   role="menuitem"
                   onClick={() => {

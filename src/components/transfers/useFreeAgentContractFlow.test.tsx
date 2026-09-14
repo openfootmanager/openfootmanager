@@ -183,7 +183,9 @@ function HookHarness({
 
   return (
     <div>
-      <button onClick={() => openFreeAgentContract(target)}>Open</button>
+      <button type="button" onClick={() => openFreeAgentContract(target)}>
+        Open
+      </button>
       <label htmlFor="wage">Wage</label>
       <input
         id="wage"
@@ -196,7 +198,9 @@ function HookHarness({
         value={contractLength}
         onChange={(event) => setContractLength(event.target.value)}
       />
-      <button onClick={() => void submitFreeAgentContract()}>Submit</button>
+      <button type="button" onClick={() => void submitFreeAgentContract()}>
+        Submit
+      </button>
     </div>
   );
 }

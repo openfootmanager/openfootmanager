@@ -97,12 +97,14 @@ export default function SavesList({
                   />
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => onDelete(save.id)}
                       className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-heading font-bold uppercase tracking-wider rounded-lg transition-colors"
                     >
                       {t("menu.delete")}
                     </button>
                     <button
+                      type="button"
                       onClick={() => onConfirmDelete(null)}
                       className="flex-1 py-2 bg-gray-200 dark:bg-navy-600 hover:bg-gray-300 dark:hover:bg-navy-500 text-gray-700 dark:text-gray-300 text-sm font-heading font-bold uppercase tracking-wider rounded-lg transition-colors"
                     >
@@ -113,6 +115,7 @@ export default function SavesList({
               ) : (
                 <div className="flex items-center gap-3 w-full">
                   <button
+                    type="button"
                     onClick={() => onLoad(save.id)}
                     className="flex flex-col gap-2 flex-1 text-left min-w-0"
                   >
@@ -135,6 +138,7 @@ export default function SavesList({
                     </div>
                   </button>
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onConfirmDelete(save.id);
