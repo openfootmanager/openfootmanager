@@ -3549,23 +3549,47 @@ fn a_completed_transfer_reaches_the_competition_log() {
     game.teams[1].finance = 9_000_000;
     game.teams[1].transfer_budget = 6_000_000;
 
-    let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+    game.teams
+        .push(make_ai_team("team-3", "Other Rovers", 1_000_000, 500_000));
+    game.teams
+        .push(make_ai_team("team-4", "Other Albion", 1_000_000, 500_000));
+
+    // Two divisions, and the one neither club plays in comes first, so a fix that simply appends to
+    // `competitions[0]` — or that leans on the single-competition fallback — files the move wrongly
+    // and fails here.
     game.competitions.push(ofm_core::schedule::generate_league(
-        "Competition League",
+        "Other Division",
         2026,
-        &team_ids,
+        &["team-3".to_string(), "team-4".to_string()],
+        game.clock.current_date,
+    ));
+    game.competitions.push(ofm_core::schedule::generate_league(
+        "Their Division",
+        2026,
+        &["team-1".to_string(), "team-2".to_string()],
         game.clock.current_date,
     ));
 
     respond_to_offer(&mut game, "player-logged-transfer", "offer-logged", true)
         .expect("accepting the offer should complete the sale");
 
-    assert!(
-        game.competitions.iter().any(|competition| competition
+    let logged_in = |name: &str| {
+        game.competitions
+            .iter()
+            .find(|competition| competition.name == name)
+            .expect("the division should still be there")
             .transfer_log
             .iter()
-            .any(|entry| entry.player_id == "player-logged-transfer")),
-        "the completed transfer should be recorded against the competition, \
+            .any(|entry| entry.player_id == "player-logged-transfer")
+    };
+
+    assert!(
+        logged_in("Their Division"),
+        "the completed transfer should be recorded against the division the two clubs play in, \
          not only on the legacy league mirror that gets overwritten"
+    );
+    assert!(
+        !logged_in("Other Division"),
+        "the move belongs to the clubs' own division, not to whichever competition comes first"
     );
 }
