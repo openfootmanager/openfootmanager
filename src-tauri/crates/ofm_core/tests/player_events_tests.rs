@@ -180,6 +180,119 @@ fn low_morale_generates_message() {
 }
 
 #[test]
+fn upgrading_a_save_does_not_re_warn_about_a_contract_or_re_apply_the_morale_hit() {
+    // A save written before the sent-ledger carries contract warnings under the
+    // old key shape, `contract_concern_{player}_{stage}`. Seeding copies message
+    // ids verbatim, but the generator now builds
+    // `contract_concern_{player}_{contract_end}_{stage}` — so a verbatim copy
+    // does not match, and the very first daily tick after upgrading re-sends the
+    // warning and subtracts morale a second time. No deletion required: the
+    // original message is still sitting in the inbox.
+    let mut game = make_game();
+    let six_month_end = (game.clock.current_date + chrono::Duration::days(150))
+        .format("%Y-%m-%d")
+        .to_string();
+    let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
+    player.contract_end = Some(six_month_end);
+    let morale_before = player.morale;
+
+    // The legacy message, exactly as a pre-ledger save would hold it.
+    game.messages.push(domain::message::InboxMessage::new(
+        "contract_concern_p_fwd0_6m".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        "2025-06-15".to_string(),
+    ));
+    ofm_core::inbox::seed_ledger_from_save(&mut game);
+
+    player_events::generate_contract_concern_messages(&mut game, true);
+
+    let warnings = game
+        .messages
+        .iter()
+        .filter(|m| m.id.starts_with("contract_concern_p_fwd0"))
+        .count();
+    assert_eq!(warnings, 1, "the upgrade must not duplicate the warning");
+    let morale_after = game
+        .players
+        .iter()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale;
+    assert_eq!(
+        morale_after, morale_before,
+        "the upgrade must not charge the morale hit twice"
+    );
+}
+
+#[test]
+fn upgrading_a_save_still_warns_about_a_contract_renewed_since_the_old_warning() {
+    // The other direction of the same migration. The legacy warning is about a
+    // deal that has since been renewed, so translating its key would silence the
+    // new deal's warning when it comes due. Seeding must not reach that far.
+    let mut game = make_game();
+    let renewed_end = (game.clock.current_date + chrono::Duration::days(150))
+        .format("%Y-%m-%d")
+        .to_string();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .contract_end = Some(renewed_end.clone());
+
+    // Written when the player was in his final weeks, before he re-signed.
+    game.messages.push(domain::message::InboxMessage::new(
+        "contract_concern_p_fwd0_final".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        "2025-06-15".to_string(),
+    ));
+    ofm_core::inbox::seed_ledger_from_save(&mut game);
+
+    player_events::generate_contract_concern_messages(&mut game, true);
+
+    assert!(
+        game.messages
+            .iter()
+            .any(|m| m.id == format!("contract_concern_p_fwd0_{renewed_end}_6m")),
+        "the renewed contract must still raise its own warning"
+    );
+}
+
+#[test]
+fn upgrading_a_save_does_not_repeat_a_morale_talk() {
+    // Same mismatch, no side effect: legacy `morale_talk_{player}` against the
+    // season-scoped `morale_talk_{player}_{season}` the generator builds now.
+    let mut game = make_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale = 20;
+    game.messages.push(domain::message::InboxMessage::new(
+        "morale_talk_p_fwd0".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        "2025-06-15".to_string(),
+    ));
+    ofm_core::inbox::seed_ledger_from_save(&mut game);
+
+    for _ in 0..100 {
+        player_events::check_player_events(&mut game);
+    }
+
+    let talks = game
+        .messages
+        .iter()
+        .filter(|m| m.id.starts_with("morale_talk_p_fwd0"))
+        .count();
+    assert_eq!(talks, 1, "the upgrade must not re-raise a talk already had");
+}
+
+#[test]
 fn normal_morale_no_message() {
     let mut game = make_game();
     // All players have morale 70
@@ -373,18 +486,24 @@ fn bench_complaint_not_for_gk() {
         transfer_rumours: vec![],
         ..Default::default()
     });
-    // GK has low morale
-    game.players
-        .iter_mut()
-        .find(|p| p.id == "p_gk")
-        .unwrap()
-        .morale = 30;
+    // Make the keeper eligible on every count except his position, so removing
+    // the goalkeeper guard would actually produce a complaint. Without the `ovr`
+    // he cannot clear the `ovr >= 55` bar and the test passes no matter what the
+    // guard does.
+    let keeper = game.players.iter_mut().find(|p| p.id == "p_gk").unwrap();
+    keeper.morale = 30;
+    keeper.ovr = 70;
+    keeper.stats.appearances = 0;
 
-    // Run many times — GKs should never get bench complaints
+    // Run many times — GKs should never get bench complaints. Matched on prefix:
+    // the id carries the season now, so an exact match against the old shape
+    // could never fire whatever the generator did.
     for _ in 0..100 {
-        game.messages.clear();
         player_events::check_player_events(&mut game);
-        let gk_complaint = game.messages.iter().any(|m| m.id == "bench_complaint_p_gk");
+        let gk_complaint = game
+            .messages
+            .iter()
+            .any(|m| m.id.starts_with("bench_complaint_p_gk"));
         assert!(!gk_complaint, "Goalkeepers shouldn't complain about bench");
     }
 }

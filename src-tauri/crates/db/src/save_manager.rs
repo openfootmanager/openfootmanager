@@ -615,6 +615,12 @@ impl SaveManager {
 
         // Strip session-specific data
         game.messages.clear();
+        // The sent-ledger records what *this career* has been told, so it is
+        // session state like the inbox it guards. Carried over, the new career
+        // would silently never receive anything the old one already saw — its
+        // board objectives briefing, its season summaries, a World Cup result in
+        // a year the previous save had reached.
+        game.emitted_events.clear();
         game.news.clear();
         game.scouting_assignments.clear();
         game.youth_scouting_assignments.clear();
@@ -2210,6 +2216,7 @@ mod tests {
                 days_remaining: 6,
             });
         game.manager.reputation = 999;
+        game.emitted_events.insert("board_objectives_1".to_string());
 
         let save_id = sm.create_save(&game, "Source Save").unwrap();
 
@@ -2222,6 +2229,9 @@ mod tests {
         assert!(new_game.scouting_assignments.is_empty());
         assert!(new_game.youth_scouting_assignments.is_empty());
         assert!(new_game.board_objectives.is_empty());
+        // The sent-ledger is session state too: carried over, the new career would
+        // never receive its own board objectives briefing.
+        assert!(new_game.emitted_events.is_empty());
         assert!(new_game.league.is_none());
 
         // Clock should be reset
