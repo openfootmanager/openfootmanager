@@ -55,7 +55,7 @@ export function CountryFlag({
   if (!FlagIcon) {
     return (
       <span
-        role={decorative ? undefined : "img"}
+        role="img"
         aria-hidden={decorative || undefined}
         aria-label={describedLabel}
         title={describedLabel}
@@ -72,7 +72,7 @@ export function CountryFlag({
   return (
     <span className={classes} title={describedLabel}>
       <FlagIcon
-        role={decorative ? undefined : "img"}
+        role="img"
         aria-hidden={decorative || undefined}
         aria-label={describedLabel}
         focusable="false"

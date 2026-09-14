@@ -96,7 +96,7 @@ export default function TacticsRolesPanel({
           <SetPieceSelector
             label={t("match.captain")}
             icon={<Crown className="w-4 h-4 text-accent-400" />}
-            role="captain"
+            assignment="captain"
             currentId={effectiveRoles.captain}
             players={selectorPlayers}
             allSquad={allSquad}
@@ -107,7 +107,7 @@ export default function TacticsRolesPanel({
           <SetPieceSelector
             label={t("tactics.viceCaptain")}
             icon={<Award className="w-4 h-4 text-accent-400" />}
-            role="vicecaptain"
+            assignment="vicecaptain"
             currentId={effectiveRoles.vice_captain}
             players={selectorPlayers}
             allSquad={allSquad}
@@ -123,7 +123,7 @@ export default function TacticsRolesPanel({
           <SetPieceSelector
             label={t("match.penaltyTaker")}
             icon={<CircleDot className="w-4 h-4 text-accent-400" />}
-            role="penalty"
+            assignment="penalty"
             currentId={effectiveRoles.penalty_taker}
             players={selectorPlayers}
             allSquad={allSquad}
@@ -134,7 +134,7 @@ export default function TacticsRolesPanel({
           <SetPieceSelector
             label={t("match.freeKickTaker")}
             icon={<Footprints className="w-4 h-4 text-accent-400" />}
-            role="freekick"
+            assignment="freekick"
             currentId={effectiveRoles.free_kick_taker}
             players={selectorPlayers}
             allSquad={allSquad}
@@ -145,7 +145,7 @@ export default function TacticsRolesPanel({
           <SetPieceSelector
             label={t("match.cornerTaker")}
             icon={<CornerDownRight className="w-4 h-4 text-accent-400" />}
-            role="corner"
+            assignment="corner"
             currentId={effectiveRoles.corner_taker}
             players={selectorPlayers}
             allSquad={allSquad}

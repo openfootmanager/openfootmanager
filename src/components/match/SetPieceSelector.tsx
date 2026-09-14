@@ -77,7 +77,10 @@ function roleAllowsGoalkeeper(role: string): boolean {
 export default function SetPieceSelector({
   label,
   icon,
-  role,
+  // Named `assignment`, not `role`: this is the football job (captain, penalty taker), and a
+  // prop called `role` on a React component shadows the ARIA attribute of the same name. It was
+  // never forwarded to the DOM, but every reader and every linter had to work that out.
+  assignment,
   currentId,
   players,
   allSquad,
@@ -85,7 +88,7 @@ export default function SetPieceSelector({
 }: {
   label: string;
   icon: React.ReactNode;
-  role: string;
+  assignment: string;
   currentId: string | null;
   players: { id: string; name: string; position: string }[];
   allSquad: PlayerData[];
@@ -95,13 +98,13 @@ export default function SetPieceSelector({
   const [expanded, setExpanded] = useState(false);
   const currentPlayer = players.find((p) => p.id === currentId);
   const currentSquad = allSquad.find((sp) => sp.id === currentId);
-  const currentStats = currentSquad ? getSetPieceStats(role, currentSquad) : null;
+  const currentStats = currentSquad ? getSetPieceStats(assignment, currentSquad) : null;
 
   const sortedPlayers = [...players]
-    .filter((p) => roleAllowsGoalkeeper(role) || p.position !== "Goalkeeper")
+    .filter((p) => roleAllowsGoalkeeper(assignment) || p.position !== "Goalkeeper")
     .map((p) => {
       const squad = allSquad.find((sp) => sp.id === p.id);
-      const spStats = squad ? getSetPieceStats(role, squad) : { score: 0, stats: [] };
+      const spStats = squad ? getSetPieceStats(assignment, squad) : { score: 0, stats: [] };
       return { ...p, squad, spStats };
     })
     .sort((a, b) => b.spStats.score - a.spStats.score || a.name.localeCompare(b.name));

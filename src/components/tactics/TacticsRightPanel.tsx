@@ -109,7 +109,7 @@ export default function TacticsRightPanel({
                 <SetPieceSelector
                   label={t("preMatch.captain")}
                   icon={<Crown className="h-4 w-4" />}
-                  role="captain"
+                  assignment="captain"
                   currentId={effectiveRoles.captain}
                   players={selectorPlayers}
                   allSquad={allSquad}
@@ -120,7 +120,7 @@ export default function TacticsRightPanel({
                 <SetPieceSelector
                   label={t("tactics.viceCaptain")}
                   icon={<Award className="h-4 w-4" />}
-                  role="vicecaptain"
+                  assignment="vicecaptain"
                   currentId={effectiveRoles.vice_captain}
                   players={selectorPlayers}
                   allSquad={allSquad}
@@ -131,7 +131,7 @@ export default function TacticsRightPanel({
                 <SetPieceSelector
                   label={t("preMatch.penaltyTaker")}
                   icon={<CircleDot className="h-4 w-4" />}
-                  role="penalty"
+                  assignment="penalty"
                   currentId={effectiveRoles.penalty_taker}
                   players={selectorPlayers.filter((p) => p.position !== "Goalkeeper")}
                   allSquad={allSquad}
@@ -142,7 +142,7 @@ export default function TacticsRightPanel({
                 <SetPieceSelector
                   label={t("preMatch.freeKickTaker")}
                   icon={<Footprints className="h-4 w-4" />}
-                  role="freekick"
+                  assignment="freekick"
                   currentId={effectiveRoles.free_kick_taker}
                   players={selectorPlayers.filter((p) => p.position !== "Goalkeeper")}
                   allSquad={allSquad}
@@ -153,7 +153,7 @@ export default function TacticsRightPanel({
                 <SetPieceSelector
                   label={t("preMatch.cornerTaker")}
                   icon={<CornerDownRight className="h-4 w-4" />}
-                  role="corner"
+                  assignment="corner"
                   currentId={effectiveRoles.corner_taker}
                   players={selectorPlayers.filter((p) => p.position !== "Goalkeeper")}
                   allSquad={allSquad}

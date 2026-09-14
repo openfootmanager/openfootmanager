@@ -149,7 +149,11 @@ export function FormationPitch({
     <div
       className={`relative overflow-hidden rounded-xl bg-gradient-to-b from-primary-500 to-primary-700 ${className ?? ""}`}
     >
+      {/* Decorative: this is the pitch markings, and everything a screen reader needs is in the
+          player tokens rendered on top of it. A <title> here would announce "football pitch"
+          before every lineup, which is noise rather than information. */}
       <svg
+        aria-hidden="true"
         className="absolute inset-0 h-full w-full"
         viewBox="0 0 100 140"
         preserveAspectRatio="none"

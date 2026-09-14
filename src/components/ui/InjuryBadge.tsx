@@ -27,6 +27,7 @@ export function InjuryBadge({ injury, showName = true }: InjuryBadgeProps) {
       className={`inline-flex max-w-44 items-center gap-1 rounded-md border px-2 py-0.5 font-heading text-xs font-bold uppercase tracking-wider ${getInjuryBadgeClassName(
         injury.days_remaining,
       )}`}
+      role="img"
       title={title}
       aria-label={title}
     >
