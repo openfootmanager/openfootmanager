@@ -40,7 +40,7 @@
       },
       "style": {
         "preset": "recommended",
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "info"
       },
       "complexity": {
         "preset": "recommended"
@@ -49,7 +49,11 @@
         "preset": "recommended"
       },
       "a11y": {
-        "preset": "recommended"
+        "preset": "recommended",
+        "noStaticElementInteractions": "info",
+        "useKeyWithClickEvents": "info",
+        "noLabelWithoutControl": "info",
+        "useSemanticElements": "info"
       }
     }
   }

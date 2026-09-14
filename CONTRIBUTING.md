@@ -126,12 +126,24 @@ has already watched two of those sit switched off for a year.
 
 `biome.json` is strict JSON and cannot carry comments, so the decisions live here:
 
-- **`noNonNullAssertion` — off, deliberately.** 59 findings, and the automatic fix is *wrong*:
-  Biome rewrites `game.league!.standings` to `game.league?.standings`, which turns a crash into
-  a silent `undefined`. In a test that means `expect(a?.b).toBe(c)` passes vacuously when the
-  value goes missing — the assertion-free test this project's review rules exist to catch. The
-  honest fix is a real guard at each of the 59 sites, which is feature work, not a sweep. The
-  count is recorded in `quality-baseline.json` instead, so it cannot grow.
+Five rules sit at **`info`** rather than `error`. That is not "off": Biome still reports them
+every time you lint, and `npm run quality:check` counts them from Biome's own output, so **the
+number can fall but never rise**. Fixing a few is always welcome; the count drops and you commit
+the regenerated baseline with the change that earned it.
+
+| Rule | Outstanding | Why it is not a hard error yet |
+|---|---|---|
+| `style/noNonNullAssertion` | 59 | Biome's fix rewrites `game.league!.standings` to `game.league?.standings`, turning a crash into a silent `undefined`. In a test, `expect(a?.b).toBe(c)` then passes vacuously — an assertion-free test, produced by an automated fix. Each site needs a real guard saying what the invariant is. |
+| `a11y/noLabelWithoutControl` | 35 | Some are a `<label>` next to a `<Select>` and want `htmlFor`/`id`. Others label a *group* of cards, where the right answer is a `<fieldset>`/`<legend>`, not a control reference. |
+| `a11y/noStaticElementInteractions` | 25 | Clickable `<div>`s across 19 files. |
+| `a11y/useKeyWithClickEvents` | 25 | The same elements, from the other side: they respond to a mouse and not a keyboard. |
+| `a11y/useSemanticElements` | 9 | `role="button"` on a `<div>` that should be a `<button>`. |
+
+The last three change what is focusable and what responds to Enter and Space in the schedule,
+inbox, tactics pitch and substitution panel. That is interactive behaviour, and it wants
+verifying in the running app rather than in a type-check — which is why it is a floor to work
+down rather than a sweep somebody rushed.
+
 - **`nursery` — never.** Its rules change meaning between Biome minors, which would make every
   Biome upgrade a red build, for the same reason the Rust toolchain is pinned.
 

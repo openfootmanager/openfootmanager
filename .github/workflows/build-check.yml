@@ -178,6 +178,12 @@ jobs:
       - name: Lint frontend
         run: npm run lint
 
+      # Runs in the frontend job because it needs node and no Rust toolchain, even though it
+      # measures both languages. It is a standalone script rather than a vitest test on purpose:
+      # it spans the whole repository and should not masquerade as a frontend unit test.
+      - name: Check the quality ratchet
+        run: npm run quality:check
+
       - name: Run frontend tests
         run: npm test
 
