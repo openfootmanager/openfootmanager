@@ -114,9 +114,10 @@ pub fn seed_ledger_from_save(game: &mut Game) {
         return;
     }
     let ids: Vec<String> = game.messages.iter().map(|m| m.id.clone()).collect();
-    let upgraded: Vec<String> = ids
+    let upgraded: Vec<String> = game
+        .messages
         .iter()
-        .filter_map(|id| upgraded_legacy_key(game, id))
+        .filter_map(upgraded_legacy_key)
         .collect();
     game.emitted_events.extend(ids);
     game.emitted_events.extend(upgraded);
@@ -157,52 +158,51 @@ fn looks_like_day(segment: &str) -> bool {
 /// this safe: it translates evidence that exists rather than inferring from
 /// world state that a message *might* once have been sent.
 ///
-/// Two rescoped families are deliberately not translated. The takeover briefing
-/// (`contract_review_takeover_{team}` → `…_{date}`) only fires when a manager
-/// takes a club over, which after an upgrade is a genuinely new event that
-/// should brief them again. The delegated-renewal report
-/// (`delegated_renewals_{date}_{len}` → `…_{team}_{date}_{attempt}`) counts its
-/// own modern keys to number attempts, so a legacy entry cannot collide with one.
-fn upgraded_legacy_key(game: &Game, id: &str) -> Option<String> {
-    if let Some(rest) = id.strip_prefix("contract_concern_") {
-        let (body, stage) = rest.rsplit_once('_')?;
-        if !matches!(stage, "12m" | "6m" | "3m" | "final") {
-            return None;
-        }
-        // A modern id already carries the contract end date ahead of the stage.
-        if looks_like_day(body.rsplit_once('_').map_or("", |(_, tail)| tail)) {
-            return None;
-        }
-        let player = game.players.iter().find(|player| player.id == body)?;
-        let contract_end = player.contract_end.as_deref()?;
-        // Only translate while the deal still sits at the stage the old message
-        // announced. If it has been renewed since, the legacy warning is about a
-        // contract that no longer exists: seeding its key would silence the new
-        // deal's warning when it arrives, and not seeding costs nothing, because
-        // the generator only ever sends for the stage the contract is at now.
-        let current_date = game.clock.current_date.date_naive();
-        let at_same_stage =
-            crate::contracts::contract_warning_stage(Some(contract_end), current_date)
-                .is_some_and(|current| current.message_suffix() == stage);
-        if !at_same_stage {
-            return None;
-        }
-        return Some(format!("contract_concern_{body}_{contract_end}_{stage}"));
+/// Only the contract warning is translated, and only from data the message
+/// itself carries. Its body is written around a horizon — "his deal expires in
+/// N days" — so the contract it refers to is recoverable exactly: the day it was
+/// sent, plus that many days. Nothing is inferred from the player's *current*
+/// contract, which is what makes a renewal safe. If he re-signed since, the
+/// reconstructed end is the old deal's, the new deal's key is untouched, and the
+/// new warning still arrives with its morale effect.
+///
+/// The three player-mood families are deliberately **not** translated, even
+/// though their keys were rescoped too. A legacy mood id names the player and
+/// nothing else, and the season it belonged to is not recoverable — assuming the
+/// current one would let a talk from two seasons ago silence this season's. They
+/// carry no side effect, so the cost of not translating is one duplicate message
+/// on the upgrade tick, against permanently losing a valid event. Same trade as
+/// everywhere else here: a bounded duplicate beats a silent suppression.
+///
+/// The takeover briefing (`contract_review_takeover_{team}` → `…_{date}`) needs
+/// no translation — it only fires when a manager takes a club over, which after
+/// an upgrade is a new event that should brief them again. Nor does the
+/// delegated-renewal report (`delegated_renewals_{date}_{len}` →
+/// `…_{team}_{date}_{attempt}`), which counts its own modern keys to number
+/// attempts, so a legacy entry cannot collide with one.
+fn upgraded_legacy_key(message: &InboxMessage) -> Option<String> {
+    let rest = message.id.strip_prefix("contract_concern_")?;
+    let (player_id, stage) = rest.rsplit_once('_')?;
+    if !matches!(stage, "12m" | "6m" | "3m" | "final") {
+        return None;
+    }
+    // A modern id already carries the contract end date ahead of the stage.
+    if looks_like_day(player_id.rsplit_once('_').map_or("", |(_, tail)| tail)) {
+        return None;
     }
 
-    // A legacy player-mood id is exactly the prefix plus a player id; the modern
-    // one has the season after it. Matching whole player ids avoids guessing,
-    // which matters because player ids themselves end in digits.
-    for prefix in ["morale_talk_", "bench_complaint_", "happy_player_"] {
-        if let Some(rest) = id.strip_prefix(prefix) {
-            if game.players.iter().any(|player| player.id == rest) {
-                return Some(format!("{prefix}{rest}_{}", recurrence_season(game)));
-            }
-            return None;
-        }
-    }
-
-    None
+    let days: i64 = message.i18n_params.get("days")?.parse().ok()?;
+    let sent_on = chrono::NaiveDate::parse_from_str(
+        crate::slices::news::article_day(&message.date),
+        "%Y-%m-%d",
+    )
+    .ok()?;
+    let contract_end = (sent_on + chrono::Duration::days(days))
+        .format("%Y-%m-%d")
+        .to_string();
+    Some(format!(
+        "contract_concern_{player_id}_{contract_end}_{stage}"
+    ))
 }
 
 #[cfg(test)]

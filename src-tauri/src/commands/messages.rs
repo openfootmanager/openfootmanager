@@ -347,7 +347,10 @@ mod tests {
         // them however recent they were — re-arming their generators immediately.
         let state = StateManager::new();
         let mut game = make_game();
-        game.messages = vec![read_message("keep-timestamped", "2026-08-19T12:00:00+00:00")];
+        game.messages = vec![read_message(
+            "keep-timestamped",
+            "2026-08-19T12:00:00+00:00",
+        )];
         state.set_game(game);
 
         let response = clear_old_messages_internal(&state).expect("response");
@@ -360,7 +363,10 @@ mod tests {
     fn clear_old_messages_internal_still_purges_stale_rfc3339_dated_messages() {
         let state = StateManager::new();
         let mut game = make_game();
-        game.messages = vec![read_message("drop-timestamped", "2026-07-01T12:00:00+00:00")];
+        game.messages = vec![read_message(
+            "drop-timestamped",
+            "2026-07-01T12:00:00+00:00",
+        )];
         state.set_game(game);
 
         let response = clear_old_messages_internal(&state).expect("response");

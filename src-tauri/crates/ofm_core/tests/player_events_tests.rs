@@ -145,6 +145,31 @@ fn inject_player_message(game: &mut Game, msg_id: &str, player_id: &str, action_
     game.messages.push(msg);
 }
 
+/// A contract warning as a pre-ledger save holds it: the old
+/// `contract_concern_{player}_{stage}` key, and the `days` horizon its body was
+/// written around. That horizon plus the send date is what lets the migration
+/// recover which contract it was about.
+fn legacy_contract_warning(
+    stage: &str,
+    sent_on: &str,
+    days_remaining: i64,
+) -> domain::message::InboxMessage {
+    let mut params = std::collections::HashMap::new();
+    params.insert("days".to_string(), days_remaining.to_string());
+    domain::message::InboxMessage::new(
+        format!("contract_concern_p_fwd0_{stage}"),
+        String::new(),
+        String::new(),
+        String::new(),
+        sent_on.to_string(),
+    )
+    .with_i18n(
+        "be.msg.contractConcern.subject",
+        "be.msg.contractConcern.body0",
+        params,
+    )
+}
+
 // ---------------------------------------------------------------------------
 // check_player_events: low morale
 // ---------------------------------------------------------------------------
@@ -196,14 +221,10 @@ fn upgrading_a_save_does_not_re_warn_about_a_contract_or_re_apply_the_morale_hit
     player.contract_end = Some(six_month_end);
     let morale_before = player.morale;
 
-    // The legacy message, exactly as a pre-ledger save would hold it.
-    game.messages.push(domain::message::InboxMessage::new(
-        "contract_concern_p_fwd0_6m".to_string(),
-        String::new(),
-        String::new(),
-        String::new(),
-        "2025-06-15".to_string(),
-    ));
+    // The legacy message, exactly as a pre-ledger save would hold it: the old
+    // key shape, and the horizon it was written about in its params.
+    game.messages
+        .push(legacy_contract_warning("6m", "2025-06-15", 150));
     ofm_core::inbox::seed_ledger_from_save(&mut game);
 
     player_events::generate_contract_concern_messages(&mut game, true);
@@ -242,13 +263,8 @@ fn upgrading_a_save_still_warns_about_a_contract_renewed_since_the_old_warning()
         .contract_end = Some(renewed_end.clone());
 
     // Written when the player was in his final weeks, before he re-signed.
-    game.messages.push(domain::message::InboxMessage::new(
-        "contract_concern_p_fwd0_final".to_string(),
-        String::new(),
-        String::new(),
-        String::new(),
-        "2025-06-15".to_string(),
-    ));
+    game.messages
+        .push(legacy_contract_warning("final", "2025-06-15", 20));
     ofm_core::inbox::seed_ledger_from_save(&mut game);
 
     player_events::generate_contract_concern_messages(&mut game, true);
@@ -262,9 +278,52 @@ fn upgrading_a_save_still_warns_about_a_contract_renewed_since_the_old_warning()
 }
 
 #[test]
-fn upgrading_a_save_does_not_repeat_a_morale_talk() {
-    // Same mismatch, no side effect: legacy `morale_talk_{player}` against the
-    // season-scoped `morale_talk_{player}_{season}` the generator builds now.
+fn upgrading_a_save_still_warns_when_the_renewal_lands_on_the_same_stage() {
+    // The hard case. A short extension can leave the player inside the *same*
+    // warning stage, so "is he still at 6m?" cannot tell the old deal from the
+    // new one. Only the message's own horizon can: it was written about a
+    // contract ending on a specific day, and that day is not this contract's.
+    let mut game = make_game();
+    let renewed_end = (game.clock.current_date + chrono::Duration::days(150))
+        .format("%Y-%m-%d")
+        .to_string();
+    let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
+    player.contract_end = Some(renewed_end.clone());
+    let morale_before = player.morale;
+
+    // The old deal ended 120 days out — also the six-month stage.
+    game.messages
+        .push(legacy_contract_warning("6m", "2025-06-15", 120));
+    ofm_core::inbox::seed_ledger_from_save(&mut game);
+
+    player_events::generate_contract_concern_messages(&mut game, true);
+
+    assert!(
+        game.messages
+            .iter()
+            .any(|m| m.id == format!("contract_concern_p_fwd0_{renewed_end}_6m")),
+        "a same-stage renewal must still raise its own warning"
+    );
+    let morale_after = game
+        .players
+        .iter()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale;
+    assert!(
+        morale_after < morale_before,
+        "and must still carry its morale effect"
+    );
+}
+
+#[test]
+fn upgrading_a_save_does_not_silence_this_seasons_morale_talk() {
+    // A legacy mood id names the player and nothing else — the season it
+    // belonged to is gone. Assuming the current one would let a talk from two
+    // seasons ago suppress this season's, so these are left untranslated and the
+    // upgrade tick may repeat one. That is the cheaper error: a duplicate
+    // message costs a line in the inbox, a suppression costs a whole season's
+    // event and is invisible.
     let mut game = make_game();
     game.players
         .iter_mut()
@@ -276,20 +335,27 @@ fn upgrading_a_save_does_not_repeat_a_morale_talk() {
         String::new(),
         String::new(),
         String::new(),
-        "2025-06-15".to_string(),
+        "2024-08-01".to_string(),
     ));
     ofm_core::inbox::seed_ledger_from_save(&mut game);
 
+    let mut raised = false;
     for _ in 0..100 {
         player_events::check_player_events(&mut game);
+        if game
+            .messages
+            .iter()
+            .any(|m| m.id.starts_with("morale_talk_p_fwd0_"))
+        {
+            raised = true;
+            break;
+        }
     }
 
-    let talks = game
-        .messages
-        .iter()
-        .filter(|m| m.id.starts_with("morale_talk_p_fwd0"))
-        .count();
-    assert_eq!(talks, 1, "the upgrade must not re-raise a talk already had");
+    assert!(
+        raised,
+        "a legacy talk must not suppress the current season's"
+    );
 }
 
 #[test]
