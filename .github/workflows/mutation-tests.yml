@@ -1,0 +1,89 @@
+name: mutation-tests
+
+# The instrument for test *quality*, which no other gate here measures.
+#
+# Everything else in this repository asks "does the code pass its tests". This asks the harder
+# question: if the code were wrong, would the tests notice? cargo-mutants changes one thing at a
+# time — flips a comparison, returns a default — and reports the changes that no test objected to.
+# A surviving mutant is a line nothing actually checks.
+#
+# That is the #416 failure mode written down: a unit test asserted only the values where two
+# implementations already agreed, so it passed while the bug shipped.
+#
+# ⚠ Never a pull-request gate. A full run across this workspace is hours, and survivors need a
+# person to judge — plenty are equivalent mutants that no test could reasonably catch. Blocking a
+# PR on that would be the fastest way to get this deleted.
+#
+# One crate a week, `engine` and `domain` first: both are pure logic with no database and no
+# Tauri, so they are the fastest to run and the ones where a survivor most clearly means a gap.
+
+on:
+  schedule:
+    # 04:41 UTC on Sundays. Off the hour deliberately — GitHub queues scheduled runs and the top
+    # of the hour is when everyone else's cron fires, so `0 4` can sit in the backlog a long time.
+    - cron: "41 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      crate:
+        description: Which crate to mutate
+        required: false
+        default: engine
+        type: choice
+        options:
+          - engine
+          - domain
+          - ofm_core
+          - db
+
+permissions:
+  contents: read
+
+jobs:
+  mutants:
+    runs-on: ubuntu-latest
+    # Generous, because the point is to finish rather than to be quick — but bounded, so a hung
+    # run cannot burn six hours of the default timeout unnoticed.
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      # Pinned for the same reason every other tool here is: the mutation operators change between
+      # releases, so an unpinned tool turns someone else's release into a different report.
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants@25.3.1
+
+      # `|| true`: survivors are the *output*, not a failure. This job exists to produce a list a
+      # person reads, and a red tick on a scheduled job nobody can act on immediately is how a
+      # scheduled job becomes invisible.
+      - name: Mutate ${{ inputs.crate || 'engine' }}
+        run: |
+          cargo mutants --manifest-path src-tauri/Cargo.toml \
+            --package "${{ inputs.crate || 'engine' }}" \
+            --in-place --no-shuffle --timeout 300 \
+            --output mutants-out || true
+
+      - name: Upload the survivor list
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-${{ inputs.crate || 'engine' }}
+          path: mutants-out/
+          retention-days: 30

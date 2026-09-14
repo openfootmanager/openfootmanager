@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "tauri": "tauri",
     "quality:check": "node scripts/quality-metrics.mjs --check",
-    "quality:baseline": "node scripts/quality-metrics.mjs --write"
+    "quality:baseline": "node scripts/quality-metrics.mjs --write",
+    "preflight": "npm run format:check && npm run lint && npm run quality:check && npm run build && npm test"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.2.8",
