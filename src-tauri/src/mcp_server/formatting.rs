@@ -92,6 +92,21 @@ pub fn translate_error(key: &str) -> String {
         "be.error.transfers.insufficientFunds" => "Insufficient transfer funds.".to_string(),
         "be.error.transfers.offerNotPending" => "Offer is no longer pending.".to_string(),
         "be.error.transfers.transferWindowClosed" => "Transfer window is closed.".to_string(),
+        "be.error.mcp.noLeagueYet" => {
+            "No league found. The season may not have started yet.".to_string()
+        }
+        "be.error.mcp.teamAlreadyAssigned" => {
+            "You already manage a team. Use `jobs_apply` to switch.".to_string()
+        }
+        "be.error.mcp.cannotDeleteActiveSave" => {
+            "Cannot delete the save you are playing. Use `game_exit` first.".to_string()
+        }
+        "be.error.liveMatch.pressConferenceAlreadyHeld" => {
+            "A press conference has already been held today.".to_string()
+        }
+        "be.error.liveMatch.noCompletedMatch" => {
+            "No completed match found for your team.".to_string()
+        }
         _ => format!("Error: {}", key),
     }
 }
