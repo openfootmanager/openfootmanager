@@ -3237,6 +3237,67 @@ fn a_club_that_is_turned_down_does_not_come_straight_back() {
     );
 }
 
+/// The cooldown covers expiry as well as refusal, and that half needs its own test: every other
+/// test here rejects the offer, so dropping `Withdrawn` from the cooldown match leaves all of them
+/// green while talks that went cold silently stop cooling the club.
+#[test]
+fn a_club_whose_talks_expired_also_waits_before_asking_again() {
+    let mut game = make_persistent_suitor_game("player-expired-suitor", 0);
+    let suitor = game.teams[1].id.clone();
+
+    generate_incoming_transfer_offers(&mut game);
+    assert!(
+        find_player(&game, "player-expired-suitor")
+            .transfer_offers
+            .iter()
+            .any(|offer| offer.status == TransferOfferStatus::Pending),
+        "the club should open talks on the first day"
+    );
+
+    // Nobody answers, so the offer goes stale on its own rather than being refused.
+    game.clock.advance_days(15);
+    generate_incoming_transfer_offers(&mut game);
+    let player = find_player(&game, "player-expired-suitor");
+    assert!(
+        player
+            .transfer_offers
+            .iter()
+            .any(|offer| offer.status == TransferOfferStatus::Withdrawn),
+        "the offer should have expired"
+    );
+    assert!(
+        !player
+            .transfer_offers
+            .iter()
+            .any(|offer| offer.status == TransferOfferStatus::Pending),
+        "the club should not reopen talks the moment its own offer went cold"
+    );
+
+    // Still inside the window measured from when talks ended.
+    game.clock.advance_days(20);
+    generate_incoming_transfer_offers(&mut game);
+    assert!(
+        !find_player(&game, "player-expired-suitor")
+            .transfer_offers
+            .iter()
+            .any(|offer| offer.status == TransferOfferStatus::Pending),
+        "the club should still be cooling off inside the window"
+    );
+
+    // Past it, interest may legitimately revive.
+    game.clock.advance_days(20);
+    generate_incoming_transfer_offers(&mut game);
+    assert!(
+        find_player(&game, "player-expired-suitor")
+            .transfer_offers
+            .iter()
+            .any(|offer| {
+                offer.status == TransferOfferStatus::Pending && offer.from_team_id == suitor
+            }),
+        "the club should be free to try again once the cooldown has expired"
+    );
+}
+
 fn make_persistent_suitor_game(player_id: &str, ai_teams: usize) -> Game {
     let mut player = make_user_player(player_id);
     player.transfer_listed = false;
