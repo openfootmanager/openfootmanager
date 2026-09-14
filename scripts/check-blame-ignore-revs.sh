@@ -35,19 +35,27 @@ lineno=0
 while IFS= read -r line || [ -n "$line" ]; do
     lineno=$((lineno + 1))
 
+    # Trim both ends before deciding anything. Order matters, and getting it wrong was this
+    # script's first bug: testing for blank *before* trimming means a line of spaces is not
+    # "blank", falls through to the SHA check, and fails the build over a file git is perfectly
+    # happy with. The rule this script has to obey is that it may be no stricter than git —
+    # every shape below was checked against `blame.ignoreRevsFile` itself, and git accepts a
+    # whitespace-only line, an indented comment, and a padded SHA without complaint.
+    rev="${line#"${line%%[![:space:]]*}"}"
+    rev="${rev%"${rev##*[![:space:]]}"}"
+
     # Comments and blank lines: the file is meant to be read by people as well as by git, and
     # every entry in it should say what it was.
-    case "$line" in
+    case "$rev" in
         '' | '#'*) continue ;;
     esac
 
-    # Trim trailing whitespace; a stray space makes a SHA unresolvable in a way that reads as
-    # identical to the correct one.
-    rev="${line%"${line##*[![:space:]]}"}"
-
     found=$((found + 1))
 
-    if ! printf '%s' "$rev" | grep -qE '^[0-9a-f]{40}$'; then
+    # Uppercase is accepted for the same no-stricter-than-git reason: `git blame --ignore-rev`
+    # and `blame.ignoreRevsFile` both resolve an uppercase object ID, so rejecting one here
+    # would fail the build on an entry that works, with a message saying it is the wrong length.
+    if ! printf '%s' "$rev" | grep -qE '^[0-9a-fA-F]{40}$'; then
         echo "$(relative "$revs_file"):$lineno: '$rev' is not a full 40-character SHA. git ignores short ones silently." >&2
         status=1
         continue

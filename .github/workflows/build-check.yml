@@ -63,6 +63,13 @@ jobs:
       - name: Check formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
 
+      # The fixtures run first, for the reason `toolchain-pin` does the same: the real file is
+      # correct, so a check that had stopped working would sail through the step below and
+      # report success. They also pin the other direction — that this stays no stricter than
+      # git, which is the failure mode that reds a build over a file git is happy with.
+      - name: Check the blame-revs check still rejects violations
+        run: ./scripts/check-blame-ignore-revs.test.sh
+
       - name: Check .git-blame-ignore-revs still resolves
         run: ./scripts/check-blame-ignore-revs.sh
 
