@@ -165,8 +165,25 @@ pub fn resolve_message_action_internal(
     // between read and write-back is not silently discarded.
     let (game, effect, effect_i18n_key, effect_i18n_params) = state
         .update_game(|game| {
+            // A message the player cannot see yet cannot be acted on. The inbox
+            // list already hides future-dated mail, but this takes an id from the
+            // caller — an MCP agent can name one the list never showed it. The
+            // guard belongs here rather than in the MCP tool so the GUI obeys the
+            // same rule through the same door.
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            let visible = game
+                .messages
+                .iter()
+                .find(|message| message.id == message_id)
+                .is_none_or(|message| {
+                    ofm_core::slices::inbox::message_is_visible(&message.date, &today)
+                });
             // Try to apply player conversation or random event response
-            let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
+            let (effect, effect_i18n_key, effect_i18n_params) = if !visible {
+                // Treated exactly like an id that is not in the inbox, because
+                // from the player's side it is not: no effect, nothing resolved.
+                (None, None, None)
+            } else if let Some(opt) = option_id {
                 // Try player events first, then random events
                 let player_effect = ofm_core::player_events::apply_player_response(
                     game, message_id, action_id, opt,
@@ -337,6 +354,27 @@ mod tests {
             read_message("remove-stale", "2026-07-01"),
         ];
         game
+    }
+
+    #[test]
+    fn resolve_message_action_internal_ignores_a_message_dated_ahead_of_the_clock() {
+        // The inbox list hides future-dated mail, but this takes an id from the
+        // caller, and an MCP agent can name one the list never showed it. Acting
+        // on it would let an agent resolve an event before the player can see it.
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.messages = vec![unresolved_action_message("future", "2026-09-01")];
+        state.set_game(game);
+
+        resolve_message_action_internal(&state, "future", "action-future", None)
+            .expect("the call itself succeeds");
+
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        let action = &stored.messages[0].actions[0];
+        assert!(
+            !action.resolved,
+            "an action on a message the player cannot see must not resolve"
+        );
     }
 
     #[test]

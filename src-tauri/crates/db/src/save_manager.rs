@@ -491,6 +491,15 @@ impl SaveManager {
                     seeded, save_id
                 );
             }
+            if save_format_version < 5 {
+                // Adopt the inbox of a save written before the sent-ledger, or
+                // the first advance re-announces everything still in it. Gated on
+                // the format version rather than on the ledger being empty: a
+                // career started from an existing save legitimately has an empty
+                // ledger and a populated `world_history`, and seeding that would
+                // suppress every World Cup the *previous* career had seen.
+                ofm_core::inbox::seed_ledger_from_save(&mut game);
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -1595,6 +1604,64 @@ mod tests {
             meta_repo::CURRENT_SAVE_FORMAT_VERSION
         );
         assert!(meta.save_format_version > 3);
+    }
+
+    #[test]
+    fn test_load_game_seeds_the_sent_ledger_when_upgrading_a_pre_v5_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.messages.push(domain::message::InboxMessage::new(
+            "world_cup_champion_2030".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2030-07-15".to_string(),
+        ));
+        game.emitted_events.clear();
+        let save_id = sm.create_save(&game, "Legacy Ledger").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 4;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
+    }
+
+    #[test]
+    fn test_load_game_does_not_seed_a_current_save_whose_ledger_is_merely_empty() {
+        // A career started from an existing save has an empty ledger and inherits
+        // the world's `world_history`. Seeding on emptiness rather than on the
+        // save format would take the previous career's World Cup winners as
+        // already announced, and this one would never hear about them.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.world_history.record_world_cup_champion(
+            domain::world_history::WorldCupChampionRecord {
+                year: 2030,
+                nation_code: "BRA".to_string(),
+                nation_name: "Brazil".to_string(),
+            },
+        );
+        game.emitted_events.clear();
+        let save_id = sm.create_save(&game, "Fresh Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(
+            loaded.emitted_events.is_empty(),
+            "a current-format save must keep its empty ledger, got {:?}",
+            loaded.emitted_events
+        );
     }
 
     #[test]

@@ -103,16 +103,19 @@ pub fn already_emitted(game: &Game, key: &str) -> bool {
 
 /// Populate the ledger of a save written before it existed.
 ///
-/// Runs on load. Without it, the first advance after upgrading would find an
-/// empty ledger and re-announce everything still sitting in the inbox. Message
-/// ids are the ledger's keys, so seeding is a straight copy.
+/// Without this, the first advance after upgrading would find an empty ledger
+/// and re-announce everything still sitting in the inbox. Message ids are the
+/// ledger's keys, so seeding is mostly a straight copy.
 ///
 /// World Cup champions get an extra pass: that message may already have been
 /// purged from the mailbox, and the archive remembers what the inbox forgot.
+///
+/// **Call this only for a genuinely pre-v5 save.** `SaveManager::load_game`
+/// decides that from the save-format version, and it is the only caller. An
+/// empty ledger is *not* the same question: a career started from an existing
+/// save has an empty ledger and inherits the world's `world_history`, so seeding
+/// it would suppress every World Cup announcement the previous career had seen.
 pub fn seed_ledger_from_save(game: &mut Game) {
-    if !game.emitted_events.is_empty() {
-        return;
-    }
     let ids: Vec<String> = game.messages.iter().map(|m| m.id.clone()).collect();
     let upgraded: Vec<String> = game
         .messages
@@ -374,12 +377,18 @@ mod tests {
     }
 
     #[test]
-    fn seeding_leaves_a_populated_ledger_alone() {
+    fn seeding_twice_changes_nothing_the_second_time() {
+        // Seeding is unconditional by design — whether a save needs it is a
+        // save-format question, and `SaveManager::load_game` owns that. What this
+        // has to promise is that running it is not destructive: it only ever adds
+        // keys for messages that are actually present.
         let mut game = game();
-        emit_once(&mut game, "evt", || message("evt"));
-        game.messages.clear();
-        game.messages.push(message("stray"));
+        game.messages.push(message("old_event"));
+
         seed_ledger_from_save(&mut game);
-        assert!(!already_emitted(&game, "stray"));
+        let after_first = game.emitted_events.clone();
+        seed_ledger_from_save(&mut game);
+
+        assert_eq!(game.emitted_events, after_first);
     }
 }

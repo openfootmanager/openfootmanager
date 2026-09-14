@@ -358,9 +358,10 @@ impl GamePersistenceReader {
             },
         };
         game.promote_legacy_league();
-        // A save written before the sent-ledger existed carries an empty one.
-        // Adopt its inbox, or the first advance re-announces everything in it.
-        ofm_core::inbox::seed_ledger_from_save(&mut game);
+        // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done
+        // here: this reads whatever is on disk, and "is the ledger empty?" is not
+        // the same question as "was this save written before the ledger existed?".
+        // `SaveManager::load_game` owns that, gated on the save-format version.
         ofm_core::season_context::refresh_game_context(&mut game);
 
         Ok(game)
@@ -608,7 +609,11 @@ mod tests {
     }
 
     #[test]
-    fn loading_a_save_written_before_the_ledger_adopts_its_inbox() {
+    fn reading_a_game_does_not_seed_the_sent_ledger() {
+        // Seeding is a save-format migration and belongs to `load_game`, which
+        // knows the version on disk. This reader only reports what is stored —
+        // an empty ledger here means the save has one and nothing has been
+        // announced yet, not that the save predates the ledger.
         let db = GameDatabase::open_in_memory().unwrap();
         let mut game = sample_game_with_clock(2032, 18);
         game.messages.push(domain::message::InboxMessage::new(
@@ -623,7 +628,7 @@ mod tests {
         GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
 
         let loaded = GamePersistenceReader::read_game(&db).unwrap();
-        assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
+        assert!(loaded.emitted_events.is_empty());
     }
 
     #[test]
