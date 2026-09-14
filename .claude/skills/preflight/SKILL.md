@@ -2,7 +2,7 @@
 name: preflight
 description: Run the full local verification gauntlet before opening a pull request — type check, frontend tests, build, backend tests, clippy, and the i18n audit — in cheapest-first order, and confirm the PR hygiene items (branch, conventional commit, linked issue, AI disclosure).
 when_to_use: Before opening or updating a pull request, before asking for review, or any time you want to know whether the change is actually ready.
-allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npx vitest run*), Bash(npm run build), Bash(npm run lint), Bash(npm run audit:i18n), Bash(npx tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
+allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npm run preflight), Bash(npm run build), Bash(npm run lint), Bash(npm run format:check), Bash(npm run quality:check), Bash(npm run quality:baseline), Bash(npm run audit:i18n), Bash(npm exec --no -- vitest run*), Bash(npm exec --no -- tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
 ---
 
 # Preflight
@@ -26,7 +26,7 @@ git diff --stat develop...HEAD
 ## 2. Types (fast)
 
 ```bash
-npx tsc --noEmit
+npm exec --no -- tsc --noEmit
 ```
 
 ## 3. Frontend tests
@@ -35,7 +35,7 @@ npx tsc --noEmit
 npm test
 ```
 
-Iterate on one area first — `npx vitest run src/components/squad` — then run the full suite
+Iterate on one area first — `npm exec --no -- vitest run src/components/squad` — then run the full suite
 before pushing. Around 150 test files; the whole run takes a few minutes.
 
 If you touched any user-facing text, this is where `src/i18n/localeCoverage.test.ts` and

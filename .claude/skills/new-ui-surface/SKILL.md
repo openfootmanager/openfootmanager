@@ -3,7 +3,7 @@ name: new-ui-surface
 description: Build a new frontend component, panel, dashboard tab, or screen that matches the Matchday design language, works in light and dark, is keyboard and screen-reader accessible, reuses existing primitives, and ships with a Testing Library test.
 when_to_use: Creating any new React component, adding a dashboard tab, building a modal or panel, redesigning an existing screen, or when a UI change needs to look and behave like the rest of the app.
 argument-hint: "[what you are building]"
-allowed-tools: Read, Edit, Write, Grep, Glob, Bash(npx vitest run src/components*), Bash(npx tsc --noEmit)
+allowed-tools: Read, Edit, Write, Grep, Glob, Bash(npm exec --no -- vitest run src/components*), Bash(npm exec --no -- tsc --noEmit)
 ---
 
 # Building a new UI surface
@@ -97,8 +97,8 @@ const save = screen.getByRole("button", { name: /save/i });
 - Cover the keyboard path, not just the click path, for anything interactive.
 
 ```bash
-npx vitest run src/components/<area>
-npx tsc --noEmit
+npm exec --no -- vitest run src/components/<area>
+npm exec --no -- tsc --noEmit
 ```
 
 ## 7. Invariants, if you touch squad, tactics, or the pitch
@@ -121,4 +121,4 @@ npx tsc --noEmit
 - [ ] All strings routed through `/add-ui-string` (every locale)
 - [ ] No store mutation from a component
 - [ ] Co-located test querying by role, written before the component
-- [ ] `npx vitest run src/components/<area>` and `npx tsc --noEmit` green
+- [ ] `npm exec --no -- vitest run src/components/<area>` and `npm exec --no -- tsc --noEmit` green

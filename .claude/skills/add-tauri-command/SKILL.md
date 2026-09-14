@@ -3,7 +3,7 @@ name: add-tauri-command
 description: Expose new backend behaviour to the frontend over Tauri IPC. Covers the _internal function split so MCP tools can share the logic, atomic mutation via mutate_active_game, translation-key errors, registration in the invoke handler, the typed service wrapper, store update, tests on both sides, and the docs/ARCHITECTURE.md command table.
 when_to_use: Adding a new Tauri command, changing an existing command's signature, or wiring a new backend action into the UI.
 argument-hint: "[command name and what it does]"
-allowed-tools: Read, Edit, Write, Grep, Glob, Bash(cargo test*), Bash(cargo clippy*), Bash(npx vitest run src/services), Bash(npx tsc --noEmit)
+allowed-tools: Read, Edit, Write, Grep, Glob, Bash(cargo test*), Bash(cargo clippy*), Bash(npm exec --no -- vitest run src/services), Bash(npm exec --no -- tsc --noEmit)
 ---
 
 # Adding a Tauri command
@@ -125,4 +125,4 @@ If the command should also be available to AI agents, continue with `/add-mcp-to
 - [ ] Backend test on the `_internal` fn (`cargo test --lib`), written first
 - [ ] Frontend service test including the error path
 - [ ] `docs/ARCHITECTURE.md` command table updated
-- [ ] `cargo clippy --workspace --all-targets` and `npx tsc --noEmit` green
+- [ ] `cargo clippy --workspace --all-targets` and `npm exec --no -- tsc --noEmit` green

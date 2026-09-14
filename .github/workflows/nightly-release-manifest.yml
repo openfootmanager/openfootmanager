@@ -53,7 +53,7 @@ jobs:
             exit 1
           fi
 
-      # The rolling tag is literally "nightly", so the manifest version cannot be
+      # The tag is `nightly-<date>-<sha>`, not a version, so the manifest version cannot be
       # derived from it — consumers (the website) need a real semver.
       - name: Resolve nightly display version
         id: nightly_version

@@ -157,15 +157,21 @@ jobs:
         run: npm ci
 
       # There is an unrelated package on npm literally called `biome`, last published at 0.3.3.
-      # `npx biome` finds it, prints nothing and exits 0 — so for most of this project's life the
-      # documented lint command was a no-op that looked like a pass. That is the exact shape of
-      # failure this repository's gates exist to prevent, so the version is asserted rather than
-      # assumed before anything relies on it.
+      # `npx biome` finds it, prints nothing and exits 0. This repository has always documented
+      # `npm run lint`, which resolves the real one, so that trap was never sprung here — but a
+      # lint step that silently passes is the exact shape of failure these gates exist to
+      # prevent, so the version is asserted rather than assumed before anything relies on it.
       #
       # `npm exec --no` refuses to fetch from the registry, so it can only resolve the local
       # install. That is the spelling to use anywhere a bare `npx <tool>` is tempting.
+      #
+      # The pattern matches Biome's actual output, `Version: 2.5.5`, not a bare `2.5.5`. The
+      # first version of this anchored `^2\.` and therefore never matched — a check that fails
+      # closed, which at least is the safe direction, but it would have stopped every frontend
+      # run before lint, tests or build. The impostor prints nothing at all, so it fails here too.
       - name: Verify Biome is the real one
-        run: npm exec --no -- biome --version | grep -qE '^2\.'
+        # Quoted: the colon inside the pattern would otherwise make YAML read a nested mapping.
+        run: "npm exec --no -- biome --version | grep -qE '^Version: 2\\.'"
 
       # Formatting is gated for the same reason `cargo fmt --check` is: the sweep that made this
       # green is worth nothing if the tree drifts straight back.

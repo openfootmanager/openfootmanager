@@ -201,6 +201,36 @@ function createProjection(
 }
 
 describe("TransferBidModal", () => {
+  // Regression: `bidResult` is a *decision* the UI switches on, and the reason a bid failed used
+  // to be stuffed into the same variable — which only type-checked because the hook's catch was
+  // `any`. Typing the catch properly made the screen show the literal word "error" instead of
+  // what went wrong. This asserts the message reaches the user, so the two cannot be merged back.
+  it("shows why a bid failed, not the word error", () => {
+    render(
+      <TransferBidModal
+        bidTarget={createPlayer()}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="1.5"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1500000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        bidResult={"error"}
+        bidError="Your club cannot afford this fee."
+        bidLoading={false}
+        bidSubmitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Your club cannot afford this fee.")).toBeInTheDocument();
+    expect(screen.queryByText("error")).not.toBeInTheDocument();
+  });
+
   it("renders the active negotiation state for an existing offer", () => {
     render(
       <TransferBidModal

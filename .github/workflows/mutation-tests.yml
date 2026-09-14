@@ -14,8 +14,9 @@ name: mutation-tests
 # person to judge — plenty are equivalent mutants that no test could reasonably catch. Blocking a
 # PR on that would be the fastest way to get this deleted.
 #
-# One crate a week, `engine` and `domain` first: both are pure logic with no database and no
-# Tauri, so they are the fastest to run and the ones where a survivor most clearly means a gap.
+# One crate a week, rotating by week number through engine, domain, ofm_core and db. The first
+# two are pure logic with no database and no Tauri, so they are the fastest and the ones where
+# a survivor most clearly means a gap.
 
 on:
   schedule:
@@ -71,19 +72,36 @@ jobs:
         with:
           tool: cargo-mutants@25.3.1
 
+      # A cron trigger carries no inputs, so `inputs.crate` is empty every week — the first
+      # version of this said "one crate a week" and then ran `engine` every time. The week number
+      # picks one, so the rotation actually rotates; a manual dispatch still names its own.
+      - name: Choose this week's crate
+        id: crate
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.crate }}" ]; then
+            crate="${{ inputs.crate }}"
+          else
+            crates=(engine domain ofm_core db)
+            week="$(date -u +%V)"
+            crate="${crates[$((10#$week % ${#crates[@]}))]}"
+          fi
+          echo "name=$crate" >> "$GITHUB_OUTPUT"
+          echo "Mutating $crate"
+
       # `|| true`: survivors are the *output*, not a failure. This job exists to produce a list a
       # person reads, and a red tick on a scheduled job nobody can act on immediately is how a
       # scheduled job becomes invisible.
-      - name: Mutate ${{ inputs.crate || 'engine' }}
+      - name: Mutate ${{ steps.crate.outputs.name }}
         run: |
           cargo mutants --manifest-path src-tauri/Cargo.toml \
-            --package "${{ inputs.crate || 'engine' }}" \
+            --package "${{ steps.crate.outputs.name }}" \
             --in-place --no-shuffle --timeout 300 \
             --output mutants-out || true
 
       - name: Upload the survivor list
         uses: actions/upload-artifact@v4
         with:
-          name: mutants-${{ inputs.crate || 'engine' }}
+          name: mutants-${{ steps.crate.outputs.name }}
           path: mutants-out/
           retention-days: 30

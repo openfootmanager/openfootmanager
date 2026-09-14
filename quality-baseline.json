@@ -1,7 +1,7 @@
 {
   "oversizedAggregate": {
     "rust": 63098,
-    "ts": 35355
+    "ts": 35358
   },
   "allowedOversized": {
     "src-tauri/crates/db/src/save_manager.rs": 2338,
@@ -69,7 +69,7 @@
     "src/components/tournaments/TournamentsTab.test.tsx": 684,
     "src/components/transfers/TransfersTab.model.test.ts": 526,
     "src/components/transfers/TransfersTab.test.tsx": 1603,
-    "src/components/transfers/TransfersTab.tsx": 1895,
+    "src/components/transfers/TransfersTab.tsx": 1898,
     "src/components/youthAcademy/YouthAcademyTab.test.tsx": 518,
     "src/components/youthAcademy/YouthAcademyTab.tsx": 599,
     "src/hooks/useEntityEditor.test.ts": 791,
@@ -88,8 +88,8 @@
     "tsAnyAnnotation": 0,
     "tsAnyAssertion": 0,
     "tsIgnore": 0,
-    "biomeIgnore": 6,
-    "eslintDisable": 5,
+    "biomeIgnore": 11,
+    "eslintDisable": 7,
     "rustAllow": 22,
     "rustExpect": 0,
     "rustUnsafeBlocks": 0

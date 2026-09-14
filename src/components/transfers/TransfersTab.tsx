@@ -521,6 +521,7 @@ export default function TransfersTab({
     bidAmount,
     setBidAmount,
     bidResult,
+    bidError,
     bidLoading,
     bidFeedback,
     bidProjection,
@@ -1679,6 +1680,7 @@ export default function TransfersTab({
                   activeBidOffer={activeBidOffer}
                   hasExistingOffer={hasExistingOffer}
                   bidResult={bidResult}
+                  bidError={bidError}
                   bidLoading={bidLoading}
                   bidSubmitDisabled={transferWindowBlocksRegistration || bidSubmitDisabled}
                   blockingTitle={transferWindowBlockingTitle}
@@ -1770,6 +1772,7 @@ export default function TransfersTab({
           activeBidOffer={activeBidOffer}
           hasExistingOffer={hasExistingOffer}
           bidResult={bidResult}
+          bidError={bidError}
           bidLoading={bidLoading}
           bidSubmitDisabled={transferWindowBlocksRegistration || bidSubmitDisabled}
           blockingTitle={transferWindowBlockingTitle}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
 import {
@@ -8,6 +9,7 @@ import {
   type TransferNegotiationFeedbackData,
   type TransferNegotiationResponseData,
 } from "../../services/transfersService";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   buildResumedBidFeedback,
   getOutgoingNegotiationOffer,
@@ -24,6 +26,8 @@ interface UseTransferBidFlowResult {
   bidAmount: string;
   setBidAmount: (value: string) => void;
   bidResult: TransferNegotiationResponseData["decision"] | "error" | null;
+  /** The translated reason a bid failed. Set only when `bidResult` is `"error"`. */
+  bidError: string | null;
   bidLoading: boolean;
   bidFeedback: TransferNegotiationFeedbackData | null;
   bidProjection: TransferBidProjectionData["projection"] | null;
@@ -41,6 +45,7 @@ export function useTransferBidFlow({
   gameState,
   onGameUpdate,
 }: UseTransferBidFlowArgs): UseTransferBidFlowResult {
+  const { t } = useTranslation();
   const userTeamId = gameState.manager.team_id;
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id) ?? null;
   const [bidTarget, setBidTarget] = useState<PlayerData | null>(null);
@@ -50,6 +55,11 @@ export function useTransferBidFlow({
   >(null);
   const [bidLoading, setBidLoading] = useState(false);
   const [bidFeedback, setBidFeedback] = useState<TransferNegotiationFeedbackData | null>(null);
+  // Separate from `bidResult` on purpose. `bidResult` is the backend's *decision* and the UI
+  // switches on it; the message explaining a failure is a different thing and needs
+  // translating. Before this they shared one variable, which only type-checked because the
+  // catch clause was `any`.
+  const [bidError, setBidError] = useState<string | null>(null);
   const [bidProjection, setBidProjection] = useState<
     TransferBidProjectionData["projection"] | null
   >(null);
@@ -100,6 +110,7 @@ export function useTransferBidFlow({
       ).toFixed(existingOffer ? 2 : 1),
     );
     setBidResult(null);
+    setBidError(null);
     setBidFeedback(buildResumedBidFeedback(existingOffer));
     setBidProjection(null);
   };
@@ -108,6 +119,7 @@ export function useTransferBidFlow({
     setBidTarget(null);
     setBidAmount("");
     setBidResult(null);
+    setBidError(null);
     setBidFeedback(null);
     setBidProjection(null);
   };
@@ -119,11 +131,13 @@ export function useTransferBidFlow({
 
     setBidLoading(true);
     setBidResult(null);
+    setBidError(null);
     setBidFeedback(null);
 
     try {
       const response = await makeTransferBid(bidTarget.id, bidFee);
       setBidResult(response.decision);
+      setBidError(null);
       setBidFeedback(normalizeTransferNegotiationFeedback(response.feedback));
       onGameUpdate?.(response.game);
 
@@ -133,12 +147,9 @@ export function useTransferBidFlow({
       if (response.suggested_fee !== null) {
         setBidAmount((response.suggested_fee / 1_000_000).toFixed(2));
       }
-    } catch {
-      // `bidResult` is a decision, not a message: the union is the backend's decision values
-      // plus "error". The old `catch (error: any)` passed `error.toString()` straight into it,
-      // and `any` made that type-check — so any thrown value could land in a field the UI
-      // switches on. Removing the `any` is what surfaced it.
+    } catch (error: unknown) {
       setBidResult("error");
+      setBidError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
       setBidFeedback(null);
     } finally {
       setBidLoading(false);
@@ -150,6 +161,7 @@ export function useTransferBidFlow({
     bidAmount,
     setBidAmount,
     bidResult,
+    bidError,
     bidLoading,
     bidFeedback,
     bidProjection,

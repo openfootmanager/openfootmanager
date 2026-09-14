@@ -27,6 +27,8 @@ export interface TransferBidFormProps {
   activeBidOffer: TransferOfferData | null;
   hasExistingOffer: boolean;
   bidResult: TransferNegotiationResponseData["decision"] | "error" | null;
+  /** The translated reason a bid failed. Rendered in place of the bare word "error". */
+  bidError?: string | null;
   bidLoading: boolean;
   bidSubmitDisabled: boolean;
   blockingTitle?: string | null;
@@ -50,6 +52,7 @@ export function TransferBidForm({
   activeBidOffer,
   hasExistingOffer,
   bidResult,
+  bidError,
   bidLoading,
   bidSubmitDisabled,
   blockingTitle = null,
@@ -214,7 +217,7 @@ export function TransferBidForm({
               ? t("transfers.bidRejected")
               : bidResult === "counter_offer"
                 ? t("transfers.bidCountered")
-                : bidResult}
+                : bidError}
         </div>
       ) : null}
       <div className="flex gap-2">

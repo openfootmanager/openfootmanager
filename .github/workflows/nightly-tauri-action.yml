@@ -159,13 +159,19 @@ jobs:
           tagName: ${{ needs.prepare-nightly.outputs.tag }}
           releaseName: ${{ needs.prepare-nightly.outputs.release_name }}
           releaseBody: ${{ needs.prepare-nightly.outputs.release_body }}
-          releaseDraft: false
+          # Published by `finalize-nightly`, not here. With per-build tags a cancelled run — and
+          # `cancel-in-progress` above means a second push cancels the first — used to leave a
+          # *published* release carrying whichever platforms had uploaded before the axe fell,
+          # with no manifest and no checksums, sitting on the releases page forever looking like
+          # a complete build. The rolling tag repaired that on the next run; a per-build tag has
+          # no next run. A draft is invisible until something says every platform finished.
+          releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
 
-  # Nothing is ever deleted here: a failed build must not remove a previous good nightly, and
-  # now that each build has its own tag, a bad one simply sits beside the others rather than
-  # replacing the last known-good release.
+  # Nothing is ever deleted here: a failed build must not remove a previous good nightly. A
+  # build that fails or is cancelled leaves a *draft*, which nobody sees, rather than replacing
+  # the last known-good release the way the rolling tag used to.
   #
   # The metadata pipeline is still dispatched explicitly rather than left to `release:
   # published`. That event fires when the *first* platform creates the release, with four
@@ -192,7 +198,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Move rolling tag and refresh release metadata
+      - name: Publish the release and refresh its metadata
         id: finalize
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -212,12 +218,14 @@ jobs:
 
           echo "released=true" >> "$GITHUB_OUTPUT"
 
-          # The tag already points at this commit — tauri-action created it there. All that is
-          # left is to make the title and notes describe the finished set of assets rather than
-          # whatever the first platform to upload happened to write.
+          # The tag already points at this commit — tauri-action created it there. This step is
+          # what makes the release public, which is the point: reaching here means every platform
+          # in the matrix has finished, so the assets, the notes and the checksums describe the
+          # same build.
           gh release edit "$RELEASE_TAG" \
             --title "$RELEASE_NAME" \
             --notes "$RELEASE_BODY" \
+            --draft=false \
             --prerelease
 
       - name: Dispatch nightly metadata workflow

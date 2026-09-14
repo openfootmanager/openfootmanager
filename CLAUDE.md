@@ -57,11 +57,10 @@ Use `npm run <script>`, or `npm exec --no -- <tool>` when you need an ad-hoc fla
 `node_modules/.bin` first on `PATH` and `npm exec --no` refuses to fetch from the registry, so
 neither can reach an impostor.
 
-This is not hypothetical here. There is an unrelated package on npm literally called `biome`,
-last published at 0.3.3. `npx biome` finds *that*, prints nothing, and exits 0 — so for most of
-this project's life the documented lint command was a no-op that looked like a pass. CI now
-asserts the version before trusting it, but the rule is what stops it recurring with the next
-tool.
+This is not hypothetical. There is an unrelated package on npm literally called `biome`, last
+published at 0.3.3; `npx biome` finds *that*, prints nothing, and exits 0. This repository has
+always documented `npm run lint`, which resolves correctly — so the trap was never sprung here,
+and the rule exists to keep it that way. CI asserts Biome's version before trusting it.
 
 ---
 

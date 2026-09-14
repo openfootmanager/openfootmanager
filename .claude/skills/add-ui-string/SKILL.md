@@ -3,7 +3,7 @@ name: add-ui-string
 description: Add or change any text a player can see, in every locale the game ships in. Covers the full procedure — en.json first, real translations for the rest, INTENTIONAL_SAME.json only where a term genuinely does not translate, then the two vitest gates. Use for frontend strings and for Rust-side message keys.
 when_to_use: Adding a label, button, tooltip, error message, news headline, inbox message, aria-label, or any other user-visible text. Also when changing existing wording, renaming a translation key, or when localeCoverage.test.ts or frontendKeyCoverage.test.ts fails.
 argument-hint: "[what the string says or the key you are adding]"
-allowed-tools: Read, Edit, Write, Grep, Glob, Bash(npx vitest run src/i18n), Bash(npx vitest run src/utils), Bash(npm run audit:i18n)
+allowed-tools: Read, Edit, Write, Grep, Glob, Bash(npm exec --no -- vitest run src/i18n), Bash(npm exec --no -- vitest run src/utils), Bash(npm run audit:i18n)
 ---
 
 # Adding a user-facing string
@@ -148,8 +148,8 @@ file. `src/utils/backendI18n.localeCoverage.test.ts` covers this half.
 ### 7. Run the gates
 
 ```bash
-npx vitest run src/i18n        # localeCoverage + frontendKeyCoverage + index
-npx vitest run src/utils       # backendI18n coverage, if you touched backend keys
+npm exec --no -- vitest run src/i18n        # localeCoverage + frontendKeyCoverage + index
+npm exec --no -- vitest run src/utils       # backendI18n coverage, if you touched backend keys
 ```
 
 - `localeCoverage.test.ts` — every locale has every `en.json` key, and no locale silently copies
@@ -178,6 +178,6 @@ is not a pass — the vitest gates are.
 - [ ] Form of address matches the neighbouring keys, and no wording assumes the manager’s gender
 - [ ] `INTENTIONAL_SAME.json` touched only for genuinely untranslatable terms
 - [ ] Backend keys mapped in `src/utils/backendI18n*.ts` if applicable
-- [ ] `npx vitest run src/i18n` green
+- [ ] `npm exec --no -- vitest run src/i18n` green
 - [ ] `npm run audit:i18n` output read, not just run
 - [ ] Any new `aria-label` uses a translated string, not a hardcoded one

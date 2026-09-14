@@ -103,7 +103,14 @@ const countInCode = (files, pattern) => countIn(files, pattern, stripComments);
 const countInSource = (files, pattern) => countIn(files, pattern, (s) => s);
 
 function suppressions() {
-  const ts = walk(join(repoRoot, "src"), (n) => n.endsWith(".ts") || n.endsWith(".tsx"));
+  // `scripts/` and `.github/scripts/` are included deliberately: three of the suppressions this
+  // repository carries live there, and counting only `src/` would have left them outside the
+  // ratchet entirely — a place to put a `biome-ignore` where nothing notices.
+  const ts = [
+    ...walk(join(repoRoot, "src"), (n) => n.endsWith(".ts") || n.endsWith(".tsx")),
+    ...walk(join(repoRoot, "scripts"), (n) => n.endsWith(".mjs") || n.endsWith(".ts")),
+    ...walk(join(repoRoot, ".github", "scripts"), (n) => n.endsWith(".mjs")),
+  ];
   const rust = walk(join(repoRoot, "src-tauri"), (n) => n.endsWith(".rs"));
 
   return {

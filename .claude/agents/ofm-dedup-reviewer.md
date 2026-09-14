@@ -18,7 +18,7 @@ write as though your approval means anything mechanical.
 
 - `src/components/ui/index.ts` — the UI primitives. Modal shells, badges, selects, pitch tokens.
 - `src/lib/` and `src/utils/` — shared helpers.
-- `src/components/squad/SquadTab.helpers.ts` — 990 lines imported by 38 files across ten feature
+- `src/components/squad/SquadTab.helpers.ts` — 937 lines imported by dozens of files across ten feature
   folders. It is a shared library living in one tab's directory, so a "new" position or sorting
   helper is very often already in there.
 - `src-tauri/src/commands/util.rs` — the canonical Tauri command helpers.
