@@ -475,4 +475,22 @@ describe("SquadTab", () => {
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });
+  it("keeps the same column-header nodes when a filter changes", async () => {
+    // SortHeader used to be declared inside SquadRosterView's body, which makes
+    // it a fresh component type on every render: React unmounts the old <th>
+    // and mounts a new one, throwing away focus and any in-flight transition.
+    // Identity of the DOM node is the observable difference.
+    renderSquadTab(makeGameState());
+
+    const headerBefore = await screen.findByText("#");
+    const thBefore = headerBefore.closest("th");
+    expect(thBefore).not.toBeNull();
+
+    const filter = screen.getByPlaceholderText("squad.filterPlayers");
+    fireEvent.change(filter, { target: { value: "z" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("#").closest("th")).toBe(thBefore);
+    });
+  });
 });
