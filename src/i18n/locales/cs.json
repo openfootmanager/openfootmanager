@@ -2654,6 +2654,7 @@
         "parseFailed": "Soubor s definicí soutěže se nepodařilo načíst jako JSON.",
         "unsupportedVersion": "Nepodporovaná verze formátu {{version}}; tato sestava podporuje verzi maximálně do {{supported}}.",
         "berthUnknownTarget": "Kvalifikační místo odkazuje na neznámou soutěž „{{target}}“.",
+        "berthSelfTarget": "Kvalifikační místo odkazuje na vlastní soutěž „{{target}}“.",
         "berthInvalidRange": "Neplatný rozsah pozic pro kvalifikační místo {{from}}–{{to}}.",
         "berthRequiresLeague": "Místa za umístění a do play-off lze udělit pouze na základě ligové tabulky.",
         "berthRequiresCup": "Místo pro vítěze poháru lze udělit pouze na základě vyřazovací soutěže.",
@@ -2676,7 +2677,8 @@
         "unknownSourceCompetition": "Neznámá zdrojová soutěž „{{source}}“.",
         "selectorMissingSource": "Tento selektor vyžaduje zdrojovou soutěž.",
         "unknownExcludedCompetition": "Neznámá vyloučená soutěž „{{excluded}}“.",
-        "selectorCycle": "Kruhová kvalifikace mezi soutěžemi."
+        "selectorCycle": "Kruhová kvalifikace mezi soutěžemi.",
+        "duplicateTierPriority": "Dvě soutěže země {{country}} sdílejí prioritu {{priority}}. Nižší číslo znamená vyšší soutěž a každá úroveň potřebuje vlastní, jinak nikdo nepostoupí ani nesestoupí."
       },
       "worldParseFailed": "Nepodařilo se zpracovat databázový soubor světa.",
       "worldWriteFileFailed": "Nepodařilo se exportovat databázový soubor světa.",
