@@ -642,6 +642,23 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             })
             .collect();
 
+        // Rank the feeders before anything is allocated. Until now this ran in
+        // whatever order the competitions happened to sit in, and persistence
+        // does not preserve that order — competitions reload sorted by
+        // priority, season and name — so saving and reloading changed which
+        // feeder supplied a promoted club when more of them qualified than the
+        // target had places. Rank, then id: the higher division's place-getters
+        // go up first, and ties break on a name rather than on a vector index.
+        feeder_plans.sort_by(|left, right| {
+            let key = |index: usize| {
+                (
+                    game.competitions[index].priority,
+                    game.competitions[index].id.clone(),
+                )
+            };
+            key(left.0).cmp(&key(right.0))
+        });
+
         let mut entrants: Vec<String> = {
             let promotable: HashSet<&str> = feeder_plans
                 .iter()
@@ -652,7 +669,18 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
                 .iter()
                 .map(String::as_str)
                 .collect();
-            fields
+            // Order the field by its feeder's rank too, so truncating it to the
+            // available places cuts the same clubs before and after a reload.
+            // Within one feeder the order is the finishing order, which is
+            // merit and must not be disturbed.
+            let feeder_rank: std::collections::HashMap<&str, usize> = feeder_plans
+                .iter()
+                .enumerate()
+                .flat_map(|(rank, (_, promoted))| {
+                    promoted.iter().map(move |club| (club.as_str(), rank))
+                })
+                .collect();
+            let mut field: Vec<String> = fields
                 .get(&target_id)
                 .into_iter()
                 .flatten()
@@ -660,7 +688,14 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
                     promotable.contains(club.as_str()) && !already_in_target.contains(club.as_str())
                 })
                 .cloned()
-                .collect()
+                .collect();
+            field.sort_by_key(|club| {
+                feeder_rank
+                    .get(club.as_str())
+                    .copied()
+                    .unwrap_or(usize::MAX)
+            });
+            field
         };
         if entrants.is_empty() {
             continue;
@@ -2034,8 +2069,10 @@ mod tests {
     #[test]
     fn apply_domestic_berth_keeps_surplus_place_getters_in_their_feeder() {
         // 4-club target, four feeders each sending two → 8 winners, 4 places.
-        // Evaluation order is north, south, east, west (1st then 2nd). The
-        // prefix takes the released places; the rest stay in their feeder.
+        // The feeders rank equally, so they are ordered by id — east then
+        // north — and those two take the released places while the rest stay
+        // in their feeder. It used to be whichever pair the competition vector
+        // happened to list first, which a save and reload does not preserve.
         let mut game = four_region_oversubscribed_pyramid();
         let fields = resolve_domestic_berth_fields(&game);
         apply_domestic_berth_promotion_relegation(&mut game, &fields);
@@ -2048,8 +2085,8 @@ mod tests {
             .collect();
         assert_eq!(
             central,
-            HashSet::from(["n1", "n2", "s1", "s2"]),
-            "evaluation-order prefix occupies the released places: {:?}",
+            HashSet::from(["e1", "e2", "n1", "n2"]),
+            "the two best-ranked feeders occupy the released places: {:?}",
             by_id("central").participant_ids
         );
 
@@ -2060,32 +2097,67 @@ mod tests {
                 .map(String::as_str)
                 .collect()
         };
-        assert_eq!(
-            by_id("north").participant_ids.len(),
-            2,
-            "north keeps authored size: {:?}",
-            by_id("north").participant_ids
-        );
-        assert_eq!(
-            by_id("south").participant_ids.len(),
-            2,
-            "south keeps authored size: {:?}",
-            by_id("south").participant_ids
-        );
+        for id in ["north", "south", "east", "west"] {
+            assert_eq!(
+                by_id(id).participant_ids.len(),
+                2,
+                "{id} keeps authored size: {:?}",
+                by_id(id).participant_ids
+            );
+        }
+        // east and north go up, so their place-getters leave.
+        assert!(!feeder("east").contains("e1") && !feeder("east").contains("e2"));
         assert!(!feeder("north").contains("n1") && !feeder("north").contains("n2"));
-        assert!(!feeder("south").contains("s1") && !feeder("south").contains("s2"));
         assert!(
-            feeder("east").contains("e1") && feeder("east").contains("e2"),
-            "east surplus stay put: {:?}",
-            by_id("east").participant_ids
+            feeder("south").contains("s1") && feeder("south").contains("s2"),
+            "south surplus stay put: {:?}",
+            by_id("south").participant_ids
         );
         assert!(
             feeder("west").contains("w1") && feeder("west").contains("w2"),
             "west surplus stay put: {:?}",
             by_id("west").participant_ids
         );
-        assert_eq!(by_id("east").participant_ids.len(), 2);
-        assert_eq!(by_id("west").participant_ids.len(), 2);
+    }
+
+    /// The same pyramid, with the competitions listed in a different order.
+    /// Persistence reloads them sorted by priority, season and name, so an
+    /// allocation that depended on the vector order promoted different clubs
+    /// after a save and reload than it did before one.
+    #[test]
+    fn oversubscribed_berths_ignore_the_order_competitions_are_listed_in() {
+        let mut authored = four_region_oversubscribed_pyramid();
+        let fields = resolve_domestic_berth_fields(&authored);
+        apply_domestic_berth_promotion_relegation(&mut authored, &fields);
+        let promoted: HashSet<String> = authored
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "central")
+            .expect("central")
+            .participant_ids
+            .iter()
+            .cloned()
+            .collect();
+
+        let mut reloaded = four_region_oversubscribed_pyramid();
+        reloaded.competitions.reverse();
+        let fields = resolve_domestic_berth_fields(&reloaded);
+        apply_domestic_berth_promotion_relegation(&mut reloaded, &fields);
+        let promoted_after: HashSet<String> = reloaded
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "central")
+            .expect("central")
+            .participant_ids
+            .iter()
+            .cloned()
+            .collect();
+
+        assert_eq!(
+            promoted, promoted_after,
+            "the same season must promote the same clubs whichever order the \
+             competitions happen to be listed in"
+        );
     }
 
     #[test]
