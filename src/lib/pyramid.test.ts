@@ -82,4 +82,62 @@ describe("getPromotionRelegationZones", () => {
     expect(getPromotionRelegationZones(state, tinyTop).relegationSlots).toBe(1);
     expect(getPromotionRelegationZones(state, tinySecond).promotionSlots).toBe(1);
   });
+
+  // The frontend draws these bands from its own copy of the pyramid rules, so
+  // it has to refuse the same pairings the backend refuses. Otherwise the table
+  // shows a relegation zone that nothing will ever relegate anyone out of.
+
+  it("draws no zones between the two halves of a split season", () => {
+    // What create_game builds for Argentina: one division played twice, at
+    // consecutive priorities, over the same twenty clubs.
+    const roster = clubs("ar", 20);
+    const apertura = division({
+      id: "ar-d1-apertura", country_id: "AR", priority: 0, participant_ids: roster,
+    });
+    const clausura = division({
+      id: "ar-d1-clausura", country_id: "AR", priority: 1, participant_ids: roster,
+    });
+    const state = [apertura, clausura];
+
+    expect(getPromotionRelegationZones(state, apertura)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+    expect(getPromotionRelegationZones(state, clausura)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
+
+  it("ignores a neighbour that shares clubs with the division", () => {
+    // A reserve or B-team table drawn from the same clubs is not a tier below.
+    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("x", 20) });
+    const shadow = division({
+      id: "xx-shadow", country_id: "XX", priority: 1,
+      participant_ids: [...clubs("x", 5), ...clubs("y", 15)],
+    });
+
+    expect(getPromotionRelegationZones([first, shadow], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
+
+  it("ignores competitions that are not domestic league tiers", () => {
+    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("a", 20) });
+    const regionalCup = division({
+      id: "xx-regional", country_id: "XX", priority: 1, participant_ids: clubs("b", 10),
+      scope: "Regional", kind: "Cup",
+    });
+
+    expect(getPromotionRelegationZones([first, regionalCup], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+    // And such a competition has no zones of its own.
+    expect(getPromotionRelegationZones([first, regionalCup], regionalCup)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
 });
