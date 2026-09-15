@@ -52,6 +52,7 @@ import {
   positionSortRank,
   translatePositionAbbreviation,
 } from "./SquadTab.helpers";
+import { positionGroupRank } from "../../lib/positions";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import {
   buildDelegateToYouthAcademyMenuItem,
@@ -145,19 +146,12 @@ export default function SquadRosterView({
   const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
-  const posOrder: Record<string, number> = {
-    Goalkeeper: 1,
-    Defender: 2,
-    Midfielder: 3,
-    Forward: 4,
-  };
-
   const roster = players
     .filter((player) => isSeniorSquadPlayer(player))
     .sort(
       (a, b) =>
-        (posOrder[normalisePosition(a.position)] || 99) -
-          (posOrder[normalisePosition(b.position)] || 99) || getPlayerOvr(b) - getPlayerOvr(a),
+        positionGroupRank(a.position) - positionGroupRank(b.position) ||
+        getPlayerOvr(b) - getPlayerOvr(a),
     );
 
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
