@@ -41,7 +41,12 @@ pub fn run() {
                 .level_for("ofm_core", log::LevelFilter::Debug)
                 .level_for("engine", log::LevelFilter::Debug)
                 .level_for("db", log::LevelFilter::Debug)
-                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                // `KeepAll` meant the log folder grew for the life of the install and was never
+                // pruned — on a machine that had played a few hundred hours, the folder a bug
+                // reporter is asked to zip up is the largest thing in the report and almost all of
+                // it predates the bug. Five rotations of 5 MB bounds it at ~25 MB while still
+                // covering several sessions back.
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(5))
                 .max_file_size(5_000_000) // 5 MB per log file
                 .build(),
         )
