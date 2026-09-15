@@ -78,14 +78,12 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         .flatten()
         .collect();
 
+    // Every rung of every country, excluded ones included: a tier that leaves
+    // the ladder has to leave a *gap* in it, not be spirited away so that the
+    // tiers on either side close up and become neighbours.
     let mut tiers_by_country: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (index, competition) in competitions.iter().enumerate() {
         if !is_ladder_tier(competition) {
-            continue;
-        }
-        if berth_targets.contains(competition.id.as_str())
-            || sibling_feeders.contains(competition.id.as_str())
-        {
             continue;
         }
         if let Some(country) = &competition.country_id {
@@ -96,22 +94,38 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         }
     }
 
-    for mut indices in tiers_by_country.into_values() {
-        if indices.len() < 2 {
-            continue;
-        }
-        indices.sort_by_key(|&index| competitions[index].priority);
-        // A ladder is only meaningful over a country's complete set of tiers,
-        // each ranked unambiguously and holding its own clubs. Anything else is
-        // not a pyramid, and swapping across it moves clubs that should not
-        // move. The whole country waits rather than exchanging half a ladder.
-        if !every_tier_has_finished(competitions, &indices)
-            || !tiers_are_ranked_distinctly(competitions, &indices)
-            || tiers_share_clubs(competitions, &indices)
+    // Cut each country's tiers into runs at every excluded rung. A berth-fed
+    // tier exchanges clubs through its berths instead, and the tiers above and
+    // below it are then two divisions apart — closing that gap would promote a
+    // third-division champion into the first. Collected before anything moves,
+    // so the borrows the exclusion sets hold on `competitions` end here.
+    let ladder_runs: Vec<Vec<usize>> = tiers_by_country
+        .into_values()
+        .flat_map(|mut indices| {
+            indices.sort_by_key(|&index| competitions[index].priority);
+            indices
+                .split(|&index| {
+                    let id = competitions[index].id.as_str();
+                    berth_targets.contains(id) || sibling_feeders.contains(id)
+                })
+                .filter(|run| run.len() >= 2)
+                .map(<[usize]>::to_vec)
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    for run in ladder_runs {
+        // A ladder is only meaningful over a run of tiers that have all
+        // finished, rank unambiguously, and hold their own clubs. Anything else
+        // is not a pyramid, and swapping across it moves clubs that should not
+        // move. The run waits rather than half-exchanging.
+        if !every_tier_has_finished(competitions, &run)
+            || !tiers_are_ranked_distinctly(competitions, &run)
+            || tiers_share_clubs(competitions, &run)
         {
             continue;
         }
-        apply_linear_chain(competitions, &indices);
+        apply_linear_chain(competitions, &run);
     }
 }
 
@@ -1067,6 +1081,140 @@ mod tests {
         assert!(!eng2.contains(&"s1".to_string()));
     }
 
+    /// A tier that leaves the ladder leaves a gap in it. A berth-fed division
+    /// exchanges clubs through its berths, so the tiers above and below it are
+    /// two divisions apart — closing that gap promoted a fourth-division
+    /// champion into the first.
+    #[test]
+    fn a_berth_fed_middle_tier_does_not_make_its_neighbours_adjacent() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let d2 = division(
+            "d2",
+            1,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let mut north = division("north", 2, "XX", &[("n1", 20), ("n2", 10)]);
+        north.berths = vec![position_berth("d2", 1, 1)];
+        let mut south = division("south", 3, "XX", &[("s1", 20), ("s2", 10)]);
+        south.berths = vec![position_berth("d2", 1, 1)];
+        let d4 = division(
+            "d4",
+            4,
+            "XX",
+            &[("e1", 40), ("e2", 30), ("e3", 20), ("e4", 10)],
+        );
+        let (before1, before4) = (d1.participant_ids.clone(), d4.participant_ids.clone());
+
+        let mut competitions = vec![d1, d2, north, south, d4];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        assert_eq!(
+            by_id("d1").participant_ids,
+            before1,
+            "the top flight must not reach past the berth-fed tier: {:?}",
+            by_id("d1").participant_ids
+        );
+        assert_eq!(
+            by_id("d4").participant_ids,
+            before4,
+            "the bottom tier must not reach past the berth-fed tier: {:?}",
+            by_id("d4").participant_ids
+        );
+    }
+
+    /// A single feeder into a middle tier is an ordinary ladder edge written as
+    /// data, but the tier below it is still two divisions from the top.
+    #[test]
+    fn a_sole_feeder_berth_into_a_middle_tier_keeps_the_top_flight_off_the_third() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let d2 = division(
+            "d2",
+            1,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let mut d3 = division(
+            "d3",
+            2,
+            "XX",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        d3.berths = vec![position_berth("d2", 1, 1)];
+        let before1 = d1.participant_ids.clone();
+
+        let mut competitions = vec![d1, d2, d3];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        assert!(
+            !by_id("d1").participant_ids.contains(&"c1".to_string()),
+            "a third-division club cannot reach the first: {:?}",
+            by_id("d1").participant_ids
+        );
+        assert_eq!(by_id("d1").participant_ids, before1);
+    }
+
+    /// Only a country's own league competition is a rung. A regional table and
+    /// a cup scored as a table both belong to a country and are both league
+    /// tables, but the ladder must never promote into or out of either.
+    #[test]
+    fn a_regional_table_and_a_cup_played_as_a_table_are_not_rungs() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let mut regional = division("regional", 1, "XX", &[("r1", 40), ("r2", 30)]);
+        regional.scope = CompetitionScope::Regional;
+        let mut cup_table = division("cup-table", 2, "XX", &[("k1", 40), ("k2", 30)]);
+        cup_table.kind = CompetitionType::Cup;
+        let d2 = division(
+            "d2",
+            3,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let before: Vec<(String, Vec<String>)> = [&d1, &regional, &cup_table, &d2]
+            .iter()
+            .map(|c| (c.id.clone(), c.participant_ids.clone()))
+            .collect();
+
+        let mut competitions = vec![d1, regional, cup_table, d2];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        for (id, expected) in &before {
+            if id == "d1" || id == "d2" {
+                continue; // these two are a real pyramid and do exchange
+            }
+            assert_eq!(
+                &by_id(id).participant_ids,
+                expected,
+                "{id} is not a rung and must not exchange clubs"
+            );
+        }
+        // And the two real divisions still swap across the non-rungs between
+        // them, because a non-rung is not a gap in the ladder — it was never on it.
+        assert!(
+            by_id("d1").participant_ids.contains(&"b1".to_string()),
+            "the second division's champion still goes up: {:?}",
+            by_id("d1").participant_ids
+        );
+    }
+
     #[test]
     fn apply_pyramid_does_not_swap_sibling_position_range_feeders() {
         // Two same-priority regional groups that both send PositionRange
@@ -1083,6 +1231,10 @@ mod tests {
             "BR",
             &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
         );
+        // Distinct priorities on purpose. Declared at the same rank the two
+        // groups are peers, and the distinct-rank guard would refuse to swap
+        // them whether or not the sibling rule existed — so this test would
+        // pass with the sibling rule deleted and prove nothing.
         let mut north = division(
             "north",
             1,
@@ -1092,7 +1244,7 @@ mod tests {
         north.berths = vec![position_berth("central", 1, 2)];
         let mut south = division(
             "south",
-            1,
+            2,
             "BR",
             &[("s1", 40), ("s2", 30), ("s3", 20), ("s4", 10)],
         );
@@ -1159,7 +1311,6 @@ mod tests {
         apply_pyramid_promotion_relegation(&mut competitions);
 
         let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
-        println!("PROBE A d3={:?}", by_id("d3").participant_ids);
         assert_eq!(
             by_id("d1").participant_ids,
             before1,
@@ -1187,7 +1338,6 @@ mod tests {
         apply_pyramid_promotion_relegation(&mut competitions);
 
         let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
-        println!("PROBE B south={:?}", by_id("south").participant_ids);
         assert_eq!(by_id("north").participant_ids, bn);
         assert_eq!(by_id("south").participant_ids, bs);
     }
@@ -1231,7 +1381,6 @@ mod tests {
         apply_pyramid_promotion_relegation(&mut competitions);
 
         let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
-        println!("PROBE C d1-cl={:?}", by_id("d1-cl").participant_ids);
         assert_eq!(
             by_id("d1-ap").participant_ids,
             before,
@@ -1289,7 +1438,7 @@ mod tests {
         // pair leaves the last group attached to the tier below it, so which
         // group swaps with `lower` would depend on competition order alone.
         let mut competitions = vec![
-            division("lower", 2, "BR", &[("d1", 20), ("d2", 10)]),
+            division("lower", 4, "BR", &[("d1", 20), ("d2", 10)]),
             division(
                 "central",
                 0,
@@ -1297,12 +1446,20 @@ mod tests {
                 &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
             ),
         ];
-        for (id, first, second) in [
+        // Ranked 1, 2, 3 rather than all at 1, and `lower` below them at 4.
+        // Equal ranks would be refused by the distinct-rank guard on their own,
+        // masking whether the sibling rule does anything; ranked apart, the
+        // four of them would chain happily if it were removed.
+        for (priority, (id, first, second)) in [
             ("north", "n1", "n2"),
             ("south", "s1", "s2"),
             ("east", "e1", "e2"),
-        ] {
-            let mut group = division(id, 1, "BR", &[(first, 20), (second, 10)]);
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(offset, group)| (offset as u32 + 1, group))
+        {
+            let mut group = division(id, priority, "BR", &[(first, 20), (second, 10)]);
             group.berths = vec![position_berth("central", 1, 1)];
             competitions.push(group);
         }
