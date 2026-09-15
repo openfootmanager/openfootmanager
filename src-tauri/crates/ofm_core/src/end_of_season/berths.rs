@@ -16,6 +16,9 @@ use domain::league::{
 /// therefore has no automatic promotion path; it needs berths of its own.
 /// A league that is the *sole* `PositionRange` feeder into a target keeps its
 /// ladder edge — that is an ordinary two-tier pyramid written as data.
+/// Only a berth into a domestic league table makes siblings at all: a berth
+/// into a continental cup is qualification rather than promotion, and every
+/// first division carries one, so counting those would empty every ladder.
 /// `CupWinner`, `PlayoffWinner`, and `fallback_to` targets stay
 /// in the ladder (play-offs are Phase C.3b; fallbacks are continental).
 pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
@@ -33,6 +36,27 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     // the ladder together: splitting it pair by pair would leave whichever
     // group sorts last still chained to the tier below, making the outcome
     // depend on declaration order.
+    //
+    // Only a target a club can actually be *promoted into* counts. A berth into
+    // a continental cup is qualification, not promotion — the club keeps its
+    // league — and `create_game` gives every country's first division one such
+    // berth into the same cup. Grouping on the target id alone therefore made
+    // every first division in the world a sibling of every other, emptied each
+    // country's ladder down to its second division, and stopped promotion and
+    // relegation happening at all (#555). The predicate is the one
+    // `apply_domestic_berth_promotion_relegation` uses to pick its targets, so
+    // a league leaves the ladder exactly when the berth pass will move clubs
+    // into that target on its behalf.
+    let promotion_destinations: HashSet<&str> = competitions
+        .iter()
+        .filter(|competition| {
+            competition.scope == CompetitionScope::Domestic
+                && competition.kind == CompetitionType::League
+                && competition.rules.format == CompetitionFormat::LeagueTable
+        })
+        .map(|competition| competition.id.as_str())
+        .collect();
+
     let mut feeders_by_target: HashMap<&str, Vec<&str>> = HashMap::new();
     for competition in competitions.iter() {
         if competition.rules.format != CompetitionFormat::LeagueTable {
@@ -43,6 +67,7 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
             .iter()
             .filter(|berth| matches!(berth.rule, BerthRule::PositionRange { .. }))
             .map(|berth| berth.target.as_str())
+            .filter(|target| promotion_destinations.contains(target))
             .collect();
         for target in targets {
             feeders_by_target
@@ -979,6 +1004,17 @@ mod tests {
         // Two same-priority regional groups that both send PositionRange
         // berths to the same Central League must not linearly swap — that
         // would put a promoted club on two tables after the berth merge.
+        //
+        // The Central League itself is in the slice, as it is in production:
+        // a target is only a promotion destination if it is a domestic league
+        // table this pass can see, so a berth pointing at nothing leaves its
+        // feeders on the ladder rather than silently detaching them.
+        let central = division(
+            "central",
+            0,
+            "BR",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
         let mut north = division(
             "north",
             1,
@@ -996,7 +1032,7 @@ mod tests {
         let north_before = north.participant_ids.clone();
         let south_before = south.participant_ids.clone();
 
-        let mut competitions = vec![north, south];
+        let mut competitions = vec![central, north, south];
         apply_pyramid_promotion_relegation(&mut competitions);
 
         let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);

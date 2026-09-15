@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use domain::league::{
-    Berth, BerthRule, CompetitionScope, CompetitionType, Fixture, FixtureCompetition,
-    FixtureStatus, KnockoutRoundState, League, MatchResult, StandingEntry,
+    Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture,
+    FixtureCompetition, FixtureStatus, KnockoutRoundState, League, MatchResult, StandingEntry,
 };
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
@@ -1284,6 +1284,82 @@ fn process_end_of_season_promotes_and_relegates_between_divisions() {
             .fixtures
             .iter()
             .any(|f| f.status == FixtureStatus::Scheduled)
+    );
+}
+
+/// Every first division berths its top finishers into the same continental cup,
+/// which is what `create_game` builds. Those leagues qualify *for* the cup; they
+/// do not feed clubs *into* it, so a shared continental target must not take
+/// them out of their own domestic ladder the way sibling regional groups are
+/// taken out of it. Two countries, because one feeder is never a sibling and so
+/// a single-country world hides the bug entirely.
+#[test]
+fn a_shared_continental_berth_does_not_detach_first_divisions_from_their_ladder() {
+    let mut game = make_completed_season_game();
+    for id in [
+        "eng1", "eng2", "eng3", "eng4", "esp1", "esp2", "esp3", "esp4",
+    ] {
+        game.teams.push(make_club(id, &id[..3].to_uppercase(), 100));
+    }
+
+    let continental_berth = || Berth {
+        target: "ccc".to_string(),
+        rule: BerthRule::PositionRange { from: 1, to: 2 },
+        fallback_to: None,
+    };
+    let tier = |id: &str, country: &str, priority: u32, clubs: [&str; 2]| {
+        let mut division = first_division(id, country, "europe", &clubs);
+        division.priority = priority;
+        division.fixtures = vec![make_completed_fixture(
+            &format!("{id}-f1"),
+            clubs[0],
+            clubs[1],
+            2,
+            0,
+        )];
+        division
+    };
+
+    let mut eng_d1 = tier("eng-d1", "ENG", 0, ["eng1", "eng2"]);
+    eng_d1.berths = vec![continental_berth()];
+    let eng_d2 = tier("eng-d2", "ENG", 1, ["eng3", "eng4"]);
+    let mut esp_d1 = tier("esp-d1", "ES", 2, ["esp1", "esp2"]);
+    esp_d1.berths = vec![continental_berth()];
+    let esp_d2 = tier("esp-d2", "ES", 3, ["esp3", "esp4"]);
+
+    // Group-and-knockout, as `create_game` builds it: the cup is not a league
+    // table, so it can never be a promotion destination.
+    let mut cup = continental_cup("ccc", "europe", 4);
+    cup.rules.format = CompetitionFormat::GroupAndKnockout;
+
+    game.league = Some(eng_d1.clone());
+    game.competitions = vec![eng_d1, eng_d2, esp_d1, esp_d2, cup];
+
+    process_end_of_season(&mut game);
+
+    let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+    // Both countries, so the fix cannot be a one-off that happens to spare
+    // whichever league sorts first.
+    for prefix in ["eng", "esp"] {
+        let d1 = &by_id(&format!("{prefix}-d1")).participant_ids;
+        let d2 = &by_id(&format!("{prefix}-d2")).participant_ids;
+        assert!(
+            d2.contains(&format!("{prefix}2")),
+            "{prefix}2 finished bottom of the top flight and should be relegated: \
+             d1={d1:?} d2={d2:?}"
+        );
+        assert!(
+            d1.contains(&format!("{prefix}3")),
+            "{prefix}3 won the second division and should be promoted: d1={d1:?} d2={d2:?}"
+        );
+    }
+
+    // Qualification still resolves in the same rollover — narrowing the sibling
+    // rule must not cost the cup its field.
+    let field = &by_id("ccc").participant_ids;
+    assert!(
+        field.contains(&"eng1".to_string()) && field.contains(&"esp1".to_string()),
+        "both champions should have qualified for the continental cup: {field:?}"
     );
 }
 
