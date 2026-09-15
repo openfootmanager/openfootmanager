@@ -388,6 +388,9 @@ pub(super) fn competition_contains_team(
             .iter()
             .any(|entry| entry.team_id == team_id)
 }
+/// Files a completed move in exactly one competition's transfer log, which is what the save and
+/// the transfer screens read. `game.league` is a mirror rebuilt from `game.competitions`, so it is
+/// the last resort and only serves a legacy save that has no competitions yet.
 pub(super) fn log_completed_transfer(game: &mut Game, transfer: CompletedTransfer) {
     // A deal the user's club is part of goes in the user's own competition, because that is the one
     // `sync_legacy_league` copies into `game.league` — the only transfer log the news roundup and
@@ -412,7 +415,9 @@ pub(super) fn log_completed_transfer(game: &mut Game, transfer: CompletedTransfe
                 competition_contains_team(competition, &transfer.from_team_id)
             })
         })
-        .or_else(|| (game.competitions.len() == 1).then_some(0));
+        // Neither club plays anywhere the world knows about. Any competition keeps the record;
+        // `game.league` does not, so reaching for it here would lose the move on the next sync.
+        .or_else(|| (!game.competitions.is_empty()).then_some(0));
 
     if let Some(index) = target_competition_index {
         game.competitions[index].transfer_log.push(transfer);

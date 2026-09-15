@@ -3717,3 +3717,62 @@ fn a_sale_is_filed_under_the_league_the_mirror_shows_not_the_cup() {
         "the sale should land in the league the mirror shows, not in the cup listed before it"
     );
 }
+
+/// The last resort has to keep the record. When no competition lists either club, the fallback
+/// only reached for `competitions[0]` if there was exactly one competition; with more than one it
+/// wrote into `game.league` instead. That mirror is rebuilt from `game.competitions` on the next
+/// sync and is not what the save reads, so the record was written and then thrown away — the very
+/// failure this path exists to stop.
+#[test]
+fn a_transfer_between_clubs_outside_every_competition_is_still_kept() {
+    let mut player = make_user_player("player-sold-off-the-map");
+    player.transfer_listed = true;
+    player.market_value = 1_500_000;
+    player.transfer_offers.push(make_pending_incoming_offer(
+        "offer-sold-off-the-map",
+        1_600_000,
+    ));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 9_000_000;
+    game.teams[1].transfer_budget = 6_000_000;
+    game.teams
+        .push(make_ai_team("team-3", "Far Rovers", 1_000_000, 500_000));
+    game.teams
+        .push(make_ai_team("team-4", "Far Albion", 1_000_000, 500_000));
+
+    // Two competitions, neither of which lists the buying or the selling club.
+    game.competitions.push(ofm_core::schedule::generate_league(
+        "Far Division",
+        2026,
+        &["team-3".to_string(), "team-4".to_string()],
+        game.clock.current_date,
+    ));
+    game.competitions.push(ofm_core::schedule::generate_league(
+        "Far Cup Group",
+        2026,
+        &["team-3".to_string(), "team-4".to_string()],
+        game.clock.current_date,
+    ));
+    game.sync_legacy_league();
+
+    respond_to_offer(
+        &mut game,
+        "player-sold-off-the-map",
+        "offer-sold-off-the-map",
+        true,
+    )
+    .expect("accepting the offer should complete the sale");
+
+    // The turn loop syncs the mirror again on its own schedule; anything held only there is gone.
+    game.sync_legacy_league();
+
+    assert!(
+        game.competitions.iter().any(|competition| competition
+            .transfer_log
+            .iter()
+            .any(|entry| entry.player_id == "player-sold-off-the-map")),
+        "a completed transfer must be kept in a competition log, which is what the save reads, \
+         not in the mirror the next sync overwrites"
+    );
+}
