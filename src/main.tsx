@@ -3,7 +3,8 @@ import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { i18nReady } from "./i18n";
-import { installConsoleForwarding, logError } from "./lib/logger";
+import { formatAppVersion } from "./lib/appVersion";
+import { installConsoleForwarding, logError, logInfo } from "./lib/logger";
 import App from "./App";
 
 // First, before anything else can fail: from here on `console.error` and `console.warn` also land
@@ -11,6 +12,12 @@ import App from "./App";
 // marking the places it expected trouble, and until now every one of them wrote to a devtools
 // console that nobody on a player's machine has open.
 installConsoleForwarding();
+
+// Two jobs in one line. It stamps the build identity into the log file, which until now recorded
+// nothing about which version produced it — leaving a triager to ask. And because it is written
+// through the same path as every forwarded error, its presence is the proof that the path works:
+// a log file that starts without it is one where the frontend's half is missing entirely.
+logInfo(`[startup] Openfoot Manager ${formatAppVersion()} (${navigator.userAgent})`);
 
 // On Linux/WebKitGTK an unhandled promise rejection restarts the webview
 // process. Swallow any that escape their own try-catch so the app stays up.

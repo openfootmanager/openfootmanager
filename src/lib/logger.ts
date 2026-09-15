@@ -59,6 +59,8 @@ export function logWarn(message: string): void {
 }
 
 export function logInfo(message: string): void {
+  // Falls back to `console.warn`, not `console.info`: the fallback only exists to say that the
+  // log file could not be written, which is worth a warning whatever the message's own level was.
   send(info, message, "warn");
 }
 

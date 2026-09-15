@@ -255,4 +255,33 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         assert!(take_previous_crash(dir.path()).is_none());
     }
+
+    /// The end-to-end path: an installed hook, a real panic, a file on disk.
+    ///
+    /// Everything else here tests the pieces, which would all keep passing if the hook were never
+    /// installed or never fired — the one failure that makes the whole module pointless. Worth the
+    /// process-global side effects: the hook chains to the previous one, so any other test that
+    /// panics behaves exactly as before and merely also writes this file.
+    #[test]
+    fn an_installed_hook_writes_a_record_for_a_real_panic() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = crash_file_in(dir.path());
+        set_crash_file(path.clone());
+        install_panic_hook();
+
+        let result = std::panic::catch_unwind(|| panic!("deliberate test panic"));
+        assert!(result.is_err(), "the panic should still propagate");
+
+        let raw = std::fs::read_to_string(&path).expect("the hook should have written a record");
+        let record: CrashRecord = serde_json::from_str(&raw).expect("a well-formed record");
+        // Not asserting the message: tests run in parallel, and another test panicking would
+        // legitimately overwrite this file. What must hold is that a panic produced a complete
+        // record — with the backtrace that makes it worth having.
+        assert!(
+            !record.backtrace.is_empty(),
+            "expected a captured backtrace"
+        );
+        assert!(!record.location.is_empty(), "expected a panic location");
+        assert_eq!(record.app_version, env!("CARGO_PKG_VERSION"));
+    }
 }
