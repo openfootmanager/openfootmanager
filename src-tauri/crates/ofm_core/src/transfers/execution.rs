@@ -306,10 +306,9 @@ pub(super) fn execute_transfer(
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == from_team_id) {
         t.finance += fee as i64;
         t.transfer_budget += fee as i64;
-        // Remove from starting XI
-        if let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id) {
-            t.starting_xi_ids.remove(pos);
-        }
+        // A departing player gives up every role, not just his place in the XI. Trimming the XI by
+        // hand here used to leave him as the old club's captain and penalty taker.
+        t.remove_player_references(player_id);
     }
 
     if should_generate_major_transfer_news(&player_snapshot, fee) {
@@ -332,15 +331,20 @@ pub(super) fn execute_transfer(
         }
     }
 
-    if let Some(league) = &mut game.league {
-        league.transfer_log.push(CompletedTransfer {
+    // Route through the competition log rather than writing straight to `game.league`.
+    // `Game::sync_legacy_league` replaces that field with a clone of a competition, so a record
+    // written only there is discarded the next time it runs, not merely misfiled. The loan
+    // buy-option path has always gone through here.
+    log_completed_transfer(
+        game,
+        CompletedTransfer {
             date: today,
             from_team_id: from_team_id.to_string(),
             to_team_id: to_team_id.to_string(),
             player_id: player_id.to_string(),
             fee,
-        });
-    }
+        },
+    );
 
     Ok(())
 }
@@ -384,17 +388,36 @@ pub(super) fn competition_contains_team(
             .iter()
             .any(|entry| entry.team_id == team_id)
 }
+/// Files a completed move in exactly one competition's transfer log, which is what the save and
+/// the transfer screens read. `game.league` is a mirror rebuilt from `game.competitions`, so it is
+/// the last resort and only serves a legacy save that has no competitions yet.
 pub(super) fn log_completed_transfer(game: &mut Game, transfer: CompletedTransfer) {
-    let target_competition_index = game
-        .competitions
-        .iter()
-        .position(|competition| competition_contains_team(competition, &transfer.to_team_id))
+    // A deal the user's club is part of goes in the user's own competition, because that is the one
+    // `sync_legacy_league` copies into `game.league` — the only transfer log the news roundup and
+    // the world transfer tab read. Picking by club order instead lets the two disagree: a sale to
+    // another division files under the buyer, and a club playing a cup listed before its league
+    // files under the cup. Either way the record exists and nothing ever shows it.
+    let user_is_involved =
+        game.manager.team_id.as_deref().is_some_and(|team_id| {
+            team_id == transfer.from_team_id || team_id == transfer.to_team_id
+        });
+
+    let target_competition_index = user_is_involved
+        .then(|| game.user_competition_index())
+        .flatten()
+        .or_else(|| {
+            game.competitions.iter().position(|competition| {
+                competition_contains_team(competition, &transfer.to_team_id)
+            })
+        })
         .or_else(|| {
             game.competitions.iter().position(|competition| {
                 competition_contains_team(competition, &transfer.from_team_id)
             })
         })
-        .or_else(|| (game.competitions.len() == 1).then_some(0));
+        // Neither club plays anywhere the world knows about. Any competition keeps the record;
+        // `game.league` does not, so reaching for it here would lose the move on the next sync.
+        .or_else(|| (!game.competitions.is_empty()).then_some(0));
 
     if let Some(index) = target_competition_index {
         game.competitions[index].transfer_log.push(transfer);

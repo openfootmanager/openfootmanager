@@ -963,6 +963,10 @@ pub(crate) fn complete_loan_buy_option_transfer(
             team.transfer_budget -= fee_i64;
         } else if team.id == parent_team_id {
             team.finance += fee_i64;
+            // Same rule as a permanent sale: the proceeds replenish this season's transfer
+            // envelope, not only the balance. Crediting one and not the other left a club that
+            // sold through an option unable to spend what it had just earned.
+            team.transfer_budget += fee_i64;
             team.remove_player_references(player_id);
         } else {
             team.remove_player_references(player_id);
