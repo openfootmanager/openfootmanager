@@ -1,5 +1,6 @@
 mod application;
 mod commands;
+mod crash;
 mod platform;
 use commands::*;
 
@@ -17,6 +18,12 @@ pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // First of all, so that everything below is covered — including plugin registration and the
+    // graphics configuration, where a panic would otherwise leave nothing at all behind. The hook
+    // has no file to write to yet; `setup` gives it one as soon as the app data directory
+    // resolves. See `crash`.
+    crash::install_panic_hook();
+
     // Must run before the webview is built: on Linux, WebKitGTK and the graphics driver read the
     // variables this sets when the web process starts. A no-op on Windows and macOS.
     // See `platform` and `docs/LINUX_GRAPHICS.md`.
@@ -48,6 +55,12 @@ pub fn run() {
                 .map_err(|_| std::io::Error::other(SAVE_MANAGER_UNAVAILABLE_ERROR))?;
             std::fs::create_dir_all(&app_data_dir)
                 .map_err(|_| std::io::Error::other(SAVE_MANAGER_UNAVAILABLE_ERROR))?;
+
+            // Give the panic hook somewhere to write, then report and clear whatever the previous
+            // launch left. Done here rather than later in `setup` so that a panic in any of the
+            // startup work below — save manager init, the legacy migration — is itself recorded.
+            crash::set_crash_file(crash::crash_file_in(&app_data_dir));
+            crash::take_previous_crash(&app_data_dir);
 
             let saves_dir = app_data_dir.join("saves");
             let mut save_manager = SaveManager::init(&saves_dir).map_err(std::io::Error::other)?;
@@ -317,6 +330,10 @@ pub fn run() {
         .run(tauri::generate_context!());
 
     if let Err(error) = result {
-        std::panic::panic_any(error);
+        // `panic_any(error)` used to be the whole of this. It carried a `tauri::Error`, which no
+        // panic handler can print — so the one failure that guarantees the player sees nothing at
+        // all was also the one that told us least. Panicking with the formatted message puts the
+        // reason in the log file, in `last-crash.json`, and on stderr.
+        panic!("Tauri failed to start: {error}");
     }
 }
