@@ -8,8 +8,6 @@ import type {
 import { Badge, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
 import {
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   MoreVertical,
   Repeat,
   RotateCcw,
@@ -18,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { TraitList } from "../TraitBadge";
+import SquadSortHeader from "./SquadSortHeader";
 import {
   calcAge,
   getPlayerOvr,
@@ -188,6 +187,8 @@ export default function SquadRosterView({
       sortDir: descByDefault.includes(key) ? "desc" : "asc",
     });
   };
+
+  const sortHeaderProps = { sortKey, sortDir, onSort: toggleSort };
 
   const isOutOfPosition = (player: PlayerData): boolean => {
     return (
@@ -413,23 +414,6 @@ export default function SquadRosterView({
     </div>
   );
 
-  const SortHeader = ({ col, label }: { col: SquadListSortKey; label: string }) => (
-    <th
-      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${sortKey === col ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
-      onClick={() => toggleSort(col)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortKey === col ? (
-          sortDir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )
-        ) : null}
-      </div>
-    </th>
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -606,19 +590,19 @@ export default function SquadRosterView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                <SortHeader col="jersey" label="#" />
-                <SortHeader col="name" label={t("common.name")} />
-                <SortHeader col="pos" label={t("squad.pos")} />
-                <SortHeader col="fit" label={t("squad.formationFit")} />
-                <SortHeader col="style" label={t("squad.styleFit")} />
+                <SquadSortHeader {...sortHeaderProps} col="jersey" label="#" />
+                <SquadSortHeader {...sortHeaderProps} col="name" label={t("common.name")} />
+                <SquadSortHeader {...sortHeaderProps} col="pos" label={t("squad.pos")} />
+                <SquadSortHeader {...sortHeaderProps} col="fit" label={t("squad.formationFit")} />
+                <SquadSortHeader {...sortHeaderProps} col="style" label={t("squad.styleFit")} />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.traits")}
                 </th>
-                <SortHeader col="age" label={t("common.age")} />
-                <SortHeader col="condition" label={t("common.condition")} />
-                <SortHeader col="morale" label={t("common.morale")} />
-                <SortHeader col="ovr" label={t("common.ovr")} />
-                <SortHeader col="contract" label={t("common.contract")} />
+                <SquadSortHeader {...sortHeaderProps} col="age" label={t("common.age")} />
+                <SquadSortHeader {...sortHeaderProps} col="condition" label={t("common.condition")} />
+                <SquadSortHeader {...sortHeaderProps} col="morale" label={t("common.morale")} />
+                <SquadSortHeader {...sortHeaderProps} col="ovr" label={t("common.ovr")} />
+                <SquadSortHeader {...sortHeaderProps} col="contract" label={t("common.contract")} />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">
                   <span className="sr-only">{t("common.actions")}</span>
                 </th>
