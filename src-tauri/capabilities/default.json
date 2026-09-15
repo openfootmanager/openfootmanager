@@ -10,6 +10,7 @@
     "core:window:allow-close",
     "opener:default",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "log:default"
   ]
 }
