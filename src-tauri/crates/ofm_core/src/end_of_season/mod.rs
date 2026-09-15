@@ -387,7 +387,41 @@ fn regenerate_competitions_for_new_season(
         world_cup_due,
         qualified_field,
     );
+    refresh_user_competition_scope(game);
     game.sync_legacy_league();
+}
+
+/// Put the user's competitions back in scope after the ladder has moved their
+/// club between divisions.
+///
+/// `active_competition_ids` is the simulation scope chosen when the career
+/// started, and an empty list means no filter at all. Rollover already drops
+/// the ids of retired competitions, but nothing ever added the division a
+/// promoted or relegated club now plays in. The day loop skips competitions
+/// out of scope, so it could not see the user's own fixtures, fell through to
+/// the legacy `game.league` mirror, and ran their match against whichever
+/// competition happened to sort first — an English manager relegated to the
+/// second division was sent to an Argentine fixture.
+///
+/// `resolve_simulation_scope` applies this same rule when the career starts;
+/// this keeps it true for the rest of it.
+fn refresh_user_competition_scope(game: &mut Game) {
+    if game.active_competition_ids.is_empty() {
+        return;
+    }
+    let Some(team_id) = game.manager.team_id.clone() else {
+        return;
+    };
+    let joined: Vec<String> = game
+        .competitions
+        .iter()
+        .filter(|competition| {
+            competition.participant_ids.contains(&team_id)
+                && !game.active_competition_ids.contains(&competition.id)
+        })
+        .map(|competition| competition.id.clone())
+        .collect();
+    game.active_competition_ids.extend(joined);
 }
 
 /// Decide what the upcoming season's international calendar looks like:
