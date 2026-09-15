@@ -108,8 +108,35 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
             continue;
         }
         indices.sort_by_key(|&index| competitions[index].priority);
+        if tiers_share_clubs(competitions, &indices) {
+            continue;
+        }
         apply_linear_chain(competitions, &indices);
     }
+}
+
+/// True when two of the leagues named by `indices` register the same club.
+///
+/// Tiers of a pyramid are disjoint, so this means the ladder has mistaken
+/// something else for one. A split-season country is the case that exists:
+/// `create_game` gives it an Apertura and a Clausura over the *same* division,
+/// at consecutive priorities, which reads as two adjacent tiers. Swapping
+/// between them puts the promoted club on a table it is already on, and the
+/// regenerated schedule then has it playing itself.
+///
+/// Such a country keeps the no-promotion behaviour it has always had. Giving it
+/// a working ladder means deciding which half of the season settles the
+/// movement and applying the result to both halves' rosters — a gameplay
+/// decision, not a bug fix, and none of the shipped split-season nations has
+/// more than one division to promote into yet.
+fn tiers_share_clubs(competitions: &[League], indices: &[usize]) -> bool {
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    indices.iter().any(|&index| {
+        competitions[index]
+            .participant_ids
+            .iter()
+            .any(|club| !seen.insert(club.as_str()))
+    })
 }
 
 fn apply_linear_chain(competitions: &mut [League], indices: &[usize]) {
@@ -1048,6 +1075,50 @@ mod tests {
             "sibling feeders must not linearly swap: {:?}",
             by_id("south").participant_ids
         );
+    }
+
+    #[test]
+    fn apertura_and_clausura_are_not_adjacent_tiers() {
+        // A split-season country runs both halves over the *same* clubs, as two
+        // competitions at consecutive priorities (`create_game`). They are one
+        // division played twice, not a two-tier pyramid, so the ladder must
+        // leave them alone — swapping between them would put a club on both
+        // tables and duplicate it in the regenerated schedule.
+        let apertura = division(
+            "ar-d1-apertura",
+            0,
+            "AR",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let clausura = division(
+            "ar-d1-clausura",
+            1,
+            "AR",
+            // A different winner from the Apertura's bottom club, so a swap
+            // between the two halves lands a club on a table it is already on.
+            &[("a2", 40), ("a1", 30), ("a3", 20), ("a4", 10)],
+        );
+        let before = apertura.participant_ids.clone();
+
+        let mut competitions = vec![apertura, clausura];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        for competition in &competitions {
+            let unique: HashSet<&String> = competition.participant_ids.iter().collect();
+            assert_eq!(
+                unique.len(),
+                competition.participant_ids.len(),
+                "{} must not list a club twice: {:?}",
+                competition.id,
+                competition.participant_ids
+            );
+            let clubs: HashSet<&String> = before.iter().collect();
+            assert_eq!(
+                unique, clubs,
+                "{} runs over the same clubs both halves: {:?}",
+                competition.id, competition.participant_ids
+            );
+        }
     }
 
     #[test]
