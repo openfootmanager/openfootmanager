@@ -181,6 +181,28 @@ describe("TeamProfile.viewModel", () => {
     expect(viewModel.standings?.points).toBe(0);
   });
 
+  it("sorts a roster whose positions are granular, not legacy buckets", () => {
+    // The sort above passes only because its fixture uses the four legacy
+    // bucket names. `domain::player::Position` has thirteen granular variants
+    // as well — and `is_legacy_bucket()` exists precisely because the buckets
+    // are the old shape. A generated squad is granular, so this is the case
+    // the team profile actually renders.
+    const gameState = createGameState();
+    gameState.players = [
+      createPlayer({ id: "striker", full_name: "S. Triker", position: "Striker", natural_position: "Striker" }),
+      createPlayer({ id: "keeper", full_name: "K. Eeper", position: "Goalkeeper", natural_position: "Goalkeeper" }),
+      createPlayer({ id: "centre-back", full_name: "C. Back", position: "CenterBack", natural_position: "CenterBack" }),
+    ];
+
+    const viewModel = buildTeamProfileViewModel(createTeam(), gameState);
+
+    expect(viewModel.roster.map((player) => player.id)).toEqual([
+      "keeper",
+      "centre-back",
+      "striker",
+    ]);
+  });
+
   it("counts loan wage commitments instead of full current-roster wages", () => {
     const team = createTeam({ id: "team-1" });
     const gameState = createGameState({
