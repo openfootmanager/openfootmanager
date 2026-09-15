@@ -1112,6 +1112,43 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
     );
 }
 
+/// A manager with no club of their own — between jobs, or managing only a
+/// national side — has no division to gate on, so every league table must
+/// finish before the season can roll over. This is the path the test below
+/// used to take by accident, because its primary league listed no participants.
+#[test]
+fn season_waits_for_every_league_when_the_user_has_no_division() {
+    let mut game = make_completed_season_game();
+    game.teams.push(make_team("team3", "Third FC"));
+    game.teams.push(make_team("team4", "Fourth FC"));
+
+    let finished = game.league.clone().expect("a primary league");
+    let mut other = League {
+        id: "far-1".to_string(),
+        name: "Far Away League".to_string(),
+        country_id: Some("BR".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("ff1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    other.fixtures[0].status = FixtureStatus::Scheduled;
+    other.fixtures[0].result = None;
+    // No club: the manager is unemployed.
+    game.manager.team_id = None;
+    game.competitions = vec![finished, other];
+
+    assert!(
+        !is_season_complete(&game),
+        "with no division of their own, every league must finish first"
+    );
+}
+
 #[test]
 fn season_not_complete_while_another_division_is_unfinished() {
     let mut game = make_completed_season_game();
@@ -1119,7 +1156,13 @@ fn season_not_complete_while_another_division_is_unfinished() {
     game.teams.push(make_team("team4", "Fourth FC"));
 
     // div1 (the primary) is fully played; div2 still has a scheduled fixture.
-    let div1 = game.league.clone().unwrap();
+    //
+    // div1 must name its participants and its country, or the user is not found
+    // in any league and this exercises the unknown-user fallback below instead
+    // of the gate it claims to test.
+    let mut div1 = game.league.clone().unwrap();
+    div1.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+    div1.country_id = Some("ENG".to_string());
     let mut div2 = League {
         id: "eng-2".to_string(),
         name: "ENG Second Division".to_string(),
@@ -2735,12 +2778,61 @@ fn no_league_returns_default_summary() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn satisfaction_adjusted_after_season() {
+fn satisfaction_unchanged_when_the_board_set_no_objectives() {
     let mut game = make_completed_season_game();
     let initial_sat = game.manager.satisfaction;
     process_end_of_season(&mut game);
-    // With no objectives, evaluate_objectives returns 0, so satisfaction unchanged
+    // Nothing was asked, so nothing is judged.
     assert_eq!(game.manager.satisfaction, initial_sat);
+}
+
+/// The test above only ever proved that zero objectives change nothing, which
+/// stays true however the evaluation is written — replacing the whole
+/// calculation with a constant zero left it green. These two do the judging.
+#[test]
+fn meeting_the_board_objective_raises_satisfaction() {
+    let mut game = make_completed_season_game();
+    // Objectives are marked met as the season runs; the rollover only counts
+    // them. team1 won its league, so this one came in.
+    game.board_objectives.push(BoardObjective {
+        id: "obj1".to_string(),
+        objective_type: ObjectiveType::LeaguePosition,
+        description: "Finish top 2".to_string(),
+        target: 2,
+        met: true,
+    });
+    let before = game.manager.satisfaction;
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.manager.satisfaction > before,
+        "meeting the board's objective should please them: {before} -> {}",
+        game.manager.satisfaction
+    );
+}
+
+#[test]
+fn missing_the_board_objective_lowers_satisfaction() {
+    let mut game = make_completed_season_game();
+    // team2 finished bottom, so the title the board asked for was not won.
+    game.manager.hire("team2".to_string());
+    game.board_objectives.push(BoardObjective {
+        id: "obj1".to_string(),
+        objective_type: ObjectiveType::LeaguePosition,
+        description: "Win the league".to_string(),
+        target: 1,
+        met: false,
+    });
+    let before = game.manager.satisfaction;
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.manager.satisfaction < before,
+        "team2 finished last and missed the objective: {before} -> {}",
+        game.manager.satisfaction
+    );
 }
 
 // ---------------------------------------------------------------------------
