@@ -4036,5 +4036,11 @@
   "generation": {
     "title": "Generování a dokončení",
     "coverage": "Vaše balíčky pokrývají"
+  },
+  "errorBoundary": {
+    "title": "Něco se pokazilo",
+    "description": "Na této obrazovce došlo k chybě, ze které se nepodařilo zotavit. Zkuste to nejdřív znovu — načtení restartuje hru a neuložený postup se ztratí.",
+    "retry": "Zkusit znovu",
+    "reload": "Načíst hru znovu"
   }
 }

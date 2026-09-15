@@ -4036,5 +4036,11 @@
   "generation": {
     "title": "Pembuatan & Penyelesaian",
     "coverage": "Paket kamu mencakup"
+  },
+  "errorBoundary": {
+    "title": "Ada yang tidak beres",
+    "description": "Layar ini mengalami kesalahan yang tidak bisa dipulihkan. Coba lagi dulu — memuat ulang akan memulai ulang gim dan progres yang belum disimpan akan hilang.",
+    "retry": "Coba lagi",
+    "reload": "Muat ulang gim"
   }
 }

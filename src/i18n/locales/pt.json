@@ -4036,5 +4036,11 @@
   "generation": {
     "title": "Geração e Conclusão",
     "coverage": "Os teus pacotes cobrem"
+  },
+  "errorBoundary": {
+    "title": "Algo correu mal",
+    "description": "Este ecrã encontrou um erro do qual não conseguiu recuperar. Tente novamente primeiro — recarregar reinicia o jogo e perde-se o progresso não guardado.",
+    "retry": "Tentar novamente",
+    "reload": "Recarregar o jogo"
   }
 }

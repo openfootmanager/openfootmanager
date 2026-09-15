@@ -4036,5 +4036,11 @@
   "generation": {
     "title": "Generation & Completion",
     "coverage": "Your packages cover"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "This screen hit an error it couldn't recover from. Try again first — reloading restarts the game and any unsaved progress is lost.",
+    "retry": "Try again",
+    "reload": "Reload the game"
   }
 }

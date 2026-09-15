@@ -4036,5 +4036,11 @@
   "generation": {
     "title": "Oluşturma ve Tamamlama",
     "coverage": "Paketlerinizin kapsadıkları"
+  },
+  "errorBoundary": {
+    "title": "Bir şeyler ters gitti",
+    "description": "Bu ekran, kurtulamadığı bir hatayla karşılaştı. Önce yeniden denemeyi deneyin — yeniden yükleme oyunu baştan başlatır ve kaydedilmemiş ilerleme kaybolur.",
+    "retry": "Yeniden dene",
+    "reload": "Oyunu yeniden yükle"
   }
 }
