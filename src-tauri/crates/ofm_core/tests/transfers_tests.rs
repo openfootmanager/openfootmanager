@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use domain::league::League;
+use domain::league::{CompetitionType, League};
 use domain::manager::Manager;
 use domain::message::MessageCategory;
 use domain::news::{NewsArticle, NewsCategory};
@@ -3591,5 +3591,129 @@ fn a_completed_transfer_reaches_the_competition_log() {
     assert!(
         !logged_in("Other Division"),
         "the move belongs to the clubs' own division, not to whichever competition comes first"
+    );
+}
+
+/// Selling across divisions has to reach the screen the manager actually reads. The news roundup
+/// and the world transfer tab both read `game.league.transfer_log`, and `sync_legacy_league` fills
+/// that mirror from the user's own competition. So filing the manager's sale under the *buyer's*
+/// division hides it: the record exists, and nothing ever shows it.
+#[test]
+fn a_sale_to_another_division_still_reaches_the_users_own_log() {
+    let mut player = make_user_player("player-sold-abroad");
+    player.transfer_listed = true;
+    player.market_value = 1_500_000;
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-sold-abroad", 1_600_000));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 9_000_000;
+    game.teams[1].transfer_budget = 6_000_000;
+    game.teams
+        .push(make_ai_team("team-3", "User Rivals", 1_000_000, 500_000));
+    game.teams
+        .push(make_ai_team("team-4", "Buyer Rivals", 1_000_000, 500_000));
+
+    // The buyer's division comes first, so routing that looks at the buying club before the
+    // manager's own club files the sale where the manager can never see it.
+    game.competitions.push(ofm_core::schedule::generate_league(
+        "Buyer Division",
+        2026,
+        &["team-2".to_string(), "team-4".to_string()],
+        game.clock.current_date,
+    ));
+    game.competitions.push(ofm_core::schedule::generate_league(
+        "User Division",
+        2026,
+        &["team-1".to_string(), "team-3".to_string()],
+        game.clock.current_date,
+    ));
+
+    respond_to_offer(&mut game, "player-sold-abroad", "offer-sold-abroad", true)
+        .expect("accepting the offer should complete the sale");
+
+    let logged_in = |name: &str| {
+        game.competitions
+            .iter()
+            .find(|competition| competition.name == name)
+            .expect("the division should still be there")
+            .transfer_log
+            .iter()
+            .any(|entry| entry.player_id == "player-sold-abroad")
+    };
+
+    assert!(
+        logged_in("User Division"),
+        "the manager's own sale belongs in the manager's own division"
+    );
+    assert!(
+        !logged_in("Buyer Division"),
+        "one record, in one log — the sale should not also be filed under the buyer"
+    );
+
+    // The assertion that matters. This mirror is the only transfer log the news roundup and the
+    // world transfer tab ever read, so a record that misses it is a record nobody sees.
+    assert!(
+        game.league
+            .as_ref()
+            .expect("the legacy mirror should be populated")
+            .transfer_log
+            .iter()
+            .any(|entry| entry.player_id == "player-sold-abroad"),
+        "the completed sale should reach the legacy mirror the transfer screens read"
+    );
+}
+
+/// The same drift, without crossing a division. A club plays in a cup as well as its league, and
+/// the cup happens to be listed first. `sync_legacy_league` always mirrors the league, so filing
+/// the sale under the cup hides it just as thoroughly as filing it under another division.
+#[test]
+fn a_sale_is_filed_under_the_league_the_mirror_shows_not_the_cup() {
+    let mut player = make_user_player("player-sold-in-cup-season");
+    player.transfer_listed = true;
+    player.market_value = 1_500_000;
+    player.transfer_offers.push(make_pending_incoming_offer(
+        "offer-sold-in-cup-season",
+        1_600_000,
+    ));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 9_000_000;
+    game.teams[1].transfer_budget = 6_000_000;
+    game.teams
+        .push(make_ai_team("team-3", "League Rivals", 1_000_000, 500_000));
+
+    let mut cup = ofm_core::schedule::generate_league(
+        "Domestic Cup",
+        2026,
+        &["team-1".to_string(), "team-2".to_string()],
+        game.clock.current_date,
+    );
+    cup.kind = CompetitionType::Cup;
+    game.competitions.push(cup);
+    game.competitions.push(ofm_core::schedule::generate_league(
+        "User Division",
+        2026,
+        &["team-1".to_string(), "team-3".to_string()],
+        game.clock.current_date,
+    ));
+
+    respond_to_offer(
+        &mut game,
+        "player-sold-in-cup-season",
+        "offer-sold-in-cup-season",
+        true,
+    )
+    .expect("accepting the offer should complete the sale");
+
+    assert!(
+        game.league
+            .as_ref()
+            .expect("the legacy mirror should be populated")
+            .transfer_log
+            .iter()
+            .any(|entry| entry.player_id == "player-sold-in-cup-season"),
+        "the sale should land in the league the mirror shows, not in the cup listed before it"
     );
 }
