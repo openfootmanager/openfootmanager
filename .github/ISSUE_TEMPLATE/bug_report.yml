@@ -62,6 +62,15 @@ body:
       required: false
 
   - type: input
+    id: version
+    attributes:
+      label: "App version"
+      description: "Shown at the bottom of the main menu, and in Settings → About."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
     id: os
     attributes:
       label: "Operating System"
