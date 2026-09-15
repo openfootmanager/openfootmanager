@@ -30,26 +30,23 @@ pub fn apply_promotion_relegation(divisions: &mut [League]) {
     let mut promoted_at: Vec<Vec<String>> = vec![Vec::new(); tiers];
 
     for i in 0..tiers - 1 {
-        let upper = divisions[i].sorted_standings();
-        let lower = divisions[i + 1].sorted_standings();
+        let upper = ranked_participants(&divisions[i]);
+        let lower = ranked_participants(&divisions[i + 1]);
         if upper.is_empty() || lower.is_empty() {
             continue;
         }
+        // Never move more clubs than either division has finishers to move.
+        // The count is derived from the rosters, so a division whose table is
+        // short would otherwise relegate its whole field and take up more than
+        // it sent down, leaving the two divisions permanently different sizes.
         let count = relegation_count(
             divisions[i].participant_ids.len(),
             divisions[i + 1].participant_ids.len(),
-        );
-        relegated_at[i] = upper
-            .iter()
-            .rev()
-            .take(count)
-            .map(|entry| entry.team_id.clone())
-            .collect();
-        promoted_at[i] = lower
-            .iter()
-            .take(count)
-            .map(|entry| entry.team_id.clone())
-            .collect();
+        )
+        .min(upper.len())
+        .min(lower.len());
+        relegated_at[i] = upper.iter().rev().take(count).cloned().collect();
+        promoted_at[i] = lower.iter().take(count).cloned().collect();
     }
 
     for i in 0..tiers {
@@ -77,6 +74,30 @@ pub fn apply_promotion_relegation(divisions: &mut [League]) {
     }
 }
 
+/// The division's finishing order, restricted to the clubs still registered
+/// with it.
+///
+/// A standing is the record of a season played; `participant_ids` is who is
+/// registered now. Production keeps them in step — `regenerate_league_for_season`
+/// rebuilds the table from the roster — but they are separate fields, and
+/// promoting from the table while relegating from the roster lets a row that
+/// outlived its registration put a club into a division it never played in.
+/// The berth pass already filters to registered clubs before it moves anyone;
+/// this is the same rule on the other route.
+fn ranked_participants(division: &League) -> Vec<String> {
+    let registered: HashSet<&str> = division
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    division
+        .sorted_standings()
+        .into_iter()
+        .map(|entry| entry.team_id)
+        .filter(|club| registered.contains(club.as_str()))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,6 +116,84 @@ mod tests {
             })
             .collect();
         league
+    }
+
+    /// A standings row that outlived its registration must not promote a club
+    /// into a division it never played in — the tier above would gain a club
+    /// from nowhere and the two divisions would end up different sizes.
+    #[test]
+    fn a_standing_without_a_registration_moves_nobody() {
+        let mut top = division("top", 0, &[("t1", 30), ("t2", 20)]);
+        let mut bottom = division("bottom", 1, &[("b1", 30), ("b2", 20)]);
+        // `ghost` finished second in the lower division but is no longer on its
+        // books: a save edited by hand, or a roster rewritten under a table.
+        bottom
+            .standings
+            .push(StandingEntry::new("ghost".to_string()));
+        bottom.standings[2].points = 99;
+        top.participant_ids = vec!["t1".to_string(), "t2".to_string()];
+        bottom.participant_ids = vec!["b1".to_string(), "b2".to_string()];
+
+        let mut divisions = vec![top, bottom];
+        apply_promotion_relegation(&mut divisions);
+
+        assert!(
+            !divisions[0].participant_ids.contains(&"ghost".to_string()),
+            "an unregistered club cannot be promoted: {:?}",
+            divisions[0].participant_ids
+        );
+        assert_eq!(divisions[0].participant_ids.len(), 2, "sizes must hold");
+        assert_eq!(divisions[1].participant_ids.len(), 2, "sizes must hold");
+    }
+
+    /// A short table must not relegate the whole division. The swap count comes
+    /// from the rosters, so without a cap a division with three finishers and
+    /// twenty clubs sent all three down and took four up.
+    #[test]
+    fn a_short_table_never_moves_more_clubs_than_it_ranks() {
+        let clubs: Vec<(String, u32)> = (1..=20)
+            .map(|index| (format!("t{index}"), (30 - index) as u32))
+            .collect();
+        let rows: Vec<(&str, u32)> = clubs
+            .iter()
+            .map(|(id, points)| (id.as_str(), *points))
+            .collect();
+        let mut top = division("top", 0, &rows);
+        let mut bottom = division(
+            "bottom",
+            1,
+            &rows
+                .iter()
+                .map(|(id, points)| (*id, *points))
+                .collect::<Vec<_>>(),
+        );
+        // Rename the lower division's clubs so the two are disjoint, then keep
+        // only three finishers on its table.
+        bottom.participant_ids = (1..=20).map(|index| format!("b{index}")).collect();
+        bottom.standings = (1..=3)
+            .map(|index| {
+                let mut entry = StandingEntry::new(format!("b{index}"));
+                entry.points = (30 - index) as u32;
+                entry
+            })
+            .collect();
+        top.participant_ids = (1..=20).map(|index| format!("t{index}")).collect();
+
+        let mut divisions = vec![top, bottom];
+        apply_promotion_relegation(&mut divisions);
+
+        assert_eq!(
+            divisions[0].participant_ids.len(),
+            20,
+            "top division changed size: {:?}",
+            divisions[0].participant_ids
+        );
+        assert_eq!(
+            divisions[1].participant_ids.len(),
+            20,
+            "lower division changed size: {:?}",
+            divisions[1].participant_ids
+        );
     }
 
     #[test]
