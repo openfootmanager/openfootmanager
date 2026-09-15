@@ -2168,6 +2168,150 @@ fn champion_receives_prize_money_and_ledger_entry() {
     );
 }
 
+/// Prize money halves for each tier below the top flight, and the tier is the
+/// division's rank in its own pyramid. Ranking only the *finished* divisions
+/// made a second division the top flight whenever the first was still playing,
+/// and its champion banked a top-flight cheque.
+#[test]
+fn an_unfinished_upper_tier_does_not_pay_top_flight_prize_money() {
+    let mut game = make_completed_season_game();
+    game.manager.hire("team3".to_string());
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    // The first division is still playing: one fixture left to go.
+    let mut first = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        standings: vec![
+            make_standing("team1", 1, 0, 0, 2, 0),
+            make_standing("team2", 0, 0, 1, 0, 2),
+        ],
+        ..Default::default()
+    };
+    let mut pending = make_completed_fixture("d1-live", "team1", "team2", 0, 0);
+    pending.status = FixtureStatus::Scheduled;
+    pending.result = None;
+    first.fixtures = vec![
+        make_completed_fixture("d1-done", "team1", "team2", 2, 0),
+        pending,
+    ];
+
+    let second = League {
+        id: "eng-2".to_string(),
+        name: "ENG Second Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 1,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("d2f1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+
+    game.league = Some(second.clone());
+    game.competitions = vec![first, second];
+    let before = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team3")
+        .expect("team3")
+        .finance;
+
+    process_end_of_season(&mut game);
+
+    let gained = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team3")
+        .expect("team3")
+        .finance
+        - before;
+    assert_eq!(
+        gained, 2_500_000,
+        "the second division's champion earns half the top flight's 5,000,000, \
+         even while the first division is unfinished"
+    );
+}
+
+/// A league on another calendar finishes a different season from the user's.
+/// Every division's history used to be stamped with the user's season number,
+/// so a foreign league's season 1 was recorded as season 2.
+#[test]
+fn each_division_records_its_own_season() {
+    let mut game = make_completed_season_game();
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let home = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 2,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![make_completed_fixture("hf1", "team1", "team2", 2, 0)],
+        standings: vec![
+            make_standing("team1", 1, 0, 0, 2, 0),
+            make_standing("team2", 0, 0, 1, 0, 2),
+        ],
+        ..Default::default()
+    };
+    let foreign = League {
+        id: "bra-1".to_string(),
+        name: "BRA First Division".to_string(),
+        country_id: Some("BR".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("ff1", "team3", "team4", 1, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 1, 0),
+            make_standing("team4", 0, 0, 1, 0, 1),
+        ],
+        ..Default::default()
+    };
+
+    game.league = Some(home.clone());
+    game.competitions = vec![home, foreign];
+
+    process_end_of_season(&mut game);
+
+    let seasons_for = |id: &str| -> Vec<u32> {
+        game.teams
+            .iter()
+            .find(|team| team.id == id)
+            .unwrap_or_else(|| panic!("{id}"))
+            .history
+            .iter()
+            .map(|record| record.season)
+            .collect()
+    };
+    assert_eq!(
+        seasons_for("team1"),
+        vec![2],
+        "the user's league is season 2"
+    );
+    assert_eq!(
+        seasons_for("team3"),
+        vec![1],
+        "the foreign league finished its own season 1, not the user's season 2"
+    );
+}
+
 #[test]
 fn top_half_finish_receives_expected_prize_money() {
     let mut game = make_completed_season_game();

@@ -134,7 +134,7 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
 /// neither is a regional side-competition — which is why Brazil's state cups
 /// (`Cup` / `Regional` / `GroupAndKnockout`) cannot reach the ladder and cannot
 /// trip the overlap check below.
-fn is_ladder_tier(competition: &League) -> bool {
+pub(super) fn is_ladder_tier(competition: &League) -> bool {
     competition.scope == CompetitionScope::Domestic
         && competition.kind == CompetitionType::League
         && competition.rules.format == CompetitionFormat::LeagueTable
