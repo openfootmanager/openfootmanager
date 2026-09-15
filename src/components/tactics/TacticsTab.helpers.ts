@@ -10,6 +10,7 @@ import {
   getPreferredPositions,
   isPlayerOutOfPosition,
   normalisePosition,
+  positionGroupRank,
   positionCode,
   translatePositionAbbreviation,
   translatePositionLabel,
@@ -78,13 +79,6 @@ export const TACTICS_PRESETS: TacticsPresetDefinition[] = [
   },
 ];
 
-const POSITION_ORDER: Record<string, number> = {
-  Goalkeeper: 1,
-  Defender: 2,
-  Midfielder: 3,
-  Forward: 4,
-};
-
 interface TacticsPlayerSortContext {
   section: SquadSection;
   sortDir: SortDirection;
@@ -118,8 +112,8 @@ export function buildTacticsRoster(
     )
     .sort((leftPlayer, rightPlayer) => {
       return (
-        (POSITION_ORDER[normalisePosition(leftPlayer.position)] ?? 99) -
-        (POSITION_ORDER[normalisePosition(rightPlayer.position)] ?? 99) ||
+        positionGroupRank(leftPlayer.position) -
+        positionGroupRank(rightPlayer.position) ||
         getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
       );
     });
@@ -185,8 +179,8 @@ export function sortTacticsPlayers(
     switch (sortKey) {
       case "pos":
         return (
-          (POSITION_ORDER[normalisePosition(leftPosition)] ?? 99) -
-          (POSITION_ORDER[normalisePosition(rightPosition)] ?? 99) ||
+          positionGroupRank(leftPosition) -
+          positionGroupRank(rightPosition) ||
           getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
         );
       case "name":

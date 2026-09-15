@@ -55,6 +55,7 @@ import {
   getSquadTacticalFit,
   isPlayerOutOfPosition,
   normalisePosition,
+  positionGroupRank,
   positionSortRank,
   translatePositionAbbreviation,
 } from "./SquadTab.helpers";
@@ -116,19 +117,11 @@ export default function SquadRosterView({
   const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
-  const posOrder: Record<string, number> = {
-    Goalkeeper: 1,
-    Defender: 2,
-    Midfielder: 3,
-    Forward: 4,
-  };
-
   const roster = players
     .filter((player) => isSeniorSquadPlayer(player))
     .sort(
       (a, b) =>
-        (posOrder[normalisePosition(a.position)] || 99) -
-        (posOrder[normalisePosition(b.position)] || 99) ||
+        positionGroupRank(a.position) - positionGroupRank(b.position) ||
         getPlayerOvr(b) - getPlayerOvr(a),
     );
 
