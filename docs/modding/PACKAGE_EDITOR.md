@@ -218,7 +218,7 @@ Each competition form has the following sections:
 - **Type** — Category: League, Cup, ContinentalClub, InternationalClub, InternationalNation, or FriendlyCup.
 - **Scope** — Geographic scope: Domestic, Regional, Continental, or International.
 - **Country ID** — Required for Domestic competitions.
-- **Priority** — Scheduling priority. Higher numbers are scheduled first.
+- **Priority** — Tier rank within a country: **lower is the higher division**. A first division is `0`, a second `1`. Two domestic league tables in the same country must not share a value, or neither is promoted or relegated.
 
 **Format:**
 - **Format Kind** — `LeagueTable`, `Knockout`, or `GroupAndKnockout`.

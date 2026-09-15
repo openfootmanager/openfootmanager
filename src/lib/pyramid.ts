@@ -16,6 +16,33 @@ function isLeagueTable(competition: LeagueData): boolean {
   return !competition.rules || competition.rules.format === "LeagueTable";
 }
 
+/**
+ * A rung of a domestic pyramid — mirrors `is_ladder_tier` in
+ * `end_of_season/berths.rs`. A cup or a regional side-competition is not a tier
+ * even when it is scored as a table and belongs to a country, and the backend
+ * will never promote into or out of one. `kind` and `scope` are optional on the
+ * wire and default the way the Rust types do.
+ */
+function isLadderTier(competition: LeagueData): boolean {
+  return (
+    (competition.scope ?? "Domestic") === "Domestic" &&
+    (competition.kind ?? "League") === "League" &&
+    isLeagueTable(competition)
+  );
+}
+
+/**
+ * Two tiers of a pyramid hold different clubs — mirrors `tiers_share_clubs`.
+ * A split-season country plays its Apertura and Clausura over one division at
+ * consecutive priorities, so by rank alone they look like neighbouring tiers;
+ * drawing zones between them promises movement between two halves of the same
+ * division, which the backend refuses to perform.
+ */
+function shareClubs(left: LeagueData, right: LeagueData): boolean {
+  const leftClubs = new Set(left.participant_ids ?? []);
+  return (right.participant_ids ?? []).some((club) => leftClubs.has(club));
+}
+
 function divisionSize(competition: LeagueData): number {
   return competition.participant_ids?.length ?? competition.standings.length;
 }
@@ -29,7 +56,7 @@ export function getPromotionRelegationZones(
   competitions: LeagueData[],
   competition: LeagueData,
 ): PromotionRelegationZones {
-  if (!competition.country_id || !isLeagueTable(competition)) {
+  if (!competition.country_id || !isLadderTier(competition)) {
     return NO_ZONES;
   }
 
@@ -38,7 +65,8 @@ export function getPromotionRelegationZones(
     (other) =>
       other.id !== competition.id &&
       other.country_id === competition.country_id &&
-      isLeagueTable(other),
+      isLadderTier(other) &&
+      !shareClubs(competition, other),
   );
 
   const above = siblings

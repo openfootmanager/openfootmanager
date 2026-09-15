@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use domain::league::{
-    Berth, BerthRule, CompetitionScope, CompetitionType, Fixture, FixtureCompetition,
-    FixtureStatus, KnockoutRoundState, League, MatchResult, StandingEntry,
+    Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture,
+    FixtureCompetition, FixtureStatus, KnockoutRoundState, League, MatchResult, StandingEntry,
 };
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
@@ -1112,6 +1112,43 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
     );
 }
 
+/// A manager with no club of their own — between jobs, or managing only a
+/// national side — has no division to gate on, so every league table must
+/// finish before the season can roll over. This is the path the test below
+/// used to take by accident, because its primary league listed no participants.
+#[test]
+fn season_waits_for_every_league_when_the_user_has_no_division() {
+    let mut game = make_completed_season_game();
+    game.teams.push(make_team("team3", "Third FC"));
+    game.teams.push(make_team("team4", "Fourth FC"));
+
+    let finished = game.league.clone().expect("a primary league");
+    let mut other = League {
+        id: "far-1".to_string(),
+        name: "Far Away League".to_string(),
+        country_id: Some("BR".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("ff1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    other.fixtures[0].status = FixtureStatus::Scheduled;
+    other.fixtures[0].result = None;
+    // No club: the manager is unemployed.
+    game.manager.team_id = None;
+    game.competitions = vec![finished, other];
+
+    assert!(
+        !is_season_complete(&game),
+        "with no division of their own, every league must finish first"
+    );
+}
+
 #[test]
 fn season_not_complete_while_another_division_is_unfinished() {
     let mut game = make_completed_season_game();
@@ -1119,7 +1156,13 @@ fn season_not_complete_while_another_division_is_unfinished() {
     game.teams.push(make_team("team4", "Fourth FC"));
 
     // div1 (the primary) is fully played; div2 still has a scheduled fixture.
-    let div1 = game.league.clone().unwrap();
+    //
+    // div1 must name its participants and its country, or the user is not found
+    // in any league and this exercises the unknown-user fallback below instead
+    // of the gate it claims to test.
+    let mut div1 = game.league.clone().unwrap();
+    div1.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+    div1.country_id = Some("ENG".to_string());
     let mut div2 = League {
         id: "eng-2".to_string(),
         name: "ENG Second Division".to_string(),
@@ -1284,6 +1327,82 @@ fn process_end_of_season_promotes_and_relegates_between_divisions() {
             .fixtures
             .iter()
             .any(|f| f.status == FixtureStatus::Scheduled)
+    );
+}
+
+/// Every first division berths its top finishers into the same continental cup,
+/// which is what `create_game` builds. Those leagues qualify *for* the cup; they
+/// do not feed clubs *into* it, so a shared continental target must not take
+/// them out of their own domestic ladder the way sibling regional groups are
+/// taken out of it. Two countries, because one feeder is never a sibling and so
+/// a single-country world hides the bug entirely.
+#[test]
+fn a_shared_continental_berth_does_not_detach_first_divisions_from_their_ladder() {
+    let mut game = make_completed_season_game();
+    for id in [
+        "eng1", "eng2", "eng3", "eng4", "esp1", "esp2", "esp3", "esp4",
+    ] {
+        game.teams.push(make_club(id, &id[..3].to_uppercase(), 100));
+    }
+
+    let continental_berth = || Berth {
+        target: "ccc".to_string(),
+        rule: BerthRule::PositionRange { from: 1, to: 2 },
+        fallback_to: None,
+    };
+    let tier = |id: &str, country: &str, priority: u32, clubs: [&str; 2]| {
+        let mut division = first_division(id, country, "europe", &clubs);
+        division.priority = priority;
+        division.fixtures = vec![make_completed_fixture(
+            &format!("{id}-f1"),
+            clubs[0],
+            clubs[1],
+            2,
+            0,
+        )];
+        division
+    };
+
+    let mut eng_d1 = tier("eng-d1", "ENG", 0, ["eng1", "eng2"]);
+    eng_d1.berths = vec![continental_berth()];
+    let eng_d2 = tier("eng-d2", "ENG", 1, ["eng3", "eng4"]);
+    let mut esp_d1 = tier("esp-d1", "ES", 2, ["esp1", "esp2"]);
+    esp_d1.berths = vec![continental_berth()];
+    let esp_d2 = tier("esp-d2", "ES", 3, ["esp3", "esp4"]);
+
+    // Group-and-knockout, as `create_game` builds it: the cup is not a league
+    // table, so it can never be a promotion destination.
+    let mut cup = continental_cup("ccc", "europe", 4);
+    cup.rules.format = CompetitionFormat::GroupAndKnockout;
+
+    game.league = Some(eng_d1.clone());
+    game.competitions = vec![eng_d1, eng_d2, esp_d1, esp_d2, cup];
+
+    process_end_of_season(&mut game);
+
+    let by_id = |id: &str| game.competitions.iter().find(|c| c.id == id).expect(id);
+    // Both countries, so the fix cannot be a one-off that happens to spare
+    // whichever league sorts first.
+    for prefix in ["eng", "esp"] {
+        let d1 = &by_id(&format!("{prefix}-d1")).participant_ids;
+        let d2 = &by_id(&format!("{prefix}-d2")).participant_ids;
+        assert!(
+            d2.contains(&format!("{prefix}2")),
+            "{prefix}2 finished bottom of the top flight and should be relegated: \
+             d1={d1:?} d2={d2:?}"
+        );
+        assert!(
+            d1.contains(&format!("{prefix}3")),
+            "{prefix}3 won the second division and should be promoted: d1={d1:?} d2={d2:?}"
+        );
+    }
+
+    // Qualification still resolves in the same rollover — narrowing the sibling
+    // rule must not cost the cup its field.
+    let field = &by_id("ccc").participant_ids;
+    assert!(
+        field.contains(&"eng1".to_string()) && field.contains(&"esp1".to_string()),
+        "both champions should have qualified for the continental cup: {field:?}"
     );
 }
 
@@ -2092,6 +2211,298 @@ fn champion_receives_prize_money_and_ledger_entry() {
     );
 }
 
+/// A continental competition still playing its own season keeps its roster.
+/// Handing it next season's qualifiers left a table scoring clubs that were no
+/// longer in it and fixtures between clubs it no longer listed.
+#[test]
+fn an_unfinished_continental_table_keeps_its_roster() {
+    let mut game = make_completed_season_game();
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+    for team in game.teams.iter_mut() {
+        team.football_nation = "ENG".to_string();
+    }
+
+    let domestic = first_division("eng-d1", "ENG", "europe", &["team1", "team2"]);
+    let mut domestic = domestic;
+    domestic.fixtures = vec![make_completed_fixture("d1f", "team1", "team2", 2, 0)];
+
+    // A continental competition scored as a table, one match still to play.
+    let mut continental = continental_cup("ccc", "europe", 2);
+    continental.participant_ids = vec!["team3".to_string(), "team4".to_string()];
+    let mut pending = make_completed_fixture("ccc-live", "team3", "team4", 0, 0);
+    pending.status = FixtureStatus::Scheduled;
+    pending.result = None;
+    continental.fixtures = vec![pending];
+    continental.standings = vec![make_standing("team3", 1, 0, 0, 2, 0)];
+
+    game.league = Some(domestic.clone());
+    game.competitions = vec![domestic, continental];
+
+    process_end_of_season(&mut game);
+
+    let cup = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == "ccc")
+        .expect("ccc");
+    // Exactly its own clubs — "still contains them" is not enough, because the
+    // qualifier pass appends rather than replaces and the roster simply grew.
+    assert_eq!(
+        cup.participant_ids,
+        vec!["team3".to_string(), "team4".to_string()],
+        "a mid-season continental table keeps exactly the clubs its fixtures name"
+    );
+}
+
+/// A save whose clock and competition seasons disagree must not replay years.
+#[test]
+fn regeneration_never_rewinds_a_finished_season() {
+    let mut game = make_completed_season_game();
+    let mut league = first_division("eng-d1", "ENG", "europe", &["team1", "team2"]);
+    // Stamped far ahead of the clock, which sits in 2026.
+    league.season = 2030;
+    league.fixtures = vec![make_completed_fixture("f", "team1", "team2", 2, 0)];
+    game.league = Some(league.clone());
+    game.competitions = vec![league];
+
+    process_end_of_season(&mut game);
+
+    let rolled = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == "eng-d1")
+        .expect("eng-d1");
+    assert!(
+        rolled.season > 2030,
+        "a competition that finished season 2030 cannot roll back to {}",
+        rolled.season
+    );
+}
+
+/// Two divisions can share a rank — a berth moves clubs into its target, and
+/// nothing makes a target outrank its feeder. A champion promoted along a berth
+/// was told they had been relegated.
+#[test]
+fn a_berth_promotion_is_not_reported_as_a_relegation() {
+    let mut game = make_completed_season_game();
+    game.manager.hire("team3".to_string());
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let central = League {
+        id: "central".to_string(),
+        name: "Central League".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![make_completed_fixture("cf", "team1", "team2", 2, 0)],
+        standings: vec![
+            make_standing("team1", 1, 0, 0, 2, 0),
+            make_standing("team2", 0, 0, 1, 0, 2),
+        ],
+        ..Default::default()
+    };
+    let mut feeder = League {
+        id: "feeder".to_string(),
+        name: "Feeder League".to_string(),
+        country_id: Some("ENG".to_string()),
+        // Deliberately the SAME rank as its target.
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("ff", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    feeder.berths = vec![Berth {
+        target: "central".to_string(),
+        rule: BerthRule::PositionRange { from: 1, to: 1 },
+        fallback_to: None,
+    }];
+
+    game.league = Some(feeder.clone());
+    game.competitions = vec![central, feeder];
+
+    process_end_of_season(&mut game);
+
+    let central_now = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == "central")
+        .expect("central");
+    assert!(
+        central_now.participant_ids.contains(&"team3".to_string()),
+        "precondition: the feeder's champion was promoted: {:?}",
+        central_now.participant_ids
+    );
+    assert!(
+        !game.messages.iter().any(|message| message
+            .subject_key
+            .as_deref()
+            .is_some_and(|key| key.contains("relegation"))),
+        "a promoted champion must not be told they were relegated: {:?}",
+        game.messages
+            .iter()
+            .filter_map(|message| message.subject_key.clone())
+            .collect::<Vec<_>>()
+    );
+}
+
+/// Prize money halves for each tier below the top flight, and the tier is the
+/// division's rank in its own pyramid. Ranking only the *finished* divisions
+/// made a second division the top flight whenever the first was still playing,
+/// and its champion banked a top-flight cheque.
+#[test]
+fn an_unfinished_upper_tier_does_not_pay_top_flight_prize_money() {
+    let mut game = make_completed_season_game();
+    game.manager.hire("team3".to_string());
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    // The first division is still playing: one fixture left to go.
+    let mut first = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        standings: vec![
+            make_standing("team1", 1, 0, 0, 2, 0),
+            make_standing("team2", 0, 0, 1, 0, 2),
+        ],
+        ..Default::default()
+    };
+    let mut pending = make_completed_fixture("d1-live", "team1", "team2", 0, 0);
+    pending.status = FixtureStatus::Scheduled;
+    pending.result = None;
+    first.fixtures = vec![
+        make_completed_fixture("d1-done", "team1", "team2", 2, 0),
+        pending,
+    ];
+
+    let second = League {
+        id: "eng-2".to_string(),
+        name: "ENG Second Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 1,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("d2f1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+
+    game.league = Some(second.clone());
+    game.competitions = vec![first, second];
+    let before = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team3")
+        .expect("team3")
+        .finance;
+
+    process_end_of_season(&mut game);
+
+    let gained = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team3")
+        .expect("team3")
+        .finance
+        - before;
+    assert_eq!(
+        gained, 2_500_000,
+        "the second division's champion earns half the top flight's 5,000,000, \
+         even while the first division is unfinished"
+    );
+}
+
+/// A league on another calendar finishes a different season from the user's.
+/// Every division's history used to be stamped with the user's season number,
+/// so a foreign league's season 1 was recorded as season 2.
+#[test]
+fn each_division_records_its_own_season() {
+    let mut game = make_completed_season_game();
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let home = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 2,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![make_completed_fixture("hf1", "team1", "team2", 2, 0)],
+        standings: vec![
+            make_standing("team1", 1, 0, 0, 2, 0),
+            make_standing("team2", 0, 0, 1, 0, 2),
+        ],
+        ..Default::default()
+    };
+    let foreign = League {
+        id: "bra-1".to_string(),
+        name: "BRA First Division".to_string(),
+        country_id: Some("BR".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("ff1", "team3", "team4", 1, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 1, 0),
+            make_standing("team4", 0, 0, 1, 0, 1),
+        ],
+        ..Default::default()
+    };
+
+    game.league = Some(home.clone());
+    game.competitions = vec![home, foreign];
+
+    process_end_of_season(&mut game);
+
+    let seasons_for = |id: &str| -> Vec<u32> {
+        game.teams
+            .iter()
+            .find(|team| team.id == id)
+            .unwrap_or_else(|| panic!("{id}"))
+            .history
+            .iter()
+            .map(|record| record.season)
+            .collect()
+    };
+    assert_eq!(
+        seasons_for("team1"),
+        vec![2],
+        "the user's league is season 2"
+    );
+    assert_eq!(
+        seasons_for("team3"),
+        vec![1],
+        "the foreign league finished its own season 1, not the user's season 2"
+    );
+}
+
 #[test]
 fn top_half_finish_receives_expected_prize_money() {
     let mut game = make_completed_season_game();
@@ -2367,12 +2778,61 @@ fn no_league_returns_default_summary() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn satisfaction_adjusted_after_season() {
+fn satisfaction_unchanged_when_the_board_set_no_objectives() {
     let mut game = make_completed_season_game();
     let initial_sat = game.manager.satisfaction;
     process_end_of_season(&mut game);
-    // With no objectives, evaluate_objectives returns 0, so satisfaction unchanged
+    // Nothing was asked, so nothing is judged.
     assert_eq!(game.manager.satisfaction, initial_sat);
+}
+
+/// The test above only ever proved that zero objectives change nothing, which
+/// stays true however the evaluation is written — replacing the whole
+/// calculation with a constant zero left it green. These two do the judging.
+#[test]
+fn meeting_the_board_objective_raises_satisfaction() {
+    let mut game = make_completed_season_game();
+    // Objectives are marked met as the season runs; the rollover only counts
+    // them. team1 won its league, so this one came in.
+    game.board_objectives.push(BoardObjective {
+        id: "obj1".to_string(),
+        objective_type: ObjectiveType::LeaguePosition,
+        description: "Finish top 2".to_string(),
+        target: 2,
+        met: true,
+    });
+    let before = game.manager.satisfaction;
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.manager.satisfaction > before,
+        "meeting the board's objective should please them: {before} -> {}",
+        game.manager.satisfaction
+    );
+}
+
+#[test]
+fn missing_the_board_objective_lowers_satisfaction() {
+    let mut game = make_completed_season_game();
+    // team2 finished bottom, so the title the board asked for was not won.
+    game.manager.hire("team2".to_string());
+    game.board_objectives.push(BoardObjective {
+        id: "obj1".to_string(),
+        objective_type: ObjectiveType::LeaguePosition,
+        description: "Win the league".to_string(),
+        target: 1,
+        met: false,
+    });
+    let before = game.manager.satisfaction;
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.manager.satisfaction < before,
+        "team2 finished last and missed the objective: {before} -> {}",
+        game.manager.satisfaction
+    );
 }
 
 // ---------------------------------------------------------------------------

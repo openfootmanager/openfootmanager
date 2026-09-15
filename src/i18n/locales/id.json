@@ -2654,6 +2654,7 @@
         "parseFailed": "Berkas definisi kompetisi tidak dapat dibaca sebagai JSON.",
         "unsupportedVersion": "Versi format {{version}} tidak didukung; build ini mendukung hingga {{supported}}.",
         "berthUnknownTarget": "Slot kualifikasi menunjuk kompetisi \"{{target}}\" yang tidak dikenal.",
+        "berthSelfTarget": "Slot kualifikasi menunjuk kompetisi \"{{target}}\" itu sendiri.",
         "berthInvalidRange": "Rentang posisi slot tidak valid {{from}}–{{to}}.",
         "berthRequiresLeague": "Slot posisi dan play-off hanya dapat diberikan oleh tabel liga.",
         "berthRequiresCup": "Slot juara piala hanya dapat diberikan oleh kompetisi gugur.",
@@ -2676,7 +2677,8 @@
         "unknownSourceCompetition": "Kompetisi sumber \"{{source}}\" tidak dikenal.",
         "selectorMissingSource": "Pemilih ini membutuhkan kompetisi sumber.",
         "unknownExcludedCompetition": "Kompetisi yang dikecualikan \"{{excluded}}\" tidak dikenal.",
-        "selectorCycle": "Kualifikasi melingkar antar kompetisi."
+        "selectorCycle": "Kualifikasi melingkar antar kompetisi.",
+        "duplicateTierPriority": "Dua divisi {{country}} memiliki prioritas {{priority}} yang sama. Angka lebih kecil berarti divisi lebih tinggi, dan setiap tingkat butuh angkanya sendiri, atau tidak ada yang promosi maupun degradasi."
       },
       "worldParseFailed": "Gagal mengurai berkas basis data dunia.",
       "worldWriteFileFailed": "Gagal mengekspor berkas basis data dunia.",
