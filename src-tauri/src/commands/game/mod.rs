@@ -2142,6 +2142,14 @@ mod tests {
         game
     }
 
+    /// (nation, club id) for every club in the world.
+    fn team_list(game: &Game) -> Vec<(String, String)> {
+        game.teams
+            .iter()
+            .map(|team| (team.football_nation.clone(), team.id.clone()))
+            .collect()
+    }
+
     fn roster(competition: &League) -> BTreeSet<String> {
         competition.participant_ids.iter().cloned().collect()
     }
@@ -2151,11 +2159,11 @@ mod tests {
     /// running over the same clubs.
     fn assert_one_league_per_club(game: &Game, sizes: &BTreeMap<String, usize>, label: &str) {
         let mut clubs_by_nation: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-        for team in &game.teams {
+        for team in &team_list(game) {
             clubs_by_nation
-                .entry(team.football_nation.clone())
+                .entry(team.0.clone())
                 .or_default()
-                .insert(team.id.clone());
+                .insert(team.1.clone());
         }
         let mut by_country: BTreeMap<String, Vec<&League>> = BTreeMap::new();
         for competition in &game.competitions {
@@ -2172,6 +2180,17 @@ mod tests {
                     .push(competition);
             }
         }
+        // Iterating only the countries that still have competitions means a
+        // country whose leagues vanished is never checked — the test passed
+        // with both Argentine leagues deleted after every rollover. Compare the
+        // key sets first, so a disappearing country is itself a failure.
+        let represented: BTreeSet<&String> = by_country.keys().collect();
+        let expected: BTreeSet<&String> = clubs_by_nation.keys().collect();
+        assert_eq!(
+            represented, expected,
+            "{label}: every nation must still have at least one league table"
+        );
+
         for (country, leagues) in by_country {
             let mut union: BTreeSet<String> = BTreeSet::new();
             let split_season = ofm_core::nations::is_split_season_country(&country);
@@ -2222,6 +2241,10 @@ mod tests {
     #[test]
     fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
         let mut game = production_world(2035, "eng-00");
+        let (regions, competitions) =
+            resolve_simulation_scope(&game, "eng-00", None, None).expect("a valid scope");
+        game.active_region_ids = regions;
+        game.active_competition_ids = competitions;
         let sizes: BTreeMap<String, usize> = game
             .competitions
             .iter()
@@ -2266,6 +2289,33 @@ mod tests {
 
             let label = format!("rollover {rollover}");
             assert_one_league_per_club(&game, &sizes, &label);
+
+            // Every domestic division that existed at kickoff must still exist.
+            // Size and disjointness assertions say nothing about a league that
+            // is simply gone.
+            for id in sizes.keys() {
+                assert!(
+                    game.competitions.iter().any(|c| c.id == *id),
+                    "{label}: competition {id} disappeared"
+                );
+            }
+
+            // The user's own division has to stay in simulation scope, or the
+            // day loop cannot see their fixtures and runs their match against
+            // whichever competition sorts first.
+            let user_division = game
+                .competitions
+                .iter()
+                .find(|c| {
+                    c.rules.format == CompetitionFormat::LeagueTable
+                        && c.participant_ids.iter().any(|id| id == "eng-00")
+                })
+                .expect("the user is registered somewhere");
+            assert!(
+                game.active_competition_ids.contains(&user_division.id),
+                "{label}: the user's division {} is out of scope",
+                user_division.id
+            );
 
             // The point of #555: a top flight that never changes hands is the
             // bug, not a stable league.
