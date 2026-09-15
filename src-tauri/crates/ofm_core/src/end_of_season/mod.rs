@@ -384,9 +384,15 @@ fn regenerate_competitions_for_new_season(
     // before regeneration resets their brackets. Done as a separate pass so
     // cups that haven't started yet (no fixtures) still get new participants
     // even when the completeness guard below would otherwise skip them.
+    //
+    // A competition that is mid-season is the one case that must be left
+    // alone: it keeps its own fixtures and standings, so handing it next
+    // season's field leaves a table scoring clubs that are no longer in it and
+    // fixtures between clubs it no longer lists.
     for competition in game.competitions.iter_mut() {
         if let Some(entrants) = continental_entrants.get(&competition.id)
             && entrants.len() >= 2
+            && (competition.fixtures.is_empty() || is_competition_complete(competition))
         {
             competition.participant_ids = entrants.clone();
         }
@@ -416,7 +422,11 @@ fn regenerate_competitions_for_new_season(
             competition.season_start_month,
             competition.season_start_day,
         );
-        let comp_next_season = comp_next_start.year() as u32;
+        // Never behind the season just played. The next season is normally the
+        // calendar year of the competition's own next start date, but a save
+        // whose clock and competition seasons disagree could otherwise regress
+        // a competition stamped 2030 back to 2026 and replay years of history.
+        let comp_next_season = (comp_next_start.year() as u32).max(competition.season + 1);
 
         match competition.rules.format {
             CompetitionFormat::LeagueTable => {
@@ -655,7 +665,22 @@ fn notify_user_division_change(
         return;
     }
 
-    let promoted = new_division.priority < old_priority;
+    // Rank decides direction, but two divisions can share a rank — a berth
+    // moves clubs into its target, and nothing makes a target outrank its
+    // feeder. Treat a move along a berth as the promotion it is, rather than
+    // telling a champion they have been relegated.
+    let new_division_id = new_division.id.clone();
+    let promoted_by_berth = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == old_division_id)
+        .is_some_and(|old_division| {
+            old_division.berths.iter().any(|berth| {
+                berth.target == new_division_id
+                    && matches!(berth.rule, domain::league::BerthRule::PositionRange { .. })
+            })
+        });
+    let promoted = new_division.priority < old_priority || promoted_by_berth;
     let division_name = new_division.name.clone();
     let kind = if promoted { "promotion" } else { "relegation" };
     let msg_id = format!("{kind}_{next_season}");
