@@ -2168,6 +2168,154 @@ fn champion_receives_prize_money_and_ledger_entry() {
     );
 }
 
+/// A continental competition still playing its own season keeps its roster.
+/// Handing it next season's qualifiers left a table scoring clubs that were no
+/// longer in it and fixtures between clubs it no longer listed.
+#[test]
+fn an_unfinished_continental_table_keeps_its_roster() {
+    let mut game = make_completed_season_game();
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+    for team in game.teams.iter_mut() {
+        team.football_nation = "ENG".to_string();
+    }
+
+    let domestic = first_division("eng-d1", "ENG", "europe", &["team1", "team2"]);
+    let mut domestic = domestic;
+    domestic.fixtures = vec![make_completed_fixture("d1f", "team1", "team2", 2, 0)];
+
+    // A continental competition scored as a table, one match still to play.
+    let mut continental = continental_cup("ccc", "europe", 2);
+    continental.participant_ids = vec!["team3".to_string(), "team4".to_string()];
+    let mut pending = make_completed_fixture("ccc-live", "team3", "team4", 0, 0);
+    pending.status = FixtureStatus::Scheduled;
+    pending.result = None;
+    continental.fixtures = vec![pending];
+    continental.standings = vec![make_standing("team3", 1, 0, 0, 2, 0)];
+
+    game.league = Some(domestic.clone());
+    game.competitions = vec![domestic, continental];
+
+    process_end_of_season(&mut game);
+
+    let cup = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == "ccc")
+        .expect("ccc");
+    // Exactly its own clubs — "still contains them" is not enough, because the
+    // qualifier pass appends rather than replaces and the roster simply grew.
+    assert_eq!(
+        cup.participant_ids,
+        vec!["team3".to_string(), "team4".to_string()],
+        "a mid-season continental table keeps exactly the clubs its fixtures name"
+    );
+}
+
+/// A save whose clock and competition seasons disagree must not replay years.
+#[test]
+fn regeneration_never_rewinds_a_finished_season() {
+    let mut game = make_completed_season_game();
+    let mut league = first_division("eng-d1", "ENG", "europe", &["team1", "team2"]);
+    // Stamped far ahead of the clock, which sits in 2026.
+    league.season = 2030;
+    league.fixtures = vec![make_completed_fixture("f", "team1", "team2", 2, 0)];
+    game.league = Some(league.clone());
+    game.competitions = vec![league];
+
+    process_end_of_season(&mut game);
+
+    let rolled = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == "eng-d1")
+        .expect("eng-d1");
+    assert!(
+        rolled.season > 2030,
+        "a competition that finished season 2030 cannot roll back to {}",
+        rolled.season
+    );
+}
+
+/// Two divisions can share a rank — a berth moves clubs into its target, and
+/// nothing makes a target outrank its feeder. A champion promoted along a berth
+/// was told they had been relegated.
+#[test]
+fn a_berth_promotion_is_not_reported_as_a_relegation() {
+    let mut game = make_completed_season_game();
+    game.manager.hire("team3".to_string());
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let central = League {
+        id: "central".to_string(),
+        name: "Central League".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![make_completed_fixture("cf", "team1", "team2", 2, 0)],
+        standings: vec![
+            make_standing("team1", 1, 0, 0, 2, 0),
+            make_standing("team2", 0, 0, 1, 0, 2),
+        ],
+        ..Default::default()
+    };
+    let mut feeder = League {
+        id: "feeder".to_string(),
+        name: "Feeder League".to_string(),
+        country_id: Some("ENG".to_string()),
+        // Deliberately the SAME rank as its target.
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("ff", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    feeder.berths = vec![Berth {
+        target: "central".to_string(),
+        rule: BerthRule::PositionRange { from: 1, to: 1 },
+        fallback_to: None,
+    }];
+
+    game.league = Some(feeder.clone());
+    game.competitions = vec![central, feeder];
+
+    process_end_of_season(&mut game);
+
+    let central_now = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == "central")
+        .expect("central");
+    assert!(
+        central_now.participant_ids.contains(&"team3".to_string()),
+        "precondition: the feeder's champion was promoted: {:?}",
+        central_now.participant_ids
+    );
+    assert!(
+        !game.messages.iter().any(|message| message
+            .subject_key
+            .as_deref()
+            .is_some_and(|key| key.contains("relegation"))),
+        "a promoted champion must not be told they were relegated: {:?}",
+        game.messages
+            .iter()
+            .filter_map(|message| message.subject_key.clone())
+            .collect::<Vec<_>>()
+    );
+}
+
 /// Prize money halves for each tier below the top flight, and the tier is the
 /// division's rank in its own pyramid. Ranking only the *finished* divisions
 /// made a second division the top flight whenever the first was still playing,
