@@ -35,6 +35,24 @@ pub fn apply_promotion_relegation(divisions: &mut [League]) {
         if upper.is_empty() || lower.is_empty() {
             continue;
         }
+        // A club already promoted out of this division cannot also be
+        // relegated out of it. A table shorter than the two swap groups ranks
+        // the same club as both its best and its worst, and it would then
+        // arrive in the division above *and* the one below — six clubs holding
+        // seven registrations.
+        let rising: HashSet<&str> = if i >= 1 {
+            promoted_at[i - 1].iter().map(String::as_str).collect()
+        } else {
+            HashSet::new()
+        };
+        let falling: Vec<&String> = upper
+            .iter()
+            .filter(|club| !rising.contains(club.as_str()))
+            .collect();
+        if falling.is_empty() {
+            continue;
+        }
+
         // Never move more clubs than either division has finishers to move.
         // The count is derived from the rosters, so a division whose table is
         // short would otherwise relegate its whole field and take up more than
@@ -43,9 +61,14 @@ pub fn apply_promotion_relegation(divisions: &mut [League]) {
             divisions[i].participant_ids.len(),
             divisions[i + 1].participant_ids.len(),
         )
-        .min(upper.len())
+        .min(falling.len())
         .min(lower.len());
-        relegated_at[i] = upper.iter().rev().take(count).cloned().collect();
+        relegated_at[i] = falling
+            .iter()
+            .rev()
+            .take(count)
+            .map(|club| (*club).clone())
+            .collect();
         promoted_at[i] = lower.iter().take(count).cloned().collect();
     }
 
@@ -116,6 +139,45 @@ mod tests {
             })
             .collect();
         league
+    }
+
+    /// A middle tier whose table ranks fewer clubs than the two swap groups
+    /// names the same club as both its champion and its worst finisher. It was
+    /// then promoted into the division above and relegated into the one below
+    /// at the same time, so six clubs ended up holding seven registrations.
+    #[test]
+    fn a_short_middle_table_never_sends_one_club_both_ways() {
+        let mut top = division("top", 0, &[("t1", 30), ("t2", 20)]);
+        let mut middle = division("middle", 1, &[("m1", 30), ("m2", 20)]);
+        let mut bottom = division("bottom", 2, &[("b1", 30), ("b2", 20)]);
+        top.participant_ids = vec!["t1".to_string(), "t2".to_string()];
+        middle.participant_ids = vec!["m1".to_string(), "m2".to_string()];
+        bottom.participant_ids = vec!["b1".to_string(), "b2".to_string()];
+        // Only one club of the middle tier finished the season on the table,
+        // so it is simultaneously the best and the worst.
+        middle.standings.truncate(1);
+
+        let mut divisions = vec![top, middle, bottom];
+        apply_promotion_relegation(&mut divisions);
+
+        let registrations: Vec<&String> = divisions
+            .iter()
+            .flat_map(|division| division.participant_ids.iter())
+            .collect();
+        let unique: HashSet<&String> = registrations.iter().copied().collect();
+        assert_eq!(
+            registrations.len(),
+            unique.len(),
+            "a club holds two registrations: {:?}",
+            divisions
+                .iter()
+                .map(|division| division.participant_ids.clone())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(registrations.len(), 6, "six clubs, six registrations");
+        for division in &divisions {
+            assert_eq!(division.participant_ids.len(), 2, "sizes must hold");
+        }
     }
 
     /// A standings row that outlived its registration must not promote a club
