@@ -49,11 +49,7 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     // into that target on its behalf.
     let promotion_destinations: HashSet<&str> = competitions
         .iter()
-        .filter(|competition| {
-            competition.scope == CompetitionScope::Domestic
-                && competition.kind == CompetitionType::League
-                && competition.rules.format == CompetitionFormat::LeagueTable
-        })
+        .filter(|competition| is_ladder_tier(competition))
         .map(|competition| competition.id.as_str())
         .collect();
 
@@ -84,16 +80,13 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
 
     let mut tiers_by_country: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (index, competition) in competitions.iter().enumerate() {
-        if competition.rules.format != CompetitionFormat::LeagueTable {
+        if !is_ladder_tier(competition) {
             continue;
         }
         if berth_targets.contains(competition.id.as_str())
             || sibling_feeders.contains(competition.id.as_str())
         {
             continue;
-        }
-        if !super::is_league_season_ended(competition) {
-            continue; // mid-season foreign leagues skip this rollover's P/R
         }
         if let Some(country) = &competition.country_id {
             tiers_by_country
@@ -108,11 +101,59 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
             continue;
         }
         indices.sort_by_key(|&index| competitions[index].priority);
-        if tiers_share_clubs(competitions, &indices) {
+        // A ladder is only meaningful over a country's complete set of tiers,
+        // each ranked unambiguously and holding its own clubs. Anything else is
+        // not a pyramid, and swapping across it moves clubs that should not
+        // move. The whole country waits rather than exchanging half a ladder.
+        if !every_tier_has_finished(competitions, &indices)
+            || !tiers_are_ranked_distinctly(competitions, &indices)
+            || tiers_share_clubs(competitions, &indices)
+        {
             continue;
         }
         apply_linear_chain(competitions, &indices);
     }
+}
+
+/// A rung of a domestic pyramid: the country's own league competition, played
+/// as a table. A cup is not a rung even when it draws from the same clubs, and
+/// neither is a regional side-competition — which is why Brazil's state cups
+/// (`Cup` / `Regional` / `GroupAndKnockout`) cannot reach the ladder and cannot
+/// trip the overlap check below.
+fn is_ladder_tier(competition: &League) -> bool {
+    competition.scope == CompetitionScope::Domestic
+        && competition.kind == CompetitionType::League
+        && competition.rules.format == CompetitionFormat::LeagueTable
+}
+
+/// True when every tier named by `indices` has played its season out.
+///
+/// A tier that is still running has no final table to promote from, and it used
+/// to be dropped from the chain rather than stopping it — which left the tiers
+/// on either side of it adjacent. A third division's champion was promoted
+/// straight into the first while the second was mid-season, and the club it
+/// displaced fell two divisions. A country's ladder therefore waits for all of
+/// its tiers, and a hemisphere-foreign country simply rolls over on its own
+/// calendar instead.
+fn every_tier_has_finished(competitions: &[League], indices: &[usize]) -> bool {
+    indices
+        .iter()
+        .all(|&index| super::is_league_season_ended(&competitions[index]))
+}
+
+/// True when no two tiers claim the same `priority`.
+///
+/// `priority` is what says which division is above which, so two leagues
+/// sharing one are peers — parallel regional groups, or a pyramid whose data is
+/// simply wrong — and the sort order between them is arbitrary. Swapping across
+/// that edge exchanges clubs between two leagues at the same level, decided by
+/// declaration order. This is also what keeps the sibling rule's fail-closed
+/// behaviour safe: feeders whose berth target does not exist stay on the
+/// ladder, and staying on it must not mean trading clubs with each other.
+fn tiers_are_ranked_distinctly(competitions: &[League], indices: &[usize]) -> bool {
+    indices
+        .windows(2)
+        .all(|pair| competitions[pair[0]].priority != competitions[pair[1]].priority)
 }
 
 /// True when two of the leagues named by `indices` register the same club.
@@ -1074,6 +1115,127 @@ mod tests {
             south_before,
             "sibling feeders must not linearly swap: {:?}",
             by_id("south").participant_ids
+        );
+    }
+
+    /// A league with a matchday still to come.
+    fn still_playing(league: &mut League) {
+        league.fixtures = vec![Fixture {
+            id: format!("{}-unplayed", league.id),
+            status: domain::league::FixtureStatus::Scheduled,
+            competition: domain::league::FixtureCompetition::League,
+            ..Default::default()
+        }];
+    }
+
+    /// A tier that is still playing has no final table, and used to be dropped
+    /// from the chain rather than stopping it — which left the divisions on
+    /// either side of it adjacent. A third division's champion went straight
+    /// into the first, and the club it displaced fell two divisions at once.
+    #[test]
+    fn a_mid_season_tier_breaks_the_chain_rather_than_bridging_it() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let mut d2 = division(
+            "d2",
+            1,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        still_playing(&mut d2);
+        let d3 = division(
+            "d3",
+            2,
+            "XX",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        let (before1, before3) = (d1.participant_ids.clone(), d3.participant_ids.clone());
+
+        let mut competitions = vec![d1, d2, d3];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        println!("PROBE A d3={:?}", by_id("d3").participant_ids);
+        assert_eq!(
+            by_id("d1").participant_ids,
+            before1,
+            "d1 must not reach past d2"
+        );
+        assert_eq!(
+            by_id("d3").participant_ids,
+            before3,
+            "d3 must not reach past d2"
+        );
+    }
+
+    /// `priority` is what ranks one division above another, so two leagues
+    /// sharing one are peers and the order between them is arbitrary. This is
+    /// also the case a berth pointing at a target that does not exist falls
+    /// into: its feeders stay on the ladder, and staying on it must not mean
+    /// trading clubs with each other.
+    #[test]
+    fn leagues_at_the_same_priority_are_peers_not_tiers() {
+        let north = division("north", 1, "XX", &[("n1", 40), ("n2", 30), ("n3", 20)]);
+        let south = division("south", 1, "XX", &[("s1", 40), ("s2", 30), ("s3", 20)]);
+        let (bn, bs) = (north.participant_ids.clone(), south.participant_ids.clone());
+
+        let mut competitions = vec![north, south];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        println!("PROBE B south={:?}", by_id("south").participant_ids);
+        assert_eq!(by_id("north").participant_ids, bn);
+        assert_eq!(by_id("south").participant_ids, bs);
+    }
+
+    /// The overlap guard only ever saw the tiers that had finished, so a
+    /// rollover landing between the Apertura's last matchday and the Clausura's
+    /// slipped past it: the two Aperturas swapped, and the promoted club ended
+    /// up registered with the first division's Apertura and the second
+    /// division's Clausura at the same time.
+    #[test]
+    fn split_season_halves_stay_aligned_when_only_one_half_has_ended() {
+        let d1a = division(
+            "d1-ap",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let d2a = division(
+            "d2-ap",
+            2,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let mut d1c = division(
+            "d1-cl",
+            1,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let mut d2c = division(
+            "d2-cl",
+            3,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        still_playing(&mut d1c);
+        still_playing(&mut d2c);
+        let before = d1a.participant_ids.clone();
+
+        let mut competitions = vec![d1a, d2a, d1c, d2c];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        println!("PROBE C d1-cl={:?}", by_id("d1-cl").participant_ids);
+        assert_eq!(
+            by_id("d1-ap").participant_ids,
+            before,
+            "the two halves must stay aligned"
         );
     }
 
