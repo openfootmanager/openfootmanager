@@ -119,10 +119,27 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         // finished, rank unambiguously, and hold their own clubs. Anything else
         // is not a pyramid, and swapping across it moves clubs that should not
         // move. The run waits rather than half-exchanging.
-        if !every_tier_has_finished(competitions, &run)
-            || !tiers_are_ranked_distinctly(competitions, &run)
-            || tiers_share_clubs(competitions, &run)
-        {
+        //
+        // Say so. Every one of these refusals looks identical from the outside
+        // — nobody is promoted, nobody is relegated, no message is sent — which
+        // is exactly how a dead ladder went unnoticed in the first place.
+        let refusal = if !every_tier_has_finished(competitions, &run) {
+            Some("a tier has not finished its season")
+        } else if !tiers_are_ranked_distinctly(competitions, &run) {
+            Some("two tiers share a priority, so their order is arbitrary")
+        } else if tiers_share_clubs(competitions, &run) {
+            Some("two tiers register the same club")
+        } else {
+            None
+        };
+        if let Some(reason) = refusal {
+            log::warn!(
+                "[end-of-season] no promotion or relegation for {}: {reason}",
+                run.iter()
+                    .map(|&index| competitions[index].id.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
             continue;
         }
         apply_linear_chain(competitions, &run);
