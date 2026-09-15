@@ -240,7 +240,10 @@ impl Game {
 
     /// Index of the competition the user's club plays in, preferring its
     /// domestic league. `None` when unemployed or no competition lists the club.
-    fn user_competition_index(&self) -> Option<usize> {
+    ///
+    /// Shared with the transfer log so a record involving the user's club lands in the same
+    /// competition `sync_legacy_league` mirrors, rather than one the mirror never shows.
+    pub(crate) fn user_competition_index(&self) -> Option<usize> {
         let team_id = self.manager.team_id.as_deref()?;
         let contains = |competition: &League| {
             competition

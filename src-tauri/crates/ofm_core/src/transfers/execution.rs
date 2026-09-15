@@ -428,10 +428,24 @@ pub(super) fn competition_contains_team(
             .any(|entry| entry.team_id == team_id)
 }
 pub(super) fn log_completed_transfer(game: &mut Game, transfer: CompletedTransfer) {
-    let target_competition_index = game
-        .competitions
-        .iter()
-        .position(|competition| competition_contains_team(competition, &transfer.to_team_id))
+    // A deal the user's club is part of goes in the user's own competition, because that is the one
+    // `sync_legacy_league` copies into `game.league` — the only transfer log the news roundup and
+    // the world transfer tab read. Picking by club order instead lets the two disagree: a sale to
+    // another division files under the buyer, and a club playing a cup listed before its league
+    // files under the cup. Either way the record exists and nothing ever shows it.
+    let user_is_involved =
+        game.manager.team_id.as_deref().is_some_and(|team_id| {
+            team_id == transfer.from_team_id || team_id == transfer.to_team_id
+        });
+
+    let target_competition_index = user_is_involved
+        .then(|| game.user_competition_index())
+        .flatten()
+        .or_else(|| {
+            game.competitions.iter().position(|competition| {
+                competition_contains_team(competition, &transfer.to_team_id)
+            })
+        })
         .or_else(|| {
             game.competitions.iter().position(|competition| {
                 competition_contains_team(competition, &transfer.from_team_id)
