@@ -1,0 +1,111 @@
+name: "\U0001F41B Hata Bildirimi (Türkçe)"
+description: "Oyundaki bir hatayı veya çökmeyi Türkçe olarak bildirin"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Hata Bildirimi
+        Hatayı bildirdiğiniz için teşekkürler! Lütfen olabildiğince ayrıntı verin.
+        Bu şablonda lütfen Türkçe yazın.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Ne oldu?"
+      description: "Hatayı olabildiğince açık şekilde anlatın."
+      placeholder: "Şunu yapmaya çalıştığımda oyun çöktü..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "Ne olmasını bekliyordunuz?"
+      description: "Bunun yerine ne olmalıydı?"
+      placeholder: "Maçın normal şekilde başlamasını bekliyordum..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Yeniden oluşturma adımları"
+      description: "Bu hatayı biz nasıl yeniden oluşturabiliriz?"
+      placeholder: |
+        1. Yeni oyun başlat
+        2. Bir takım seç
+        3. Maç gününe ilerle
+        4. "Sahaya Çık" düğmesine tıkla
+        5. Oyun çöküyor
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: "Ne sıklıkla oluyor?"
+      options:
+        - Her seferinde
+        - Bazen
+        - Yalnızca bir kez oldu
+    validations:
+      required: true
+
+  - type: textarea
+    id: game-context
+    attributes:
+      label: "Oyun durumu"
+      description: "Hangi gündeydiniz veya kaçıncı maç haftasındaydınız? Ne yapıyordunuz? Hemen öncesinde bir kayıt yüklediniz mi?"
+      placeholder: "5. maç haftasındaydım, maçtan hemen sonra..."
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: "Uygulama sürümü"
+      description: "Ana menünün altında ve Ayarlar → Hakkında bölümünde görünür."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: "İşletim sistemi"
+      description: "Örn. Windows 11, macOS 15, Ubuntu 24.04"
+      placeholder: "Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: resolution
+    attributes:
+      label: "Ekran çözünürlüğü"
+      description: "Örn. 1920x1080"
+      placeholder: "1920x1080"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: logs
+    attributes:
+      label: "Günlük dosyaları"
+      description: |
+        Lütfen günlük dosyalarınızı ekleyin! Hataları çok daha hızlı düzeltmemizi sağlıyorlar.
+        **Windows:** `C:\Users\<Siz>\AppData\Roaming\com.sturdyrobot.openfootmanager\logs\`
+        **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
+        **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
+      options:
+        - label: "Günlük dosyalarımı ekledim (sıkıştırılmış logs klasörünü aşağıya sürükleyin)"
+          required: false
+
+  - type: textarea
+    id: logs-and-screenshots
+    attributes:
+      label: "Günlükler ve ekran görüntüleri"
+      description: "Sıkıştırılmış logs klasörünüzü ve ekran görüntülerinizi buraya sürükleyin."
+      placeholder: "Dosyaları buraya sürükleyin..."
+    validations:
+      required: false

@@ -1,0 +1,87 @@
+name: "\U0001F3AE Отчёт об игровой сессии (Русский)"
+description: "Расскажите об игровой сессии на русском языке"
+labels: ["session-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Отчёт об игровой сессии
+        Такие отчёты бесценны — они показывают нам игровой опыт целиком.
+        В этом шаблоне пишите по-русски.
+
+  - type: input
+    id: play-time
+    attributes:
+      label: "Сколько вы играли"
+      description: "Как долго длилась сессия?"
+      placeholder: "Около 2 часов"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-did
+    attributes:
+      label: "Чем я занимался"
+      description: "Кратко опишите свою сессию."
+      placeholder: "Начал новую игру, провёл 10 матчей, дошёл до 12-го игрового дня..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-enjoyed
+    attributes:
+      label: "Что понравилось"
+      description: "Что было приятно? Что заставляло играть дальше?"
+      placeholder: "Симуляция матчей захватывала, особенно когда..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-frustrated-me
+    attributes:
+      label: "Что раздражало"
+      description: "Из-за чего вы чуть не бросили играть? Что показалось сломанным или утомительным?"
+      placeholder: "Я запутался на странице тренировок и..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: top-improvements
+    attributes:
+      label: "3 главные вещи, которые я бы улучшил"
+      description: "Если бы вы могли изменить три вещи, что бы это было?"
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: play-again
+    attributes:
+      label: "Стали бы играть снова?"
+      options:
+        - "Да"
+        - "Возможно"
+        - "Нет"
+    validations:
+      required: true
+
+  - type: textarea
+    id: play-again-why
+    attributes:
+      label: "Почему?"
+      description: "Расскажите, почему вы стали бы или не стали бы играть снова."
+      placeholder: "Потому что..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Что-нибудь ещё?"
+      description: "Любые другие мысли, скриншоты или файлы журналов."
+      placeholder: "Перетащите файлы сюда или напишите что-нибудь ещё..."
+    validations:
+      required: false

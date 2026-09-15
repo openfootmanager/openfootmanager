@@ -1,0 +1,58 @@
+name: "\U0001F4AC Masukan / Saran (Bahasa Indonesia)"
+description: "Bagikan masukan atau usulkan perbaikan dalam Bahasa Indonesia"
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Masukan / Saran
+        Kami sangat ingin mendengar pendapat Anda!
+        Mohon tulis dalam Bahasa Indonesia pada templat ini.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Kategori"
+      options:
+        - "Kemudahan penggunaan"
+        - "Keseimbangan"
+        - "Saran"
+        - "Lainnya"
+    validations:
+      required: true
+
+  - type: input
+    id: area
+    attributes:
+      label: "Bagian gim yang mana?"
+      description: "Mis. latihan, simulasi pertandingan, transfer, kotak masuk, taktik..."
+      placeholder: "Simulasi pertandingan"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Deskripsi"
+      description: "Jelaskan pengalaman, masalah, atau saran Anda secara rinci."
+      placeholder: "Menurut saya sistem latihan bisa diperbaiki dengan..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-it-matters
+    attributes:
+      label: "Mengapa ini penting"
+      description: "Bagaimana hal ini memengaruhi kenikmatan Anda bermain?"
+      placeholder: "Ini penting karena..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Tangkapan layar"
+      description: "Seret tangkapan layar yang relevan ke sini."
+      placeholder: "Seret berkas ke sini..."
+    validations:
+      required: false
