@@ -112,7 +112,35 @@ pub fn is_season_complete(game: &Game) -> bool {
             })
             .collect();
         if !user_leagues.is_empty() {
-            return user_leagues.into_iter().all(is_league_complete);
+            if !user_leagues.iter().copied().all(is_league_complete) {
+                return false;
+            }
+            // The rest of the user's own pyramid has to be finished too, or the
+            // rollover fires while a division below is still playing and the
+            // ladder skips the whole country. Brazil is the shipped case: its
+            // first division starts in January and its second in March, so at
+            // the first division's last matchday the second still had eight
+            // rounds to go. Promotion happened every *other* season, and the
+            // second division skipped a calendar year each time.
+            //
+            // Waiting costs nothing on the calendar — the first division's next
+            // season still starts on its own date in January. Only tiers that
+            // have actually kicked off can block, so a division whose fixtures
+            // were never generated cannot strand a career.
+            let user_countries: std::collections::BTreeSet<&str> = user_leagues
+                .iter()
+                .filter_map(|league| league.country_id.as_deref())
+                .collect();
+            let countrymen_still_playing = game.competitions.iter().any(|competition| {
+                berths::is_ladder_tier(competition)
+                    && competition
+                        .country_id
+                        .as_deref()
+                        .is_some_and(|country| user_countries.contains(country))
+                    && season_has_started(competition)
+                    && !is_league_season_ended(competition)
+            });
+            return !countrymen_still_playing;
         }
         // Fallback when user has no known league (e.g. international-only):
         // all league tables must complete before rollover is available.
@@ -184,42 +212,77 @@ fn division_prize_money(position: u32, tier: u32) -> i64 {
     prize_money_for_position(position) >> tier
 }
 
-/// Final standings and pyramid tier for every league-table competition, falling
-/// back to the legacy single league. Tier is the rank by `priority` among the
-/// leagues sharing a country; standalone leagues are tier 0.
-fn division_standings_with_tiers(game: &Game) -> Vec<(Vec<StandingEntry>, u32)> {
+/// A division whose season has just been played out: its final table, how far
+/// down its own pyramid it sits, and the season it belongs to.
+struct FinishedDivision {
+    standings: Vec<StandingEntry>,
+    tier: u32,
+    season: u32,
+}
+
+/// Final standings for every league-table competition that has finished,
+/// falling back to the legacy single league.
+///
+/// Tier is the rank by `priority` among *all* the leagues sharing a country,
+/// not just the finished ones. Ranking the finished ones alone made a second
+/// division the top flight whenever the first was still playing, and prize
+/// money is halved per tier — so its champion banked a top-flight 5,000,000
+/// instead of 2,500,000.
+///
+/// Each division also carries its own season. The caller used to stamp every
+/// record with the *user's* season, which mislabels a foreign league running on
+/// another calendar: its 2034 results were recorded as 2035.
+fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
     use std::collections::BTreeMap;
 
-    let leagues: Vec<&League> = if game.competitions.is_empty() {
-        game.league.iter().collect()
-    } else {
-        game.competitions
+    if game.competitions.is_empty() {
+        return game
+            .league
             .iter()
-            .filter(|competition| {
-                competition.rules.format == CompetitionFormat::LeagueTable
-                    && is_league_season_ended(competition)
+            .map(|league| FinishedDivision {
+                standings: league.sorted_standings(),
+                tier: 0,
+                season: league.season,
             })
-            .collect()
-    };
+            .collect();
+    }
 
     let mut by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
     let mut standalone: Vec<&League> = Vec::new();
-    for league in leagues {
+    for league in game
+        .competitions
+        .iter()
+        .filter(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
+    {
         match league.country_id.as_deref() {
             Some(country) => by_country.entry(country).or_default().push(league),
             None => standalone.push(league),
         }
     }
 
-    let mut divisions: Vec<(Vec<StandingEntry>, u32)> = Vec::new();
+    let mut divisions: Vec<FinishedDivision> = Vec::new();
     for mut group in by_country.into_values() {
         group.sort_by_key(|league| league.priority);
         for (tier, league) in group.into_iter().enumerate() {
-            divisions.push((league.sorted_standings(), tier as u32));
+            if !is_league_season_ended(league) {
+                continue; // ranked, but nothing to pay out or record yet
+            }
+            divisions.push(FinishedDivision {
+                standings: league.sorted_standings(),
+                tier: tier as u32,
+                season: league.season,
+            });
         }
     }
     for league in standalone {
-        divisions.push((league.sorted_standings(), 0));
+        if !is_league_season_ended(league) {
+            continue;
+        }
+        divisions.push(FinishedDivision {
+            standings: league.sorted_standings(),
+            tier: 0,
+            season: league.season,
+        });
     }
     divisions
 }
@@ -719,10 +782,17 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let divisions = division_standings_with_tiers(game);
     let user_division_tier = divisions
         .iter()
-        .find(|(standings, _)| standings.iter().any(|s| s.team_id == user_team_id))
-        .map(|(_, tier)| *tier)
+        .find(|division| {
+            division
+                .standings
+                .iter()
+                .any(|entry| entry.team_id == user_team_id)
+        })
+        .map(|division| division.tier)
         .unwrap_or(0);
-    for (division_standings, tier) in divisions {
+    for division in divisions {
+        let (division_standings, tier, season) =
+            (division.standings, division.tier, division.season);
         for (idx, standing) in division_standings.iter().enumerate() {
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == standing.team_id) {
                 let position = (idx + 1) as u32;

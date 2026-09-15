@@ -2336,6 +2336,91 @@ mod tests {
         }
     }
 
+    /// Brazil is the one shipped nation whose divisions run on different
+    /// calendars — Série A opens 28 January, Série B on 21 March — so at the
+    /// first division's last matchday the second still has eight rounds to
+    /// play. The rollover used to fire anyway, the ladder skipped the whole
+    /// country for want of a finished lower tier, and Série B was never
+    /// regenerated: promotion happened every *other* season, and Série B
+    /// skipped a calendar year each time it did.
+    ///
+    /// A Brazilian career is the whole point of this test. An English one
+    /// cannot see the bug, because both English divisions finish together.
+    #[test]
+    fn a_brazilian_career_promotes_and_relegates_every_season() {
+        let mut game = production_world(2035, "br-00");
+        let (regions, competitions) =
+            resolve_simulation_scope(&game, "br-00", None, None).expect("a valid scope");
+        game.active_region_ids = regions;
+        game.active_competition_ids = competitions;
+
+        for rollover in 1..=3 {
+            let user_last = game
+                .competitions
+                .iter()
+                .find(|competition| {
+                    competition.rules.format == CompetitionFormat::LeagueTable
+                        && competition.participant_ids.iter().any(|id| id == "br-00")
+                })
+                .expect("the user's division")
+                .fixtures
+                .iter()
+                .filter(|fixture| fixture.counts_for_league_standings())
+                .filter_map(|fixture| {
+                    chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok()
+                })
+                .max()
+                .expect("a scheduled season");
+
+            // Advance in steps the way a player does, until the game itself
+            // says the season is over. If the gate let the rollover through
+            // while Série B was mid-season, this would stop at the first step.
+            let mut cutoff = Utc.from_utc_datetime(
+                &user_last
+                    .and_hms_opt(0, 0, 0)
+                    .expect("midnight is a valid time"),
+            ) + chrono::Duration::days(1);
+            for _ in 0..40 {
+                let players = game.players.clone();
+                for competition in game.competitions.iter_mut() {
+                    ofm_core::catchup::simulate_past_fixtures(competition, &players, cutoff);
+                }
+                game.clock.current_date = cutoff;
+                if ofm_core::end_of_season::is_season_complete(&game) {
+                    break;
+                }
+                cutoff += chrono::Duration::days(14);
+            }
+            assert!(
+                ofm_core::end_of_season::is_season_complete(&game),
+                "rollover {rollover}: the Brazilian season never completed"
+            );
+
+            let roster_before = by_competition_id(&game, "br-d1").participant_ids.clone();
+            let second_tier_season_before = by_competition_id(&game, "br-d2").season;
+
+            ofm_core::end_of_season::process_end_of_season(&mut game);
+
+            assert_ne!(
+                by_competition_id(&game, "br-d1").participant_ids,
+                roster_before,
+                "rollover {rollover}: Série A promoted and relegated nobody"
+            );
+            assert_eq!(
+                by_competition_id(&game, "br-d2").season,
+                second_tier_season_before + 1,
+                "rollover {rollover}: Série B must advance exactly one season, not skip a year"
+            );
+        }
+    }
+
+    fn by_competition_id<'a>(game: &'a Game, id: &str) -> &'a League {
+        game.competitions
+            .iter()
+            .find(|competition| competition.id == id)
+            .unwrap_or_else(|| panic!("{id} should exist"))
+    }
+
     /// Characterization test: locks the STRUCTURE of the generated foundation
     /// world (kinds, scopes, regions, countries, priorities, participant and
     /// fixture counts, formats) so the Phase E "unify built-ins through the
