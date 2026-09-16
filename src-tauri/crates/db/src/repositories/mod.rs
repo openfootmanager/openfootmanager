@@ -1,4 +1,5 @@
 pub mod competition_repo;
+pub(crate) mod journal_repo;
 pub mod league_repo;
 pub mod manager_repo;
 pub mod message_repo;

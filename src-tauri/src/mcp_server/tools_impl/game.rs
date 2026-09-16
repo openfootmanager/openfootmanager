@@ -38,30 +38,26 @@ pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── game_save ──────────────────────────────────────────────────────────────
 
 pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
-    let game = require_game(&ctx.state_manager)?;
     let save_id = ctx
         .state_manager
         .get_save_id()
         .ok_or("be.error.noActiveSaveSession")?;
-
-    let stats_state = ctx
-        .state_manager
-        .get_stats_state(|s| s.clone())
-        .unwrap_or_default();
-
     {
         let mut sm = ctx
             .save_manager_state
             .0
             .lock()
             .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
-        sm.save_game_with_stats(&game, &stats_state, &save_id)?;
+        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
     }
+    let date = ctx
+        .state_manager
+        .get_game(|game| game.clock.current_date.format("%d %B %Y").to_string())
+        .unwrap_or_default();
 
     Ok(format!(
         "## Game Saved\n\n**Save ID**: {}\n**Date**: {}",
-        save_id,
-        game.clock.current_date.format("%d %B %Y")
+        save_id, date
     ))
 }
 
@@ -208,24 +204,23 @@ pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, S
 
 // ─── game_exit ──────────────────────────────────────────────────────────────
 
-// ─── game_exit ──────────────────────────────────────────────────────────────
-
 pub fn game_exit(ctx: Arc<McpContext>) -> Result<String, String> {
-    let game = require_game(&ctx.state_manager)?;
-
-    // Auto-save
-    if let Some(save_id) = ctx.state_manager.get_save_id() {
-        let stats_state = ctx
-            .state_manager
-            .get_stats_state(|s| s.clone())
-            .unwrap_or_default();
+    let saved = if ctx
+        .state_manager
+        .get_save_id()
+        .filter(|id| !id.is_empty())
+        .is_some()
+    {
         let mut sm = ctx
             .save_manager_state
             .0
             .lock()
             .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
-        sm.save_game_with_stats(&game, &stats_state, &save_id)?;
-    }
+        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
+        true
+    } else {
+        false
+    };
 
     ctx.state_manager.clear_game();
     ctx.state_manager.set_save_id(String::new());
@@ -235,10 +230,17 @@ pub fn game_exit(ctx: Arc<McpContext>) -> Result<String, String> {
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(
-        "## Returned to Menu\n\nGame saved and cleared. Use `game_load_save` to resume."
-            .to_string(),
-    )
+    if saved {
+        Ok(
+            "## Returned to Menu\n\nGame saved and cleared. Use `game_load_save` to resume."
+                .to_string(),
+        )
+    } else {
+        Ok(
+            "## Returned to Menu\n\nGame cleared without saving. Use `game_load_save` to resume."
+                .to_string(),
+        )
+    }
 }
 
 // ─── game_export_world ──────────────────────────────────────────────────────

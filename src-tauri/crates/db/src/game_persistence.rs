@@ -12,8 +12,9 @@ use ofm_core::game::{
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
-    competition_repo, league_repo, manager_repo, message_repo, meta_repo, national_team_repo,
-    news_repo, objective_repo, player_repo, scouting_repo, staff_repo, stats_repo, team_repo,
+    competition_repo, journal_repo, league_repo, manager_repo, message_repo, meta_repo,
+    national_team_repo, news_repo, objective_repo, player_repo, scouting_repo, staff_repo,
+    stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -141,6 +142,7 @@ fn write_game_to_connection(
         manager_repo::upsert_manager(conn, manager)?;
     }
     team_repo::upsert_teams(conn, &game.teams)?;
+    journal_repo::insert_dirty_cash_posts(conn, game)?;
     player_repo::upsert_players(conn, &game.players)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;
@@ -356,6 +358,10 @@ impl GamePersistenceReader {
                 serde_json::from_str(&meta.package_lockfile_json)
                     .map_err(|_| "be.error.gamePersistence.loadFailed".to_string())?
             },
+            cash_journal: domain::finance::CashJournal::from_vec(journal_repo::load_cash_journal(
+                conn,
+            )?),
+            cash_journal_dirty_ids: Vec::new(),
         };
         game.promote_legacy_league();
         // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done
@@ -468,6 +474,19 @@ mod tests {
             .with_ymd_and_hms(start_year, 7, current_day, 0, 0, 0)
             .unwrap();
         game
+    }
+
+    #[test]
+    fn read_game_does_not_invent_opening_balances() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2026, 1);
+        game.teams[0].finance = 1_000_000;
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(loaded.cash_journal.is_empty());
+        assert!(loaded.cash_journal_dirty_ids.is_empty());
+        assert_eq!(loaded.teams[0].finance, 1_000_000);
     }
 
     #[test]
