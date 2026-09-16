@@ -19,6 +19,13 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
             }
             rust_sources(&path, out);
         } else if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("");
+            if name == "tests.rs" {
+                continue;
+            }
             out.push(path);
         }
     }
@@ -35,7 +42,7 @@ fn is_allowed_cash_writer(path: &Path) -> bool {
 fn production_lines(source: &str) -> impl Iterator<Item = &str> {
     let mut in_tests = false;
     source.lines().filter(move |line| {
-        if line.contains("#[cfg(test)]") {
+        if line.contains("#[cfg(test)]") || line.contains("#![cfg(test)]") {
             in_tests = true;
         }
         !in_tests
