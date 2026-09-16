@@ -1,21 +1,15 @@
 import { getPlayerOvr } from "../../lib/helpers";
+import { positionGroupRank } from "../../lib/positions";
 import { getPlayerAnnualWageCommitment } from "../../lib/finance";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 
 import type { LeagueStanding, TeamProfileViewModel } from "./TeamProfile.types";
 
-const POSITION_ORDER: Record<string, number> = {
-  Goalkeeper: 1,
-  Defender: 2,
-  Midfielder: 3,
-  Forward: 4,
-};
-
 function sortRoster(players: PlayerData[]): PlayerData[] {
   return [...players].sort((leftPlayer, rightPlayer) => {
     return (
-      (POSITION_ORDER[leftPlayer.position] || 99) -
-      (POSITION_ORDER[rightPlayer.position] || 99)
+      positionGroupRank(leftPlayer.position) -
+      positionGroupRank(rightPlayer.position)
     );
   });
 }
