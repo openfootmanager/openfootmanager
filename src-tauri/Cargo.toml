@@ -116,7 +116,7 @@ mcp = ["dep:rmcp", "dep:axum", "dep:tokio"]
 save-snapshots = ["db/save-snapshots"]
 
 [dependencies.rmcp]
-version = "1.7"
+version = "2.0"
 features = ["server", "transport-streamable-http-server", "macros"]
 optional = true
 
