@@ -184,7 +184,7 @@ mod tests {
     /// into a division it never played in — the tier above would gain a club
     /// from nowhere and the two divisions would end up different sizes.
     #[test]
-    fn a_standing_without_a_registration_moves_nobody() {
+    fn an_unregistered_standing_is_ignored_while_the_rest_exchange() {
         let mut top = division("top", 0, &[("t1", 30), ("t2", 20)]);
         let mut bottom = division("bottom", 1, &[("b1", 30), ("b2", 20)]);
         // `ghost` finished second in the lower division but is no longer on its
@@ -206,6 +206,18 @@ mod tests {
         );
         assert_eq!(divisions[0].participant_ids.len(), 2, "sizes must hold");
         assert_eq!(divisions[1].participant_ids.len(), 2, "sizes must hold");
+        // The registered clubs still exchange around the ignored row. Without
+        // this the test would pass equally well if nothing moved at all.
+        assert!(
+            divisions[0].participant_ids.contains(&"b1".to_string()),
+            "the lower division's champion still goes up: {:?}",
+            divisions[0].participant_ids
+        );
+        assert!(
+            divisions[1].participant_ids.contains(&"t2".to_string()),
+            "the top division's bottom club still goes down: {:?}",
+            divisions[1].participant_ids
+        );
     }
 
     /// A short table must not relegate the whole division. The swap count comes

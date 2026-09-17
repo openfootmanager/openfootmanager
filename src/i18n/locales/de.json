@@ -2657,7 +2657,7 @@
         "selectorMissingSource": "Dieser Selektor benötigt einen Quellwettbewerb.",
         "unknownExcludedCompetition": "Unbekannter ausgeschlossener Wettbewerb \"{{excluded}}\".",
         "selectorCycle": "Zirkuläre Qualifikation zwischen Wettbewerben.",
-        "duplicateTierPriority": "Zwei Ligen von {{country}} teilen sich die Priorität {{priority}}. Ein niedrigerer Wert bedeutet eine höhere Liga, und jede Stufe braucht einen eigenen, sonst steigt keine auf oder ab."
+        "duplicateTierPriority": "Mehrere Ligen von {{country}} teilen sich die Priorität {{priority}}. Ein niedrigerer Wert bedeutet eine höhere Liga, und jede Stufe braucht einen eigenen, sonst steigt keine auf oder ab."
       },
       "worldParseFailed": "Die Weltdatenbankdatei konnte nicht verarbeitet werden.",
       "worldWriteFileFailed": "Die Weltdatenbankdatei konnte nicht exportiert werden.",

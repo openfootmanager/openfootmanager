@@ -2678,7 +2678,7 @@
         "selectorMissingSource": "Pemilih ini membutuhkan kompetisi sumber.",
         "unknownExcludedCompetition": "Kompetisi yang dikecualikan \"{{excluded}}\" tidak dikenal.",
         "selectorCycle": "Kualifikasi melingkar antar kompetisi.",
-        "duplicateTierPriority": "Dua divisi {{country}} memiliki prioritas {{priority}} yang sama. Angka lebih kecil berarti divisi lebih tinggi, dan setiap tingkat butuh angkanya sendiri, atau tidak ada yang promosi maupun degradasi."
+        "duplicateTierPriority": "Beberapa divisi {{country}} memiliki prioritas {{priority}} yang sama. Angka lebih kecil berarti divisi lebih tinggi, dan setiap tingkat butuh angkanya sendiri, atau tidak ada yang promosi maupun degradasi."
       },
       "worldParseFailed": "Gagal mengurai berkas basis data dunia.",
       "worldWriteFileFailed": "Gagal mengekspor berkas basis data dunia.",

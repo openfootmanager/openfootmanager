@@ -2435,6 +2435,64 @@ fn an_unfinished_upper_tier_does_not_pay_top_flight_prize_money() {
     );
 }
 
+/// A split-season country plays the same clubs through an Apertura and a
+/// Clausura. Counted separately they were ranked as though the second were a
+/// tier below the first, so a club banked a top-flight prize for one half and a
+/// second-division prize for the other — 7,500,000 for one year — and gained
+/// two career-history entries every season.
+#[test]
+fn a_split_season_pays_and_records_one_division_once() {
+    let mut game = make_completed_season_game();
+    let roster = ["team1", "team2"];
+
+    let mut apertura = first_division("ar-d1-apertura", "AR", "america", &roster);
+    apertura.priority = 0;
+    apertura.fixtures = vec![make_completed_fixture("ap", "team1", "team2", 2, 0)];
+    let mut clausura = first_division("ar-d1-clausura", "AR", "america", &roster);
+    clausura.priority = 1;
+    let mut closing = make_completed_fixture("cl", "team1", "team2", 1, 0);
+    // The Clausura closes the year, so its table is the one that counts.
+    closing.date = "2025-12-01".to_string();
+    clausura.fixtures = vec![closing];
+
+    game.league = Some(apertura.clone());
+    game.competitions = vec![apertura, clausura];
+    let before = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team1")
+        .expect("team1")
+        .finance;
+
+    process_end_of_season(&mut game);
+
+    let team1 = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team1")
+        .expect("team1");
+    assert_eq!(
+        team1.history.len(),
+        1,
+        "one season, one history entry: {:?}",
+        team1.history
+    );
+    assert_eq!(
+        team1.finance - before,
+        5_000_000,
+        "the champion is paid once, at top-flight rate"
+    );
+    assert_eq!(
+        team1
+            .financial_ledger
+            .iter()
+            .filter(|row| matches!(row.kind, FinancialTransactionKind::PrizeMoney))
+            .count(),
+        1,
+        "one prize payment"
+    );
+}
+
 /// A league on another calendar finishes a different season from the user's.
 /// Every division's history used to be stamped with the user's season number,
 /// so a foreign league's season 1 was recorded as season 2.

@@ -2657,7 +2657,7 @@
         "selectorMissingSource": "该选择器需要一个来源赛事。",
         "unknownExcludedCompetition": "未知的排除赛事“{{excluded}}”。",
         "selectorCycle": "赛事之间存在循环资格依赖。",
-        "duplicateTierPriority": "{{country}} 有两个级别的优先级同为 {{priority}}。数值越小级别越高，每个级别需要各自的数值，否则两者都不会升降级。"
+        "duplicateTierPriority": "{{country}} 有多个级别的优先级同为 {{priority}}。数值越小级别越高，每个级别需要各自的数值，否则它们都不会升降级。"
       },
       "worldParseFailed": "解析世界数据库文件失败。",
       "worldWriteFileFailed": "导出世界数据库文件失败。",

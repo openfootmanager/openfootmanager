@@ -140,4 +140,35 @@ describe("getPromotionRelegationZones", () => {
       relegationSlots: 0,
     });
   });
+
+  it("draws no zones when two eligible tiers share a priority", () => {
+    // The backend refuses a ladder run whose tiers do not rank distinctly, so
+    // the table must not promise movement it will not make.
+    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("a", 20) });
+    const peer = division({ id: "xx-1b", country_id: "XX", priority: 0, participant_ids: clubs("b", 20) });
+    const below = division({ id: "xx-2", country_id: "XX", priority: 1, participant_ids: clubs("c", 20) });
+
+    for (const competition of [first, peer, below]) {
+      expect(getPromotionRelegationZones([first, peer, below], competition)).toEqual({
+        promotionSlots: 0,
+        relegationSlots: 0,
+      });
+    }
+  });
+
+  it("treats a numeric gap in priorities as adjacent", () => {
+    // The backend sorts a country's tiers and chains neighbours by rank order,
+    // not by numeric adjacency, so 0 and 2 are neighbouring divisions.
+    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("a", 20) });
+    const second = division({ id: "xx-2", country_id: "XX", priority: 2, participant_ids: clubs("b", 20) });
+
+    expect(getPromotionRelegationZones([first, second], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 4,
+    });
+    expect(getPromotionRelegationZones([first, second], second)).toEqual({
+      promotionSlots: 4,
+      relegationSlots: 0,
+    });
+  });
 });

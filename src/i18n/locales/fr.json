@@ -2657,7 +2657,7 @@
         "selectorMissingSource": "Ce sélecteur nécessite une compétition source.",
         "unknownExcludedCompetition": "Compétition exclue inconnue \"{{excluded}}\".",
         "selectorCycle": "Qualification circulaire entre compétitions.",
-        "duplicateTierPriority": "Deux divisions de {{country}} partagent la priorité {{priority}}. Plus le nombre est bas, plus la division est élevée, et chaque échelon a besoin du sien, sinon aucune ne monte ni ne descend."
+        "duplicateTierPriority": "Des divisions de {{country}} partagent la priorité {{priority}}. Plus le nombre est bas, plus la division est élevée, et chaque échelon a besoin du sien, sinon aucune ne monte ni ne descend."
       },
       "worldParseFailed": "Impossible d'interpréter le fichier de base de données du monde.",
       "worldWriteFileFailed": "Impossible d'exporter le fichier de base de données du monde.",
