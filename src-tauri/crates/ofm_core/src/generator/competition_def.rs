@@ -316,19 +316,33 @@ fn detect_duplicate_tier_priorities(
             .map(|berth| berth.target.as_str())
             .collect()
     }
-    let berth_targets: HashSet<&str> = file
+    // Only a berth into a tier makes siblings, because only those leave the
+    // runtime ladder. Counting a continental cup here would excuse the very
+    // shape `create_game` ships — every first division berths into the same cup
+    // — so two equal-ranked divisions would be waved through as "siblings" and
+    // then silently refused promotion at runtime.
+    let tier_ids: HashSet<&str> = file
         .competitions
         .iter()
-        .flat_map(position_targets)
+        .filter(|competition| is_tier(competition))
+        .map(|competition| competition.id.as_str())
         .collect();
-    let mut feeders_by_target: BTreeMap<&str, usize> = BTreeMap::new();
+    let tier_targets = |competition: &CompetitionDefinition| -> Vec<String> {
+        position_targets(competition)
+            .into_iter()
+            .filter(|target| tier_ids.contains(target))
+            .map(str::to_string)
+            .collect()
+    };
+    let berth_targets: HashSet<String> = file.competitions.iter().flat_map(&tier_targets).collect();
+    let mut feeders_by_target: BTreeMap<String, usize> = BTreeMap::new();
     for competition in file.competitions.iter().filter(|c| is_tier(c)) {
-        for target in position_targets(competition) {
+        for target in tier_targets(competition) {
             *feeders_by_target.entry(target).or_default() += 1;
         }
     }
     let is_sibling_feeder = |competition: &CompetitionDefinition| {
-        position_targets(competition).iter().any(|target| {
+        tier_targets(competition).iter().any(|target| {
             feeders_by_target
                 .get(target)
                 .is_some_and(|count| *count > 1)
@@ -1145,7 +1159,47 @@ mod tests {
         );
     }
 
-    /// Ranked apart, the very same pair is an ordinary two-tier pyramid.
+    /// The shape `create_game` ships: every first division berths into the same
+    /// continental cup. A cup is not a rung, so the two divisions are not
+    /// siblings at runtime — they stay in one ladder run and are refused
+    /// promotion for sharing a rank. Counting every berth target here excused
+    /// exactly that case.
+    #[test]
+    fn a_shared_continental_berth_does_not_excuse_a_duplicate_priority() {
+        let mut first = explicit("tr-1", &["team-a", "team-b"]);
+        let mut second = explicit("tr-2", &["team-b", "team-c"]);
+        first.priority = 1;
+        second.priority = 1;
+        for division in [&mut first, &mut second] {
+            division.berths = vec![Berth {
+                target: "ucl".to_string(),
+                rule: BerthRule::PositionRange { from: 1, to: 1 },
+                fallback_to: None,
+            }];
+        }
+        let mut cup = explicit("ucl", &["team-a", "team-b"]);
+        cup.r#type = CompetitionType::ContinentalClub;
+        cup.scope = CompetitionScope::Continental;
+        cup.country_id = None;
+        cup.region_id = Some("europe".to_string());
+        cup.format.kind = CompetitionFormat::GroupAndKnockout;
+
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![first, second, cup],
+        };
+
+        assert_eq!(
+            codes(&validate_definitions(&file, &ctx())),
+            vec![
+                "be.error.competitionDef.duplicateTierPriority",
+                "be.error.competitionDef.duplicateTierPriority",
+            ],
+            "a continental berth does not make two divisions siblings"
+        );
+    }
+
+    /// Ranked apart, the very same pair is an ordinary two-tier pyramid.""
     #[test]
     fn two_domestic_league_tables_ranked_apart_are_a_valid_pyramid() {
         let mut first = explicit("tr-1", &["team-a", "team-b"]);

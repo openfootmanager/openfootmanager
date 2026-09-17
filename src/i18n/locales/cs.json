@@ -2678,7 +2678,7 @@
         "selectorMissingSource": "Tento selektor vyžaduje zdrojovou soutěž.",
         "unknownExcludedCompetition": "Neznámá vyloučená soutěž „{{excluded}}“.",
         "selectorCycle": "Kruhová kvalifikace mezi soutěžemi.",
-        "duplicateTierPriority": "Dvě soutěže země {{country}} sdílejí prioritu {{priority}}. Nižší číslo znamená vyšší soutěž a každá úroveň potřebuje vlastní, jinak nikdo nepostoupí ani nesestoupí."
+        "duplicateTierPriority": "Několik soutěží země {{country}} sdílí prioritu {{priority}}. Nižší číslo znamená vyšší soutěž a každá úroveň potřebuje vlastní, jinak nikdo nepostoupí ani nesestoupí."
       },
       "worldParseFailed": "Nepodařilo se zpracovat databázový soubor světa.",
       "worldWriteFileFailed": "Nepodařilo se exportovat databázový soubor světa.",

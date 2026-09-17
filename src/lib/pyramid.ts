@@ -69,6 +69,18 @@ export function getPromotionRelegationZones(
       !shareClubs(competition, other),
   );
 
+  // The backend refuses a whole ladder run whose tiers do not rank distinctly —
+  // equal priorities are peers, and which of them is "above" would be decided by
+  // list order. Mirror that refusal rather than promising movement the rollover
+  // will not make. Note this is about *equal* numbers only: the backend sorts a
+  // country's tiers and chains neighbours by rank order, so a gap between 0 and
+  // 2 still makes two adjacent divisions.
+  const ladder = [competition, ...siblings];
+  const ranks = new Set(ladder.map((other) => other.priority ?? 0));
+  if (ranks.size < ladder.length) {
+    return NO_ZONES;
+  }
+
   const above = siblings
     .filter((other) => (other.priority ?? 0) < myPriority)
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0];

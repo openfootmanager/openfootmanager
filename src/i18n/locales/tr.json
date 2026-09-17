@@ -2678,7 +2678,7 @@
         "selectorMissingSource": "Bu seçici bir kaynak turnuva gerektiriyor.",
         "unknownExcludedCompetition": "Bilinmeyen hariç tutulan turnuva \"{{excluded}}\".",
         "selectorCycle": "Turnuvalar arasında döngüsel katılım ilişkisi.",
-        "duplicateTierPriority": "{{country}} ülkesinin iki ligi {{priority}} önceliğini paylaşıyor. Daha düşük sayı daha üst lig demektir ve her kademenin kendi sayısı olmalı, yoksa hiçbiri yükselmez veya düşmez."
+        "duplicateTierPriority": "{{country}} ülkesinin birden fazla ligi {{priority}} önceliğini paylaşıyor. Daha düşük sayı daha üst lig demektir ve her kademenin kendi sayısı olmalı, yoksa hiçbiri yükselmez veya düşmez."
       },
       "worldParseFailed": "Dünya veritabanı dosyası ayrıştırılamadı.",
       "worldWriteFileFailed": "Dünya veritabanı dosyası dışa aktarılamadı.",

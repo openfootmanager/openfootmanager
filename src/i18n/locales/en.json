@@ -2678,7 +2678,7 @@
         "selectorMissingSource": "This selector needs a source competition.",
         "unknownExcludedCompetition": "Unknown excluded competition \"{{excluded}}\".",
         "selectorCycle": "Circular qualification between competitions.",
-        "duplicateTierPriority": "Two divisions of {{country}} share priority {{priority}}. Lower is the higher division, and each tier needs its own number, or neither is promoted or relegated."
+        "duplicateTierPriority": "Divisions of {{country}} share priority {{priority}}. Lower is the higher division, and each tier needs its own number, or none of them is promoted or relegated."
       },
       "worldParseFailed": "Failed to parse the world database file.",
       "worldWriteFileFailed": "Failed to export the world database file.",

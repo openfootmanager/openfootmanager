@@ -212,6 +212,46 @@ fn division_prize_money(position: u32, tier: u32) -> i64 {
     prize_money_for_position(position) >> tier
 }
 
+/// Reduce a country's tables to one per division.
+///
+/// A split-season country plays the same clubs through an Apertura and a
+/// Clausura, which are two competitions over one division. Counted separately
+/// they were ranked as though the second were a tier below the first, so an
+/// Argentine club banked a top-flight prize for one half and a second-division
+/// prize for the other — 7,500,000 for a single year — and its career history
+/// gained two entries every season.
+///
+/// The half that finishes last is the one kept: it is the table the club ends
+/// its year on. `group` is already ordered by rank, and that order is preserved.
+fn collapse_repeated_divisions(group: &mut Vec<&League>) {
+    use std::collections::BTreeSet;
+
+    fn roster(league: &League) -> BTreeSet<&str> {
+        league.participant_ids.iter().map(String::as_str).collect()
+    }
+    fn finished_on(league: &League) -> Option<&str> {
+        league
+            .fixtures
+            .iter()
+            .filter(|fixture| fixture.status == FixtureStatus::Completed)
+            .map(|fixture| fixture.date.as_str())
+            .max()
+    }
+
+    let mut kept: Vec<&League> = Vec::with_capacity(group.len());
+    for league in group.iter().copied() {
+        match kept
+            .iter()
+            .position(|other| !roster(other).is_empty() && roster(other) == roster(league))
+        {
+            Some(index) if finished_on(league) > finished_on(kept[index]) => kept[index] = league,
+            Some(_) => {}
+            None => kept.push(league),
+        }
+    }
+    *group = kept;
+}
+
 /// A division whose season has just been played out: its final table, how far
 /// down its own pyramid it sits, and the season it belongs to.
 struct FinishedDivision {
@@ -263,6 +303,7 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
     let mut divisions: Vec<FinishedDivision> = Vec::new();
     for mut group in by_country.into_values() {
         group.sort_by_key(|league| league.priority);
+        collapse_repeated_divisions(&mut group);
         for (tier, league) in group.into_iter().enumerate() {
             if !is_league_season_ended(league) {
                 continue; // ranked, but nothing to pay out or record yet

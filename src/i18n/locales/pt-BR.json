@@ -2657,7 +2657,7 @@
         "selectorMissingSource": "Este seletor precisa de uma competição de origem.",
         "unknownExcludedCompetition": "Competição excluída desconhecida \"{{excluded}}\".",
         "selectorCycle": "Classificação circular entre competições.",
-        "duplicateTierPriority": "Duas divisões de {{country}} compartilham a prioridade {{priority}}. Um número menor indica uma divisão superior, e cada nível precisa do seu, ou nenhuma sobe nem cai."
+        "duplicateTierPriority": "Divisões de {{country}} compartilham a prioridade {{priority}}. Um número menor indica uma divisão superior, e cada nível precisa do seu, ou nenhuma sobe nem cai."
       },
       "worldParseFailed": "Falha ao interpretar o arquivo do banco de dados do mundo.",
       "worldWriteFileFailed": "Falha ao exportar o arquivo do banco de dados do mundo.",
