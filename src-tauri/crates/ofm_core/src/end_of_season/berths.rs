@@ -16,6 +16,9 @@ use domain::league::{
 /// therefore has no automatic promotion path; it needs berths of its own.
 /// A league that is the *sole* `PositionRange` feeder into a target keeps its
 /// ladder edge — that is an ordinary two-tier pyramid written as data.
+/// Only a berth into a domestic league table makes siblings at all: a berth
+/// into a continental cup is qualification rather than promotion, and every
+/// first division carries one, so counting those would empty every ladder.
 /// `CupWinner`, `PlayoffWinner`, and `fallback_to` targets stay
 /// in the ladder (play-offs are Phase C.3b; fallbacks are continental).
 pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
@@ -33,6 +36,23 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     // the ladder together: splitting it pair by pair would leave whichever
     // group sorts last still chained to the tier below, making the outcome
     // depend on declaration order.
+    //
+    // Only a target a club can actually be *promoted into* counts. A berth into
+    // a continental cup is qualification, not promotion — the club keeps its
+    // league — and `create_game` gives every country's first division one such
+    // berth into the same cup. Grouping on the target id alone therefore made
+    // every first division in the world a sibling of every other, emptied each
+    // country's ladder down to its second division, and stopped promotion and
+    // relegation happening at all (#555). The predicate is the one
+    // `apply_domestic_berth_promotion_relegation` uses to pick its targets, so
+    // a league leaves the ladder exactly when the berth pass will move clubs
+    // into that target on its behalf.
+    let promotion_destinations: HashSet<&str> = competitions
+        .iter()
+        .filter(|competition| is_ladder_tier(competition))
+        .map(|competition| competition.id.as_str())
+        .collect();
+
     let mut feeders_by_target: HashMap<&str, Vec<&str>> = HashMap::new();
     for competition in competitions.iter() {
         if competition.rules.format != CompetitionFormat::LeagueTable {
@@ -43,6 +63,7 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
             .iter()
             .filter(|berth| matches!(berth.rule, BerthRule::PositionRange { .. }))
             .map(|berth| berth.target.as_str())
+            .filter(|target| promotion_destinations.contains(target))
             .collect();
         for target in targets {
             feeders_by_target
@@ -57,18 +78,13 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         .flatten()
         .collect();
 
+    // Every rung of every country, excluded ones included: a tier that leaves
+    // the ladder has to leave a *gap* in it, not be spirited away so that the
+    // tiers on either side close up and become neighbours.
     let mut tiers_by_country: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (index, competition) in competitions.iter().enumerate() {
-        if competition.rules.format != CompetitionFormat::LeagueTable {
+        if !is_ladder_tier(competition) {
             continue;
-        }
-        if berth_targets.contains(competition.id.as_str())
-            || sibling_feeders.contains(competition.id.as_str())
-        {
-            continue;
-        }
-        if !super::is_league_season_ended(competition) {
-            continue; // mid-season foreign leagues skip this rollover's P/R
         }
         if let Some(country) = &competition.country_id {
             tiers_by_country
@@ -78,13 +94,121 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         }
     }
 
-    for mut indices in tiers_by_country.into_values() {
-        if indices.len() < 2 {
+    // Cut each country's tiers into runs at every excluded rung. A berth-fed
+    // tier exchanges clubs through its berths instead, and the tiers above and
+    // below it are then two divisions apart — closing that gap would promote a
+    // third-division champion into the first. Collected before anything moves,
+    // so the borrows the exclusion sets hold on `competitions` end here.
+    let ladder_runs: Vec<Vec<usize>> = tiers_by_country
+        .into_values()
+        .flat_map(|mut indices| {
+            indices.sort_by_key(|&index| competitions[index].priority);
+            indices
+                .split(|&index| {
+                    let id = competitions[index].id.as_str();
+                    berth_targets.contains(id) || sibling_feeders.contains(id)
+                })
+                .filter(|run| run.len() >= 2)
+                .map(<[usize]>::to_vec)
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    for run in ladder_runs {
+        // A ladder is only meaningful over a run of tiers that have all
+        // finished, rank unambiguously, and hold their own clubs. Anything else
+        // is not a pyramid, and swapping across it moves clubs that should not
+        // move. The run waits rather than half-exchanging.
+        //
+        // Say so. Every one of these refusals looks identical from the outside
+        // — nobody is promoted, nobody is relegated, no message is sent — which
+        // is exactly how a dead ladder went unnoticed in the first place.
+        let refusal = if !every_tier_has_finished(competitions, &run) {
+            Some("a tier has not finished its season")
+        } else if !tiers_are_ranked_distinctly(competitions, &run) {
+            Some("two tiers share a priority, so their order is arbitrary")
+        } else if tiers_share_clubs(competitions, &run) {
+            Some("two tiers register the same club")
+        } else {
+            None
+        };
+        if let Some(reason) = refusal {
+            log::warn!(
+                "[end-of-season] no promotion or relegation for {}: {reason}",
+                run.iter()
+                    .map(|&index| competitions[index].id.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
             continue;
         }
-        indices.sort_by_key(|&index| competitions[index].priority);
-        apply_linear_chain(competitions, &indices);
+        apply_linear_chain(competitions, &run);
     }
+}
+
+/// A rung of a domestic pyramid: the country's own league competition, played
+/// as a table. A cup is not a rung even when it draws from the same clubs, and
+/// neither is a regional side-competition — which is why Brazil's state cups
+/// (`Cup` / `Regional` / `GroupAndKnockout`) cannot reach the ladder and cannot
+/// trip the overlap check below.
+pub(super) fn is_ladder_tier(competition: &League) -> bool {
+    competition.scope == CompetitionScope::Domestic
+        && competition.kind == CompetitionType::League
+        && competition.rules.format == CompetitionFormat::LeagueTable
+}
+
+/// True when every tier named by `indices` has played its season out.
+///
+/// A tier that is still running has no final table to promote from, and it used
+/// to be dropped from the chain rather than stopping it — which left the tiers
+/// on either side of it adjacent. A third division's champion was promoted
+/// straight into the first while the second was mid-season, and the club it
+/// displaced fell two divisions. A country's ladder therefore waits for all of
+/// its tiers, and a hemisphere-foreign country simply rolls over on its own
+/// calendar instead.
+fn every_tier_has_finished(competitions: &[League], indices: &[usize]) -> bool {
+    indices
+        .iter()
+        .all(|&index| super::is_league_season_ended(&competitions[index]))
+}
+
+/// True when no two tiers claim the same `priority`.
+///
+/// `priority` is what says which division is above which, so two leagues
+/// sharing one are peers — parallel regional groups, or a pyramid whose data is
+/// simply wrong — and the sort order between them is arbitrary. Swapping across
+/// that edge exchanges clubs between two leagues at the same level, decided by
+/// declaration order. This is also what keeps the sibling rule's fail-closed
+/// behaviour safe: feeders whose berth target does not exist stay on the
+/// ladder, and staying on it must not mean trading clubs with each other.
+fn tiers_are_ranked_distinctly(competitions: &[League], indices: &[usize]) -> bool {
+    indices
+        .windows(2)
+        .all(|pair| competitions[pair[0]].priority != competitions[pair[1]].priority)
+}
+
+/// True when two of the leagues named by `indices` register the same club.
+///
+/// Tiers of a pyramid are disjoint, so this means the ladder has mistaken
+/// something else for one. A split-season country is the case that exists:
+/// `create_game` gives it an Apertura and a Clausura over the *same* division,
+/// at consecutive priorities, which reads as two adjacent tiers. Swapping
+/// between them puts the promoted club on a table it is already on, and the
+/// regenerated schedule then has it playing itself.
+///
+/// Such a country keeps the no-promotion behaviour it has always had. Giving it
+/// a working ladder means deciding which half of the season settles the
+/// movement and applying the result to both halves' rosters — a gameplay
+/// decision, not a bug fix, and none of the shipped split-season nations has
+/// more than one division to promote into yet.
+fn tiers_share_clubs(competitions: &[League], indices: &[usize]) -> bool {
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    indices.iter().any(|&index| {
+        competitions[index]
+            .participant_ids
+            .iter()
+            .any(|club| !seen.insert(club.as_str()))
+    })
 }
 
 fn apply_linear_chain(competitions: &mut [League], indices: &[usize]) {
@@ -518,6 +642,23 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
             })
             .collect();
 
+        // Rank the feeders before anything is allocated. Until now this ran in
+        // whatever order the competitions happened to sit in, and persistence
+        // does not preserve that order — competitions reload sorted by
+        // priority, season and name — so saving and reloading changed which
+        // feeder supplied a promoted club when more of them qualified than the
+        // target had places. Rank, then id: the higher division's place-getters
+        // go up first, and ties break on a name rather than on a vector index.
+        feeder_plans.sort_by(|left, right| {
+            let key = |index: usize| {
+                (
+                    game.competitions[index].priority,
+                    game.competitions[index].id.clone(),
+                )
+            };
+            key(left.0).cmp(&key(right.0))
+        });
+
         let mut entrants: Vec<String> = {
             let promotable: HashSet<&str> = feeder_plans
                 .iter()
@@ -528,7 +669,18 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
                 .iter()
                 .map(String::as_str)
                 .collect();
-            fields
+            // Order the field by its feeder's rank too, so truncating it to the
+            // available places cuts the same clubs before and after a reload.
+            // Within one feeder the order is the finishing order, which is
+            // merit and must not be disturbed.
+            let feeder_rank: std::collections::HashMap<&str, usize> = feeder_plans
+                .iter()
+                .enumerate()
+                .flat_map(|(rank, (_, promoted))| {
+                    promoted.iter().map(move |club| (club.as_str(), rank))
+                })
+                .collect();
+            let mut field: Vec<String> = fields
                 .get(&target_id)
                 .into_iter()
                 .flatten()
@@ -536,7 +688,14 @@ pub(super) fn apply_domestic_berth_promotion_relegation(
                     promotable.contains(club.as_str()) && !already_in_target.contains(club.as_str())
                 })
                 .cloned()
-                .collect()
+                .collect();
+            field.sort_by_key(|club| {
+                feeder_rank
+                    .get(club.as_str())
+                    .copied()
+                    .unwrap_or(usize::MAX)
+            });
+            field
         };
         if entrants.is_empty() {
             continue;
@@ -974,11 +1133,160 @@ mod tests {
         assert!(!eng2.contains(&"s1".to_string()));
     }
 
+    /// A tier that leaves the ladder leaves a gap in it. A berth-fed division
+    /// exchanges clubs through its berths, so the tiers above and below it are
+    /// two divisions apart — closing that gap promoted a fourth-division
+    /// champion into the first.
+    #[test]
+    fn a_berth_fed_middle_tier_does_not_make_its_neighbours_adjacent() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let d2 = division(
+            "d2",
+            1,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let mut north = division("north", 2, "XX", &[("n1", 20), ("n2", 10)]);
+        north.berths = vec![position_berth("d2", 1, 1)];
+        let mut south = division("south", 3, "XX", &[("s1", 20), ("s2", 10)]);
+        south.berths = vec![position_berth("d2", 1, 1)];
+        let d4 = division(
+            "d4",
+            4,
+            "XX",
+            &[("e1", 40), ("e2", 30), ("e3", 20), ("e4", 10)],
+        );
+        let (before1, before4) = (d1.participant_ids.clone(), d4.participant_ids.clone());
+
+        let mut competitions = vec![d1, d2, north, south, d4];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        assert_eq!(
+            by_id("d1").participant_ids,
+            before1,
+            "the top flight must not reach past the berth-fed tier: {:?}",
+            by_id("d1").participant_ids
+        );
+        assert_eq!(
+            by_id("d4").participant_ids,
+            before4,
+            "the bottom tier must not reach past the berth-fed tier: {:?}",
+            by_id("d4").participant_ids
+        );
+    }
+
+    /// A single feeder into a middle tier is an ordinary ladder edge written as
+    /// data, but the tier below it is still two divisions from the top.
+    #[test]
+    fn a_sole_feeder_berth_into_a_middle_tier_keeps_the_top_flight_off_the_third() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let d2 = division(
+            "d2",
+            1,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let mut d3 = division(
+            "d3",
+            2,
+            "XX",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        d3.berths = vec![position_berth("d2", 1, 1)];
+        let before1 = d1.participant_ids.clone();
+
+        let mut competitions = vec![d1, d2, d3];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        assert!(
+            !by_id("d1").participant_ids.contains(&"c1".to_string()),
+            "a third-division club cannot reach the first: {:?}",
+            by_id("d1").participant_ids
+        );
+        assert_eq!(by_id("d1").participant_ids, before1);
+    }
+
+    /// Only a country's own league competition is a rung. A regional table and
+    /// a cup scored as a table both belong to a country and are both league
+    /// tables, but the ladder must never promote into or out of either.
+    #[test]
+    fn a_regional_table_and_a_cup_played_as_a_table_are_not_rungs() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let mut regional = division("regional", 1, "XX", &[("r1", 40), ("r2", 30)]);
+        regional.scope = CompetitionScope::Regional;
+        let mut cup_table = division("cup-table", 2, "XX", &[("k1", 40), ("k2", 30)]);
+        cup_table.kind = CompetitionType::Cup;
+        let d2 = division(
+            "d2",
+            3,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let before: Vec<(String, Vec<String>)> = [&d1, &regional, &cup_table, &d2]
+            .iter()
+            .map(|c| (c.id.clone(), c.participant_ids.clone()))
+            .collect();
+
+        let mut competitions = vec![d1, regional, cup_table, d2];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        for (id, expected) in &before {
+            if id == "d1" || id == "d2" {
+                continue; // these two are a real pyramid and do exchange
+            }
+            assert_eq!(
+                &by_id(id).participant_ids,
+                expected,
+                "{id} is not a rung and must not exchange clubs"
+            );
+        }
+        // And the two real divisions still swap across the non-rungs between
+        // them, because a non-rung is not a gap in the ladder — it was never on it.
+        assert!(
+            by_id("d1").participant_ids.contains(&"b1".to_string()),
+            "the second division's champion still goes up: {:?}",
+            by_id("d1").participant_ids
+        );
+    }
+
     #[test]
     fn apply_pyramid_does_not_swap_sibling_position_range_feeders() {
         // Two same-priority regional groups that both send PositionRange
         // berths to the same Central League must not linearly swap — that
         // would put a promoted club on two tables after the berth merge.
+        //
+        // The Central League itself is in the slice, as it is in production:
+        // a target is only a promotion destination if it is a domestic league
+        // table this pass can see, so a berth pointing at nothing leaves its
+        // feeders on the ladder rather than silently detaching them.
+        let central = division(
+            "central",
+            0,
+            "BR",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        // Distinct priorities on purpose. Declared at the same rank the two
+        // groups are peers, and the distinct-rank guard would refuse to swap
+        // them whether or not the sibling rule existed — so this test would
+        // pass with the sibling rule deleted and prove nothing.
         let mut north = division(
             "north",
             1,
@@ -988,7 +1296,7 @@ mod tests {
         north.berths = vec![position_berth("central", 1, 2)];
         let mut south = division(
             "south",
-            1,
+            2,
             "BR",
             &[("s1", 40), ("s2", 30), ("s3", 20), ("s4", 10)],
         );
@@ -996,7 +1304,7 @@ mod tests {
         let north_before = north.participant_ids.clone();
         let south_before = south.participant_ids.clone();
 
-        let mut competitions = vec![north, south];
+        let mut competitions = vec![central, north, south];
         apply_pyramid_promotion_relegation(&mut competitions);
 
         let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
@@ -1014,13 +1322,175 @@ mod tests {
         );
     }
 
+    /// A league with a matchday still to come.
+    fn still_playing(league: &mut League) {
+        league.fixtures = vec![Fixture {
+            id: format!("{}-unplayed", league.id),
+            status: domain::league::FixtureStatus::Scheduled,
+            competition: domain::league::FixtureCompetition::League,
+            ..Default::default()
+        }];
+    }
+
+    /// A tier that is still playing has no final table, and used to be dropped
+    /// from the chain rather than stopping it — which left the divisions on
+    /// either side of it adjacent. A third division's champion went straight
+    /// into the first, and the club it displaced fell two divisions at once.
+    #[test]
+    fn a_mid_season_tier_breaks_the_chain_rather_than_bridging_it() {
+        let d1 = division(
+            "d1",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let mut d2 = division(
+            "d2",
+            1,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        still_playing(&mut d2);
+        let d3 = division(
+            "d3",
+            2,
+            "XX",
+            &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
+        );
+        let (before1, before3) = (d1.participant_ids.clone(), d3.participant_ids.clone());
+
+        let mut competitions = vec![d1, d2, d3];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        assert_eq!(
+            by_id("d1").participant_ids,
+            before1,
+            "d1 must not reach past d2"
+        );
+        assert_eq!(
+            by_id("d3").participant_ids,
+            before3,
+            "d3 must not reach past d2"
+        );
+    }
+
+    /// `priority` is what ranks one division above another, so two leagues
+    /// sharing one are peers and the order between them is arbitrary. This is
+    /// also the case a berth pointing at a target that does not exist falls
+    /// into: its feeders stay on the ladder, and staying on it must not mean
+    /// trading clubs with each other.
+    #[test]
+    fn leagues_at_the_same_priority_are_peers_not_tiers() {
+        let north = division("north", 1, "XX", &[("n1", 40), ("n2", 30), ("n3", 20)]);
+        let south = division("south", 1, "XX", &[("s1", 40), ("s2", 30), ("s3", 20)]);
+        let (bn, bs) = (north.participant_ids.clone(), south.participant_ids.clone());
+
+        let mut competitions = vec![north, south];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        assert_eq!(by_id("north").participant_ids, bn);
+        assert_eq!(by_id("south").participant_ids, bs);
+    }
+
+    /// The overlap guard only ever saw the tiers that had finished, so a
+    /// rollover landing between the Apertura's last matchday and the Clausura's
+    /// slipped past it: the two Aperturas swapped, and the promoted club ended
+    /// up registered with the first division's Apertura and the second
+    /// division's Clausura at the same time.
+    #[test]
+    fn split_season_halves_stay_aligned_when_only_one_half_has_ended() {
+        let d1a = division(
+            "d1-ap",
+            0,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let d2a = division(
+            "d2-ap",
+            2,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        let mut d1c = division(
+            "d1-cl",
+            1,
+            "XX",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let mut d2c = division(
+            "d2-cl",
+            3,
+            "XX",
+            &[("b1", 40), ("b2", 30), ("b3", 20), ("b4", 10)],
+        );
+        still_playing(&mut d1c);
+        still_playing(&mut d2c);
+        let before = d1a.participant_ids.clone();
+
+        let mut competitions = vec![d1a, d2a, d1c, d2c];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        assert_eq!(
+            by_id("d1-ap").participant_ids,
+            before,
+            "the two halves must stay aligned"
+        );
+    }
+
+    #[test]
+    fn apertura_and_clausura_are_not_adjacent_tiers() {
+        // A split-season country runs both halves over the *same* clubs, as two
+        // competitions at consecutive priorities (`create_game`). They are one
+        // division played twice, not a two-tier pyramid, so the ladder must
+        // leave them alone — swapping between them would put a club on both
+        // tables and duplicate it in the regenerated schedule.
+        let apertura = division(
+            "ar-d1-apertura",
+            0,
+            "AR",
+            &[("a1", 40), ("a2", 30), ("a3", 20), ("a4", 10)],
+        );
+        let clausura = division(
+            "ar-d1-clausura",
+            1,
+            "AR",
+            // A different winner from the Apertura's bottom club, so a swap
+            // between the two halves lands a club on a table it is already on.
+            &[("a2", 40), ("a1", 30), ("a3", 20), ("a4", 10)],
+        );
+        let before = apertura.participant_ids.clone();
+
+        let mut competitions = vec![apertura, clausura];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        for competition in &competitions {
+            let unique: HashSet<&String> = competition.participant_ids.iter().collect();
+            assert_eq!(
+                unique.len(),
+                competition.participant_ids.len(),
+                "{} must not list a club twice: {:?}",
+                competition.id,
+                competition.participant_ids
+            );
+            let clubs: HashSet<&String> = before.iter().collect();
+            assert_eq!(
+                unique, clubs,
+                "{} runs over the same clubs both halves: {:?}",
+                competition.id, competition.participant_ids
+            );
+        }
+    }
+
     #[test]
     fn apply_pyramid_takes_every_sibling_feeder_off_the_ladder() {
         // Three groups feed one Central League. Splitting the chain pair by
         // pair leaves the last group attached to the tier below it, so which
         // group swaps with `lower` would depend on competition order alone.
         let mut competitions = vec![
-            division("lower", 2, "BR", &[("d1", 20), ("d2", 10)]),
+            division("lower", 4, "BR", &[("d1", 20), ("d2", 10)]),
             division(
                 "central",
                 0,
@@ -1028,12 +1498,20 @@ mod tests {
                 &[("c1", 40), ("c2", 30), ("c3", 20), ("c4", 10)],
             ),
         ];
-        for (id, first, second) in [
+        // Ranked 1, 2, 3 rather than all at 1, and `lower` below them at 4.
+        // Equal ranks would be refused by the distinct-rank guard on their own,
+        // masking whether the sibling rule does anything; ranked apart, the
+        // four of them would chain happily if it were removed.
+        for (priority, (id, first, second)) in [
             ("north", "n1", "n2"),
             ("south", "s1", "s2"),
             ("east", "e1", "e2"),
-        ] {
-            let mut group = division(id, 1, "BR", &[(first, 20), (second, 10)]);
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(offset, group)| (offset as u32 + 1, group))
+        {
+            let mut group = division(id, priority, "BR", &[(first, 20), (second, 10)]);
             group.berths = vec![position_berth("central", 1, 1)];
             competitions.push(group);
         }
@@ -1591,8 +2069,10 @@ mod tests {
     #[test]
     fn apply_domestic_berth_keeps_surplus_place_getters_in_their_feeder() {
         // 4-club target, four feeders each sending two → 8 winners, 4 places.
-        // Evaluation order is north, south, east, west (1st then 2nd). The
-        // prefix takes the released places; the rest stay in their feeder.
+        // The feeders rank equally, so they are ordered by id — east then
+        // north — and those two take the released places while the rest stay
+        // in their feeder. It used to be whichever pair the competition vector
+        // happened to list first, which a save and reload does not preserve.
         let mut game = four_region_oversubscribed_pyramid();
         let fields = resolve_domestic_berth_fields(&game);
         apply_domestic_berth_promotion_relegation(&mut game, &fields);
@@ -1605,8 +2085,8 @@ mod tests {
             .collect();
         assert_eq!(
             central,
-            HashSet::from(["n1", "n2", "s1", "s2"]),
-            "evaluation-order prefix occupies the released places: {:?}",
+            HashSet::from(["e1", "e2", "n1", "n2"]),
+            "the two best-ranked feeders occupy the released places: {:?}",
             by_id("central").participant_ids
         );
 
@@ -1617,32 +2097,67 @@ mod tests {
                 .map(String::as_str)
                 .collect()
         };
-        assert_eq!(
-            by_id("north").participant_ids.len(),
-            2,
-            "north keeps authored size: {:?}",
-            by_id("north").participant_ids
-        );
-        assert_eq!(
-            by_id("south").participant_ids.len(),
-            2,
-            "south keeps authored size: {:?}",
-            by_id("south").participant_ids
-        );
+        for id in ["north", "south", "east", "west"] {
+            assert_eq!(
+                by_id(id).participant_ids.len(),
+                2,
+                "{id} keeps authored size: {:?}",
+                by_id(id).participant_ids
+            );
+        }
+        // east and north go up, so their place-getters leave.
+        assert!(!feeder("east").contains("e1") && !feeder("east").contains("e2"));
         assert!(!feeder("north").contains("n1") && !feeder("north").contains("n2"));
-        assert!(!feeder("south").contains("s1") && !feeder("south").contains("s2"));
         assert!(
-            feeder("east").contains("e1") && feeder("east").contains("e2"),
-            "east surplus stay put: {:?}",
-            by_id("east").participant_ids
+            feeder("south").contains("s1") && feeder("south").contains("s2"),
+            "south surplus stay put: {:?}",
+            by_id("south").participant_ids
         );
         assert!(
             feeder("west").contains("w1") && feeder("west").contains("w2"),
             "west surplus stay put: {:?}",
             by_id("west").participant_ids
         );
-        assert_eq!(by_id("east").participant_ids.len(), 2);
-        assert_eq!(by_id("west").participant_ids.len(), 2);
+    }
+
+    /// The same pyramid, with the competitions listed in a different order.
+    /// Persistence reloads them sorted by priority, season and name, so an
+    /// allocation that depended on the vector order promoted different clubs
+    /// after a save and reload than it did before one.
+    #[test]
+    fn oversubscribed_berths_ignore_the_order_competitions_are_listed_in() {
+        let mut authored = four_region_oversubscribed_pyramid();
+        let fields = resolve_domestic_berth_fields(&authored);
+        apply_domestic_berth_promotion_relegation(&mut authored, &fields);
+        let promoted: HashSet<String> = authored
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "central")
+            .expect("central")
+            .participant_ids
+            .iter()
+            .cloned()
+            .collect();
+
+        let mut reloaded = four_region_oversubscribed_pyramid();
+        reloaded.competitions.reverse();
+        let fields = resolve_domestic_berth_fields(&reloaded);
+        apply_domestic_berth_promotion_relegation(&mut reloaded, &fields);
+        let promoted_after: HashSet<String> = reloaded
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "central")
+            .expect("central")
+            .participant_ids
+            .iter()
+            .cloned()
+            .collect();
+
+        assert_eq!(
+            promoted, promoted_after,
+            "the same season must promote the same clubs whichever order the \
+             competitions happen to be listed in"
+        );
     }
 
     #[test]

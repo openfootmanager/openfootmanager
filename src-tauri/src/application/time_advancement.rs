@@ -62,7 +62,19 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usiz
             return Some((competition_index, fixture_index));
         }
     }
+    // Fall back to the legacy `game.league` mirror, for saves written before
+    // competitions existed. The index must name the mirror's own competition,
+    // not competition zero: the caller replaces `game.league` with whatever it
+    // finds there, so a hardcoded zero handed the user a stranger's fixture.
+    // When the mirror is not one of the competitions, an index past the end
+    // resolves to nothing, which leaves `game.league` as it is — the mirror
+    // already holds the fixture.
     let league = game.league.as_ref()?;
+    let mirror_index = game
+        .competitions
+        .iter()
+        .position(|competition| competition.id == league.id)
+        .unwrap_or(game.competitions.len());
     league
         .fixtures
         .iter()
@@ -72,7 +84,7 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usiz
                 && fixture.status == domain::league::FixtureStatus::Scheduled
                 && (fixture.home_team_id == *user_team_id || fixture.away_team_id == *user_team_id)
             {
-                Some((0, index))
+                Some((mirror_index, index))
             } else {
                 None
             }

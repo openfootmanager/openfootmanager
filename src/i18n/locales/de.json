@@ -2633,6 +2633,7 @@
         "parseFailed": "Die Wettbewerbsdefinitionsdatei konnte nicht als JSON gelesen werden.",
         "unsupportedVersion": "Nicht unterstützte Formatversion {{version}}; dieser Build unterstützt bis zu {{supported}}.",
         "berthUnknownTarget": "Ein Qualifikationsplatz verweist auf unbekannten Wettbewerb \"{{target}}\".",
+        "berthSelfTarget": "Ein Qualifikationsplatz verweist auf den eigenen Wettbewerb \"{{target}}\".",
         "berthInvalidRange": "Ungültiger Platzbereich {{from}}–{{to}}.",
         "berthRequiresLeague": "Platz- und Playoff-Plätze kann nur eine Ligatabelle vergeben.",
         "berthRequiresCup": "Einen Pokalsieger-Platz kann nur ein K.-o.-Wettbewerb vergeben.",
@@ -2655,7 +2656,8 @@
         "unknownSourceCompetition": "Unbekannter Quellwettbewerb \"{{source}}\".",
         "selectorMissingSource": "Dieser Selektor benötigt einen Quellwettbewerb.",
         "unknownExcludedCompetition": "Unbekannter ausgeschlossener Wettbewerb \"{{excluded}}\".",
-        "selectorCycle": "Zirkuläre Qualifikation zwischen Wettbewerben."
+        "selectorCycle": "Zirkuläre Qualifikation zwischen Wettbewerben.",
+        "duplicateTierPriority": "Mehrere Ligen von {{country}} teilen sich die Priorität {{priority}}. Ein niedrigerer Wert bedeutet eine höhere Liga, und jede Stufe braucht einen eigenen, sonst steigt keine auf oder ab."
       },
       "worldParseFailed": "Die Weltdatenbankdatei konnte nicht verarbeitet werden.",
       "worldWriteFileFailed": "Die Weltdatenbankdatei konnte nicht exportiert werden.",

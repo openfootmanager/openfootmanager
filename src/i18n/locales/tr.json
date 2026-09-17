@@ -2654,6 +2654,7 @@
         "parseFailed": "Turnuva tanım dosyası JSON olarak okunamadı.",
         "unsupportedVersion": "Desteklenmeyen biçim sürümü {{version}}; bu sürüm en fazla {{supported}} destekler.",
         "berthUnknownTarget": "Bir katılım hakkı bilinmeyen \"{{target}}\" turnuvasına işaret ediyor.",
+        "berthSelfTarget": "Bir katılım hakkı kendi turnuvası olan \"{{target}}\" turnuvasına işaret ediyor.",
         "berthInvalidRange": "Geçersiz katılım hakkı sıra aralığı {{from}}–{{to}}.",
         "berthRequiresLeague": "Sıralama ve play-off katılım hakları yalnızca bir lig tablosuyla verilebilir.",
         "berthRequiresCup": "Kupa şampiyonluğu katılım hakkı yalnızca eleme usulü bir turnuvayla verilebilir.",
@@ -2676,7 +2677,8 @@
         "unknownSourceCompetition": "Bilinmeyen kaynak turnuva \"{{source}}\".",
         "selectorMissingSource": "Bu seçici bir kaynak turnuva gerektiriyor.",
         "unknownExcludedCompetition": "Bilinmeyen hariç tutulan turnuva \"{{excluded}}\".",
-        "selectorCycle": "Turnuvalar arasında döngüsel katılım ilişkisi."
+        "selectorCycle": "Turnuvalar arasında döngüsel katılım ilişkisi.",
+        "duplicateTierPriority": "{{country}} ülkesinin birden fazla ligi {{priority}} önceliğini paylaşıyor. Daha düşük sayı daha üst lig demektir ve her kademenin kendi sayısı olmalı, yoksa hiçbiri yükselmez veya düşmez."
       },
       "worldParseFailed": "Dünya veritabanı dosyası ayrıştırılamadı.",
       "worldWriteFileFailed": "Dünya veritabanı dosyası dışa aktarılamadı.",
