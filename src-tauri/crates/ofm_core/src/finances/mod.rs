@@ -1,7 +1,9 @@
 pub mod journal;
 
 pub use domain::finance::{CashJournal, CashKind};
-pub use journal::{PostRequest, backfill_opening_balances, journal_matches_cash, post, post_all};
+pub use journal::{
+    PostRequest, backfill_opening_balances, journal_matches_cash, post, post_all, validate_posts,
+};
 
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
@@ -1010,6 +1012,10 @@ pub fn process_weekly_finances(game: &mut Game) {
         weekly_by_club.push((team.id.clone(), reqs));
     }
 
+    // One `post_all` per club on purpose: a single overflow must not skip the
+    // rest of the league (`post_all` is all-or-nothing). `posted_clubs` below
+    // gates sponsorship expiry and board pressure. Opening-balance lookup is
+    // O(1) on the journal, so this loop is not clubs × journal size.
     let mut posted_clubs = std::collections::HashSet::new();
     for (team_id, reqs) in weekly_by_club {
         if commit_weekly_posts(game, &reqs) {

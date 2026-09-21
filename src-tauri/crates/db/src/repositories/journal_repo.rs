@@ -71,6 +71,16 @@ pub fn insert_dirty_cash_posts(conn: &Connection, game: &Game) -> Result<usize, 
     )
 }
 
+/// Overwrite saves only need new rows. A brand-new `.db` (`create_save`) must
+/// get the whole journal: loaded games have an empty dirty list.
+pub fn persist_cash_journal(conn: &Connection, game: &Game) -> Result<usize, String> {
+    if cash_journal_has_rows(conn)? {
+        insert_dirty_cash_posts(conn, game)
+    } else {
+        insert_cash_posts(conn, game.cash_journal.iter())
+    }
+}
+
 pub fn load_cash_journal(conn: &Connection) -> Result<Vec<CashPost>, String> {
     if !table_exists(conn, "cash_journal")? {
         return Ok(Vec::new());
@@ -99,6 +109,17 @@ pub fn load_cash_journal(conn: &Connection) -> Result<Vec<CashPost>, String> {
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|_| LOAD_ERROR.to_string())
+}
+
+fn cash_journal_has_rows(conn: &Connection) -> Result<bool, String> {
+    if !table_exists(conn, "cash_journal")? {
+        return Ok(false);
+    }
+    let exists: Option<i64> = conn
+        .query_row("SELECT 1 FROM cash_journal LIMIT 1", [], |row| row.get(0))
+        .optional()
+        .map_err(|_| LOAD_ERROR.to_string())?;
+    Ok(exists.is_some())
 }
 
 fn table_exists(conn: &Connection, name: &str) -> Result<bool, String> {
@@ -156,5 +177,45 @@ mod tests {
         let loaded = load_cash_journal(db.conn()).unwrap();
         assert_eq!(loaded[0].id, "z-last-alphabetically");
         assert_eq!(loaded[1].id, "a-first-alphabetically");
+    }
+
+    #[test]
+    fn empty_destination_writes_the_whole_journal() {
+        use chrono::{TimeZone, Utc};
+        use domain::manager::Manager;
+        use domain::team::Team;
+        use ofm_core::clock::GameClock;
+        use ofm_core::game::Game;
+
+        let db = GameDatabase::open_in_memory().unwrap();
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 2, 16, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("club-a".to_string());
+        let mut team = Team::new(
+            "club-a".to_string(),
+            "Club A".to_string(),
+            "CLA".to_string(),
+            "England".to_string(),
+            "Town".to_string(),
+            "Ground".to_string(),
+            20_000,
+        );
+        team.finance = 13_000;
+        let mut game = Game::new(clock, manager, vec![team], vec![], vec![], vec![]);
+        game.cash_journal = domain::finance::CashJournal::from_vec(vec![
+            sample_post("old-1", 12_000),
+            sample_post("old-2", 1_000),
+        ]);
+
+        assert_eq!(persist_cash_journal(db.conn(), &game).unwrap(), 2);
+        assert_eq!(load_cash_journal(db.conn()).unwrap().len(), 2);
+        assert_eq!(persist_cash_journal(db.conn(), &game).unwrap(), 0);
+        assert_eq!(load_cash_journal(db.conn()).unwrap().len(), 2);
     }
 }

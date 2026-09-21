@@ -194,11 +194,9 @@ mod tests {
             .expect("update");
 
         persist_active_game(&state, &mut save_manager).expect("first persist");
-        assert!(
-            state
-                .get_game(|live| live.cash_journal_dirty_ids.is_empty())
-                .expect("live game")
-        );
+        assert!(state
+            .get_game(|live| live.cash_journal_dirty_ids.is_empty())
+            .expect("live game"));
 
         let first = save_manager.load_game(&save_id).expect("load");
         let first_len = first.cash_journal.len();

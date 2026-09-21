@@ -206,6 +206,33 @@ pub(super) fn transfer_buyer_can_register(game: &Game, buyer_team_id: &str, fee:
         .is_some_and(|team| team.finance >= fee_i64 && team.transfer_budget >= fee_i64)
 }
 
+pub(super) fn ensure_transfer_cash_postable(
+    game: &Game,
+    buyer_id: &str,
+    seller_id: &str,
+    fee: u64,
+) -> Result<(), String> {
+    let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
+    let date = game.clock.current_date.date_naive();
+    crate::finances::validate_posts(
+        game,
+        &[
+            crate::finances::PostRequest::new(
+                buyer_id,
+                -fee_i64,
+                crate::finances::CashKind::TransferFeeOut,
+                date,
+            ),
+            crate::finances::PostRequest::new(
+                seller_id,
+                fee_i64,
+                crate::finances::CashKind::TransferFeeIn,
+                date,
+            ),
+        ],
+    )
+}
+
 /// Transfer a player between teams, adjusting finances.
 pub(super) fn execute_transfer(
     game: &mut Game,
@@ -307,7 +334,8 @@ pub(super) fn execute_transfer(
         }
     }
 
-    // Envelope still mutates here (PR1 gameplay-neutral). Cash is posted above.
+    // Envelope (transfer_budget) still mutates here. Cash is posted above.
+    // Transfer fees do not change season income/expenses (same as develop).
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == to_team_id) {
         t.transfer_budget -= fee_i64;
         if let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id) {

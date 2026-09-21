@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -37,6 +38,13 @@ pub enum CashKind {
 }
 
 impl CashKind {
+    pub fn counts_toward_season_totals(self) -> bool {
+        !matches!(
+            self,
+            Self::OpeningBalance | Self::TransferFeeIn | Self::TransferFeeOut | Self::LoanFee
+        )
+    }
+
     pub fn from_legacy_ledger(kind: FinancialTransactionKind) -> Self {
         match kind {
             FinancialTransactionKind::PrizeMoney => Self::PrizeMoney,
@@ -51,6 +59,7 @@ impl CashKind {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CashJournal {
     posts: Arc<Vec<CashPost>>,
+    clubs: Arc<HashSet<String>>,
 }
 
 impl Deref for CashJournal {
@@ -63,8 +72,10 @@ impl Deref for CashJournal {
 
 impl CashJournal {
     pub fn from_vec(posts: Vec<CashPost>) -> Self {
+        let clubs = posts.iter().map(|post| post.club_id.clone()).collect();
         Self {
             posts: Arc::new(posts),
+            clubs: Arc::new(clubs),
         }
     }
 
@@ -73,11 +84,19 @@ impl CashJournal {
     }
 
     pub fn contains_club(&self, club_id: &str) -> bool {
-        self.iter().any(|post| post.club_id == club_id)
+        self.clubs.contains(club_id)
     }
 
     pub fn extend(&mut self, posts: impl IntoIterator<Item = CashPost>) {
-        Arc::make_mut(&mut self.posts).extend(posts);
+        let extra: Vec<CashPost> = posts.into_iter().collect();
+        if extra.is_empty() {
+            return;
+        }
+        let clubs = Arc::make_mut(&mut self.clubs);
+        for post in &extra {
+            clubs.insert(post.club_id.clone());
+        }
+        Arc::make_mut(&mut self.posts).extend(extra);
     }
 
     /// Sum of posts for one club. Folded in `i128` so prefix order cannot panic.

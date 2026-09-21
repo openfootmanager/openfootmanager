@@ -142,7 +142,7 @@ fn write_game_to_connection(
         manager_repo::upsert_manager(conn, manager)?;
     }
     team_repo::upsert_teams(conn, &game.teams)?;
-    journal_repo::insert_dirty_cash_posts(conn, game)?;
+    journal_repo::persist_cash_journal(conn, game)?;
     player_repo::upsert_players(conn, &game.players)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;

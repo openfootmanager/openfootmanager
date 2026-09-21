@@ -51,6 +51,12 @@ pub fn post_all(game: &mut Game, reqs: &[PostRequest]) -> Result<Vec<String>, St
     Ok(commit_posts(game, prepared))
 }
 
+/// Same checks as `post_all`, with no mutation. Callers that must not leave a
+/// half-applied gameplay change (accepted offer, moved player) use this first.
+pub fn validate_posts(game: &Game, reqs: &[PostRequest]) -> Result<(), String> {
+    prepare_posts(game, reqs).map(|_| ())
+}
+
 struct PreparedPost {
     team_index: usize,
     post: CashPost,
@@ -64,11 +70,7 @@ fn prepare_posts(game: &Game, reqs: &[PostRequest]) -> Result<Vec<PreparedPost>,
         .map(|(index, team)| (team.id.as_str(), index))
         .collect();
 
-    let mut present: HashSet<&str> = game
-        .cash_journal
-        .iter()
-        .map(|post| post.club_id.as_str())
-        .collect();
+    let mut seeded: HashSet<&str> = HashSet::new();
     let mut running: HashMap<&str, i64> = HashMap::new();
     let mut prepared = Vec::with_capacity(reqs.len());
 
@@ -85,13 +87,15 @@ fn prepare_posts(game: &Game, reqs: &[PostRequest]) -> Result<Vec<PreparedPost>,
             .ok_or_else(|| ERR_TEAM_NOT_FOUND.to_string())?;
         let team = &game.teams[index];
 
-        if !present.contains(req.club_id.as_str()) {
+        if !game.cash_journal.contains_club(req.club_id.as_str())
+            && !seeded.contains(req.club_id.as_str())
+        {
             prepared.push(PreparedPost {
                 team_index: index,
                 post: build_post(&team.id, team.finance, CashKind::OpeningBalance, req.date),
             });
         }
-        present.insert(req.club_id.as_str());
+        seeded.insert(req.club_id.as_str());
 
         let slot = running.entry(req.club_id.as_str()).or_insert(team.finance);
         *slot = slot
@@ -110,6 +114,7 @@ fn prepare_posts(game: &Game, reqs: &[PostRequest]) -> Result<Vec<PreparedPost>,
 fn commit_posts(game: &mut Game, prepared: Vec<PreparedPost>) -> Vec<String> {
     let mut ids = Vec::with_capacity(prepared.len());
     let mut posts = Vec::with_capacity(prepared.len());
+    let mut touched: HashSet<usize> = HashSet::new();
 
     for item in prepared {
         if item.post.kind != CashKind::OpeningBalance {
@@ -118,14 +123,17 @@ fn commit_posts(game: &mut Game, prepared: Vec<PreparedPost>) -> Vec<String> {
                 .finance
                 .checked_add(item.post.amount)
                 .expect("prepare_posts rejected overflow");
-            if item.post.amount > 0 {
-                team.season_income = team.season_income.saturating_add(item.post.amount);
-            } else if item.post.amount < 0 {
-                team.season_expenses = team
-                    .season_expenses
-                    .saturating_add(item.post.amount.saturating_neg());
+            if item.post.kind.counts_toward_season_totals() {
+                if item.post.amount > 0 {
+                    team.season_income = team.season_income.saturating_add(item.post.amount);
+                } else if item.post.amount < 0 {
+                    team.season_expenses = team
+                        .season_expenses
+                        .saturating_add(item.post.amount.saturating_neg());
+                }
             }
         }
+        touched.insert(item.team_index);
 
         log::trace!(
             "cash post id={} club={} kind={:?} amount={} date={}",
@@ -143,7 +151,7 @@ fn commit_posts(game: &mut Game, prepared: Vec<PreparedPost>) -> Vec<String> {
     game.cash_journal_dirty_ids.extend(ids.iter().cloned());
     game.cash_journal.extend(posts);
     debug_assert!(
-        journal_matches_cash(game),
+        journal_matches_cash_for(game, &touched),
         "cash journal drifted from Team.finance"
     );
     ids
@@ -162,10 +170,20 @@ fn build_post(club_id: &str, amount: i64, kind: CashKind, date: NaiveDate) -> Ca
 /// Clubs with no journal rows yet are allowed to disagree with the cache;
 /// the first `post` seeds an OpeningBalance so they line up afterwards.
 pub fn journal_matches_cash(game: &Game) -> bool {
-    game.teams.iter().all(|team| {
-        !game.cash_journal.contains_club(&team.id)
-            || game.cash_journal.cash_for(&team.id) == team.finance
+    game.teams.iter().all(|team| club_matches_cash(game, team))
+}
+
+fn journal_matches_cash_for(game: &Game, team_indices: &HashSet<usize>) -> bool {
+    team_indices.iter().all(|&index| {
+        game.teams
+            .get(index)
+            .is_some_and(|team| club_matches_cash(game, team))
     })
+}
+
+fn club_matches_cash(game: &Game, team: &domain::team::Team) -> bool {
+    !game.cash_journal.contains_club(&team.id)
+        || game.cash_journal.cash_for(&team.id) == team.finance
 }
 
 /// Import `financial_ledger` rows and an OpeningBalance so `sum(journal) == finance`.
@@ -298,6 +316,29 @@ mod tests {
         post(&mut game, "alpha", 10_000, CashKind::Matchday, monday()).unwrap();
         assert_eq!(game.teams[0].season_income, 10_000);
         assert_eq!(game.teams[0].season_expenses, 0);
+    }
+
+    #[test]
+    fn transfer_fees_do_not_change_season_totals() {
+        let mut game = make_game(vec![
+            make_team("buyer", 2_000_000),
+            make_team("seller", 1_000_000),
+        ]);
+        post_all(
+            &mut game,
+            &[
+                PostRequest::new("buyer", -750_000, CashKind::TransferFeeOut, monday()),
+                PostRequest::new("seller", 750_000, CashKind::TransferFeeIn, monday()),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(game.teams[0].finance, 1_250_000);
+        assert_eq!(game.teams[1].finance, 1_750_000);
+        assert_eq!(game.teams[0].season_income, 0);
+        assert_eq!(game.teams[0].season_expenses, 0);
+        assert_eq!(game.teams[1].season_income, 0);
+        assert_eq!(game.teams[1].season_expenses, 0);
     }
 
     #[test]
