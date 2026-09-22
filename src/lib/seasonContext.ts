@@ -20,6 +20,7 @@ const DEFAULT_TRANSFER_WINDOW: TransferWindowContextData = {
 
 const DEFAULT_SEASON_CONTEXT: SeasonContextData = {
   phase: "Preseason",
+  season_complete: false,
   season_start: null,
   season_end: null,
   days_until_season_start: null,
@@ -41,6 +42,7 @@ export function hasCompetitiveStandings(gameState: GameStateData): boolean {
 function normaliseSeasonContext(context: SeasonContextData): SeasonContextData {
   return {
     phase: context.phase,
+    season_complete: context.season_complete ?? false,
     season_start: context.season_start ?? null,
     season_end: context.season_end ?? null,
     days_until_season_start: context.days_until_season_start ?? null,

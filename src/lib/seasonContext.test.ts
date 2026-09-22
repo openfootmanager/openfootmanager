@@ -219,3 +219,35 @@ describe("seasonContext", (): void => {
     expect(context.transfer_window.days_remaining).toBe(0);
   });
 });
+
+describe("season_complete", () => {
+  it("is carried through normalisation, so the dashboard can trust it", () => {
+    // The backend decides whether the rollover is available. The dashboard used
+    // to work it out locally from `competitions[0]` — whichever competition
+    // sorted first, which in a generated world is a foreign league on another
+    // calendar — so an English career whose season ended in April waited on an
+    // Argentine Apertura running to October and could never continue.
+    const complete = resolveSeasonContext({
+      season_context: {
+        phase: "PostSeason",
+        season_complete: true,
+        season_start: null,
+        season_end: null,
+        days_until_season_start: null,
+        transfer_window: {
+          status: "Closed",
+          opens_on: null,
+          closes_on: null,
+          days_until_opens: null,
+          days_remaining: null,
+        },
+      },
+    } as never);
+    expect(complete.season_complete).toBe(true);
+
+    const stillPlaying = resolveSeasonContext({
+      season_context: { phase: "InSeason" },
+    } as never);
+    expect(stillPlaying.season_complete).toBe(false);
+  });
+});
