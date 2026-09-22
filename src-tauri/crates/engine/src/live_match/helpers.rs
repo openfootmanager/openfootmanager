@@ -1,4 +1,4 @@
-use rand::{Rng, RngExt};
+use rand::Rng;
 
 use crate::event::{DangerBand, FoulSeverity, GoalContext, SaveQuality};
 use crate::shared::{
@@ -65,36 +65,18 @@ impl LiveMatchState {
         rng: &mut R,
     ) -> PlayerSnap {
         let team = self.team_ref(side);
-        let available: Vec<&PlayerData> = team
-            .players
-            .iter()
-            .filter(|p| !self.sent_off.contains(&p.id))
-            .collect();
-
-        let candidates: Vec<&PlayerData> = available
-            .iter()
-            .filter(|p| p.position == preferred)
-            .copied()
-            .collect();
-
-        let pool = if candidates.is_empty() {
-            &available
-        } else {
-            &candidates
-        };
-        if pool.is_empty() {
-            return PlayerSnap::from(&team.players[0]);
-        }
-        PlayerSnap::from(pool[rng.random_range(0..pool.len())])
+        crate::shared::snap_from_squad(&team.players, &self.sent_off, preferred, rng)
+            .unwrap_or_else(PlayerSnap::nobody)
     }
 
     pub(super) fn snap_player_by_id(&self, player_id: &str, side: Side) -> PlayerSnap {
         let team = self.team_ref(side);
-        if let Some(p) = team.players.iter().find(|p| p.id == player_id) {
-            PlayerSnap::from(p)
-        } else {
-            PlayerSnap::from(&team.players[0])
-        }
+        team.players
+            .iter()
+            .find(|player| player.id == player_id)
+            .or_else(|| team.players.first())
+            .map(PlayerSnap::from)
+            .unwrap_or_else(PlayerSnap::nobody)
     }
 
     pub(super) fn pick_penalty_taker<R: Rng>(&self, side: Side, rng: &mut R) -> PlayerSnap {

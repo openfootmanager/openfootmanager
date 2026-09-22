@@ -1,7 +1,9 @@
+use rand::{Rng, RngExt};
+
 use crate::types::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, MatchConfig,
-    PlayStyle, PlayerData, PlayerRole, PressingIntensity, Side, TacticsBuildUpStyle, TacticsConfig,
-    TacticsPitchWidth, Tempo,
+    PlayStyle, PlayerData, PlayerRole, Position, PressingIntensity, Side, TacticsBuildUpStyle,
+    TacticsConfig, TacticsPitchWidth, Tempo,
 };
 
 // ---------------------------------------------------------------------------
@@ -36,6 +38,40 @@ pub(crate) struct PlayerSnap {
 }
 
 impl PlayerSnap {
+    /// Nobody — every attribute at zero and no id.
+    ///
+    /// A side with no players cannot play, and `simulate` refuses such a match
+    /// before a single minute runs, so this should never reach a match report.
+    /// It exists so that the picker has something to return instead of indexing
+    /// an empty squad: a blank name in an event is a bug worth reporting, a
+    /// panic in a Tauri command is a window that stops responding.
+    pub fn nobody() -> Self {
+        Self {
+            id: String::new(),
+            pace: 0,
+            stamina: 0,
+            strength: 0,
+            agility: 0,
+            passing: 0,
+            shooting: 0,
+            tackling: 0,
+            dribbling: 0,
+            defending: 0,
+            positioning: 0,
+            vision: 0,
+            decisions: 0,
+            composure: 0,
+            aggression: 0,
+            teamwork: 0,
+            leadership: 0,
+            handling: 0,
+            reflexes: 0,
+            aerial: 0,
+            traits: Vec::new(),
+            role: PlayerRole::Standard,
+        }
+    }
+
     pub fn from(p: &PlayerData) -> Self {
         Self {
             id: p.id.clone(),
@@ -85,6 +121,42 @@ pub(crate) enum TraitContext {
 
 /// Compute a multiplicative trait bonus for a specific action context.
 /// Returns a modifier >= 1.0 (bonus) based on relevant traits.
+/// Pick a player from `players`, preferring `preferred` and skipping anyone
+/// already sent off. `None` only when the side has nobody at all.
+///
+/// One definition on purpose. `engine` and `live_match` each carried a
+/// byte-identical copy of this, and both ended with `players[0]` when the pool
+/// came up empty — which is an index out of bounds on a club with no players.
+/// That panic unwound out of the engine, through the day loop, and out of the
+/// Tauri command running it, which then never returned a response at all.
+pub(crate) fn snap_from_squad<R: Rng>(
+    players: &[PlayerData],
+    sent_off: &std::collections::HashSet<String>,
+    preferred: Position,
+    rng: &mut R,
+) -> Option<PlayerSnap> {
+    let available: Vec<&PlayerData> = players
+        .iter()
+        .filter(|player| !sent_off.contains(&player.id))
+        .collect();
+    let candidates: Vec<&PlayerData> = available
+        .iter()
+        .filter(|player| player.position == preferred)
+        .copied()
+        .collect();
+
+    let pool = if candidates.is_empty() {
+        &available
+    } else {
+        &candidates
+    };
+    if !pool.is_empty() {
+        return Some(PlayerSnap::from(pool[rng.random_range(0..pool.len())]));
+    }
+    // Everyone available has been sent off: anyone on the teamsheet will do.
+    players.first().map(PlayerSnap::from)
+}
+
 pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {
     let mut bonus = 1.0;
     match context {
