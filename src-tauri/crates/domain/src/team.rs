@@ -14,6 +14,8 @@ pub struct Team {
     pub stadium_capacity: u32,
 
     // Current state
+    /// Cash on hand, in integer euros. Equal to the sum of cash-journal posts
+    /// for this club once the journal has been seeded.
     pub finance: i64,
     pub manager_id: Option<String>,
     pub reputation: u32,
@@ -389,7 +391,7 @@ pub struct TeamSeasonRecord {
     pub goals_against: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FinancialTransactionKind {
     PrizeMoney,
     ContractTermination,

@@ -1,3 +1,10 @@
+pub mod journal;
+
+pub use domain::finance::{CashJournal, CashKind};
+pub use journal::{
+    PostRequest, backfill_opening_balances, journal_matches_cash, post, post_all, validate_posts,
+};
+
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
 use domain::message::*;
@@ -757,15 +764,19 @@ pub fn request_marketing_campaign(
         preview.cooldown_days,
     );
     let message_id = message.id.clone();
+    post_all(
+        game,
+        &[
+            PostRequest::new(team_id, -campaign_cost, CashKind::CommercialCampaign, today),
+            PostRequest::new(team_id, gross_revenue, CashKind::CommercialCampaign, today),
+        ],
+    )?;
     let team = game
         .teams
         .iter_mut()
         .find(|team| team.id == team_id)
         .ok_or("be.error.managedTeamNotFound".to_string())?;
 
-    team.finance += net_income;
-    team.season_income += gross_revenue;
-    team.season_expenses += campaign_cost;
     team.financial_ledger.push(FinancialTransaction {
         date: today_label.clone(),
         description: marketing_campaign_activation_description(),
@@ -792,16 +803,15 @@ pub fn request_marketing_campaign(
 pub fn request_board_support(game: &mut Game, team_id: &str) -> Result<BoardSupportResult, String> {
     let preview = preview_board_support(game, team_id)?;
     let season = board_support_season(game);
+    let support_amount = preview.support_amount;
+    let transfer_budget_reduction = preview.transfer_budget_reduction;
+    let date = game.clock.current_date.date_naive();
+    post(game, team_id, support_amount, CashKind::BoardSupport, date)?;
     let team = game
         .teams
         .iter_mut()
         .find(|team| team.id == team_id)
         .ok_or("be.error.managedTeamNotFound".to_string())?;
-    let support_amount = preview.support_amount;
-    let transfer_budget_reduction = preview.transfer_budget_reduction;
-
-    team.finance += support_amount;
-    team.season_income += support_amount;
     team.transfer_budget = (team.transfer_budget - transfer_budget_reduction).max(0);
     team.financial_ledger.push(FinancialTransaction {
         date: game.clock.current_date.format("%Y-%m-%d").to_string(),
@@ -893,6 +903,19 @@ fn count_recent_home_matches(game: &Game, team_id: &str) -> i64 {
         .count() as i64
 }
 
+fn commit_weekly_posts(game: &mut Game, reqs: &[PostRequest]) -> bool {
+    if reqs.is_empty() {
+        return true;
+    }
+    match post_all(game, reqs) {
+        Ok(_) => true,
+        Err(err) => {
+            log::error!("weekly finance post failed: {err}");
+            false
+        }
+    }
+}
+
 /// Process weekly financial operations (called every Monday = weekday 0).
 /// - Deduct player wages (weekly = annual / 52)
 /// - Deduct staff wages
@@ -909,28 +932,22 @@ pub fn process_weekly_finances(game: &mut Game) {
     // Sum each member's weekly wage into its team in a single pass, instead of
     // rescanning every player and staff member once per team
     // (O(teams * (players + staff)) -> O(teams + players + staff)).
-    let mut wage_by_team: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut player_wages_by_team: std::collections::HashMap<String, i64> =
+        std::collections::HashMap::new();
+    let mut staff_wages_by_team: std::collections::HashMap<String, i64> =
+        std::collections::HashMap::new();
     for player in &game.players {
         if let Some(team_id) = &player.team_id {
-            *wage_by_team.entry(team_id.clone()).or_default() += player.wage as i64 / 52;
+            *player_wages_by_team.entry(team_id.clone()).or_default() += player.wage as i64 / 52;
         }
     }
     for staff_member in &game.staff {
         if let Some(team_id) = &staff_member.team_id {
-            *wage_by_team.entry(team_id.clone()).or_default() += staff_member.wage as i64 / 52;
+            *staff_wages_by_team.entry(team_id.clone()).or_default() +=
+                staff_member.wage as i64 / 52;
         }
     }
 
-    let team_expenses: std::collections::HashMap<String, i64> = game
-        .teams
-        .iter()
-        .map(|team| {
-            let wages = wage_by_team.get(&team.id).copied().unwrap_or(0);
-            (team.id.clone(), wages + calc_upkeep(team))
-        })
-        .collect();
-
-    // Resolve league positions once from a single sort, not once per team.
     let position_by_team: std::collections::HashMap<String, u32> = game
         .league
         .as_ref()
@@ -944,14 +961,38 @@ pub fn process_weekly_finances(game: &mut Game) {
         })
         .unwrap_or_default();
 
-    for team in game.teams.iter_mut() {
-        let total_expenses = team_expenses.get(&team.id).copied().unwrap_or(0);
-
-        team.finance -= total_expenses;
-        team.season_expenses += total_expenses;
-
+    let post_date = game.clock.current_date.date_naive();
+    let mut weekly_by_club: Vec<(String, Vec<PostRequest>)> = Vec::new();
+    for team in &game.teams {
+        let mut reqs = Vec::new();
+        let player_wages = player_wages_by_team.get(&team.id).copied().unwrap_or(0);
+        let staff_wages = staff_wages_by_team.get(&team.id).copied().unwrap_or(0);
+        let upkeep = calc_upkeep(team);
+        if player_wages != 0 {
+            reqs.push(PostRequest::new(
+                &team.id,
+                -player_wages,
+                CashKind::PlayerWages,
+                post_date,
+            ));
+        }
+        if staff_wages != 0 {
+            reqs.push(PostRequest::new(
+                &team.id,
+                -staff_wages,
+                CashKind::StaffWages,
+                post_date,
+            ));
+        }
+        if upkeep != 0 {
+            reqs.push(PostRequest::new(
+                &team.id,
+                -upkeep,
+                CashKind::Upkeep,
+                post_date,
+            ));
+        }
         let current_position = position_by_team.get(&team.id).copied();
-
         let sponsorship_income = team
             .sponsorship
             .as_ref()
@@ -960,12 +1001,32 @@ pub fn process_weekly_finances(game: &mut Game) {
                     + evaluate_sponsorship_bonus(current_position, &team.form, sponsorship)
             })
             .unwrap_or(0);
-
         if sponsorship_income > 0 {
-            team.finance += sponsorship_income;
-            team.season_income += sponsorship_income;
+            reqs.push(PostRequest::new(
+                &team.id,
+                sponsorship_income,
+                CashKind::Sponsorship,
+                post_date,
+            ));
         }
+        weekly_by_club.push((team.id.clone(), reqs));
+    }
 
+    // One `post_all` per club on purpose: a single overflow must not skip the
+    // rest of the league (`post_all` is all-or-nothing). `posted_clubs` below
+    // gates sponsorship expiry and board pressure. Opening-balance lookup is
+    // O(1) on the journal, so this loop is not clubs × journal size.
+    let mut posted_clubs = std::collections::HashSet::new();
+    for (team_id, reqs) in weekly_by_club {
+        if commit_weekly_posts(game, &reqs) {
+            posted_clubs.insert(team_id);
+        }
+    }
+
+    for team in game.teams.iter_mut() {
+        if !posted_clubs.contains(&team.id) {
+            continue;
+        }
         if let Some(sponsorship) = team.sponsorship.as_mut() {
             sponsorship.remaining_weeks = sponsorship.remaining_weeks.saturating_sub(1);
             if sponsorship.remaining_weeks == 0 {
@@ -974,37 +1035,39 @@ pub fn process_weekly_finances(game: &mut Game) {
         }
     }
 
-    // --- Matchday income for home matches completed in last 7 days ---
     if game.league.is_some() {
-        let home_match_counts: std::collections::HashMap<String, i64> = game
-            .teams
-            .iter()
-            .map(|team| (team.id.clone(), count_recent_home_matches(game, &team.id)))
-            .collect();
-
-        for team in game.teams.iter_mut() {
-            let home_count = home_match_counts.get(&team.id).copied().unwrap_or(0);
-
-            if home_count > 0 {
-                let mut rng = rand::rng();
-                let attendance_pct = rng.random_range(60..=92) as f64 / 100.0;
-                let avg_ticket = rng.random_range(15..=25) as f64;
-                let total_revenue = calc_matchday(
-                    team.stadium_capacity,
-                    home_count,
-                    attendance_pct,
-                    avg_ticket,
-                );
-
-                team.finance += total_revenue;
-                team.season_income += total_revenue;
+        let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+        for team_id in team_ids {
+            let home_count = count_recent_home_matches(game, &team_id);
+            if home_count == 0 {
+                continue;
             }
+            let stadium_capacity = game
+                .teams
+                .iter()
+                .find(|team| team.id == team_id)
+                .map(|team| team.stadium_capacity)
+                .unwrap_or(0);
+            let mut rng = rand::rng();
+            let attendance_pct = rng.random_range(60..=92) as f64 / 100.0;
+            let avg_ticket = rng.random_range(15..=25) as f64;
+            let total_revenue =
+                calc_matchday(stadium_capacity, home_count, attendance_pct, avg_ticket);
+            let req = PostRequest::new(&team_id, total_revenue, CashKind::Matchday, post_date);
+            let _ = commit_weekly_posts(game, std::slice::from_ref(&req));
         }
     }
 
     // --- Financial health warnings for user's team ---
     generate_financial_warnings(game, &today);
-    apply_weekly_finance_satisfaction_pressure(game);
+    if game
+        .manager
+        .team_id
+        .as_ref()
+        .is_some_and(|id| posted_clubs.contains(id))
+    {
+        apply_weekly_finance_satisfaction_pressure(game);
+    }
 }
 
 /// Generate inbox messages warning about financial issues.
