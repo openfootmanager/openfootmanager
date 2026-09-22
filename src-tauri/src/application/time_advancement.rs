@@ -290,3 +290,99 @@ pub fn advance_time_with_mode(
 
     Ok(response)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::scheduled_user_fixture_index;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
+    use domain::manager::Manager;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+
+    fn scheduled(id: &str, date: &str, home: &str, away: &str) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        }
+    }
+
+    fn league(id: &str, fixtures: Vec<Fixture>) -> League {
+        League {
+            id: id.to_string(),
+            name: id.to_string(),
+            season: 2036,
+            fixtures,
+            ..Default::default()
+        }
+    }
+
+    fn game_with(competitions: Vec<League>, mirror: Option<League>) -> Game {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("eng-00".to_string());
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2036, 5, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        game.competitions = competitions;
+        game.league = mirror;
+        game
+    }
+
+    /// The caller replaces `game.league` with whatever competition the returned
+    /// index names, and builds the live match from it. The legacy fallback used
+    /// to answer zero regardless, so a player whose fixture was only reachable
+    /// through the mirror was handed the first competition in the list — in a
+    /// generated world an Argentine league, for an English manager.
+    #[test]
+    fn the_mirror_fallback_names_the_mirrors_own_competition_not_the_first() {
+        let foreign = league("ar-d1-apertura", vec![]);
+        let ours = league(
+            "eng-d2",
+            vec![scheduled("f1", "2036-05-01", "eng-00", "eng-01")],
+        );
+        // Out of scope, so the scan above the fallback skips it and the mirror
+        // is what answers.
+        let mut game = game_with(vec![foreign, ours.clone()], Some(ours));
+        game.active_competition_ids = vec!["ar-d1-apertura".to_string()];
+
+        let (competition_index, fixture_index) =
+            scheduled_user_fixture_index(&game, "2036-05-01").expect("the user plays today");
+
+        assert_eq!(fixture_index, 0);
+        assert_eq!(
+            game.competitions[competition_index].id, "eng-d2",
+            "the index must name the mirror's competition, not competitions[0]"
+        );
+    }
+
+    /// A save written before competitions existed has only the mirror. An index
+    /// past the end resolves to nothing, which leaves `game.league` alone —
+    /// correct, because the mirror already holds the fixture.
+    #[test]
+    fn a_mirror_that_is_not_a_competition_resolves_to_nothing() {
+        let ours = league(
+            "legacy-league",
+            vec![scheduled("f1", "2036-05-01", "eng-00", "eng-01")],
+        );
+        let game = game_with(Vec::new(), Some(ours));
+
+        let (competition_index, _) =
+            scheduled_user_fixture_index(&game, "2036-05-01").expect("the user plays today");
+
+        assert!(
+            game.competitions.get(competition_index).is_none(),
+            "nothing to replace the mirror with, so the mirror stands"
+        );
+    }
+}

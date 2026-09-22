@@ -92,10 +92,16 @@ describe("getPromotionRelegationZones", () => {
     // consecutive priorities, over the same twenty clubs.
     const roster = clubs("ar", 20);
     const apertura = division({
-      id: "ar-d1-apertura", country_id: "AR", priority: 0, participant_ids: roster,
+      id: "ar-d1-apertura",
+      country_id: "AR",
+      priority: 0,
+      participant_ids: roster,
     });
     const clausura = division({
-      id: "ar-d1-clausura", country_id: "AR", priority: 1, participant_ids: roster,
+      id: "ar-d1-clausura",
+      country_id: "AR",
+      priority: 1,
+      participant_ids: roster,
     });
     const state = [apertura, clausura];
 
@@ -111,9 +117,16 @@ describe("getPromotionRelegationZones", () => {
 
   it("ignores a neighbour that shares clubs with the division", () => {
     // A reserve or B-team table drawn from the same clubs is not a tier below.
-    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("x", 20) });
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("x", 20),
+    });
     const shadow = division({
-      id: "xx-shadow", country_id: "XX", priority: 1,
+      id: "xx-shadow",
+      country_id: "XX",
+      priority: 1,
       participant_ids: [...clubs("x", 5), ...clubs("y", 15)],
     });
 
@@ -124,10 +137,19 @@ describe("getPromotionRelegationZones", () => {
   });
 
   it("ignores competitions that are not domestic league tiers", () => {
-    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("a", 20) });
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
     const regionalCup = division({
-      id: "xx-regional", country_id: "XX", priority: 1, participant_ids: clubs("b", 10),
-      scope: "Regional", kind: "Cup",
+      id: "xx-regional",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("b", 10),
+      scope: "Regional",
+      kind: "Cup",
     });
 
     expect(getPromotionRelegationZones([first, regionalCup], first)).toEqual({
@@ -144,9 +166,24 @@ describe("getPromotionRelegationZones", () => {
   it("draws no zones when two eligible tiers share a priority", () => {
     // The backend refuses a ladder run whose tiers do not rank distinctly, so
     // the table must not promise movement it will not make.
-    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("a", 20) });
-    const peer = division({ id: "xx-1b", country_id: "XX", priority: 0, participant_ids: clubs("b", 20) });
-    const below = division({ id: "xx-2", country_id: "XX", priority: 1, participant_ids: clubs("c", 20) });
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const peer = division({
+      id: "xx-1b",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("b", 20),
+    });
+    const below = division({
+      id: "xx-2",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("c", 20),
+    });
 
     for (const competition of [first, peer, below]) {
       expect(getPromotionRelegationZones([first, peer, below], competition)).toEqual({
@@ -159,8 +196,18 @@ describe("getPromotionRelegationZones", () => {
   it("treats a numeric gap in priorities as adjacent", () => {
     // The backend sorts a country's tiers and chains neighbours by rank order,
     // not by numeric adjacency, so 0 and 2 are neighbouring divisions.
-    const first = division({ id: "xx-1", country_id: "XX", priority: 0, participant_ids: clubs("a", 20) });
-    const second = division({ id: "xx-2", country_id: "XX", priority: 2, participant_ids: clubs("b", 20) });
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const second = division({
+      id: "xx-2",
+      country_id: "XX",
+      priority: 2,
+      participant_ids: clubs("b", 20),
+    });
 
     expect(getPromotionRelegationZones([first, second], first)).toEqual({
       promotionSlots: 0,

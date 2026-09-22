@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GameStateData } from "../store/gameStore";
+import type { LeagueData, SeasonContextData } from "../store/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import Dashboard from "./Dashboard";
 
@@ -355,8 +356,11 @@ vi.mock("../components/dashboard/DashboardAlerts", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardTabContent", () => ({
-  default: ({ viewModel }: { viewModel: { activeTab: string } }) => (
-    <div>Tab Content {viewModel.activeTab}</div>
+  default: ({ viewModel }: { viewModel: { activeTab: string; seasonComplete: boolean } }) => (
+    <div>
+      <div>Tab Content {viewModel.activeTab}</div>
+      {viewModel.seasonComplete ? <div>season over</div> : null}
+    </div>
   ),
 }));
 
@@ -392,6 +396,8 @@ describe("Dashboard", () => {
     navigateMock.mockReset();
     vi.mocked(applyExtraTranslations).mockReset();
     window.localStorage.clear();
+    gameState.competitions = undefined;
+    gameState.season_context = undefined;
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_active_game") {
         return gameState;
@@ -399,6 +405,98 @@ describe("Dashboard", () => {
 
       return null;
     });
+  });
+
+  // A finished league that is not the player's own, sorting first in the array.
+  // Competitions are ordered by country code, so in a generated world this is
+  // always Argentina — a split-season country on a different calendar.
+  function foreignLeagueStillPlaying(): LeagueData {
+    return {
+      id: "ar-d1-apertura",
+      name: "ar-d1-apertura",
+      season: 2035,
+      kind: "League",
+      scope: "Domestic",
+      country_id: "AR",
+      priority: 0,
+      participant_ids: ["ar-00", "ar-01"],
+      rules: { format: "LeagueTable", counts_in_season_flow: true },
+      fixtures: [
+        {
+          id: "ar-1",
+          matchday: 1,
+          date: "2036-02-10",
+          home_team_id: "ar-00",
+          away_team_id: "ar-01",
+          competition: "League",
+          status: "Completed",
+          result: null,
+        },
+        {
+          id: "ar-2",
+          matchday: 2,
+          date: "2036-10-10",
+          home_team_id: "ar-01",
+          away_team_id: "ar-00",
+          competition: "League",
+          status: "Scheduled",
+          result: null,
+        },
+      ],
+      standings: [],
+    } as LeagueData;
+  }
+
+  function seasonContext(seasonComplete: boolean): SeasonContextData {
+    return {
+      phase: seasonComplete ? "PostSeason" : "InSeason",
+      season_complete: seasonComplete,
+      season_start: null,
+      season_end: null,
+      days_until_season_start: null,
+      transfer_window: {
+        status: "Closed",
+        opens_on: null,
+        closes_on: null,
+        days_until_opens: null,
+        days_remaining: null,
+      },
+    } as SeasonContextData;
+  }
+
+  /// The end-of-season screen is the only way to roll the season over, and the
+  /// rollover is what runs promotion and relegation. This used to be decided
+  /// from `competitions[0]` — never the player's league — so an English career
+  /// that finished in April waited on an Argentine Apertura running to October,
+  /// the screen never appeared, and the player could not continue.
+  it("offers the end of season from the backend flag, not the first competition", async () => {
+    gameState.competitions = [foreignLeagueStillPlaying()];
+    gameState.season_context = seasonContext(true);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("season over")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the season running while the backend says it is not over", async () => {
+    // The first competition has finished every fixture, which is exactly what
+    // the old local rule keyed on. The backend says otherwise.
+    const finished = foreignLeagueStillPlaying();
+    finished.fixtures = finished.fixtures.map((fixture) => ({
+      ...fixture,
+      status: "Completed",
+    }));
+    gameState.competitions = [finished];
+    gameState.season_context = seasonContext(false);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("season over")).not.toBeInTheDocument();
   });
 
   it("supports search selection, profile switching, back-navigation, and tab switching", async () => {
