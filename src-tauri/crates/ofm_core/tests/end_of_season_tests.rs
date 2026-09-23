@@ -2439,6 +2439,68 @@ fn an_unfinished_upper_tier_does_not_pay_top_flight_prize_money() {
     );
 }
 
+/// One division result must feed everything the player is told.
+///
+/// The payout is taken from the table a split-season country ends its year on,
+/// but the summary, the club's record, the manager's trophies and the payout
+/// message were all read from whichever table happened to come first. A club
+/// could be crowned champion on screen, have second place written into its
+/// history, be paid for second, and be told in the same breath that it earned
+/// the champion's cheque.
+#[test]
+fn a_split_season_tells_the_player_one_consistent_story() {
+    let mut game = make_completed_season_game();
+
+    // The user wins the opening half and finishes second in the closing one.
+    let mut apertura = first_division("ar-d1-apertura", "AR", "america", &["team1", "team2"]);
+    apertura.priority = 0;
+    apertura.fixtures = vec![make_completed_fixture("ap", "team1", "team2", 2, 0)];
+    let mut clausura = first_division("ar-d1-clausura", "AR", "america", &["team2", "team1"]);
+    clausura.priority = 1;
+    let mut closing = make_completed_fixture("cl", "team2", "team1", 2, 0);
+    closing.date = "2025-12-01".to_string();
+    clausura.fixtures = vec![closing];
+
+    game.league = Some(apertura.clone());
+    game.competitions = vec![apertura, clausura];
+    let before = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team1")
+        .expect("team1")
+        .finance;
+
+    let summary = process_end_of_season(&mut game);
+
+    let team1 = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team1")
+        .expect("team1");
+    let gained = team1.finance - before;
+    let payout = game
+        .messages
+        .iter()
+        .find(|message| message.id.starts_with("season_payout_"))
+        .expect("a payout message");
+
+    assert_eq!(
+        summary.user_position, 2,
+        "the closing table is the one the year ended on"
+    );
+    assert_eq!(team1.history[0].league_position, 2, "and the record agrees");
+    assert_eq!(gained, 3_000_000, "paid for second");
+    assert_eq!(
+        payout.i18n_params.get("amount"),
+        Some(&gained.to_string()),
+        "the message must describe the payment actually made"
+    );
+    assert_eq!(
+        game.manager.career_stats.trophies, 0,
+        "second place is not a trophy"
+    );
+}
+
 /// A tier that cannot make progress must not hold the career hostage.
 ///
 /// The day loop plays a fixture on the day it is dated and never looks back, so

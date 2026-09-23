@@ -241,20 +241,30 @@ fn has_a_fixture_still_to_come(competition: &League, today: &str) -> bool {
 ///
 /// The half that finishes last is the one kept: it is the table the club ends
 /// its year on. `group` is already ordered by rank, and that order is preserved.
-fn collapse_repeated_divisions(group: &mut Vec<&League>) {
-    use std::collections::BTreeSet;
+/// The clubs a competition registers.
+fn division_roster(league: &League) -> std::collections::BTreeSet<&str> {
+    league.participant_ids.iter().map(String::as_str).collect()
+}
 
-    fn roster(league: &League) -> BTreeSet<&str> {
-        league.participant_ids.iter().map(String::as_str).collect()
-    }
-    fn finished_on(league: &League) -> Option<&str> {
-        league
-            .fixtures
-            .iter()
-            .filter(|fixture| fixture.status == FixtureStatus::Completed)
-            .map(|fixture| fixture.date.as_str())
-            .max()
-    }
+/// The date a competition last played, or `None` if it never has.
+///
+/// This is what decides which of a country's repeated tables counts: the half
+/// the year ended on. One definition, because the payout and the user's own
+/// summary must pick the same one — a club crowned champion from the opening
+/// table and paid for second from the closing one is telling the player two
+/// different stories about the same season.
+fn division_finished_on(league: &League) -> Option<&str> {
+    league
+        .fixtures
+        .iter()
+        .filter(|fixture| fixture.status == FixtureStatus::Completed)
+        .map(|fixture| fixture.date.as_str())
+        .max()
+}
+
+fn collapse_repeated_divisions(group: &mut Vec<&League>) {
+    let roster = division_roster;
+    let finished_on = division_finished_on;
 
     let mut kept: Vec<&League> = Vec::with_capacity(group.len());
     for league in group.iter().copied() {
@@ -541,9 +551,11 @@ fn regenerate_competitions_for_new_season(
 /// competition happened to sort first — an English manager relegated to the
 /// second division was sent to an Argentine fixture.
 ///
-/// `resolve_simulation_scope` applies this same rule when the career starts;
-/// this keeps it true for the rest of it.
-fn refresh_user_competition_scope(game: &mut Game) {
+/// `resolve_simulation_scope` applies this same rule when the career starts,
+/// and taking a new job calls this too — otherwise a manager appointed
+/// mid-career keeps a scope that never mentions their new club, and the day
+/// loop resolves their own matches through dormant simulation.
+pub fn refresh_user_competition_scope(game: &mut Game) {
     if game.active_competition_ids.is_empty() {
         return;
     }
@@ -694,18 +706,29 @@ fn world_cup_rng(year: i32) -> rand::rngs::StdRng {
 /// primary competition when the user has no club in any division (e.g. an
 /// unemployed manager) or for legacy single-league saves.
 pub fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
+    let contains_user = |competition: &League| {
+        competition.rules.format == CompetitionFormat::LeagueTable
+            && (competition
+                .participant_ids
+                .iter()
+                .any(|id| id == user_team_id)
+                || competition
+                    .standings
+                    .iter()
+                    .any(|standing| standing.team_id == user_team_id))
+    };
+
+    // A split-season country runs the user's club through more than one table.
+    // Take the one the year ended on — the same one the payout and the club's
+    // record are taken from — or the summary crowns them from one half while
+    // they are paid for the other.
     game.competitions
         .iter()
-        .find(|competition| {
-            competition.rules.format == CompetitionFormat::LeagueTable
-                && (competition
-                    .participant_ids
-                    .iter()
-                    .any(|id| id == user_team_id)
-                    || competition
-                        .standings
-                        .iter()
-                        .any(|standing| standing.team_id == user_team_id))
+        .filter(|competition| contains_user(competition))
+        .max_by(|left, right| {
+            division_finished_on(left)
+                .cmp(&division_finished_on(right))
+                .then_with(|| right.priority.cmp(&left.priority))
         })
         .or(game.league.as_ref())
 }

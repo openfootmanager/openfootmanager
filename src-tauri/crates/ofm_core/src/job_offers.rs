@@ -152,6 +152,23 @@ pub fn hire_manager(game: &mut Game, team_id: &str, date: &str) -> Result<String
         date,
     ));
 
+    // The manager's club decides which competitions are theirs, which season
+    // the game is waiting on, and which league the legacy mirror points at.
+    // Every appointment goes through here, so this is the one place all three
+    // have to be brought up to date: a context left over from the previous club
+    // can show the end-of-season screen for a season that is not over, and a
+    // scope that never mentions the new club makes the day loop resolve the
+    // user's own matches as if nobody were watching.
+    //
+    // Only once there are competitions to mirror: `sync_legacy_league` clears
+    // the mirror when it finds none, and a club is hired during bootstrap
+    // before the competition set exists, where `game.league` is the only copy.
+    if !game.competitions.is_empty() {
+        game.sync_legacy_league();
+    }
+    crate::end_of_season::refresh_user_competition_scope(game);
+    crate::season_context::refresh_game_context(game);
+
     info!(
         "[job_offers] Manager {} hired at {} (satisfaction reset to 50)",
         game.manager.full_name(),
@@ -583,6 +600,87 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
     use domain::team::Team;
+
+    /// The dashboard trusts `season_context.season_complete` and disables
+    /// Continue on it, while the rollover command recomputes the predicate and
+    /// refuses. Taking a new job changes the answer — the new club's country
+    /// has its own calendar — so a context left over from the old club can show
+    /// the end-of-season screen for a season that is not over, with no way
+    /// forward until something else happens to recompute it.
+    #[test]
+    fn taking_a_new_job_recomputes_the_season_context() {
+        use domain::league::{FixtureStatus, League};
+
+        let mut game = make_game(50, true);
+
+        // The old club's league is finished; the new club's is not.
+        let mut finished = League::new(
+            "eng-d1".to_string(),
+            "eng-d1".to_string(),
+            2026,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        finished.country_id = Some("ENG".to_string());
+        let mut played = domain::league::Fixture {
+            id: "f1".to_string(),
+            date: "2026-05-01".to_string(),
+            home_team_id: "team1".to_string(),
+            away_team_id: "team2".to_string(),
+            status: FixtureStatus::Completed,
+            ..Default::default()
+        };
+        played.matchday = 1;
+        let mut played_back = played.clone();
+        played_back.id = "f2".to_string();
+        played_back.home_team_id = "team2".to_string();
+        played_back.away_team_id = "team1".to_string();
+        finished.fixtures = vec![played, played_back];
+        finished.standings = vec![
+            domain::league::StandingEntry::new("team1".to_string()),
+            domain::league::StandingEntry::new("team2".to_string()),
+        ];
+        finished.standings[0].played = 2;
+        finished.standings[1].played = 2;
+
+        let mut running = League::new(
+            "bra-d1".to_string(),
+            "bra-d1".to_string(),
+            2026,
+            &["team3".to_string()],
+        );
+        running.country_id = Some("BR".to_string());
+        let mut upcoming = domain::league::Fixture {
+            id: "b1".to_string(),
+            date: "2026-12-20".to_string(),
+            home_team_id: "team3".to_string(),
+            away_team_id: "team1".to_string(),
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        };
+        upcoming.matchday = 1;
+        let mut done = upcoming.clone();
+        done.id = "b0".to_string();
+        done.date = "2026-03-01".to_string();
+        done.status = FixtureStatus::Completed;
+        running.fixtures = vec![done, upcoming];
+        running.standings = vec![domain::league::StandingEntry::new("team3".to_string())];
+        running.standings[0].played = 1;
+
+        game.league = Some(finished.clone());
+        game.competitions = vec![finished, running];
+        crate::season_context::refresh_game_context(&mut game);
+        assert!(
+            game.season_context.season_complete,
+            "precondition: the old club's season is over"
+        );
+
+        switch_manager_team(&mut game, "team3", "2026-11-01").expect("a vacant club");
+
+        assert!(
+            !game.season_context.season_complete,
+            "the new club's season is still running"
+        );
+    }
 
     fn make_game(satisfaction: u8, has_team: bool) -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 11, 1, 12, 0, 0).unwrap());
