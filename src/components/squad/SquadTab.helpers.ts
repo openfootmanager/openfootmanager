@@ -1,3 +1,11 @@
+export {
+  CORE_POSITIONS,
+  canonicalPosition,
+  normalisePosition,
+  positionSortRank,
+} from "../../lib/positions";
+import { canonicalPosition, normalisePosition } from "../../lib/positions";
+
 import type { PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
 
@@ -24,68 +32,6 @@ export type SquadRoleCoverage = {
   naturalStarters: number;
   benchOptions: number;
   status: SquadRoleCoverageStatus;
-};
-
-export const CORE_POSITIONS = ["Goalkeeper", "Defender", "Midfielder", "Forward"] as const;
-
-const CANONICAL_POSITION_MAP: Record<string, string> = {
-  gk: "Goalkeeper",
-  goalkeeper: "Goalkeeper",
-  defender: "Defender",
-  def: "Defender",
-  wingback: "Defender",
-  midfielder: "Midfielder",
-  mid: "Midfielder",
-  forward: "Forward",
-  fwd: "Forward",
-  winger: "Forward",
-  rb: "RightBack",
-  rightback: "RightBack",
-  cb: "CenterBack",
-  centerback: "CenterBack",
-  centreback: "CenterBack",
-  lb: "LeftBack",
-  leftback: "LeftBack",
-  rwb: "RightWingBack",
-  rightwingback: "RightWingBack",
-  lwb: "LeftWingBack",
-  leftwingback: "LeftWingBack",
-  dm: "DefensiveMidfielder",
-  defensivemidfielder: "DefensiveMidfielder",
-  cm: "CentralMidfielder",
-  centralmidfielder: "CentralMidfielder",
-  am: "AttackingMidfielder",
-  attackingmidfielder: "AttackingMidfielder",
-  rm: "RightMidfielder",
-  rightmidfielder: "RightMidfielder",
-  lm: "LeftMidfielder",
-  leftmidfielder: "LeftMidfielder",
-  rw: "RightWinger",
-  rightwinger: "RightWinger",
-  lw: "LeftWinger",
-  leftwinger: "LeftWinger",
-  st: "Striker",
-  striker: "Striker",
-};
-
-const POSITION_GROUPS: Record<string, string> = {
-  Goalkeeper: "Goalkeeper",
-  Defender: "Defender",
-  Midfielder: "Midfielder",
-  Forward: "Forward",
-  RightBack: "Defender",
-  CenterBack: "Defender",
-  LeftBack: "Defender",
-  RightWingBack: "Defender",
-  LeftWingBack: "Defender",
-  DefensiveMidfielder: "Midfielder",
-  CentralMidfielder: "Midfielder",
-  AttackingMidfielder: "Midfielder",
-  RightMidfielder: "Midfielder",
-  LeftMidfielder: "Midfielder",
-  RightWinger: "Forward",
-  LeftWinger: "Forward",
-  Striker: "Forward",
 };
 
 const POSITION_LABELS: Record<string, string> = {
@@ -136,32 +82,6 @@ const POSITION_CODES: Record<string, string> = {
  * unmigrated players stay adjacent to their granular teammates instead of
  * scattering to the end.
  */
-const POSITION_SORT_ORDER: Record<string, number> = {
-  Goalkeeper: 10,
-  Defender: 20,
-  CenterBack: 21,
-  LeftBack: 22,
-  RightBack: 23,
-  LeftWingBack: 24,
-  RightWingBack: 25,
-  Midfielder: 30,
-  DefensiveMidfielder: 31,
-  CentralMidfielder: 32,
-  AttackingMidfielder: 33,
-  LeftMidfielder: 34,
-  RightMidfielder: 35,
-  Forward: 40,
-  LeftWinger: 41,
-  RightWinger: 42,
-  Striker: 43,
-};
-
-/**
- * Rank a position for canonical sort ordering. Unknown values sort to the end.
- */
-export function positionSortRank(position: string): number {
-  return POSITION_SORT_ORDER[canonicalPosition(position)] ?? 999;
-}
 
 const GROUP_ROLE_PREFERENCES: Record<string, string[]> = {
   Goalkeeper: ["Goalkeeper"],
@@ -176,17 +96,6 @@ const GROUP_ROLE_PREFERENCES: Record<string, string[]> = {
   Forward: ["Striker", "LeftWinger", "RightWinger"],
 };
 
-function normaliseKey(value: string): string {
-  return value.toLowerCase().replace(/[^a-z]/g, "");
-}
-
-export function canonicalPosition(position: string): string {
-  const trimmed = position.trim();
-  if (!trimmed) return trimmed;
-
-  return CANONICAL_POSITION_MAP[normaliseKey(trimmed)] || trimmed;
-}
-
 export function parseFormationSlots(formation: string): {
   def: number;
   mid: number;
@@ -200,11 +109,6 @@ export function parseFormationSlots(formation: string): {
     return { def: parts[0], mid: parts[1], fwd: parts[2] };
   }
   return { def: 4, mid: 4, fwd: 2 };
-}
-
-export function normalisePosition(position: string): string {
-  const canonical = canonicalPosition(position);
-  return POSITION_GROUPS[canonical] || canonical;
 }
 
 export function positionCode(position: string): string {
