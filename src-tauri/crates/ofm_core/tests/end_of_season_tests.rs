@@ -1182,6 +1182,10 @@ fn season_not_complete_while_another_division_is_unfinished() {
     };
     div2.fixtures[1].status = FixtureStatus::Scheduled;
     div2.fixtures[1].result = None;
+    // Dated ahead of the clock, so the day loop can still reach it. A fixture
+    // the clock has already passed is stale, not pending, and deliberately does
+    // not hold the season open.
+    div2.fixtures[1].date = "2026-06-10".to_string();
     game.competitions = vec![div1, div2];
 
     assert!(
@@ -2432,6 +2436,85 @@ fn an_unfinished_upper_tier_does_not_pay_top_flight_prize_money() {
         gained, 2_500_000,
         "the second division's champion earns half the top flight's 5,000,000, \
          even while the first division is unfinished"
+    );
+}
+
+/// A tier that cannot make progress must not hold the career hostage.
+///
+/// The day loop plays a fixture on the day it is dated and never looks back, so
+/// a `Scheduled` fixture the clock has already passed is unreachable: its tier
+/// never "ends". Waiting on the user's whole country then meant the season could
+/// never complete — `advance_to_next_season` refuses forever and the
+/// end-of-season screen never appears. Two years of days did not clear it.
+#[test]
+fn a_tier_with_only_overdue_fixtures_does_not_block_the_season() {
+    let mut game = make_completed_season_game();
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let mut first = first_division("eng-d1", "ENG", "europe", &["team1", "team2"]);
+    first.fixtures = vec![
+        make_completed_fixture("d1f1", "team1", "team2", 2, 0),
+        make_completed_fixture("d1f2", "team2", "team1", 0, 1),
+    ];
+
+    // Started, but its one remaining fixture is dated long before the clock.
+    let mut second = first_division("eng-d2", "ENG", "europe", &["team3", "team4"]);
+    second.priority = 1;
+    let mut stranded = make_completed_fixture("d2-stale", "team3", "team4", 0, 0);
+    stranded.date = "2020-01-01".to_string();
+    stranded.status = FixtureStatus::Scheduled;
+    stranded.result = None;
+    second.fixtures = vec![
+        make_completed_fixture("d2-played", "team3", "team4", 1, 0),
+        stranded,
+    ];
+
+    game.league = Some(first.clone());
+    game.competitions = vec![first, second];
+
+    assert!(
+        is_season_complete(&game),
+        "a tier whose only remaining fixture is in the past is stale, not playing"
+    );
+}
+
+/// The counterpart: a tier that genuinely still has a match to come does block.
+#[test]
+fn a_tier_with_a_fixture_still_to_come_blocks_the_season() {
+    let mut game = make_completed_season_game();
+    for id in ["team3", "team4"] {
+        if !game.teams.iter().any(|team| team.id == id) {
+            game.teams.push(make_team(id, &format!("{id} FC")));
+        }
+    }
+
+    let mut first = first_division("eng-d1", "ENG", "europe", &["team1", "team2"]);
+    first.fixtures = vec![
+        make_completed_fixture("d1f1", "team1", "team2", 2, 0),
+        make_completed_fixture("d1f2", "team2", "team1", 0, 1),
+    ];
+
+    let mut second = first_division("eng-d2", "ENG", "europe", &["team3", "team4"]);
+    second.priority = 1;
+    let mut upcoming = make_completed_fixture("d2-upcoming", "team3", "team4", 0, 0);
+    upcoming.date = "2026-06-20".to_string(); // the clock sits in May 2026
+    upcoming.status = FixtureStatus::Scheduled;
+    upcoming.result = None;
+    second.fixtures = vec![
+        make_completed_fixture("d2-played", "team3", "team4", 1, 0),
+        upcoming,
+    ];
+
+    game.league = Some(first.clone());
+    game.competitions = vec![first, second];
+
+    assert!(
+        !is_season_complete(&game),
+        "the rest of the pyramid is still playing"
     );
 }
 

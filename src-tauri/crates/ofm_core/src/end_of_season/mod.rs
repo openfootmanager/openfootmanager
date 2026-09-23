@@ -131,6 +131,7 @@ pub fn is_season_complete(game: &Game) -> bool {
                 .iter()
                 .filter_map(|league| league.country_id.as_deref())
                 .collect();
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
             let countrymen_still_playing = game.competitions.iter().any(|competition| {
                 berths::is_ladder_tier(competition)
                     && competition
@@ -139,6 +140,7 @@ pub fn is_season_complete(game: &Game) -> bool {
                         .is_some_and(|country| user_countries.contains(country))
                     && season_has_started(competition)
                     && !is_league_season_ended(competition)
+                    && has_a_fixture_still_to_come(competition, &today)
             });
             return !countrymen_still_playing;
         }
@@ -210,6 +212,22 @@ fn prize_money_for_position(position: u32) -> i64 {
 /// flight (tier 0 = top division).
 fn division_prize_money(position: u32, tier: u32) -> i64 {
     prize_money_for_position(position) >> tier
+}
+
+/// True when `competition` still has a match the day loop can reach.
+///
+/// A fixture is played on the day it is dated, and the loop never looks back,
+/// so one the clock has already passed is unreachable and its competition will
+/// never report its season ended. Such a tier is stale rather than playing, and
+/// waiting on it would mean the season could never complete at all: the
+/// rollover would refuse forever and the end-of-season screen would never
+/// appear — the very failure the country-wide wait exists to prevent.
+fn has_a_fixture_still_to_come(competition: &League, today: &str) -> bool {
+    competition.fixtures.iter().any(|fixture| {
+        fixture.counts_for_league_standings()
+            && fixture.status == FixtureStatus::Scheduled
+            && fixture.date.as_str() >= today
+    })
 }
 
 /// Reduce a country's tables to one per division.

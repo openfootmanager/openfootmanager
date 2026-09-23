@@ -103,6 +103,23 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         .into_values()
         .flat_map(|mut indices| {
             indices.sort_by_key(|&index| competitions[index].priority);
+            // Overlap is a property of the whole country, not of one run. Two
+            // repeated phases of a pyramid separated by an excluded rung land
+            // in different runs, and a per-run check never compares them: both
+            // chained, and the phases stopped describing the same division —
+            // a club first-division in one and second in the other. Refuse the
+            // country outright, as the ladder did before it learned to split.
+            if tiers_share_clubs(competitions, &indices) {
+                log::warn!(
+                    "[end-of-season] no promotion or relegation for {}: two tiers register the same club",
+                    indices
+                        .iter()
+                        .map(|&index| competitions[index].id.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+                return Vec::new();
+            }
             indices
                 .split(|&index| {
                     let id = competitions[index].id.as_str();
@@ -127,8 +144,6 @@ pub(super) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
             Some("a tier has not finished its season")
         } else if !tiers_are_ranked_distinctly(competitions, &run) {
             Some("two tiers share a priority, so their order is arbitrary")
-        } else if tiers_share_clubs(competitions, &run) {
-            Some("two tiers register the same club")
         } else {
             None
         };
@@ -1438,6 +1453,39 @@ mod tests {
             before,
             "the two halves must stay aligned"
         );
+    }
+
+    /// Repeated phases of one pyramid, separated by an excluded rung. The
+    /// overlap check runs per chained group, so splitting at the excluded rung
+    /// put the two phases in different groups and neither ever saw the other:
+    /// both chained, and the phases stopped describing the same division.
+    #[test]
+    fn repeated_phases_either_side_of_an_excluded_rung_stay_aligned() {
+        let d1_open = division("d1-open", 0, "XX", &[("a1", 40), ("a2", 10)]);
+        let d2_open = division("d2-open", 1, "XX", &[("b1", 40), ("b2", 10)]);
+        let central = division("central", 2, "XX", &[("c1", 40), ("c2", 10)]);
+        // Reversed finishing order in the closing phase, so a swap is visible.
+        let d1_close = division("d1-close", 3, "XX", &[("a2", 40), ("a1", 10)]);
+        let d2_close = division("d2-close", 4, "XX", &[("b2", 40), ("b1", 10)]);
+        let mut feeder = division("feeder", 0, "YY", &[("f1", 40), ("f2", 10)]);
+        feeder.berths = vec![position_berth("central", 1, 1)];
+
+        let before: Vec<(String, Vec<String>)> = [&d1_open, &d2_open, &d1_close, &d2_close]
+            .iter()
+            .map(|c| (c.id.clone(), c.participant_ids.clone()))
+            .collect();
+
+        let mut competitions = vec![d1_open, d2_open, central, d1_close, d2_close, feeder];
+        apply_pyramid_promotion_relegation(&mut competitions);
+
+        let by_id = |id: &str| competitions.iter().find(|c| c.id == id).expect(id);
+        for (id, expected) in &before {
+            assert_eq!(
+                &by_id(id).participant_ids,
+                expected,
+                "{id} moved clubs although the country's phases overlap"
+            );
+        }
     }
 
     #[test]
