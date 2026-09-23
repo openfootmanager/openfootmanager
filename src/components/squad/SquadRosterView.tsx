@@ -8,8 +8,6 @@ import type {
 import { Badge, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
 import {
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   MoreVertical,
   Repeat,
   RotateCcw,
@@ -18,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { TraitList } from "../TraitBadge";
+import { SquadSortHeader } from "./SquadSortHeader";
 import {
   calcAge,
   getPlayerOvr,
@@ -85,45 +84,6 @@ type FilterScope =
   | "needsCover"
   | "outOfPosition"
   | "injured";
-
-/**
- * Declared at module scope on purpose. Defined inside `SquadRosterView` it was a *new component
- * type* on every render, so React unmounted and remounted all ten header cells each time the
- * sort changed — the thing `noNestedComponentDefinitions` exists to catch.
- */
-function SortHeader({
-  col,
-  label,
-  sortKey,
-  sortDir,
-  onSort,
-}: {
-  col: SquadListSortKey;
-  label: string;
-  sortKey: SquadListSortKey;
-  sortDir: "asc" | "desc";
-  onSort: (col: SquadListSortKey) => void;
-}) {
-  const active = sortKey === col;
-
-  return (
-    <th
-      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
-      onClick={() => onSort(col)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {active ? (
-          sortDir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )
-        ) : null}
-      </div>
-    </th>
-  );
-}
 
 export default function SquadRosterView({
   players,
@@ -567,35 +527,35 @@ export default function SquadRosterView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                <SortHeader
+                <SquadSortHeader
                   col="jersey"
                   label="#"
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="name"
                   label={t("common.name")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="pos"
                   label={t("squad.pos")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="fit"
                   label={t("squad.formationFit")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="style"
                   label={t("squad.styleFit")}
                   sortKey={sortKey}
@@ -605,35 +565,35 @@ export default function SquadRosterView({
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.traits")}
                 </th>
-                <SortHeader
+                <SquadSortHeader
                   col="age"
                   label={t("common.age")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="condition"
                   label={t("common.condition")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="morale"
                   label={t("common.morale")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="ovr"
                   label={t("common.ovr")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="contract"
                   label={t("common.contract")}
                   sortKey={sortKey}
