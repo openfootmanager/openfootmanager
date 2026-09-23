@@ -44,9 +44,7 @@ function App() {
     void (async () => {
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        await getCurrentWindow().setTitle(
-          `Openfoot Manager ${formatAppVersion()}`,
-        );
+        await getCurrentWindow().setTitle(`Openfoot Manager ${formatAppVersion()}`);
       } catch (error) {
         console.error("Failed to set window title:", error);
       }
@@ -59,10 +57,7 @@ function App() {
   }, [settings.ui_scale]);
 
   useEffect(() => {
-    document.documentElement.classList.toggle(
-      "high-contrast",
-      settings.high_contrast,
-    );
+    document.documentElement.classList.toggle("high-contrast", settings.high_contrast);
   }, [settings.high_contrast]);
 
   // Apply saved language from settings once loaded (overrides OS detection)

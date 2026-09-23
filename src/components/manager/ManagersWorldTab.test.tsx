@@ -161,12 +161,7 @@ describe("ManagersWorldTab", () => {
   it("routes team selection from manager clubs and vacancy cards", () => {
     const onSelectTeam = vi.fn();
 
-    render(
-      <ManagersWorldTab
-        gameState={createGameState()}
-        onSelectTeam={onSelectTeam}
-      />,
-    );
+    render(<ManagersWorldTab gameState={createGameState()} onSelectTeam={onSelectTeam} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
     fireEvent.click(screen.getByRole("button", { name: "Open role at Beta United" }));

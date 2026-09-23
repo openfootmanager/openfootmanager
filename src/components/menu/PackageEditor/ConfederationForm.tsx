@@ -26,7 +26,11 @@ export function ConfederationForm({
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
   return (
     <EntityFormShell
-      title={editingIndex === null ? t("worldEditor.addConfederation") : t("worldEditor.editConfederation")}
+      title={
+        editingIndex === null
+          ? t("worldEditor.addConfederation")
+          : t("worldEditor.editConfederation")
+      }
       onBack={onBack}
       onSave={onSave}
       isBusy={isBusy}
@@ -36,7 +40,10 @@ export function ConfederationForm({
       <LabeledInput
         label={t("worldEditor.confederationId")}
         value={editing.id}
-        onChange={(v) => { setIdAutoMode(false); updateField("id", v); }}
+        onChange={(v) => {
+          setIdAutoMode(false);
+          updateField("id", v);
+        }}
         placeholder="europe"
       />
       <LabeledInput

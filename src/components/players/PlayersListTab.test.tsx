@@ -2,17 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import type {
-  GameStateData,
-  PlayerData,
-  StaffData,
-  TeamData,
-} from "../../store/gameStore";
-import type {
-  PlayerSummary,
-  PlayersPage,
-  PlayersPageQuery,
-} from "../../services/playersService";
+import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import type { PlayerSummary, PlayersPage, PlayersPageQuery } from "../../services/playersService";
 import { resetPackageAssetRoot } from "../../hooks/usePackageAssetSrc";
 import PlayersListTab from "./PlayersListTab";
 
@@ -30,8 +21,7 @@ vi.mock("@tauri-apps/api/path", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendError: (error: unknown) =>
-    error instanceof Error ? error.message : String(error),
+  resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -236,10 +226,7 @@ function createGameState(): GameStateData {
       },
       career_history: [],
     },
-    teams: [
-      createTeam(),
-      createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
-    ],
+    teams: [createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })],
     players: [
       createPlayer(),
       createPlayer({
@@ -280,7 +267,7 @@ function groupPosition(pos: string): string {
 
 function summaryFrom(player: PlayerData, teams: TeamData[]): PlayerSummary {
   const team_name = player.team_id
-    ? teams.find((t) => t.id === player.team_id)?.name ?? null
+    ? (teams.find((t) => t.id === player.team_id)?.name ?? null)
     : null;
   return {
     id: player.id,
@@ -302,10 +289,7 @@ function summaryFrom(player: PlayerData, teams: TeamData[]): PlayerSummary {
   };
 }
 
-function applyQuery(
-  items: PlayerSummary[],
-  query: PlayersPageQuery,
-): PlayersPage {
+function applyQuery(items: PlayerSummary[], query: PlayersPageQuery): PlayersPage {
   let filtered = items;
   if (query.search) {
     const needle = query.search.toLowerCase();
@@ -317,9 +301,7 @@ function applyQuery(
     );
   }
   if (query.position) {
-    filtered = filtered.filter(
-      (s) => groupPosition(s.natural_position) === query.position,
-    );
+    filtered = filtered.filter((s) => groupPosition(s.natural_position) === query.position);
   }
   if (query.team_id) {
     filtered = filtered.filter((s) => s.team_id === query.team_id);
@@ -339,10 +321,7 @@ function applyQuery(
 
 type InvokeOverrides = Record<string, (args: unknown) => unknown>;
 
-function setupSliceMock(
-  gameState: GameStateData,
-  overrides: InvokeOverrides = {},
-) {
+function setupSliceMock(gameState: GameStateData, overrides: InvokeOverrides = {}) {
   mockedInvoke.mockImplementation(async (cmd: string, args?: unknown) => {
     if (cmd in overrides) {
       const result = overrides[cmd]!(args);
@@ -350,9 +329,7 @@ function setupSliceMock(
       return result;
     }
     if (cmd === "get_players_page") {
-      const summaries = gameState.players.map((p) =>
-        summaryFrom(p, gameState.teams),
-      );
+      const summaries = gameState.players.map((p) => summaryFrom(p, gameState.teams));
       const query = (args as { query: PlayersPageQuery }).query;
       return applyQuery(summaries, query);
     }
@@ -436,11 +413,7 @@ describe("PlayersListTab", () => {
     setupSliceMock(gameState);
 
     render(
-      <PlayersListTab
-        gameState={gameState}
-        onSelectPlayer={vi.fn()}
-        onSelectTeam={vi.fn()}
-      />,
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
     );
 
     expect(await screen.findByText("Free Agent")).toBeInTheDocument();
@@ -461,11 +434,7 @@ describe("PlayersListTab", () => {
     setupSliceMock(gameState);
 
     render(
-      <PlayersListTab
-        gameState={gameState}
-        onSelectPlayer={vi.fn()}
-        onSelectTeam={vi.fn()}
-      />,
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
     );
 
     // A package-qualified path resolves a tick after mount, so the row shows a
@@ -515,16 +484,13 @@ describe("PlayersListTab", () => {
   });
 
   it("shows scout assignment errors inline", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => { });
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const onGameUpdate = vi.fn();
       const gameState = createGameState();
       gameState.staff = [createScout()];
       setupSliceMock(gameState, {
-        send_scout: () =>
-          new Error("Scout is already assigned to another scouting task."),
+        send_scout: () => new Error("Scout is already assigned to another scouting task."),
       });
 
       render(
@@ -608,19 +574,14 @@ describe("PlayersListTab", () => {
     expect(screen.getByText("Make Transfer Bid")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith(
-        "preview_transfer_bid_financial_impact",
-        {
-          playerId: "player-2",
-          fee: 300000,
-        },
-      );
+      expect(mockedInvoke).toHaveBeenCalledWith("preview_transfer_bid_financial_impact", {
+        playerId: "player-2",
+        fee: 300000,
+      });
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Submit Bid" }),
-      ).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "Submit Bid" })).not.toBeDisabled();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));

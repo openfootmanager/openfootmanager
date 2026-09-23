@@ -2,7 +2,7 @@
 name: preflight
 description: Run the full local verification gauntlet before opening a pull request — type check, frontend tests, build, backend tests, clippy, and the i18n audit — in cheapest-first order, and confirm the PR hygiene items (branch, conventional commit, linked issue, AI disclosure).
 when_to_use: Before opening or updating a pull request, before asking for review, or any time you want to know whether the change is actually ready.
-allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npx vitest run*), Bash(npm run build), Bash(npm run lint), Bash(npm run audit:i18n), Bash(npx tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
+allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npm run preflight), Bash(npm run build), Bash(npm run lint), Bash(npm run format:check), Bash(npm run quality:check), Bash(npm run quality:baseline), Bash(npm run audit:i18n), Bash(npm exec --no -- vitest run*), Bash(npm exec --no -- tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
 ---
 
 # Preflight
@@ -26,7 +26,7 @@ git diff --stat develop...HEAD
 ## 2. Types (fast)
 
 ```bash
-npx tsc --noEmit
+npm exec --no -- tsc --noEmit
 ```
 
 ## 3. Frontend tests
@@ -35,7 +35,7 @@ npx tsc --noEmit
 npm test
 ```
 
-Iterate on one area first — `npx vitest run src/components/squad` — then run the full suite
+Iterate on one area first — `npm exec --no -- vitest run src/components/squad` — then run the full suite
 before pushing. Around 150 test files; the whole run takes a few minutes.
 
 If you touched any user-facing text, this is where `src/i18n/localeCoverage.test.ts` and
@@ -85,10 +85,11 @@ Clippy must be clean before a PR (`CONTRIBUTING.md` has always asked for this; c
 adding `#[allow]`; if an `#[allow]` is genuinely right — a Tauri command whose long argument list
 *is* the IPC signature, say — put a comment above it explaining why.
 
-**Match CI's toolchain.** CI pins the version named in `.github/workflows/build-check.yml`
-(`dtolnay/rust-toolchain@…`). Clippy gains lints between releases, so a newer local Rust reports
-findings CI doesn't have — and an older one misses findings CI *will* catch. If your results
-disagree with CI, run `cargo +<pinned-version> clippy …` before chasing anything.
+**The toolchain already matches CI.** `rust-toolchain.toml` at the repository root names the
+same version `.github/workflows/build-check.yml` installs, and rustup reads it for any cargo run
+inside the checkout — you do not have to do anything. **Never write `cargo +<toolchain>`**: it
+overrides the file, which is the one thing the pin cannot defend against, and
+`scripts/check-toolchain-pin.sh` rejects it outright in a workflow.
 
 Touched MCP code? CI lints it separately, because the feature isn't on by default:
 
@@ -102,18 +103,33 @@ cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-tar
 cargo fmt --manifest-path src-tauri/Cargo.toml --all
 ```
 
-Format the files you touched. A repo-wide sweep is still outstanding, so `cargo fmt --check`
-reports pre-existing diffs across the tree and is **not** a CI gate yet — don't let unrelated
-formatting churn into your diff.
+`cargo fmt --check` **is** a CI gate (the `format` job). The repo-wide sweep has been done, so
+running the formatter now touches only what you touched — there is no unrelated churn to avoid
+any more, and the old advice to format by hand is retired.
 
-## 8. Lint (advisory)
+## 8. Lint and the quality ratchet
 
 ```bash
-npm run lint
+npm run lint          # biome, --error-on-warnings: warnings fail, same as CI
+npm run quality:check # nothing in quality-baseline.json may rise
 ```
 
-Biome is installed and configured but not a CI gate: the codebase has a large pre-existing backlog.
-Read the findings **for the files you touched** and fix those. Don't start the repo-wide sweep here.
+Both **are** CI gates now. `npm run lint` is the same command CI runs, strictness included, so a
+green run here is a green run there.
+
+`quality:check` compares the repo against `quality-baseline.json`: file sizes, suppression counts,
+named anti-patterns, dead exports, and the lint rules that sit at `info` while their backlog is
+worked down. Numbers may fall, never rise. If yours fall, run `npm run quality:baseline` and
+commit the regenerated file with the change that earned it.
+
+**The whole frontend gauntlet is one command**, in cheapest-first order:
+
+```bash
+npm run preflight
+```
+
+That is deliberately the *only* definition of the frontend gate set — `package.json` holds it,
+CI runs its parts, and this skill points at it, so the three cannot drift apart.
 
 ## 9. i18n audit (advisory)
 

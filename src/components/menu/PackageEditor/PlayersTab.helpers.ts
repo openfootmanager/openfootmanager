@@ -116,9 +116,10 @@ export function filterPlayerRows({
 
   // Position before the search box: one comparison rules a player out where
   // the query needs six.
-  const byPosition = positionFilter === "All"
-    ? scoped
-    : scoped.filter(({ player }) => matchesPositionFilter(player.position, positionFilter));
+  const byPosition =
+    positionFilter === "All"
+      ? scoped
+      : scoped.filter(({ player }) => matchesPositionFilter(player.position, positionFilter));
 
   const q = query.trim().toLowerCase();
   if (!q) {
@@ -133,7 +134,7 @@ export function filterPlayerRows({
       displayName(player).toLowerCase().includes(q) ||
       player.id.toLowerCase().includes(q) ||
       player.club.toLowerCase().includes(q) ||
-      (clubName !== undefined && clubName.toLowerCase().includes(q)) ||
+      clubName?.toLowerCase().includes(q) ||
       player.position.toLowerCase().includes(q) ||
       player.nationality.toLowerCase().includes(q)
     );

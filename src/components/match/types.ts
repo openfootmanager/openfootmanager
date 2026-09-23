@@ -179,9 +179,7 @@ export type SimSpeed = "paused" | "slow" | "normal" | "fast" | "instant";
 // after half-time. `paused` is a temporary action; `instant` is a one-shot
 // skip-to-end-of-half — persisting it would silently skip the next half.
 // Only "slow" / "normal" / "fast" describe a pace worth locking in.
-export function isPersistableSpeed(
-  s: SimSpeed,
-): s is "slow" | "normal" | "fast" {
+export function isPersistableSpeed(s: SimSpeed): s is "slow" | "normal" | "fast" {
   return s !== "paused" && s !== "instant";
 }
 
@@ -216,13 +214,13 @@ const TEAM_TALK_OPTION_DEFINITIONS: Array<{
   id: TeamTalkTone;
   icon: string;
 }> = [
-    { id: "calm", icon: "calm" },
-    { id: "motivational", icon: "motivational" },
-    { id: "assertive", icon: "assertive" },
-    { id: "aggressive", icon: "aggressive" },
-    { id: "praise", icon: "praise" },
-    { id: "disappointed", icon: "disappointed" },
-  ];
+  { id: "calm", icon: "calm" },
+  { id: "motivational", icon: "motivational" },
+  { id: "assertive", icon: "assertive" },
+  { id: "aggressive", icon: "aggressive" },
+  { id: "praise", icon: "praise" },
+  { id: "disappointed", icon: "disappointed" },
+];
 
 export function getTeamTalkOptions(t: TFunction): TeamTalkOption[] {
   return TEAM_TALK_OPTION_DEFINITIONS.map(({ id, icon }) => ({
@@ -263,7 +261,16 @@ export const MINUTES_PER_TICK: Record<SimSpeed, number> = {
   instant: 10,
 };
 
-export const FORMATIONS = ["4-4-2", "4-3-3", "3-5-2", "4-5-1", "4-2-3-1", "3-4-3", "5-3-2", "4-1-4-1"];
+export const FORMATIONS = [
+  "4-4-2",
+  "4-3-3",
+  "3-5-2",
+  "4-5-1",
+  "4-2-3-1",
+  "3-4-3",
+  "5-3-2",
+  "4-1-4-1",
+];
 
 export const PLAY_STYLES = [
   "Balanced",

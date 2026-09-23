@@ -66,11 +66,25 @@ const makePlayer = (overrides: Partial<PlayerData> = {}): PlayerData => ({
   alternate_positions: [],
   training_focus: null,
   attributes: {
-    pace: 70, stamina: 70, strength: 70, agility: 70,
-    passing: 70, shooting: 70, tackling: 70, dribbling: 70,
-    defending: 70, positioning: 70, vision: 70, decisions: 70,
-    composure: 50, aggression: 50, teamwork: 50,
-    leadership: 50, handling: 30, reflexes: 30, aerial: 50,
+    pace: 70,
+    stamina: 70,
+    strength: 70,
+    agility: 70,
+    passing: 70,
+    shooting: 70,
+    tackling: 70,
+    dribbling: 70,
+    defending: 70,
+    positioning: 70,
+    vision: 70,
+    decisions: 70,
+    composure: 50,
+    aggression: 50,
+    teamwork: 50,
+    leadership: 50,
+    handling: 30,
+    reflexes: 30,
+    aerial: 50,
   },
   condition: 100,
   morale: 80,
@@ -81,8 +95,14 @@ const makePlayer = (overrides: Partial<PlayerData> = {}): PlayerData => ({
   wage: 10000,
   market_value: 5000000,
   stats: {
-    appearances: 0, goals: 0, assists: 0, clean_sheets: 0,
-    yellow_cards: 0, red_cards: 0, avg_rating: 0, minutes_played: 0,
+    appearances: 0,
+    goals: 0,
+    assists: 0,
+    clean_sheets: 0,
+    yellow_cards: 0,
+    red_cards: 0,
+    avg_rating: 0,
+    minutes_played: 0,
   },
   career: [],
   transfer_listed: false,
@@ -134,7 +154,10 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("getTeamName", () => {
-  const teams = [makeTeam({ id: "t1", name: "Alpha FC" }), makeTeam({ id: "t2", name: "Beta United" })];
+  const teams = [
+    makeTeam({ id: "t1", name: "Alpha FC" }),
+    makeTeam({ id: "t2", name: "Beta United" }),
+  ];
 
   it("returns team name for valid id", () => {
     expect(getTeamName(teams, "t1")).toBe("Alpha FC");
@@ -222,13 +245,54 @@ describe("season helpers", () => {
       season: 1,
       fixtures: [
         makeFixture({ id: "f1", status: "Completed" }),
-        makeFixture({ id: "f2", status: "Completed", home_team_id: "team_3", away_team_id: "team_4" }),
+        makeFixture({
+          id: "f2",
+          status: "Completed",
+          home_team_id: "team_3",
+          away_team_id: "team_4",
+        }),
       ],
       standings: [
-        { team_id: "team_1", played: 1, won: 1, drawn: 0, lost: 0, goals_for: 2, goals_against: 0, points: 3 },
-        { team_id: "team_2", played: 1, won: 0, drawn: 0, lost: 1, goals_for: 0, goals_against: 2, points: 0 },
-        { team_id: "team_3", played: 1, won: 0, drawn: 0, lost: 1, goals_for: 0, goals_against: 1, points: 0 },
-        { team_id: "team_4", played: 1, won: 1, drawn: 0, lost: 0, goals_for: 1, goals_against: 0, points: 3 },
+        {
+          team_id: "team_1",
+          played: 1,
+          won: 1,
+          drawn: 0,
+          lost: 0,
+          goals_for: 2,
+          goals_against: 0,
+          points: 3,
+        },
+        {
+          team_id: "team_2",
+          played: 1,
+          won: 0,
+          drawn: 0,
+          lost: 1,
+          goals_for: 0,
+          goals_against: 2,
+          points: 0,
+        },
+        {
+          team_id: "team_3",
+          played: 1,
+          won: 0,
+          drawn: 0,
+          lost: 1,
+          goals_for: 0,
+          goals_against: 1,
+          points: 0,
+        },
+        {
+          team_id: "team_4",
+          played: 1,
+          won: 1,
+          drawn: 0,
+          lost: 0,
+          goals_for: 1,
+          goals_against: 0,
+          points: 3,
+        },
       ],
     };
 
@@ -270,10 +334,46 @@ describe("season helpers", () => {
         ...competitiveFixtures,
       ],
       standings: [
-        { team_id: "team_1", played: 6, won: 6, drawn: 0, lost: 0, goals_for: 12, goals_against: 2, points: 18 },
-        { team_id: "team_2", played: 6, won: 3, drawn: 0, lost: 3, goals_for: 8, goals_against: 8, points: 9 },
-        { team_id: "team_3", played: 6, won: 2, drawn: 0, lost: 4, goals_for: 6, goals_against: 10, points: 6 },
-        { team_id: "team_4", played: 6, won: 1, drawn: 0, lost: 5, goals_for: 4, goals_against: 10, points: 3 },
+        {
+          team_id: "team_1",
+          played: 6,
+          won: 6,
+          drawn: 0,
+          lost: 0,
+          goals_for: 12,
+          goals_against: 2,
+          points: 18,
+        },
+        {
+          team_id: "team_2",
+          played: 6,
+          won: 3,
+          drawn: 0,
+          lost: 3,
+          goals_for: 8,
+          goals_against: 8,
+          points: 9,
+        },
+        {
+          team_id: "team_3",
+          played: 6,
+          won: 2,
+          drawn: 0,
+          lost: 4,
+          goals_for: 6,
+          goals_against: 10,
+          points: 6,
+        },
+        {
+          team_id: "team_4",
+          played: 6,
+          won: 1,
+          drawn: 0,
+          lost: 5,
+          goals_for: 4,
+          goals_against: 10,
+          points: 3,
+        },
       ],
     };
 
@@ -307,10 +407,46 @@ describe("season helpers", () => {
       season: 1,
       fixtures,
       standings: [
-        { team_id: "team_1", played: 6, won: 6, drawn: 0, lost: 0, goals_for: 12, goals_against: 2, points: 18 },
-        { team_id: "team_2", played: 6, won: 3, drawn: 0, lost: 3, goals_for: 8, goals_against: 8, points: 9 },
-        { team_id: "team_3", played: 6, won: 2, drawn: 0, lost: 4, goals_for: 6, goals_against: 10, points: 6 },
-        { team_id: "team_4", played: 6, won: 1, drawn: 0, lost: 5, goals_for: 4, goals_against: 10, points: 3 },
+        {
+          team_id: "team_1",
+          played: 6,
+          won: 6,
+          drawn: 0,
+          lost: 0,
+          goals_for: 12,
+          goals_against: 2,
+          points: 18,
+        },
+        {
+          team_id: "team_2",
+          played: 6,
+          won: 3,
+          drawn: 0,
+          lost: 3,
+          goals_for: 8,
+          goals_against: 8,
+          points: 9,
+        },
+        {
+          team_id: "team_3",
+          played: 6,
+          won: 2,
+          drawn: 0,
+          lost: 4,
+          goals_for: 6,
+          goals_against: 10,
+          points: 6,
+        },
+        {
+          team_id: "team_4",
+          played: 6,
+          won: 1,
+          drawn: 0,
+          lost: 5,
+          goals_for: 4,
+          goals_against: 10,
+          points: 3,
+        },
       ],
     };
 
@@ -578,13 +714,15 @@ describe("isSeasonComplete with unplayed season", () => {
     for (const home of teamIds) {
       for (const away of teamIds) {
         if (home === away) continue;
-        fixtures.push(makeFixture({
-          id: `f${counter++}`,
-          home_team_id: home,
-          away_team_id: away,
-          status: "Scheduled",
-          competition: "League",
-        }));
+        fixtures.push(
+          makeFixture({
+            id: `f${counter++}`,
+            home_team_id: home,
+            away_team_id: away,
+            status: "Scheduled",
+            competition: "League",
+          }),
+        );
       }
     }
     return {
@@ -592,9 +730,15 @@ describe("isSeasonComplete with unplayed season", () => {
       name: "League",
       season: 1,
       fixtures,
-      standings: teamIds.map(id => ({
-        team_id: id, played: 0, won: 0, drawn: 0, lost: 0,
-        goals_for: 0, goals_against: 0, points: 0,
+      standings: teamIds.map((id) => ({
+        team_id: id,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goals_for: 0,
+        goals_against: 0,
+        points: 0,
       })),
     };
   }

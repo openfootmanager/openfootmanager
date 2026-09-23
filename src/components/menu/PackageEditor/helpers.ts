@@ -75,13 +75,24 @@ export { POSITION_COLOR } from "../../../lib/positionColors";
 // read-only bars (PlayerPreviewCard). Single source so the form and its preview
 // render the same attributes in the same order.
 export const PLAYER_ATTR_GROUPS = [
-  { groupKey: "physical",   keys: ["pace", "stamina", "strength", "agility"] },
-  { groupKey: "technical",  keys: ["passing", "shooting", "tackling", "dribbling", "defending"] },
-  { groupKey: "mental",     keys: ["positioning", "vision", "decisions", "composure", "aggression", "teamwork", "leadership"] },
+  { groupKey: "physical", keys: ["pace", "stamina", "strength", "agility"] },
+  { groupKey: "technical", keys: ["passing", "shooting", "tackling", "dribbling", "defending"] },
+  {
+    groupKey: "mental",
+    keys: [
+      "positioning",
+      "vision",
+      "decisions",
+      "composure",
+      "aggression",
+      "teamwork",
+      "leadership",
+    ],
+  },
   { groupKey: "goalkeeper", keys: ["handling", "reflexes", "aerial"] },
 ] as const;
 
-export type PlayerAttrKey = typeof PLAYER_ATTR_GROUPS[number]["keys"][number];
+export type PlayerAttrKey = (typeof PLAYER_ATTR_GROUPS)[number]["keys"][number];
 
 export const COMPETITION_TYPES: CompetitionType[] = [
   "League",
@@ -199,7 +210,13 @@ export function emptyPlayer(): PlayerDef {
 
 export const STAFF_ROLES = ["AssistantManager", "Coach", "Scout", "Physio"] as const;
 export const COACHING_SPECIALIZATIONS = [
-  "Fitness", "Technique", "Tactics", "Defending", "Attacking", "GoalKeeping", "Youth",
+  "Fitness",
+  "Technique",
+  "Tactics",
+  "Defending",
+  "Attacking",
+  "GoalKeeping",
+  "Youth",
 ] as const;
 
 export function emptyStaff(): StaffDef {

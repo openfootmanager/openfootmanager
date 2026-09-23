@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
+import type { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
 import { getEventDisplay, getEventTypeLabel, getPlayerName } from "./helpers";
 import { getCommentary } from "./commentary";
 import { Badge } from "../ui";
@@ -58,9 +58,7 @@ export function EventFeed({
                         {isHome ? snapshot.home_team.name : snapshot.away_team.name}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                      {commentary.line}
-                    </p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{commentary.line}</p>
                     {evt.event_type === "Goal" && evt.secondary_player_id && (
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {t("match.assist", {
@@ -137,14 +135,8 @@ export function MatchStats({ snapshot }: { snapshot: MatchSnapshot }) {
     },
     {
       label: t("match.shotsOnTarget"),
-      home:
-        ct(homeEvents, "Goal") +
-        ct(homeEvents, "PenaltyGoal") +
-        ct(homeEvents, "ShotSaved"),
-      away:
-        ct(awayEvents, "Goal") +
-        ct(awayEvents, "PenaltyGoal") +
-        ct(awayEvents, "ShotSaved"),
+      home: ct(homeEvents, "Goal") + ct(homeEvents, "PenaltyGoal") + ct(homeEvents, "ShotSaved"),
+      away: ct(awayEvents, "Goal") + ct(awayEvents, "PenaltyGoal") + ct(awayEvents, "ShotSaved"),
     },
     {
       label: t("match.fouls"),
@@ -211,14 +203,10 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
   ) => {
     const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
     const subbedOnIds = new Set(
-      snapshot.substitutions
-        .filter((s) => s.side === side)
-        .map((s) => s.player_on_id),
+      snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_on_id),
     );
     const subbedOffIds = new Set(
-      snapshot.substitutions
-        .filter((s) => s.side === side)
-        .map((s) => s.player_off_id),
+      snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_off_id),
     );
     return (
       <div className="flex-1">
@@ -253,9 +241,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
                     key={p.id}
                     className={`flex items-center gap-2 py-1 px-2 rounded text-xs ${isOff ? "opacity-40" : ""}`}
                   >
-                    {isSubOn && (
-                      <span className="text-green-400 text-[10px]">▲</span>
-                    )}
+                    {isSubOn && <span className="text-green-400 text-[10px]">▲</span>}
                     <span
                       className={`font-medium flex-1 truncate ${isOff ? "line-through text-gray-600 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}
                     >
@@ -266,9 +252,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
                         {yc > 1 ? yc : ""}
                       </span>
                     )}
-                    {isOff && (
-                      <span className="w-3 h-4 rounded-sm bg-red-500" />
-                    )}
+                    {isOff && <span className="w-3 h-4 rounded-sm bg-red-500" />}
                     <div className="w-14 flex items-center gap-1">
                       <div className="flex-1 h-1.5 bg-gray-300 dark:bg-navy-600 rounded-full overflow-hidden transition-colors duration-300">
                         <div
@@ -300,9 +284,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
                   key={p.id}
                   className={`flex items-center gap-2 py-1 px-2 rounded text-xs ${wasSubbedOff ? "opacity-50" : ""}`}
                 >
-                  {wasSubbedOff && (
-                    <span className="text-red-400 text-[10px]">▼</span>
-                  )}
+                  {wasSubbedOff && <span className="text-red-400 text-[10px]">▼</span>}
                   <span className="text-gray-600 dark:text-gray-400 font-medium flex-1 truncate">
                     {p.name}
                   </span>
@@ -327,10 +309,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
             {snapshot.substitutions
               .filter((s) => s.side === side)
               .map((sub, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-1.5 py-0.5 text-[11px]"
-                >
+                <div key={i} className="flex items-center gap-1.5 py-0.5 text-[11px]">
                   <span className="text-gray-600 dark:text-gray-500 tabular-nums w-5 text-right font-heading">
                     {sub.minute}'
                   </span>

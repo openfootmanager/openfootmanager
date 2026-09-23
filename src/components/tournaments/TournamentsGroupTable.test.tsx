@@ -45,9 +45,7 @@ function group(overrides: Partial<Group> = {}): Group {
   } as Group;
 }
 
-function teamLookup(
-  overrides: Partial<TournamentsTeamLookup> = {},
-): TournamentsTeamLookup {
+function teamLookup(overrides: Partial<TournamentsTeamLookup> = {}): TournamentsTeamLookup {
   return {
     userTeamId: "second",
     isClubTeam: () => true,
@@ -57,12 +55,8 @@ function teamLookup(
   };
 }
 
-function renderGroup(
-  props: Partial<React.ComponentProps<typeof TournamentsGroupTable>> = {},
-) {
-  return render(
-    <TournamentsGroupTable group={group()} teams={teamLookup()} {...props} />,
-  );
+function renderGroup(props: Partial<React.ComponentProps<typeof TournamentsGroupTable>> = {}) {
+  return render(<TournamentsGroupTable group={group()} teams={teamLookup()} {...props} />);
 }
 
 describe("TournamentsGroupTable", () => {
@@ -71,12 +65,7 @@ describe("TournamentsGroupTable", () => {
   it("names its columns for a screen reader", () => {
     renderGroup();
 
-    for (const name of [
-      "common.position",
-      "common.team",
-      "common.played",
-      "common.pts",
-    ]) {
+    for (const name of ["common.position", "common.team", "common.played", "common.pts"]) {
       expect(screen.getByRole("columnheader", { name })).toBeInTheDocument();
     }
   });
@@ -84,9 +73,7 @@ describe("TournamentsGroupTable", () => {
   it("orders the group by table position, not by the order it arrived in", () => {
     renderGroup();
 
-    const names = screen
-      .getAllByRole("button")
-      .map((button) => button.textContent);
+    const names = screen.getAllByRole("button").map((button) => button.textContent);
 
     expect(names).toEqual(["Name of first", "Name of second", "Name of third"]);
   });
@@ -94,12 +81,12 @@ describe("TournamentsGroupTable", () => {
   it("picks out the managed club's row", () => {
     renderGroup();
 
-    expect(
-      screen.getByTestId("tournaments-group-standing-second").className,
-    ).toContain("bg-primary-50");
-    expect(
-      screen.getByTestId("tournaments-group-standing-first").className,
-    ).not.toContain("bg-primary-50");
+    expect(screen.getByTestId("tournaments-group-standing-second").className).toContain(
+      "bg-primary-50",
+    );
+    expect(screen.getByTestId("tournaments-group-standing-first").className).not.toContain(
+      "bg-primary-50",
+    );
   });
 
   // The row is clickable and so is the name inside it. A click on the name

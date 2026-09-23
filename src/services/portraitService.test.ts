@@ -73,10 +73,7 @@ describe("portraitService prewarm planning", () => {
       player("free-1", null),
     ]);
 
-    expect(selectManagerSquadPortraitPlayers(state).map((p) => p.id)).toEqual([
-      "a-1",
-      "a-2",
-    ]);
+    expect(selectManagerSquadPortraitPlayers(state).map((p) => p.id)).toEqual(["a-1", "a-2"]);
   });
 
   it("skips players with imported face media during prewarm planning", () => {
@@ -84,18 +81,10 @@ describe("portraitService prewarm planning", () => {
     importedFacePlayer.media = {
       face: "assets/worlds/test-world/players/a-1.png",
     };
-    const state = gameState([
-      importedFacePlayer,
-      player("a-2", "team-a"),
-      player("b-1", "team-b"),
-    ]);
+    const state = gameState([importedFacePlayer, player("a-2", "team-a"), player("b-1", "team-b")]);
 
-    expect(selectManagerSquadPortraitPlayers(state).map((p) => p.id)).toEqual([
-      "a-2",
-    ]);
-    expect(selectBackgroundPortraitPlayers(state).map((p) => p.id)).toEqual([
-      "b-1",
-    ]);
+    expect(selectManagerSquadPortraitPlayers(state).map((p) => p.id)).toEqual(["a-2"]);
+    expect(selectBackgroundPortraitPlayers(state).map((p) => p.id)).toEqual(["b-1"]);
   });
 
   it("prioritizes next opponent players before other world players in background", () => {
@@ -106,22 +95,14 @@ describe("portraitService prewarm planning", () => {
       player("c-1", "team-c"),
     ]);
 
-    expect(selectBackgroundPortraitPlayers(state).map((p) => p.id)).toEqual([
-      "b-1",
-      "b-2",
-      "c-1",
-    ]);
+    expect(selectBackgroundPortraitPlayers(state).map((p) => p.id)).toEqual(["b-1", "b-2", "c-1"]);
   });
 
   it("caps default background prewarm to a small relevant window", () => {
     const state = gameState([
       player("a-1", "team-a"),
-      ...Array.from({ length: 24 }, (_, index) =>
-        player(`b-${index + 1}`, "team-b"),
-      ),
-      ...Array.from({ length: 60 }, (_, index) =>
-        player(`c-${index + 1}`, "team-c"),
-      ),
+      ...Array.from({ length: 24 }, (_, index) => player(`b-${index + 1}`, "team-b")),
+      ...Array.from({ length: 60 }, (_, index) => player(`c-${index + 1}`, "team-c")),
     ]);
 
     const selected = selectBackgroundPortraitPlayers(state);
@@ -227,15 +208,11 @@ describe("portraitService prewarm planning", () => {
         expect.objectContaining({ playerId: "b-4" }),
       ]),
     });
-    expect(
-      (invokeMock.mock.calls[0][1] as { requests: unknown[] }).requests,
-    ).toHaveLength(4);
+    expect((invokeMock.mock.calls[0][1] as { requests: unknown[] }).requests).toHaveLength(4);
 
     await vi.advanceTimersByTimeAsync(150);
     expect(invokeMock).toHaveBeenCalledTimes(2);
-    expect(
-      (invokeMock.mock.calls[1][1] as { requests: unknown[] }).requests,
-    ).toHaveLength(4);
+    expect((invokeMock.mock.calls[1][1] as { requests: unknown[] }).requests).toHaveLength(4);
   });
 
   it("cancels pending background prewarm batches", async () => {

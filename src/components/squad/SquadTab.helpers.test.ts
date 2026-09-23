@@ -127,12 +127,7 @@ describe("SquadTab helpers", () => {
     expect(rows[2].positions).toHaveLength(2);
     expect(rows[3].positions).toHaveLength(3);
     expect(rows[4].positions).toHaveLength(1);
-    expect(rows[1].positions).toEqual([
-      "LeftBack",
-      "CenterBack",
-      "CenterBack",
-      "RightBack",
-    ]);
+    expect(rows[1].positions).toEqual(["LeftBack", "CenterBack", "CenterBack", "RightBack"]);
   });
 
   it("keeps wide side-specific roles in left-to-right pitch order across formations", () => {
@@ -154,11 +149,7 @@ describe("SquadTab helpers", () => {
       "AttackingMidfielder",
       "RightMidfielder",
     ]);
-    expect(buildPitchRows("4-3-3")[3].positions).toEqual([
-      "LeftWinger",
-      "Striker",
-      "RightWinger",
-    ]);
+    expect(buildPitchRows("4-3-3")[3].positions).toEqual(["LeftWinger", "Striker", "RightWinger"]);
   });
 
   it("returns compact pitch widths for crowded rows", () => {
@@ -341,19 +332,7 @@ describe("SquadTab helpers", () => {
       "4-4-2",
     );
 
-    expect(ids).toEqual([
-      "gk",
-      "rb",
-      "cb1",
-      "cb2",
-      "lb",
-      "rm",
-      "cm1",
-      "cm2",
-      "lm",
-      "st1",
-      "st2",
-    ]);
+    expect(ids).toEqual(["gk", "rb", "cb1", "cb2", "lb", "rm", "cm1", "cm2", "lm", "st1", "st2"]);
   });
 
   it("swaps XI players when dragging from one slot to another", () => {
@@ -387,13 +366,17 @@ describe("SquadTab helpers", () => {
   });
 
   it("supports bench-to-xi and xi-to-xi swap actions", () => {
-    expect(
-      applyLineupSwap(["gk", "d1", "d2"], { id: "b1", from: "bench" }, "d2", "xi"),
-    ).toEqual(["gk", "d1", "b1"]);
+    expect(applyLineupSwap(["gk", "d1", "d2"], { id: "b1", from: "bench" }, "d2", "xi")).toEqual([
+      "gk",
+      "d1",
+      "b1",
+    ]);
 
-    expect(
-      applyLineupSwap(["gk", "d1", "d2"], { id: "d1", from: "xi" }, "d2", "xi"),
-    ).toEqual(["gk", "d2", "d1"]);
+    expect(applyLineupSwap(["gk", "d1", "d2"], { id: "d1", from: "xi" }, "d2", "xi")).toEqual([
+      "gk",
+      "d2",
+      "d1",
+    ]);
   });
 
   it("returns core position codes", () => {
@@ -407,9 +390,7 @@ describe("SquadTab helpers", () => {
     expect(translatePositionAbbreviation(translate, "Center Back")).toBe(
       "common.posAbbr.CenterBack",
     );
-    expect(translatePositionAbbreviation(translate, "Striker")).toBe(
-      "common.posAbbr.Striker",
-    );
+    expect(translatePositionAbbreviation(translate, "Striker")).toBe("common.posAbbr.Striker");
   });
 
   it("classifies tactical fit as natural, adapted, or out", () => {
@@ -459,19 +440,7 @@ describe("SquadTab helpers", () => {
         "4-4-2",
         "lb",
       ),
-    ).toEqual([
-      "gk",
-      "lb",
-      "d2",
-      "d3",
-      "d4",
-      "m1",
-      "m2",
-      "m3",
-      "m4",
-      "f1",
-      "f2",
-    ]);
+    ).toEqual(["gk", "lb", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
   });
 
   it("demotes a starter by replacing them with the best bench fit for the slot", () => {
@@ -497,19 +466,7 @@ describe("SquadTab helpers", () => {
         "4-4-2",
         "d1",
       ),
-    ).toEqual([
-      "gk",
-      "lb",
-      "d2",
-      "d3",
-      "d4",
-      "m1",
-      "m2",
-      "m3",
-      "m4",
-      "f1",
-      "f2",
-    ]);
+    ).toEqual(["gk", "lb", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
   });
 
   it("suggests a best role within the current formation shape", () => {
@@ -642,8 +599,7 @@ describe("SquadTab helpers", () => {
   // validator and match engine resolve a player's slot from that ordering, so a
   // divergence here reintroduces the issue-#257 desync.
   it("buildPitchRows slot order matches the Rust formation_slots layout", () => {
-    const slots = (formation: string) =>
-      buildPitchRows(formation).flatMap((row) => row.positions);
+    const slots = (formation: string) => buildPitchRows(formation).flatMap((row) => row.positions);
 
     expect(slots("4-4-2")).toEqual([
       "Goalkeeper",
@@ -744,9 +700,7 @@ describe("getDeployedPosition", () => {
   // forwards — 4-2-3-1 → GK; LB CB CB RB; DM CM; LM AM RM; ST.
   const team = {
     formation: "4-2-3-1",
-    starting_xi_ids: [
-      "gk", "lb", "cb1", "cb2", "rb", "dm", "cm", "lm", "am", "rm", "st",
-    ],
+    starting_xi_ids: ["gk", "lb", "cb1", "cb2", "rb", "dm", "cm", "lm", "am", "rm", "st"],
   };
 
   it("derives the granular slot from formation and starting-XI order", () => {

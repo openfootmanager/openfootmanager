@@ -34,10 +34,24 @@ interface TeamFormProps {
   onAssetError: (err: unknown) => void;
 }
 
-export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, onBack, onSave, updateField, commitField, onAssetError }: TeamFormProps) {
+export function TeamForm({
+  editingTeam,
+  editingTeamIndex,
+  isBusy,
+  projectDir,
+  onBack,
+  onSave,
+  updateField,
+  commitField,
+  onAssetError,
+}: TeamFormProps) {
   const { t, i18n } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingTeamIndex === null && !editingTeam.id);
-  const { dataUrl: logoDataUrl, pick: pickLogo, clear: clearLogo } = useAssetPicker({
+  const {
+    dataUrl: logoDataUrl,
+    pick: pickLogo,
+    clear: clearLogo,
+  } = useAssetPicker({
     relPath: editingTeam.logo,
     projectDir,
     entityId: () => editingTeam.id || `unnamed-team-${Date.now()}`,
@@ -93,15 +107,14 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <div className="flex items-center gap-2 mb-2">
           <button
+            type="button"
             onClick={onBack}
             className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h2 className="text-xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-            {editingTeamIndex === null
-              ? t("worldEditor.addTeam")
-              : t("worldEditor.editTeam")}
+            {editingTeamIndex === null ? t("worldEditor.addTeam") : t("worldEditor.editTeam")}
           </h2>
         </div>
 
@@ -132,7 +145,11 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
               <label className={labelClass}>{t("worldEditor.teamLogo")}</label>
               <div className="flex items-center gap-3">
                 {logoDataUrl ? (
-                  <img src={logoDataUrl} alt="" className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+                  <img
+                    src={logoDataUrl}
+                    alt=""
+                    className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0"
+                  />
                 ) : (
                   <div className="w-12 h-12 rounded-lg border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
                     <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
@@ -141,7 +158,9 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => { void pickLogo(); }}
+                    onClick={() => {
+                      void pickLogo();
+                    }}
                     className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
                   >
                     {t("worldEditor.chooseLogo")}
@@ -149,7 +168,9 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                   {editingTeam.logo && (
                     <button
                       type="button"
-                      onClick={() => { clearLogo(); }}
+                      onClick={() => {
+                        clearLogo();
+                      }}
                       className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -206,7 +227,11 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
               <div className="flex items-center gap-2">
                 <input
                   type="color"
-                  value={/^#[0-9a-fA-F]{6}$/.test(editingTeam.colors.primary) ? editingTeam.colors.primary : "#000000"}
+                  value={
+                    /^#[0-9a-fA-F]{6}$/.test(editingTeam.colors.primary)
+                      ? editingTeam.colors.primary
+                      : "#000000"
+                  }
                   onChange={(e) =>
                     updateField("colors", { ...editingTeam.colors, primary: e.target.value })
                   }
@@ -230,7 +255,11 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
               <div className="flex items-center gap-2">
                 <input
                   type="color"
-                  value={/^#[0-9a-fA-F]{6}$/.test(editingTeam.colors.secondary) ? editingTeam.colors.secondary : "#ffffff"}
+                  value={
+                    /^#[0-9a-fA-F]{6}$/.test(editingTeam.colors.secondary)
+                      ? editingTeam.colors.secondary
+                      : "#ffffff"
+                  }
                   onChange={(e) =>
                     updateField("colors", { ...editingTeam.colors, secondary: e.target.value })
                   }
@@ -261,11 +290,11 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                     type="button"
                     onClick={() => updateField("kitPattern", pattern)}
                     title={pattern}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
-                    isSelected
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                      isSelected
                         ? "border-primary-400 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10"
                         : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
-                      }`}
+                    }`}
                   >
                     <JerseyIcon
                       primaryColor={editingTeam.colors.primary || "#cc0000"}
@@ -291,7 +320,10 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 help={t("worldEditor.help.teamReputationRange")}
                 onChange={(v) => {
                   setRepMin(v);
-                  updateField("reputationRange", makeRange(parseRangeBound(v), parseRangeBound(repMax)));
+                  updateField(
+                    "reputationRange",
+                    makeRange(parseRangeBound(v), parseRangeBound(repMax)),
+                  );
                 }}
               />
               <LabeledInput
@@ -300,7 +332,10 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 type="number"
                 onChange={(v) => {
                   setRepMax(v);
-                  updateField("reputationRange", makeRange(parseRangeBound(repMin), parseRangeBound(v)));
+                  updateField(
+                    "reputationRange",
+                    makeRange(parseRangeBound(repMin), parseRangeBound(v)),
+                  );
                 }}
               />
             </div>
@@ -317,7 +352,10 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 help={t("worldEditor.help.teamFinanceRange")}
                 onChange={(v) => {
                   setFinMin(v);
-                  updateField("financeRange", makeRange(parseRangeBound(v), parseRangeBound(finMax)));
+                  updateField(
+                    "financeRange",
+                    makeRange(parseRangeBound(v), parseRangeBound(finMax)),
+                  );
                 }}
               />
               <LabeledInput
@@ -326,7 +364,10 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 type="number"
                 onChange={(v) => {
                   setFinMax(v);
-                  updateField("financeRange", makeRange(parseRangeBound(finMin), parseRangeBound(v)));
+                  updateField(
+                    "financeRange",
+                    makeRange(parseRangeBound(finMin), parseRangeBound(v)),
+                  );
                 }}
               />
             </div>
@@ -339,8 +380,15 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
         </div>
 
         <button
+          type="button"
           onClick={onSave}
-          disabled={isBusy || !editingTeam.id || !editingTeam.name || !editingTeam.city || !editingTeam.country}
+          disabled={
+            isBusy ||
+            !editingTeam.id ||
+            !editingTeam.name ||
+            !editingTeam.city ||
+            !editingTeam.country
+          }
           className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isBusy ? (

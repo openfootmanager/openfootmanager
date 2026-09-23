@@ -20,7 +20,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function staffList(count: number, overrides: (i: number) => Partial<StaffDef> = () => ({})): StaffDef[] {
+function staffList(
+  count: number,
+  overrides: (i: number) => Partial<StaffDef> = () => ({}),
+): StaffDef[] {
   return Array.from({ length: count }, (_, i) => ({
     ...emptyStaff(),
     id: `s${i}`,

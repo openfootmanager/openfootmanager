@@ -18,8 +18,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendError: (error: unknown) =>
-    error instanceof Error ? error.message : String(error),
+  resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -271,9 +270,7 @@ describe("ScoutingTab", () => {
   });
 
   it("renders the no-scouts empty state", () => {
-    render(
-      <ScoutingTab gameState={createGameState()} onGameUpdate={vi.fn()} />,
-    );
+    render(<ScoutingTab gameState={createGameState()} onGameUpdate={vi.fn()} />);
 
     expect(screen.getByText("No scouts")).toBeInTheDocument();
     expect(screen.getByText("Hire a scout first")).toBeInTheDocument();
@@ -315,9 +312,7 @@ describe("ScoutingTab", () => {
   });
 
   it("shows scout assignment errors inline in the player search card", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => { });
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     invokeMock.mockRejectedValueOnce(
       new Error("Scout is already assigned to another scouting task."),
     );
@@ -344,7 +339,16 @@ describe("ScoutingTab", () => {
   it("starts a youth scouting search and forwards the updated state", async () => {
     const updatedState = createGameState({
       scouts: [createScout()],
-      youthAssignments: [{ id: "ysa-1", scout_id: "staff-1", region: "Domestic", objective: "Balanced", target_position: "Defender", days_remaining: 5 }],
+      youthAssignments: [
+        {
+          id: "ysa-1",
+          scout_id: "staff-1",
+          region: "Domestic",
+          objective: "Balanced",
+          target_position: "Defender",
+          days_remaining: 5,
+        },
+      ],
     });
     const onGameUpdate = vi.fn();
     invokeMock.mockResolvedValue(updatedState);
@@ -446,9 +450,7 @@ describe("ScoutingTab", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("combobox", { name: "Reassign ysa-1" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Reassign ysa-1" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Reassign" })).toBeDisabled();
   });
 
@@ -512,19 +514,14 @@ describe("ScoutingTab", () => {
     expect(screen.getByText("Make Transfer Bid")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith(
-        "preview_transfer_bid_financial_impact",
-        {
-          playerId: "player-1",
-          fee: 300000,
-        },
-      );
+      expect(invokeMock).toHaveBeenCalledWith("preview_transfer_bid_financial_impact", {
+        playerId: "player-1",
+        fee: 300000,
+      });
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Submit Bid" }),
-      ).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "Submit Bid" })).not.toBeDisabled();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));

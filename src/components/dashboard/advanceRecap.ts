@@ -76,9 +76,7 @@ const ROUTINE_NEWS_CATEGORIES = new Set([
   "TransferRoundup",
 ]);
 
-const NOTABLE_ROUTINE_NEWS_KEYS = new Set([
-  "be.news.loanMove.headline",
-]);
+const NOTABLE_ROUTINE_NEWS_KEYS = new Set(["be.news.loanMove.headline"]);
 
 /** Date portion (YYYY-MM-DD) of an ISO timestamp. */
 export function toDatePart(iso: string | null | undefined): string {
@@ -110,12 +108,7 @@ export function buildAdvanceRecap(
   sinceDate: string,
   matches: AdvanceMatchResultData[],
 ): AdvanceRecap {
-  return buildRecapWindow(
-    game,
-    sinceDate,
-    toDatePart(game.clock?.current_date),
-    matches,
-  );
+  return buildRecapWindow(game, sinceDate, toDatePart(game.clock?.current_date), matches);
 }
 
 /**
@@ -178,8 +171,7 @@ export function buildRecapWindow(
       from: teamName.get(entry.from_team_id) ?? entry.from_team_id,
       to: teamName.get(entry.to_team_id) ?? entry.to_team_id,
       fee: entry.fee,
-      involvesUser:
-        entry.from_team_id === userTeamId || entry.to_team_id === userTeamId,
+      involvesUser: entry.from_team_id === userTeamId || entry.to_team_id === userTeamId,
       date: entry.date,
     }));
 
@@ -211,16 +203,12 @@ export function buildRecapWindow(
     }));
 
   const hasEvents =
-    recapMatches.length > 0 ||
-    transfers.length > 0 ||
-    news.length > 0 ||
-    inbox.length > 0;
+    recapMatches.length > 0 || transfers.length > 0 || news.length > 0 || inbox.length > 0;
 
   const userTransferInWindow =
     userTeamId !== null &&
     windowTransfers.some(
-      (entry) =>
-        entry.from_team_id === userTeamId || entry.to_team_id === userTeamId,
+      (entry) => entry.from_team_id === userTeamId || entry.to_team_id === userTeamId,
     );
 
   const squadIds = new Set(
@@ -232,8 +220,7 @@ export function buildRecapWindow(
     userTeamId !== null &&
     windowNews.some(
       (article) =>
-        article.team_ids.includes(userTeamId) ||
-        article.player_ids.some((id) => squadIds.has(id)),
+        article.team_ids.includes(userTeamId) || article.player_ids.some((id) => squadIds.has(id)),
     );
 
   return {
@@ -273,11 +260,7 @@ export function buildDigestEntries(
   // of falling through to the catch-all.
   const sinceDay = toDatePart(sinceDate);
   const advancedTo = toDatePart(game.clock?.current_date);
-  if (
-    !DAY_PATTERN.test(sinceDay) ||
-    !DAY_PATTERN.test(advancedTo) ||
-    sinceDay >= advancedTo
-  ) {
+  if (!DAY_PATTERN.test(sinceDay) || !DAY_PATTERN.test(advancedTo) || sinceDay >= advancedTo) {
     const recap = buildAdvanceRecap(game, sinceDay, results);
     const date = DAY_PATTERN.test(sinceDay) ? sinceDay : advancedTo;
     if (!DAY_PATTERN.test(date)) {

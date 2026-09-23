@@ -1,9 +1,4 @@
-import type {
-  FixtureData,
-  GameStateData,
-  PlayerData,
-  TeamData,
-} from "../../store/gameStore";
+import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import { formatVal } from "../../lib/helpers";
 import { getAllFixturesAcrossCompetitions } from "../../lib/fixtures";
 import { getTeamFinanceSnapshot } from "../../lib/finance";
@@ -22,10 +17,7 @@ export interface DashboardSearchResults {
   matchedTeams: TeamData[];
 }
 
-type DashboardAlertTranslator = (
-  key: string,
-  options?: Record<string, unknown>,
-) => string;
+type DashboardAlertTranslator = (key: string, options?: Record<string, unknown>) => string;
 
 export function getTodayMatchFixture(gameState: GameStateData): FixtureData | null {
   const fixtures = getAllFixturesAcrossCompetitions(gameState);
@@ -45,17 +37,12 @@ export function getTodayMatchFixture(gameState: GameStateData): FixtureData | nu
 
 export function getUnreadMessagesCount(gameState: GameStateData): number {
   return gameState.messages.filter(
-    (message) =>
-      !message.read
-      && isMessageVisible(message.date, gameState.clock?.current_date),
+    (message) => !message.read && isMessageVisible(message.date, gameState.clock?.current_date),
   ).length;
 }
 
 export function getManagerTeamName(gameState: GameStateData): string | null {
-  return (
-    gameState.teams.find((team) => team.id === gameState.manager.team_id)?.name ??
-    null
-  );
+  return gameState.teams.find((team) => team.id === gameState.manager.team_id)?.name ?? null;
 }
 
 export function getDashboardSearchResults(
@@ -97,12 +84,8 @@ export function getDashboardAlerts(
   t: DashboardAlertTranslator,
 ): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
-  const myTeam = gameState.teams.find(
-    (team) => team.id === gameState.manager.team_id,
-  );
-  const roster = myTeam
-    ? gameState.players.filter((player) => player.team_id === myTeam.id)
-    : [];
+  const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id);
+  const roster = myTeam ? gameState.players.filter((player) => player.team_id === myTeam.id) : [];
   const teamStaff = myTeam
     ? gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id)
     : [];
@@ -112,9 +95,9 @@ export function getDashboardAlerts(
   const exhaustedCount = roster.filter((player) => player.condition < 25).length;
   const urgentUnreadCount = gameState.messages.filter((message) => {
     return (
-      !message.read
-      && message.priority === "Urgent"
-      && isMessageVisible(message.date, gameState.clock?.current_date)
+      !message.read &&
+      message.priority === "Urgent" &&
+      isMessageVisible(message.date, gameState.clock?.current_date)
     );
   }).length;
   const savedStartingXi = myTeam?.starting_xi_ids ?? [];
@@ -150,11 +133,7 @@ export function getDashboardAlerts(
       });
     }
 
-    if (
-      healthyXiCount < 11 &&
-      injuredInXiCount === 0 &&
-      roster.length >= 11
-    ) {
+    if (healthyXiCount < 11 && injuredInXiCount === 0 && roster.length >= 11) {
       alerts.push({
         id: "xi",
         text: t("dashboard.alerts.incompleteStartingXi"),

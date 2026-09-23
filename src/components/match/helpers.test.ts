@@ -25,11 +25,25 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
     position: "Midfielder",
     ovr,
     condition: 100,
-    pace: 70, stamina: 70, strength: 70, agility: 70,
-    passing: 70, shooting: 70, tackling: 70, dribbling: 70,
-    defending: 70, positioning: 70, vision: 70, decisions: 70,
-    composure: 50, aggression: 50, teamwork: 50,
-    leadership: 50, handling: 30, reflexes: 30, aerial: 50,
+    pace: 70,
+    stamina: 70,
+    strength: 70,
+    agility: 70,
+    passing: 70,
+    shooting: 70,
+    tackling: 70,
+    dribbling: 70,
+    defending: 70,
+    positioning: 70,
+    vision: 70,
+    decisions: 70,
+    composure: 50,
+    aggression: 50,
+    teamwork: 50,
+    leadership: 50,
+    handling: 30,
+    reflexes: 30,
+    aerial: 50,
     traits: [],
     role: "Standard",
     ...rest,
@@ -62,8 +76,18 @@ const makeSnapshot = (overrides: Partial<MatchSnapshot> = {}): MatchSnapshot => 
   home_subs_made: 0,
   away_subs_made: 0,
   max_subs: 3,
-  home_set_pieces: { free_kick_taker: null, corner_taker: null, penalty_taker: null, captain: null },
-  away_set_pieces: { free_kick_taker: null, corner_taker: null, penalty_taker: null, captain: null },
+  home_set_pieces: {
+    free_kick_taker: null,
+    corner_taker: null,
+    penalty_taker: null,
+    captain: null,
+  },
+  away_set_pieces: {
+    free_kick_taker: null,
+    corner_taker: null,
+    penalty_taker: null,
+    captain: null,
+  },
   substitutions: [],
   allows_extra_time: false,
   home_yellows: {},
@@ -165,7 +189,9 @@ describe("resolveMatchFixture", () => {
   });
 
   it("returns null when no league fixtures are available", () => {
-    expect(resolveMatchFixture({ league: null } as unknown as GameStateData, makeSnapshot())).toBeNull();
+    expect(
+      resolveMatchFixture({ league: null } as unknown as GameStateData, makeSnapshot()),
+    ).toBeNull();
   });
 });
 
@@ -222,25 +248,53 @@ describe("phaseLabel", () => {
 
 describe("getEventDisplay", () => {
   it("returns known display for Goal event", () => {
-    const display = getEventDisplay({ minute: 10, event_type: "Goal", side: "Home", zone: "Box", player_id: "p1", secondary_player_id: null });
+    const display = getEventDisplay({
+      minute: 10,
+      event_type: "Goal",
+      side: "Home",
+      zone: "Box",
+      player_id: "p1",
+      secondary_player_id: null,
+    });
     expect(display.color).toBe("text-accent-700 dark:text-accent-400");
     expect(display.important).toBe(true);
   });
 
   it("returns known display for YellowCard event", () => {
-    const display = getEventDisplay({ minute: 25, event_type: "YellowCard", side: "Away", zone: "Midfield", player_id: "p2", secondary_player_id: null });
+    const display = getEventDisplay({
+      minute: 25,
+      event_type: "YellowCard",
+      side: "Away",
+      zone: "Midfield",
+      player_id: "p2",
+      secondary_player_id: null,
+    });
     expect(display.color).toBe("text-yellow-400");
     expect(display.important).toBe(true);
   });
 
   it("returns known display for ShotSaved (non-important)", () => {
-    const display = getEventDisplay({ minute: 30, event_type: "ShotSaved", side: "Home", zone: "Box", player_id: "p1", secondary_player_id: null });
+    const display = getEventDisplay({
+      minute: 30,
+      event_type: "ShotSaved",
+      side: "Home",
+      zone: "Box",
+      player_id: "p1",
+      secondary_player_id: null,
+    });
     expect(display.color).toBe("text-green-700 dark:text-green-400");
     expect(display.important).toBe(false);
   });
 
   it("returns default display for unknown event type", () => {
-    const display = getEventDisplay({ minute: 1, event_type: "UnknownEvent", side: "Home", zone: "Midfield", player_id: null, secondary_player_id: null });
+    const display = getEventDisplay({
+      minute: 1,
+      event_type: "UnknownEvent",
+      side: "Home",
+      zone: "Midfield",
+      player_id: null,
+      secondary_player_id: null,
+    });
     expect(display.color).toBe("text-gray-700 dark:text-gray-400");
     expect(display.important).toBe(false);
   });

@@ -1,17 +1,15 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { GameStateData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import {
-  MatchSnapshot,
-  MatchEvent,
-  MinuteResult,
-  SimSpeed,
+  type MatchSnapshot,
+  type MatchEvent,
+  type MinuteResult,
+  type SimSpeed,
   SPEED_MS,
 } from "./types";
-import {
-  Play, Pause, FastForward, SkipForward,
-} from "lucide-react";
+import { Play, Pause, FastForward, SkipForward } from "lucide-react";
 import { TeamLogo } from "../ui";
 
 interface PenaltyShootoutScreenProps {
@@ -27,10 +25,7 @@ interface PenaltyShootoutScreenProps {
 
 // Only true shootout kicks: an in-match PenaltyAwarded from regulation/ET
 // lives in the same snapshot.events log and must not appear in this feed.
-const SHOOTOUT_EVENTS = new Set([
-  "ShootoutGoal",
-  "ShootoutMiss",
-]);
+const SHOOTOUT_EVENTS = new Set(["ShootoutGoal", "ShootoutMiss"]);
 
 export default function PenaltyShootoutScreen({
   snapshot,
@@ -45,12 +40,8 @@ export default function PenaltyShootoutScreen({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signaledRef = useRef(false);
 
-  const homeFullTeam = gameState.teams.find(
-    (tm) => tm.id === snapshot.home_team.id,
-  );
-  const awayFullTeam = gameState.teams.find(
-    (tm) => tm.id === snapshot.away_team.id,
-  );
+  const homeFullTeam = gameState.teams.find((tm) => tm.id === snapshot.home_team.id);
+  const awayFullTeam = gameState.teams.find((tm) => tm.id === snapshot.away_team.id);
 
   const ps = snapshot.penalty_shootout;
   const roundNumber = ps ? Math.max(ps.home_taken, ps.away_taken) : 0;
@@ -105,9 +96,7 @@ export default function PenaltyShootoutScreen({
     };
   }, [isRunning, speed, snapshot.current_minute, snapshot.phase, stepMatch]);
 
-  const shootoutEvents = snapshot.events.filter((e) =>
-    SHOOTOUT_EVENTS.has(e.event_type),
-  );
+  const shootoutEvents = snapshot.events.filter((e) => SHOOTOUT_EVENTS.has(e.event_type));
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex flex-col items-center justify-center px-4 py-8 transition-colors duration-300">
@@ -140,9 +129,7 @@ export default function PenaltyShootoutScreen({
           </div>
 
           {/* vs */}
-          <div className="text-gray-400 dark:text-gray-500 font-heading font-bold text-xl">
-            –
-          </div>
+          <div className="text-gray-400 dark:text-gray-500 font-heading font-bold text-xl">–</div>
 
           {/* Away */}
           <div className="flex flex-col items-center gap-2 flex-1">
@@ -195,11 +182,7 @@ export default function PenaltyShootoutScreen({
               >
                 {evt.event_type === "ShootoutGoal" ? "⚽" : "✗"}
               </span>
-              <span>
-                {evt.side === "Home"
-                  ? snapshot.home_team.name
-                  : snapshot.away_team.name}
-              </span>
+              <span>{evt.side === "Home" ? snapshot.home_team.name : snapshot.away_team.name}</span>
             </div>
           ))}
         </div>
@@ -225,7 +208,10 @@ export default function PenaltyShootoutScreen({
         </button>
         <button
           type="button"
-          onClick={() => { setSpeed("fast"); setIsRunning(true); }}
+          onClick={() => {
+            setSpeed("fast");
+            setIsRunning(true);
+          }}
           className="p-2 rounded-full bg-white dark:bg-navy-700 shadow hover:shadow-md transition-all"
           aria-label={t("match.fast")}
         >

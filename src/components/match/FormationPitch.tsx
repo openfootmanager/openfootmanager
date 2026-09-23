@@ -64,7 +64,7 @@ export function buildFormationSlots(
   // or non-numeric ("442", "5-5", "abc") can't be laid out by the row logic
   // below without dropping the midfield/forward rows, so fall back to an even
   // single-row spread that still renders every player.
-  if (nums.length < 3 || nums.some((n) => isNaN(n))) {
+  if (nums.length < 3 || nums.some((n) => Number.isNaN(n))) {
     return active.map((p, i) => ({
       player: p,
       x: Math.round((100 * (i + 1)) / (active.length + 1)),
@@ -102,10 +102,7 @@ export function buildFormationSlots(
     const y = Math.round(bottom - rowIdx * step);
     return rowPlayers.map((p, colIdx) => ({
       player: p,
-      x:
-        rowPlayers.length === 1
-          ? 50
-          : Math.round((100 * (colIdx + 1)) / (rowPlayers.length + 1)),
+      x: rowPlayers.length === 1 ? 50 : Math.round((100 * (colIdx + 1)) / (rowPlayers.length + 1)),
       y,
     }));
   });
@@ -152,7 +149,11 @@ export function FormationPitch({
     <div
       className={`relative overflow-hidden rounded-xl bg-gradient-to-b from-primary-500 to-primary-700 ${className ?? ""}`}
     >
+      {/* Decorative: this is the pitch markings, and everything a screen reader needs is in the
+          player tokens rendered on top of it. A <title> here would announce "football pitch"
+          before every lineup, which is noise rather than information. */}
       <svg
+        aria-hidden="true"
         className="absolute inset-0 h-full w-full"
         viewBox="0 0 100 140"
         preserveAspectRatio="none"
@@ -162,37 +163,12 @@ export function FormationPitch({
             <stop offset="0%" stopColor="rgba(63,172,99,0.35)" />
             <stop offset="100%" stopColor="rgba(31,109,61,0.25)" />
           </linearGradient>
-          <pattern
-            id={stripesId}
-            x="0"
-            y="0"
-            width="100"
-            height="10"
-            patternUnits="userSpaceOnUse"
-          >
-            <rect
-              x="0"
-              y="0"
-              width="100"
-              height="5"
-              fill="rgba(255,255,255,0.04)"
-            />
+          <pattern id={stripesId} x="0" y="0" width="100" height="10" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="100" height="5" fill="rgba(255,255,255,0.04)" />
           </pattern>
         </defs>
-        <rect
-          x="0"
-          y="0"
-          width="100"
-          height="140"
-          fill={`url(#${surfaceId})`}
-        />
-        <rect
-          x="0"
-          y="0"
-          width="100"
-          height="140"
-          fill={`url(#${stripesId})`}
-        />
+        <rect x="0" y="0" width="100" height="140" fill={`url(#${surfaceId})`} />
+        <rect x="0" y="0" width="100" height="140" fill={`url(#${stripesId})`} />
         <rect
           x="4"
           y="4"
@@ -202,14 +178,7 @@ export function FormationPitch({
           stroke="rgba(255,255,255,0.55)"
           strokeWidth="0.6"
         />
-        <line
-          x1="4"
-          y1="70"
-          x2="96"
-          y2="70"
-          stroke="rgba(255,255,255,0.55)"
-          strokeWidth="0.6"
-        />
+        <line x1="4" y1="70" x2="96" y2="70" stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" />
         <circle
           cx="50"
           cy="70"

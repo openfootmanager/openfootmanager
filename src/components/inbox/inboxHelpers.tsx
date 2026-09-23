@@ -117,10 +117,7 @@ export function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category] ?? CATEGORY_COLORS.System;
 }
 
-export function getFilterButtonClassName(
-  isActive: boolean,
-  extraClasses = "",
-): string {
+export function getFilterButtonClassName(isActive: boolean, extraClasses = ""): string {
   let className = FILTER_BUTTON_BASE_CLASS;
 
   if (extraClasses.length > 0) {
@@ -168,18 +165,12 @@ export function sortInboxMessages(
     const rightDateValue = getMessageDateValue(rightMessage.date);
 
     const dateCompare =
-      sortOrder === "oldest"
-        ? leftDateValue - rightDateValue
-        : rightDateValue - leftDateValue;
+      sortOrder === "oldest" ? leftDateValue - rightDateValue : rightDateValue - leftDateValue;
 
     if (dateCompare !== 0) return dateCompare;
 
     // Stable secondary sort by id so same-date messages always appear in the same order.
-    return leftMessage.id < rightMessage.id
-      ? -1
-      : leftMessage.id > rightMessage.id
-        ? 1
-        : 0;
+    return leftMessage.id < rightMessage.id ? -1 : leftMessage.id > rightMessage.id ? 1 : 0;
   });
 }
 
@@ -189,10 +180,7 @@ export function getListPaneClassName(hasSelectedMessage: boolean): string {
   return `${visibilityClassName} flex-col w-full md:w-96 md:min-w-[384px] border-r border-gray-200 dark:border-navy-600`;
 }
 
-export function getMessageRowClassName(
-  isSelected: boolean,
-  isRead: boolean,
-): string {
+export function getMessageRowClassName(isSelected: boolean, isRead: boolean): string {
   const baseClassName =
     "flex gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-gray-100 dark:border-navy-600/50";
 
@@ -212,8 +200,7 @@ export function getMessageIconClassName(
   isSelected: boolean,
   isRead: boolean,
 ): string {
-  const baseClassName =
-    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0";
+  const baseClassName = "w-8 h-8 rounded-lg flex items-center justify-center shrink-0";
 
   if (isSelected) {
     return `${baseClassName} ${categoryColor} bg-primary-500/10`;
@@ -242,10 +229,7 @@ export function getActionButtonClassName(action: MessageAction): string {
     return `${baseClassName} bg-gray-100 dark:bg-navy-700 text-gray-400 dark:text-gray-500 cursor-default`;
   }
 
-  if (
-    action.action_type === "Acknowledge" ||
-    action.action_type === "Dismiss"
-  ) {
+  if (action.action_type === "Acknowledge" || action.action_type === "Dismiss") {
     return `${baseClassName} bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-navy-500`;
   }
 
@@ -265,10 +249,7 @@ export function renderMessageBodyLine(line: string, index: number): JSX.Element 
 
   if (line.startsWith("•")) {
     return (
-      <p
-        key={index}
-        className={`${baseClassName} text-gray-700 dark:text-gray-300`}
-      >
+      <p key={index} className={`${baseClassName} text-gray-700 dark:text-gray-300`}>
         <span className="flex items-start gap-2">
           <span className="text-primary-500 mt-0.5">•</span>
           <span>{line.replace("•", "").trim()}</span>
@@ -278,10 +259,7 @@ export function renderMessageBodyLine(line: string, index: number): JSX.Element 
   }
 
   return (
-    <p
-      key={index}
-      className={`${baseClassName} text-gray-700 dark:text-gray-300`}
-    >
+    <p key={index} className={`${baseClassName} text-gray-700 dark:text-gray-300`}>
       {line}
     </p>
   );
@@ -338,7 +316,5 @@ export function getNavigationTarget(route: string): NavigationTarget {
 }
 
 export function isPlayerEventMessage(messageId: string): boolean {
-  return PLAYER_EVENT_MESSAGE_PREFIXES.some((prefix) =>
-    messageId.startsWith(prefix),
-  );
+  return PLAYER_EVENT_MESSAGE_PREFIXES.some((prefix) => messageId.startsWith(prefix));
 }

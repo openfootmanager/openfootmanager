@@ -68,9 +68,7 @@ describe("TeamForm club range guidance", () => {
     // which was invisible until now.
     renderTeam({ financeRange: [3_000_000, 4_000_000] });
 
-    expect(
-      screen.getByText("3M-4M per month · transfer budget 450K-600K"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("3M-4M per month · transfer budget 450K-600K")).toBeInTheDocument();
   });
 
   it("omits the readouts when no range is set", () => {

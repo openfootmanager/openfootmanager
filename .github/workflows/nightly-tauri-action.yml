@@ -11,7 +11,9 @@ on:
     branches:
       - develop
 
-# Every build shares the one rolling `nightly` tag, so runs must not overlap.
+# Each build now publishes its own tag, so two runs can no longer fight over one release.
+# The group stays to avoid burning five platforms' worth of runners on a commit that a newer
+# push has already superseded.
 concurrency:
   group: nightly-release
   cancel-in-progress: true
@@ -42,17 +44,19 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Fixed rolling tag: exactly one nightly release ever exists, so the
-          # releases page stays legible regardless of how GitHub sorts it.
-          tag="${INPUT_RELEASE_TAG:-nightly}"
           nightly_date="$(date -u +%F)"
           compact_date="$(date -u +%Y%m%d)"
           short_sha="${GITHUB_SHA::7}"
+
+          # One release per build, not one release forever. The previous fixed `nightly` tag
+          # meant every run edited the *same* release: its `published_at` never advanced, so the
+          # releases page showed one entry dated whenever it was first created, and the history
+          # of what shipped each night did not exist anywhere. The commit sha is in the tag
+          # because `develop` can take more than one push in a day.
+          tag="${INPUT_RELEASE_TAG:-nightly-${compact_date}-${short_sha}}"
           base_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
           display_version="${base_version}-nightly.${compact_date}+${short_sha}"
 
-          # The date/sha live in the release name because a rolling tag's
-          # published_at never advances.
           release_name="Openfoot Manager Nightly ${display_version}"
 
           compare_line=""
@@ -76,7 +80,7 @@ jobs:
               echo "$compare_line"
             fi
             echo ""
-            echo "This tag is replaced on every push to \`develop\`; the assets below always reflect the newest build."
+            echo "Each nightly gets its own tag and release; this one is the build of \`${short_sha}\`."
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -155,33 +159,50 @@ jobs:
           tagName: ${{ needs.prepare-nightly.outputs.tag }}
           releaseName: ${{ needs.prepare-nightly.outputs.release_name }}
           releaseBody: ${{ needs.prepare-nightly.outputs.release_body }}
-          releaseDraft: false
+          # Published by `finalize-nightly`, not here. With per-build tags a cancelled run — and
+          # `cancel-in-progress` above means a second push cancels the first — used to leave a
+          # *published* release carrying whichever platforms had uploaded before the axe fell,
+          # with no manifest and no checksums, sitting on the releases page forever looking like
+          # a complete build. The rolling tag repaired that on the next run; a per-build tag has
+          # no next run. A draft is invisible until something says every platform finished.
+          releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
 
-  # The `nightly` release is upserted, never deleted: a failed build must not
-  # destroy the last known-good nightly. The cost is that re-uploading assets to
-  # an existing release does not re-fire `release: published`, so the metadata
-  # pipeline is dispatched explicitly here.
+  # Nothing is ever deleted here: a failed build must not remove a previous good nightly. A
+  # build that fails or is cancelled leaves a *draft*, which nobody sees, rather than replacing
+  # the last known-good release the way the rolling tag used to.
+  #
+  # The metadata pipeline is still dispatched explicitly rather than left to `release:
+  # published`. That event fires when the *first* platform creates the release, with four
+  # platforms' assets still uploading, so a manifest built from it would describe a release that
+  # does not exist yet.
   finalize-nightly:
     needs: [prepare-nightly, publish-tauri-nightly]
-    # `fail-fast: false` means one platform can fail while the others upload new
-    # assets. Finalizing anyway keeps the release name and, more importantly, the
-    # published checksums consistent with the assets that *did* land — skipping
-    # would leave nightly-checksums.txt describing files that no longer exist.
-    if: ${{ !cancelled() && needs.prepare-nightly.result == 'success' && needs.publish-tauri-nightly.result != 'skipped' }}
+    # Every platform must have succeeded. `fail-fast: false` lets one fail while the others
+    # upload, and the previous condition here (`result != 'skipped'`) was *true* for a failed
+    # matrix — so a build missing its macOS bundles would still have been published, with
+    # checksums describing a set of assets nobody can download in full. That is the thing the
+    # draft was introduced to prevent one commit ago, and the condition did not honour it.
+    #
+    # A failed or cancelled build now simply stays a draft: invisible, harmless, and still there
+    # to look at. Nothing is deleted, so the last good nightly is untouched.
+    if: ${{ needs.prepare-nightly.result == 'success' && needs.publish-tauri-nightly.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
-      # contents:write to force-move the rolling tag and edit the release below;
-      # actions:write to dispatch nightly-release-manifest.yml.
+      # contents:write to edit the release below; actions:write to dispatch
+      # nightly-release-manifest.yml.
       contents: write
       actions: write
     steps:
-      # persist-credentials stays on (the default): the git push below relies on
-      # the credential helper this step configures.
+      # `persist-credentials: false` because nothing in this job pushes any more. The rolling
+      # tag used to be force-moved from here, which needed the credential helper; a per-build tag
+      # is created by tauri-action at the commit it built, so there is nothing left to move.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Move rolling tag and refresh release metadata
+      - name: Publish the release and refresh its metadata
         id: finalize
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -201,13 +222,14 @@ jobs:
 
           echo "released=true" >> "$GITHUB_OUTPUT"
 
-          git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
-          git push -f origin "refs/tags/$RELEASE_TAG"
-
+          # The tag already points at this commit — tauri-action created it there. This step is
+          # what makes the release public, which is the point: reaching here means every platform
+          # in the matrix has finished, so the assets, the notes and the checksums describe the
+          # same build.
           gh release edit "$RELEASE_TAG" \
             --title "$RELEASE_NAME" \
             --notes "$RELEASE_BODY" \
-            --target "$GITHUB_SHA" \
+            --draft=false \
             --prerelease
 
       - name: Dispatch nightly metadata workflow

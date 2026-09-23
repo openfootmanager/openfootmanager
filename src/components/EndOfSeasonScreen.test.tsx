@@ -49,7 +49,8 @@ vi.mock("../store/gameStore", async () => {
   const actual = await vi.importActual<typeof import("../store/gameStore")>("../store/gameStore");
   return {
     ...actual,
-    useGameStore: (selector: (state: { setShowFiredModal: typeof setShowFiredModal }) => unknown) => selector({ setShowFiredModal }),
+    useGameStore: (selector: (state: { setShowFiredModal: typeof setShowFiredModal }) => unknown) =>
+      selector({ setShowFiredModal }),
   };
 });
 
@@ -237,9 +238,7 @@ describe("EndOfSeasonScreen", () => {
 
     const onGameUpdate = vi.fn();
 
-    render(
-      <EndOfSeasonScreen gameState={createGameState()} onGameUpdate={onGameUpdate} />,
-    );
+    render(<EndOfSeasonScreen gameState={createGameState()} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start next season" }));
 

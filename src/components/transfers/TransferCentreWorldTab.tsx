@@ -1,10 +1,4 @@
-import {
-  ArrowLeftRight,
-  CalendarDays,
-  Building2,
-  TrendingUp,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeftRight, CalendarDays, Building2, TrendingUp, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -117,9 +111,7 @@ function TransferRumoursSection({
 }: RumoursSectionProps) {
   return (
     <Card>
-      <CardHeader
-        action={<Badge variant="primary">{rumours.length}</Badge>}
-      >
+      <CardHeader action={<Badge variant="primary">{rumours.length}</Badge>}>
         {t("transferCentreWorld.rumours")}
       </CardHeader>
       <CardBody className="space-y-4">
@@ -203,9 +195,7 @@ function CompletedDealsSection({
 }: CompletedDealsSectionProps) {
   return (
     <Card accent="accent">
-      <CardHeader
-        action={<Badge variant="accent">{deals.length}</Badge>}
-      >
+      <CardHeader action={<Badge variant="accent">{deals.length}</Badge>}>
         {t("transferCentreWorld.completedDeals")}
       </CardHeader>
       <CardBody className="space-y-4">
@@ -315,9 +305,7 @@ function StatTile({ icon, label, value }: StatTileProps) {
           {label}
         </span>
       </div>
-      <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">
-        {value}
-      </p>
+      <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">{value}</p>
     </div>
   );
 }

@@ -26,10 +26,7 @@ export interface GeneratedPlayerPortrait {
   height: number;
 }
 
-type GeneratedPlayerPortraitCommandResponse = Omit<
-  GeneratedPlayerPortrait,
-  "imageUrl"
->;
+type GeneratedPlayerPortraitCommandResponse = Omit<GeneratedPlayerPortrait, "imageUrl">;
 
 export interface PrewarmPlayerPortraitRecord {
   playerId: string;
@@ -53,10 +50,7 @@ export interface PrewarmPlayerPortraitsResponse {
   records: PrewarmPlayerPortraitRecord[];
 }
 
-const runtimePortraitRequests = new Map<
-  string,
-  Promise<GeneratedPlayerPortrait | null>
->();
+const runtimePortraitRequests = new Map<string, Promise<GeneratedPlayerPortrait | null>>();
 const queuedBackgroundPrewarmKeys = new Set<string>();
 const DEFAULT_BACKGROUND_PREWARM_LIMIT = 48;
 const DEFAULT_BACKGROUND_PREWARM_BATCH_SIZE = 4;
@@ -71,26 +65,15 @@ export function canGenerateRuntimePlayerPortraits(): boolean {
   }
 }
 
-export function runtimePortraitIdentityKey(
-  player: PlayerPortraitIdentity,
-): string {
-  return [
-    player.id,
-    player.full_name,
-    player.match_name,
-    player.nationality,
-    player.date_of_birth,
-  ]
+export function runtimePortraitIdentityKey(player: PlayerPortraitIdentity): string {
+  return [player.id, player.full_name, player.match_name, player.nationality, player.date_of_birth]
     .map((part) => part?.trim().toLowerCase() || "-")
     .join("|");
 }
 
 function toPortraitRequest(player: PlayerPortraitIdentity) {
   const fallbackId =
-    player.id ||
-    player.full_name ||
-    player.match_name ||
-    runtimePortraitIdentityKey(player);
+    player.id || player.full_name || player.match_name || runtimePortraitIdentityKey(player);
 
   return {
     playerId: fallbackId,
@@ -105,9 +88,7 @@ function isPortraitEligiblePlayer(player: PlayerData): boolean {
   return !player.retired && !resolveLocalMediaPath(player.media?.face);
 }
 
-export function selectManagerSquadPortraitPlayers(
-  gameState: GameStateData,
-): PlayerData[] {
+export function selectManagerSquadPortraitPlayers(gameState: GameStateData): PlayerData[] {
   const teamId = gameState.manager.team_id;
   if (!teamId) {
     return [];
@@ -141,10 +122,7 @@ export function selectBackgroundPortraitPlayers(
 
   return gameState.players
     .map((player, index) => ({ player, index }))
-    .filter(
-      ({ player }) =>
-        isPortraitEligiblePlayer(player) && !managerSquadIds.has(player.id),
-    )
+    .filter(({ player }) => isPortraitEligiblePlayer(player) && !managerSquadIds.has(player.id))
     .sort((a, b) => {
       const aPriority = a.player.team_id === nextOpponentTeamId ? 0 : 1;
       const bPriority = b.player.team_id === nextOpponentTeamId ? 0 : 1;
@@ -239,8 +217,7 @@ export function queueBackgroundPortraitPrewarm(
 
   const delayMs = options.delayMs ?? 400;
   const batchSize = options.batchSize ?? DEFAULT_BACKGROUND_PREWARM_BATCH_SIZE;
-  const batchDelayMs =
-    options.batchDelayMs ?? DEFAULT_BACKGROUND_PREWARM_BATCH_DELAY_MS;
+  const batchDelayMs = options.batchDelayMs ?? DEFAULT_BACKGROUND_PREWARM_BATCH_DELAY_MS;
   let cancelled = false;
   let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
 

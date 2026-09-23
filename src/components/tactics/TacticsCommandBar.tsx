@@ -11,13 +11,7 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type JSX,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
@@ -109,9 +103,7 @@ export default function TacticsCommandBar({
   const customEntries = filteredLibrary.filter((entry) => entry.type === "custom");
 
   const saveLabel =
-    activeTactic.type === "custom"
-      ? t("tactics.updateTactic")
-      : t("tactics.saveAsTactic");
+    activeTactic.type === "custom" ? t("tactics.updateTactic") : t("tactics.saveAsTactic");
   // Saving a synced custom tactic is a silent no-op — nothing has changed to
   // persist. Presets stay enabled even when isDirty is false because saving
   // there always creates a new custom tactic, which is an observable action.
@@ -159,10 +151,7 @@ export default function TacticsCommandBar({
                 <span className="text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
                   {t("tactics.presetTactics")}
                 </span>
-                <Badge
-                  variant={activeTactic.type === "custom" ? "accent" : "success"}
-                  size="sm"
-                >
+                <Badge variant={activeTactic.type === "custom" ? "accent" : "success"} size="sm">
                   {activeTactic.type === "custom"
                     ? t("tactics.customTactic")
                     : t("tactics.activePreset")}
@@ -177,22 +166,10 @@ export default function TacticsCommandBar({
             </div>
 
             <div className="flex flex-wrap gap-2 xl:justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={<Plus />}
-                onClick={onCreateNew}
-              >
+              <Button type="button" variant="ghost" size="sm" icon={<Plus />} onClick={onCreateNew}>
                 {t("tactics.newTactic")}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={<Copy />}
-                onClick={onDuplicate}
-              >
+              <Button type="button" variant="ghost" size="sm" icon={<Copy />} onClick={onDuplicate}>
                 {t("tactics.duplicateTactic")}
               </Button>
               <Button
@@ -216,9 +193,7 @@ export default function TacticsCommandBar({
                   {t("tactics.chooseTactic")}
                 </div>
                 <div className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                  {activeTactic.type === "custom"
-                    ? t("tactics.myTactics")
-                    : t("tactics.presets")}
+                  {activeTactic.type === "custom" ? t("tactics.myTactics") : t("tactics.presets")}
                 </div>
               </div>
 
@@ -239,9 +214,7 @@ export default function TacticsCommandBar({
                   </div>
                 </div>
                 <div className="shrink-0 rounded-full bg-primary-500/10 px-2 py-1 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 dark:text-primary-300">
-                  {activeTactic.type === "custom"
-                    ? t("tactics.myTactics")
-                    : t("tactics.presets")}
+                  {activeTactic.type === "custom" ? t("tactics.myTactics") : t("tactics.presets")}
                 </div>
               </button>
 
@@ -361,7 +334,9 @@ export default function TacticsCommandBar({
                 aria-label={t("tactics.formation")}
               >
                 {FORMATIONS.map((f) => (
-                  <option key={f} value={f}>{f}</option>
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
                 ))}
               </Select>
             </div>
@@ -385,7 +360,6 @@ export default function TacticsCommandBar({
                 ))}
               </Select>
             </div>
-
           </div>
         </div>
       </div>

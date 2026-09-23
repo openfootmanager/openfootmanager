@@ -63,9 +63,7 @@ export default function InboxMessageListPane({
         {filteredMessages.length === 0 ? (
           <div className="p-6 text-center">
             <MailOpen className="w-8 h-8 text-gray-300 dark:text-navy-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-400 dark:text-gray-500">
-              {t("inbox.noMessages")}
-            </p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">{t("inbox.noMessages")}</p>
           </div>
         ) : (
           filteredMessages.map((message) => {
@@ -102,13 +100,7 @@ export default function InboxMessageListPane({
                       />
                     </div>
                   ) : null}
-                  <div
-                    className={getMessageIconClassName(
-                      categoryColor,
-                      isSelected,
-                      message.read,
-                    )}
-                  >
+                  <div className={getMessageIconClassName(categoryColor, isSelected, message.read)}>
                     {categoryIcon}
                   </div>
                   <div className="min-w-0 flex-1">

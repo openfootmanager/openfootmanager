@@ -79,16 +79,11 @@ export default function TournamentsLeagueHeader({
           )}
           <div className="hidden md:flex gap-4">
             {stats.map((stat) => (
-              <div
-                key={stat.key}
-                className="bg-white/5 rounded-xl px-4 py-2 text-center"
-              >
+              <div key={stat.key} className="bg-white/5 rounded-xl px-4 py-2 text-center">
                 <p className="text-xs text-gray-400 font-heading uppercase tracking-wider">
                   {stat.label}
                 </p>
-                <p className={`font-heading font-bold text-lg ${stat.className}`}>
-                  {stat.value}
-                </p>
+                <p className={`font-heading font-bold text-lg ${stat.className}`}>{stat.value}</p>
               </div>
             ))}
           </div>
@@ -100,9 +95,7 @@ export default function TournamentsLeagueHeader({
           <span className="text-sm font-heading font-bold uppercase tracking-wider text-accent-300">
             {t("tournaments.worldCupChampion")}:
           </span>
-          <span className="text-sm font-semibold text-white">
-            {worldCupChampion.nation_name}
-          </span>
+          <span className="text-sm font-semibold text-white">{worldCupChampion.nation_name}</span>
         </div>
       )}
     </Card>

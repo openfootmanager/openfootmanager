@@ -15,3 +15,9 @@
 # 717 hunks across 92 files. It lands on the highest-churn Rust files in the project, which is
 # exactly where blame gets used.
 b078d88799dd92c2a1b358086248e05aef6a44c6
+
+# style(frontend): biome formatter config, and the sweep it implies — the first `biome format`
+# this repository ever had, rewriting 454 of 537 files. Same reasoning as the rustfmt entry
+# above: without this, blame on every high-churn component points at a commit that changed
+# nothing about what the code does.
+d5bf278875b22210e8af07dacbe37f45b80825b7

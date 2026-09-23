@@ -66,10 +66,7 @@ function conditionFillClass(condition: number, fitTone: PitchFitTone): string {
   // The fit tone caps the bar COLOUR (not its width): an out-of-position
   // player shows a warning-coloured bar even when fully fresh, signalling
   // reduced effectiveness in that slot.
-  const capped = Math.min(
-    condition,
-    fitTone === "out" ? 56 : fitTone === "adapted" ? 74 : 100,
-  );
+  const capped = Math.min(condition, fitTone === "out" ? 56 : fitTone === "adapted" ? 74 : 100);
   if (capped >= 90) return "bg-success-400";
   if (capped >= 75) return "bg-primary-300";
   if (capped >= 60) return "bg-accent-300";
@@ -116,7 +113,9 @@ export function PitchToken({
           </div>
         )}
         <div className="absolute -right-1.5 -top-1.5 z-10">
-          <span className={`rounded-full ${position ? getPositionColor(position) : "bg-gray-900"} px-2 py-0.5 text-xs font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/40`}>
+          <span
+            className={`rounded-full ${position ? getPositionColor(position) : "bg-gray-900"} px-2 py-0.5 text-xs font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/40`}
+          >
             {positionAbbr}
           </span>
         </div>
@@ -145,9 +144,7 @@ export function PitchToken({
             number={jersey.number}
           />
         ) : jerseyNumber != null ? (
-          <span className="text-[10px] font-heading font-bold text-white/80">
-            #{jerseyNumber}
-          </span>
+          <span className="text-[10px] font-heading font-bold text-white/80">#{jerseyNumber}</span>
         ) : null)}
 
       <div className="max-w-full truncate text-xs font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">

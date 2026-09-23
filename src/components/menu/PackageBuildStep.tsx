@@ -36,9 +36,12 @@ interface PackageBuildStepProps {
 }
 
 function StepIndicator({ current }: { current: 2 | 3 }) {
-  const active = "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-xs font-bold";
-  const done = "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500/30 text-primary-400 text-xs font-bold";
-  const future = "flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-navy-600 text-gray-400 dark:text-gray-500 text-xs font-bold";
+  const active =
+    "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-xs font-bold";
+  const done =
+    "flex items-center justify-center w-6 h-6 rounded-full bg-primary-500/30 text-primary-400 text-xs font-bold";
+  const future =
+    "flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-navy-600 text-gray-400 dark:text-gray-500 text-xs font-bold";
   const filledLine = "h-0.5 flex-1 bg-primary-500";
   const emptyLine = "h-0.5 flex-1 bg-gray-200 dark:bg-navy-600";
 
@@ -110,13 +113,16 @@ function PackageCard({ pkg, isActive, onToggle, onUninstall }: PackageCardProps)
         </p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-            <Globe className="w-3 h-3" />{t("worldSelect.teams", { count: pkg.teamCount })}
+            <Globe className="w-3 h-3" />
+            {t("worldSelect.teams", { count: pkg.teamCount })}
           </span>
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-            <Users className="w-3 h-3" />{t("worldSelect.players", { count: pkg.playerCount })}
+            <Users className="w-3 h-3" />
+            {t("worldSelect.players", { count: pkg.playerCount })}
           </span>
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-            <Trophy className="w-3 h-3" />{t("worldSelect.competitions", { count: pkg.competitionCount })}
+            <Trophy className="w-3 h-3" />
+            {t("worldSelect.competitions", { count: pkg.competitionCount })}
           </span>
           {/* Shown only when the package actually supplies them. A stack is
               usually clubs and competitions, and six badges on every card would
@@ -124,17 +130,20 @@ function PackageCard({ pkg, isActive, onToggle, onUninstall }: PackageCardProps)
               name pools still stops looking identical to one that does not. */}
           {pkg.namePoolCount > 0 && (
             <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-              <Type className="w-3 h-3" />{t("worldSelect.namePools", { count: pkg.namePoolCount })}
+              <Type className="w-3 h-3" />
+              {t("worldSelect.namePools", { count: pkg.namePoolCount })}
             </span>
           )}
           {pkg.countryCount > 0 && (
             <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-              <Flag className="w-3 h-3" />{t("worldSelect.countries", { count: pkg.countryCount })}
+              <Flag className="w-3 h-3" />
+              {t("worldSelect.countries", { count: pkg.countryCount })}
             </span>
           )}
           {pkg.confederationCount > 0 && (
             <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-              <Layers className="w-3 h-3" />{t("worldSelect.confederations", { count: pkg.confederationCount })}
+              <Layers className="w-3 h-3" />
+              {t("worldSelect.confederations", { count: pkg.confederationCount })}
             </span>
           )}
         </div>
@@ -144,8 +153,16 @@ function PackageCard({ pkg, isActive, onToggle, onUninstall }: PackageCardProps)
       <span
         role="button"
         tabIndex={0}
-        onClick={(e) => { e.stopPropagation(); onUninstall(); }}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onUninstall(); } }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onUninstall();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+            onUninstall();
+          }
+        }}
         className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5 p-0.5 rounded"
         title={t("worldSelect.removePackage")}
         aria-label={t("worldSelect.removePackage")}
@@ -178,25 +195,32 @@ export default function PackageBuildStep({
     }
     let cancelled = false;
     invoke<StackConflictInfo[]>("check_package_stack", { packageIds: activePackageIds })
-      .then((conflicts) => { if (!cancelled) setStackConflicts(conflicts); })
+      .then((conflicts) => {
+        if (!cancelled) setStackConflicts(conflicts);
+      })
       .catch((err) => {
         if (cancelled) return;
-        setStackConflicts([{
-          severity: "error",
-          code: typeof err === "string" ? err : "be.error.package.invalid",
-          entityKind: "",
-          entityId: "",
-          packages: [],
-        }]);
+        setStackConflicts([
+          {
+            severity: "error",
+            code: typeof err === "string" ? err : "be.error.package.invalid",
+            entityKind: "",
+            entityId: "",
+            packages: [],
+          },
+        ]);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [activePackageIds]);
 
   const dbPackages = installedPackages.filter((p) => p.packageType === "database");
   const patchPackages = installedPackages.filter((p) => p.packageType !== "database");
   const activePackages = installedPackages.filter((p) => activePackageIds.includes(p.id));
   const hasActiveDatabase = activePackages.some((p) => p.packageType === "database");
-  const hasPatchOnly = activePackages.length > 0 && activePackages.every((p) => p.packageType !== "database");
+  const hasPatchOnly =
+    activePackages.length > 0 && activePackages.every((p) => p.packageType !== "database");
 
   const hasPackageErrors = (packageStackErrors?.length ?? 0) > 0;
   const stackConflictErrors = stackConflicts.filter((c) => c.severity === "error");
@@ -214,6 +238,7 @@ export default function PackageBuildStep({
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onBack}
             className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
           >
@@ -236,7 +261,6 @@ export default function PackageBuildStep({
 
       {/* Scrollable content */}
       <div className="flex flex-col gap-4 max-h-[52vh] overflow-y-auto pr-1">
-
         {/* Databases section */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -245,6 +269,7 @@ export default function PackageBuildStep({
               {t("packageBuild.databases")}
             </p>
             <button
+              type="button"
               onClick={onInstallPackage}
               disabled={isInstallingPackage}
               className="flex items-center gap-1 text-xs font-heading font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-50 transition-colors"
@@ -323,7 +348,13 @@ export default function PackageBuildStep({
             </p>
             <ul className="list-disc pl-4 space-y-0.5 text-amber-700 dark:text-amber-300">
               {stackConflictWarnings.map((c, i) => (
-                <li key={i}>{t(c.code, { entityKind: c.entityKind, entityId: c.entityId, packages: c.packages.join(", ") })}</li>
+                <li key={i}>
+                  {t(c.code, {
+                    entityKind: c.entityKind,
+                    entityId: c.entityId,
+                    packages: c.packages.join(", "),
+                  })}
+                </li>
               ))}
             </ul>
           </div>
@@ -344,7 +375,13 @@ export default function PackageBuildStep({
                 </li>
               ))}
               {stackConflictErrors.map((c, i) => (
-                <li key={`conflict-${i}`}>{t(c.code, { entityKind: c.entityKind, entityId: c.entityId, packages: c.packages.join(", ") })}</li>
+                <li key={`conflict-${i}`}>
+                  {t(c.code, {
+                    entityKind: c.entityKind,
+                    entityId: c.entityId,
+                    packages: c.packages.join(", "),
+                  })}
+                </li>
               ))}
             </ul>
           </div>

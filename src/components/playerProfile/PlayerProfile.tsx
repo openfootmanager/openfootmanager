@@ -1,5 +1,5 @@
 import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
-import { PlayerData, GameStateData } from "../../store/gameStore";
+import type { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Select } from "../ui";
@@ -15,10 +15,7 @@ import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
 import { getPlayerAge, getPlayerTeamName } from "./PlayerProfile.helpers";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
-import {
-  buildPlayerAttributeGroups,
-  isGoalkeeper,
-} from "./PlayerProfile.attributes";
+import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
@@ -61,40 +58,33 @@ export default function PlayerProfile({
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const annualSuffix = t("finances.perYearSuffix", "/yr");
   const primaryPosition = player.natural_position || player.position;
-  const footednessLabel = t(
-    `common.footedness.${player.footedness || "Right"}`,
-  );
+  const footednessLabel = t(`common.footedness.${player.footedness || "Right"}`);
   const weakFootValue = player.weak_foot ?? 2;
 
   const { advancedStats, recentMatches } = usePlayerProfileData({
     player,
     gameState,
   });
-  const { scoutAvailability, scoutStatus, scoutError, sendScout } =
-    useScoutPlayerFlow({ player, gameState, onGameUpdate });
+  const { scoutAvailability, scoutStatus, scoutError, sendScout } = useScoutPlayerFlow({
+    player,
+    gameState,
+    onGameUpdate,
+  });
   const ovr = getPlayerOvr(player);
   const age = getPlayerAge(player.date_of_birth);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
-  const currentTacticalRole: PlayerRole =
-    playerTeam?.player_roles?.[player.id] ?? "Standard";
+  const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
   // Offer roles for the deployed slot when the player is in the starting XI —
   // the backend validates set_player_role against it, so natural-position
   // roles would be rejected for an out-of-position starter (issue #272).
   const roleValidationPosition =
-    (playerTeam && getDeployedPosition(playerTeam, player.id)) ||
-    primaryPosition;
-  const tacticalRoleOptions = getRoleOptions(
-    roleValidationPosition,
-    currentTacticalRole,
-  );
+    (playerTeam && getDeployedPosition(playerTeam, player.id)) || primaryPosition;
+  const tacticalRoleOptions = getRoleOptions(roleValidationPosition, currentTacticalRole);
   const teamName = getPlayerTeamName(gameState.teams, player.team_id, {
     freeAgent: t("common.freeAgent"),
     unknown: t("common.unknown"),
   });
-  const contractRiskLevel = getContractRiskLevel(
-    player.contract_end,
-    gameState.clock.current_date,
-  );
+  const contractRiskLevel = getContractRiskLevel(player.contract_end, gameState.clock.current_date);
   const contractRiskLabel =
     contractRiskLevel === "critical"
       ? t("finances.contractRiskCritical")
@@ -221,6 +211,7 @@ export default function PlayerProfile({
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
+          type="button"
           onClick={onClose}
           className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
         >
@@ -281,9 +272,7 @@ export default function PlayerProfile({
       ) : null}
 
       {/* Injury banner */}
-      {player.injury ? (
-        <PlayerProfileInjuryBanner injury={player.injury} t={t} />
-      ) : null}
+      {player.injury ? <PlayerProfileInjuryBanner injury={player.injury} t={t} /> : null}
 
       {isOwnClub && onGameUpdate && (
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-navy-600 dark:bg-navy-800">
@@ -361,10 +350,7 @@ export default function PlayerProfile({
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
-        <PlayerProfileMovementHistoryCard
-          movementHistory={player.movement_history ?? []}
-          t={t}
-        />
+        <PlayerProfileMovementHistoryCard movementHistory={player.movement_history ?? []} t={t} />
 
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>

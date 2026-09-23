@@ -2,12 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
-import {
-  GameStateData,
-  LeagueData,
-  PlayerData,
-  TeamData,
-} from "../store/gameStore";
+import type { GameStateData, LeagueData, PlayerData, TeamData } from "../store/gameStore";
 import { getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
@@ -124,19 +119,13 @@ export function useTeamSelection({
 
     setCompetitionSelection((current) =>
       Object.fromEntries(
-        competitions.map((competition) => [
-          competition.id,
-          current[competition.id] ?? true,
-        ]),
+        competitions.map((competition) => [competition.id, current[competition.id] ?? true]),
       ),
     );
   }, [competitions]);
 
   const activeRegionIds = regions
-    .filter(
-      (region) =>
-        region.id === selectedHomeRegionId || Boolean(regionSelection[region.id]),
-    )
+    .filter((region) => region.id === selectedHomeRegionId || Boolean(regionSelection[region.id]))
     .map((region) => region.id);
 
   const homeRegionTeamIds = new Set(
@@ -218,8 +207,7 @@ export function useTeamSelection({
     }
 
     const ordered = Array.from(groups.values()).sort(
-      (left, right) =>
-        left.order - right.order || left.name.localeCompare(right.name),
+      (left, right) => left.order - right.order || left.name.localeCompare(right.name),
     );
     for (const group of ordered) {
       group.teams.sort((left, right) => right.reputation - left.reputation);
@@ -298,16 +286,14 @@ export function useTeamSelection({
       competitionRequiredRegions(competition).includes(regionId),
     );
     if (blockedMandatoryCompetition) {
-      setScopeMessage(
-        {
-          key: "teamSelect.scopeMessages.regionRequiredByCompetition",
-          values: {
-            competition: compName(blockedMandatoryCompetition),
-            club: selectedTeam?.short_name ?? t("teamSelect.yourClub"),
-            region: buildRegionLabel(t, regionId),
-          },
+      setScopeMessage({
+        key: "teamSelect.scopeMessages.regionRequiredByCompetition",
+        values: {
+          competition: compName(blockedMandatoryCompetition),
+          club: selectedTeam?.short_name ?? t("teamSelect.yourClub"),
+          region: buildRegionLabel(t, regionId),
         },
-      );
+      });
       return;
     }
 
@@ -337,14 +323,12 @@ export function useTeamSelection({
         }
         return next;
       });
-      setScopeMessage(
-        {
-          key: "teamSelect.scopeMessages.regionRemovedDisablesCompetitions",
-          values: {
-            region: buildRegionLabel(t, regionId),
-          },
+      setScopeMessage({
+        key: "teamSelect.scopeMessages.regionRemovedDisablesCompetitions",
+        values: {
+          region: buildRegionLabel(t, regionId),
         },
-      );
+      });
     } else {
       setScopeMessage(null);
     }
@@ -390,17 +374,13 @@ export function useTeamSelection({
         }
         return next;
       });
-      setScopeMessage(
-        {
-          key: "teamSelect.scopeMessages.autoEnabledRegions",
-          values: {
-            competition: compName(competition),
-            regions: missingRegions
-              .map((regionId) => buildRegionLabel(t, regionId))
-              .join(", "),
-          },
+      setScopeMessage({
+        key: "teamSelect.scopeMessages.autoEnabledRegions",
+        values: {
+          competition: compName(competition),
+          regions: missingRegions.map((regionId) => buildRegionLabel(t, regionId)).join(", "),
         },
-      );
+      });
     } else {
       setScopeMessage(null);
     }
@@ -423,10 +403,7 @@ export function useTeamSelection({
       try {
         await prewarmManagerSquadPortraits(updatedGame);
       } catch (portraitError) {
-        console.warn(
-          "Portrait prewarm failed after team selection:",
-          portraitError,
-        );
+        console.warn("Portrait prewarm failed after team selection:", portraitError);
       }
       setGameState(updatedGame);
       const mgr = updatedGame.manager;

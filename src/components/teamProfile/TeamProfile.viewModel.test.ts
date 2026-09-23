@@ -121,9 +121,24 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
     },
     teams: [createTeam()],
     players: [
-      createPlayer({ id: "goalkeeper", full_name: "Goal Keeper", position: "Goalkeeper", natural_position: "Goalkeeper" }),
-      createPlayer({ id: "forward", full_name: "Front Man", position: "Forward", natural_position: "Forward" }),
-      createPlayer({ id: "midfielder", full_name: "Mid Field", position: "Midfielder", natural_position: "Midfielder" }),
+      createPlayer({
+        id: "goalkeeper",
+        full_name: "Goal Keeper",
+        position: "Goalkeeper",
+        natural_position: "Goalkeeper",
+      }),
+      createPlayer({
+        id: "forward",
+        full_name: "Front Man",
+        position: "Forward",
+        natural_position: "Forward",
+      }),
+      createPlayer({
+        id: "midfielder",
+        full_name: "Mid Field",
+        position: "Midfielder",
+        natural_position: "Midfielder",
+      }),
     ],
     staff: [],
     messages: [],
@@ -221,10 +236,7 @@ describe("TeamProfile.viewModel", () => {
 
     const viewModel = buildTeamProfileViewModel(team, gameState);
 
-    expect(viewModel.roster.map((player) => player.id)).toEqual([
-      "owned-player",
-      "loaned-in",
-    ]);
+    expect(viewModel.roster.map((player) => player.id)).toEqual(["owned-player", "loaned-in"]);
     expect(viewModel.totalWages).toBe(33000);
   });
 });

@@ -26,11 +26,7 @@ export default function FiredModal(): JSX.Element | null {
           <h2 className="text-2xl font-heading font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide text-center">
             {t("sacked.title")}
           </h2>
-          {teamName && (
-            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-              {teamName}
-            </p>
-          )}
+          {teamName && <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">{teamName}</p>}
         </div>
 
         {/* Letter body */}
@@ -45,6 +41,7 @@ export default function FiredModal(): JSX.Element | null {
         {/* Footer */}
         <div className="px-8 pb-8">
           <button
+            type="button"
             onClick={() => setShowFiredModal(false)}
             className="w-full rounded-xl bg-gray-700 dark:bg-navy-700 px-6 py-3 font-heading font-bold text-sm uppercase tracking-wider text-white transition-all hover:bg-gray-800 dark:hover:bg-navy-600 shadow-lg"
           >

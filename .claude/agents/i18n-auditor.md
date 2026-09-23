@@ -43,8 +43,8 @@ Review what changed. Pre-existing gaps elsewhere are out of scope unless the cal
 ### 2. Run the gates and read them properly
 
 ```bash
-npx vitest run src/i18n
-npx vitest run src/utils
+npm exec --no -- vitest run src/i18n
+npm exec --no -- vitest run src/utils
 npm run audit:i18n
 ```
 

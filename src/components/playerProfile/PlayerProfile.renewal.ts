@@ -57,10 +57,7 @@ export type RenewalStatus =
   | "blocked"
   | "error";
 
-type TranslateFn = (
-  key: string,
-  options?: Record<string, string | number>,
-) => string;
+type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
 interface RenewalStatusMessageContext {
   renewalSessionStatus: RenewalResponseData["session_status"];
@@ -82,10 +79,7 @@ export function getRenewalStatusMessage(
   context: RenewalStatusMessageContext,
   translate: TranslateFn,
 ): string | null {
-  if (
-    context.renewalSessionStatus === "blocked" ||
-    context.renewalStatus === "blocked"
-  ) {
+  if (context.renewalSessionStatus === "blocked" || context.renewalStatus === "blocked") {
     return translate("playerProfile.renewalBlocked");
   }
 

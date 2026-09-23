@@ -154,8 +154,26 @@ function makeGameState(withCompetition: boolean): GameStateData {
           participant_ids: ["team-1", "team-2"],
           fixtures: [makeFixture()],
           standings: [
-            { team_id: "team-1", played: 1, won: 1, drawn: 0, lost: 0, goals_for: 2, goals_against: 1, points: 3 },
-            { team_id: "team-2", played: 1, won: 0, drawn: 0, lost: 1, goals_for: 1, goals_against: 2, points: 0 },
+            {
+              team_id: "team-1",
+              played: 1,
+              won: 1,
+              drawn: 0,
+              lost: 0,
+              goals_for: 2,
+              goals_against: 1,
+              points: 3,
+            },
+            {
+              team_id: "team-2",
+              played: 1,
+              won: 0,
+              drawn: 0,
+              lost: 1,
+              goals_for: 1,
+              goals_against: 2,
+              points: 0,
+            },
           ],
         },
       ]
@@ -173,19 +191,29 @@ function makeGameState(withCompetition: boolean): GameStateData {
       satisfaction: 50,
       fan_approval: 50,
       team_id: "team-1",
-      career_stats: { matches_managed: 0, wins: 0, draws: 0, losses: 0, trophies: 0, best_finish: null },
+      career_stats: {
+        matches_managed: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        trophies: 0,
+        best_finish: null,
+      },
       career_history: [],
     },
-    teams: [
-      makeTeam(),
-      makeTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
-    ],
+    teams: [makeTeam(), makeTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })],
     players: [],
     staff: [],
     messages: [],
     news: [],
     league: withCompetition
-      ? { id: "league-1", name: "Premier League", season: 1, fixtures: [makeFixture()], standings: [] }
+      ? {
+          id: "league-1",
+          name: "Premier League",
+          season: 1,
+          fixtures: [makeFixture()],
+          standings: [],
+        }
       : null,
     competitions: competition,
     active_competition_ids: withCompetition ? ["league-1"] : [],
@@ -234,7 +262,21 @@ describe("ScheduleTab", () => {
           key: "g-friendly",
           competition: "Friendly",
           matchday: 0,
-          fixtures: [{ id: "fix-friendly", matchday: 0, date: "2026-09-05", home_team_id: "team-1", home_team_name: "Alpha FC", away_team_id: "team-2", away_team_name: "Beta FC", competition: "Friendly", competition_id: "friendly-1", status: "Scheduled", result: null }],
+          fixtures: [
+            {
+              id: "fix-friendly",
+              matchday: 0,
+              date: "2026-09-05",
+              home_team_id: "team-1",
+              home_team_name: "Alpha FC",
+              away_team_id: "team-2",
+              away_team_name: "Beta FC",
+              competition: "Friendly",
+              competition_id: "friendly-1",
+              status: "Scheduled",
+              result: null,
+            },
+          ],
         }),
       ],
     });
@@ -243,9 +285,7 @@ describe("ScheduleTab", () => {
     render(<ScheduleTab gameState={makeGameState(true)} onSelectTeam={vi.fn()} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(`Friendly – ${formatMatchDate("2026-09-05")}`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(`Friendly – ${formatMatchDate("2026-09-05")}`)).toBeInTheDocument();
     });
     expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
   });
@@ -253,10 +293,45 @@ describe("ScheduleTab", () => {
   it("fixtures view shows all fixture rows from the slice", async () => {
     const slice = makeSlice({
       upcoming_groups: [
-        makeGroup({ key: "g1", fixtures: [{ id: "fix-upcoming", matchday: 1, date: "2026-09-05", home_team_id: "team-1", home_team_name: "Alpha FC", away_team_id: "team-2", away_team_name: "Beta FC", competition: "League", competition_id: "league-1", status: "Scheduled", result: null }] }),
+        makeGroup({
+          key: "g1",
+          fixtures: [
+            {
+              id: "fix-upcoming",
+              matchday: 1,
+              date: "2026-09-05",
+              home_team_id: "team-1",
+              home_team_name: "Alpha FC",
+              away_team_id: "team-2",
+              away_team_name: "Beta FC",
+              competition: "League",
+              competition_id: "league-1",
+              status: "Scheduled",
+              result: null,
+            },
+          ],
+        }),
       ],
       past_groups: [
-        makeGroup({ key: "g0", date: "2026-08-01", fixtures: [{ id: "fix-past", matchday: 0, date: "2026-08-01", home_team_id: "team-2", home_team_name: "Beta FC", away_team_id: "team-1", away_team_name: "Alpha FC", competition: "League", competition_id: "league-1", status: "Completed", result: { home_goals: 1, away_goals: 2 } }] }),
+        makeGroup({
+          key: "g0",
+          date: "2026-08-01",
+          fixtures: [
+            {
+              id: "fix-past",
+              matchday: 0,
+              date: "2026-08-01",
+              home_team_id: "team-2",
+              home_team_name: "Beta FC",
+              away_team_id: "team-1",
+              away_team_name: "Alpha FC",
+              competition: "League",
+              competition_id: "league-1",
+              status: "Completed",
+              result: { home_goals: 1, away_goals: 2 },
+            },
+          ],
+        }),
       ],
     });
     mockedInvoke.mockResolvedValue(slice);
@@ -433,9 +508,7 @@ describe("ScheduleTab", () => {
 
   it("hides the international toggle when there are no national-team fixtures", () => {
     render(<ScheduleTab gameState={makeGameState(true)} onSelectTeam={vi.fn()} />);
-    expect(
-      screen.queryByRole("button", { name: /International/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /International/i })).not.toBeInTheDocument();
   });
 
   it("scrolls to the group card when a calendar day with fixtures is clicked", async () => {

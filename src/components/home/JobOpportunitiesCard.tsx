@@ -3,11 +3,7 @@ import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { Briefcase, Star, MapPin, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardBody } from "../ui";
-import {
-  getAvailableJobs,
-  applyForJob,
-  type JobOpportunity,
-} from "../../services/jobService";
+import { getAvailableJobs, applyForJob, type JobOpportunity } from "../../services/jobService";
 import { getTeamName } from "../../lib/helpers";
 import type { GameStateData } from "../../store/gameStore";
 import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
@@ -31,19 +27,14 @@ export default function JobOpportunitiesCard({
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
-  const [pendingSwitch, setPendingSwitch] = useState<JobOpportunity | null>(
-    null,
-  );
+  const [pendingSwitch, setPendingSwitch] = useState<JobOpportunity | null>(null);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
 
   const currentDate = gameState.clock.current_date;
-  const currentClubName = getTeamName(
-    gameState.teams,
-    gameState.manager?.team_id ?? null,
-  );
+  const currentClubName = getTeamName(gameState.teams, gameState.manager?.team_id ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,10 +93,7 @@ export default function JobOpportunitiesCard({
     if (applyingTo) return;
     // Only prompt for confirmation when the offer points at a different club —
     // applying to your current club is a backend no-op (returns `same_team`).
-    if (
-      gameState.manager?.team_id &&
-      gameState.manager.team_id !== job.team_id
-    ) {
+    if (gameState.manager?.team_id && gameState.manager.team_id !== job.team_id) {
       setPendingSwitch(job);
       return;
     }
@@ -144,14 +132,13 @@ export default function JobOpportunitiesCard({
             {t("jobs.opportunitiesTitle")}
           </div>
           <button
+            type="button"
             onClick={handleRefresh}
             disabled={loading}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             title={t("jobs.refresh")}
           >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
-            />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </CardHeader>
@@ -196,10 +183,7 @@ export default function JobOpportunitiesCard({
                       </span>
                       <span className="flex items-center gap-0.5 text-xs">
                         {Array.from({ length: stars }, (_, i) => (
-                          <Star
-                            key={i}
-                            className="w-3 h-3 fill-accent-400 text-accent-400"
-                          />
+                          <Star key={i} className="w-3 h-3 fill-accent-400 text-accent-400" />
                         ))}
                         {Array.from({ length: 5 - stars }, (_, i) => (
                           <Star
@@ -218,13 +202,12 @@ export default function JobOpportunitiesCard({
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => handleApply(job)}
                     disabled={applyingTo !== null}
                     className="ml-3 shrink-0 rounded-lg bg-primary-500 px-4 py-1.5 text-xs font-heading font-bold uppercase tracking-wider text-white transition-all hover:bg-primary-600 disabled:opacity-50"
                   >
-                    {applyingTo === job.team_id
-                      ? t("jobs.applicationSent")
-                      : t("jobs.applyButton")}
+                    {applyingTo === job.team_id ? t("jobs.applicationSent") : t("jobs.applyButton")}
                   </button>
                 </div>
               );

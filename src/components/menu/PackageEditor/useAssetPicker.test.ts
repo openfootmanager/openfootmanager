@@ -48,7 +48,9 @@ describe("useAssetPicker", () => {
     mockedOpen.mockResolvedValue("/home/me/crest.png");
     const { hook, commit, onError } = setup();
 
-    await act(async () => { await hook.result.current.pick(); });
+    await act(async () => {
+      await hook.result.current.pick();
+    });
 
     expect(mockedInvoke).toHaveBeenCalledWith("copy_package_asset", {
       dir: "/proj",
@@ -67,7 +69,9 @@ describe("useAssetPicker", () => {
     });
     const { hook, commit, onError } = setup();
 
-    await act(async () => { await hook.result.current.pick(); });
+    await act(async () => {
+      await hook.result.current.pick();
+    });
 
     expect(onError).toHaveBeenCalledTimes(1);
     expect(commit).not.toHaveBeenCalled();
@@ -79,7 +83,9 @@ describe("useAssetPicker", () => {
     mockedOpen.mockRejectedValue(new Error("dialog crashed"));
     const { hook, commit, onError } = setup();
 
-    await act(async () => { await hook.result.current.pick(); });
+    await act(async () => {
+      await hook.result.current.pick();
+    });
 
     expect(onError).toHaveBeenCalledTimes(1);
     expect(commit).not.toHaveBeenCalled();
@@ -89,7 +95,9 @@ describe("useAssetPicker", () => {
     mockedOpen.mockResolvedValue(null);
     const { hook, commit, onError } = setup();
 
-    await act(async () => { await hook.result.current.pick(); });
+    await act(async () => {
+      await hook.result.current.pick();
+    });
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("copy_package_asset", expect.anything());
     expect(commit).not.toHaveBeenCalled();
@@ -98,7 +106,9 @@ describe("useAssetPicker", () => {
 
   it("commits null when cleared", () => {
     const { hook, commit } = setup();
-    act(() => { hook.result.current.clear(); });
+    act(() => {
+      hook.result.current.clear();
+    });
     expect(commit).toHaveBeenCalledWith(null);
   });
 
@@ -109,7 +119,9 @@ describe("useAssetPicker", () => {
 
     // Not consulted merely by rendering the hook.
     expect(entityId).not.toHaveBeenCalled();
-    await act(async () => { await hook.result.current.pick(); });
+    await act(async () => {
+      await hook.result.current.pick();
+    });
 
     expect(mockedInvoke).toHaveBeenCalledWith(
       "copy_package_asset",

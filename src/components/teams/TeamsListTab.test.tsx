@@ -3,11 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../../store/gameStore";
-import type {
-  TeamCard,
-  TeamsDirectory,
-  TeamsDirectoryQuery,
-} from "../../services/teamsService";
+import type { TeamCard, TeamsDirectory, TeamsDirectoryQuery } from "../../services/teamsService";
 import TeamsListTab from "./TeamsListTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -186,12 +182,7 @@ describe("TeamsListTab", () => {
       buildCard({ id: "team-2", name: "Beta FC", league_pos: 1, points: 3 }),
     ]);
 
-    render(
-      <TeamsListTab
-        gameState={gameStateWithManagerTeam("team-1")}
-        onSelectTeam={vi.fn()}
-      />,
-    );
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={vi.fn()} />);
 
     await screen.findByText("Beta FC");
     const headings = screen.getAllByRole("heading", { level: 3 });
@@ -206,12 +197,7 @@ describe("TeamsListTab", () => {
       buildCard({ id: "team-2", name: "Beta FC", league_pos: 1 }),
     ]);
 
-    render(
-      <TeamsListTab
-        gameState={gameStateWithManagerTeam("team-1")}
-        onSelectTeam={vi.fn()}
-      />,
-    );
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={vi.fn()} />);
 
     await screen.findByText("Alpha FC");
 
@@ -226,16 +212,9 @@ describe("TeamsListTab", () => {
   });
 
   it("shows an empty state when no clubs match", async () => {
-    setupDirectoryMock([
-      buildCard({ id: "team-1", name: "Alpha FC", league_pos: 1 }),
-    ]);
+    setupDirectoryMock([buildCard({ id: "team-1", name: "Alpha FC", league_pos: 1 })]);
 
-    render(
-      <TeamsListTab
-        gameState={gameStateWithManagerTeam("team-1")}
-        onSelectTeam={vi.fn()}
-      />,
-    );
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={vi.fn()} />);
 
     await screen.findByText("Alpha FC");
 
@@ -244,9 +223,7 @@ describe("TeamsListTab", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("No clubs match your search."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("No clubs match your search.")).toBeInTheDocument();
     });
   });
 
@@ -258,10 +235,7 @@ describe("TeamsListTab", () => {
     ]);
 
     render(
-      <TeamsListTab
-        gameState={gameStateWithManagerTeam("team-1")}
-        onSelectTeam={onSelectTeam}
-      />,
+      <TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={onSelectTeam} />,
     );
 
     fireEvent.click(await screen.findByText("Beta FC"));
@@ -275,12 +249,7 @@ describe("TeamsListTab", () => {
       buildCard({ id: "team-2", name: "Beta FC", league_pos: 2, play_style: "Counter" }),
     ]);
 
-    render(
-      <TeamsListTab
-        gameState={gameStateWithManagerTeam("team-1")}
-        onSelectTeam={vi.fn()}
-      />,
-    );
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={vi.fn()} />);
 
     expect(await screen.findByText(/4-4-2 — Equilibrado/)).toBeInTheDocument();
     expect(screen.getByText(/4-4-2 — Contra-ataque/)).toBeInTheDocument();

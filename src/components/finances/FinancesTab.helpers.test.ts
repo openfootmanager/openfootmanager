@@ -85,9 +85,7 @@ describe("facilityUpgradeBlockReason", () => {
   });
 
   it("treats a watch-level warning as still spendable", () => {
-    expect(
-      facilityUpgradeBlockReason(healthySnapshot({ overallStatus: "watch" })),
-    ).toBeNull();
+    expect(facilityUpgradeBlockReason(healthySnapshot({ overallStatus: "watch" }))).toBeNull();
   });
 });
 
@@ -104,12 +102,8 @@ describe("board support and commercial actions", () => {
     expect(boardSupportAvailable(healthySnapshot({ runwayStatus: "warning" }))).toBe(true);
     expect(boardSupportAvailable(healthySnapshot({ runwayStatus: "critical" }))).toBe(true);
     // Wage pressure alone is the commercial team's problem, not the board's.
-    expect(boardSupportAvailable(healthySnapshot({ wageBudgetStatus: "critical" }))).toBe(
-      false,
-    );
-    expect(boardSupportAvailable(healthySnapshot({ currentlyOverBudget: true }))).toBe(
-      false,
-    );
+    expect(boardSupportAvailable(healthySnapshot({ wageBudgetStatus: "critical" }))).toBe(false);
+    expect(boardSupportAvailable(healthySnapshot({ currentlyOverBudget: true }))).toBe(false);
   });
 
   it("offers a sponsor pitch on wage pressure as well as cash pressure", () => {

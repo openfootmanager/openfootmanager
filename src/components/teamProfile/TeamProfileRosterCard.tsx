@@ -1,10 +1,5 @@
 import { countryName } from "../../lib/countries";
-import {
-  calcAge,
-  formatVal,
-  getPlayerOvr,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import { calcAge, formatVal, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewProfileMenuItem } from "../playerActions/playerContextMenuItems";
@@ -74,16 +69,15 @@ export default function TeamProfileRosterCard({
                     key={player.id}
                     data-testid={`team-profile-roster-${player.id}`}
                     onClick={() => onSelectPlayer?.(player.id)}
-                    className={`group transition-colors ${onSelectPlayer
-                      ? "hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer"
-                      : ""
-                      }`}
+                    className={`group transition-colors ${
+                      onSelectPlayer
+                        ? "hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer"
+                        : ""
+                    }`}
                   >
                     <td className="py-3 px-5">
                       <Badge
-                        variant={positionBadgeVariant(
-                          player.natural_position || player.position,
-                        )}
+                        variant={positionBadgeVariant(player.natural_position || player.position)}
                       >
                         {translatePositionAbbreviation(
                           t,
@@ -128,14 +122,15 @@ export default function TeamProfileRosterCard({
                     )}
                     <td className="py-3 px-5">
                       <span
-                        className={`font-heading font-bold text-lg tabular-nums ${isOwnTeam
-                          ? ovr >= 75
-                            ? "text-primary-500"
-                            : ovr >= 55
-                              ? "text-accent-500"
-                              : "text-gray-400"
-                          : "text-gray-400"
-                          }`}
+                        className={`font-heading font-bold text-lg tabular-nums ${
+                          isOwnTeam
+                            ? ovr >= 75
+                              ? "text-primary-500"
+                              : ovr >= 55
+                                ? "text-accent-500"
+                                : "text-gray-400"
+                            : "text-gray-400"
+                        }`}
                       >
                         {isOwnTeam ? ovr : "??"}
                       </span>

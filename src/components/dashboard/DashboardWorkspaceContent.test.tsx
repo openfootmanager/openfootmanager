@@ -21,37 +21,58 @@ vi.mock("../playerProfile/PlayerProfile", () => ({
     onSelectTeam,
     startWithRenewalModal,
     startWithTerminationModal,
-  }: any) => (
+  }: {
+    onClose: () => void;
+    onSelectTeam: (teamId: string) => void;
+    startWithRenewalModal?: boolean;
+    startWithTerminationModal?: boolean;
+  }) => (
     <div>
       <span>Player Profile Mock</span>
       <span>{startWithRenewalModal ? "renewal-open" : "renewal-closed"}</span>
-      <span>
-        {startWithTerminationModal ? "termination-open" : "termination-closed"}
-      </span>
-      <button onClick={onClose}>close-player</button>
-      <button onClick={() => onSelectTeam("team-2")}>select-team</button>
+      <span>{startWithTerminationModal ? "termination-open" : "termination-closed"}</span>
+      <button type="button" onClick={onClose}>
+        close-player
+      </button>
+      <button type="button" onClick={() => onSelectTeam("team-2")}>
+        select-team
+      </button>
     </div>
   ),
 }));
 
 vi.mock("../teamProfile", () => ({
-  default: ({ onClose, onSelectPlayer }: any) => (
+  default: ({
+    onClose,
+    onSelectPlayer,
+  }: {
+    onClose: () => void;
+    onSelectPlayer: (playerId: string) => void;
+  }) => (
     <div>
       <span>Team Profile Mock</span>
-      <button onClick={onClose}>close-team</button>
-      <button onClick={() => onSelectPlayer("player-2")}>select-player</button>
+      <button type="button" onClick={onClose}>
+        close-team
+      </button>
+      <button type="button" onClick={() => onSelectPlayer("player-2")}>
+        select-player
+      </button>
     </div>
   ),
 }));
 
 vi.mock("./DashboardAlerts", () => ({
-  default: ({ onNavigate }: any) => (
-    <button onClick={() => onNavigate("Inbox")}>alerts-mock</button>
+  default: ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
+    <button type="button" onClick={() => onNavigate("Inbox")}>
+      alerts-mock
+    </button>
   ),
 }));
 
 vi.mock("./DashboardTabContent", () => ({
-  default: ({ viewModel }: any) => <div>Tab Content {viewModel.activeTab}</div>,
+  default: ({ viewModel }: { viewModel: { activeTab: string } }) => (
+    <div>Tab Content {viewModel.activeTab}</div>
+  ),
 }));
 
 function createGameState(): GameStateData {
@@ -207,9 +228,7 @@ describe("DashboardWorkspaceContent", () => {
 
     render(
       <DashboardWorkspaceContent
-        dashboardAlerts={[
-          { id: "alert-1", text: "Alert", tab: "Inbox", severity: "info" },
-        ]}
+        dashboardAlerts={[{ id: "alert-1", text: "Alert", tab: "Inbox", severity: "info" }]}
         gameState={gameState}
         profileNavigation={createDashboardProfileNavigationState("Home")}
         dashboardTabContentModel={createDashboardTabContentModel({

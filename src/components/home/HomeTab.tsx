@@ -4,11 +4,7 @@ import { formatDateShort, getUserCompetition } from "../../lib/helpers";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import NextMatchDisplay from "../NextMatchDisplay";
-import {
-  resolveBoardObjective,
-  resolveMessage,
-  resolveNewsArticle,
-} from "../../utils/backendI18n";
+import { resolveBoardObjective, resolveMessage, resolveNewsArticle } from "../../utils/backendI18n";
 import {
   getHomeRosterOverview,
   getLeagueDigestArticles,
@@ -50,8 +46,7 @@ interface HomeTabProps {
   visitedOnboardingTabs: ReadonlySet<string>;
 }
 
-const SCHEDULE_ICONS: Record<string, { icon: React.ReactNode; color: string }> =
-{
+const SCHEDULE_ICONS: Record<string, { icon: React.ReactNode; color: string }> = {
   Intense: { icon: <Flame className="w-3.5 h-3.5" />, color: "text-red-500" },
   Balanced: {
     icon: <Scale className="w-3.5 h-3.5" />,
@@ -70,23 +65,13 @@ export default function HomeTab({
   visitedOnboardingTabs,
 }: HomeTabProps) {
   const { t, i18n } = useTranslation();
-  const myTeam = gameState.teams.find(
-    (tm) => tm.id === gameState.manager.team_id,
-  );
+  const myTeam = gameState.teams.find((tm) => tm.id === gameState.manager.team_id);
   const league = getUserCompetition(gameState);
   const roster = myTeam
-    ? gameState.players.filter(
-      (p) => p.team_id === myTeam.id && isSeniorSquadPlayer(p),
-    )
+    ? gameState.players.filter((p) => p.team_id === myTeam.id && isSeniorSquadPlayer(p))
     : [];
-  const {
-    avgCondition,
-    avgOvr,
-    coldPlayers,
-    exhaustedCount,
-    hotPlayers,
-    unavailablePlayers,
-  } = getHomeRosterOverview(roster);
+  const { avgCondition, avgOvr, coldPlayers, exhaustedCount, hotPlayers, unavailablePlayers } =
+    getHomeRosterOverview(roster);
   const resolveInjuryName = (injuryName: string): string => {
     if (injuryName.includes(".")) {
       return t(injuryName, { defaultValue: injuryName });
@@ -112,16 +97,14 @@ export default function HomeTab({
   const transferWindowSummary =
     transferWindow.status === "DeadlineDay"
       ? t("season.windowClosesToday")
-      : transferWindow.status === "Open" &&
-        transferWindow.days_remaining !== null
+      : transferWindow.status === "Open" && transferWindow.days_remaining !== null
         ? t("season.windowClosesInDays", {
-          count: transferWindow.days_remaining,
-        })
-        : transferWindow.status === "Closed" &&
-          transferWindow.days_until_opens !== null
-          ? t("season.windowOpensInDays", {
-            count: transferWindow.days_until_opens,
+            count: transferWindow.days_remaining,
           })
+        : transferWindow.status === "Closed" && transferWindow.days_until_opens !== null
+          ? t("season.windowOpensInDays", {
+              count: transferWindow.days_until_opens,
+            })
           : t("season.windowClosed");
 
   // League position — sort a copy: sorting the store's array in place is a
@@ -130,13 +113,13 @@ export default function HomeTab({
   const myStandingIndex =
     !isPreseason && league && myTeam
       ? [...league.standings]
-        .sort(
-          (a, b) =>
-            b.points - a.points ||
-            b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
-            b.goals_for - a.goals_for,
-        )
-        .findIndex((s) => s.team_id === myTeam.id)
+          .sort(
+            (a, b) =>
+              b.points - a.points ||
+              b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
+              b.goals_for - a.goals_for,
+          )
+          .findIndex((s) => s.team_id === myTeam.id)
       : -1;
   const myStanding = myStandingIndex >= 0 ? myStandingIndex + 1 : null;
   const myStandingData =
@@ -158,21 +141,13 @@ export default function HomeTab({
     .slice(0, 2)
     .map(resolveNewsArticle);
   const recentMessages = (gameState.messages || [])
-    .filter((message) =>
-      isMessageVisible(message.date, gameState.clock?.current_date),
-    )
+    .filter((message) => isMessageVisible(message.date, gameState.clock?.current_date))
     .slice(0, 4)
     .map(resolveMessage);
   const nextOpponent = getNextOpponentWidgetData(gameState);
-  const leagueDigestArticles =
-    getLeagueDigestArticles(gameState).map(resolveNewsArticle);
-  const boardObjectives = (gameState.board_objectives || []).map(
-    resolveBoardObjective,
-  );
-  const onboardingState = getOnboardingCompletionState(
-    gameState,
-    visitedOnboardingTabs,
-  );
+  const leagueDigestArticles = getLeagueDigestArticles(gameState).map(resolveNewsArticle);
+  const boardObjectives = (gameState.board_objectives || []).map(resolveBoardObjective);
+  const onboardingState = getOnboardingCompletionState(gameState, visitedOnboardingTabs);
 
   const onboardingSteps = [
     {
@@ -237,15 +212,14 @@ export default function HomeTab({
       )}
 
       {/* Onboarding — Getting Started Checklist */}
-      {myTeam && onboardingState.showOnboarding &&
-        completedSteps < onboardingSteps.length && (
-          <HomeOnboardingChecklistCard
-            completedSteps={completedSteps}
-            totalSteps={onboardingSteps.length}
-            steps={onboardingSteps}
-            onNavigate={onNavigate}
-          />
-        )}
+      {myTeam && onboardingState.showOnboarding && completedSteps < onboardingSteps.length && (
+        <HomeOnboardingChecklistCard
+          completedSteps={completedSteps}
+          totalSteps={onboardingSteps.length}
+          steps={onboardingSteps}
+          onNavigate={onNavigate}
+        />
+      )}
 
       {myTeam ? (
         <>
@@ -271,11 +245,7 @@ export default function HomeTab({
 
           {/* Row 2: Four secondary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <HomeNextOpponentCard
-              nextOpponent={nextOpponent}
-              lang={lang}
-              onNavigate={onNavigate}
-            />
+            <HomeNextOpponentCard nextOpponent={nextOpponent} lang={lang} onNavigate={onNavigate} />
             <HomeSquadOverviewCard
               avgCondition={avgCondition}
               avgOvr={avgOvr}
@@ -300,19 +270,13 @@ export default function HomeTab({
           </div>
 
           {onGameUpdate && (
-            <JobOpportunitiesCard
-              gameState={gameState}
-              onGameUpdate={onGameUpdate}
-              hideWhenEmpty
-            />
+            <JobOpportunitiesCard gameState={gameState} onGameUpdate={onGameUpdate} hideWhenEmpty />
           )}
 
           {/* Board Objectives */}
           {boardObjectives.length > 0 && (
             <Card>
-              <CardHeader>
-                {t("home.boardObjectives")}
-              </CardHeader>
+              <CardHeader>{t("home.boardObjectives")}</CardHeader>
               <CardBody>
                 <div className="flex flex-col gap-2.5">
                   {boardObjectives.map((obj) => (
@@ -384,19 +348,12 @@ export default function HomeTab({
             onNavigate={onNavigate}
           />
           {onGameUpdate && (
-            <JobOpportunitiesCard
-              gameState={gameState}
-              onGameUpdate={onGameUpdate}
-            />
+            <JobOpportunitiesCard gameState={gameState} onGameUpdate={onGameUpdate} />
           )}
         </>
       )}
 
-      <HomeRecentMessagesCard
-        messages={recentMessages}
-        lang={lang}
-        onNavigate={onNavigate}
-      />
+      <HomeRecentMessagesCard messages={recentMessages} lang={lang} onNavigate={onNavigate} />
     </div>
   );
 }

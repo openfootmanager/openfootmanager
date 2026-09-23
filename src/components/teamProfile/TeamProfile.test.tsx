@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   initReactI18next: {
     type: "3rdParty",
-    init: () => { },
+    init: () => {},
   },
   useTranslation: () => ({
     t: (key: string) => {
@@ -257,12 +257,7 @@ describe("TeamProfile", () => {
     });
 
     render(
-      <TeamProfile
-        team={team}
-        gameState={createGameState(team)}
-        isOwnTeam
-        onClose={vi.fn()}
-      />,
+      <TeamProfile team={team} gameState={createGameState(team)} isOwnTeam onClose={vi.fn()} />,
     );
 
     await waitFor(() => {
@@ -306,12 +301,7 @@ describe("TeamProfile", () => {
     });
 
     render(
-      <TeamProfile
-        team={team}
-        gameState={createGameState(team)}
-        isOwnTeam
-        onClose={vi.fn()}
-      />,
+      <TeamProfile team={team} gameState={createGameState(team)} isOwnTeam onClose={vi.fn()} />,
     );
 
     await waitFor(() => {

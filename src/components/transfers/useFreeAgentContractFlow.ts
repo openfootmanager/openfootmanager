@@ -45,10 +45,7 @@ interface UseFreeAgentContractFlowResult {
   submitFreeAgentContract: () => Promise<void>;
 }
 
-type TranslateFn = (
-  key: string,
-  options?: Record<string, string | number>,
-) => string;
+type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
 function defaultContractYears(dateOfBirth: string, asOfDate: string): string {
   const age = calcAgeOnDate(dateOfBirth, asOfDate);
@@ -63,9 +60,9 @@ function defaultContractWage(player: PlayerData): string {
     player.wage > 0
       ? player.wage
       : Math.max(
-        Math.round(player.market_value / MARKET_VALUE_TO_WAGE_RATIO),
-        MINIMUM_DEFAULT_WAGE,
-      );
+          Math.round(player.market_value / MARKET_VALUE_TO_WAGE_RATIO),
+          MINIMUM_DEFAULT_WAGE,
+        );
   return String(Math.ceil(baseline / 1000) * 1000);
 }
 
@@ -73,9 +70,7 @@ export function useFreeAgentContractFlow({
   gameState,
   onGameUpdate,
 }: UseFreeAgentContractFlowArgs): UseFreeAgentContractFlowResult {
-  const myTeam = gameState.teams.find(
-    (team) => team.id === gameState.manager.team_id,
-  ) ?? null;
+  const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id) ?? null;
   const [freeAgentTarget, setFreeAgentTarget] = useState<PlayerData | null>(null);
   const [contractWage, setContractWage] = useState("");
   const [contractLength, setContractLength] = useState("");
@@ -83,8 +78,9 @@ export function useFreeAgentContractFlow({
   const [contractError, setContractError] = useState<string | null>(null);
   const [contractFeedback, setContractFeedback] =
     useState<FreeAgentContractResponseData["feedback"]>(null);
-  const [contractProjection, setContractProjection] =
-    useState<FreeAgentContractProjection | null>(null);
+  const [contractProjection, setContractProjection] = useState<FreeAgentContractProjection | null>(
+    null,
+  );
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [contractSessionStatus, setContractSessionStatus] =
     useState<FreeAgentContractResponseData["session_status"]>("idle");
@@ -96,13 +92,9 @@ export function useFreeAgentContractFlow({
   const offeredYears = Number(contractLength);
   const isContractWageValid = Number.isFinite(offeredWage) && offeredWage > 0;
   const isContractLengthValid =
-    Number.isInteger(offeredYears) &&
-    offeredYears > 0 &&
-    offeredYears <= MAX_CONTRACT_YEARS;
+    Number.isInteger(offeredYears) && offeredYears > 0 && offeredYears <= MAX_CONTRACT_YEARS;
   const contractViolatesSoftCap =
-    isContractWageValid &&
-    contractProjection !== null &&
-    !contractProjection.policy_allows;
+    isContractWageValid && contractProjection !== null && !contractProjection.policy_allows;
 
   useEffect(() => {
     if (!freeAgentTarget || !isContractWageValid) {
@@ -114,10 +106,7 @@ export function useFreeAgentContractFlow({
 
     const loadProjection = async (): Promise<void> => {
       try {
-        const result = await previewFreeAgentContractImpact(
-          freeAgentTarget.id,
-          offeredWage,
-        );
+        const result = await previewFreeAgentContractImpact(freeAgentTarget.id, offeredWage);
 
         if (!cancelled) {
           setContractProjection(result.projection ?? null);
@@ -178,11 +167,7 @@ export function useFreeAgentContractFlow({
     setContractError(null);
 
     try {
-      const result = await offerFreeAgentContract(
-        freeAgentTarget.id,
-        offeredWage,
-        offeredYears,
-      );
+      const result = await offerFreeAgentContract(freeAgentTarget.id, offeredWage, offeredYears);
 
       onGameUpdate?.(result.game);
       setContractStatus(result.outcome);
@@ -200,7 +185,6 @@ export function useFreeAgentContractFlow({
           setContractLength(String(result.suggested_years));
         }
       }
-
     } catch (error) {
       setContractStatus("error");
       setContractError(resolveBackendError(error));

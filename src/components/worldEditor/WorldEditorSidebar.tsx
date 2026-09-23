@@ -1,6 +1,17 @@
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, Flag, Globe2, Info, Shield, Trophy, Type, Users, UserCog, GraduationCap } from "lucide-react";
+import {
+  AlertCircle,
+  Flag,
+  Globe2,
+  Info,
+  Shield,
+  Trophy,
+  Type,
+  Users,
+  UserCog,
+  GraduationCap,
+} from "lucide-react";
 import type { EditTab } from "../menu/PackageEditor/types";
 
 interface SidebarItem {
@@ -59,8 +70,18 @@ export function WorldEditorSidebar({
       groupKey: "world",
       label: t("worldEditor.sectionWorld"),
       items: [
-        { key: "confederations", label: t("worldEditor.sectionConfederations"), count: confederationCount, icon: Globe2 },
-        { key: "countries", label: t("worldEditor.sectionCountries"), count: countryCount, icon: Flag },
+        {
+          key: "confederations",
+          label: t("worldEditor.sectionConfederations"),
+          count: confederationCount,
+          icon: Globe2,
+        },
+        {
+          key: "countries",
+          label: t("worldEditor.sectionCountries"),
+          count: countryCount,
+          icon: Flag,
+        },
       ],
     },
     {
@@ -69,7 +90,12 @@ export function WorldEditorSidebar({
       items: [
         { key: "teams", label: t("worldEditor.sectionTeams"), count: teamCount, icon: Shield },
         { key: "players", label: t("worldEditor.sectionPlayers"), count: playerCount, icon: Users },
-        { key: "youth", label: t("worldEditor.sectionYouth"), count: youthCount, icon: GraduationCap },
+        {
+          key: "youth",
+          label: t("worldEditor.sectionYouth"),
+          count: youthCount,
+          icon: GraduationCap,
+        },
         { key: "staff", label: t("worldEditor.sectionStaff"), count: staffCount, icon: UserCog },
         { key: "names", label: t("worldEditor.sectionNames"), count: namePoolCount, icon: Type },
       ],
@@ -78,7 +104,12 @@ export function WorldEditorSidebar({
       groupKey: "competitions",
       label: t("worldEditor.sectionCompetitions"),
       items: [
-        { key: "competitions", label: t("worldEditor.sectionCompetitionsList"), count: competitionCount, icon: Trophy },
+        {
+          key: "competitions",
+          label: t("worldEditor.sectionCompetitionsList"),
+          count: competitionCount,
+          icon: Trophy,
+        },
       ],
     },
   ];
@@ -100,6 +131,7 @@ export function WorldEditorSidebar({
             </p>
             {group.items.map((item) => (
               <button
+                type="button"
                 key={item.key}
                 onClick={() => onSelectSection(item.key)}
                 className={itemClass(selectedSection === item.key && !showingIssues)}
@@ -126,13 +158,14 @@ export function WorldEditorSidebar({
       {/* Issues badge at bottom */}
       <div className="flex-shrink-0 px-2 pt-2 border-t border-gray-200 dark:border-navy-700">
         <button
+          type="button"
           onClick={onShowIssues}
           className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-colors ${
             showingIssues
               ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400"
               : issueCount > 0
-              ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
-              : "text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-navy-700"
+                ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                : "text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-navy-700"
           }`}
         >
           <AlertCircle className="w-4 h-4 flex-shrink-0" />

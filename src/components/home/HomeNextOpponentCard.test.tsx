@@ -66,12 +66,7 @@ function createNextOpponent(): NextOpponentWidgetData {
 
 describe("HomeNextOpponentCard", () => {
   it("renders the next opponent widget content", () => {
-    render(
-      <HomeNextOpponentCard
-        nextOpponent={createNextOpponent()}
-        lang="en"
-      />,
-    );
+    render(<HomeNextOpponentCard nextOpponent={createNextOpponent()} lang="en" />);
 
     expect(screen.getByText("Next Opponent")).toBeInTheDocument();
     expect(screen.getByText("Beta FC")).toBeInTheDocument();

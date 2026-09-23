@@ -36,7 +36,16 @@ function CompetitionBadge({ comp, projectDir }: { comp: CompetitionDef; projectD
   );
 }
 
-export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDelete, onDuplicate, selectedIndex, onSelect }: CompetitionsTabProps) {
+export function CompetitionsTab({
+  competitions,
+  projectDir,
+  onAdd,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  selectedIndex,
+  onSelect,
+}: CompetitionsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -49,8 +58,9 @@ export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDel
         <EntityRow
           key={entityRowKey(comp.id, i)}
           title={comp.name || comp.id}
-          subtitle={[t(`teamSelect.kinds.${comp.type}`), t(`teamSelect.scopes.${comp.scope}`)]
-            .join(" · ")}
+          subtitle={[t(`teamSelect.kinds.${comp.type}`), t(`teamSelect.scopes.${comp.scope}`)].join(
+            " · ",
+          )}
           badge={<CompetitionBadge comp={comp} projectDir={projectDir} />}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}

@@ -66,8 +66,6 @@ export interface TeamsDirectory {
   regions: RegionGroup[];
 }
 
-export function fetchTeamsDirectory(
-  query: TeamsDirectoryQuery,
-): Promise<TeamsDirectory> {
+export function fetchTeamsDirectory(query: TeamsDirectoryQuery): Promise<TeamsDirectory> {
   return invoke<TeamsDirectory>("get_teams_directory", { query });
 }

@@ -45,19 +45,19 @@ function getDaysInMonth(month: number, year: number) {
 }
 
 function clampDayValue(dayValue: string, monthValue: string, yearValue: string) {
-  if (!dayValue || parseInt(dayValue) <= 0) {
+  if (!dayValue || parseInt(dayValue, 10) <= 0) {
     return dayValue;
   }
 
-  const monthNumber = parseInt(monthValue) || 1;
-  const yearNumber = parseInt(yearValue) || 2000;
+  const monthNumber = parseInt(monthValue, 10) || 1;
+  const yearNumber = parseInt(yearValue, 10) || 2000;
   const maxDays = getDaysInMonth(monthNumber, yearNumber);
-  return Math.min(parseInt(dayValue), maxDays).toString();
+  return Math.min(parseInt(dayValue, 10), maxDays).toString();
 }
 
 function normaliseDayOnBlur(dayValue: string) {
-  if (dayValue && parseInt(dayValue) > 0) {
-    return parseInt(dayValue).toString().padStart(2, "0");
+  if (dayValue && parseInt(dayValue, 10) > 0) {
+    return parseInt(dayValue, 10).toString().padStart(2, "0");
   }
 
   return "";
@@ -68,7 +68,7 @@ function normaliseYearOnBlur(yearValue: string, currentYear: number) {
     return yearValue;
   }
 
-  const parsedYear = parseInt(yearValue);
+  const parsedYear = parseInt(yearValue, 10);
   if (Number.isNaN(parsedYear) || parsedYear >= 100) {
     return yearValue;
   }
@@ -94,7 +94,10 @@ function getSelectedMonthLabel(monthValue: string, months: MonthOption[], fallba
     return fallback;
   }
 
-  return months.find(m => m.value === monthValue || m.value === parseInt(monthValue).toString())?.label ?? fallback;
+  return (
+    months.find((m) => m.value === monthValue || m.value === parseInt(monthValue, 10).toString())
+      ?.label ?? fallback
+  );
 }
 
 export function DatePicker({ value, onChange, error, labelledBy }: DatePickerProps) {
@@ -156,8 +159,7 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
 
     const handleClickOutside = (e: MouseEvent) => {
       const targetNode = e.target instanceof Node ? e.target : null;
-      const eventPath =
-        typeof e.composedPath === "function" ? e.composedPath() : [];
+      const eventPath = typeof e.composedPath === "function" ? e.composedPath() : [];
       const clickedInside =
         eventPath.includes(monthElement as EventTarget) ||
         (targetNode ? monthElement.contains(targetNode) : false);
@@ -212,14 +214,14 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
   const months = useMemo(() => createMonths(i18n.language), [i18n.language]);
 
   const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let newDay = e.target.value.replace(/\D/g, '');
+    let newDay = e.target.value.replace(/\D/g, "");
     if (newDay.length > 2) newDay = newDay.slice(0, 2);
 
     setDay(clampDayValue(newDay, month, year));
   };
 
   const handleYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let newYear = e.target.value.replace(/\D/g, '');
+    let newYear = e.target.value.replace(/\D/g, "");
     if (newYear.length > 4) newYear = newYear.slice(0, 4);
     setYear(newYear);
 
@@ -229,12 +231,15 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
     }
   };
 
-  const selectedMonthLabel = getSelectedMonthLabel(month, months, t('date.month'));
+  const selectedMonthLabel = getSelectedMonthLabel(month, months, t("date.month"));
 
   return (
     <div
       className="flex gap-2 w-full"
-      role={labelledBy ? "group" : undefined}
+      // Unconditional: ARIA does not allow `aria-labelledby` on an element with no role, and a
+      // conditional role cannot be paired with it by any checker. A `group` with no label is
+      // valid and describes what this is — three fields that belong together — either way.
+      role="group"
       aria-labelledby={labelledBy}
     >
       {/* Day */}
@@ -242,15 +247,16 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
         <input
           type="text"
           inputMode="numeric"
-          placeholder={t('date.day', 'DD')}
-          aria-label={t('date.dayLabel')}
+          placeholder={t("date.day", "DD")}
+          aria-label={t("date.dayLabel")}
           value={day}
           onChange={handleDayChange}
           onBlur={() => setDay(normaliseDayOnBlur(day))}
-          className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-center ${error
+          className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-center ${
+            error
               ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
               : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
-            }`}
+          }`}
         />
       </div>
 
@@ -259,17 +265,22 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
         <button
           type="button"
           onClick={() => setMonthOpen(!monthOpen)}
-          className={`w-full flex items-center justify-between bg-gray-50 dark:bg-navy-900 border text-left rounded-lg p-3 outline-none transition-all ${error
+          className={`w-full flex items-center justify-between bg-gray-50 dark:bg-navy-900 border text-left rounded-lg p-3 outline-none transition-all ${
+            error
               ? "border-red-400 dark:border-red-500"
               : monthOpen
                 ? "border-primary-500 ring-2 ring-primary-500/20"
                 : "border-gray-300 dark:border-navy-600"
-            }`}
+          }`}
         >
-          <span className={month ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"}>
+          <span
+            className={month ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"}
+          >
             {selectedMonthLabel}
           </span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${monthOpen ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`w-4 h-4 text-gray-400 transition-transform ${monthOpen ? "rotate-180" : ""}`}
+          />
         </button>
 
         {monthOpen && (
@@ -286,37 +297,43 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
                   setMonth("");
                   setMonthOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${month === ""
+                className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
+                  month === ""
                     ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
                     : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-navy-600"
-                  }`}
+                }`}
               >
-                <span>{t('date.noMonth')}</span>
-                {month === "" && <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />}
+                <span>{t("date.noMonth")}</span>
+                {month === "" && (
+                  <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />
+                )}
               </button>
-              {months.map(m => (
+              {months.map((m) => (
                 <button
                   key={m.value}
                   type="button"
                   onClick={() => {
-                    const nextMonth = m.value.padStart(2, '0');
+                    const nextMonth = m.value.padStart(2, "0");
                     setMonth(nextMonth);
                     setMonthOpen(false);
                     // Re-validate day
                     if (day && year.length === 4) {
                       const clampedDay = clampDayValue(day, nextMonth, year);
                       if (clampedDay !== day) {
-                        setDay(clampedDay.padStart(2, '0'));
+                        setDay(clampedDay.padStart(2, "0"));
                       }
                     }
                   }}
-                  className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${(month === m.value || month === m.value.padStart(2, '0'))
+                  className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
+                    month === m.value || month === m.value.padStart(2, "0")
                       ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
                       : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"
-                    }`}
+                  }`}
                 >
                   <span>{m.label}</span>
-                  {(month === m.value || month === m.value.padStart(2, '0')) && <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />}
+                  {(month === m.value || month === m.value.padStart(2, "0")) && (
+                    <Check className="w-4 h-4 text-primary-500 dark:text-primary-400" />
+                  )}
                 </button>
               ))}
             </div>
@@ -329,8 +346,8 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
         <input
           type="text"
           inputMode="numeric"
-          placeholder={t('date.year', 'YYYY')}
-          aria-label={t('date.yearLabel')}
+          placeholder={t("date.year", "YYYY")}
+          aria-label={t("date.yearLabel")}
           value={year}
           onChange={handleYearChange}
           onBlur={() => {
@@ -341,10 +358,11 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
               }
             }
           }}
-          className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-center ${error
+          className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-center ${
+            error
               ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
               : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
-            }`}
+          }`}
         />
       </div>
     </div>

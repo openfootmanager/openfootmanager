@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
-import { TeamColorsDef } from "../menu/PackageEditor/types";
+import type { TeamColorsDef } from "../menu/PackageEditor/types";
 
 type TeamOption = {
   id: string;
@@ -47,7 +47,9 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
 
   useEffect(() => {
     if (!isOpen) return;
-    listRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView?.({ block: "nearest" });
+    listRef.current
+      ?.querySelector<HTMLElement>('[data-active="true"]')
+      ?.scrollIntoView?.({ block: "nearest" });
   }, [activeIndex, isOpen, search]);
 
   const filtered = useMemo(() => {
@@ -104,7 +106,11 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
 
   return (
     <div className="flex flex-col gap-1" ref={ref}>
-      <label id={labelId} htmlFor={buttonId} className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+      <label
+        id={labelId}
+        htmlFor={buttonId}
+        className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400"
+      >
         {label}
       </label>
       <div className="relative">
@@ -133,10 +139,16 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
           }}
           className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-left transition focus:outline-none focus:ring-2 focus:ring-primary-400 min-h-[38px]"
         >
-          <span className={selected ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"}>
+          <span
+            className={
+              selected ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"
+            }
+          >
             {selected?.label ?? placeholder ?? "—"}
           </span>
-          <ChevronDown className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
         </button>
 
         {isOpen && (
@@ -144,6 +156,7 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
             <div className="border-b border-gray-100 dark:border-navy-600 p-2">
               <input
                 type="text"
+                // biome-ignore lint/a11y/noAutofocus: the search field only exists while the combobox is open.
                 autoFocus
                 role="combobox"
                 aria-expanded="true"
@@ -164,7 +177,9 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
             <div className="max-h-48 overflow-y-auto overscroll-contain">
               <div role="listbox" id={listboxId} aria-label={label} ref={listRef}>
                 {filtered.length === 0 && (
-                  <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">{t("teams.noResults")}</p>
+                  <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
+                    {t("teams.noResults")}
+                  </p>
                 )}
                 {filtered.length > 0 && (
                   <button
@@ -208,7 +223,9 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                     <span className="flex items-center gap-2">
                       <span>{option.label}</span>
                     </span>
-                    {value === option.id && <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />}
+                    {value === option.id && (
+                      <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />
+                    )}
                   </button>
                 ))}
               </div>

@@ -107,19 +107,13 @@ interface ResolveStartingXiIdsOptions {
   savedStartingXiIds: string[];
 }
 
-
-export function buildTacticsRoster(
-  players: PlayerData[],
-  teamId: string,
-): PlayerData[] {
+export function buildTacticsRoster(players: PlayerData[], teamId: string): PlayerData[] {
   return players
-    .filter(
-      (player) => player.team_id === teamId && isSeniorSquadPlayer(player),
-    )
+    .filter((player) => player.team_id === teamId && isSeniorSquadPlayer(player))
     .sort((leftPlayer, rightPlayer) => {
       return (
         (POSITION_ORDER[normalisePosition(leftPlayer.position)] ?? 99) -
-        (POSITION_ORDER[normalisePosition(rightPlayer.position)] ?? 99) ||
+          (POSITION_ORDER[normalisePosition(rightPlayer.position)] ?? 99) ||
         getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
       );
     });
@@ -132,11 +126,7 @@ export function resolveStartingXiIds({
   playersById,
   savedStartingXiIds,
 }: ResolveStartingXiIdsOptions): string[] {
-  const baseIds = buildStartingXIIds(
-    availablePlayers,
-    savedStartingXiIds,
-    formation,
-  );
+  const baseIds = buildStartingXIIds(availablePlayers, savedStartingXiIds, formation);
   const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
 
   if (!pendingStartingXiIds || pendingStartingXiIds.length === 0) {
@@ -151,7 +141,9 @@ export function resolveStartingXiIds({
     const slotPosition = slotPositions[validPendingIds.length + fillPlayerIds.length];
     const bestPlayer = availablePlayers
       .filter((player) => !usedPlayerIds.has(player.id))
-      .sort((leftPlayer, rightPlayer) => comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition))[0];
+      .sort((leftPlayer, rightPlayer) =>
+        comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition),
+      )[0];
 
     if (!bestPlayer) break;
     fillPlayerIds.push(bestPlayer.id);
@@ -186,7 +178,7 @@ export function sortTacticsPlayers(
       case "pos":
         return (
           (POSITION_ORDER[normalisePosition(leftPosition)] ?? 99) -
-          (POSITION_ORDER[normalisePosition(rightPosition)] ?? 99) ||
+            (POSITION_ORDER[normalisePosition(rightPosition)] ?? 99) ||
           getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
         );
       case "name":
@@ -277,13 +269,11 @@ export function getSelectedAndComparePlayers(
   comparePlayer: PlayerData | null;
   selectedPlayer: PlayerData | null;
 } {
-  const selectedPlayer = selectedPlayerId
-    ? playersById.get(selectedPlayerId) ?? null
-    : null;
+  const selectedPlayer = selectedPlayerId ? (playersById.get(selectedPlayerId) ?? null) : null;
 
   const comparePlayer =
     selectedPlayerId && comparePlayerId && selectedPlayerId !== comparePlayerId
-      ? playersById.get(comparePlayerId) ?? null
+      ? (playersById.get(comparePlayerId) ?? null)
       : null;
 
   return {
@@ -302,13 +292,15 @@ function getSlotXCoordinates(slotCount: number): number[] {
   // the touchlines so neighbouring markers don't overlap; smaller rows keep
   // the centered even spread.
   if (slotCount >= 5) {
-    return Array.from({ length: slotCount }, (_, index) =>
-      Math.round((10 + (index * 80) / (slotCount - 1)) * 10) / 10,
+    return Array.from(
+      { length: slotCount },
+      (_, index) => Math.round((10 + (index * 80) / (slotCount - 1)) * 10) / 10,
     );
   }
 
-  return Array.from({ length: slotCount }, (_, index) =>
-    Math.round((((index + 1) / (slotCount + 1)) * 100) * 10) / 10,
+  return Array.from(
+    { length: slotCount },
+    (_, index) => Math.round(((index + 1) / (slotCount + 1)) * 100 * 10) / 10,
   );
 }
 
@@ -414,18 +406,9 @@ export function buildFormationSlotOptions(
 
     return {
       index,
-      label: getDuplicatedSlotLabel(
-        translate,
-        position,
-        duplicateIndex,
-        duplicateCount,
-      ),
+      label: getDuplicatedSlotLabel(translate, position, duplicateIndex, duplicateCount),
       position,
-      shortLabel: getDuplicatedSlotShortLabel(
-        position,
-        duplicateIndex,
-        duplicateCount,
-      ),
+      shortLabel: getDuplicatedSlotShortLabel(position, duplicateIndex, duplicateCount),
     };
   });
 }
@@ -436,8 +419,7 @@ export function findTacticsPresetBySetup(
 ): TacticsPresetDefinition | null {
   return (
     TACTICS_PRESETS.find(
-      (preset) =>
-        preset.formation === formation && preset.playStyle === playStyle,
+      (preset) => preset.formation === formation && preset.playStyle === playStyle,
     ) ?? null
   );
 }

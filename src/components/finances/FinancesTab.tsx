@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
-import {
-  GameStateData,
-  PlayerSelectionOptions,
-  TeamData,
-} from "../../store/gameStore";
+import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import {
   formatExactMoney,
@@ -15,10 +11,7 @@ import {
   getContractRiskLevel,
   getContractYearsRemaining,
 } from "../../lib/helpers";
-import {
-  annualAmountToWeeklyCommitment,
-  getTeamFinanceSnapshot,
-} from "../../lib/finance";
+import { annualAmountToWeeklyCommitment, getTeamFinanceSnapshot } from "../../lib/finance";
 import { getFinanceSnapshot } from "../../services/financeService";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
@@ -63,19 +56,10 @@ interface FinancesTabProps {
  *
  * The two components can be merged again once the tab no longer needs state.
  */
-export default function FinancesTab({
-  gameState,
-  onGameUpdate,
-  onSelectPlayer,
-}: FinancesTabProps) {
+export default function FinancesTab({ gameState, onGameUpdate, onSelectPlayer }: FinancesTabProps) {
   const { t } = useTranslation();
-  const myTeam = gameState.teams.find(
-    (tm) => tm.id === gameState.manager.team_id,
-  );
-  if (!myTeam)
-    return (
-      <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
-    );
+  const myTeam = gameState.teams.find((tm) => tm.id === gameState.manager.team_id);
+  if (!myTeam) return <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>;
 
   return (
     <FinancesTabContent
@@ -100,14 +84,11 @@ function FinancesTabContent({
   const { t } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<
-    string | null
-  >(null);
-  const [selectedRiskPlayerIds, setSelectedRiskPlayerIds] = useState<string[]>(
-    [],
+  const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
+  const [selectedRiskPlayerIds, setSelectedRiskPlayerIds] = useState<string[]>([]);
+  const [remoteFinanceData, setRemoteFinanceData] = useState<TaggedFinanceSnapshotData | null>(
+    null,
   );
-  const [remoteFinanceData, setRemoteFinanceData] =
-    useState<TaggedFinanceSnapshotData | null>(null);
   const [facilityUpgradeError, setFacilityUpgradeError] =
     useState<FacilityUpgradeErrorState | null>(null);
   const [boardSupportFeedback, setBoardSupportFeedback] = useState<{
@@ -130,9 +111,7 @@ function FinancesTabContent({
       player.active_loan?.parent_team_id === myTeam.id ||
       player.active_loan?.loan_team_id === myTeam.id,
   );
-  const teamStaff = gameState.staff.filter(
-    (staffMember) => staffMember.team_id === myTeam.id,
-  );
+  const teamStaff = gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id);
   const financeSnapshotKey = [
     myTeam.id,
     gameState.clock.current_date,
@@ -148,23 +127,20 @@ function FinancesTabContent({
     myTeam.sponsorship?.base_value ?? 0,
     myTeam.sponsorship?.remaining_weeks ?? 0,
     financePlayers
-      .map(
-        (player) =>
-          [
-            player.id,
-            player.team_id ?? "",
-            player.wage,
-            player.contract_end ?? "",
-            player.active_loan?.parent_team_id ?? "",
-            player.active_loan?.loan_team_id ?? "",
-            player.active_loan?.wage_contribution_pct ?? "",
-            player.active_loan?.end_date ?? "",
-          ].join(":"),
+      .map((player) =>
+        [
+          player.id,
+          player.team_id ?? "",
+          player.wage,
+          player.contract_end ?? "",
+          player.active_loan?.parent_team_id ?? "",
+          player.active_loan?.loan_team_id ?? "",
+          player.active_loan?.wage_contribution_pct ?? "",
+          player.active_loan?.end_date ?? "",
+        ].join(":"),
       )
       .join("|"),
-    teamStaff
-      .map((staffMember) => `${staffMember.id}:${staffMember.wage}`)
-      .join("|"),
+    teamStaff.map((staffMember) => `${staffMember.id}:${staffMember.wage}`).join("|"),
     gameState.messages
       .filter(isPendingSponsorOffer)
       .map((message) => message.id)
@@ -173,19 +149,12 @@ function FinancesTabContent({
   const isRemoteFinanceDataCurrent = remoteFinanceData?.key === financeSnapshotKey;
   const localFinanceSnapshot = mapLocalFinanceSnapshot(
     myTeam,
-    getTeamFinanceSnapshot(
-      myTeam,
-      financePlayers,
-      teamStaff,
-      gameState.clock.current_date,
-    ),
+    getTeamFinanceSnapshot(myTeam, financePlayers, teamStaff, gameState.clock.current_date),
   );
   const financeSnapshot = isRemoteFinanceDataCurrent
     ? remoteFinanceData.data.snapshot
     : localFinanceSnapshot;
-  const recoveryPreviews = isRemoteFinanceDataCurrent
-    ? remoteFinanceData.data.previews
-    : null;
+  const recoveryPreviews = isRemoteFinanceDataCurrent ? remoteFinanceData.data.previews : null;
   const totalWages = financeSnapshot.weeklyWageSpend;
   const totalValue = roster.reduce((s, p) => s + p.market_value, 0);
   const facilities = myTeam.facilities ?? DEFAULT_FACILITIES;
@@ -195,13 +164,9 @@ function FinancesTabContent({
   const cashRunwayWeeks = financeSnapshot.cashRunwayWeeks;
   const wageBudgetUsagePercent = financeSnapshot.wageBudgetUsagePercent;
   const weeklyWageBudget = financeSnapshot.weeklyWageBudget;
-  const sponsorOffers = gameState.messages
-    .filter(isPendingSponsorOffer)
-    .map(resolveMessage);
+  const sponsorOffers = gameState.messages.filter(isPendingSponsorOffer).map(resolveMessage);
   const hasPendingSponsorOffer = sponsorOffers.length > 0;
-  const hasActiveSponsor = Boolean(
-    activeSponsorship && activeSponsorship.remaining_weeks > 0,
-  );
+  const hasActiveSponsor = Boolean(activeSponsorship && activeSponsorship.remaining_weeks > 0);
   const previewsLoaded = recoveryPreviews !== null;
   const previewBoardSupportAvailable = recoveryPreviews
     ? Boolean(recoveryPreviews.boardSupport)
@@ -213,17 +178,17 @@ function FinancesTabContent({
     ? Boolean(recoveryPreviews.marketingCampaign)
     : null;
   const canRequestBoardSupport = previewsLoaded
-    ? previewBoardSupportAvailable ?? false
+    ? (previewBoardSupportAvailable ?? false)
     : boardSupportAvailable(financeSnapshot);
   const canRequestSponsorPitch =
     (previewsLoaded
-      ? previewSponsorPitchAvailable ?? false
+      ? (previewSponsorPitchAvailable ?? false)
       : sponsorPitchAvailable(financeSnapshot)) &&
     !hasPendingSponsorOffer &&
     !hasActiveSponsor;
   const canRequestMarketingCampaign =
     (previewsLoaded
-      ? previewMarketingCampaignAvailable ?? false
+      ? (previewMarketingCampaignAvailable ?? false)
       : marketingCampaignAvailable(financeSnapshot)) &&
     financeSnapshot.marketingCampaignCooldownDaysRemaining === 0;
   const sponsorPitchDisabledReason = hasActiveSponsor
@@ -231,64 +196,55 @@ function FinancesTabContent({
     : hasPendingSponsorOffer
       ? t("finances.sponsorPitchPendingOffer")
       : !(previewsLoaded
-        ? previewSponsorPitchAvailable ?? false
-        : sponsorPitchAvailable(financeSnapshot))
+            ? (previewSponsorPitchAvailable ?? false)
+            : sponsorPitchAvailable(financeSnapshot))
         ? t("finances.sponsorPitchUnavailable")
         : null;
   const marketingCampaignDisabledReason =
     financeSnapshot.marketingCampaignCooldownDaysRemaining > 0
       ? t("finances.marketingCampaignCoolingDown", {
-        days: financeSnapshot.marketingCampaignCooldownDaysRemaining,
-      })
+          days: financeSnapshot.marketingCampaignCooldownDaysRemaining,
+        })
       : !(previewsLoaded
-        ? previewMarketingCampaignAvailable ?? false
-        : marketingCampaignAvailable(financeSnapshot))
+            ? (previewMarketingCampaignAvailable ?? false)
+            : marketingCampaignAvailable(financeSnapshot))
         ? t("finances.marketingCampaignUnavailable")
         : null;
   const boardSupportPreviewText = recoveryPreviews?.boardSupport
     ? t("finances.boardSupportSummary", {
-      amount: formatExactMoney(recoveryPreviews.boardSupport.supportAmount),
-      transferBudgetReduction: formatExactMoney(
-        recoveryPreviews.boardSupport.transferBudgetReduction,
-      ),
-      satisfactionPenalty: recoveryPreviews.boardSupport.satisfactionPenalty,
-    })
+        amount: formatExactMoney(recoveryPreviews.boardSupport.supportAmount),
+        transferBudgetReduction: formatExactMoney(
+          recoveryPreviews.boardSupport.transferBudgetReduction,
+        ),
+        satisfactionPenalty: recoveryPreviews.boardSupport.satisfactionPenalty,
+      })
     : null;
   const sponsorPitchPreviewText = recoveryPreviews?.sponsorPitch
     ? t("finances.sponsorPitchSummary", {
-      sponsor: recoveryPreviews.sponsorPitch.sponsorName,
-      amount: formatExactMoney(recoveryPreviews.sponsorPitch.weeklyAmount),
-      weeks: recoveryPreviews.sponsorPitch.durationWeeks,
-    })
+        sponsor: recoveryPreviews.sponsorPitch.sponsorName,
+        amount: formatExactMoney(recoveryPreviews.sponsorPitch.weeklyAmount),
+        weeks: recoveryPreviews.sponsorPitch.durationWeeks,
+      })
     : null;
   const marketingCampaignPreviewText = recoveryPreviews?.marketingCampaign
     ? t("finances.marketingCampaignSummary", {
-      netIncome: formatExactMoney(recoveryPreviews.marketingCampaign.netIncome),
-      grossRevenue: formatExactMoney(
-        recoveryPreviews.marketingCampaign.grossRevenue,
-      ),
-      cost: formatExactMoney(recoveryPreviews.marketingCampaign.campaignCost),
-      campaignCost: formatExactMoney(
-        recoveryPreviews.marketingCampaign.campaignCost,
-      ),
-      days: recoveryPreviews.marketingCampaign.cooldownDays,
-    })
+        netIncome: formatExactMoney(recoveryPreviews.marketingCampaign.netIncome),
+        grossRevenue: formatExactMoney(recoveryPreviews.marketingCampaign.grossRevenue),
+        cost: formatExactMoney(recoveryPreviews.marketingCampaign.campaignCost),
+        campaignCost: formatExactMoney(recoveryPreviews.marketingCampaign.campaignCost),
+        days: recoveryPreviews.marketingCampaign.cooldownDays,
+      })
     : null;
   const contractRiskPlayers = roster
     .map((player) => {
-      const riskLevel = getContractRiskLevel(
-        player.contract_end,
-        gameState.clock.current_date,
-      );
+      const riskLevel = getContractRiskLevel(player.contract_end, gameState.clock.current_date);
 
       return {
         player,
         riskLevel,
       };
     })
-    .filter(
-      ({ riskLevel, player }) => player.contract_end && riskLevel !== "stable",
-    )
+    .filter(({ riskLevel, player }) => player.contract_end && riskLevel !== "stable")
     .sort((left, right) => {
       const leftDate = left.player.contract_end ?? "9999-12-31";
       const rightDate = right.player.contract_end ?? "9999-12-31";
@@ -330,9 +286,7 @@ function FinancesTabContent({
   useEffect(() => {
     setSelectedRiskPlayerIds((currentIds) => {
       const availableIdSet = new Set(allRiskPlayerIds);
-      const nextIds = currentIds.filter((playerId) =>
-        availableIdSet.has(playerId),
-      );
+      const nextIds = currentIds.filter((playerId) => availableIdSet.has(playerId));
 
       if (nextIds.length > 0) {
         return nextIds;
@@ -387,17 +341,13 @@ function FinancesTabContent({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<BoardSupportResponseData>(
-        "request_board_support",
-      );
+      const response = await invoke<BoardSupportResponseData>("request_board_support");
       onGameUpdate?.(response.game);
       setBoardSupportFeedback({
         tone: "success",
         text: t("finances.boardSupportSummary", {
           amount: formatExactMoney(response.result.support_amount),
-          transferBudgetReduction: formatExactMoney(
-            response.result.transfer_budget_reduction,
-          ),
+          transferBudgetReduction: formatExactMoney(response.result.transfer_budget_reduction),
           satisfactionPenalty: response.result.satisfaction_penalty,
         }),
       });
@@ -418,9 +368,7 @@ function FinancesTabContent({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<SponsorPitchResponseData>(
-        "request_sponsor_pitch",
-      );
+      const response = await invoke<SponsorPitchResponseData>("request_sponsor_pitch");
       onGameUpdate?.(response.game);
       setSponsorPitchFeedback({
         tone: "success",
@@ -447,9 +395,7 @@ function FinancesTabContent({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<MarketingCampaignResponseData>(
-        "request_marketing_campaign",
-      );
+      const response = await invoke<MarketingCampaignResponseData>("request_marketing_campaign");
       onGameUpdate?.(response.game);
       setMarketingCampaignFeedback({
         tone: "success",
@@ -481,14 +427,11 @@ function FinancesTabContent({
     setDelegatedRenewalsSummary(null);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>(
-        "delegate_renewals",
-        {
-          playerIds: selectedRiskPlayers.map(({ player }) => player.id),
-          maxWageIncreasePct: 35,
-          maxContractYears: 3,
-        },
-      );
+      const result = await invoke<DelegatedRenewalResponseData>("delegate_renewals", {
+        playerIds: selectedRiskPlayers.map(({ player }) => player.id),
+        maxWageIncreasePct: 35,
+        maxContractYears: 3,
+      });
       onGameUpdate?.(result.game);
       setDelegatedRenewalsSummary(
         t("finances.delegatedRenewalsSummary", {
@@ -512,14 +455,11 @@ function FinancesTabContent({
     const loadingKey = `sponsor:${messageId}:${optionId}`;
     setActionLoading(loadingKey);
     try {
-      const result = await invoke<ResolveMessageActionResult>(
-        "resolve_message_action",
-        {
-          messageId,
-          actionId,
-          optionId,
-        },
-      );
+      const result = await invoke<ResolveMessageActionResult>("resolve_message_action", {
+        messageId,
+        actionId,
+        optionId,
+      });
       onGameUpdate?.(result.game);
     } catch (error) {
       console.error("Failed to resolve sponsor offer:", error);
@@ -601,22 +541,16 @@ function FinancesTabContent({
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               {t("finances.budget")}:{" "}
-              {formatWeeklyAmount(formatVal(weeklyWageBudget), weeklySuffix)}{" "}
-              —{" "}
+              {formatWeeklyAmount(formatVal(weeklyWageBudget), weeklySuffix)} —{" "}
               {totalWages <= weeklyWageBudget ? (
-                <span className="text-primary-500">
-                  {t("finances.underBudget")}
-                </span>
+                <span className="text-primary-500">{t("finances.underBudget")}</span>
               ) : (
                 <span className="text-red-500">{t("finances.overBudget")}</span>
               )}
             </p>
           </div>
           <ProgressBar
-            value={Math.min(
-              100,
-              Math.round((totalWages / Math.max(1, weeklyWageBudget)) * 100),
-            )}
+            value={Math.min(100, Math.round((totalWages / Math.max(1, weeklyWageBudget)) * 100))}
             variant={totalWages <= weeklyWageBudget ? "success" : "danger"}
             size="md"
             showLabel
@@ -633,10 +567,7 @@ function FinancesTabContent({
                 {t("finances.weeklyWageSpend")}
               </p>
               <p className="font-heading font-bold text-xl text-red-500">
-                {formatWeeklyAmount(
-                  formatSignedAmount(-totalWages),
-                  weeklySuffix,
-                )}
+                {formatWeeklyAmount(formatSignedAmount(-totalWages), weeklySuffix)}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 text-center">
@@ -644,10 +575,7 @@ function FinancesTabContent({
                 {t("finances.weeklySponsorIncome")}
               </p>
               <p className="font-heading font-bold text-xl text-primary-500">
-                {formatWeeklyAmount(
-                  formatSignedAmount(weeklySponsorIncome),
-                  weeklySuffix,
-                )}
+                {formatWeeklyAmount(formatSignedAmount(weeklySponsorIncome), weeklySuffix)}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 text-center">
@@ -657,10 +585,7 @@ function FinancesTabContent({
               <p
                 className={`font-heading font-bold text-xl ${projectedWeeklyNet >= 0 ? "text-primary-500" : "text-red-500"}`}
               >
-                {formatWeeklyAmount(
-                  formatSignedAmount(projectedWeeklyNet),
-                  weeklySuffix,
-                )}
+                {formatWeeklyAmount(formatSignedAmount(projectedWeeklyNet), weeklySuffix)}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 text-center">
@@ -737,9 +662,7 @@ function FinancesTabContent({
               </p>
               <ProgressBar
                 value={Math.min(100, wageBudgetUsagePercent)}
-                variant={
-                  totalWages <= weeklyWageBudget ? "success" : "danger"
-                }
+                variant={totalWages <= weeklyWageBudget ? "success" : "danger"}
                 size="md"
                 showLabel
               />
@@ -765,11 +688,7 @@ function FinancesTabContent({
                   </p>
                   {contractRiskPlayers.length > 0 ? (
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleToggleAllRiskPlayers}
-                      >
+                      <Button size="sm" variant="outline" onClick={handleToggleAllRiskPlayers}>
                         {t("finances.selectAllAtRisk")}
                       </Button>
                       <Button
@@ -777,8 +696,7 @@ function FinancesTabContent({
                         variant="outline"
                         onClick={() => void handleDelegateRenewals()}
                         disabled={
-                          actionLoading === "delegate-renewals" ||
-                          selectedRiskPlayers.length === 0
+                          actionLoading === "delegate-renewals" || selectedRiskPlayers.length === 0
                         }
                       >
                         {t("finances.delegateSelectedRenewals")}
@@ -830,9 +748,7 @@ function FinancesTabContent({
                         </Badge>
                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                           {formatWeeklyAmount(
-                            formatExactMoney(
-                              annualAmountToWeeklyCommitment(player.wage),
-                            ),
+                            formatExactMoney(annualAmountToWeeklyCommitment(player.wage)),
                             weeklySuffix,
                           )}
                         </span>
@@ -917,10 +833,7 @@ function FinancesTabContent({
                   <Button
                     size="sm"
                     onClick={() => void handleRequestSponsorPitch()}
-                    disabled={
-                      actionLoading === "sponsor-pitch" ||
-                      !canRequestSponsorPitch
-                    }
+                    disabled={actionLoading === "sponsor-pitch" || !canRequestSponsorPitch}
                   >
                     {t("finances.pitchSponsor")}
                   </Button>
@@ -961,8 +874,7 @@ function FinancesTabContent({
                     size="sm"
                     onClick={() => void handleRequestMarketingCampaign()}
                     disabled={
-                      actionLoading === "marketing-campaign" ||
-                      !canRequestMarketingCampaign
+                      actionLoading === "marketing-campaign" || !canRequestMarketingCampaign
                     }
                   >
                     {t("finances.launchMarketingCampaign")}
@@ -988,15 +900,10 @@ function FinancesTabContent({
               {sponsorOffers.length > 0 ? (
                 sponsorOffers.map((message) => {
                   const sponsorAction = message.actions.find(
-                    (action) =>
-                      !action.resolved &&
-                      isChooseOptionAction(action.action_type),
+                    (action) => !action.resolved && isChooseOptionAction(action.action_type),
                   );
 
-                  if (
-                    !sponsorAction ||
-                    !isChooseOptionAction(sponsorAction.action_type)
-                  ) {
+                  if (!sponsorAction || !isChooseOptionAction(sponsorAction.action_type)) {
                     return null;
                   }
 
@@ -1009,44 +916,32 @@ function FinancesTabContent({
                         <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                           {message.subject}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {message.body}
-                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{message.body}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {sponsorAction.action_type.ChooseOption.options.map(
-                          (option) => {
-                            const optionLoadingKey = `sponsor:${message.id}:${option.id}`;
-                            return (
-                              <div
-                                key={option.id}
-                                className="min-w-55 flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-3 space-y-2"
+                        {sponsorAction.action_type.ChooseOption.options.map((option) => {
+                          const optionLoadingKey = `sponsor:${message.id}:${option.id}`;
+                          return (
+                            <div
+                              key={option.id}
+                              className="min-w-55 flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-3 space-y-2"
+                            >
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {option.description}
+                              </p>
+                              <Button
+                                disabled={actionLoading === optionLoadingKey}
+                                onClick={() =>
+                                  void handleSponsorOption(message.id, sponsorAction.id, option.id)
+                                }
+                                size="sm"
+                                variant={option.id === "decline" ? "outline" : "primary"}
                               >
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  {option.description}
-                                </p>
-                                <Button
-                                  disabled={actionLoading === optionLoadingKey}
-                                  onClick={() =>
-                                    void handleSponsorOption(
-                                      message.id,
-                                      sponsorAction.id,
-                                      option.id,
-                                    )
-                                  }
-                                  size="sm"
-                                  variant={
-                                    option.id === "decline"
-                                      ? "outline"
-                                      : "primary"
-                                  }
-                                >
-                                  {option.label}
-                                </Button>
-                              </div>
-                            );
-                          },
-                        )}
+                                {option.label}
+                              </Button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );

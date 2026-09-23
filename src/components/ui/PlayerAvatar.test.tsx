@@ -120,10 +120,7 @@ describe("PlayerAvatar", () => {
     const portrait = await screen.findByRole("img", { name: "John Smith" });
     fireEvent.load(portrait);
 
-    expect(screen.getByText("JS").parentElement).toHaveAttribute(
-      "aria-hidden",
-      "true",
-    );
+    expect(screen.getByText("JS").parentElement).toHaveAttribute("aria-hidden", "true");
   });
 
   it("can skip runtime portrait generation when explicitly disabled", async () => {
@@ -145,10 +142,7 @@ describe("PlayerAvatar", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(mockedInvoke).not.toHaveBeenCalledWith(
-      "generate_player_portrait",
-      expect.anything(),
-    );
+    expect(mockedInvoke).not.toHaveBeenCalledWith("generate_player_portrait", expect.anything());
     expect(screen.getByText("J.")).toBeInTheDocument();
   });
 });

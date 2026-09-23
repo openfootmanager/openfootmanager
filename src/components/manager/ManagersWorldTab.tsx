@@ -50,16 +50,13 @@ function vacancyEntries(gameState: GameStateData): VacancyEntry[] {
 }
 
 function latestRecordedMatches(team: TeamData): string {
-  const latestSeason = team.history.reduce<TeamData["history"][number] | null>(
-    (latest, record) => {
-      if (!latest || record.season > latest.season) {
-        return record;
-      }
+  const latestSeason = team.history.reduce<TeamData["history"][number] | null>((latest, record) => {
+    if (!latest || record.season > latest.season) {
+      return record;
+    }
 
-      return latest;
-    },
-    null,
-  );
+    return latest;
+  }, null);
 
   return latestSeason ? latestSeason.played.toString() : "-";
 }
@@ -77,21 +74,17 @@ function sortDirectory(entries: DirectoryEntry[]): DirectoryEntry[] {
     const leftManager = (left as ManagerEntry).manager;
     const rightManager = (right as ManagerEntry).manager;
 
-    return rightManager.reputation - leftManager.reputation
-      || leftManager.last_name.localeCompare(rightManager.last_name)
-      || leftManager.first_name.localeCompare(rightManager.first_name);
+    return (
+      rightManager.reputation - leftManager.reputation ||
+      leftManager.last_name.localeCompare(rightManager.last_name) ||
+      leftManager.first_name.localeCompare(rightManager.first_name)
+    );
   });
 }
 
-export default function ManagersWorldTab({
-  gameState,
-  onSelectTeam,
-}: ManagersWorldTabProps) {
+export default function ManagersWorldTab({ gameState, onSelectTeam }: ManagersWorldTabProps) {
   const { t, i18n } = useTranslation();
-  const entries = sortDirectory([
-    ...managerEntries(gameState),
-    ...vacancyEntries(gameState),
-  ]);
+  const entries = sortDirectory([...managerEntries(gameState), ...vacancyEntries(gameState)]);
 
   return (
     <div className="space-y-5">
@@ -106,9 +99,15 @@ export default function ManagersWorldTab({
             </h2>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="primary" size="md">{t("managersWorld.employed")}</Badge>
-            <Badge variant="neutral" size="md">{t("managersWorld.unemployed")}</Badge>
-            <Badge variant="accent" size="md">{t("managersWorld.vacancy")}</Badge>
+            <Badge variant="primary" size="md">
+              {t("managersWorld.employed")}
+            </Badge>
+            <Badge variant="neutral" size="md">
+              {t("managersWorld.unemployed")}
+            </Badge>
+            <Badge variant="accent" size="md">
+              {t("managersWorld.vacancy")}
+            </Badge>
           </div>
         </CardBody>
       </Card>
@@ -170,10 +169,7 @@ export default function ManagersWorldTab({
             const isEmployed = team != null;
 
             return (
-              <Card
-                key={manager.id}
-                accent={isEmployed ? "primary" : "none"}
-              >
+              <Card key={manager.id} accent={isEmployed ? "primary" : "none"}>
                 <CardHeader
                   action={
                     <Badge variant={isEmployed ? "primary" : "neutral"}>
@@ -255,9 +251,7 @@ function StatTile({ icon, label, value }: StatTileProps) {
           {label}
         </span>
       </div>
-      <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">
-        {value}
-      </p>
+      <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100">{value}</p>
     </div>
   );
 }

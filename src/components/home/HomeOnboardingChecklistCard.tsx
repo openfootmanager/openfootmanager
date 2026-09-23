@@ -52,6 +52,7 @@ export default function HomeOnboardingChecklistCard({
         <div className="flex flex-col gap-2">
           {steps.map((step) => (
             <button
+              type="button"
               key={step.id}
               onClick={() => onNavigate?.(step.tab)}
               className={`flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
@@ -63,11 +64,7 @@ export default function HomeOnboardingChecklistCard({
               <div
                 className={`flex-shrink-0 ${step.done ? "text-primary-500" : "text-gray-400 dark:text-gray-500"}`}
               >
-                {step.done ? (
-                  <CheckCircle2 className="w-5 h-5" />
-                ) : (
-                  <Circle className="w-5 h-5" />
-                )}
+                {step.done ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
               </div>
               <div
                 className={`flex-shrink-0 ${step.done ? "text-primary-500" : "text-gray-500 dark:text-gray-400"}`}

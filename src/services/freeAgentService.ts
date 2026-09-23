@@ -47,11 +47,8 @@ export async function previewFreeAgentContractImpact(
   playerId: string,
   weeklyWage: number,
 ): Promise<FreeAgentContractProjectionResponseData> {
-  return invoke<FreeAgentContractProjectionResponseData>(
-    "preview_free_agent_contract_impact",
-    {
-      playerId,
-      weeklyWage,
-    },
-  );
+  return invoke<FreeAgentContractProjectionResponseData>("preview_free_agent_contract_impact", {
+    playerId,
+    weeklyWage,
+  });
 }

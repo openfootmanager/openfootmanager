@@ -1,68 +1,55 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 
-import type {
-  GameStateData,
-  MessageAction,
-  MessageData,
-} from "../../store/gameStore";
+import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import InboxTab from "./InboxTab";
 
-const mockTranslationState = vi.hoisted(function () {
-  return {
-    language: "en",
-    translations: {
-      en: {
-        "common.age": "Age",
-        "common.cancel": "Cancel",
-        "inbox.chooseResponseOutcomeVaries": "Choose your response — outcome varies",
-        "inbox.deleteMessage": "Delete message",
-        "inbox.effectOutcomeLabel": "Outcome",
-        "inbox.markAsRead": "Mark as read",
-        "inbox.openMessage": "Open message",
-        "inbox.responded": "Response sent",
-        "inbox.youthProspectSigned": "Signed to academy",
-        "finances.marketValue": "Market Value",
-        "finances.perWeekSuffix": "/wk",
-        "finances.perYearSuffix": "/yr",
-        "finances.wagePerWeek": "Wage/wk",
-        "finances.wagePerYear": "Wage/yr",
-        "playerProfile.contractInfo": "Contract",
-        "scouting.youthTargetLabel": "Youth target",
-        "scouting.youthAnyPosition": "Any position",
-        "scouting.regionDomestic": "Domestic",
-        "scouting.objectiveBalanced": "Balanced",
-        "common.positions.Defender": "Defender",
-        "common.positions.Forward": "Forward",
-        "common.positions.Midfielder": "Midfielder",
-        "squad.viewProfile": "View profile",
-        "inbox.sortByDate": "Sort messages by date",
-        "inbox.sortLabel": "Sort",
-        "inbox.sortNewest": "Newest first",
-        "inbox.sortOldest": "Oldest first",
-        "jobs.switchConfirmAccept": "Accept new role",
-        "jobs.switchConfirmTitle": "Leave your current club?",
-        "youthAcademy.growth": "Growth",
-        "youthAcademy.ovr": "OVR",
-        "youthAcademy.potential": "Potential",
-        "youthAcademy.potPromising": "Promising",
-      },
-      "pt-BR": {
-        "inbox.effectOutcomeLabel": "Desfecho",
-      },
-    } as Record<string, Record<string, string>>,
-  };
-});
+const mockTranslationState = vi.hoisted(() => ({
+  language: "en",
+  translations: {
+    en: {
+      "common.age": "Age",
+      "common.cancel": "Cancel",
+      "inbox.chooseResponseOutcomeVaries": "Choose your response — outcome varies",
+      "inbox.deleteMessage": "Delete message",
+      "inbox.effectOutcomeLabel": "Outcome",
+      "inbox.markAsRead": "Mark as read",
+      "inbox.openMessage": "Open message",
+      "inbox.responded": "Response sent",
+      "inbox.youthProspectSigned": "Signed to academy",
+      "finances.marketValue": "Market Value",
+      "finances.perWeekSuffix": "/wk",
+      "finances.perYearSuffix": "/yr",
+      "finances.wagePerWeek": "Wage/wk",
+      "finances.wagePerYear": "Wage/yr",
+      "playerProfile.contractInfo": "Contract",
+      "scouting.youthTargetLabel": "Youth target",
+      "scouting.youthAnyPosition": "Any position",
+      "scouting.regionDomestic": "Domestic",
+      "scouting.objectiveBalanced": "Balanced",
+      "common.positions.Defender": "Defender",
+      "common.positions.Forward": "Forward",
+      "common.positions.Midfielder": "Midfielder",
+      "squad.viewProfile": "View profile",
+      "inbox.sortByDate": "Sort messages by date",
+      "inbox.sortLabel": "Sort",
+      "inbox.sortNewest": "Newest first",
+      "inbox.sortOldest": "Oldest first",
+      "jobs.switchConfirmAccept": "Accept new role",
+      "jobs.switchConfirmTitle": "Leave your current club?",
+      "youthAcademy.growth": "Growth",
+      "youthAcademy.ovr": "OVR",
+      "youthAcademy.potential": "Potential",
+      "youthAcademy.potPromising": "Promising",
+    },
+    "pt-BR": {
+      "inbox.effectOutcomeLabel": "Desfecho",
+    },
+  } as Record<string, Record<string, string>>,
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -84,10 +71,7 @@ vi.mock("react-i18next", async (importOriginal) => {
     ...actual,
     useTranslation: () => ({
       t: (key: string, value?: unknown) => {
-        const resolved =
-          mockTranslationState.translations[mockTranslationState.language]?.[
-          key
-          ];
+        const resolved = mockTranslationState.translations[mockTranslationState.language]?.[key];
 
         if (resolved) {
           return resolved;
@@ -126,14 +110,12 @@ beforeAll(function defineMatchMedia(): void {
     "translation",
     {
       "test.effectFeedback": "Resolved morale {{delta}}",
-      "be.msg.delegatedRenewals.subject":
-        "Assistant Report — Contract Renewals",
+      "be.msg.delegatedRenewals.subject": "Assistant Report — Contract Renewals",
       "be.msg.delegatedRenewals.body":
         "Boss, I went through our renewal list at {{team}}. {{successes}} completed, {{stalled}} still pending, {{failures}} failed.",
       "be.msg.delegatedRenewals.case.successful":
         "Completed: {{player}} agreed to {{years}} year(s) on {{wage}}/wk.",
-      "be.msg.delegatedRenewals.case.stalled":
-        "Still difficult: {{player}} — {{detail}}",
+      "be.msg.delegatedRenewals.case.stalled": "Still difficult: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.case.failed": "Failed: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.notes.beyondLimits":
         "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
@@ -141,8 +123,7 @@ beforeAll(function defineMatchMedia(): void {
         "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
       "be.msg.delegatedRenewals.notes.relationshipBlocked":
         "They are not willing to commit through me under the current relationship and contract situation.",
-      "be.msg.youthRecruitmentReport.subject":
-        "Scout Report — Youth Recruitment",
+      "be.msg.youthRecruitmentReport.subject": "Scout Report — Youth Recruitment",
       "be.msg.youthRecruitmentReport.bodyAny":
         "{{scout}} has completed the latest youth recruitment search for {{team}}. I found {{count}} prospects in the {{regionLabel}} market with a {{objectiveLabel}} profile.\n\nReview the attached cards and decide who should join the academy.",
       "be.msg.youthRecruitmentReport.bodyTargeted":
@@ -337,8 +318,8 @@ async function renderInboxTab(options: {
   });
 }
 
-describe("InboxTab", function (): void {
-  it("renders each message exactly once in the list", async function (): Promise<void> {
+describe("InboxTab", (): void => {
+  it("renders each message exactly once in the list", async (): Promise<void> => {
     const gameState = createGameState([
       createMessage({ id: "m1", subject: "Test Message 1" }),
       createMessage({ id: "m2", subject: "Test Message 2" }),
@@ -350,7 +331,7 @@ describe("InboxTab", function (): void {
     expect(screen.getAllByText(/Test Message \d/)).toHaveLength(3);
   });
 
-  it("marks an unread message as read when selected", async function (): Promise<void> {
+  it("marks an unread message as read when selected", async (): Promise<void> => {
     const updatedMessages = [createMessage({ id: "m1", read: true })];
     const onGameUpdate = vi.fn();
 
@@ -363,7 +344,7 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByText("Test Message"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("mark_message_read", {
         messageId: "m1",
       });
@@ -373,7 +354,7 @@ describe("InboxTab", function (): void {
     expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
-  it("sorts messages by date when the sort order changes", async function (): Promise<void> {
+  it("sorts messages by date when the sort order changes", async (): Promise<void> => {
     await renderInboxTab({
       gameState: createGameState([
         createMessage({
@@ -402,9 +383,7 @@ describe("InboxTab", function (): void {
     expect(within(rows[1]).getByText("Middle Message")).toBeInTheDocument();
     expect(within(rows[2]).getByText("Oldest Message")).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByRole("combobox", { name: "Sort messages by date" }),
-    );
+    fireEvent.click(screen.getByRole("combobox", { name: "Sort messages by date" }));
     fireEvent.click(screen.getByRole("option", { name: "Oldest first" }));
 
     rows = screen.getAllByTestId(/inbox-row-/);
@@ -413,7 +392,7 @@ describe("InboxTab", function (): void {
     expect(within(rows[2]).getByText("Newest Message")).toBeInTheDocument();
   });
 
-  it("confirms before deleting a single message", async function (): Promise<void> {
+  it("confirms before deleting a single message", async (): Promise<void> => {
     const onGameUpdate = vi.fn();
     const updatedMessages: ReturnType<typeof createMessage>[] = [];
 
@@ -427,14 +406,12 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByTestId("inbox-delete-message"));
 
-    expect(
-      screen.getByTestId("inbox-delete-confirm-modal"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-delete-confirm-modal")).toBeInTheDocument();
     expect(mockedInvoke).not.toHaveBeenCalledWith("delete_message", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_message", {
         messageId: "m1",
       });
@@ -444,7 +421,7 @@ describe("InboxTab", function (): void {
     expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
-  it("opens the context menu on a message row and requests deletion", async function (): Promise<void> {
+  it("opens the context menu on a message row and requests deletion", async (): Promise<void> => {
     await renderInboxTab({
       gameState: createGameState([createMessage({ id: "m1", read: true })]),
     });
@@ -452,16 +429,12 @@ describe("InboxTab", function (): void {
     fireEvent.contextMenu(screen.getByTestId("inbox-row-m1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete message" }));
 
-    expect(
-      screen.getByTestId("inbox-delete-confirm-modal"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-delete-confirm-modal")).toBeInTheDocument();
   });
 
-  it("confirms before deleting selected messages in bulk", async function (): Promise<void> {
+  it("confirms before deleting selected messages in bulk", async (): Promise<void> => {
     const onGameUpdate = vi.fn();
-    const updatedMessages = [
-      createMessage({ id: "m3", subject: "Keep Me", read: true }),
-    ];
+    const updatedMessages = [createMessage({ id: "m3", subject: "Keep Me", read: true })];
 
     mockedInvoke.mockResolvedValue(updatedMessages);
 
@@ -479,14 +452,12 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByTestId("inbox-select-message-m2"));
     fireEvent.click(screen.getByTestId("inbox-delete-selected"));
 
-    expect(
-      screen.getByTestId("inbox-delete-confirm-modal"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-delete-confirm-modal")).toBeInTheDocument();
     expect(mockedInvoke).not.toHaveBeenCalledWith("delete_messages", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
         messageIds: ["m1", "m2"],
       });
@@ -496,7 +467,7 @@ describe("InboxTab", function (): void {
     expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
-  it("navigates to a team route without resolving the message action", async function (): Promise<void> {
+  it("navigates to a team route without resolving the message action", async (): Promise<void> => {
     const onNavigate = vi.fn();
     const action: MessageAction = {
       id: "action-1",
@@ -506,16 +477,14 @@ describe("InboxTab", function (): void {
     };
 
     await renderInboxTab({
-      gameState: createGameState([
-        createMessage({ id: "m1", read: true, actions: [action] }),
-      ]),
+      gameState: createGameState([createMessage({ id: "m1", read: true, actions: [action] })]),
       initialMessageId: "m1",
       onNavigate,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Open Team" }));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(onNavigate).toHaveBeenCalledWith("__selectTeam", {
         messageId: "team-99",
       });
@@ -524,7 +493,7 @@ describe("InboxTab", function (): void {
     expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
-  it("navigates to a player route without resolving the message action", async function (): Promise<void> {
+  it("navigates to a player route without resolving the message action", async (): Promise<void> => {
     const onNavigate = vi.fn();
     const action: MessageAction = {
       id: "action-1",
@@ -534,16 +503,14 @@ describe("InboxTab", function (): void {
     };
 
     await renderInboxTab({
-      gameState: createGameState([
-        createMessage({ id: "m1", read: true, actions: [action] }),
-      ]),
+      gameState: createGameState([createMessage({ id: "m1", read: true, actions: [action] })]),
       initialMessageId: "m1",
       onNavigate,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Open Player" }));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
         messageId: "player-99",
       });
@@ -552,12 +519,10 @@ describe("InboxTab", function (): void {
     expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
-  it("navigates to a dashboard tab and still resolves the action", async function (): Promise<void> {
+  it("navigates to a dashboard tab and still resolves the action", async (): Promise<void> => {
     const onGameUpdate = vi.fn();
     const onNavigate = vi.fn();
-    const resolvedGameState = createGameState([
-      createMessage({ id: "m1", read: true }),
-    ]);
+    const resolvedGameState = createGameState([createMessage({ id: "m1", read: true })]);
     const action: MessageAction = {
       id: "action-1",
       label: "Open Squad",
@@ -568,9 +533,7 @@ describe("InboxTab", function (): void {
     mockedInvoke.mockResolvedValue({ game: resolvedGameState, effect: null });
 
     await renderInboxTab({
-      gameState: createGameState([
-        createMessage({ id: "m1", read: true, actions: [action] }),
-      ]),
+      gameState: createGameState([createMessage({ id: "m1", read: true, actions: [action] })]),
       initialMessageId: "m1",
       onGameUpdate,
       onNavigate,
@@ -578,7 +541,7 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByRole("button", { name: "Open Squad" }));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(onNavigate).toHaveBeenCalledWith("Squad", undefined);
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
         messageId: "m1",
@@ -590,7 +553,7 @@ describe("InboxTab", function (): void {
     expect(onGameUpdate).toHaveBeenCalledWith(resolvedGameState);
   });
 
-  it("renders localized effect feedback when the backend returns an effect key", async function (): Promise<void> {
+  it("renders localized effect feedback when the backend returns an effect key", async (): Promise<void> => {
     const onGameUpdate = vi.fn();
     const action: MessageAction = {
       id: "respond",
@@ -629,16 +592,14 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByText("Return the praise"));
 
-    await waitFor(function (): void {
-      expect(
-        screen.getByText("Outcome: Resolved morale +3"),
-      ).toBeInTheDocument();
+    await waitFor((): void => {
+      expect(screen.getByText("Outcome: Resolved morale +3")).toBeInTheDocument();
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(resolvedGameState);
   });
 
-  it("renders the outcome label from the active locale", async function (): Promise<void> {
+  it("renders the outcome label from the active locale", async (): Promise<void> => {
     const previousLanguage = mockTranslationState.language;
     const onGameUpdate = vi.fn();
     const action: MessageAction = {
@@ -685,17 +646,15 @@ describe("InboxTab", function (): void {
 
       fireEvent.click(screen.getByText("Return the praise"));
 
-      await waitFor(function (): void {
-        expect(
-          screen.getByText("Desfecho: Resolved morale +3"),
-        ).toBeInTheDocument();
+      await waitFor((): void => {
+        expect(screen.getByText("Desfecho: Resolved morale +3")).toBeInTheDocument();
       });
     } finally {
       mockTranslationState.language = previousLanguage;
     }
   });
 
-  it("renders delegated renewal report details with settings-aware money formatting", async function (): Promise<void> {
+  it("renders delegated renewal report details with settings-aware money formatting", async (): Promise<void> => {
     useSettingsStore.setState({
       settings: {
         ...useSettingsStore.getState().settings,
@@ -747,8 +706,7 @@ describe("InboxTab", function (): void {
                   player_id: "p3",
                   player_name: "Chris Failed",
                   status: "failed",
-                  note_key:
-                    "be.msg.delegatedRenewals.notes.relationshipBlocked",
+                  note_key: "be.msg.delegatedRenewals.notes.relationshipBlocked",
                   note_params: {},
                 },
               ],
@@ -761,9 +719,7 @@ describe("InboxTab", function (): void {
 
     expect(screen.getByTestId("delegated-renewal-report")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Completed: Alex Done agreed to 3 year(s) on £24,000/wk.",
-      ),
+      screen.getByText("Completed: Alex Done agreed to 3 year(s) on £24,000/wk."),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -777,7 +733,7 @@ describe("InboxTab", function (): void {
     ).toBeInTheDocument();
   });
 
-  it("opens the linked player profile from a message context button", async function (): Promise<void> {
+  it("opens the linked player profile from a message context button", async (): Promise<void> => {
     const onNavigate = vi.fn();
     const gameState = createGameState([
       createMessage({
@@ -806,7 +762,7 @@ describe("InboxTab", function (): void {
     });
   });
 
-  it("opens the referenced player profile from delegated renewal reports", async function (): Promise<void> {
+  it("opens the referenced player profile from delegated renewal reports", async (): Promise<void> => {
     const onNavigate = vi.fn();
 
     await renderInboxTab({
@@ -888,7 +844,7 @@ describe("InboxTab", function (): void {
     return state;
   }
 
-  it("shows the switch-club confirm dialog when an employed manager accepts a job offer", async function (): Promise<void> {
+  it("shows the switch-club confirm dialog when an employed manager accepts a job offer", async (): Promise<void> => {
     const action = jobOfferAcceptDeclineAction("team2");
     const message = createMessage({
       id: "job_offer_team2_2025-01-01",
@@ -911,13 +867,10 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByText("Accept the position"));
 
     expect(screen.getByTestId("switch-club-confirm-modal")).toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalledWith(
-      "resolve_message_action",
-      expect.anything(),
-    );
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
-  it("does not invoke the action when the switch-club dialog is cancelled", async function (): Promise<void> {
+  it("does not invoke the action when the switch-club dialog is cancelled", async (): Promise<void> => {
     const action = jobOfferAcceptDeclineAction("team2");
     const message = createMessage({
       id: "job_offer_team2_2025-01-01",
@@ -940,16 +893,11 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByText("Accept the position"));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(
-      screen.queryByTestId("switch-club-confirm-modal"),
-    ).not.toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalledWith(
-      "resolve_message_action",
-      expect.anything(),
-    );
+    expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
-  it("invokes the action with optionId=accept when the switch-club dialog is confirmed", async function (): Promise<void> {
+  it("invokes the action with optionId=accept when the switch-club dialog is confirmed", async (): Promise<void> => {
     const action = jobOfferAcceptDeclineAction("team2");
     const message = createMessage({
       id: "job_offer_team2_2025-01-01",
@@ -978,7 +926,7 @@ describe("InboxTab", function (): void {
     fireEvent.click(screen.getByText("Accept the position"));
     fireEvent.click(screen.getByTestId("switch-club-confirm"));
 
-    await waitFor(function (): void {
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
@@ -987,7 +935,7 @@ describe("InboxTab", function (): void {
     });
   });
 
-  it("does not show the switch-club dialog when an employed manager declines a job offer", async function (): Promise<void> {
+  it("does not show the switch-club dialog when an employed manager declines a job offer", async (): Promise<void> => {
     const action = jobOfferAcceptDeclineAction("team2");
     const message = createMessage({
       id: "job_offer_team2_2025-01-01",
@@ -1015,10 +963,8 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByText("Decline the offer"));
 
-    expect(
-      screen.queryByTestId("switch-club-confirm-modal"),
-    ).not.toBeInTheDocument();
-    await waitFor(function (): void {
+    expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
@@ -1027,7 +973,7 @@ describe("InboxTab", function (): void {
     });
   });
 
-  it("does not show the switch-club dialog when an unemployed manager accepts a job offer", async function (): Promise<void> {
+  it("does not show the switch-club dialog when an unemployed manager accepts a job offer", async (): Promise<void> => {
     const action = jobOfferAcceptDeclineAction("team2");
     const message = createMessage({
       id: "job_offer_team2_2025-01-01",
@@ -1055,10 +1001,8 @@ describe("InboxTab", function (): void {
 
     fireEvent.click(screen.getByText("Accept the position"));
 
-    expect(
-      screen.queryByTestId("switch-club-confirm-modal"),
-    ).not.toBeInTheDocument();
-    await waitFor(function (): void {
+    expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
+    await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
@@ -1067,7 +1011,7 @@ describe("InboxTab", function (): void {
     });
   });
 
-  it("formats delegated renewal money values only once in dot-separated locales", async function (): Promise<void> {
+  it("formats delegated renewal money values only once in dot-separated locales", async (): Promise<void> => {
     const previousLanguage = i18n.language;
     const previousSettings = useSettingsStore.getState().settings;
 
@@ -1117,9 +1061,7 @@ describe("InboxTab", function (): void {
       });
 
       expect(
-        screen.getByText(
-          "Completed: Alex Done agreed to 3 year(s) on €24.000/wk.",
-        ),
+        screen.getByText("Completed: Alex Done agreed to 3 year(s) on €24.000/wk."),
       ).toBeInTheDocument();
       expect(
         screen.getByText(
@@ -1134,7 +1076,7 @@ describe("InboxTab", function (): void {
     }
   });
 
-  it("tells the user that player-event response outcomes vary", async function (): Promise<void> {
+  it("tells the user that player-event response outcomes vary", async (): Promise<void> => {
     const action: MessageAction = {
       id: "respond",
       label: "Respond",
@@ -1164,12 +1106,10 @@ describe("InboxTab", function (): void {
       initialMessageId: "morale_talk_p1",
     });
 
-    expect(
-      screen.getByText("Choose your response — outcome varies"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Choose your response — outcome varies")).toBeInTheDocument();
   });
 
-  it("shows the selected youth scouting target on youth recruitment reports", async function (): Promise<void> {
+  it("shows the selected youth scouting target on youth recruitment reports", async (): Promise<void> => {
     await renderInboxTab({
       gameState: createGameState([
         createMessage({
@@ -1194,23 +1134,18 @@ describe("InboxTab", function (): void {
     expect(screen.getByText("Defender")).toBeInTheDocument();
   });
 
-  it("renders without crashing when gameState is null", async function (): Promise<void> {
+  it("renders without crashing when gameState is null", async (): Promise<void> => {
     mockedInvoke.mockResolvedValueOnce([]);
 
     await act(async () => {
-      render(
-        <InboxTab
-          gameState={null}
-          onGameUpdate={vi.fn()}
-        />,
-      );
+      render(<InboxTab gameState={null} onGameUpdate={vi.fn()} />);
     });
 
     // Empty inbox — no message rows.
     expect(screen.queryByTestId(/inbox-row-/)).not.toBeInTheDocument();
   });
 
-  it("renders translated youth recruitment reports with contract details and signed prospects still visible", async function (): Promise<void> {
+  it("renders translated youth recruitment reports with contract details and signed prospects still visible", async (): Promise<void> => {
     await renderInboxTab({
       gameState: createGameState([
         createMessage({
@@ -1276,24 +1211,21 @@ describe("InboxTab", function (): void {
                       label: "placeholder",
                       description: "placeholder",
                       label_key: "be.msg.youthRecruitment.option.sign.label",
-                      description_key:
-                        "be.msg.youthRecruitment.option.sign.description",
+                      description_key: "be.msg.youthRecruitment.option.sign.description",
                     },
                     {
                       id: "shortlist",
                       label: "placeholder",
                       description: "placeholder",
                       label_key: "be.msg.youthRecruitment.option.shortlist.label",
-                      description_key:
-                        "be.msg.youthRecruitment.option.shortlist.description",
+                      description_key: "be.msg.youthRecruitment.option.shortlist.description",
                     },
                     {
                       id: "discard",
                       label: "placeholder",
                       description: "placeholder",
                       label_key: "be.msg.youthRecruitment.option.discard.label",
-                      description_key:
-                        "be.msg.youthRecruitment.option.discard.description",
+                      description_key: "be.msg.youthRecruitment.option.discard.description",
                     },
                   ],
                 },
@@ -1313,9 +1245,7 @@ describe("InboxTab", function (): void {
     expect(screen.getByRole("button", { name: "View profile" })).toBeInTheDocument();
     expect(screen.getAllByText(/Wage\/yr:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Market Value:/).length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("button", { name: "Sign to academy" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign to academy" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Shortlist" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
   });

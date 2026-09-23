@@ -34,9 +34,7 @@ function DashboardTabFallback() {
   );
 }
 
-export default function DashboardTabContent({
-  viewModel,
-}: DashboardTabContentProps) {
+export default function DashboardTabContent({ viewModel }: DashboardTabContentProps) {
   const {
     activeTab,
     gameState,
@@ -45,20 +43,12 @@ export default function DashboardTabContent({
     seasonComplete,
     squadListSortState,
     visitedOnboardingTabs,
-    handlers: {
-      onGameUpdate,
-      onNavigate,
-      onSelectPlayer,
-      onSelectTeam,
-      onSquadListSortChange,
-    },
+    handlers: { onGameUpdate, onNavigate, onSelectPlayer, onSelectTeam, onSquadListSortChange },
   } = viewModel;
 
   const renderHomeContent = () => {
     if (seasonComplete) {
-      return (
-        <EndOfSeasonScreen gameState={gameState} onGameUpdate={onGameUpdate} />
-      );
+      return <EndOfSeasonScreen gameState={gameState} onGameUpdate={onGameUpdate} />;
     }
 
     return (
@@ -143,12 +133,7 @@ export default function DashboardTabContent({
       />
     );
   } else if (activeTab === "Managers") {
-    content = (
-      <ManagersWorldTab
-        gameState={gameState}
-        onSelectTeam={onSelectTeam}
-      />
-    );
+    content = <ManagersWorldTab gameState={gameState} onSelectTeam={onSelectTeam} />;
   } else if (activeTab === "Teams") {
     content = <TeamsListTab gameState={gameState} onSelectTeam={onSelectTeam} />;
   } else if (activeTab === "Tournaments") {
@@ -196,7 +181,5 @@ export default function DashboardTabContent({
     content = renderHomeContent();
   }
 
-  return (
-    <Suspense fallback={<DashboardTabFallback />}>{content}</Suspense>
-  );
+  return <Suspense fallback={<DashboardTabFallback />}>{content}</Suspense>;
 }

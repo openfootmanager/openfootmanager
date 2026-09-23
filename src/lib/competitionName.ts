@@ -14,10 +14,7 @@ export interface NamedCompetition {
  * like `"{{country}} First Division"` render as "Argentina First Division".
  * Falls back to the raw `name` when there is no key.
  */
-export function competitionDisplayName(
-  comp: NamedCompetition,
-  t: TranslateFn,
-): string {
+export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): string {
   if (!comp.name_key) {
     return comp.name ?? "";
   }

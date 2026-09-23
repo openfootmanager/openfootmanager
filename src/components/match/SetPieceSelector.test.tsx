@@ -90,9 +90,7 @@ describe("getSetPieceStats", () => {
 
   it("freekick: weights passing, vision, and shooting support", () => {
     const result = getSetPieceStats("freekick", player);
-    expect(result.score).toBe(
-      Math.round((a.passing + a.vision + a.shooting / 2) / 2.5),
-    );
+    expect(result.score).toBe(Math.round((a.passing + a.vision + a.shooting / 2) / 2.5));
     expect(result.stats).toEqual([
       { label: "PAS", value: a.passing },
       { label: "VIS", value: a.vision },
@@ -165,7 +163,7 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Penalty Taker"
         icon={<span data-testid="icon">PK</span>}
-        role="penalty"
+        assignment="penalty"
         currentId={null}
         players={players}
         allSquad={allSquad}
@@ -182,7 +180,7 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Penalty Taker"
         icon={<span>PK</span>}
-        role="penalty"
+        assignment="penalty"
         currentId="p1"
         players={players}
         allSquad={allSquad}
@@ -197,11 +195,9 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Penalty Taker"
         icon={<span>PK</span>}
-        role="penalty"
+        assignment="penalty"
         currentId={null}
-        players={[
-          { id: "cb", name: "Center Back Player", position: "Center Back" },
-        ]}
+        players={[{ id: "cb", name: "Center Back Player", position: "Center Back" }]}
         allSquad={[makePlayer({ id: "cb", position: "Center Back" })]}
         onSelect={() => {}}
       />,
@@ -217,7 +213,7 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Penalty Taker"
         icon={<span>PK</span>}
-        role="penalty"
+        assignment="penalty"
         currentId={null}
         players={players}
         allSquad={allSquad}
@@ -238,7 +234,7 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Penalty Taker"
         icon={<span>PK</span>}
-        role="penalty"
+        assignment="penalty"
         currentId="p1"
         players={players}
         allSquad={allSquad}
@@ -248,12 +244,8 @@ describe("SetPieceSelector component", () => {
 
     fireEvent.click(screen.getByText("Penalty Taker"));
 
-    expect(
-      screen.getAllByText("common.attributes.shooting").length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText("common.attributes.composure").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("common.attributes.shooting").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("common.attributes.composure").length).toBeGreaterThan(0);
   });
 
   it("calls onSelect and collapses when a player is picked", () => {
@@ -262,7 +254,7 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Penalty Taker"
         icon={<span>PK</span>}
-        role="penalty"
+        assignment="penalty"
         currentId={null}
         players={players}
         allSquad={allSquad}
@@ -281,7 +273,7 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Penalty Taker"
         icon={<span>PK</span>}
-        role="penalty"
+        assignment="penalty"
         currentId="p1"
         players={players}
         allSquad={allSquad}
@@ -291,9 +283,7 @@ describe("SetPieceSelector component", () => {
     fireEvent.click(screen.getByText("Penalty Taker"));
     // The current player's row should have the highlight class
     const buttons = screen.getAllByRole("button");
-    const p1Button = buttons.find(
-      (b) => b.textContent?.includes("John Smith") && b !== buttons[0],
-    );
+    const p1Button = buttons.find((b) => b.textContent?.includes("John Smith") && b !== buttons[0]);
     expect(p1Button?.className).toContain("bg-primary-500/20");
   });
 
@@ -302,7 +292,7 @@ describe("SetPieceSelector component", () => {
       <SetPieceSelector
         label="Vice-captain"
         icon={<span>VC</span>}
-        role="vicecaptain"
+        assignment="vicecaptain"
         currentId={null}
         players={players}
         allSquad={allSquad}

@@ -19,7 +19,7 @@ import trLocale from "i18n-iso-countries/langs/tr.json";
 
 const SUPPORTED_LOCALES = ["en", "es", "pt", "fr", "de", "it", "ru", "zh", "tr", "cs"] as const;
 
-type SupportedLocale = typeof SUPPORTED_LOCALES[number];
+type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 const REGISTERED_LOCALES = [
   enLocale,
@@ -157,7 +157,7 @@ const ALIAS_TO_CODE = Object.values(FOOTBALL_IDENTITIES).reduce<Record<string, s
 function getBaseLocale(locale: string): string {
   if (!locale) return "en";
   // Convert 'pt-BR' to 'pt'
-  return locale.split('-')[0].toLowerCase();
+  return locale.split("-")[0].toLowerCase();
 }
 
 function getFootballIdentity(code: string): FootballIdentityDefinition | undefined {
@@ -250,8 +250,9 @@ export function allNationalities(
       name: countryName(identity.code, locale),
     }));
 
-  return [...footballNationalities, ...isoNationalities]
-    .sort((a, b) => a.name.localeCompare(b.name, getBaseLocale(locale)));
+  return [...footballNationalities, ...isoNationalities].sort((a, b) =>
+    a.name.localeCompare(b.name, getBaseLocale(locale)),
+  );
 }
 
 /**

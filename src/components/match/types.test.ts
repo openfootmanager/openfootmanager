@@ -44,8 +44,7 @@ describe("match tick pacing", () => {
   });
 
   it("faster speeds simulate more minutes per second than slower ones", () => {
-    const rate = (speed: keyof typeof SPEED_MS) =>
-      MINUTES_PER_TICK[speed] / SPEED_MS[speed];
+    const rate = (speed: keyof typeof SPEED_MS) => MINUTES_PER_TICK[speed] / SPEED_MS[speed];
 
     expect(rate("normal")).toBeGreaterThan(rate("slow"));
     expect(rate("fast")).toBeGreaterThan(rate("normal"));

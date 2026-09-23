@@ -37,12 +37,8 @@ export function useSeasonAwards(
   enabled: boolean,
   asOfDate: string | undefined,
 ): UseSeasonAwardsResult {
-  const [awardsBySeason, setAwardsBySeason] = useState<
-    Record<number, CachedAwards>
-  >({});
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "error">(
-    "idle",
-  );
+  const [awardsBySeason, setAwardsBySeason] = useState<Record<number, CachedAwards>>({});
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "error">("idle");
   const [awardsRetryCount, setAwardsRetryCount] = useState(0);
 
   const cached = awardsBySeason[currentSeason];

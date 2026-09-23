@@ -19,13 +19,9 @@ export default function TransferNegotiationHistory({
   }
 
   const managerLabel =
-    mode === "outgoing"
-      ? t("transfers.lastBidLabel")
-      : t("transfers.lastCounterLabel");
+    mode === "outgoing" ? t("transfers.lastBidLabel") : t("transfers.lastCounterLabel");
   const clubLabel =
-    mode === "outgoing"
-      ? t("transfers.lastClubSignalLabel")
-      : t("transfers.currentOfferLabel");
+    mode === "outgoing" ? t("transfers.lastClubSignalLabel") : t("transfers.currentOfferLabel");
   const managerFee = offer.last_manager_fee;
   const clubFee = offer.suggested_counter_fee ?? offer.fee;
 

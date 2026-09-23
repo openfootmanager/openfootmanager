@@ -26,7 +26,11 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("../ui", () => ({
-  Button: ({ children, iconRight: _iconRight, ...props }: ComponentPropsWithoutRef<"button"> & { iconRight?: unknown }) => (
+  Button: ({
+    children,
+    iconRight: _iconRight,
+    ...props
+  }: ComponentPropsWithoutRef<"button"> & { iconRight?: unknown }) => (
     <button {...props}>{children}</button>
   ),
 }));
@@ -76,12 +80,8 @@ describe("GenerationStep (WorldSelect)", () => {
       />,
     );
 
-    expect(
-      screen.getByText("worldSelect.summary.midSeason.generated:2032:24"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("worldSelect.historyDepth.applied:24"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("worldSelect.summary.midSeason.generated:2032:24")).toBeInTheDocument();
+    expect(screen.getByText("worldSelect.historyDepth.applied:24")).toBeInTheDocument();
     expect(screen.getByText("worldSelect.summary.startYear")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("worldSelect.historyDepth.option:6"));
@@ -90,13 +90,7 @@ describe("GenerationStep (WorldSelect)", () => {
   });
 
   it("hides history depth selector and shows coverage section when database packages are active", () => {
-    render(
-      <GenerationStep
-        {...baseProps}
-        startPhase="seasonStart"
-        activePackages={[dbPackage]}
-      />,
-    );
+    render(<GenerationStep {...baseProps} startPhase="seasonStart" activePackages={[dbPackage]} />);
 
     expect(screen.getByText("generation.coverage")).toBeInTheDocument();
     expect(screen.queryByText("worldSelect.historyDepth.label")).not.toBeInTheDocument();

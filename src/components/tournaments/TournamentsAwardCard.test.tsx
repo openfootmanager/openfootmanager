@@ -1,10 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  SeasonAwardEntryData,
-  SeasonManagerAwardEntryData,
-} from "../../store/gameStore";
+import type { SeasonAwardEntryData, SeasonManagerAwardEntryData } from "../../store/gameStore";
 import TournamentsAwardCard from "./TournamentsAwardCard";
 
 vi.mock("react-i18next", () => ({
@@ -17,9 +14,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function playerEntry(
-  overrides: Partial<SeasonAwardEntryData> = {},
-): SeasonAwardEntryData {
+function playerEntry(overrides: Partial<SeasonAwardEntryData> = {}): SeasonAwardEntryData {
   return {
     player_id: "player-1",
     player_name: "Ada Striker",
@@ -44,9 +39,7 @@ function managerEntry(
   };
 }
 
-function renderCard(
-  props: Partial<React.ComponentProps<typeof TournamentsAwardCard>> = {},
-) {
+function renderCard(props: Partial<React.ComponentProps<typeof TournamentsAwardCard>> = {}) {
   return render(
     <TournamentsAwardCard
       icon={<span data-testid="icon" />}
@@ -66,9 +59,7 @@ describe("TournamentsAwardCard", () => {
     renderCard({ entries: [] });
 
     expect(screen.getByText("No data yet")).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("tournaments-award-entry-player-1"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tournaments-award-entry-player-1")).not.toBeInTheDocument();
   });
 
   it("ranks entries and shows each one's team and value", () => {
@@ -121,9 +112,7 @@ describe("TournamentsAwardCard", () => {
     const onSelectPlayer = vi.fn();
     renderCard({ onSelectPlayer });
 
-    fireEvent.contextMenu(
-      screen.getByTestId("tournaments-award-entry-player-1"),
-    );
+    fireEvent.contextMenu(screen.getByTestId("tournaments-award-entry-player-1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
@@ -134,13 +123,9 @@ describe("TournamentsAwardCard", () => {
     const onSelectTeam = vi.fn();
     renderCard({ entries: [managerEntry()], onSelectPlayer, onSelectTeam });
 
-    fireEvent.contextMenu(
-      screen.getByTestId("tournaments-award-entry-manager-1"),
-    );
+    fireEvent.contextMenu(screen.getByTestId("tournaments-award-entry-manager-1"));
 
-    expect(
-      screen.queryByRole("menuitem", { name: "View profile" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "View profile" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");

@@ -25,11 +25,7 @@ describe("createWriteQueue", () => {
     const c = enqueue(make("c", 5));
     await Promise.all([a, b, c]);
 
-    expect(events).toEqual([
-      "start-a", "end-a",
-      "start-b", "end-b",
-      "start-c", "end-c",
-    ]);
+    expect(events).toEqual(["start-a", "end-a", "start-b", "end-b", "start-c", "end-c"]);
   });
 
   it("keeps the queue running after a task rejects", async () => {

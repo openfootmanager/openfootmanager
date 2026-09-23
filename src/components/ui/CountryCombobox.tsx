@@ -19,12 +19,9 @@ function loadCountryResources(): Promise<CountryResources> {
     import("./CountryFlag"),
     // The backend catalog is the source of truth for selectable nationalities
     // (#270). If it can't be fetched, fall back to the full ISO list.
-    import("../../services/nationsService")
-      .then((m) => m.getNationCodes())
-      .catch(() => null),
+    import("../../services/nationsService").then((m) => m.getNationCodes()).catch(() => null),
   ]).then(([countriesModule, flagModule, nationCodes]) => ({
-    allNationalities: (locale?: string) =>
-      countriesModule.allNationalities(locale, nationCodes),
+    allNationalities: (locale?: string) => countriesModule.allNationalities(locale, nationCodes),
     countryName: countriesModule.countryName,
     CountryFlag: flagModule.CountryFlag,
   }));
@@ -242,13 +239,12 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                 <div className="border-b border-gray-100 dark:border-navy-600 p-2">
                   <input
                     type="text"
+                    // biome-ignore lint/a11y/noAutofocus: the search field only exists while the combobox is open.
                     autoFocus
                     role="combobox"
                     aria-expanded="true"
                     aria-controls={listboxId}
-                    aria-activedescendant={
-                      filtered.length > 0 ? optionId(active) : undefined
-                    }
+                    aria-activedescendant={filtered.length > 0 ? optionId(active) : undefined}
                     aria-autocomplete="list"
                     aria-label={label}
                     placeholder={t("worldEditor.searchCountries")}

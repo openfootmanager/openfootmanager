@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PlayerData } from "../../store/gameStore";
+import type { PlayerData } from "../../store/gameStore";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { normalisePosition } from "../squad/SquadTab.helpers";
 import { Badge } from "../ui";
@@ -77,7 +77,10 @@ function roleAllowsGoalkeeper(role: string): boolean {
 export default function SetPieceSelector({
   label,
   icon,
-  role,
+  // Named `assignment`, not `role`: this is the football job (captain, penalty taker), and a
+  // prop called `role` on a React component shadows the ARIA attribute of the same name. It was
+  // never forwarded to the DOM, but every reader and every linter had to work that out.
+  assignment,
   currentId,
   players,
   allSquad,
@@ -85,7 +88,7 @@ export default function SetPieceSelector({
 }: {
   label: string;
   icon: React.ReactNode;
-  role: string;
+  assignment: string;
   currentId: string | null;
   players: { id: string; name: string; position: string }[];
   allSquad: PlayerData[];
@@ -95,23 +98,16 @@ export default function SetPieceSelector({
   const [expanded, setExpanded] = useState(false);
   const currentPlayer = players.find((p) => p.id === currentId);
   const currentSquad = allSquad.find((sp) => sp.id === currentId);
-  const currentStats = currentSquad
-    ? getSetPieceStats(role, currentSquad)
-    : null;
+  const currentStats = currentSquad ? getSetPieceStats(assignment, currentSquad) : null;
 
   const sortedPlayers = [...players]
-    .filter((p) => roleAllowsGoalkeeper(role) || p.position !== "Goalkeeper")
+    .filter((p) => roleAllowsGoalkeeper(assignment) || p.position !== "Goalkeeper")
     .map((p) => {
       const squad = allSquad.find((sp) => sp.id === p.id);
-      const spStats = squad
-        ? getSetPieceStats(role, squad)
-        : { score: 0, stats: [] };
+      const spStats = squad ? getSetPieceStats(assignment, squad) : { score: 0, stats: [] };
       return { ...p, squad, spStats };
     })
-    .sort(
-      (a, b) =>
-        b.spStats.score - a.spStats.score || a.name.localeCompare(b.name),
-    );
+    .sort((a, b) => b.spStats.score - a.spStats.score || a.name.localeCompare(b.name));
 
   function getTranslatedStatLabel(label: string): string {
     const attributeKey = getStatAttributeKey(label);
@@ -134,15 +130,16 @@ export default function SetPieceSelector({
   return (
     <div className="mb-4 last:mb-0">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-navy-700/50 dark:hover:bg-navy-700 transition-colors"
       >
         {icon}
         <div className="flex-1 text-left">
-            <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+          <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
             {label}
           </p>
-            <p className="text-sm text-gray-800 dark:text-gray-200 font-medium">
+          <p className="text-sm text-gray-800 dark:text-gray-200 font-medium">
             {currentPlayer ? currentPlayer.name : t("match.notAssigned")}
           </p>
         </div>
@@ -152,19 +149,17 @@ export default function SetPieceSelector({
               <span
                 key={s.label}
                 title={getTranslatedStatLabel(s.label)}
-                 className="inline-flex items-center gap-1 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-navy-800 px-2 py-1 text-xs font-heading font-bold text-gray-800 dark:text-gray-100"
+                className="inline-flex items-center gap-1 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-navy-800 px-2 py-1 text-xs font-heading font-bold text-gray-800 dark:text-gray-100"
               >
-                 <span className="text-gray-600 dark:text-gray-300">
+                <span className="text-gray-600 dark:text-gray-300">
                   {getTranslatedStatLabel(s.label)}
                 </span>
-                <span className={getAttributeValueClassName(s.value)}>
-                  {s.value}
-                </span>
+                <span className={getAttributeValueClassName(s.value)}>{s.value}</span>
               </span>
             ))}
           </div>
         )}
-         <ArrowUpDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        <ArrowUpDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
       </button>
 
       {expanded && (
@@ -173,6 +168,7 @@ export default function SetPieceSelector({
             const isCurrent = p.id === currentId;
             return (
               <button
+                type="button"
                 key={p.id}
                 onClick={() => {
                   onSelect(p.id);
@@ -187,9 +183,7 @@ export default function SetPieceSelector({
                 <span className="w-3 shrink-0">
                   {isCurrent && <Check className="w-3 h-3 text-primary-400" />}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {p.name}
-                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
                 <Badge variant="neutral" size="sm">
                   {getTranslatedPositionAbbreviation(p.position)}
                 </Badge>

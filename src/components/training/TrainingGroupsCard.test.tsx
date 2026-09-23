@@ -9,8 +9,7 @@ const setPlayerTrainingFocusMock = vi.fn();
 
 vi.mock("../../services/trainingService", () => ({
   setTrainingGroups: (...args: unknown[]) => setTrainingGroupsMock(...args),
-  setPlayerTrainingFocus: (...args: unknown[]) =>
-    setPlayerTrainingFocusMock(...args),
+  setPlayerTrainingFocus: (...args: unknown[]) => setPlayerTrainingFocusMock(...args),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -33,7 +32,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function createTeam(overrides: Partial<TeamData> & { training_groups?: unknown } = {}): TeamData {
+function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
     id: "team-1",
     name: "Alpha FC",

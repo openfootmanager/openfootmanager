@@ -10,10 +10,7 @@ interface TeamProfileClubDetailsCardProps {
   t: TeamProfileTranslate;
 }
 
-export default function TeamProfileClubDetailsCard({
-  team,
-  t,
-}: TeamProfileClubDetailsCardProps) {
+export default function TeamProfileClubDetailsCard({ team, t }: TeamProfileClubDetailsCardProps) {
   return (
     <Card>
       <CardHeader>{t("teamProfile.clubInfo")}</CardHeader>

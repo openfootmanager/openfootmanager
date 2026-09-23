@@ -26,8 +26,7 @@ export default function JerseyIcon({
 
   // Shirt silhouette path (viewBox 0 0 100 100):
   // V-neck collar, short sleeves, straight body
-  const shirtPath =
-    "M30,10 L10,30 L22,35 L22,90 L78,90 L78,35 L90,30 L70,10 L58,20 Q50,26 42,20 Z";
+  const shirtPath = "M30,10 L10,30 L22,35 L22,90 L78,90 L78,35 L90,30 L70,10 L58,20 Q50,26 42,20 Z";
 
   const textSize = size === "lg" ? 40 : size === "md" ? 35 : 25;
   const textY = size === "lg" ? 70 : size === "md" ? 68 : 68;
@@ -36,13 +35,7 @@ export default function JerseyIcon({
   const usesClip = pattern === "HalfAndHalf" || pattern === "Diagonal";
 
   return (
-    <svg
-      width={px}
-      height={px}
-      viewBox="0 0 100 100"
-      className={className}
-      aria-hidden="true"
-    >
+    <svg width={px} height={px} viewBox="0 0 100 100" className={className} aria-hidden="true">
       <defs>
         {pattern === "Stripes" && (
           <pattern id={`${id}-pat`} patternUnits="userSpaceOnUse" width="12" height="100">
@@ -68,12 +61,23 @@ export default function JerseyIcon({
 
       {/* Half-and-half: secondary colour on the left half, clipped to shirt shape */}
       {pattern === "HalfAndHalf" && (
-        <rect x="0" y="0" width="50" height="100" fill={secondaryColor} clipPath={`url(#${id}-clip)`} />
+        <rect
+          x="0"
+          y="0"
+          width="50"
+          height="100"
+          fill={secondaryColor}
+          clipPath={`url(#${id}-clip)`}
+        />
       )}
 
       {/* Diagonal band: secondary colour polygon, clipped to shirt shape */}
       {pattern === "Diagonal" && (
-        <polygon points="20,10 80,10 60,90 0,90" fill={secondaryColor} clipPath={`url(#${id}-clip)`} />
+        <polygon
+          points="20,10 80,10 60,90 0,90"
+          fill={secondaryColor}
+          clipPath={`url(#${id}-clip)`}
+        />
       )}
 
       {/* Outline: white line over a soft dark rim so the shirt stays visible

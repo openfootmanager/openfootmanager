@@ -34,15 +34,9 @@ function scorer(overrides: Partial<TopScorerEntry> = {}): TopScorerEntry {
   } as TopScorerEntry;
 }
 
-function renderScorers(
-  props: Partial<React.ComponentProps<typeof TournamentsTopScorers>> = {},
-) {
+function renderScorers(props: Partial<React.ComponentProps<typeof TournamentsTopScorers>> = {}) {
   return render(
-    <TournamentsTopScorers
-      topScorers={[scorer()]}
-      onSelectTeam={vi.fn()}
-      {...props}
-    />,
+    <TournamentsTopScorers topScorers={[scorer()]} onSelectTeam={vi.fn()} {...props} />,
   );
 }
 

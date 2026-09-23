@@ -117,7 +117,7 @@ describe("allCountries", () => {
 
   it("contains well-known countries", () => {
     const list = allCountries("en");
-    const codes = list.map(c => c.code);
+    const codes = list.map((c) => c.code);
     expect(codes).toContain("US");
     expect(codes).toContain("GB");
     expect(codes).toContain("BR");

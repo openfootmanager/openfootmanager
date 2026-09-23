@@ -1,8 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  type GameStateData,
-  useGameStore,
-} from "../../store/gameStore";
+import { type GameStateData, useGameStore } from "../../store/gameStore";
 import type { PlayerSelectionOptions } from "../../store/gameStore";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import SquadRosterView from "./SquadRosterView";
@@ -28,20 +25,13 @@ export default function SquadTab({
   const { t } = useTranslation();
   const { sessionState } = useGameStore();
 
-  const teamId =
-    sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
-  const clockDate =
-    sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const [fetchedSquad, setFetchedSquad] = useFetchedSquad(teamId, clockDate);
 
   const team =
-    sessionState?.team ??
-    gameState?.teams.find((t) => t.manager_id === managerId) ??
-    null;
-  const players =
-    fetchedSquad ??
-    gameState?.players.filter((p) => p.team_id === teamId) ??
-    [];
+    sessionState?.team ?? gameState?.teams.find((t) => t.manager_id === managerId) ?? null;
+  const players = fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
 
   const handleMutationComplete = (game: GameStateData) => {
     onGameUpdate?.(game);
@@ -51,11 +41,7 @@ export default function SquadTab({
   };
 
   if (!team) {
-    return (
-      <p className="text-gray-500 dark:text-gray-400">
-        {t("common.unemployed")}
-      </p>
-    );
+    return <p className="text-gray-500 dark:text-gray-400">{t("common.unemployed")}</p>;
   }
 
   return (

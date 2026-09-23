@@ -24,12 +24,7 @@ export function TeamLocation({
   const label = countryName(countryCode, locale);
 
   return (
-    <span
-      className={[
-        "inline-flex items-center gap-1.5",
-        className,
-      ].filter(Boolean).join(" ")}
-    >
+    <span className={["inline-flex items-center gap-1.5", className].filter(Boolean).join(" ")}>
       <MapPin className={iconClassName} />
       <CountryFlag code={countryCode} locale={locale} className={flagClassName} />
       <span className={textClassName}>

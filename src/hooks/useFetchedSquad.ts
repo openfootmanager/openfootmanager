@@ -24,9 +24,7 @@ export function useFetchedSquad(
   // the new fetch is still pending.
   const [fetchedTeamId, setFetchedTeamId] = useState<string | null>(null);
 
-  const setSquadForCurrentTeam: Dispatch<SetStateAction<PlayerData[] | null>> = (
-    next,
-  ) => {
+  const setSquadForCurrentTeam: Dispatch<SetStateAction<PlayerData[] | null>> = (next) => {
     // With no active team there is nothing to cache — never let an optimistic
     // update repopulate (and thus re-expose) a roster in the teamless state.
     if (!teamId) {

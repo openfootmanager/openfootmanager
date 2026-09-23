@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { PLAY_STYLES } from "./helpers";
-import {
-  ACADEMY_SHOWCASE_SAMPLE,
-  NAME_PACK_SAMPLE,
-  SAMPLE_PACKAGES,
-} from "./sampleData";
+import { ACADEMY_SHOWCASE_SAMPLE, NAME_PACK_SAMPLE, SAMPLE_PACKAGES } from "./sampleData";
 
 describe("bundled World Editor samples", () => {
   it("every sample has a unique package id", () => {

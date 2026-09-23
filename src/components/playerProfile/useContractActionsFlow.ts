@@ -43,11 +43,8 @@ export function useContractActionsFlow({
 }: UseContractActionsFlowArgs): UseContractActionsFlowResult {
   const { t } = useTranslation();
 
-  const [contractActionSubmitting, setContractActionSubmitting] =
-    useState(false);
-  const [contractActionError, setContractActionError] = useState<string | null>(
-    null,
-  );
+  const [contractActionSubmitting, setContractActionSubmitting] = useState(false);
+  const [contractActionError, setContractActionError] = useState<string | null>(null);
   const [terminationPreview, setTerminationPreview] =
     useState<ContractTerminationPreviewData | null>(null);
   const [showTerminationModal, setShowTerminationModal] = useState(false);
@@ -56,9 +53,7 @@ export function useContractActionsFlow({
    * The shape all four actions share: refuse to start if one is already
    * running, clear the last failure, then translate whatever goes wrong.
    */
-  async function runContractAction(
-    action: () => Promise<void>,
-  ): Promise<void> {
+  async function runContractAction(action: () => Promise<void>): Promise<void> {
     if (contractActionSubmitting) {
       return;
     }
@@ -77,10 +72,7 @@ export function useContractActionsFlow({
 
   async function handleMarkLetExpire(): Promise<void> {
     await runContractAction(async () => {
-      const result = await setContractExitIntent(
-        player.id,
-        "manager_profile_action",
-      );
+      const result = await setContractExitIntent(player.id, "manager_profile_action");
       onGameUpdate?.(result.game);
     });
   }

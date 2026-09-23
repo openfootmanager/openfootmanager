@@ -1,0 +1,124 @@
+name: mutation-tests
+
+# The instrument for test *quality*, which no other gate here measures.
+#
+# Everything else in this repository asks "does the code pass its tests". This asks the harder
+# question: if the code were wrong, would the tests notice? cargo-mutants changes one thing at a
+# time — flips a comparison, returns a default — and reports the changes that no test objected to.
+# A surviving mutant is a line nothing actually checks.
+#
+# That is the #416 failure mode written down: a unit test asserted only the values where two
+# implementations already agreed, so it passed while the bug shipped.
+#
+# ⚠ Never a pull-request gate. A full run across this workspace is hours, and survivors need a
+# person to judge — plenty are equivalent mutants that no test could reasonably catch. Blocking a
+# PR on that would be the fastest way to get this deleted.
+#
+# One crate a week, rotating by week number through engine, domain, ofm_core and db. The first
+# two are pure logic with no database and no Tauri, so they are the fastest and the ones where
+# a survivor most clearly means a gap.
+
+on:
+  schedule:
+    # 04:41 UTC on Sundays. Off the hour deliberately — GitHub queues scheduled runs and the top
+    # of the hour is when everyone else's cron fires, so `0 4` can sit in the backlog a long time.
+    - cron: "41 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      crate:
+        description: Which crate to mutate
+        required: false
+        default: engine
+        type: choice
+        options:
+          - engine
+          - domain
+          - ofm_core
+          - db
+
+permissions:
+  contents: read
+
+jobs:
+  mutants:
+    runs-on: ubuntu-latest
+    # Generous, because the point is to finish rather than to be quick — but bounded, so a hung
+    # run cannot burn six hours of the default timeout unnoticed.
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      # Pinned for the same reason every other tool here is: the mutation operators change between
+      # releases, so an unpinned tool turns someone else's release into a different report.
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants@25.3.1
+
+      # A cron trigger carries no inputs, so `inputs.crate` is empty every week — the first
+      # version of this said "one crate a week" and then ran `engine` every time. The week number
+      # picks one, so the rotation actually rotates; a manual dispatch still names its own.
+      - name: Choose this week's crate
+        id: crate
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.crate }}" ]; then
+            crate="${{ inputs.crate }}"
+          else
+            crates=(engine domain ofm_core db)
+            week="$(date -u +%V)"
+            crate="${crates[$((10#$week % ${#crates[@]}))]}"
+          fi
+          echo "name=$crate" >> "$GITHUB_OUTPUT"
+          echo "Mutating $crate"
+
+      # Surviving mutants are the *output*, not a failure — a red tick on a weekly job nobody can
+      # act on today is how a scheduled job becomes invisible. cargo-mutants exits 2 for exactly
+      # that case, so that one status is swallowed and nothing else is: a bare `|| true` would
+      # have turned a missing tool or a compilation failure into a green job with no report,
+      # which is the same silent-pass shape this whole programme exists to stop.
+      - name: Mutate ${{ steps.crate.outputs.name }}
+        run: |
+          set -uo pipefail
+          cargo mutants --manifest-path src-tauri/Cargo.toml \
+            --package "${{ steps.crate.outputs.name }}" \
+            --in-place --no-shuffle --timeout 300 \
+            --output mutants-out
+          status=$?
+
+          # 0 = nothing survived, 2 = some mutants survived. Anything else is a real failure.
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "cargo-mutants failed with status $status — this is a tool or build failure," >&2
+            echo "not a surviving mutant." >&2
+            exit "$status"
+          fi
+
+          # And a run that produced no report produced nothing, whatever it exited with.
+          if [ ! -s mutants-out/outcomes.json ]; then
+            echo "cargo-mutants exited $status but wrote no outcomes.json." >&2
+            exit 1
+          fi
+
+      - name: Upload the survivor list
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-${{ steps.crate.outputs.name }}
+          path: mutants-out/
+          retention-days: 30

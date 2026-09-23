@@ -14,10 +14,7 @@ import {
   Package2,
 } from "lucide-react";
 import type { WorldMetaDef } from "../menu/PackageEditor/types";
-import {
-  SAMPLE_PACKAGES,
-  type SamplePackage,
-} from "../menu/PackageEditor/sampleData";
+import { SAMPLE_PACKAGES, type SamplePackage } from "../menu/PackageEditor/sampleData";
 import type { PackageInfo } from "../menu/WorldSelect";
 
 export interface RecentProject {
@@ -125,6 +122,7 @@ export function WorldEditorHome({
   const topBar = (
     <div className="flex-shrink-0 h-12 flex items-center px-4 border-b border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800">
       <button
+        type="button"
         onClick={() => (view === "new-form" ? setView("home") : navigate("/"))}
         className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
       >
@@ -163,6 +161,7 @@ export function WorldEditorHome({
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder={t("worldEditor.worldNamePlaceholder")}
+                  // biome-ignore lint/a11y/noAutofocus: this is the new-world form, reached by clicking through from the home view.
                   autoFocus
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
@@ -209,6 +208,7 @@ export function WorldEditorHome({
 
             <div className="flex justify-end gap-3 mt-6">
               <button
+                type="button"
                 onClick={() => setView("home")}
                 disabled={isBusy}
                 className="px-4 py-2 text-sm font-heading font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-60"
@@ -216,6 +216,7 @@ export function WorldEditorHome({
                 {t("common.back")}
               </button>
               <button
+                type="button"
                 onClick={handleCreate}
                 disabled={isBusy || !derivedSlug}
                 className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
@@ -263,6 +264,7 @@ export function WorldEditorHome({
           {/* Primary actions */}
           <div className="flex flex-col gap-3">
             <button
+              type="button"
               onClick={() => openNewForm()}
               disabled={isBusy}
               className="flex items-center gap-4 w-full p-5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
@@ -272,13 +274,12 @@ export function WorldEditorHome({
                 <p className="font-heading font-bold text-lg uppercase tracking-wide">
                   {t("worldEditor.newPackage")}
                 </p>
-                <p className="text-sm text-primary-100 mt-0.5">
-                  {t("worldEditor.newPackageDesc")}
-                </p>
+                <p className="text-sm text-primary-100 mt-0.5">{t("worldEditor.newPackageDesc")}</p>
               </div>
             </button>
 
             <button
+              type="button"
               onClick={onOpenPackageFile}
               disabled={isBusy}
               className="flex items-center gap-4 w-full p-5 bg-white dark:bg-navy-800 hover:bg-gray-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-2xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
@@ -295,6 +296,7 @@ export function WorldEditorHome({
             </button>
 
             <button
+              type="button"
               onClick={onOpenPackageFolder}
               disabled={isBusy}
               className="flex items-center gap-4 w-full p-5 bg-white dark:bg-navy-800 hover:bg-gray-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-2xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
@@ -315,25 +317,24 @@ export function WorldEditorHome({
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 {t("worldEditor.startFromExample")}
               </p>
-              {SAMPLE_PACKAGES.map(
-                (sample) => (
-                  <button
-                    key={sample.meta.id}
-                    onClick={() => openNewForm(sample)}
-                    disabled={isBusy}
-                    className="flex items-start gap-3 w-full px-4 py-3 bg-white dark:bg-navy-800 hover:bg-amber-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-amber-400 dark:hover:border-amber-500 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-left"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold uppercase tracking-wide text-sm truncate">
-                        {sample.meta.name}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">
-                        {sample.meta.description}
-                      </p>
-                    </div>
-                  </button>
-                ),
-              )}
+              {SAMPLE_PACKAGES.map((sample) => (
+                <button
+                  type="button"
+                  key={sample.meta.id}
+                  onClick={() => openNewForm(sample)}
+                  disabled={isBusy}
+                  className="flex items-start gap-3 w-full px-4 py-3 bg-white dark:bg-navy-800 hover:bg-amber-50 dark:hover:bg-navy-700 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-200 border border-gray-200 dark:border-navy-600 hover:border-amber-400 dark:hover:border-amber-500 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-heading font-bold uppercase tracking-wide text-sm truncate">
+                      {sample.meta.name}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">
+                      {sample.meta.description}
+                    </p>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -347,6 +348,7 @@ export function WorldEditorHome({
               <div className="flex flex-col gap-1">
                 {recentProjects.map((proj) => (
                   <button
+                    type="button"
                     key={proj.path}
                     onClick={() => onOpenRecent(proj.path)}
                     disabled={isBusy}
@@ -394,6 +396,7 @@ export function WorldEditorHome({
                       </p>
                     </div>
                     <button
+                      type="button"
                       onClick={() => onOpenInstalled(pkg.installedPath)}
                       disabled={isBusy}
                       className="text-xs font-semibold text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors disabled:opacity-60 flex-shrink-0"

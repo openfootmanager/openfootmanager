@@ -103,10 +103,7 @@ function createGameState(news: NewsArticle[]): GameStateData {
       },
       career_history: [],
     },
-    teams: [
-      createTeam(),
-      createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
-    ],
+    teams: [createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })],
     players: [],
     staff: [],
     messages: [],
@@ -129,10 +126,7 @@ describe("NewsTab", () => {
     const onSelectTeam = vi.fn();
 
     render(
-      <NewsTab
-        gameState={createGameState([createNewsArticle()])}
-        onSelectTeam={onSelectTeam}
-      />,
+      <NewsTab gameState={createGameState([createNewsArticle()])} onSelectTeam={onSelectTeam} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /League headline/i }));
@@ -149,10 +143,7 @@ describe("NewsTab", () => {
     const onSelectTeam = vi.fn();
 
     render(
-      <NewsTab
-        gameState={createGameState([createNewsArticle()])}
-        onSelectTeam={onSelectTeam}
-      />,
+      <NewsTab gameState={createGameState([createNewsArticle()])} onSelectTeam={onSelectTeam} />,
     );
 
     fireEvent.contextMenu(screen.getByTestId("news-article-news-1"));
@@ -183,9 +174,7 @@ describe("NewsTab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "TransferRoundup" }));
 
-    expect(
-      screen.getByRole("button", { name: /Transfer roundup headline/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Transfer roundup headline/i })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /League roundup headline/i }),
     ).not.toBeInTheDocument();
@@ -210,9 +199,7 @@ describe("NewsTab", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: /Today headline/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Today headline/i })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /World Cup kickoff headline/i }),
     ).not.toBeInTheDocument();

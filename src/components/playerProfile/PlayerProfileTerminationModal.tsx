@@ -3,10 +3,7 @@ import { Button } from "../ui";
 import { formatExactMoney } from "../../lib/helpers";
 import type { ContractTerminationPreviewData } from "../../services/contractService";
 
-type TranslateFn = (
-  key: string,
-  options?: Record<string, string | number>,
-) => string;
+type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
 interface PlayerProfileTerminationModalProps {
   show: boolean;
@@ -75,15 +72,11 @@ export default function PlayerProfileTerminationModal({
             ) : null}
           </div>
         ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {t("common.loading")}
-          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t("common.loading")}</p>
         )}
 
         {errorMessage ? (
-          <p className="text-sm text-red-600 dark:text-red-300">
-            {errorMessage}
-          </p>
+          <p className="text-sm text-red-600 dark:text-red-300">{errorMessage}</p>
         ) : null}
 
         <div className="flex justify-end gap-2">
@@ -93,9 +86,7 @@ export default function PlayerProfileTerminationModal({
           <Button
             variant="outline"
             className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-            disabled={
-              submitting || !preview?.squad_safety.can_field_matchday_squad
-            }
+            disabled={submitting || !preview?.squad_safety.can_field_matchday_squad}
             onClick={onConfirm}
           >
             {t("playerProfile.confirmTerminateContract")}

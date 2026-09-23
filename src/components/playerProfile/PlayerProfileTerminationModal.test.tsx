@@ -4,23 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
 import type { ContractTerminationPreviewData } from "../../services/contractService";
 
-function translate(
-  key: string,
-  params?: Record<string, string | number>,
-): string {
+function translate(key: string, params?: Record<string, string | number>): string {
   // Deliberately distinct from the confirm button's label, so a query for
   // either one cannot match both.
-  if (key === "playerProfile.terminateContractTitle")
-    return "Terminate Contract?";
-  if (key === "playerProfile.terminateContractBody")
-    return `Release ${params?.name} immediately.`;
+  if (key === "playerProfile.terminateContractTitle") return "Terminate Contract?";
+  if (key === "playerProfile.terminateContractBody") return `Release ${params?.name} immediately.`;
   if (key === "playerProfile.terminationSeverance") return "Severance";
-  if (key === "playerProfile.projectedHealthyPlayers")
-    return "Healthy players after release";
+  if (key === "playerProfile.projectedHealthyPlayers") return "Healthy players after release";
   if (key === "playerProfile.terminationUnsafe")
     return "This release would leave the squad unable to field a matchday XI.";
-  if (key === "playerProfile.confirmTerminateContract")
-    return "Terminate Contract";
+  if (key === "playerProfile.confirmTerminateContract") return "Terminate Contract";
   if (key === "common.cancel") return "Cancel";
   if (key === "common.loading") return "Loading...";
   return key;
@@ -47,9 +40,7 @@ function buildPreview(
 }
 
 function renderModal(
-  props: Partial<
-    React.ComponentProps<typeof PlayerProfileTerminationModal>
-  > = {},
+  props: Partial<React.ComponentProps<typeof PlayerProfileTerminationModal>> = {},
 ) {
   const onCancel = vi.fn();
   const onConfirm = vi.fn();
@@ -82,9 +73,7 @@ describe("PlayerProfileTerminationModal", () => {
   it("shows the severance cost and squad impact once the preview arrives", () => {
     renderModal();
 
-    expect(
-      screen.getByText("Release John Smith immediately."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Release John Smith immediately.")).toBeInTheDocument();
     expect(screen.getByText("Severance")).toBeInTheDocument();
     expect(screen.getByText("18/11")).toBeInTheDocument();
   });
@@ -104,9 +93,7 @@ describe("PlayerProfileTerminationModal", () => {
     });
 
     expect(
-      screen.getByText(
-        "This release would leave the squad unable to field a matchday XI.",
-      ),
+      screen.getByText("This release would leave the squad unable to field a matchday XI."),
     ).toBeInTheDocument();
 
     const confirm = screen.getByRole("button", { name: "Terminate Contract" });
@@ -119,9 +106,7 @@ describe("PlayerProfileTerminationModal", () => {
   it("blocks confirmation while the preview is still loading", () => {
     renderModal({ preview: null });
 
-    expect(
-      screen.getByRole("button", { name: "Terminate Contract" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Terminate Contract" })).toBeDisabled();
   });
 
   it("confirms and cancels through its callbacks", () => {
@@ -138,16 +123,12 @@ describe("PlayerProfileTerminationModal", () => {
     renderModal({ submitting: true });
 
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Terminate Contract" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Terminate Contract" })).toBeDisabled();
   });
 
   it("surfaces a backend failure message", () => {
     renderModal({ errorMessage: "Could not release this player." });
 
-    expect(
-      screen.getByText("Could not release this player."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Could not release this player.")).toBeInTheDocument();
   });
 });

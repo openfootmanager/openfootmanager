@@ -29,9 +29,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
   };
 }
 
-function createAssignment(
-  overrides: Partial<ScoutingAssignment> = {},
-): ScoutingAssignment {
+function createAssignment(overrides: Partial<ScoutingAssignment> = {}): ScoutingAssignment {
   return {
     id: "assignment-1",
     scout_id: "staff-1",
@@ -63,8 +61,14 @@ describe("ScoutingTab.helpers", () => {
 
   it("returns only scouts without an active assignment", () => {
     const scouts = [
-      createScout({ id: "staff-1", attributes: { coaching: 20, judgingAbility: 20, judgingPotential: 70, physiotherapy: 10 } }),
-      createScout({ id: "staff-2", attributes: { coaching: 20, judgingAbility: 80, judgingPotential: 70, physiotherapy: 10 } }),
+      createScout({
+        id: "staff-1",
+        attributes: { coaching: 20, judgingAbility: 20, judgingPotential: 70, physiotherapy: 10 },
+      }),
+      createScout({
+        id: "staff-2",
+        attributes: { coaching: 20, judgingAbility: 80, judgingPotential: 70, physiotherapy: 10 },
+      }),
     ];
     const assignments = [
       createAssignment({ id: "a1", scout_id: "staff-1" }),

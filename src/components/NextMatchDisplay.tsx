@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { GameStateData } from "../store/gameStore";
+import type { GameStateData } from "../store/gameStore";
 import { Badge, TeamLogo } from "./ui";
 import {
   getTeamName,
@@ -9,11 +9,7 @@ import {
   isSeasonComplete,
 } from "../lib/helpers";
 
-export default function NextMatchDisplay({
-  gameState,
-}: {
-  gameState: GameStateData;
-}) {
+export default function NextMatchDisplay({ gameState }: { gameState: GameStateData }) {
   const { t } = useTranslation();
   const userTeamId = gameState.manager.team_id;
   const league = getUserCompetition(gameState);
@@ -30,19 +26,13 @@ export default function NextMatchDisplay({
   if (!nextFixture) {
     return (
       <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">
-        {t(
-          isSeasonComplete(league)
-            ? "home.seasonComplete"
-            : "home.noUpcomingOpponent",
-        )}
+        {t(isSeasonComplete(league) ? "home.seasonComplete" : "home.noUpcomingOpponent")}
       </p>
     );
   }
 
   const isHome = nextFixture.home_team_id === userTeamId;
-  const opponentId = isHome
-    ? nextFixture.away_team_id
-    : nextFixture.home_team_id;
+  const opponentId = isHome ? nextFixture.away_team_id : nextFixture.home_team_id;
   const userTeam = gameState.teams.find((team) => team.id === userTeamId);
   const opponentTeam = gameState.teams.find((team) => team.id === opponentId);
   const fixtureLabel =
@@ -63,21 +53,15 @@ export default function NextMatchDisplay({
             style={{ backgroundColor: userTeam.colors.primary }}
           />
         )}
-        <p
-          className="font-heading font-bold uppercase tracking-wide text-sm text-primary-600 dark:text-primary-400"
-        >
+        <p className="font-heading font-bold uppercase tracking-wide text-sm text-primary-600 dark:text-primary-400">
           {getTeamName(gameState.teams, userTeamId)}
         </p>
       </div>
 
       <div className="text-center px-4 flex flex-col items-center gap-1.5">
-        <span className="font-heading font-bold text-2xl text-gray-300 dark:text-navy-600">
-          VS
-        </span>
+        <span className="font-heading font-bold text-2xl text-gray-300 dark:text-navy-600">VS</span>
         <Badge variant="neutral">{formatMatchDate(nextFixture.date)}</Badge>
-        <span className="text-xs text-gray-400 dark:text-gray-500">
-          {fixtureLabel}
-        </span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">{fixtureLabel}</span>
         <Badge variant={isHome ? "success" : "accent"} size="sm">
           {isHome ? t("home.home") : t("home.away")}
         </Badge>
@@ -92,9 +76,7 @@ export default function NextMatchDisplay({
             style={{ backgroundColor: opponentTeam.colors.primary }}
           />
         )}
-        <p
-          className="font-heading font-bold uppercase tracking-wide text-sm text-gray-500 dark:text-gray-400"
-        >
+        <p className="font-heading font-bold uppercase tracking-wide text-sm text-gray-500 dark:text-gray-400">
           {getTeamName(gameState.teams, opponentId)}
         </p>
       </div>

@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { PlayerData } from "../../store/gameStore";
-import {
-  filterAndSortTacticsPlayers,
-  type SortKey,
-} from "./TacticsTab.helpers";
+import { filterAndSortTacticsPlayers, type SortKey } from "./TacticsTab.helpers";
 
 interface UseTacticsFiltersArgs {
   startingXI: PlayerData[];
@@ -12,11 +9,7 @@ interface UseTacticsFiltersArgs {
   xiActivePosition: Map<string, string>;
 }
 
-export function useTacticsFilters({
-  startingXI,
-  bench,
-  xiActivePosition,
-}: UseTacticsFiltersArgs) {
+export function useTacticsFilters({ startingXI, bench, xiActivePosition }: UseTacticsFiltersArgs) {
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
   const sortKey: SortKey = "pos";
@@ -39,14 +32,7 @@ export function useTacticsFilters({
           xiActivePosition,
         },
       ),
-    [
-      startingXI,
-      playerSearch,
-      positionFilter,
-      sortKey,
-      sortDir,
-      xiActivePosition,
-    ],
+    [startingXI, playerSearch, positionFilter, sortKey, sortDir, xiActivePosition],
   );
   const filteredBench = useMemo(
     () =>

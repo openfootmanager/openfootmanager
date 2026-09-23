@@ -47,6 +47,7 @@ export default function HomeLeaguePositionCard({
       <CardHeader
         action={
           <button
+            type="button"
             onClick={() => onNavigate?.("Schedule")}
             className="text-primary-500 dark:text-primary-400 text-xs font-heading font-bold uppercase tracking-wider hover:text-primary-600 dark:hover:text-primary-300 transition-colors"
           >
@@ -115,9 +116,7 @@ export default function HomeLeaguePositionCard({
               </div>
               <div>
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase">L</p>
-                <p className="text-sm font-heading font-bold text-red-500">
-                  {myStandingData.lost}
-                </p>
+                <p className="text-sm font-heading font-bold text-red-500">{myStandingData.lost}</p>
               </div>
             </div>
             {teamForm.length > 0 && (
@@ -159,9 +158,7 @@ export default function HomeLeaguePositionCard({
         ) : (
           <div className="flex flex-col items-center gap-2 py-4">
             <Trophy className="w-8 h-8 text-gray-300 dark:text-navy-600" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {t("home.noLeague")}
-            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t("home.noLeague")}</p>
           </div>
         )}
       </CardBody>

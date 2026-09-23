@@ -8,7 +8,14 @@ import { DatePicker } from "../../ui/DatePicker";
 import { Checkbox } from "../../ui/Checkbox";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { TeamCombobox } from "../../ui/TeamCombobox";
-import { POSITIONS, PLAYER_ATTR_GROUPS, emptyAttributes, parseRating, toSlug, type PlayerAttrKey } from "./helpers";
+import {
+  POSITIONS,
+  PLAYER_ATTR_GROUPS,
+  emptyAttributes,
+  parseRating,
+  toSlug,
+  type PlayerAttrKey,
+} from "./helpers";
 import type { Footedness, PlayerDef, TeamDef } from "./types";
 
 const FOOT_OPTIONS: Footedness[] = ["Right", "Left", "Both"];
@@ -48,7 +55,11 @@ export function PlayerForm({
   const dobLabelId = useId();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
-  const { dataUrl: photoDataUrl, pick: pickPhoto, clear: clearPhoto } = useAssetPicker({
+  const {
+    dataUrl: photoDataUrl,
+    pick: pickPhoto,
+    clear: clearPhoto,
+  } = useAssetPicker({
     relPath: editing.photo,
     projectDir,
     entityId: () => editing.id || `unnamed-player-${Date.now()}`,
@@ -82,210 +93,235 @@ export function PlayerForm({
 
   const attrs = editing.attributes ?? emptyAttributes();
   const teamsWithIds = teams?.filter((t) => t.id) ?? [];
-  const teamOptions = teamsWithIds.map((team) => ({ id: team.id, label: team.name || team.id, logo: team.logo, shortName: team.shortName, colors: team.colors }));
-  const positionLabels = Object.fromEntries(POSITIONS.map((p) => [p, t(`common.positions.${p}`)])) as Record<string, string>;
+  const teamOptions = teamsWithIds.map((team) => ({
+    id: team.id,
+    label: team.name || team.id,
+    logo: team.logo,
+    shortName: team.shortName,
+    colors: team.colors,
+  }));
+  const positionLabels = Object.fromEntries(
+    POSITIONS.map((p) => [p, t(`common.positions.${p}`)]),
+  ) as Record<string, string>;
 
   return (
     <div className="flex gap-6 items-start">
-    <div className="flex-1 min-w-0">
-    <EntityFormShell
-      title={editingIndex === null ? t("worldEditor.addPlayer") : t("worldEditor.editPlayer")}
-      onBack={onBack}
-      onSave={onSave}
-      isBusy={isBusy}
-      saveDisabled={!editing.id}
-      saveLabel={t("worldEditor.savePlayer")}
-    >
-      <LabeledInput
-        label={t("worldEditor.playerId")}
-        value={editing.id}
-        onChange={(v) => {
-          setIdAutoMode(false);
-          updateField("id", v);
-        }}
-        placeholder="player-001"
-      />
-      <LabeledInput
-        label={t("worldEditor.playerFirstName")}
-        value={editing.firstName}
-        onChange={(v) => updateField("firstName", v)}
-      />
-      <LabeledInput
-        label={t("worldEditor.playerLastName")}
-        value={editing.lastName}
-        onChange={(v) => updateField("lastName", v)}
-      />
-      <LabeledInput
-        label={t("worldEditor.playerName")}
-        value={editing.name}
-        onChange={handleNameChange}
-        placeholder={t("worldEditor.playerDisplayNamePlaceholder")}
-      />
-
-      {/* Photo */}
-      {projectDir && (
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.playerPhoto")}</label>
-          <div className="flex items-center gap-3">
-            {photoDataUrl ? (
-              <img src={photoDataUrl} alt="" className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-full border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
-                <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { void pickPhoto(); }}
-                className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
-              >
-                {t("worldEditor.chooseLogo")}
-              </button>
-              {editing.photo && (
-                <button
-                  type="button"
-                  onClick={() => { clearPhoto(); }}
-                  className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Club picker */}
-      {teamOptions.length > 0 ? (
-        <TeamCombobox
-          label={t("worldEditor.playerClub")}
-          value={editing.club}
-          options={teamOptions}
-          onChange={(v) => updateField("club", v)}
-          projectDir={projectDir}
-          placeholder={t("worldEditor.noClubSelected")}
-        />
-      ) : (
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.playerClub")}</label>
-          <input
-            type="text"
-            value={editing.club}
-            onChange={(e) => updateField("club", e.target.value)}
-            placeholder="team-id"
-            className={inputClass}
+      <div className="flex-1 min-w-0">
+        <EntityFormShell
+          title={editingIndex === null ? t("worldEditor.addPlayer") : t("worldEditor.editPlayer")}
+          onBack={onBack}
+          onSave={onSave}
+          isBusy={isBusy}
+          saveDisabled={!editing.id}
+          saveLabel={t("worldEditor.savePlayer")}
+        >
+          <LabeledInput
+            label={t("worldEditor.playerId")}
+            value={editing.id}
+            onChange={(v) => {
+              setIdAutoMode(false);
+              updateField("id", v);
+            }}
+            placeholder="player-001"
           />
-        </div>
-      )}
+          <LabeledInput
+            label={t("worldEditor.playerFirstName")}
+            value={editing.firstName}
+            onChange={(v) => updateField("firstName", v)}
+          />
+          <LabeledInput
+            label={t("worldEditor.playerLastName")}
+            value={editing.lastName}
+            onChange={(v) => updateField("lastName", v)}
+          />
+          <LabeledInput
+            label={t("worldEditor.playerName")}
+            value={editing.name}
+            onChange={handleNameChange}
+            placeholder={t("worldEditor.playerDisplayNamePlaceholder")}
+          />
 
-      <CountryCombobox
-        label={t("worldEditor.playerNationality")}
-        value={editing.nationality}
-        onChange={(v) => updateField("nationality", v)}
-      />
+          {/* Photo */}
+          {projectDir && (
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>{t("worldEditor.playerPhoto")}</label>
+              <div className="flex items-center gap-3">
+                {photoDataUrl ? (
+                  <img
+                    src={photoDataUrl}
+                    alt=""
+                    className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                    <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void pickPhoto();
+                    }}
+                    className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
+                  >
+                    {t("worldEditor.chooseLogo")}
+                  </button>
+                  {editing.photo && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearPhoto();
+                      }}
+                      className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <LabeledSelect
-          label={t("worldEditor.playerPosition")}
-          value={editing.position}
-          options={POSITIONS}
-          optionLabels={positionLabels}
-          onChange={(v) => updateField("position", v as PlayerDef["position"])}
-        />
-        <LabeledSelect
-          label={t("worldEditor.playerFoot")}
-          value={editing.footedness ?? "Right"}
-          options={FOOT_OPTIONS}
-          optionLabels={{
-            Right: t("common.footedness.Right"),
-            Left: t("common.footedness.Left"),
-            Both: t("common.footedness.Both"),
-          }}
-          onChange={(v) => updateField("footedness", v as Footedness)}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label id={dobLabelId} className={labelClass}>{t("worldEditor.playerDateOfBirth")}</label>
-        <DatePicker
-          labelledBy={dobLabelId}
-          value={editing.dateOfBirth ?? ""}
-          onChange={(v) => updateField("dateOfBirth", v || null)}
-        />
-      </div>
+          {/* Club picker */}
+          {teamOptions.length > 0 ? (
+            <TeamCombobox
+              label={t("worldEditor.playerClub")}
+              value={editing.club}
+              options={teamOptions}
+              onChange={(v) => updateField("club", v)}
+              projectDir={projectDir}
+              placeholder={t("worldEditor.noClubSelected")}
+            />
+          ) : (
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>{t("worldEditor.playerClub")}</label>
+              <input
+                type="text"
+                value={editing.club}
+                onChange={(e) => updateField("club", e.target.value)}
+                placeholder="team-id"
+                className={inputClass}
+              />
+            </div>
+          )}
 
-      <div className="flex items-center gap-2 py-1">
-        <Checkbox
-          id="use-attributes"
-          checked={useAttributes}
-          onChange={(e) => toggleAttributes(e.target.checked)}
-          aria-label={t("worldEditor.playerUseAttributes")}
-        />
-        <label htmlFor="use-attributes" className={labelClass}>
-          {t("worldEditor.playerUseAttributes")}
-        </label>
-      </div>
+          <CountryCombobox
+            label={t("worldEditor.playerNationality")}
+            value={editing.nationality}
+            onChange={(v) => updateField("nationality", v)}
+          />
 
-      {!useAttributes && (
-        <LabeledInput
-          label={t("worldEditor.playerOverall")}
-          value={editing.overall?.toString() ?? ""}
-          type="number"
-          onChange={(v) => updateField("overall", parseRating(v))}
-        />
-      )}
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledSelect
+              label={t("worldEditor.playerPosition")}
+              value={editing.position}
+              options={POSITIONS}
+              optionLabels={positionLabels}
+              onChange={(v) => updateField("position", v as PlayerDef["position"])}
+            />
+            <LabeledSelect
+              label={t("worldEditor.playerFoot")}
+              value={editing.footedness ?? "Right"}
+              options={FOOT_OPTIONS}
+              optionLabels={{
+                Right: t("common.footedness.Right"),
+                Left: t("common.footedness.Left"),
+                Both: t("common.footedness.Both"),
+              }}
+              onChange={(v) => updateField("footedness", v as Footedness)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label id={dobLabelId} className={labelClass}>
+              {t("worldEditor.playerDateOfBirth")}
+            </label>
+            <DatePicker
+              labelledBy={dobLabelId}
+              value={editing.dateOfBirth ?? ""}
+              onChange={(v) => updateField("dateOfBirth", v || null)}
+            />
+          </div>
 
-      {/*
+          <div className="flex items-center gap-2 py-1">
+            <Checkbox
+              id="use-attributes"
+              checked={useAttributes}
+              onChange={(e) => toggleAttributes(e.target.checked)}
+              aria-label={t("worldEditor.playerUseAttributes")}
+            />
+            <label htmlFor="use-attributes" className={labelClass}>
+              {t("worldEditor.playerUseAttributes")}
+            </label>
+          </div>
+
+          {!useAttributes && (
+            <LabeledInput
+              label={t("worldEditor.playerOverall")}
+              value={editing.overall?.toString() ?? ""}
+              type="number"
+              onChange={(v) => updateField("overall", parseRating(v))}
+            />
+          )}
+
+          {/*
         Outside both branches on purpose: a ceiling is independent of whether
         ability was given as an overall or a full attribute block, and gating it
         on the toggle would hide it from exactly the authors exercising the most
         precise control. Clamped to 1-99 only — never up to the player's ability,
         which would silently repair a mistake the package validator reports.
       */}
-      <LabeledInput
-        label={t("worldEditor.playerPotential")}
-        help={t("worldEditor.playerPotentialHelp")}
-        value={editing.potential?.toString() ?? ""}
-        type="number"
-        onChange={(v) => updateField("potential", parseRating(v))}
-      />
+          <LabeledInput
+            label={t("worldEditor.playerPotential")}
+            help={t("worldEditor.playerPotentialHelp")}
+            value={editing.potential?.toString() ?? ""}
+            type="number"
+            onChange={(v) => updateField("potential", parseRating(v))}
+          />
 
-      {useAttributes && (
-        <div className="flex flex-col gap-3">
-          {PLAYER_ATTR_GROUPS.map(({ groupKey, keys }) => (
-            <div key={groupKey}>
-              <p className={`${labelClass} mb-1`}>{t(`common.attrGroups.${groupKey}`)}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {keys.map((key) => (
-                  <div key={key} className="flex flex-col gap-0.5">
-                    <label className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                      {t(`common.attributes.${key}`)}
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="range"
-                        min={1}
-                        max={99}
-                        value={attrs[key as keyof typeof attrs]}
-                        onChange={(e) => updateAttr(key as PlayerAttrKey, parseInt(e.target.value, 10))}
-                        className="flex-1 accent-primary-500"
-                      />
-                      <span className="text-xs font-mono text-gray-600 dark:text-gray-300 w-5 text-right">
-                        {attrs[key as keyof typeof attrs]}
-                      </span>
-                    </div>
+          {useAttributes && (
+            <div className="flex flex-col gap-3">
+              {PLAYER_ATTR_GROUPS.map(({ groupKey, keys }) => (
+                <div key={groupKey}>
+                  <p className={`${labelClass} mb-1`}>{t(`common.attrGroups.${groupKey}`)}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {keys.map((key) => (
+                      <div key={key} className="flex flex-col gap-0.5">
+                        <label className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                          {t(`common.attributes.${key}`)}
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="range"
+                            min={1}
+                            max={99}
+                            value={attrs[key as keyof typeof attrs]}
+                            onChange={(e) =>
+                              updateAttr(key as PlayerAttrKey, parseInt(e.target.value, 10))
+                            }
+                            className="flex-1 accent-primary-500"
+                          />
+                          <span className="text-xs font-mono text-gray-600 dark:text-gray-300 w-5 text-right">
+                            {attrs[key as keyof typeof attrs]}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-    </EntityFormShell>
-    </div>
-    <div className="w-64 flex-shrink-0 sticky top-0">
-      <PlayerPreviewCard editing={editing} photoDataUrl={photoDataUrl} teams={teams} projectDir={projectDir} />
-    </div>
+          )}
+        </EntityFormShell>
+      </div>
+      <div className="w-64 flex-shrink-0 sticky top-0">
+        <PlayerPreviewCard
+          editing={editing}
+          photoDataUrl={photoDataUrl}
+          teams={teams}
+          projectDir={projectDir}
+        />
+      </div>
     </div>
   );
 }

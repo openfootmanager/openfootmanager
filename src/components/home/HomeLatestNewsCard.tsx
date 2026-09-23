@@ -25,6 +25,7 @@ export default function HomeLatestNewsCard({
       <CardHeader
         action={
           <button
+            type="button"
             onClick={() => onNavigate?.("News")}
             className="text-primary-500 dark:text-primary-400 text-xs font-heading font-bold uppercase tracking-wider hover:text-primary-600 dark:hover:text-primary-300 transition-colors"
           >
@@ -38,14 +39,13 @@ export default function HomeLatestNewsCard({
         {articles.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-6">
             <Newspaper className="w-8 h-8 text-gray-300 dark:text-navy-600" />
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {t("home.noNews")}
-            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t("home.noNews")}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-navy-600">
             {articles.map((article) => (
               <button
+                type="button"
                 key={article.id}
                 onClick={() => onNavigate?.("News")}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors"

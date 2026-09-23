@@ -39,9 +39,7 @@ describe("dashboardProfileNavigation", () => {
 
     expect(next.selectedPlayerId).toBe("player-7");
     expect(next.selectedTeamId).toBeNull();
-    expect(next.navHistory).toEqual([
-      { tab: "Home", playerId: null, teamId: null },
-    ]);
+    expect(next.navHistory).toEqual([{ tab: "Home", playerId: null, teamId: null }]);
   });
 
   it("restores the previous entry when navigating back", () => {
@@ -65,9 +63,7 @@ describe("dashboardProfileNavigation", () => {
     const base = createDashboardProfileNavigationState("Home");
 
     expect(hasDashboardProfileHistory(base)).toBe(false);
-    expect(hasDashboardProfileHistory(selectDashboardTeam(base, "team-1"))).toBe(
-      true,
-    );
+    expect(hasDashboardProfileHistory(selectDashboardTeam(base, "team-1"))).toBe(true);
   });
 
   it("replaces the current profile selection when opening a search result", () => {

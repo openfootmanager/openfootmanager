@@ -3,70 +3,63 @@ export type LocaleTree = Record<string, unknown>;
 type LeafResult = string[];
 
 function traverseLocaleTree(
-    reference: LocaleTree,
-    candidate: LocaleTree,
-    path: string[],
-    onLeaf: (
-        key: string,
-        refValue: unknown,
-        candidateValue: unknown,
-        path: string[],
-    ) => LeafResult,
+  reference: LocaleTree,
+  candidate: LocaleTree,
+  path: string[],
+  onLeaf: (key: string, refValue: unknown, candidateValue: unknown, path: string[]) => LeafResult,
 ): LeafResult {
-    return Object.entries(reference).flatMap(([key, value]) => {
-        const nextPath = [...path, key];
-        const candidateValue = candidate[key];
+  return Object.entries(reference).flatMap(([key, value]) => {
+    const nextPath = [...path, key];
+    const candidateValue = candidate[key];
 
-        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-            if (
-                candidateValue !== null &&
-                typeof candidateValue === "object" &&
-                !Array.isArray(candidateValue)
-            ) {
-                return traverseLocaleTree(
-                    value as LocaleTree,
-                    candidateValue as LocaleTree,
-                    nextPath,
-                    onLeaf,
-                );
-            }
-            return onLeaf(key, value, candidateValue, nextPath);
-        }
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      if (
+        candidateValue !== null &&
+        typeof candidateValue === "object" &&
+        !Array.isArray(candidateValue)
+      ) {
+        return traverseLocaleTree(
+          value as LocaleTree,
+          candidateValue as LocaleTree,
+          nextPath,
+          onLeaf,
+        );
+      }
+      return onLeaf(key, value, candidateValue, nextPath);
+    }
 
-        return onLeaf(key, value, candidateValue, nextPath);
-    });
+    return onLeaf(key, value, candidateValue, nextPath);
+  });
 }
 
 export function collectMissingKeys(
-    reference: LocaleTree,
-    candidate: LocaleTree,
-    path: string[] = [],
+  reference: LocaleTree,
+  candidate: LocaleTree,
+  path: string[] = [],
 ): string[] {
-    return traverseLocaleTree(reference, candidate, path, (_key, value, candidateValue, nextPath) => {
-        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-            return [nextPath.join(".")];
-        }
-        return candidateValue == null || typeof candidateValue !== "string"
-            ? [nextPath.join(".")]
-            : [];
-    });
+  return traverseLocaleTree(reference, candidate, path, (_key, value, candidateValue, nextPath) => {
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      return [nextPath.join(".")];
+    }
+    return candidateValue == null || typeof candidateValue !== "string" ? [nextPath.join(".")] : [];
+  });
 }
 
 export function collectUntranslatedKeys(
-    reference: LocaleTree,
-    candidate: LocaleTree,
-    path: string[] = [],
+  reference: LocaleTree,
+  candidate: LocaleTree,
+  path: string[] = [],
 ): string[] {
-    return traverseLocaleTree(reference, candidate, path, (_key, value, candidateValue, nextPath) => {
-        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-            return [];
-        }
-        return typeof value === "string" &&
-            typeof candidateValue === "string" &&
-            candidateValue === value
-            ? [nextPath.join(".")]
-            : [];
-    });
+  return traverseLocaleTree(reference, candidate, path, (_key, value, candidateValue, nextPath) => {
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      return [];
+    }
+    return typeof value === "string" &&
+      typeof candidateValue === "string" &&
+      candidateValue === value
+      ? [nextPath.join(".")]
+      : [];
+  });
 }
 
 /**
@@ -77,58 +70,58 @@ export function collectUntranslatedKeys(
  * being reachable.
  */
 export function collectOrphanKeys(
-    reference: LocaleTree,
-    candidate: LocaleTree,
-    path: string[] = [],
+  reference: LocaleTree,
+  candidate: LocaleTree,
+  path: string[] = [],
 ): string[] {
-    return Object.entries(candidate).flatMap(([key, value]) => {
-        const nextPath = [...path, key];
-        // `reference[key]` would also find `Object.prototype` members, so a locale
-        // key literally named `constructor` or `toString` would look present in
-        // English and escape the check.
-        const referenceHasKey = Object.prototype.hasOwnProperty.call(reference, key);
-        const referenceValue = reference[key];
+  return Object.entries(candidate).flatMap(([key, value]) => {
+    const nextPath = [...path, key];
+    // `reference[key]` would also find `Object.prototype` members, so a locale
+    // key literally named `constructor` or `toString` would look present in
+    // English and escape the check.
+    // Biome offers `Object.hasOwn` here and it does not compile: `tsconfig.json` sets
+    // `lib: ["ES2020", ...]` and `Object.hasOwn` is ES2022. Raising the lib is a
+    // compiler-wide decision and does not belong in a lint sweep, so the call stays as it is.
+    // biome-ignore lint/suspicious/noPrototypeBuiltins: ES2022 API unavailable at this lib level.
+    const referenceHasKey = Object.prototype.hasOwnProperty.call(reference, key);
+    const referenceValue = reference[key];
 
-        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-            if (
-                referenceHasKey &&
-                referenceValue !== null &&
-                typeof referenceValue === "object" &&
-                !Array.isArray(referenceValue)
-            ) {
-                return collectOrphanKeys(
-                    referenceValue as LocaleTree,
-                    value as LocaleTree,
-                    nextPath,
-                );
-            }
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      if (
+        referenceHasKey &&
+        referenceValue !== null &&
+        typeof referenceValue === "object" &&
+        !Array.isArray(referenceValue)
+      ) {
+        return collectOrphanKeys(referenceValue as LocaleTree, value as LocaleTree, nextPath);
+      }
 
-            // English has no table here, so every leaf beneath it is orphaned. An
-            // empty table has no leaves to name, so the table itself is the orphan.
-            const orphanedLeaves = collectOrphanKeys({}, value as LocaleTree, nextPath);
-            return orphanedLeaves.length > 0 ? orphanedLeaves : [nextPath.join(".")];
-        }
+      // English has no table here, so every leaf beneath it is orphaned. An
+      // empty table has no leaves to name, so the table itself is the orphan.
+      const orphanedLeaves = collectOrphanKeys({}, value as LocaleTree, nextPath);
+      return orphanedLeaves.length > 0 ? orphanedLeaves : [nextPath.join(".")];
+    }
 
-        return referenceHasKey ? [] : [nextPath.join(".")];
-    });
+    return referenceHasKey ? [] : [nextPath.join(".")];
+  });
 }
 
 export function hasLocaleKey(locale: LocaleTree, keyPath: string): boolean {
-    const segments = keyPath.split(".");
-    let current: unknown = locale;
+  const segments = keyPath.split(".");
+  let current: unknown = locale;
 
-    for (const segment of segments) {
-        if (
-            current === null ||
-            typeof current !== "object" ||
-            Array.isArray(current) ||
-            !(segment in current)
-        ) {
-            return false;
-        }
-
-        current = (current as LocaleTree)[segment];
+  for (const segment of segments) {
+    if (
+      current === null ||
+      typeof current !== "object" ||
+      Array.isArray(current) ||
+      !(segment in current)
+    ) {
+      return false;
     }
 
-    return typeof current === "string";
+    current = (current as LocaleTree)[segment];
+  }
+
+  return typeof current === "string";
 }

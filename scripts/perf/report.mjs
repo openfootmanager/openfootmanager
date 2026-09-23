@@ -76,7 +76,10 @@ results.sort((a, b) => {
 
 const phaseNames = [...new Set(results.flatMap((r) => r.phases.map((p) => p.name)))];
 
-const header = ["configuration", ...phaseNames.flatMap((n) => [`${n} p50`, `${n} p95`, `${n} drop`])];
+const header = [
+  "configuration",
+  ...phaseNames.flatMap((n) => [`${n} p50`, `${n} p95`, `${n} drop`]),
+];
 const divider = header.map(() => "---");
 
 // A phase that could not do its work records an idle baseline. Printing those numbers would be
@@ -98,7 +101,9 @@ const rows = results.map((result) => {
 
 const toRow = (cells) => `| ${cells.join(" | ")} |`;
 
-console.log(`Frame-to-frame delta in ms (lower is better); \`drop\` counts frames over 1.5x budget.`);
+console.log(
+  `Frame-to-frame delta in ms (lower is better); \`drop\` counts frames over 1.5x budget.`,
+);
 console.log();
 console.log(toRow(header));
 console.log(toRow(divider));
@@ -126,6 +131,8 @@ for (const result of results) {
   console.log(
     `- \`${result.label}\`: frame budget ${budget} ms (~${Math.round(1000 / budget)} Hz), ` +
       `viewport ${result.viewport.width}x${result.viewport.height}, dpr ${result.devicePixelRatio}` +
-      (result.longAnimationFrames >= 0 ? `, ${result.longAnimationFrames} long animation frames` : ""),
+      (result.longAnimationFrames >= 0
+        ? `, ${result.longAnimationFrames} long animation frames`
+        : ""),
   );
 }

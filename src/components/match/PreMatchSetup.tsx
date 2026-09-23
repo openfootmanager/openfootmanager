@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { FixtureData, GameStateData } from "../../store/gameStore";
+import type { FixtureData, GameStateData } from "../../store/gameStore";
 import { getFixtureDisplayLabel } from "../../lib/helpers";
-import { MatchSnapshot, EnginePlayerData, FORMATIONS, PLAY_STYLES } from "./types";
-import PreMatchLineup, { parseFormationNeeds, POSITION_KEY_STATS, statColor, starterOvrColor, getStatVal } from "./PreMatchLineup";
+import { type MatchSnapshot, type EnginePlayerData, FORMATIONS, PLAY_STYLES } from "./types";
+import PreMatchLineup, {
+  parseFormationNeeds,
+  POSITION_KEY_STATS,
+  statColor,
+  starterOvrColor,
+  getStatVal,
+} from "./PreMatchLineup";
 import { condColor } from "../../lib/playerConditionDisplay";
 import { getSetPieceStats } from "./SetPieceSelector";
 import { FormationPitch } from "./FormationPitch";
@@ -20,14 +26,7 @@ import { setPlayerRole, setTacticsPhase } from "../../services/squadService";
 import { getRoleOptions } from "../../lib/playerRoles";
 import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
-import {
-  ChevronRight,
-  Crown,
-  Footprints,
-  CornerDownRight,
-  CircleDot,
-  Wand2,
-} from "lucide-react";
+import { ChevronRight, Crown, Footprints, CornerDownRight, CircleDot, Wand2 } from "lucide-react";
 
 interface PreMatchSetupProps {
   snapshot: MatchSnapshot;
@@ -51,15 +50,12 @@ export default function PreMatchSetup({
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [activeTab, setActiveTab] = useState<"team" | "opponent">("team");
   const [phase, setPhase] = useState<TacticsPhaseSettings | undefined>(() => {
-    const uid =
-      userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
+    const uid = userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
     return gameState.teams.find((tm) => tm.id === uid)?.tactics_phase;
   });
 
   const handlePhaseChange = (patch: Partial<TacticsPhaseSettings>) => {
-    setPhase((prev) =>
-      prev ? { ...prev, ...patch } : ({ ...patch } as TacticsPhaseSettings),
-    );
+    setPhase((prev) => (prev ? { ...prev, ...patch } : ({ ...patch } as TacticsPhaseSettings)));
     void setTacticsPhase(patch).catch((err: unknown) => {
       console.error("Failed to set tactics phase:", err);
     });
@@ -68,8 +64,7 @@ export default function PreMatchSetup({
   // Player roles, editable from the pitch like on the tactics board; optimistic
   // local state persisted fire-and-forget, same pattern as the phase blueprint.
   const [playerRoles, setPlayerRoles] = useState<Record<string, PlayerRole>>(() => {
-    const uid =
-      userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
+    const uid = userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
     return gameState.teams.find((tm) => tm.id === uid)?.player_roles ?? {};
   });
 
@@ -90,8 +85,7 @@ export default function PreMatchSetup({
   const awayTeam = snapshot.away_team;
   const userTeam = userSide === "Home" ? homeTeam : awayTeam;
   const oppTeam = userSide === "Home" ? awayTeam : homeTeam;
-  const userSetPieces =
-    userSide === "Home" ? snapshot.home_set_pieces : snapshot.away_set_pieces;
+  const userSetPieces = userSide === "Home" ? snapshot.home_set_pieces : snapshot.away_set_pieces;
 
   const homeFullTeam = gameState.teams.find((t) => t.id === homeTeam.id);
   const awayFullTeam = gameState.teams.find((t) => t.id === awayTeam.id);
@@ -183,10 +177,7 @@ export default function PreMatchSetup({
                 handlePlayerRoleChange(player.id, e.target.value as PlayerRole);
               }}
             >
-              {getRoleOptions(
-                displayPosition,
-                playerRoles[player.id] ?? "Standard",
-              ).map((role) => (
+              {getRoleOptions(displayPosition, playerRoles[player.id] ?? "Standard").map((role) => (
                 <option key={role} value={role}>
                   {t(`tactics.playerRoles.${role}`, role)}
                 </option>
@@ -231,11 +222,8 @@ export default function PreMatchSetup({
     ? getFixtureDisplayLabel(t, currentFixture)
     : t("match.matchDay");
 
-  const allSquadPlayers = gameState.players.filter(
-    (p) => p.team_id === userTeam.id,
-  );
-  const userBench =
-    userSide === "Home" ? snapshot.home_bench ?? [] : snapshot.away_bench ?? [];
+  const allSquadPlayers = gameState.players.filter((p) => p.team_id === userTeam.id);
+  const userBench = userSide === "Home" ? (snapshot.home_bench ?? []) : (snapshot.away_bench ?? []);
 
   const formationNeeds = parseFormationNeeds(userTeam.formation);
 
@@ -381,9 +369,7 @@ export default function PreMatchSetup({
   };
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
-  const oppPositions = positions.filter((pos) =>
-    oppTeam.players.some((p) => p.position === pos),
-  );
+  const oppPositions = positions.filter((pos) => oppTeam.players.some((p) => p.position === pos));
 
   const renderSetPieces = () => (
     <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800 p-4 shadow-sm transition-colors duration-300">
@@ -392,6 +378,7 @@ export default function PreMatchSetup({
           {t("match.setPiecesCaptain")}
         </p>
         <button
+          type="button"
           onClick={handleAutoSelectSetPieces}
           className="flex items-center gap-1.5 rounded-lg border border-accent-200 dark:border-accent-500/20 bg-accent-50 hover:bg-accent-100 dark:bg-accent-500/10 dark:hover:bg-accent-500/20 px-3 py-1.5 font-heading font-bold text-[10px] uppercase tracking-wider text-accent-700 dark:text-accent-400 transition-colors"
         >
@@ -446,11 +433,7 @@ export default function PreMatchSetup({
           formationControls={
             <div className="flex gap-2">
               <Select
-                value={
-                  FORMATIONS.includes(userTeam.formation)
-                    ? userTeam.formation
-                    : FORMATIONS[0]
-                }
+                value={FORMATIONS.includes(userTeam.formation) ? userTeam.formation : FORMATIONS[0]}
                 onChange={(e) => handleFormationChange(e.target.value)}
                 selectSize="sm"
                 fullWidth
@@ -487,9 +470,7 @@ export default function PreMatchSetup({
           formation={userTeam.formation}
           players={userTeam.players}
           selectedId={selectedStarterId}
-          onPlayerClick={(id) =>
-            setSelectedStarterId(id === selectedStarterId ? null : id)
-          }
+          onPlayerClick={(id) => setSelectedStarterId(id === selectedStarterId ? null : id)}
           renderToken={(p, { isSelected, slotPosition }) =>
             renderUserToken(p, isSelected, slotPosition)
           }
@@ -505,10 +486,7 @@ export default function PreMatchSetup({
               {t("tactics.phaseBlueprint")}
             </p>
           </div>
-          <PhaseBlueprintPanel
-            tacticsPhase={phase}
-            onTacticsPhaseChange={handlePhaseChange}
-          />
+          <PhaseBlueprintPanel tacticsPhase={phase} onTacticsPhaseChange={handlePhaseChange} />
         </div>
       </div>
     </div>
@@ -524,8 +502,7 @@ export default function PreMatchSetup({
             {oppTeam.name}
           </p>
           <p className="text-[10px] text-gray-500 dark:text-gray-400 font-heading mt-0.5">
-            {oppTeam.formation} ·{" "}
-            {t(`common.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
+            {oppTeam.formation} · {t(`common.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
           </p>
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
@@ -592,9 +569,7 @@ export default function PreMatchSetup({
                       </span>
                     ))}
                   </div>
-                  <span
-                    className={`text-xs tabular-nums w-8 text-right ${condColor(p.condition)}`}
-                  >
+                  <span className={`text-xs tabular-nums w-8 text-right ${condColor(p.condition)}`}>
                     {Math.round(p.condition)}%
                   </span>
                 </div>
@@ -645,7 +620,7 @@ export default function PreMatchSetup({
               className="h-14 w-14 shrink-0 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
               imageClassName="h-11 w-11 object-contain drop-shadow"
               style={{
-                backgroundColor: homeTeamColor + "30",
+                backgroundColor: `${homeTeamColor}30`,
                 borderColor: homeTeamColor,
                 borderWidth: 2,
               }}
@@ -667,11 +642,10 @@ export default function PreMatchSetup({
               <p className="text-[10px] font-heading uppercase tracking-widest text-accent-600 dark:text-accent-400">
                 {fixtureLabel}
               </p>
-              <p className="text-2xl font-heading font-bold text-gray-400 dark:text-gray-600">
-                VS
-              </p>
+              <p className="text-2xl font-heading font-bold text-gray-400 dark:text-gray-600">VS</p>
             </div>
             <button
+              type="button"
               onClick={onStart}
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-3 font-heading font-bold uppercase tracking-wider text-sm text-white shadow-lg shadow-primary-500/20 transition-all hover:from-primary-600 hover:to-primary-700 hover:scale-[1.02] active:scale-[0.98]"
             >
@@ -687,7 +661,7 @@ export default function PreMatchSetup({
               className="h-14 w-14 shrink-0 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
               imageClassName="h-11 w-11 object-contain drop-shadow"
               style={{
-                backgroundColor: awayTeamColor + "30",
+                backgroundColor: `${awayTeamColor}30`,
                 borderColor: awayTeamColor,
                 borderWidth: 2,
               }}
@@ -711,10 +685,10 @@ export default function PreMatchSetup({
 
       {/* Your Team / Opponent tabs */}
       <div className="shrink-0 flex items-center gap-1 border-b border-gray-200 dark:border-navy-700 bg-gray-50/80 dark:bg-navy-800/50 px-4">
-        {([
+        {[
           { id: "team" as const, label: userTeam.name },
           { id: "opponent" as const, label: `${t("match.opponent")} · ${oppTeam.name}` },
-        ]).map((tab) => (
+        ].map((tab) => (
           <button
             key={tab.id}
             type="button"

@@ -72,7 +72,10 @@ function NameChipList({ label, names, addPlaceholder, addLabel, onChange }: Name
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); add(); }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
           }}
           placeholder={addPlaceholder}
           className="flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
@@ -91,7 +94,15 @@ function NameChipList({ label, names, addPlaceholder, addLabel, onChange }: Name
   );
 }
 
-export function NamesPoolForm({ poolKey, pool, isNew, isBusy, takenKeys, onBack, onSave }: NamesPoolFormProps) {
+export function NamesPoolForm({
+  poolKey,
+  pool,
+  isNew,
+  isBusy,
+  takenKeys,
+  onBack,
+  onSave,
+}: NamesPoolFormProps) {
   const { t } = useTranslation();
   const [key, setKey] = useState(poolKey);
   const [firstNames, setFirstNames] = useState<string[]>(pool.first_names);
@@ -123,9 +134,7 @@ export function NamesPoolForm({ poolKey, pool, isNew, isBusy, takenKeys, onBack,
           onChange={setKey}
           placeholder="ENG"
         />
-        {keyCollision && (
-          <p className="text-xs text-red-500">{t("worldEditor.poolKeyTaken")}</p>
-        )}
+        {keyCollision && <p className="text-xs text-red-500">{t("worldEditor.poolKeyTaken")}</p>}
       </div>
       <NameChipList
         label={t("worldEditor.poolFirstNames")}

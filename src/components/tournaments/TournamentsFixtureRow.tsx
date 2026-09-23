@@ -21,8 +21,7 @@ export default function TournamentsFixtureRow({
   const { t } = useTranslation();
   const { userTeamId, isClubTeam, resolveTeamName, onSelectTeam } = teams;
 
-  const isUserMatch =
-    fixture.home_team_id === userTeamId || fixture.away_team_id === userTeamId;
+  const isUserMatch = fixture.home_team_id === userTeamId || fixture.away_team_id === userTeamId;
   const completed = fixture.status === "Completed";
 
   const menuItems = [fixture.home_team_id, fixture.away_team_id]

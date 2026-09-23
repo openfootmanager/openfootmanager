@@ -167,15 +167,12 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
   };
 }
 
-function translateDashboardAlert(
-  key: string,
-  options?: Record<string, unknown>,
-): string {
+function translateDashboardAlert(key: string, options?: Record<string, unknown>): string {
   return options ? `${key}:${JSON.stringify(options)}` : key;
 }
 
-describe("dashboardHelpers", function (): void {
-  it("finds today's scheduled fixture for the manager's team", function (): void {
+describe("dashboardHelpers", (): void => {
+  it("finds today's scheduled fixture for the manager's team", (): void => {
     const fixture = {
       id: "fixture-1",
       matchday: 12,
@@ -199,7 +196,7 @@ describe("dashboardHelpers", function (): void {
     expect(getTodayMatchFixture(gameState)).toEqual(fixture);
   });
 
-  it("finds today's fixture from competitions when league mirror is absent", function (): void {
+  it("finds today's fixture from competitions when league mirror is absent", (): void => {
     const fixture = {
       id: "fixture-2",
       matchday: 1,
@@ -228,30 +225,24 @@ describe("dashboardHelpers", function (): void {
     expect(getTodayMatchFixture(gameState)).toEqual(fixture);
   });
 
-  it("returns null when no fixture matches today", function (): void {
+  it("returns null when no fixture matches today", (): void => {
     const gameState = createGameState();
 
     expect(getTodayMatchFixture(gameState)).toBeNull();
   });
 
-  it("returns manager team name and unread count", function (): void {
+  it("returns manager team name and unread count", (): void => {
     const gameState = createGameState({
-      messages: [
-        createMessage({ id: "m1", read: false }),
-        createMessage({ id: "m2", read: true }),
-      ],
+      messages: [createMessage({ id: "m1", read: false }), createMessage({ id: "m2", read: true })],
     });
 
     expect(getManagerTeamName(gameState)).toBe("Alpha FC");
     expect(getUnreadMessagesCount(gameState)).toBe(1);
   });
 
-  it("filters dashboard search results for teams and players", function (): void {
+  it("filters dashboard search results for teams and players", (): void => {
     const gameState = createGameState({
-      teams: [
-        createTeam(),
-        createTeam({ id: "team-2", name: "Bravo United", short_name: "BRV" }),
-      ],
+      teams: [createTeam(), createTeam({ id: "team-2", name: "Bravo United", short_name: "BRV" })],
       players: [
         createPlayer(),
         createPlayer({
@@ -275,7 +266,7 @@ describe("dashboardHelpers", function (): void {
     expect(results.matchedTeams[0].id).toBe("team-2");
   });
 
-  it("builds dashboard alerts for critical squad issues", function (): void {
+  it("builds dashboard alerts for critical squad issues", (): void => {
     const roster = [
       createPlayer({ id: "p1", condition: 20, injury: { name: "Hamstring", days_remaining: 5 } }),
       createPlayer({ id: "p2", condition: 21, injury: { name: "Ankle", days_remaining: 3 } }),
@@ -290,19 +281,7 @@ describe("dashboardHelpers", function (): void {
       createPlayer({ id: "p11", condition: 80 }),
     ];
     const team = createTeam({
-      starting_xi_ids: [
-        "p1",
-        "p2",
-        "p3",
-        "p4",
-        "p5",
-        "p6",
-        "p7",
-        "p8",
-        "p9",
-        "p10",
-        "p11",
-      ],
+      starting_xi_ids: ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11"],
     });
     const gameState = createGameState({
       teams: [team],
@@ -319,17 +298,14 @@ describe("dashboardHelpers", function (): void {
     expect(alertIds).toContain("matchxi");
   });
 
-  it("builds dashboard alerts for finance pressure", function (): void {
+  it("builds dashboard alerts for finance pressure", (): void => {
     const team = createTeam({
       finance: 25000,
       wage_budget: 500000,
     });
     const gameState = createGameState({
       teams: [team],
-      players: [
-        createPlayer({ id: "p1", wage: 300000 }),
-        createPlayer({ id: "p2", wage: 300000 }),
-      ],
+      players: [createPlayer({ id: "p1", wage: 300000 }), createPlayer({ id: "p2", wage: 300000 })],
     });
 
     const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);
@@ -339,7 +315,7 @@ describe("dashboardHelpers", function (): void {
     expect(alertIds).toContain("wage_pressure");
   });
 
-  it("includes parent-club wage shares for loaned-out players in finance alerts", function (): void {
+  it("includes parent-club wage shares for loaned-out players in finance alerts", (): void => {
     const team = createTeam({
       finance: 500000,
       wage_budget: 100000,
@@ -369,7 +345,7 @@ describe("dashboardHelpers", function (): void {
     expect(alertIds).toContain("wage_pressure");
   });
 
-  it("does not warn about an incomplete Starting XI when a healthy roster can normalize a partial saved lineup", function (): void {
+  it("does not warn about an incomplete Starting XI when a healthy roster can normalize a partial saved lineup", (): void => {
     const roster = [
       createPlayer({ id: "p1", position: "Goalkeeper", natural_position: "Goalkeeper" }),
       createPlayer({ id: "p2", position: "Defender", natural_position: "Defender" }),

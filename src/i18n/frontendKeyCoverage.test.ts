@@ -29,10 +29,7 @@ function isIgnoredModule(modulePath: string): boolean {
   );
 }
 
-function collectLiteralTranslationKeys(
-  modulePath: string,
-  sourceText: string,
-): string[] {
+function collectLiteralTranslationKeys(modulePath: string, sourceText: string): string[] {
   const scriptKind = modulePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sourceFile = ts.createSourceFile(
     modulePath,

@@ -83,9 +83,15 @@ export default function AwardsCeremonyScreen({
             </h2>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="accent" size="md">{t("awardsCeremony.managerOfSeason")}</Badge>
-            <Badge variant="primary" size="md">{t("awardsCeremony.goldenBoot")}</Badge>
-            <Badge variant="neutral" size="md">{t("awardsCeremony.playerOfYear")}</Badge>
+            <Badge variant="accent" size="md">
+              {t("awardsCeremony.managerOfSeason")}
+            </Badge>
+            <Badge variant="primary" size="md">
+              {t("awardsCeremony.goldenBoot")}
+            </Badge>
+            <Badge variant="neutral" size="md">
+              {t("awardsCeremony.playerOfYear")}
+            </Badge>
           </div>
         </CardBody>
       </Card>
@@ -99,9 +105,11 @@ export default function AwardsCeremonyScreen({
           teamName={managerOfSeason.teamName}
           valueLabel={t("awardsCeremony.winRate")}
           value={managerOfSeason.winRate}
-          onSelectTeam={managerOfSeason.teamId && onSelectTeam
-            ? () => onSelectTeam(managerOfSeason.teamId!)
-            : undefined}
+          onSelectTeam={
+            managerOfSeason.teamId && onSelectTeam
+              ? () => onSelectTeam(managerOfSeason.teamId!)
+              : undefined
+          }
         />
         <WinnerCard
           icon={<Trophy className="h-6 w-6" />}
@@ -111,12 +119,14 @@ export default function AwardsCeremonyScreen({
           teamName={goldenBoot.teamName}
           valueLabel={t("awardsCeremony.goals")}
           value={goldenBoot.value}
-          onSelectName={goldenBoot.playerId && onSelectPlayer
-            ? () => onSelectPlayer(goldenBoot.playerId!)
-            : undefined}
-          onSelectTeam={goldenBoot.teamId && onSelectTeam
-            ? () => onSelectTeam(goldenBoot.teamId!)
-            : undefined}
+          onSelectName={
+            goldenBoot.playerId && onSelectPlayer
+              ? () => onSelectPlayer(goldenBoot.playerId!)
+              : undefined
+          }
+          onSelectTeam={
+            goldenBoot.teamId && onSelectTeam ? () => onSelectTeam(goldenBoot.teamId!) : undefined
+          }
         />
         <WinnerCard
           icon={<Star className="h-6 w-6" />}
@@ -126,12 +136,16 @@ export default function AwardsCeremonyScreen({
           teamName={playerOfYear.teamName}
           valueLabel={t("awardsCeremony.rating")}
           value={playerOfYear.value}
-          onSelectName={playerOfYear.playerId && onSelectPlayer
-            ? () => onSelectPlayer(playerOfYear.playerId!)
-            : undefined}
-          onSelectTeam={playerOfYear.teamId && onSelectTeam
-            ? () => onSelectTeam(playerOfYear.teamId!)
-            : undefined}
+          onSelectName={
+            playerOfYear.playerId && onSelectPlayer
+              ? () => onSelectPlayer(playerOfYear.playerId!)
+              : undefined
+          }
+          onSelectTeam={
+            playerOfYear.teamId && onSelectTeam
+              ? () => onSelectTeam(playerOfYear.teamId!)
+              : undefined
+          }
         />
       </div>
 
@@ -181,13 +195,13 @@ function resolvePlayerWinner(
   const params = article?.i18n_params ?? {};
   const playerName = params[`${prefix}Winner`] ?? "-";
   const teamName = params[`${prefix}Team`] ?? "-";
-  const playerId = gameState.players.find((player) => {
-    return player.full_name === playerName || player.match_name === playerName;
-  })?.id ?? null;
+  const playerId =
+    gameState.players.find((player) => {
+      return player.full_name === playerName || player.match_name === playerName;
+    })?.id ?? null;
   const teamId = gameState.teams.find((team) => team.name === teamName)?.id ?? null;
-  const value = prefix === "goldenBoot"
-    ? (params.goldenBootGoals ?? "-")
-    : (params.potyRating ?? "-");
+  const value =
+    prefix === "goldenBoot" ? (params.goldenBootGoals ?? "-") : (params.potyRating ?? "-");
 
   return {
     entry: null,

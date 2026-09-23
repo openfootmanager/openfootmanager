@@ -1,6 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { parseFormationNeeds, statColor, starterOvrColor, starterBadgeStyle, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
+import {
+  parseFormationNeeds,
+  statColor,
+  starterOvrColor,
+  starterBadgeStyle,
+  getStatVal,
+  POSITION_KEY_STATS,
+} from "./PreMatchLineup";
 import { condColor } from "../../lib/playerConditionDisplay";
 import PreMatchLineup from "./PreMatchLineup";
 import type { EnginePlayerData, EngineTeamData } from "./types";
@@ -45,11 +52,25 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
   position: "Midfielder",
   ovr: 70,
   condition: 100,
-  pace: 70, stamina: 70, strength: 70, agility: 70,
-  passing: 70, shooting: 70, tackling: 70, dribbling: 70,
-  defending: 70, positioning: 70, vision: 70, decisions: 70,
-  composure: 70, aggression: 50, teamwork: 70,
-  leadership: 50, handling: 70, reflexes: 70, aerial: 70,
+  pace: 70,
+  stamina: 70,
+  strength: 70,
+  agility: 70,
+  passing: 70,
+  shooting: 70,
+  tackling: 70,
+  dribbling: 70,
+  defending: 70,
+  positioning: 70,
+  vision: 70,
+  decisions: 70,
+  composure: 70,
+  aggression: 50,
+  teamwork: 70,
+  leadership: 50,
+  handling: 70,
+  reflexes: 70,
+  aerial: 70,
   traits: [],
   role: "Standard",
   ...overrides,
@@ -61,21 +82,66 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
 
 describe("parseFormationNeeds", () => {
   it("parses standard 3-part formations", () => {
-    expect(parseFormationNeeds("4-4-2")).toEqual({ Goalkeeper: 1, Defender: 4, Midfielder: 4, Forward: 2 });
-    expect(parseFormationNeeds("4-3-3")).toEqual({ Goalkeeper: 1, Defender: 4, Midfielder: 3, Forward: 3 });
-    expect(parseFormationNeeds("3-5-2")).toEqual({ Goalkeeper: 1, Defender: 3, Midfielder: 5, Forward: 2 });
+    expect(parseFormationNeeds("4-4-2")).toEqual({
+      Goalkeeper: 1,
+      Defender: 4,
+      Midfielder: 4,
+      Forward: 2,
+    });
+    expect(parseFormationNeeds("4-3-3")).toEqual({
+      Goalkeeper: 1,
+      Defender: 4,
+      Midfielder: 3,
+      Forward: 3,
+    });
+    expect(parseFormationNeeds("3-5-2")).toEqual({
+      Goalkeeper: 1,
+      Defender: 3,
+      Midfielder: 5,
+      Forward: 2,
+    });
   });
 
   it("parses 4-part formations (always 1 GK, mid = sum of middle parts)", () => {
-    expect(parseFormationNeeds("4-2-3-1")).toEqual({ Goalkeeper: 1, Defender: 4, Midfielder: 5, Forward: 1 });
-    expect(parseFormationNeeds("4-1-4-1")).toEqual({ Goalkeeper: 1, Defender: 4, Midfielder: 5, Forward: 1 });
-    expect(parseFormationNeeds("3-4-1-2")).toEqual({ Goalkeeper: 1, Defender: 3, Midfielder: 5, Forward: 2 });
-    expect(parseFormationNeeds("4-3-2-1")).toEqual({ Goalkeeper: 1, Defender: 4, Midfielder: 5, Forward: 1 });
+    expect(parseFormationNeeds("4-2-3-1")).toEqual({
+      Goalkeeper: 1,
+      Defender: 4,
+      Midfielder: 5,
+      Forward: 1,
+    });
+    expect(parseFormationNeeds("4-1-4-1")).toEqual({
+      Goalkeeper: 1,
+      Defender: 4,
+      Midfielder: 5,
+      Forward: 1,
+    });
+    expect(parseFormationNeeds("3-4-1-2")).toEqual({
+      Goalkeeper: 1,
+      Defender: 3,
+      Midfielder: 5,
+      Forward: 2,
+    });
+    expect(parseFormationNeeds("4-3-2-1")).toEqual({
+      Goalkeeper: 1,
+      Defender: 4,
+      Midfielder: 5,
+      Forward: 1,
+    });
   });
 
   it("returns default 4-4-2 for unparsable input", () => {
-    expect(parseFormationNeeds("invalid")).toEqual({ Goalkeeper: 1, Defender: 4, Midfielder: 4, Forward: 2 });
-    expect(parseFormationNeeds("")).toEqual({ Goalkeeper: 1, Defender: 4, Midfielder: 4, Forward: 2 });
+    expect(parseFormationNeeds("invalid")).toEqual({
+      Goalkeeper: 1,
+      Defender: 4,
+      Midfielder: 4,
+      Forward: 2,
+    });
+    expect(parseFormationNeeds("")).toEqual({
+      Goalkeeper: 1,
+      Defender: 4,
+      Midfielder: 4,
+      Forward: 2,
+    });
   });
 });
 
@@ -184,7 +250,12 @@ describe("getStatVal", () => {
 
 describe("POSITION_KEY_STATS", () => {
   it("has entries for all four positions", () => {
-    expect(Object.keys(POSITION_KEY_STATS)).toEqual(["Goalkeeper", "Defender", "Midfielder", "Forward"]);
+    expect(Object.keys(POSITION_KEY_STATS)).toEqual([
+      "Goalkeeper",
+      "Defender",
+      "Midfielder",
+      "Forward",
+    ]);
   });
 
   it("each position has 3 stat entries with label and key", () => {
@@ -208,7 +279,16 @@ const makeTeam = (overrides: Partial<EngineTeamData> = {}): EngineTeamData => ({
   formation: "4-4-2",
   play_style: "Balanced",
   players: [
-    makePlayer({ id: "gk1", name: "GK One", position: "Goalkeeper", handling: 80, reflexes: 80, aerial: 60, positioning: 70, composure: 65 }),
+    makePlayer({
+      id: "gk1",
+      name: "GK One",
+      position: "Goalkeeper",
+      handling: 80,
+      reflexes: 80,
+      aerial: 60,
+      positioning: 70,
+      composure: 65,
+    }),
     makePlayer({ id: "d1", name: "Def One", position: "Defender" }),
     makePlayer({ id: "m1", name: "Mid One", position: "Midfielder" }),
     makePlayer({ id: "f1", name: "Fwd One", position: "Forward", shooting: 85, pace: 80 }),
@@ -294,11 +374,7 @@ describe("PreMatchLineup component", () => {
     const onSelectStarter = vi.fn();
 
     render(
-      <PreMatchLineup
-        {...defaultProps}
-        selectedStarterId="m1"
-        onSelectStarter={onSelectStarter}
-      />,
+      <PreMatchLineup {...defaultProps} selectedStarterId="m1" onSelectStarter={onSelectStarter} />,
     );
 
     fireEvent.contextMenu(screen.getByTestId("pre-match-starter-m1"));
@@ -321,13 +397,7 @@ describe("PreMatchLineup component", () => {
   it("offers a context menu action to swap in a bench player", () => {
     const onSwap = vi.fn();
 
-    render(
-      <PreMatchLineup
-        {...defaultProps}
-        selectedStarterId="m1"
-        onSwap={onSwap}
-      />,
-    );
+    render(<PreMatchLineup {...defaultProps} selectedStarterId="m1" onSwap={onSwap} />);
 
     fireEvent.contextMenu(screen.getByTestId("pre-match-bench-b1"));
     fireEvent.click(

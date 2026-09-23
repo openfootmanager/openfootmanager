@@ -8,28 +8,32 @@ interface CompetitionPreviewCardProps {
 }
 
 const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 export function CompetitionPreviewCard({ competition, logoDataUrl }: CompetitionPreviewCardProps) {
   const { t } = useTranslation();
 
   const participantCount =
-    competition.participants.explicit?.length ??
-    competition.participants.selector?.count ??
-    null;
+    competition.participants.explicit?.length ?? competition.participants.selector?.count ?? null;
 
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-navy-600 overflow-hidden bg-white dark:bg-navy-700 shadow-sm select-none">
       {/* Header banner */}
       <div className="h-20 bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center">
         {logoDataUrl ? (
-          <img
-            src={logoDataUrl}
-            alt=""
-            className="w-14 h-14 object-contain drop-shadow-md"
-          />
+          <img src={logoDataUrl} alt="" className="w-14 h-14 object-contain drop-shadow-md" />
         ) : (
           <div className="w-14 h-14 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
             <Trophy className="w-7 h-7 text-white/70" />
@@ -64,14 +68,18 @@ export function CompetitionPreviewCard({ competition, logoDataUrl }: Competition
         <div className="text-[11px] text-gray-500 dark:text-gray-400">
           <span className="uppercase tracking-wide">{t("worldEditor.competitionFormat")} </span>
           <span className="text-gray-700 dark:text-gray-200">
-            {t(`worldEditor.competitionFormats.${competition.format.kind}`, { defaultValue: competition.format.kind })}
+            {t(`worldEditor.competitionFormats.${competition.format.kind}`, {
+              defaultValue: competition.format.kind,
+            })}
           </span>
         </div>
 
         {/* Participants */}
         {participantCount !== null && (
           <div className="text-[11px] text-gray-500 dark:text-gray-400">
-            <span className="uppercase tracking-wide">{t("worldEditor.competitionExplicitTeams")} </span>
+            <span className="uppercase tracking-wide">
+              {t("worldEditor.competitionExplicitTeams")}{" "}
+            </span>
             <span className="text-gray-700 dark:text-gray-200 font-mono">{participantCount}</span>
           </div>
         )}
@@ -93,7 +101,9 @@ export function CompetitionPreviewCard({ competition, logoDataUrl }: Competition
         {/* Season start */}
         {competition.seasonStartMonth && (
           <div className="text-[11px] text-gray-500 dark:text-gray-400">
-            <span className="uppercase tracking-wide">{t("worldEditor.competitionSeasonMonth")} </span>
+            <span className="uppercase tracking-wide">
+              {t("worldEditor.competitionSeasonMonth")}{" "}
+            </span>
             <span className="text-gray-700 dark:text-gray-200">
               {MONTH_NAMES[(competition.seasonStartMonth - 1) % 12]}
               {competition.seasonStartDay ? ` ${competition.seasonStartDay}` : ""}

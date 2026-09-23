@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
+import type {
   GameStateData,
   LoanOfferData,
   PlayerData,
@@ -34,21 +34,15 @@ import {
 } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
-import {
-  translatePositionAbbreviation,
-  translatePositionLabel,
-} from "../squad/SquadTab.helpers";
+import { translatePositionAbbreviation, translatePositionLabel } from "../squad/SquadTab.helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { formatDate } from "../../lib/dateFormatting";
-import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
+import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import TransferBidModal, { TransferBidForm } from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
 import LoanOfferModal, { LoanOfferForm } from "./LoanOfferModal";
 import PlayerDealWorkspace, { type DealKind } from "./PlayerDealWorkspace";
-import {
-  getErrorMessage,
-  resolveTranslatedErrorMessage,
-} from "../../utils/errorMessage";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   counterLoanOffer,
   counterOffer,
@@ -94,9 +88,7 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-import FreeAgentContractModal, {
-  FreeAgentContractForm,
-} from "./FreeAgentContractModal";
+import FreeAgentContractModal, { FreeAgentContractForm } from "./FreeAgentContractModal";
 import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
 import { useTransferBidFlow } from "./useTransferBidFlow";
 
@@ -131,11 +123,7 @@ function parseDateOnlyMs(value: string | null | undefined): number | null {
     return null;
   }
 
-  return Date.UTC(
-    parsed.getUTCFullYear(),
-    parsed.getUTCMonth(),
-    parsed.getUTCDate(),
-  );
+  return Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
 }
 
 function futureClosedWindowRegistrationDate(
@@ -165,23 +153,17 @@ export default function TransfersTab({
   const transferWindow = seasonContext.transfer_window;
   const closedWindowRegistrationDate =
     transferWindow.status === "Closed"
-      ? futureClosedWindowRegistrationDate(
-          gameState.clock.current_date,
-          transferWindow.opens_on,
-        )
+      ? futureClosedWindowRegistrationDate(gameState.clock.current_date, transferWindow.opens_on)
       : null;
   const loanRegistrationDate =
     transferWindow.status === "Closed" && closedWindowRegistrationDate
       ? closedWindowRegistrationDate
       : gameState.clock.current_date;
   const [view, setView] = useState<TransferTabView>("players");
-  const [availabilityFilter, setAvailabilityFilter] =
-    useState<TransferAvailabilityFilter>("all");
+  const [availabilityFilter, setAvailabilityFilter] = useState<TransferAvailabilityFilter>("all");
   const [search, setSearch] = useState("");
   const [specificPositions, setSpecificPositions] = useState<string[]>([]);
-  const [openPositionPopover, setOpenPositionPopover] = useState<string | null>(
-    null,
-  );
+  const [openPositionPopover, setOpenPositionPopover] = useState<string | null>(null);
   const positionFilterRef = useRef<HTMLDivElement | null>(null);
   const [affordableOnly, setAffordableOnly] = useState(false);
   // Click the OVR header to cycle: none → desc → asc → none. Applied over the
@@ -189,22 +171,17 @@ export default function TransfersTab({
   const [ovrSortDir, setOvrSortDir] = useState<"none" | "desc" | "asc">("none");
   const [marketPage, setMarketPage] = useState(1);
   const cycleOvrSort = () => {
-    setOvrSortDir((current) =>
-      current === "none" ? "desc" : current === "desc" ? "asc" : "none",
-    );
+    setOvrSortDir((current) => (current === "none" ? "desc" : current === "desc" ? "asc" : "none"));
     setMarketPage(1);
   };
-  const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
-    null,
-  );
+  const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(null);
   const [counterAmount, setCounterAmount] = useState("");
   const [counterLoading, setCounterLoading] = useState(false);
   const [counterError, setCounterError] = useState<string | null>(null);
   const [counterResult, setCounterResult] = useState<
     TransferNegotiationResponseData["decision"] | "error" | null
   >(null);
-  const [counterFeedback, setCounterFeedback] =
-    useState<NegotiationFeedbackPanelData | null>(null);
+  const [counterFeedback, setCounterFeedback] = useState<NegotiationFeedbackPanelData | null>(null);
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const [listingError, setListingError] = useState<string | null>(null);
@@ -217,23 +194,20 @@ export default function TransfersTab({
   const [loanBuyOptionFee, setLoanBuyOptionFee] = useState("");
   const [loanLoading, setLoanLoading] = useState(false);
   const [loanError, setLoanError] = useState<string | null>(null);
-  const [loanResult, setLoanResult] = useState<
-    LoanOfferResponseData["decision"] | "error" | null
-  >(null);
+  const [loanResult, setLoanResult] = useState<LoanOfferResponseData["decision"] | "error" | null>(
+    null,
+  );
   const [loanSuggestedTerms, setLoanSuggestedTerms] = useState<{
     wageContributionPct: number;
     endDate: string;
     buyOptionFee?: number | null;
   } | null>(null);
-  const [loanCounterTarget, setLoanCounterTarget] =
-    useState<LoanCounterTarget | null>(null);
-  const [loanCounterPeriodId, setLoanCounterPeriodId] = useState<
-    LoanPeriodOptionId | ""
-  >(getDefaultLoanPeriodId(loanRegistrationDate, null));
-  const [loanCounterWageContributionPct, setLoanCounterWageContributionPct] =
-    useState(100);
-  const [loanCounterBuyOptionEnabled, setLoanCounterBuyOptionEnabled] =
-    useState(false);
+  const [loanCounterTarget, setLoanCounterTarget] = useState<LoanCounterTarget | null>(null);
+  const [loanCounterPeriodId, setLoanCounterPeriodId] = useState<LoanPeriodOptionId | "">(
+    getDefaultLoanPeriodId(loanRegistrationDate, null),
+  );
+  const [loanCounterWageContributionPct, setLoanCounterWageContributionPct] = useState(100);
+  const [loanCounterBuyOptionEnabled, setLoanCounterBuyOptionEnabled] = useState(false);
   const [loanCounterBuyOptionFee, setLoanCounterBuyOptionFee] = useState("");
   const [loanCounterLoading, setLoanCounterLoading] = useState(false);
   const [loanCounterError, setLoanCounterError] = useState<string | null>(null);
@@ -245,10 +219,8 @@ export default function TransfersTab({
     endDate: string;
     buyOptionFee?: number | null;
   } | null>(null);
-  const [dealWorkspaceTarget, setDealWorkspaceTarget] =
-    useState<PlayerData | null>(null);
-  const [dealWorkspaceKind, setDealWorkspaceKind] =
-    useState<DealKind>("transfer");
+  const [dealWorkspaceTarget, setDealWorkspaceTarget] = useState<PlayerData | null>(null);
+  const [dealWorkspaceKind, setDealWorkspaceKind] = useState<DealKind>("transfer");
 
   useEffect(() => {
     if (!openPositionPopover) return;
@@ -280,9 +252,7 @@ export default function TransfersTab({
       const only = groupSpecifics[0];
       if (only) {
         setSpecificPositions((prev) =>
-          prev.includes(only)
-            ? prev.filter((entry) => entry !== only)
-            : [...prev, only],
+          prev.includes(only) ? prev.filter((entry) => entry !== only) : [...prev, only],
         );
       }
       setOpenPositionPopover(null);
@@ -310,17 +280,13 @@ export default function TransfersTab({
   const handleToggleSpecificPosition = (position: string) => {
     setMarketPage(1);
     setSpecificPositions((prev) =>
-      prev.includes(position)
-        ? prev.filter((entry) => entry !== position)
-        : [...prev, position],
+      prev.includes(position) ? prev.filter((entry) => entry !== position) : [...prev, position],
     );
   };
 
   const openLoanOffer = (player: PlayerData) => {
     setLoanTarget(player);
-    setLoanPeriodId(
-      getDefaultLoanPeriodId(loanRegistrationDate, player.contract_end),
-    );
+    setLoanPeriodId(getDefaultLoanPeriodId(loanRegistrationDate, player.contract_end));
     setLoanWageContributionPct(100);
     setLoanBuyOptionEnabled(false);
     setLoanBuyOptionFee("");
@@ -358,12 +324,9 @@ export default function TransfersTab({
         ),
       ),
     );
-    const buyOptionFee =
-      offer.suggested_buy_option_fee ?? offer.buy_option_fee ?? null;
+    const buyOptionFee = offer.suggested_buy_option_fee ?? offer.buy_option_fee ?? null;
     setLoanCounterBuyOptionEnabled(Boolean(buyOptionFee));
-    setLoanCounterBuyOptionFee(
-      buyOptionFee ? formatTransferFeeInput(buyOptionFee) : "",
-    );
+    setLoanCounterBuyOptionFee(buyOptionFee ? formatTransferFeeInput(buyOptionFee) : "");
     setLoanCounterError(null);
     setLoanCounterResult(null);
     setLoanCounterSuggestedTerms(null);
@@ -380,29 +343,20 @@ export default function TransfersTab({
     setLoanCounterSuggestedTerms(null);
   };
 
-  const openCounterNegotiation = (
-    player: PlayerData,
-    offer: TransferOfferData,
-  ) => {
+  const openCounterNegotiation = (player: PlayerData, offer: TransferOfferData) => {
     setCounterTarget({
       player,
       offerId: offer.id,
       fromTeamId: offer.from_team_id,
       fee: offer.fee,
     });
-    setCounterAmount(
-      formatTransferFeeInput(offer.suggested_counter_fee ?? offer.fee),
-    );
+    setCounterAmount(formatTransferFeeInput(offer.suggested_counter_fee ?? offer.fee));
     setCounterError(null);
     setCounterResult(null);
     setCounterFeedback(buildResumedCounterFeedback(offer));
   };
 
-  const handleRespondOffer = async (
-    playerId: string,
-    offerId: string,
-    accept: boolean,
-  ) => {
+  const handleRespondOffer = async (playerId: string, offerId: string, accept: boolean) => {
     try {
       const game = await respondToOffer(playerId, offerId, accept);
       if (onGameUpdate) onGameUpdate(game);
@@ -411,11 +365,7 @@ export default function TransfersTab({
     }
   };
 
-  const handleRespondLoanOffer = async (
-    playerId: string,
-    offerId: string,
-    accept: boolean,
-  ) => {
+  const handleRespondLoanOffer = async (playerId: string, offerId: string, accept: boolean) => {
     try {
       const game = await respondToLoanOffer(playerId, offerId, accept);
       if (onGameUpdate) onGameUpdate(game);
@@ -442,21 +392,13 @@ export default function TransfersTab({
       setLoanResult(response.decision);
       if (response.decision === "counter_offer") {
         setLoanSuggestedTerms({
-          wageContributionPct:
-            response.suggested_wage_contribution_pct ?? loanWageContributionPct,
-          endDate:
-            response.suggested_end_date ?? selectedLoanPeriodOption.endDate,
+          wageContributionPct: response.suggested_wage_contribution_pct ?? loanWageContributionPct,
+          endDate: response.suggested_end_date ?? selectedLoanPeriodOption.endDate,
           buyOptionFee: response.suggested_buy_option_fee,
         });
         if (response.suggested_wage_contribution_pct !== null) {
           setLoanWageContributionPct(
-            Math.max(
-              0,
-              Math.min(
-                100,
-                Math.round(response.suggested_wage_contribution_pct),
-              ),
-            ),
+            Math.max(0, Math.min(100, Math.round(response.suggested_wage_contribution_pct))),
           );
         }
         if (response.suggested_end_date) {
@@ -470,16 +412,14 @@ export default function TransfersTab({
         }
         if (response.suggested_buy_option_fee !== null) {
           setLoanBuyOptionEnabled(true);
-          setLoanBuyOptionFee(
-            formatTransferFeeInput(response.suggested_buy_option_fee),
-          );
+          setLoanBuyOptionFee(formatTransferFeeInput(response.suggested_buy_option_fee));
         } else {
           setLoanBuyOptionEnabled(false);
           setLoanBuyOptionFee("");
         }
       }
       if (onGameUpdate) onGameUpdate(response.game);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoanResult("error");
       setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
     } finally {
@@ -501,25 +441,18 @@ export default function TransfersTab({
         loanCounterTarget.offer.id,
         selectedLoanCounterPeriodOption.endDate,
         Math.max(0, Math.min(100, Math.round(loanCounterWageContributionPct))),
-        loanCounterBuyOptionEnabled
-          ? parseTransferFeeInput(loanCounterBuyOptionFee)
-          : null,
+        loanCounterBuyOptionEnabled ? parseTransferFeeInput(loanCounterBuyOptionFee) : null,
       );
       setLoanCounterResult(response.decision);
       if (response.decision === "counter_offer") {
         setLoanCounterSuggestedTerms({
           wageContributionPct:
-            response.suggested_wage_contribution_pct ??
-            loanCounterWageContributionPct,
-          endDate:
-            response.suggested_end_date ??
-            selectedLoanCounterPeriodOption.endDate,
+            response.suggested_wage_contribution_pct ?? loanCounterWageContributionPct,
+          endDate: response.suggested_end_date ?? selectedLoanCounterPeriodOption.endDate,
           buyOptionFee: response.suggested_buy_option_fee,
         });
         if (response.suggested_wage_contribution_pct !== null) {
-          setLoanCounterWageContributionPct(
-            response.suggested_wage_contribution_pct,
-          );
+          setLoanCounterWageContributionPct(response.suggested_wage_contribution_pct);
         }
         if (response.suggested_end_date) {
           setLoanCounterPeriodId(
@@ -532,17 +465,13 @@ export default function TransfersTab({
         }
         if (response.suggested_buy_option_fee) {
           setLoanCounterBuyOptionEnabled(true);
-          setLoanCounterBuyOptionFee(
-            formatTransferFeeInput(response.suggested_buy_option_fee),
-          );
+          setLoanCounterBuyOptionFee(formatTransferFeeInput(response.suggested_buy_option_fee));
         }
       }
       if (onGameUpdate) onGameUpdate(response.game);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoanCounterResult("error");
-      setLoanCounterError(
-        resolveTranslatedErrorMessage(getErrorMessage(err), t),
-      );
+      setLoanCounterError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
     } finally {
       setLoanCounterLoading(false);
     }
@@ -576,16 +505,12 @@ export default function TransfersTab({
 
       if (onGameUpdate) onGameUpdate(response.game);
       setCounterResult(response.decision);
-      setCounterFeedback(
-        normalizeTransferNegotiationFeedback(response.feedback),
-      );
+      setCounterFeedback(normalizeTransferNegotiationFeedback(response.feedback));
       if (response.suggested_fee !== null) {
         setCounterAmount(formatTransferFeeInput(response.suggested_fee));
       }
-    } catch (err: any) {
-      setCounterError(
-        mapTransferNegotiationError(t, err?.toString() || "error"),
-      );
+    } catch (err: unknown) {
+      setCounterError(mapTransferNegotiationError(t, String(err) || "error"));
     } finally {
       setCounterLoading(false);
     }
@@ -596,6 +521,7 @@ export default function TransfersTab({
     bidAmount,
     setBidAmount,
     bidResult,
+    bidError,
     bidLoading,
     bidFeedback,
     bidProjection,
@@ -612,23 +538,18 @@ export default function TransfersTab({
     onGameUpdate,
   });
   const scouts = gameState.staff.filter(
-    (staffMember) =>
-      staffMember.role === "Scout" && staffMember.team_id === userTeamId,
+    (staffMember) => staffMember.role === "Scout" && staffMember.team_id === userTeamId,
   );
   const scoutingAssignments = gameState.scouting_assignments || [];
   const allScoutingAssignments = [
     ...scoutingAssignments,
     ...(gameState.youth_scouting_assignments || []),
   ];
-  const availableScouts = calculateAvailableScouts(
-    scouts,
-    allScoutingAssignments,
-  );
+  const availableScouts = calculateAvailableScouts(scouts, allScoutingAssignments);
   const alreadyScoutingIds = buildAlreadyScoutingIds(scoutingAssignments);
   const activeCounterOffer = counterTarget
-    ? (counterTarget.player.transfer_offers.find(
-        (offer) => offer.id === counterTarget.offerId,
-      ) ?? null)
+    ? (counterTarget.player.transfer_offers.find((offer) => offer.id === counterTarget.offerId) ??
+      null)
     : null;
   const transferWindowVariant =
     transferWindow.status === "DeadlineDay"
@@ -639,26 +560,22 @@ export default function TransfersTab({
   const transferWindowSummary =
     transferWindow.status === "DeadlineDay"
       ? t("season.windowClosesToday")
-      : transferWindow.status === "Open" &&
-          transferWindow.days_remaining !== null
+      : transferWindow.status === "Open" && transferWindow.days_remaining !== null
         ? t("season.windowClosesInDays", {
             count: transferWindow.days_remaining,
           })
-        : transferWindow.status === "Closed" &&
-            transferWindow.days_until_opens !== null
+        : transferWindow.status === "Closed" && transferWindow.days_until_opens !== null
           ? t("season.windowOpensInDays", {
               count: transferWindow.days_until_opens,
             })
           : t("season.windowClosed");
   const isTransferWindowClosed = transferWindow.status === "Closed";
-  const transferWindowBlocksRegistration =
-    isTransferWindowClosed && !closedWindowRegistrationDate;
+  const transferWindowBlocksRegistration = isTransferWindowClosed && !closedWindowRegistrationDate;
   const transferWindowBlockingTitle = transferWindowBlocksRegistration
     ? t("season.windowClosed")
     : null;
   const transferWindowBlockingDetail =
-    transferWindowBlocksRegistration &&
-    transferWindowSummary !== transferWindowBlockingTitle
+    transferWindowBlocksRegistration && transferWindowSummary !== transferWindowBlockingTitle
       ? transferWindowSummary
       : null;
   const loanWindowNoticeTitle = isTransferWindowClosed
@@ -677,13 +594,8 @@ export default function TransfersTab({
     () => deriveTransferCollections(gameState, userTeamId),
     [gameState, userTeamId],
   );
-  const {
-    availablePlayers,
-    marketPlayers,
-    freeAgentPlayers,
-    loanPlayers,
-    playersWithOffers,
-  } = transferCollections;
+  const { availablePlayers, marketPlayers, freeAgentPlayers, loanPlayers, playersWithOffers } =
+    transferCollections;
   const myListedPlayers = useMemo(
     () => getMyListedPlayers(transferCollections),
     [transferCollections],
@@ -700,16 +612,13 @@ export default function TransfersTab({
     ? buildLoanPeriodOptions(loanRegistrationDate, loanTarget.contract_end)
     : [];
   const selectedLoanPeriodOption =
-    loanPeriodOptions.find(
-      (option) => option.id === loanPeriodId && !option.disabled,
-    ) ?? null;
+    loanPeriodOptions.find((option) => option.id === loanPeriodId && !option.disabled) ?? null;
   const loanSubmitDisabled =
     loanLoading ||
     !selectedLoanPeriodOption ||
     loanResult === "accepted" ||
     transferWindowBlocksRegistration ||
-    (loanBuyOptionEnabled &&
-      (parsedLoanBuyOptionFee === null || parsedLoanBuyOptionFee <= 0));
+    (loanBuyOptionEnabled && (parsedLoanBuyOptionFee === null || parsedLoanBuyOptionFee <= 0));
   const loanCounterReferenceEndDate =
     loanCounterSuggestedTerms?.endDate ??
     loanCounterTarget?.offer.suggested_end_date ??
@@ -732,8 +641,7 @@ export default function TransfersTab({
     loanCounterResult === "accepted" ||
     transferWindowBlocksRegistration ||
     (loanCounterBuyOptionEnabled &&
-      (parsedLoanCounterBuyOptionFee === null ||
-        parsedLoanCounterBuyOptionFee <= 0));
+      (parsedLoanCounterBuyOptionFee === null || parsedLoanCounterBuyOptionFee <= 0));
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
@@ -789,9 +697,7 @@ export default function TransfersTab({
     // Direction encoded in the comparator (rather than sort().reverse()) so
     // tied players keep the same relative order in both asc and desc.
     const factor = ovrSortDir === "desc" ? -1 : 1;
-    return [...filtered].sort(
-      (left, right) => factor * (getPlayerOvr(left) - getPlayerOvr(right)),
-    );
+    return [...filtered].sort((left, right) => factor * (getPlayerOvr(left) - getPlayerOvr(right)));
   }, [
     affordableOnly,
     availabilityFilter,
@@ -802,25 +708,15 @@ export default function TransfersTab({
     search,
     specificPositions,
   ]);
-  const marketTotalPages = Math.max(
-    1,
-    Math.ceil(filteredList.length / TRANSFER_MARKET_PAGE_SIZE),
-  );
+  const marketTotalPages = Math.max(1, Math.ceil(filteredList.length / TRANSFER_MARKET_PAGE_SIZE));
   const safeMarketPage = Math.min(marketPage, marketTotalPages);
   const marketPageStart = (safeMarketPage - 1) * TRANSFER_MARKET_PAGE_SIZE;
   const visibleList = isPlayersView
-    ? filteredList.slice(
-        marketPageStart,
-        marketPageStart + TRANSFER_MARKET_PAGE_SIZE,
-      )
+    ? filteredList.slice(marketPageStart, marketPageStart + TRANSFER_MARKET_PAGE_SIZE)
     : filteredList;
-  const showMarketPagination =
-    isPlayersView && filteredList.length > TRANSFER_MARKET_PAGE_SIZE;
+  const showMarketPagination = isPlayersView && filteredList.length > TRANSFER_MARKET_PAGE_SIZE;
   const marketRangeFrom = filteredList.length === 0 ? 0 : marketPageStart + 1;
-  const marketRangeTo = Math.min(
-    marketPageStart + TRANSFER_MARKET_PAGE_SIZE,
-    filteredList.length,
-  );
+  const marketRangeTo = Math.min(marketPageStart + TRANSFER_MARKET_PAGE_SIZE, filteredList.length);
   const availabilityFilters: {
     id: TransferAvailabilityFilter;
     label: string;
@@ -891,19 +787,11 @@ export default function TransfersTab({
 
   const isDealKindStartable = (player: PlayerData, kind: DealKind): boolean => {
     if (kind === "transfer") {
-      return (
-        player.team_id !== null &&
-        player.transfer_listed &&
-        !transferWindowBlocksRegistration
-      );
+      return player.team_id !== null && player.transfer_listed && !transferWindowBlocksRegistration;
     }
 
     if (kind === "loan") {
-      return (
-        player.team_id !== null &&
-        player.loan_listed &&
-        !transferWindowBlocksRegistration
-      );
+      return player.team_id !== null && player.loan_listed && !transferWindowBlocksRegistration;
     }
 
     return player.team_id === null;
@@ -1021,9 +909,7 @@ export default function TransfersTab({
     }
   };
 
-  const handleToggleTransferListing = async (
-    playerId: string,
-  ): Promise<void> => {
+  const handleToggleTransferListing = async (playerId: string): Promise<void> => {
     setListingError(null);
 
     try {
@@ -1066,9 +952,7 @@ export default function TransfersTab({
               <p className="text-gray-400 text-xs mt-0.5">
                 {t("transfers.transferWindow", { team: myTeam.name })}
               </p>
-              <p className="text-gray-500 text-xs mt-1">
-                {transferWindowSummary}
-              </p>
+              <p className="text-gray-500 text-xs mt-1">{transferWindowSummary}</p>
             </div>
             <div className="hidden md:flex gap-4">
               <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
@@ -1087,10 +971,7 @@ export default function TransfersTab({
                   {t("finances.wageBudget")}
                 </p>
                 <p className="font-heading font-bold text-lg text-white">
-                  {formatAnnualAmount(
-                    formatVal(annualWageBudget),
-                    annualSuffix,
-                  )}
+                  {formatAnnualAmount(formatVal(annualWageBudget), annualSuffix)}
                 </p>
               </div>
               <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
@@ -1162,8 +1043,7 @@ export default function TransfersTab({
               groupSpecifics.includes(entry),
             ).length;
             const isActive = selectedInGroup > 0;
-            const isPartial =
-              isActive && refinable && selectedInGroup < groupSpecifics.length;
+            const isPartial = isActive && refinable && selectedInGroup < groupSpecifics.length;
             const groupLabel = t(`common.positionGroups.${pos}`, {
               defaultValue: t(`common.positions.${pos}`, { defaultValue: pos }),
             });
@@ -1174,9 +1054,7 @@ export default function TransfersTab({
                   type="button"
                   onClick={() => handleSelectPositionGroup(pos)}
                   aria-haspopup={refinable ? "true" : undefined}
-                  aria-expanded={
-                    refinable ? openPositionPopover === pos : undefined
-                  }
+                  aria-expanded={refinable ? openPositionPopover === pos : undefined}
                   aria-pressed={isPartial ? "mixed" : isActive}
                   aria-label={
                     isPartial
@@ -1210,17 +1088,12 @@ export default function TransfersTab({
                     <div className="flex flex-wrap gap-1.5">
                       {groupSpecifics.map((position) => {
                         const selected = specificPositions.includes(position);
-                        const positionLabel = translatePositionLabel(
-                          t,
-                          position,
-                        );
+                        const positionLabel = translatePositionLabel(t, position);
                         return (
                           <button
                             type="button"
                             key={position}
-                            onClick={() =>
-                              handleToggleSpecificPosition(position)
-                            }
+                            onClick={() => handleToggleSpecificPosition(position)}
                             aria-pressed={selected}
                             aria-label={positionLabel}
                             title={positionLabel}
@@ -1313,9 +1186,7 @@ export default function TransfersTab({
           <CardBody>
             <div className="text-center py-8">
               <Handshake className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {t("transfers.noOffers")}
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t("transfers.noOffers")}</p>
             </div>
           </CardBody>
         </Card>
@@ -1392,13 +1263,10 @@ export default function TransfersTab({
                   {visibleList.map((player) => {
                     const ovr = getPlayerOvr(player);
                     const age = calcAge(player.date_of_birth);
-                    const transferOffersForThisPlayer =
-                      player.transfer_offers ?? [];
-                    const loanOffersForThisPlayer: LoanOfferData[] =
-                      player.loan_offers ?? [];
+                    const transferOffersForThisPlayer = player.transfer_offers ?? [];
+                    const loanOffersForThisPlayer: LoanOfferData[] = player.loan_offers ?? [];
                     const hasOffersForThisPlayer =
-                      transferOffersForThisPlayer.length > 0 ||
-                      loanOffersForThisPlayer.length > 0;
+                      transferOffersForThisPlayer.length > 0 || loanOffersForThisPlayer.length > 0;
                     const scoutState = alreadyScoutingIds.has(player.id)
                       ? "already-assigned"
                       : scoutingPlayerId === player.id
@@ -1407,9 +1275,7 @@ export default function TransfersTab({
                           ? "unavailable"
                           : "ready";
                     const contextItems = [
-                      buildViewProfileMenuItem(t, () =>
-                        onSelectPlayer(player.id),
-                      ),
+                      buildViewProfileMenuItem(t, () => onSelectPlayer(player.id)),
                       ...(player.team_id
                         ? [
                             buildViewTeamMenuItem(t, () => {
@@ -1422,22 +1288,14 @@ export default function TransfersTab({
                     if (view === "my_list") {
                       contextItems.push(buildDividerMenuItem());
                       contextItems.push(
-                        buildToggleTransferListMenuItem(
-                          t,
-                          player.transfer_listed,
-                          () => {
-                            void handleToggleTransferListing(player.id);
-                          },
-                        ),
+                        buildToggleTransferListMenuItem(t, player.transfer_listed, () => {
+                          void handleToggleTransferListing(player.id);
+                        }),
                       );
                       contextItems.push(
-                        buildToggleLoanListMenuItem(
-                          t,
-                          player.loan_listed,
-                          () => {
-                            void handleToggleLoanListing(player.id);
-                          },
-                        ),
+                        buildToggleLoanListMenuItem(t, player.loan_listed, () => {
+                          void handleToggleLoanListing(player.id);
+                        }),
                       );
                     }
 
@@ -1487,12 +1345,7 @@ export default function TransfersTab({
                                   locale={i18n.language}
                                   className="text-sm leading-none"
                                 />
-                                <span>
-                                  {countryName(
-                                    player.nationality,
-                                    i18n.language,
-                                  )}
-                                </span>
+                                <span>{countryName(player.nationality, i18n.language)}</span>
                               </div>
                             </div>
                           </div>
@@ -1522,10 +1375,7 @@ export default function TransfersTab({
                           {formatVal(player.market_value)}
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {formatAnnualAmount(
-                            formatVal(player.wage),
-                            annualSuffix,
-                          )}
+                          {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
                         </td>
                         <td className="py-2.5 px-4">
                           <span
@@ -1557,33 +1407,20 @@ export default function TransfersTab({
                           <td className="py-2.5 px-4">
                             <div className="flex flex-col gap-1">
                               {!hasOffersForThisPlayer ? (
-                                <span className="text-xs text-gray-400">
-                                  {t("transfers.none")}
-                                </span>
+                                <span className="text-xs text-gray-400">{t("transfers.none")}</span>
                               ) : (
                                 <>
                                   {transferOffersForThisPlayer.map((offer) => (
-                                    <div
-                                      key={offer.id}
-                                      className="flex items-center gap-2"
-                                    >
+                                    <div key={offer.id} className="flex items-center gap-2">
                                       <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-                                        {getTeamName(
-                                          gameState.teams,
-                                          offer.from_team_id,
-                                        )}
+                                        {getTeamName(gameState.teams, offer.from_team_id)}
                                       </span>
                                       <Badge
-                                        variant={getTransferOfferBadgeVariant(
-                                          offer.status,
-                                        )}
+                                        variant={getTransferOfferBadgeVariant(offer.status)}
                                         size="sm"
                                       >
                                         {formatVal(offer.fee)} —{" "}
-                                        {getTransferOfferStatusLabel(
-                                          t,
-                                          offer.status,
-                                        )}
+                                        {getTransferOfferStatusLabel(t, offer.status)}
                                       </Badge>
                                       {offer.status === "Pending" &&
                                         player.team_id === userTeamId && (
@@ -1592,11 +1429,7 @@ export default function TransfersTab({
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleRespondOffer(
-                                                  player.id,
-                                                  offer.id,
-                                                  true,
-                                                );
+                                                handleRespondOffer(player.id, offer.id, true);
                                               }}
                                               className="p-1 rounded bg-green-500/20 hover:bg-green-500/30 text-green-500"
                                               title={t("transfers.acceptOffer")}
@@ -1607,11 +1440,7 @@ export default function TransfersTab({
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleRespondOffer(
-                                                  player.id,
-                                                  offer.id,
-                                                  false,
-                                                );
+                                                handleRespondOffer(player.id, offer.id, false);
                                               }}
                                               className="p-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-500"
                                               title={t("transfers.rejectOffer")}
@@ -1622,21 +1451,13 @@ export default function TransfersTab({
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                openCounterNegotiation(
-                                                  player,
-                                                  offer,
-                                                );
+                                                openCounterNegotiation(player, offer);
                                               }}
-                                              aria-label={t(
-                                                "transfers.counterOffer",
-                                              )}
+                                              aria-label={t("transfers.counterOffer")}
                                               className="flex items-center gap-1 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 text-xs font-heading font-bold uppercase tracking-wider"
-                                              title={t(
-                                                "transfers.counterOffer",
-                                              )}
+                                              title={t("transfers.counterOffer")}
                                             >
-                                              <Gavel className="w-3 h-3" />{" "}
-                                              {t("transfers.counter")}
+                                              <Gavel className="w-3 h-3" /> {t("transfers.counter")}
                                             </button>
                                           </div>
                                         )}
@@ -1650,8 +1471,7 @@ export default function TransfersTab({
                                     const canExerciseBuyOption =
                                       offer.status === "Accepted" &&
                                       offer.from_team_id === userTeamId &&
-                                      player.active_loan?.loan_team_id ===
-                                        userTeamId &&
+                                      player.active_loan?.loan_team_id === userTeamId &&
                                       offerBuyOptionFee !== null &&
                                       offerBuyOptionFee > 0;
 
@@ -1661,41 +1481,26 @@ export default function TransfersTab({
                                         className="flex items-center gap-2"
                                       >
                                         <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-                                          {getTeamName(
-                                            gameState.teams,
-                                            offer.from_team_id,
-                                          )}
+                                          {getTeamName(gameState.teams, offer.from_team_id)}
                                         </span>
                                         <Badge
-                                          variant={getTransferOfferBadgeVariant(
-                                            offer.status,
-                                          )}
+                                          variant={getTransferOfferBadgeVariant(offer.status)}
                                           size="sm"
                                         >
                                           {t("transfers.loanOfferTerms", {
-                                            percent:
-                                              offer.wage_contribution_pct,
+                                            percent: offer.wage_contribution_pct,
                                             endDate: offer.end_date,
                                           })}
                                           {offerBuyOptionFee ? (
                                             <>
                                               {" "}
                                               •{" "}
-                                              {t(
-                                                "transfers.buyOptionFeeShort",
-                                                {
-                                                  fee: formatVal(
-                                                    offerBuyOptionFee,
-                                                  ),
-                                                },
-                                              )}
+                                              {t("transfers.buyOptionFeeShort", {
+                                                fee: formatVal(offerBuyOptionFee),
+                                              })}
                                             </>
                                           ) : null}{" "}
-                                          —{" "}
-                                          {getTransferOfferStatusLabel(
-                                            t,
-                                            offer.status,
-                                          )}
+                                          — {getTransferOfferStatusLabel(t, offer.status)}
                                         </Badge>
                                         {offer.status === "Pending" &&
                                           player.team_id === userTeamId &&
@@ -1705,16 +1510,10 @@ export default function TransfersTab({
                                                 type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  handleRespondLoanOffer(
-                                                    player.id,
-                                                    offer.id,
-                                                    true,
-                                                  );
+                                                  handleRespondLoanOffer(player.id, offer.id, true);
                                                 }}
                                                 className="p-1 rounded bg-green-500/20 hover:bg-green-500/30 text-green-500"
-                                                title={t(
-                                                  "transfers.acceptLoanOffer",
-                                                )}
+                                                title={t("transfers.acceptLoanOffer")}
                                               >
                                                 <Check className="w-3 h-3" />
                                               </button>
@@ -1729,9 +1528,7 @@ export default function TransfersTab({
                                                   );
                                                 }}
                                                 className="p-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-500"
-                                                title={t(
-                                                  "transfers.rejectLoanOffer",
-                                                )}
+                                                title={t("transfers.rejectLoanOffer")}
                                               >
                                                 <X className="w-3 h-3" />
                                               </button>
@@ -1739,18 +1536,11 @@ export default function TransfersTab({
                                                 type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  openLoanCounterOffer(
-                                                    player,
-                                                    offer,
-                                                  );
+                                                  openLoanCounterOffer(player, offer);
                                                 }}
-                                                aria-label={t(
-                                                  "transfers.counterLoanOffer",
-                                                )}
+                                                aria-label={t("transfers.counterLoanOffer")}
                                                 className="flex items-center gap-1 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 text-xs font-heading font-bold uppercase tracking-wider"
-                                                title={t(
-                                                  "transfers.counterLoanOffer",
-                                                )}
+                                                title={t("transfers.counterLoanOffer")}
                                               >
                                                 <Gavel className="w-3 h-3" />{" "}
                                                 {t("transfers.counter")}
@@ -1762,14 +1552,10 @@ export default function TransfersTab({
                                             type="button"
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              void handleExerciseLoanBuyOption(
-                                                player.id,
-                                              );
+                                              void handleExerciseLoanBuyOption(player.id);
                                             }}
                                             className="flex items-center gap-1 px-2 py-1 rounded bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 text-xs font-heading font-bold uppercase tracking-wider"
-                                            title={t(
-                                              "transfers.exerciseBuyOption",
-                                            )}
+                                            title={t("transfers.exerciseBuyOption")}
                                           >
                                             <ShoppingCart className="w-3 h-3" />{" "}
                                             {t("transfers.exerciseBuyOption")}
@@ -1822,9 +1608,7 @@ export default function TransfersTab({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() =>
-                      setMarketPage(Math.max(1, safeMarketPage - 1))
-                    }
+                    onClick={() => setMarketPage(Math.max(1, safeMarketPage - 1))}
                     disabled={safeMarketPage === 1}
                     aria-label={t("scouting.previousPage")}
                     className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-navy-700 dark:hover:text-white"
@@ -1836,11 +1620,7 @@ export default function TransfersTab({
                   </span>
                   <button
                     type="button"
-                    onClick={() =>
-                      setMarketPage(
-                        Math.min(marketTotalPages, safeMarketPage + 1),
-                      )
-                    }
+                    onClick={() => setMarketPage(Math.min(marketTotalPages, safeMarketPage + 1))}
                     disabled={safeMarketPage === marketTotalPages}
                     aria-label={t("scouting.nextPage")}
                     className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-navy-700 dark:hover:text-white"
@@ -1882,12 +1662,8 @@ export default function TransfersTab({
           transferWindowSummary={transferWindowSummary}
           loanNoticeDetail={loanWindowNoticeDetail}
           selectedKind={dealWorkspaceKind}
-          offeredWage={
-            dealWorkspaceKind === "contract" ? Number(contractWage) : null
-          }
-          onSelectKind={(kind) =>
-            selectDealWorkspaceKind(dealWorkspaceTarget, kind)
-          }
+          offeredWage={dealWorkspaceKind === "contract" ? Number(contractWage) : null}
+          onSelectKind={(kind) => selectDealWorkspaceKind(dealWorkspaceTarget, kind)}
           onClose={closeDealWorkspace}
           renderDealPanel={(kind) => {
             if (kind === "transfer" && bidTarget) {
@@ -1904,10 +1680,9 @@ export default function TransfersTab({
                   activeBidOffer={activeBidOffer}
                   hasExistingOffer={hasExistingOffer}
                   bidResult={bidResult}
+                  bidError={bidError}
                   bidLoading={bidLoading}
-                  bidSubmitDisabled={
-                    transferWindowBlocksRegistration || bidSubmitDisabled
-                  }
+                  bidSubmitDisabled={transferWindowBlocksRegistration || bidSubmitDisabled}
                   blockingTitle={transferWindowBlockingTitle}
                   blockingDetail={transferWindowBlockingDetail}
                   showPlayerSummary={false}
@@ -1942,10 +1717,7 @@ export default function TransfersTab({
                   acceptedMessage={
                     isTransferWindowClosed && closedWindowRegistrationDate
                       ? t("transfers.loanOfferScheduled", {
-                          date: formatDate(
-                            closedWindowRegistrationDate,
-                            i18n.language,
-                          ),
+                          date: formatDate(closedWindowRegistrationDate, i18n.language),
                         })
                       : null
                   }
@@ -2000,10 +1772,9 @@ export default function TransfersTab({
           activeBidOffer={activeBidOffer}
           hasExistingOffer={hasExistingOffer}
           bidResult={bidResult}
+          bidError={bidError}
           bidLoading={bidLoading}
-          bidSubmitDisabled={
-            transferWindowBlocksRegistration || bidSubmitDisabled
-          }
+          bidSubmitDisabled={transferWindowBlocksRegistration || bidSubmitDisabled}
           blockingTitle={transferWindowBlockingTitle}
           blockingDetail={transferWindowBlockingDetail}
           onSubmit={handleMakeBid}

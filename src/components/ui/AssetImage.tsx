@@ -7,12 +7,7 @@ interface AssetImageProps {
   fallback: ReactNode;
 }
 
-export default function AssetImage({
-  src,
-  alt,
-  className = "",
-  fallback,
-}: AssetImageProps) {
+export default function AssetImage({ src, alt, className = "", fallback }: AssetImageProps) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {

@@ -46,8 +46,7 @@ void i18nReady
 // full-screen overlay.
 if (import.meta.env.DEV) {
   const benchLabel =
-    new URLSearchParams(window.location.search).get("ofmbench") ||
-    import.meta.env.VITE_OFM_BENCH;
+    new URLSearchParams(window.location.search).get("ofmbench") || import.meta.env.VITE_OFM_BENCH;
 
   if (benchLabel) {
     void import("./dev/benchUi")

@@ -1,11 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  PlayerData,
-  TeamData,
-  TransferOfferData,
-} from "../../store/gameStore";
+import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
 import type { TransferNegotiationResponseData } from "../../services/transfersService";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
 

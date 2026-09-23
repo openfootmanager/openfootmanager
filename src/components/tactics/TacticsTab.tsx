@@ -1,8 +1,5 @@
 import type { JSX } from "react";
-import type {
-  GameStateData,
-  PlayerSelectionOptions,
-} from "../../store/gameStore";
+import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
 import { setPlayerRole } from "../../services/squadService";
 
@@ -93,9 +90,7 @@ export default function TacticsTab({
   });
 
   if (!team) {
-    return (
-      <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
-    );
+    return <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>;
   }
 
   return (
@@ -236,7 +231,9 @@ export default function TacticsTab({
                 canConfirmSwap={canConfirmSwap}
                 comparePlayer={comparePlayer}
                 onClose={clearLineupSelection}
-                onConfirmSwap={() => { void handleConfirmSwap(); }}
+                onConfirmSwap={() => {
+                  void handleConfirmSwap();
+                }}
                 selectedPlayer={selectedPlayer}
               />
             </div>

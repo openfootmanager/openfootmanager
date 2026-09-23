@@ -1,10 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  type MatchSnapshot,
-  FORMATIONS,
-  PLAY_STYLES,
-} from "./types";
+import { type MatchSnapshot, FORMATIONS, PLAY_STYLES } from "./types";
 import { getPlayerName } from "./helpers";
 import { FormationPitch } from "./FormationPitch";
 import { condBgColor, condColor } from "../../lib/playerConditionDisplay";
@@ -26,15 +22,7 @@ import {
   type MatchScenarioId,
 } from "./SubPanel.helpers";
 
-const CompareBar = ({
-  label,
-  valA,
-  valB,
-}: {
-  label: string;
-  valA: number;
-  valB: number;
-}) => {
+const CompareBar = ({ label, valA, valB }: { label: string; valA: number; valB: number }) => {
   const diff = valB - valA;
   return (
     <div className="flex items-center gap-1.5 py-0.5 text-xs">
@@ -78,28 +66,17 @@ export function SubPanel({
 
   const team = side === "Home" ? snapshot.home_team : snapshot.away_team;
   const bench = side === "Home" ? snapshot.home_bench : snapshot.away_bench;
-  const subsMade =
-    side === "Home" ? snapshot.home_subs_made : snapshot.away_subs_made;
+  const subsMade = side === "Home" ? snapshot.home_subs_made : snapshot.away_subs_made;
 
   const subbedOnIds = new Set(
-    snapshot.substitutions
-      .filter((s) => s.side === side)
-      .map((s) => s.player_on_id),
+    snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_on_id),
   );
   const subbedOffIds = new Set(
-    snapshot.substitutions
-      .filter((s) => s.side === side)
-      .map((s) => s.player_off_id),
+    snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_off_id),
   );
-  const availableBench = bench.filter(
-    (p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id),
-  );
-  const selectedPlayer = selectedOff
-    ? team.players.find((p) => p.id === selectedOff)
-    : null;
-  const comparedPlayer = selectedBench
-    ? availableBench.find((p) => p.id === selectedBench)
-    : null;
+  const availableBench = bench.filter((p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id));
+  const selectedPlayer = selectedOff ? team.players.find((p) => p.id === selectedOff) : null;
+  const comparedPlayer = selectedBench ? availableBench.find((p) => p.id === selectedBench) : null;
 
   const scenario = getMatchScenario(snapshot, side);
   const recommendations = buildRecommendedSubstitutions(snapshot, side);
@@ -154,19 +131,13 @@ export function SubPanel({
     setSelectedBench(onId);
   };
 
-  const handleInteractiveRowKeyDown = (
-    event: KeyboardEvent<HTMLElement>,
-    action: () => void,
-  ) => {
+  const handleInteractiveRowKeyDown = (event: KeyboardEvent<HTMLElement>, action: () => void) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       action();
       return;
     }
-    if (
-      event.key === "ContextMenu" ||
-      (event.shiftKey && event.key === "F10")
-    ) {
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
       event.preventDefault();
       event.currentTarget.dispatchEvent(
         new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
@@ -190,14 +161,12 @@ export function SubPanel({
             <h3 className="font-heading text-sm font-bold uppercase tracking-widest text-gray-900 dark:text-white">
               {t("match.substitutionsTitle")}
             </h3>
-            <Badge
-              variant={subsMade >= snapshot.max_subs ? "danger" : "primary"}
-              size="sm"
-            >
+            <Badge variant={subsMade >= snapshot.max_subs ? "danger" : "primary"} size="sm">
               {t("match.subsUsed", { used: subsMade, max: snapshot.max_subs })}
             </Badge>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-600 dark:hover:text-white"
           >
@@ -227,9 +196,7 @@ export function SubPanel({
                 <button
                   type="button"
                   data-testid="recommended-plan-cta"
-                  onClick={() =>
-                    onPlayStyleChange(scenario.recommendedPlayStyle)
-                  }
+                  onClick={() => onPlayStyleChange(scenario.recommendedPlayStyle)}
                   className="rounded-full border border-primary-500/25 bg-primary-500/12 px-2 py-0.5 font-heading text-[10px] font-bold uppercase tracking-widest text-primary-500 transition-colors hover:bg-primary-500/20 dark:text-primary-300"
                 >
                   {t("match.recommendedPlan")}:{" "}
@@ -240,27 +207,19 @@ export function SubPanel({
               {/* Recommendation chips */}
               {visibleRecommendations.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1">
-                  {visibleRecommendations.slice(0, 3).map(
-                    ({ rec, offPlayer, onPlayer }) => (
-                      <button
-                        key={`${rec.offId}-${rec.onId}`}
-                        type="button"
-                        data-testid={`recommended-sub-${rec.offId}-${rec.onId}`}
-                        onClick={() =>
-                          handleApplyRecommendation(rec.offId, rec.onId)
-                        }
-                        className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-heading text-[10px] font-bold transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-navy-600 dark:bg-navy-800 dark:hover:bg-navy-700"
-                      >
-                        <span className="text-red-400">
-                          {offPlayer.name.split(" ").pop()}
-                        </span>
-                        <span className="text-gray-400">→</span>
-                        <span className="text-green-400">
-                          {onPlayer.name.split(" ").pop()}
-                        </span>
-                      </button>
-                    ),
-                  )}
+                  {visibleRecommendations.slice(0, 3).map(({ rec, offPlayer, onPlayer }) => (
+                    <button
+                      key={`${rec.offId}-${rec.onId}`}
+                      type="button"
+                      data-testid={`recommended-sub-${rec.offId}-${rec.onId}`}
+                      onClick={() => handleApplyRecommendation(rec.offId, rec.onId)}
+                      className="flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-heading text-[10px] font-bold transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-navy-600 dark:bg-navy-800 dark:hover:bg-navy-700"
+                    >
+                      <span className="text-red-400">{offPlayer.name.split(" ").pop()}</span>
+                      <span className="text-gray-400">→</span>
+                      <span className="text-green-400">{onPlayer.name.split(" ").pop()}</span>
+                    </button>
+                  ))}
                   {visibleRecommendations.length > 3 && (
                     <span className="font-heading text-[10px] text-gray-400 dark:text-gray-500">
                       +{visibleRecommendations.length - 3}
@@ -272,11 +231,7 @@ export function SubPanel({
               {/* Quick formation & play style selects */}
               <div className="ml-auto flex items-center gap-2">
                 <Select
-                  value={
-                    FORMATIONS.includes(team.formation)
-                      ? team.formation
-                      : FORMATIONS[0]
-                  }
+                  value={FORMATIONS.includes(team.formation) ? team.formation : FORMATIONS[0]}
                   onChange={(e) => onFormationChange(e.target.value)}
                   aria-label={t("tactics.formation")}
                   selectSize="xs"
@@ -331,12 +286,8 @@ export function SubPanel({
                     <thead>
                       <tr className="border-b border-gray-200 font-heading text-[10px] uppercase tracking-widest text-gray-600 dark:border-navy-700 dark:text-gray-500">
                         <th className="py-2 pr-2">{t("match.player")}</th>
-                        <th className="w-12 py-2 text-center">
-                          {t("common.position")}
-                        </th>
-                        <th className="w-12 py-2 text-center">
-                          {t("common.ovr")}
-                        </th>
+                        <th className="w-12 py-2 text-center">{t("common.position")}</th>
+                        <th className="w-12 py-2 text-center">{t("common.ovr")}</th>
                         <th className="w-24 py-2">{t("match.fitness")}</th>
                       </tr>
                     </thead>
@@ -351,8 +302,7 @@ export function SubPanel({
                             Forward: 4,
                           };
                           return (
-                            (ord[a.position] ?? 99) -
-                              (ord[b.position] ?? 99) ||
+                            (ord[a.position] ?? 99) - (ord[b.position] ?? 99) ||
                             a.name.localeCompare(b.name)
                           );
                         })
@@ -365,9 +315,7 @@ export function SubPanel({
                               data-testid={`sub-panel-off-${p.id}`}
                               onClick={() => handleSelectOffPlayer(p.id)}
                               onKeyDown={(e) =>
-                                handleInteractiveRowKeyDown(e, () =>
-                                  handleSelectOffPlayer(p.id),
-                                )
+                                handleInteractiveRowKeyDown(e, () => handleSelectOffPlayer(p.id))
                               }
                               role="button"
                               tabIndex={0}
@@ -383,11 +331,7 @@ export function SubPanel({
                                   {isSelected && (
                                     <UserMinus className="h-3.5 w-3.5 shrink-0 text-red-400" />
                                   )}
-                                  {isSubOn && (
-                                    <span className="text-[10px] text-green-400">
-                                      ▲
-                                    </span>
-                                  )}
+                                  {isSubOn && <span className="text-[10px] text-green-400">▲</span>}
                                   <span
                                     className={`truncate font-medium ${isSelected ? "text-red-400" : "text-gray-700 dark:text-gray-300"}`}
                                   >
@@ -397,10 +341,7 @@ export function SubPanel({
                               </td>
                               <td className="w-12 py-2 text-center">
                                 <span className="font-heading text-xs text-gray-500 dark:text-gray-400">
-                                  {translatePositionAbbreviation(
-                                    t,
-                                    p.position,
-                                  )}
+                                  {translatePositionAbbreviation(t, p.position)}
                                 </span>
                               </td>
                               <td className="w-12 py-2 text-center font-heading font-bold text-gray-500 dark:text-gray-400">
@@ -449,9 +390,7 @@ export function SubPanel({
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="shrink-0 border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-navy-700 dark:bg-navy-800/50">
                   <p className="font-heading text-xs uppercase tracking-widest text-green-400">
-                    {selectedOff
-                      ? t("match.selectReplacement")
-                      : t("match.benchPlayers")}
+                    {selectedOff ? t("match.selectReplacement") : t("match.benchPlayers")}
                   </p>
                 </div>
 
@@ -467,12 +406,8 @@ export function SubPanel({
                       <thead>
                         <tr className="border-b border-gray-200 font-heading text-[10px] uppercase tracking-widest text-gray-600 dark:border-navy-700 dark:text-gray-500">
                           <th className="py-2 pr-2">{t("match.player")}</th>
-                          <th className="w-12 py-2 text-center">
-                            {t("common.position")}
-                          </th>
-                          <th className="w-12 py-2 text-center">
-                            {t("common.ovr")}
-                          </th>
+                          <th className="w-12 py-2 text-center">{t("common.position")}</th>
+                          <th className="w-12 py-2 text-center">{t("common.ovr")}</th>
                           <th className="w-24 py-2">{t("match.fitness")}</th>
                         </tr>
                       </thead>
@@ -487,9 +422,7 @@ export function SubPanel({
                               data-testid={`sub-panel-bench-${p.id}`}
                               onClick={() => handleSelectBenchPlayer(p.id)}
                               onKeyDown={(e) =>
-                                handleInteractiveRowKeyDown(e, () =>
-                                  handleSelectBenchPlayer(p.id),
-                                )
+                                handleInteractiveRowKeyDown(e, () => handleSelectBenchPlayer(p.id))
                               }
                               role="button"
                               tabIndex={0}
@@ -550,20 +483,15 @@ export function SubPanel({
                                       {
                                         label:
                                           selectedBench === p.id
-                                            ? t(
-                                                "match.clearReplacementSelection",
-                                              )
+                                            ? t("match.clearReplacementSelection")
                                             : t("match.selectReplacementMenu"),
                                         icon: <UserPlus className="h-4 w-4" />,
-                                        onClick: () =>
-                                          handleSelectBenchPlayer(p.id),
+                                        onClick: () => handleSelectBenchPlayer(p.id),
                                       },
                                     ]
                                   : [
                                       {
-                                        label: t(
-                                          "match.selectPlayerToTakeOffFirst",
-                                        ),
+                                        label: t("match.selectPlayerToTakeOffFirst"),
                                         icon: <UserPlus className="h-4 w-4" />,
                                         onClick: () => {},
                                         disabled: true,
@@ -581,8 +509,7 @@ export function SubPanel({
                 )}
 
                 {/* Sub history */}
-                {snapshot.substitutions.filter((s) => s.side === side).length >
-                  0 && (
+                {snapshot.substitutions.filter((s) => s.side === side).length > 0 && (
                   <div className="shrink-0 border-t border-gray-200 px-4 py-3 dark:border-navy-700">
                     <p className="mb-1.5 font-heading text-[10px] uppercase tracking-widest text-gray-600 dark:text-gray-500">
                       {t("match.history")}
@@ -590,10 +517,7 @@ export function SubPanel({
                     {snapshot.substitutions
                       .filter((s) => s.side === side)
                       .map((sub, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-1.5 py-0.5 text-[11px]"
-                        >
+                        <div key={i} className="flex items-center gap-1.5 py-0.5 text-[11px]">
                           <span className="w-5 text-right font-heading tabular-nums text-gray-600 dark:text-gray-500">
                             {sub.minute}'
                           </span>
@@ -659,16 +583,8 @@ export function SubPanel({
                   </div>
                   {/* Attribute comparison bars */}
                   <div className="grid grid-cols-2 gap-x-4">
-                    <CompareBar
-                      label="OVR"
-                      valA={selectedPlayer.ovr}
-                      valB={comparedPlayer.ovr}
-                    />
-                    <CompareBar
-                      label="PAC"
-                      valA={selectedPlayer.pace}
-                      valB={comparedPlayer.pace}
-                    />
+                    <CompareBar label="OVR" valA={selectedPlayer.ovr} valB={comparedPlayer.ovr} />
+                    <CompareBar label="PAC" valA={selectedPlayer.pace} valB={comparedPlayer.pace} />
                     <CompareBar
                       label="PAS"
                       valA={selectedPlayer.passing}

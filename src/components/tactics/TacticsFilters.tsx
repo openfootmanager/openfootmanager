@@ -1,10 +1,7 @@
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  CORE_POSITIONS,
-  translatePositionAbbreviation,
-} from "../squad/SquadTab.helpers";
+import { CORE_POSITIONS, translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { Card, Select } from "../ui";
 
 interface TacticsFiltersProps {

@@ -13,13 +13,7 @@ vi.mock("react-i18next", () => ({
 // to (editing.id) and lets us trigger the save callback. This keeps the test
 // focused on the form-panel -> editor wiring rather than PlayerForm internals.
 vi.mock("../menu/PackageEditor/PlayerForm", () => ({
-  PlayerForm: ({
-    editing,
-    onSave,
-  }: {
-    editing: PlayerDef;
-    onSave: () => void;
-  }) => (
+  PlayerForm: ({ editing, onSave }: { editing: PlayerDef; onSave: () => void }) => (
     <div>
       <span data-testid="bound-id">{editing.id}</span>
       <button type="button" onClick={onSave}>
@@ -65,7 +59,14 @@ function renderPanel(formPanel: FormPanel, playerId: string, youthId: string) {
       onMetaCommit={() => {}}
       onSaveMetadata={() => {}}
       onAssetError={() => {}}
-      counts={{ teams: 0, players: 0, confederations: 0, countries: 0, competitions: 0, namePools: 0 }}
+      counts={{
+        teams: 0,
+        players: 0,
+        confederations: 0,
+        countries: 0,
+        competitions: 0,
+        namePools: 0,
+      }}
       issues={[]}
       teamEditor={stub as never}
       confEditor={stub as never}

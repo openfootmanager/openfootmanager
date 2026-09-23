@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import type { GameStateData, PlayerData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
+import type {
+  GameStateData,
+  PlayerData,
+  PlayerSelectionOptions,
+  TeamData,
+} from "../../store/gameStore";
 import SquadTab from "./SquadTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -19,8 +24,7 @@ vi.mock("react-i18next", () => ({
       if (key === "squad.removeFromLoanList") return "Remove from Loan List";
       if (key === "transfers.loan") return "Loan";
       if (key === "transfers.transfer") return "Transfer";
-      if (key === "youthAcademy.delegateToYouthAcademy")
-        return "Delegate to youth academy";
+      if (key === "youthAcademy.delegateToYouthAcademy") return "Delegate to youth academy";
       if (key === "playerProfile.yearsRemaining") return "Years Remaining";
       if (key === "finances.contractRisk") return "Contract Risk";
       if (key === "finances.contractRiskCritical") return "Critical";
@@ -124,19 +128,7 @@ const makeTeam = (overrides: Partial<TeamData> = {}): TeamData => ({
   training_schedule: "Balanced",
   founded_year: 1900,
   colors: { primary: "#00ff00", secondary: "#ffffff" },
-  starting_xi_ids: [
-    "gk1",
-    "d1",
-    "d2",
-    "d3",
-    "d4",
-    "m1",
-    "m2",
-    "m3",
-    "m4",
-    "f1",
-    "f2",
-  ],
+  starting_xi_ids: ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
   form: [],
   history: [],
   ...overrides,
@@ -185,19 +177,7 @@ const makeGameState = (): GameStateData => {
     },
     teams: [
       makeTeam({
-        starting_xi_ids: [
-          "gk1",
-          "d1",
-          "d2",
-          "d3",
-          "d4",
-          "m1",
-          "m2",
-          "m3",
-          "m4",
-          "f1",
-          "f2",
-        ],
+        starting_xi_ids: ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       }),
     ],
     players,
@@ -227,9 +207,7 @@ describe("SquadTab", () => {
     // Prime the initial get_squad fetch so that mockResolvedValue overrides set
     // up by mutation tests don't accidentally serve non-PlayerData[] to the squad
     // loader on mount.
-    mockedInvoke.mockResolvedValueOnce(
-      gameState.players.filter((p) => p.team_id === "team1"),
-    );
+    mockedInvoke.mockResolvedValueOnce(gameState.players.filter((p) => p.team_id === "team1"));
 
     render(
       <SquadTab
@@ -256,9 +234,7 @@ describe("SquadTab", () => {
     expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText(/squad.styleFitValues./).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(/squad.styleFitValues./).length).toBeGreaterThan(0);
   });
 
   it("shows progressive injury details in the roster", () => {
@@ -406,9 +382,7 @@ describe("SquadTab", () => {
         playerId: "gk1",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
-      expect(
-        screen.getByText("GK1").closest("tr"),
-      ).toHaveTextContent("Loan");
+      expect(screen.getByText("GK1").closest("tr")).toHaveTextContent("Loan");
     });
   });
 
@@ -465,9 +439,7 @@ describe("SquadTab", () => {
     const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(
-      screen.getByRole("menuitem", { name: "Delegate to youth academy" }),
-    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delegate to youth academy" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
@@ -484,19 +456,7 @@ describe("SquadTab", () => {
       ...gameState,
       teams: gameState.teams.map((team) => ({
         ...team,
-        starting_xi_ids: [
-          "gk1",
-          "d5",
-          "d2",
-          "d3",
-          "d4",
-          "m1",
-          "m2",
-          "m3",
-          "m4",
-          "f1",
-          "f2",
-        ],
+        starting_xi_ids: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       })),
     };
     const onGameUpdate = vi.fn();
@@ -510,19 +470,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
-        playerIds: [
-          "gk1",
-          "d5",
-          "d2",
-          "d3",
-          "d4",
-          "m1",
-          "m2",
-          "m3",
-          "m4",
-          "f1",
-          "f2",
-        ],
+        playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });

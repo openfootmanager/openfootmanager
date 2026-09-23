@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GameStateData, StaffData, useGameStore } from "../../store/gameStore";
+import { type GameStateData, type StaffData, useGameStore } from "../../store/gameStore";
 import { getStaff, type StaffSlice } from "../../services/staffService";
 import { Card, CardBody, Badge, CountryFlag, ProgressBar } from "../ui";
 import {
@@ -13,12 +13,7 @@ import {
   GraduationCap,
   Star,
 } from "lucide-react";
-import {
-  getTeamName,
-  calcAge,
-  formatVal,
-  formatWeeklyAmount,
-} from "../../lib/helpers";
+import { getTeamName, calcAge, formatVal, formatWeeklyAmount } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { useTranslation } from "react-i18next";
 import { hireStaff, releaseStaff } from "../../services/staffService";
@@ -112,16 +107,21 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
   useEffect(() => {
     if (!teamId) return;
-    void getStaff(teamId).then(setFetchedStaff).catch(() => {});
+    void getStaff(teamId)
+      .then(setFetchedStaff)
+      .catch(() => {});
   }, [teamId]);
 
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const openScoutingWorkflowLabel = t("staff.openScoutingWorkflow");
 
-  const myStaff = fetchedStaff?.team_staff ?? gameState?.staff.filter((s) => s.team_id === teamId) ?? [];
-  const availableStaff = fetchedStaff?.available_staff ?? gameState?.staff.filter((s) => !s.team_id) ?? [];
+  const myStaff =
+    fetchedStaff?.team_staff ?? gameState?.staff.filter((s) => s.team_id === teamId) ?? [];
+  const availableStaff =
+    fetchedStaff?.available_staff ?? gameState?.staff.filter((s) => !s.team_id) ?? [];
   const assignments = fetchedStaff?.scouting_assignments ?? gameState?.scouting_assignments ?? [];
-  const youthAssignments = fetchedStaff?.youth_scouting_assignments ?? gameState?.youth_scouting_assignments ?? [];
+  const youthAssignments =
+    fetchedStaff?.youth_scouting_assignments ?? gameState?.youth_scouting_assignments ?? [];
 
   const applyStaffUpdate = (updated: GameStateData) => {
     onGameUpdate?.(updated);
@@ -175,21 +175,24 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
       <div className="flex flex-wrap gap-3 mb-4 items-center">
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setView("mystaff")}
-            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === "mystaff"
-              ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
-              : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-              }`}
+            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              view === "mystaff"
+                ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
+                : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
+            }`}
           >
-            <UserCog className="w-4 h-4" />{" "}
-            {t("staff.myStaff", { count: myStaff.length })}
+            <UserCog className="w-4 h-4" /> {t("staff.myStaff", { count: myStaff.length })}
           </button>
           <button
+            type="button"
             onClick={() => setView("available")}
-            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === "available"
-              ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
-              : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-              }`}
+            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              view === "available"
+                ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
+                : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
+            }`}
           >
             <UserPlus className="w-4 h-4" />{" "}
             {t("staff.available", { count: availableStaff.length })}
@@ -209,22 +212,26 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
         <div className="flex gap-1.5">
           <button
+            type="button"
             onClick={() => setRoleFilter(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!roleFilter
-              ? "bg-primary-500 text-white shadow-sm"
-              : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-              }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
+              !roleFilter
+                ? "bg-primary-500 text-white shadow-sm"
+                : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
+            }`}
           >
             {t("common.all")}
           </button>
           {roles.map((r) => (
             <button
+              type="button"
               key={r}
               onClick={() => setRoleFilter(roleFilter === r ? null : r)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${roleFilter === r
-                ? "bg-primary-500 text-white shadow-sm"
-                : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-                }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
+                roleFilter === r
+                  ? "bg-primary-500 text-white shadow-sm"
+                  : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
+              }`}
             >
               {ROLE_ICONS[r]} {t(`staff.roles.${r}`)}
             </button>
@@ -237,9 +244,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
         <div className="py-12 text-center">
           <UserCog className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
           <p className="text-sm text-gray-400 dark:text-gray-500">
-            {view === "mystaff"
-              ? t("staff.noStaffMatch")
-              : t("staff.noAvailableStaff")}
+            {view === "mystaff" ? t("staff.noStaffMatch") : t("staff.noAvailableStaff")}
           </p>
         </div>
       ) : (
@@ -264,30 +269,32 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             const contextItems: ContextMenuItem[] =
               view === "mystaff"
                 ? [
-                  ...(staff.role === "Scout" && onNavigate
-                    ? [{
-                      label: openScoutingWorkflowLabel,
-                      icon: <Eye className="w-4 h-4" />,
-                      onClick: () => onNavigate("Scouting"),
-                      disabled: false,
-                    } satisfies ContextMenuItem]
-                    : []),
-                  {
-                    label: t("staff.releaseStaff"),
-                    icon: <UserMinus className="w-4 h-4" />,
-                    onClick: () => handleRelease(staff.id),
-                    danger: true,
-                    disabled: isLoading,
-                  },
-                ]
+                    ...(staff.role === "Scout" && onNavigate
+                      ? [
+                          {
+                            label: openScoutingWorkflowLabel,
+                            icon: <Eye className="w-4 h-4" />,
+                            onClick: () => onNavigate("Scouting"),
+                            disabled: false,
+                          } satisfies ContextMenuItem,
+                        ]
+                      : []),
+                    {
+                      label: t("staff.releaseStaff"),
+                      icon: <UserMinus className="w-4 h-4" />,
+                      onClick: () => handleRelease(staff.id),
+                      danger: true,
+                      disabled: isLoading,
+                    },
+                  ]
                 : [
-                  {
-                    label: t("staff.hireStaff"),
-                    icon: <UserPlus className="w-4 h-4" />,
-                    onClick: () => handleHire(staff.id),
-                    disabled: isLoading,
-                  },
-                ];
+                    {
+                      label: t("staff.hireStaff"),
+                      icon: <UserPlus className="w-4 h-4" />,
+                      onClick: () => handleHire(staff.id),
+                      disabled: isLoading,
+                    },
+                  ];
             const staffCard = (
               <div data-testid={`staff-card-${staff.id}`} className="h-full">
                 <Card className="h-full">
@@ -305,21 +312,14 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                             {staff.first_name} {staff.last_name}
                           </h3>
                           <Badge
-                            variant={
-                              ovr >= 65
-                                ? "success"
-                                : ovr >= 45
-                                  ? "primary"
-                                  : "neutral"
-                            }
+                            variant={ovr >= 65 ? "success" : ovr >= 45 ? "primary" : "neutral"}
                             size="sm"
                           >
                             {ovr} OVR
                           </Badge>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {t(`staff.roles.${staff.role}`)} — {t("common.age")}{" "}
-                          {age}
+                          {t(`staff.roles.${staff.role}`)} — {t("common.age")} {age}
                           <span className="ml-1.5 inline-flex items-center gap-1 align-middle">
                             <CountryFlag
                               code={staff.nationality}
@@ -345,10 +345,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           )}
                           {staff.wage > 0 && (
                             <span className="text-[10px] bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded font-heading uppercase tracking-wider">
-                              {formatWeeklyAmount(
-                                formatVal(staff.wage),
-                                weeklySuffix,
-                              )}
+                              {formatWeeklyAmount(formatVal(staff.wage), weeklySuffix)}
                             </span>
                           )}
                           {staff.role === "Scout" ? (
@@ -404,6 +401,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                       {/* Action button */}
                       {view === "mystaff" && (
                         <button
+                          type="button"
                           disabled={isLoading}
                           onClick={() => handleRelease(staff.id)}
                           className={`p-2 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors ${isLoading ? "opacity-50 pointer-events-none" : ""}`}
@@ -414,6 +412,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                       )}
                       {view === "available" && (
                         <button
+                          type="button"
                           disabled={isLoading}
                           onClick={() => handleHire(staff.id)}
                           className={`p-2 rounded-lg bg-primary-50 dark:bg-primary-500/10 text-primary-500 hover:bg-primary-100 dark:hover:bg-primary-500/20 transition-colors ${isLoading ? "opacity-50 pointer-events-none" : ""}`}

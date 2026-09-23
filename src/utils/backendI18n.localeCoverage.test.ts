@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  collectMissingKeys,
-  type LocaleTree,
-} from "../i18n/i18nTestHelpers";
+import { collectMissingKeys, type LocaleTree } from "../i18n/i18nTestHelpers";
 import cs from "../i18n/locales/cs.json";
 import de from "../i18n/locales/de.json";
 import en from "../i18n/locales/en.json";
@@ -141,32 +138,31 @@ const REQUIRED_KEYS = [
 ] as const;
 
 function getNestedValue(tree: LocaleTree, keyPath: string): unknown {
-  return keyPath
-    .split(".")
-    .reduce<unknown>((value, segment) => {
-      if (value === null || typeof value !== "object") {
-        return undefined;
-      }
+  return keyPath.split(".").reduce<unknown>((value, segment) => {
+    if (value === null || typeof value !== "object") {
+      return undefined;
+    }
 
-      return (value as Record<string, unknown>)[segment];
-    }, tree);
+    return (value as Record<string, unknown>)[segment];
+  }, tree);
 }
 
 describe("backend i18n locale coverage", () => {
   it("keeps required backend-facing translation keys in every supported locale", () => {
-    const missingKeysByLocale = Object.entries(LOCALES).reduce<
-      Record<string, string[]>
-    >((accumulator, [localeCode, translations]) => {
-      const missingKeys = REQUIRED_KEYS.filter((keyPath) => {
-        return getNestedValue(translations, keyPath) === undefined;
-      });
+    const missingKeysByLocale = Object.entries(LOCALES).reduce<Record<string, string[]>>(
+      (accumulator, [localeCode, translations]) => {
+        const missingKeys = REQUIRED_KEYS.filter((keyPath) => {
+          return getNestedValue(translations, keyPath) === undefined;
+        });
 
-      if (missingKeys.length > 0) {
-        accumulator[localeCode] = missingKeys;
-      }
+        if (missingKeys.length > 0) {
+          accumulator[localeCode] = missingKeys;
+        }
 
-      return accumulator;
-    }, {});
+        return accumulator;
+      },
+      {},
+    );
 
     expect(missingKeysByLocale).toEqual({});
   });

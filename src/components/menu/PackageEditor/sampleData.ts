@@ -125,7 +125,8 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
   meta: {
     id: "iberia-mini-league",
     name: "Iberia Mini League",
-    description: "Four fictional Iberian clubs in a two-legged domestic league — a good starting point for Spanish-style football.",
+    description:
+      "Four fictional Iberian clubs in a two-legged domestic league — a good starting point for Spanish-style football.",
     version: "1.0.0",
     author: "",
     license: "CC0-1.0",
@@ -225,7 +226,8 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
   meta: {
     id: "copa-del-sur",
     name: "Copa del Sur",
-    description: "Four fictional South American clubs from different countries competing in a continental knockout-group tournament.",
+    description:
+      "Four fictional South American clubs from different countries competing in a continental knockout-group tournament.",
     version: "1.0.0",
     author: "",
     license: "CC0-1.0",

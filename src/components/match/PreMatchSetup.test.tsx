@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PreMatchSetup from "./PreMatchSetup";
+import type { GameStateData } from "../../store/gameStore";
+import type { MatchSnapshot } from "./types";
 
 // Mock the few external dependencies PreMatchSetup pulls in at render time so we
 // can exercise the real component tree (the opponent scout panel in particular).
@@ -28,10 +30,27 @@ function enginePlayer(over: Record<string, unknown>): Record<string, unknown> {
     name: "Player",
     position: "Midfielder",
     condition: 100,
-    pace: 50, stamina: 50, strength: 50, agility: 50, passing: 50, shooting: 50,
-    tackling: 50, dribbling: 50, defending: 50, positioning: 50, vision: 50,
-    decisions: 50, composure: 50, aggression: 50, teamwork: 50, leadership: 50,
-    handling: 50, reflexes: 50, aerial: 50, ovr: 60, traits: [],
+    pace: 50,
+    stamina: 50,
+    strength: 50,
+    agility: 50,
+    passing: 50,
+    shooting: 50,
+    tackling: 50,
+    dribbling: 50,
+    defending: 50,
+    positioning: 50,
+    vision: 50,
+    decisions: 50,
+    composure: 50,
+    aggression: 50,
+    teamwork: 50,
+    leadership: 50,
+    handling: 50,
+    reflexes: 50,
+    aerial: 50,
+    ovr: 60,
+    traits: [],
     ...over,
   };
 }
@@ -82,8 +101,18 @@ function gameState(): Record<string, unknown> {
     clock: { current_date: "2026-08-01" },
     players: [],
     teams: [
-      { id: "home1", name: "Home FC", short_name: "HOM", colors: { primary: "#10b981", secondary: "#1a3a6b" } },
-      { id: "away1", name: "Away FC", short_name: "AWY", colors: { primary: "#6366f1", secondary: "#1a3a6b" } },
+      {
+        id: "home1",
+        name: "Home FC",
+        short_name: "HOM",
+        colors: { primary: "#10b981", secondary: "#1a3a6b" },
+      },
+      {
+        id: "away1",
+        name: "Away FC",
+        short_name: "AWY",
+        colors: { primary: "#6366f1", secondary: "#1a3a6b" },
+      },
     ],
   };
 }
@@ -91,10 +120,12 @@ function gameState(): Record<string, unknown> {
 function renderSetup() {
   return render(
     <PreMatchSetup
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      snapshot={snapshot() as any}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      gameState={gameState() as any}
+      // The two fixtures build partial objects deliberately — this test exercises the setup
+      // screen, not the full match snapshot — so the cast is the honest spelling of "stands in
+      // for". It goes through `unknown` because the shapes genuinely do not overlap, and the
+      // two `eslint-disable` lines it used to carry were decorative: there is no ESLint here.
+      snapshot={snapshot() as unknown as MatchSnapshot}
+      gameState={gameState() as unknown as GameStateData}
       userSide="Home"
       onStart={vi.fn()}
       onUpdateSnapshot={vi.fn()}

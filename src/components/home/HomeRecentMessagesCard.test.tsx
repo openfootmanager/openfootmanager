@@ -43,11 +43,7 @@ describe("HomeRecentMessagesCard", () => {
     const onNavigate = vi.fn();
 
     render(
-      <HomeRecentMessagesCard
-        messages={[createMessage()]}
-        lang="en"
-        onNavigate={onNavigate}
-      />,
+      <HomeRecentMessagesCard messages={[createMessage()]} lang="en" onNavigate={onNavigate} />,
     );
 
     expect(screen.getByText("Recent Messages")).toBeInTheDocument();
@@ -68,11 +64,7 @@ describe("HomeRecentMessagesCard", () => {
     const onNavigate = vi.fn();
 
     render(
-      <HomeRecentMessagesCard
-        messages={[createMessage()]}
-        lang="en"
-        onNavigate={onNavigate}
-      />,
+      <HomeRecentMessagesCard messages={[createMessage()]} lang="en" onNavigate={onNavigate} />,
     );
 
     fireEvent.contextMenu(screen.getByText("Welcome"));

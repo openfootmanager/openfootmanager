@@ -48,9 +48,7 @@ function awardsData(): SeasonAwardsData {
   };
 }
 
-function renderGrid(
-  props: Partial<React.ComponentProps<typeof TournamentsAwardsGrid>> = {},
-) {
+function renderGrid(props: Partial<React.ComponentProps<typeof TournamentsAwardsGrid>> = {}) {
   return render(
     <TournamentsAwardsGrid
       awards={awardsData()}
@@ -94,17 +92,13 @@ describe("TournamentsAwardsGrid", () => {
   it("warns that the table is provisional until the season ends", () => {
     renderGrid({ seasonComplete: false });
 
-    expect(
-      screen.getByText("tournaments.awards.currentLeaders"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("tournaments.awards.currentLeaders")).toBeInTheDocument();
   });
 
   it("does not warn once the season is complete", () => {
     renderGrid();
 
-    expect(
-      screen.queryByText("tournaments.awards.currentLeaders"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("tournaments.awards.currentLeaders")).not.toBeInTheDocument();
   });
 
   it("offers a retry when the awards failed to load", () => {
@@ -121,20 +115,14 @@ describe("TournamentsAwardsGrid", () => {
   it("says the awards failed rather than that there are none", () => {
     renderGrid({ awards: null, awardsLoadState: "error" });
 
-    expect(
-      screen.getByText("tournaments.awards.loadFailed"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("tournaments.awards.noDataYet"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("tournaments.awards.loadFailed")).toBeInTheDocument();
+    expect(screen.queryByText("tournaments.awards.noDataYet")).not.toBeInTheDocument();
   });
 
   it("shows a loading note while the awards are on their way", () => {
     renderGrid({ awards: null, awardsLoadState: "loading" });
 
     expect(screen.getByText("tournaments.loadingAwards")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "common.retry" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "common.retry" })).not.toBeInTheDocument();
   });
 });

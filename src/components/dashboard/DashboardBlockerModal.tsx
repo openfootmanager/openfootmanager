@@ -16,8 +16,7 @@ interface DashboardBlockerModalProps {
 }
 
 function getBlockerButtonClassName(severity: string): string {
-  const baseClassName =
-    "w-full rounded-xl border p-3 text-left transition-all hover:shadow-sm";
+  const baseClassName = "w-full rounded-xl border p-3 text-left transition-all hover:shadow-sm";
 
   if (severity === "warn") {
     return `${baseClassName} border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10`;
@@ -64,13 +63,12 @@ export default function DashboardBlockerModal({
       <div className="mb-5 flex flex-col gap-2">
         {blockerModal.blockers.map((blocker) => (
           <button
+            type="button"
             key={blocker.id}
             onClick={() => onNavigate(blocker.tab)}
             className={getBlockerButtonClassName(blocker.severity)}
           >
-            <p className={getBlockerTextClassName(blocker.severity)}>
-              {getBlockerText(blocker)}
-            </p>
+            <p className={getBlockerTextClassName(blocker.severity)}>{getBlockerText(blocker)}</p>
             <p className="mt-1 text-[10px] font-heading uppercase tracking-widest text-gray-400">
               {t("notifications.goTo")} {getBlockerTabLabel(t, blocker.tab)} →
             </p>
@@ -79,6 +77,7 @@ export default function DashboardBlockerModal({
       </div>
       <div className="flex gap-3">
         <button
+          type="button"
           onClick={onClose}
           className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-200 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600"
         >
@@ -86,6 +85,7 @@ export default function DashboardBlockerModal({
         </button>
         {onContinueAnyway && (
           <button
+            type="button"
             onClick={onContinueAnyway}
             className="flex-1 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white transition-colors hover:bg-amber-600"
           >

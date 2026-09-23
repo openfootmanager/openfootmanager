@@ -78,7 +78,10 @@ describe("HomeRecentResultsCard", () => {
     render(
       <HomeRecentResultsCard
         recentResults={[createRecentResult()]}
-        teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" })]}
+        teams={[
+          createTeam(),
+          createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" }),
+        ]}
       />,
     );
 
