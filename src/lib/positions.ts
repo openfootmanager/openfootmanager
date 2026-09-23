@@ -71,6 +71,14 @@ const POSITION_GROUPS: Record<string, string> = {
   Striker: "Forward",
 };
 
+/**
+ * Canonical football-order rank for sorting rosters by natural_position.
+ * Order: GK → back line (CB → FB → WB) → midfield (DM → CM → AM → wide) → forwards (wingers → ST).
+ *
+ * Each legacy coarse bucket takes the round number at the start of its line (Defender 20,
+ * CenterBack 21 …), so unmigrated players stay adjacent to their granular teammates instead of
+ * scattering to the end.
+ */
 const POSITION_SORT_ORDER: Record<string, number> = {
   Goalkeeper: 10,
   Defender: 20,
