@@ -113,3 +113,14 @@ export function normalisePosition(position: string): string {
 export function positionSortRank(position: string): number {
   return POSITION_SORT_ORDER[canonicalPosition(position)] ?? 999;
 }
+
+/**
+ * Rank a position by its broad line — keepers, then defence, midfield, attack.
+ *
+ * Normalises first, so a granular value (`CenterBack`) ranks with its group
+ * rather than falling off the end. Callers wanting the finer order within a
+ * line want {@link positionSortRank} instead.
+ */
+export function positionGroupRank(position: string): number {
+  return POSITION_SORT_ORDER[normalisePosition(position)] ?? 999;
+}
