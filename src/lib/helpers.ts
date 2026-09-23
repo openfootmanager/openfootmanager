@@ -10,7 +10,6 @@ export {
   getActiveCompetitions,
   getCompetitiveFixtures,
   getFixtureDisplayLabel,
-  getPrimaryCompetition,
   getUserCompetition,
   getUserCompetitions,
   getUserNextFixture,
