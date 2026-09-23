@@ -479,3 +479,14 @@ fn assert_every_settled_match_fresh(settings: &Settings) {
 fn an_ai_club_on_one_fixture_a_week_reaches_every_match_fresh() {
     assert_every_settled_match_fresh(&Settings::DEFAULT);
 }
+
+/// A congested week: a league match on Saturday and a cup tie the Wednesday
+/// before it. Recovery alone cannot carry a first eleven through two matches in
+/// four days; the manager has to share the load.
+#[test]
+fn an_ai_club_on_two_fixtures_a_week_reaches_every_match_fresh() {
+    assert_every_settled_match_fresh(&Settings {
+        per_week: 2,
+        ..Settings::DEFAULT
+    });
+}

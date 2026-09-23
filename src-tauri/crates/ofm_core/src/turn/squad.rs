@@ -75,7 +75,8 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             team_id,
             &game.clock.current_date.format("%Y-%m-%d").to_string(),
         );
-        ai_select_starting_xi(&available_players, &formation, quality, seed)
+        let load = fixture_load(game, team_id);
+        ai_select_starting_xi(&available_players, &formation, quality, seed, load)
     };
     // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
     // (entry i plays formation slot i), so the list index is the deployed slot.
@@ -316,6 +317,61 @@ fn stable_hash(bytes: &[u8], seed: u64) -> u64 {
     hash
 }
 
+/// Whether this club plays again soon after the match it is picking a side for.
+///
+/// This is what makes resting a merely tired player worth fielding a weaker one.
+/// On a normal week the next match is seven days off and a tired first eleven
+/// recovers by then; on a congested run it is three or four, and it does not.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FixtureLoad {
+    Normal,
+    Congested,
+}
+
+/// A club that plays again within this many days of a match is on a congested
+/// run. Midweek to weekend is three or four days; weekend to weekend is seven.
+///
+/// Deliberately not training's congestion rule ("two fixtures in the coming
+/// week"). That is counted the morning *after* a match, when the day's fixture
+/// has already been played; asked at kick-off it would count today's match as
+/// well, and every ordinary weekend-to-weekend season would read as congested.
+const CONGESTED_WITHIN_DAYS: i64 = 4;
+
+/// See [`FixtureLoad`]. Compares ISO dates as strings — they sort and match
+/// correctly that way — so nothing is parsed per fixture: this runs twice for
+/// every match in the world, and a populated world holds tens of thousands of
+/// fixtures.
+pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
+    use domain::league::FixtureStatus;
+
+    let today = game.clock.current_date;
+    let soon: Vec<String> = (1..=CONGESTED_WITHIN_DAYS)
+        .map(|days| {
+            (today + chrono::Duration::days(days))
+                .format("%Y-%m-%d")
+                .to_string()
+        })
+        .collect();
+    let competitions: &[domain::league::League] = if game.competitions.is_empty() {
+        game.league.as_slice()
+    } else {
+        &game.competitions
+    };
+
+    let plays_again_soon = competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
+        .filter(|fixture| soon.contains(&fixture.date))
+        .any(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id);
+
+    if plays_again_soon {
+        FixtureLoad::Congested
+    } else {
+        FixtureLoad::Normal
+    }
+}
+
 /// One club's judgement for one matchday. Derived rather than rolled, so asking
 /// for the same fixture's lineup twice gives the same answer — the builder runs
 /// on both match paths and must not name a different side each time.
@@ -358,6 +414,7 @@ fn ai_select_starting_xi<'a>(
     formation: &str,
     quality: f64,
     seed: u64,
+    load: FixtureLoad,
 ) -> Vec<&'a domain::player::Player> {
     /// A rotation candidate must be at least this fresh to be worth considering.
     const FRESH_FLOOR: f64 = 60.0;
@@ -370,6 +427,13 @@ fn ai_select_starting_xi<'a>(
     /// zero: a manager who will accept no drop can never rotate at all.
     const MIN_FIT_TOLERANCE: f64 = 6.0;
     const MAX_FIT_TOLERANCE: f64 = 12.0;
+    /// On a congested run every manager rests earlier, and accepts a little more
+    /// of a drop to do it — a tired first eleven asked to play twice in four days
+    /// arrives spent at the second match however good it is. Manager quality
+    /// still shades both: a better one rests sooner. See [`FixtureLoad`].
+    const CONGESTED_REST_THRESHOLD: f64 = 85.0;
+    const CONGESTED_REST_BY_QUALITY: f64 = 10.0;
+    const CONGESTED_MIN_FIT_TOLERANCE: f64 = 10.0;
     /// And what any of them will accept to get an exhausted player off the pitch.
     const EXHAUSTED_FIT_TOLERANCE: f64 = 20.0;
     /// How far the worst manager can misread a player's standard, either way.
@@ -400,8 +464,16 @@ fn ai_select_starting_xi<'a>(
     }
 
     // Step 2: load management.
-    let rest_threshold = 50.0 + 25.0 * quality; // 50 (poor) .. 75 (elite)
-    let fit_tolerance = MIN_FIT_TOLERANCE + (MAX_FIT_TOLERANCE - MIN_FIT_TOLERANCE) * quality; // 6 .. 12
+    let (rest_threshold, min_tolerance) = match load {
+        // 50 (poor) .. 75 (elite); tolerance 6 .. 12.
+        FixtureLoad::Normal => (50.0 + 25.0 * quality, MIN_FIT_TOLERANCE),
+        // 85 (poor) .. 95 (elite); tolerance 10 .. 12.
+        FixtureLoad::Congested => (
+            CONGESTED_REST_THRESHOLD + CONGESTED_REST_BY_QUALITY * quality,
+            CONGESTED_MIN_FIT_TOLERANCE,
+        ),
+    };
+    let fit_tolerance = min_tolerance + (MAX_FIT_TOLERANCE - min_tolerance) * quality;
     let misjudgement = MAX_MISJUDGEMENT * (1.0 - quality); // 9 (poor) .. 0 (elite)
 
     // What the manager believes a player is worth in this slot, which is the

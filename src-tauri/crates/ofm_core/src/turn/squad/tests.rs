@@ -70,7 +70,7 @@ fn elite_club_keeps_strong_starters_over_fresh_scrubs() {
     }
     let refs: Vec<&Player> = squad.iter().collect();
 
-    let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1);
+    let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1, FixtureLoad::Normal);
 
     assert_eq!(xi.len(), 11);
     assert!(
@@ -94,7 +94,7 @@ fn elite_club_rotates_tired_starter_for_comparable_fresh_player() {
     }
     let refs: Vec<&Player> = squad.iter().collect();
 
-    let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1);
+    let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1, FixtureLoad::Normal);
 
     assert_eq!(xi.len(), 11);
     assert!(
@@ -128,7 +128,13 @@ fn low_reputation_club_rides_mildly_tired_starters() {
     }
     let refs: Vec<&Player> = squad.iter().collect();
 
-    let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300), 1); // q = 0
+    let xi = ai_select_starting_xi(
+        &refs,
+        "4-4-2",
+        management_quality(300),
+        1,
+        FixtureLoad::Normal,
+    ); // q = 0
 
     assert_eq!(xi.len(), 11);
     assert!(
@@ -151,7 +157,13 @@ fn even_the_worst_manager_rests_an_exhausted_starter() {
     squad.push(mk("deputy", 66, 95)); // clearly worse, but able to play
     let refs: Vec<&Player> = squad.iter().collect();
 
-    let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300), 1); // q = 0
+    let xi = ai_select_starting_xi(
+        &refs,
+        "4-4-2",
+        management_quality(300),
+        1,
+        FixtureLoad::Normal,
+    ); // q = 0
 
     assert_eq!(xi.len(), 11);
     assert!(
@@ -172,7 +184,13 @@ fn an_exhausted_starter_is_not_replaced_by_a_hopeless_deputy() {
     squad.push(mk("hopeless", 30, 100));
     let refs: Vec<&Player> = squad.iter().collect();
 
-    let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300), 1);
+    let xi = ai_select_starting_xi(
+        &refs,
+        "4-4-2",
+        management_quality(300),
+        1,
+        FixtureLoad::Normal,
+    );
 
     assert_eq!(xi.len(), 11);
     assert!(
@@ -194,7 +212,7 @@ fn a_poor_manager_misjudges_which_deputy_is_better() {
         squad.push(mk("better", 70, 95));
         squad.push(mk("worse", 66, 95));
         let refs: Vec<&Player> = squad.iter().collect();
-        let xi = ai_select_starting_xi(&refs, "4-4-2", quality, seed);
+        let xi = ai_select_starting_xi(&refs, "4-4-2", quality, seed, FixtureLoad::Normal);
         xi.iter()
             .find(|p| !p.id.starts_with("star"))
             .map(|p| p.id.clone())
@@ -234,8 +252,8 @@ fn the_same_seed_always_names_the_same_side() {
     squad.push(mk("b", 69, 95));
     let refs: Vec<&Player> = squad.iter().collect();
 
-    let first = ai_select_starting_xi(&refs, "4-4-2", 0.0, 7);
-    let second = ai_select_starting_xi(&refs, "4-4-2", 0.0, 7);
+    let first = ai_select_starting_xi(&refs, "4-4-2", 0.0, 7, FixtureLoad::Normal);
+    let second = ai_select_starting_xi(&refs, "4-4-2", 0.0, 7, FixtureLoad::Normal);
 
     let ids = |xi: &Vec<&Player>| xi.iter().map(|p| p.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&first), ids(&second));
@@ -268,7 +286,7 @@ fn rotation_preserves_formation_position_distribution() {
     ];
     let refs: Vec<&Player> = squad.iter().collect();
 
-    let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1); // elite: rotates eagerly
+    let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1, FixtureLoad::Normal); // elite: rotates eagerly
 
     assert_eq!(xi.len(), 11);
     let group_count = |group: DomainPos| {
@@ -378,4 +396,125 @@ fn user_team_starter_keeps_saved_slot_when_xi_compacts() {
         .filter(|p| p.position == Position::Goalkeeper)
         .count();
     assert_eq!(keepers, 1, "the XI must still contain a goalkeeper");
+}
+
+// ---------------------------------------------------------------------------
+// Load management on a congested run
+// ---------------------------------------------------------------------------
+
+/// The mirror of `low_reputation_club_rides_mildly_tired_starters`: the same
+/// side, the same manager. On a normal week he rides a first eleven at 65 and
+/// is right to — it has seven days to recover. With another match three or
+/// four days away it will not recover in time, and even he rests one.
+#[test]
+fn on_a_congested_run_even_a_low_reputation_club_rests_a_tired_starter() {
+    let mut squad = Vec::new();
+    for i in 0..11 {
+        squad.push(mk(&format!("star{i}"), 80, 65));
+    }
+    squad.push(mk("deputy", 72, 100));
+    let refs: Vec<&Player> = squad.iter().collect();
+
+    let xi = ai_select_starting_xi(
+        &refs,
+        "4-4-2",
+        management_quality(300),
+        1,
+        FixtureLoad::Congested,
+    ); // q = 0
+
+    assert!(
+        xi.iter().any(|p| p.id == "deputy"),
+        "with another match days away, a first eleven at 65 should not all start"
+    );
+}
+
+/// Congestion makes a manager rest players sooner, not field anybody. A starter
+/// who is tired but far from spent stays on rather than make way for a player
+/// well below his standard.
+#[test]
+fn a_congested_run_does_not_make_a_manager_field_a_much_weaker_player() {
+    let mut squad = Vec::new();
+    for i in 0..11 {
+        squad.push(mk(&format!("star{i}"), 80, 70));
+    }
+    squad.push(mk("reserve", 60, 100)); // twenty points short
+    let refs: Vec<&Player> = squad.iter().collect();
+
+    // A poor manager, because that is where the congested tolerance floor is
+    // the whole tolerance: at elite quality it grows to the same 12 on any week.
+    let xi = ai_select_starting_xi(
+        &refs,
+        "4-4-2",
+        management_quality(300),
+        1,
+        FixtureLoad::Congested,
+    ); // q = 0
+
+    assert!(
+        xi.iter().all(|p| p.id.starts_with("star")),
+        "a reserve twenty points short is not rotation, it is a weaker team"
+    );
+}
+
+/// A world where `club` has fixtures on the given days from the clock's today.
+fn game_with_fixtures_on(days_from_today: &[i64]) -> Game {
+    use crate::clock::GameClock;
+    use chrono::{Duration, TimeZone, Utc};
+    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
+    use domain::manager::Manager;
+
+    let today = Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap();
+    let fixtures = days_from_today
+        .iter()
+        .map(|days| Fixture {
+            id: format!("f{days}"),
+            date: (today + Duration::days(*days))
+                .format("%Y-%m-%d")
+                .to_string(),
+            home_team_id: "club".to_string(),
+            away_team_id: "rival".to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        })
+        .collect();
+
+    let manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    let mut game = Game::new(
+        GameClock::new(today),
+        manager,
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    );
+    game.league = Some(League {
+        id: "league".to_string(),
+        fixtures,
+        ..Default::default()
+    });
+    game
+}
+
+/// Midweek to weekend: another match three days after today's.
+#[test]
+fn a_match_three_days_after_this_one_is_a_congested_run() {
+    let game = game_with_fixtures_on(&[0, 3]);
+    assert_eq!(fixture_load(&game, "club"), FixtureLoad::Congested);
+}
+
+/// Weekend to weekend. Today's own match is still `Scheduled` at kick-off, which
+/// is exactly why this must not count it — training's "two fixtures in the
+/// coming week" would, and would call every ordinary week congested.
+#[test]
+fn a_match_a_week_after_this_one_is_a_normal_week() {
+    let game = game_with_fixtures_on(&[0, 7]);
+    assert_eq!(fixture_load(&game, "club"), FixtureLoad::Normal);
 }
