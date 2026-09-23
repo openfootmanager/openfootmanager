@@ -1017,8 +1017,9 @@ fn loan_offer_does_not_require_cash_to_cover_wage_share() {
     let mut game = make_game_with_player(player, vec![], 50_000, 2_000_000);
     game.teams[0].wage_budget = 500_000;
 
-    make_loan_offer(&mut game, "player-loan-cash", "2027-01-01", 100, None)
+    let result = make_loan_offer(&mut game, "player-loan-cash", "2027-01-01", 100, None)
         .expect("wage share is a weekly envelope check, not a cash gate");
+    assert_eq!(result.decision, LoanOfferDecision::Accepted);
 }
 
 #[test]
