@@ -65,9 +65,22 @@ export function getPromotionRelegationZones(
     (other) =>
       other.id !== competition.id &&
       other.country_id === competition.country_id &&
-      isLadderTier(other) &&
-      !shareClubs(competition, other),
+      isLadderTier(other),
   );
+  const ladder = [competition, ...siblings];
+
+  // The backend evaluates `tiers_share_clubs` across the whole run and refuses
+  // the run when any pair overlaps — not just the pairs involving this
+  // division. Dropping only the neighbours that overlap *this* one left the
+  // rest looking like a clean ladder: a first division disjoint from both tiers
+  // below it still drew zones while those two shared clubs with each other, and
+  // the rollover exchanged nothing.
+  const overlapping = ladder.some((tier, index) =>
+    ladder.slice(index + 1).some((other) => shareClubs(tier, other)),
+  );
+  if (overlapping) {
+    return NO_ZONES;
+  }
 
   // The backend refuses a whole ladder run whose tiers do not rank distinctly —
   // equal priorities are peers, and which of them is "above" would be decided by
@@ -75,7 +88,6 @@ export function getPromotionRelegationZones(
   // will not make. Note this is about *equal* numbers only: the backend sorts a
   // country's tiers and chains neighbours by rank order, so a gap between 0 and
   // 2 still makes two adjacent divisions.
-  const ladder = [competition, ...siblings];
   const ranks = new Set(ladder.map((other) => other.priority ?? 0));
   if (ranks.size < ladder.length) {
     return NO_ZONES;

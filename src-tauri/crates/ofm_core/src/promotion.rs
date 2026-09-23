@@ -113,11 +113,17 @@ fn ranked_participants(division: &League) -> Vec<String> {
         .iter()
         .map(String::as_str)
         .collect();
+    // One row per club. A table is supposed to hold each club once, but nothing
+    // enforces it, and a repeated row inside the swap group would be taken
+    // twice: departures are removed through a set while arrivals are appended
+    // as a list, so the club lands in its new division twice and the old one
+    // comes up a place short. The first occurrence is the club's real finish.
+    let mut ranked_once: HashSet<String> = HashSet::new();
     division
         .sorted_standings()
         .into_iter()
         .map(|entry| entry.team_id)
-        .filter(|club| registered.contains(club.as_str()))
+        .filter(|club| registered.contains(club.as_str()) && ranked_once.insert(club.clone()))
         .collect()
 }
 
@@ -218,6 +224,55 @@ mod tests {
             "the top division's bottom club still goes down: {:?}",
             divisions[1].participant_ids
         );
+    }
+
+    /// A club listed twice in a division's table must not be moved twice. The
+    /// ranking filters rows against the roster but never deduplicates them, so a
+    /// repeated row can enter the swap group more than once, and the rebuilt
+    /// roster removes departures through a set while appending arrivals as a
+    /// plain list. Ten-club divisions, so two clubs swap each way and a repeated
+    /// row can actually be taken twice.
+    #[test]
+    fn a_club_listed_twice_in_the_table_is_ranked_once() {
+        let top_rows: Vec<(String, u32)> = (1..=10)
+            .map(|index| (format!("t{index}"), (30 - index) as u32))
+            .collect();
+        let bottom_rows: Vec<(String, u32)> = (1..=10)
+            .map(|index| (format!("b{index}"), (30 - index) as u32))
+            .collect();
+        fn as_refs(rows: &[(String, u32)]) -> Vec<(&str, u32)> {
+            rows.iter().map(|(id, pts)| (id.as_str(), *pts)).collect()
+        }
+        let mut top = division("top", 0, &as_refs(&top_rows));
+        let mut bottom = division("bottom", 1, &as_refs(&bottom_rows));
+        top.participant_ids = (1..=10).map(|index| format!("t{index}")).collect();
+        bottom.participant_ids = (1..=10).map(|index| format!("b{index}")).collect();
+        // `b1` appears twice at the top of the lower table, inside the two
+        // promotion places.
+        let mut duplicate = StandingEntry::new("b1".to_string());
+        duplicate.points = 28;
+        bottom.standings.insert(1, duplicate);
+
+        let mut divisions = vec![top, bottom];
+        apply_promotion_relegation(&mut divisions);
+
+        for division in &divisions {
+            let unique: HashSet<&String> = division.participant_ids.iter().collect();
+            assert_eq!(
+                unique.len(),
+                division.participant_ids.len(),
+                "{} lists a club twice: {:?}",
+                division.id,
+                division.participant_ids
+            );
+            assert_eq!(
+                division.participant_ids.len(),
+                10,
+                "{} changed size: {:?}",
+                division.id,
+                division.participant_ids
+            );
+        }
     }
 
     /// A short table must not relegate the whole division. The swap count comes

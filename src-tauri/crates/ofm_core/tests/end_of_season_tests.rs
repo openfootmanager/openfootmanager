@@ -2443,12 +2443,14 @@ fn an_unfinished_upper_tier_does_not_pay_top_flight_prize_money() {
 #[test]
 fn a_split_season_pays_and_records_one_division_once() {
     let mut game = make_completed_season_game();
-    let roster = ["team1", "team2"];
-
-    let mut apertura = first_division("ar-d1-apertura", "AR", "america", &roster);
+    // Different champions in the two halves, on purpose: team2 wins the
+    // Apertura and team1 the Clausura. team1's payout is then 5,000,000 only if
+    // the closing table was the one retained — with the same champion in both,
+    // keeping either table would satisfy every assertion below.
+    let mut apertura = first_division("ar-d1-apertura", "AR", "america", &["team2", "team1"]);
     apertura.priority = 0;
-    apertura.fixtures = vec![make_completed_fixture("ap", "team1", "team2", 2, 0)];
-    let mut clausura = first_division("ar-d1-clausura", "AR", "america", &roster);
+    apertura.fixtures = vec![make_completed_fixture("ap", "team2", "team1", 2, 0)];
+    let mut clausura = first_division("ar-d1-clausura", "AR", "america", &["team1", "team2"]);
     clausura.priority = 1;
     let mut closing = make_completed_fixture("cl", "team1", "team2", 1, 0);
     // The Clausura closes the year, so its table is the one that counts.

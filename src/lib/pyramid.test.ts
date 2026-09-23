@@ -218,4 +218,33 @@ describe("getPromotionRelegationZones", () => {
       relegationSlots: 0,
     });
   });
+
+  it("draws no zones when two other tiers share clubs", () => {
+    // The queried division is disjoint from both tiers below it, but those two
+    // overlap each other. The backend evaluates tiers_share_clubs across the
+    // whole run and refuses it, so the table must not promise movement.
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const second = division({
+      id: "xx-2",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("b", 20),
+    });
+    const third = division({
+      id: "xx-3",
+      country_id: "XX",
+      priority: 2,
+      participant_ids: [...clubs("b", 5), ...clubs("c", 15)],
+    });
+
+    expect(getPromotionRelegationZones([first, second, third], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
 });
