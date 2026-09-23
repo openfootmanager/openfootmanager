@@ -24,21 +24,29 @@ export function SquadSortHeader({
 }) {
   const active = sortKey === col;
 
+  // The <th> stays the column header and carries the sort state; the control inside it is a real
+  // button, so it is in the tab order and Enter and Space work. The ring is inset rather than
+  // offset because the table scrolls inside an `overflow-x-auto` box, which clips anything drawn
+  // outside the cell — an offset ring would be cut off along the header row.
   return (
     <th
-      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
-      onClick={() => onSort(col)}
+      aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
+      className="p-0"
     >
-      <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        className={`flex w-full items-center gap-1 py-2.5 px-4 font-heading font-bold uppercase tracking-wider select-none transition-colors hover:text-primary-400 dark:hover:text-primary-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+      >
         {label}
         {active ? (
           sortDir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
+            <ChevronUp className="w-3 h-3" aria-hidden="true" />
           ) : (
-            <ChevronDown className="w-3 h-3" />
+            <ChevronDown className="w-3 h-3" aria-hidden="true" />
           )
         ) : null}
-      </div>
+      </button>
     </th>
   );
 }
