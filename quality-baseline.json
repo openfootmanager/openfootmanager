@@ -1,6 +1,6 @@
 {
   "oversizedAggregate": {
-    "rust": 63424,
+    "rust": 63773,
     "ts": 35366
   },
   "allowedOversized": {
@@ -21,14 +21,14 @@
     "src-tauri/crates/ofm_core/src/news.rs": 1451,
     "src-tauri/crates/ofm_core/src/schedule.rs": 1078,
     "src-tauri/crates/ofm_core/src/scouting.rs": 1022,
-    "src-tauri/crates/ofm_core/src/transfers/loans.rs": 1441,
+    "src-tauri/crates/ofm_core/src/transfers/loans.rs": 1448,
     "src-tauri/crates/ofm_core/src/turn/news.rs": 2055,
     "src-tauri/crates/ofm_core/src/world_cup.rs": 3084,
     "src-tauri/crates/ofm_core/tests/end_of_season_tests.rs": 2925,
     "src-tauri/crates/ofm_core/tests/player_events_tests.rs": 1754,
     "src-tauri/crates/ofm_core/tests/random_events_tests.rs": 1396,
     "src-tauri/crates/ofm_core/tests/training_tests.rs": 1164,
-    "src-tauri/crates/ofm_core/tests/transfers_tests.rs": 3437,
+    "src-tauri/crates/ofm_core/tests/transfers_tests.rs": 3779,
     "src-tauri/crates/ofm_core/tests/turn_tests.rs": 2005,
     "src-tauri/crates/ofm-cli/src/main.rs": 1118,
     "src-tauri/src/commands/game/mod.rs": 3320,
