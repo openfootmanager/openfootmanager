@@ -58,23 +58,39 @@ use ofm_core::turn;
 
 const CLUBS: usize = 8;
 const SQUAD_SIZE: usize = 22;
-/// Weeks to simulate. A full league season is 38, and the trend does not settle
-/// inside a dozen — override with `OFM_PROBE_WEEKS` when chasing the tail.
-fn weeks() -> u32 {
-    std::env::var("OFM_PROBE_WEEKS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(12)
+/// What a probe season looks like. The ignored probe reads it from the
+/// environment so it can be swept; the red-line tests below spell it out, so no
+/// stray `OFM_PROBE_*` variable can change what they assert.
+#[derive(Clone, Copy)]
+struct Settings {
+    /// Weeks to simulate. A full league season is 38, and the trend does not
+    /// settle inside a dozen — `OFM_PROBE_WEEKS` when chasing the tail.
+    weeks: u32,
+    /// Fixtures per week. Two is a league plus a midweek cup — the load that
+    /// separates a squad which copes from one which does not.
+    /// `OFM_PROBE_MATCHES_PER_WEEK`, 1 or 2.
+    per_week: u32,
+    /// See [`make_staff`]. `OFM_PROBE_PHYSIO`.
+    physio: u8,
 }
 
-/// Fixtures per week. Two is a league plus a midweek cup — the load that
-/// separates a squad which copes from one which does not.
-fn matches_per_week() -> u32 {
-    std::env::var("OFM_PROBE_MATCHES_PER_WEEK")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(1)
-        .clamp(1, 2)
+impl Settings {
+    const DEFAULT: Settings = Settings {
+        weeks: 12,
+        per_week: 1,
+        physio: 60,
+    };
+
+    fn from_env() -> Self {
+        let read = |name: &str| std::env::var(name).ok().and_then(|v| v.parse::<u32>().ok());
+        Settings {
+            weeks: read("OFM_PROBE_WEEKS").unwrap_or(Self::DEFAULT.weeks),
+            per_week: read("OFM_PROBE_MATCHES_PER_WEEK")
+                .unwrap_or(Self::DEFAULT.per_week)
+                .clamp(1, 2),
+            physio: read("OFM_PROBE_PHYSIO").map_or(Self::DEFAULT.physio, |v| v.min(100) as u8),
+        }
+    }
 }
 /// 2025-06-16 is a Monday, so matchdays land on the Saturday of each week.
 const START: (i32, u32, u32) = (2025, 6, 16);
@@ -146,24 +162,15 @@ fn make_squad(team_id: &str) -> Vec<Player> {
     players
 }
 
-/// Physio quality, which multiplies **every** recovery base by
-/// `1.0 + physiotherapy/100 × 0.4`. It is the single largest lever on the whole
-/// ledger and worth sweeping: with one fixture a week, a club whose physio rates
-/// 60 (×1.24) sits pegged at condition 100, while the same club with a physio
-/// rating 0 settles around 60. Override with `OFM_PROBE_PHYSIO`.
-fn physio_rating() -> u8 {
-    std::env::var("OFM_PROBE_PHYSIO")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(60)
-}
-
 /// Generated worlds give every club a full staff, so a probe without one would
 /// measure the 0.8 no-coaching penalty that no real club ever pays.
-fn make_staff(team_id: &str) -> Vec<Staff> {
+///
+/// `physio` multiplies **every** recovery base by `1.0 + physio/100 × 0.4`. It is
+/// the single largest lever on the whole ledger and worth sweeping.
+fn make_staff(team_id: &str, physio: u8) -> Vec<Staff> {
     [
         (StaffRole::Coach, 60u8, 20u8),
-        (StaffRole::Physio, 20, physio_rating()),
+        (StaffRole::Physio, 20, physio),
     ]
     .into_iter()
     .map(|(role, coaching, physiotherapy)| {
@@ -189,9 +196,13 @@ fn make_staff(team_id: &str) -> Vec<Staff> {
 
 /// One fixture per club per week, every club playing every week — the load a
 /// league season actually applies.
-fn weekly_fixtures(team_ids: &[String], start: chrono::DateTime<Utc>) -> Vec<Fixture> {
+fn weekly_fixtures(
+    team_ids: &[String],
+    start: chrono::DateTime<Utc>,
+    settings: &Settings,
+) -> Vec<Fixture> {
     let mut fixtures = Vec::new();
-    for week in 0..weeks() {
+    for week in 0..settings.weeks {
         // Circle method: club 0 is fixed, the rest rotate, so the pairings differ
         // every week and no club meets the same opponent twice in a row.
         let mut order: Vec<&String> = team_ids.iter().collect();
@@ -205,7 +216,7 @@ fn weekly_fixtures(team_ids: &[String], start: chrono::DateTime<Utc>) -> Vec<Fix
         order.extend(rotated);
 
         // Saturday, then the Wednesday before it when a midweek round is asked for.
-        for (round, day_offset) in (0..matches_per_week()).map(|r| (r, [0i64, -3][r as usize])) {
+        for (round, day_offset) in (0..settings.per_week).map(|r| (r, [0i64, -3][r as usize])) {
             let date = (start
                 + chrono::Duration::days(FIRST_MATCHDAY_OFFSET + 7 * i64::from(week) + day_offset))
             .format("%Y-%m-%d")
@@ -235,7 +246,7 @@ fn weekly_fixtures(team_ids: &[String], start: chrono::DateTime<Utc>) -> Vec<Fix
     fixtures
 }
 
-fn build_world() -> Game {
+fn build_world(settings: &Settings) -> Game {
     let start = Utc
         .with_ymd_and_hms(START.0, START.1, START.2, 12, 0, 0)
         .unwrap();
@@ -255,7 +266,7 @@ fn build_world() -> Game {
             30_000,
         ));
         players.extend(make_squad(id));
-        staff.extend(make_staff(id));
+        staff.extend(make_staff(id, settings.physio));
     }
 
     let mut manager = Manager::new(
@@ -271,7 +282,7 @@ fn build_world() -> Game {
         id: "league1".to_string(),
         name: "Probe League".to_string(),
         season: 1,
-        fixtures: weekly_fixtures(&team_ids, start),
+        fixtures: weekly_fixtures(&team_ids, start, settings),
         standings: team_ids.iter().cloned().map(StandingEntry::new).collect(),
         transfer_log: vec![],
         transfer_rumours: vec![],
@@ -342,16 +353,15 @@ fn is_matchday(game: &Game) -> bool {
 #[test]
 #[ignore = "season-length probe: run explicitly with --ignored --nocapture"]
 fn report_pre_match_readiness_over_a_season() {
-    let mut game = build_world();
+    let settings = Settings::from_env();
+    let mut game = build_world(&settings);
     let user_team = game.manager.team_id.clone().expect("user club");
     let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
 
     println!();
     println!(
         "Pre-match condition, {CLUBS} clubs × {SQUAD_SIZE} players, {} fixture(s) per week, {} weeks, physio {}.",
-        matches_per_week(),
-        weeks(),
-        physio_rating()
+        settings.per_week, settings.weeks, settings.physio
     );
     println!("'squad' is what ai_training's intensity bands read; 'XI' is who actually plays.");
     println!();
@@ -363,7 +373,7 @@ fn report_pre_match_readiness_over_a_season() {
 
     let mut week = 0;
     // One extra week of days so the last matchday is reached and reported.
-    for _ in 0..(weeks() + 1) * 7 {
+    for _ in 0..(settings.weeks + 1) * 7 {
         if is_matchday(&game) {
             week += 1;
             let ai_squad: Vec<f64> = team_ids
@@ -396,4 +406,76 @@ fn report_pre_match_readiness_over_a_season() {
          controller cannot see."
     );
     println!();
+}
+
+// ---------------------------------------------------------------------------
+// The red line
+// ---------------------------------------------------------------------------
+
+/// Pre-match condition an AI club must reach, its likely eleven and its squad
+/// both, on every settled week.
+const FRESH_ENOUGH: f64 = 80.0;
+
+/// Weeks allowed to settle before the line applies. Every club starts at 100,
+/// and the first two weeks are the fall to wherever its ledger holds it.
+const SETTLING_WEEKS: usize = 2;
+
+/// Pre-match (AI squad, AI likely eleven) for every match of a probe season.
+fn season_readings(settings: &Settings) -> Vec<(f64, f64)> {
+    let mut game = build_world(settings);
+    let user_team = game.manager.team_id.clone().expect("user club");
+    let ai_teams: Vec<String> = game
+        .teams
+        .iter()
+        .map(|t| t.id.clone())
+        .filter(|id| *id != user_team)
+        .collect();
+    let average = |read: &dyn Fn(&Game, &str) -> f64, game: &Game| {
+        ai_teams.iter().map(|id| read(game, id)).sum::<f64>() / ai_teams.len() as f64
+    };
+
+    let mut readings = Vec::new();
+    for _ in 0..(settings.weeks + 1) * 7 {
+        if is_matchday(&game) {
+            readings.push((
+                average(&squad_condition, &game),
+                average(&likely_xi_condition, &game),
+            ));
+        }
+        turn::process_day(&mut game);
+    }
+    readings
+}
+
+/// Checked match by match rather than on the season's average: a side that
+/// arrives at 90 one week and 70 the next has had one bad week, and the average
+/// would hide it.
+fn assert_every_settled_match_fresh(settings: &Settings) {
+    let readings = season_readings(settings);
+    let settled = &readings[SETTLING_WEEKS * settings.per_week as usize..];
+    assert!(
+        !settled.is_empty(),
+        "the probe world played no settled matches"
+    );
+    for (n, (squad, xi)) in settled.iter().enumerate() {
+        let n = n + SETTLING_WEEKS * settings.per_week as usize + 1;
+        assert!(
+            *xi >= FRESH_ENOUGH,
+            "{} fixture(s) a week, match {n}: AI clubs sent their likely eleven out \
+             at {xi:.1}, below {FRESH_ENOUGH} (squad {squad:.1})",
+            settings.per_week
+        );
+        assert!(
+            *squad >= FRESH_ENOUGH,
+            "{} fixture(s) a week, match {n}: AI squads reached the match at \
+             {squad:.1}, below {FRESH_ENOUGH}",
+            settings.per_week
+        );
+    }
+}
+
+/// A normal week: one fixture, the rest of the week to prepare for it.
+#[test]
+fn an_ai_club_on_one_fixture_a_week_reaches_every_match_fresh() {
+    assert_every_settled_match_fresh(&Settings::DEFAULT);
 }

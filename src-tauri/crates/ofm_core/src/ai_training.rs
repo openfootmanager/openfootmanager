@@ -29,17 +29,28 @@ use domain::team::{PlayStyle, TrainingFocus, TrainingIntensity};
 // ---------------------------------------------------------------------------
 
 // All three are read against `likely_starters_condition`, not the squad mean.
-// They did not move when the signal did: a band written for "the players who
-// play" only ever made sense against that reading, and it is the reading that
-// was wrong. `HIGH_INTENSITY_MIN` is what the club now settles at — a squad
-// working hard enough to keep its best eleven around 70 and no harder.
+//
+// `HIGH_INTENSITY_MIN` is, in effect, where a club settles: above it the planner
+// works the squad hard, below it eases off, so the eleven hover at the band's
+// edge. It used to be 70, and a club's best eleven arrived at matches at about
+// 73 on a normal week. That was worse than the number suggests, because the
+// taper before a match only steps a session down one level: from Medium it
+// reaches Low, which is a Recovery session and gives condition back, but from
+// High it only reaches Medium, which still costs. A club that lives in the High
+// band never gets a real run-in to a match.
+//
+// 85 is the lowest edge at which every settled week of a one-fixture season
+// clears 80 (readiness probe, physio 60: worst week 86.9, against 70.8 at 70
+// and 79.9 at 80). The cost is development: High is where a session builds
+// the most, and a club at this setpoint spends more of its week on Medium —
+// which is where the player's own club sits by default.
 
 /// Below this starters' condition: full recovery day (no cycle advance).
 const RECOVERY_CRISIS_THRESHOLD: f64 = 10.0;
 /// Below this starters' condition: Low intensity band.
 const LOW_INTENSITY_MAX: f64 = 40.0;
-/// Above this starters' condition: High intensity band (40–70 inclusive is Medium).
-const HIGH_INTENSITY_MIN: f64 = 70.0;
+/// Above this starters' condition: High intensity band (40–85 inclusive is Medium).
+const HIGH_INTENSITY_MIN: f64 = 85.0;
 
 // ---------------------------------------------------------------------------
 // Style-biased weekly cycle
@@ -476,8 +487,18 @@ mod tests {
     }
 
     #[test]
-    fn likely_starters_at_71_give_high_intensity() {
-        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 71);
+    fn likely_starters_at_85_give_medium_intensity() {
+        // The top of the Medium band. A club settles near this edge, so it is the
+        // one that decides whether its eleven reach matches fresh.
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 85);
+        apply_ai_training_policies(&mut game, 1);
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(ai.training_intensity, TrainingIntensity::Medium);
+    }
+
+    #[test]
+    fn likely_starters_at_86_give_high_intensity() {
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 86);
         // Use Tuesday (weekday 1, Balanced schedule trains Tue) → slot 1 = Technical.
         // Technical + High does not trigger the safety rule, so intensity stays High.
         apply_ai_training_policies(&mut game, 1);
@@ -576,8 +597,8 @@ mod tests {
 
     #[test]
     fn physical_focus_with_high_intensity_is_downgraded_to_medium() {
-        // Condition 80 → High base intensity; slot 0 = Physical for any style
-        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
+        // Condition 90 → High base intensity; slot 0 = Physical for any style
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 90);
 
         apply_ai_training_policies(&mut game, 0); // Mon slot 0 = Physical
 
