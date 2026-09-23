@@ -289,10 +289,16 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
 
     let mut by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
     let mut standalone: Vec<&League> = Vec::new();
+    // The same predicate the ladder admits on. A cup or a regional side
+    // competition can be scored as a table and share a country, but it is not a
+    // rung of the pyramid: ranked as one it takes a tier number, and because it
+    // often shares a roster with the real division it could win the collapse
+    // below and hand that division's prize money and history to whoever
+    // happened to win it.
     for league in game
         .competitions
         .iter()
-        .filter(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
+        .filter(|competition| berths::is_ladder_tier(competition))
     {
         match league.country_id.as_deref() {
             Some(country) => by_country.entry(country).or_default().push(league),

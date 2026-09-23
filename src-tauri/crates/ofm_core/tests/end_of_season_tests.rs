@@ -2435,6 +2435,62 @@ fn an_unfinished_upper_tier_does_not_pay_top_flight_prize_money() {
     );
 }
 
+/// Only a country's own league tiers are divisions. A regional competition
+/// scored as a table was ranked as one, and because it shares a roster with the
+/// real division it could win the collapse and take its prize money and its
+/// place in the club's history.
+#[test]
+fn a_regional_table_is_not_a_division_for_prize_money() {
+    let mut game = make_completed_season_game();
+    let roster = ["team1", "team2"];
+
+    let mut league = first_division("eng-d1", "ENG", "europe", &["team1", "team2"]);
+    league.fixtures = vec![make_completed_fixture("d1f", "team1", "team2", 2, 0)];
+
+    // Same clubs, same country, scored as a table — but a regional side
+    // competition, not a rung of the pyramid. It finishes later, so if it were
+    // admitted it would win the collapse and crown team2 instead.
+    let mut regional = first_division("eng-regional", "ENG", "europe", &["team2", "team1"]);
+    regional.scope = CompetitionScope::Regional;
+    regional.priority = 1;
+    let mut later = make_completed_fixture("rf", "team2", "team1", 3, 0);
+    later.date = "2026-06-01".to_string();
+    regional.fixtures = vec![later];
+    let _ = roster;
+
+    game.league = Some(league.clone());
+    game.competitions = vec![league, regional];
+    let before = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team1")
+        .expect("team1")
+        .finance;
+
+    process_end_of_season(&mut game);
+
+    let team1 = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team1")
+        .expect("team1");
+    assert_eq!(
+        team1.finance - before,
+        5_000_000,
+        "team1 won its division and is paid as champion of it"
+    );
+    assert_eq!(
+        team1.history.len(),
+        1,
+        "one division, one history entry: {:?}",
+        team1.history
+    );
+    assert_eq!(
+        team1.history[0].league_position, 1,
+        "the division's table decides the record, not a regional side competition"
+    );
+}
+
 /// A split-season country plays the same clubs through an Apertura and a
 /// Clausura. Counted separately they were ranked as though the second were a
 /// tier below the first, so a club banked a top-flight prize for one half and a

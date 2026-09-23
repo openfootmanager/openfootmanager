@@ -136,28 +136,56 @@ describe("getPromotionRelegationZones", () => {
     });
   });
 
-  it("ignores competitions that are not domestic league tiers", () => {
+  // One predicate per test. Changing both scope and kind on the same fixture
+  // let either clause mask the other's removal: dropping just one still left
+  // the whole suite green.
+  it("ignores a regional competition scored as a table", () => {
     const first = division({
       id: "xx-1",
       country_id: "XX",
       priority: 0,
       participant_ids: clubs("a", 20),
     });
-    const regionalCup = division({
+    const regional = division({
       id: "xx-regional",
       country_id: "XX",
       priority: 1,
-      participant_ids: clubs("b", 10),
+      participant_ids: clubs("b", 20),
       scope: "Regional",
-      kind: "Cup",
+      // kind stays "League", so only the scope clause can refuse this.
     });
 
-    expect(getPromotionRelegationZones([first, regionalCup], first)).toEqual({
+    expect(getPromotionRelegationZones([first, regional], first)).toEqual({
       promotionSlots: 0,
       relegationSlots: 0,
     });
-    // And such a competition has no zones of its own.
-    expect(getPromotionRelegationZones([first, regionalCup], regionalCup)).toEqual({
+    expect(getPromotionRelegationZones([first, regional], regional)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
+
+  it("ignores a cup scored as a table", () => {
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const cup = division({
+      id: "xx-cup",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("b", 20),
+      kind: "Cup",
+      // scope stays "Domestic", so only the kind clause can refuse this.
+    });
+
+    expect(getPromotionRelegationZones([first, cup], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+    expect(getPromotionRelegationZones([first, cup], cup)).toEqual({
       promotionSlots: 0,
       relegationSlots: 0,
     });
