@@ -438,22 +438,31 @@ describe("SquadTab", () => {
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });
-  it("keeps the same column-header nodes when a filter changes", async () => {
-    // SortHeader used to be declared inside SquadRosterView's body, which makes
-    // it a fresh component type on every render: React unmounts the old <th>
-    // and mounts a new one, throwing away focus and any in-flight transition.
-    // Identity of the DOM node is the observable difference.
+  it("names each roster filter after its visible label", async () => {
     renderSquadTab(makeGameState());
 
-    const headerBefore = await screen.findByText("#");
-    const thBefore = headerBefore.closest("th");
-    expect(thBefore).not.toBeNull();
+    // Each <label> has to be tied to its control, or a screen reader announces three unnamed
+    // fields and these queries find nothing.
+    expect(await screen.findByRole("textbox", { name: "common.search" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "squad.pos" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "common.status" })).toBeInTheDocument();
+  });
 
-    const filter = screen.getByPlaceholderText("squad.filterPlayers");
-    fireEvent.change(filter, { target: { value: "z" } });
+  it("keeps the same column-header node when a filter changes", async () => {
+    // A header that remounts throws away focus and any in-flight transition. A component declared
+    // inside the render body does it — Biome's noNestedComponentDefinitions catches that case —
+    // but so does anything else that changes the header's identity, such as a key derived from
+    // filter state, which no lint rule sees.
+    renderSquadTab(makeGameState());
+
+    const headerBefore = await screen.findByRole("columnheader", { name: "#" });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "common.search" }), {
+      target: { value: "z" },
+    });
 
     await waitFor(() => {
-      expect(screen.getByText("#").closest("th")).toBe(thBefore);
+      expect(screen.getByRole("columnheader", { name: "#" })).toBe(headerBefore);
     });
   });
 });
