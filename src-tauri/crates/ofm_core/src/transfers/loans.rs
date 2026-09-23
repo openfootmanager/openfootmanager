@@ -978,6 +978,13 @@ pub(crate) fn complete_loan_buy_option_transfer(
     for team in &mut game.teams {
         if team.id == buying_team_id {
             team.transfer_budget -= fee_i64;
+        } else if team.id == parent_team_id {
+            // Same rule as a permanent sale: the proceeds replenish this season's transfer
+            // envelope, not only the balance. The cash reaches the parent through the journal
+            // post above; crediting one and not the other left a club that sold through an
+            // option unable to spend what it had just earned.
+            team.transfer_budget += fee_i64;
+            team.remove_player_references(player_id);
         } else {
             team.remove_player_references(player_id);
         }
