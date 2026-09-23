@@ -2590,6 +2590,7 @@
       "liveMatch": {
         "noLeague": "Tidak ada data liga yang tersedia untuk pertandingan ini.",
         "fixtureNotFound": "Jadwal yang dipilih tidak dapat ditemukan.",
+        "emptySquad": "Salah satu tim tidak memiliki pemain yang tersedia, sehingga pertandingan tidak dapat dimainkan.",
         "maxSubstitutionsReached": "Pergantian pemain maksimum tercapai",
         "preMatchSwapTooLate": "Pergantian pra-pertandingan hanya diizinkan sebelum kick-off",
         "cannotSubstituteSentOffPlayer": "Tidak dapat mengganti pemain yang dikeluarkan",

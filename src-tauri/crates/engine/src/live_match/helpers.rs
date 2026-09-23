@@ -119,7 +119,14 @@ impl LiveMatchState {
                 return PlayerSnap::from(p);
             }
         }
-        PlayerSnap::from(&team.players[0])
+        // Everyone is sent off, or there is nobody at all. `create_live_match`
+        // refuses a side with no players, so the latter should not reach here —
+        // but a blank name in an event is a bug worth reporting, and indexing
+        // an empty squad is a window that stops responding.
+        team.players
+            .first()
+            .map(PlayerSnap::from)
+            .unwrap_or_else(PlayerSnap::nobody)
     }
 
     // -----------------------------------------------------------------------
@@ -384,5 +391,43 @@ mod commentary_detail_tests {
         // Specifically: home extends the lead, away equalises.
         assert_eq!(state.goal_context(Side::Home), GoalContext::Extends);
         assert_eq!(state.goal_context(Side::Away), GoalContext::Equaliser);
+    }
+}
+
+#[cfg(test)]
+mod empty_squad_tests {
+    use crate::live_match::LiveMatchState;
+    use crate::types::{MatchConfig, PlayStyle, Side, TacticsConfig, TeamData};
+
+    fn empty_team(id: &str) -> TeamData {
+        TeamData {
+            id: id.to_string(),
+            name: id.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            tactics: TacticsConfig::default(),
+            players: vec![],
+        }
+    }
+
+    /// The batch engine refuses a match with an empty side, but the live,
+    /// spectator and delegated paths build `LiveMatchState` directly and never
+    /// reach that guard. Goalkeeper selection ended by indexing `players[0]`,
+    /// so a shootout with an empty XI panicked out of the Tauri command and
+    /// left the window with no response.
+    #[test]
+    fn picking_a_goalkeeper_from_nobody_does_not_panic() {
+        let state = LiveMatchState::new(
+            empty_team("home"),
+            empty_team("away"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            true,
+        );
+
+        let keeper = state.pick_goalkeeper(Side::Home);
+
+        assert!(keeper.id.is_empty(), "nobody is available to keep goal");
     }
 }

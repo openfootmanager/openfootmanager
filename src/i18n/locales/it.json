@@ -2577,6 +2577,7 @@
       "liveMatch": {
         "noLeague": "Non ci sono dati di campionato disponibili per questa partita.",
         "fixtureNotFound": "Impossibile trovare la partita selezionata.",
+        "emptySquad": "Una delle squadre non ha giocatori disponibili, quindi la partita non può essere giocata.",
         "maxSubstitutionsReached": "Raggiunto il numero massimo di sostituzioni",
         "preMatchSwapTooLate": "Gli scambi pre-partita sono consentiti solo prima del calcio d'inizio",
         "cannotSubstituteSentOffPlayer": "Non puoi sostituire un giocatore espulso",

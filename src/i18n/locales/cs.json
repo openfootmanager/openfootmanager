@@ -2590,6 +2590,7 @@
       "liveMatch": {
         "noLeague": "Pro tento zápas nejsou k dispozici žádná data o lize.",
         "fixtureNotFound": "Vybrané utkání nebylo nalezeno.",
+        "emptySquad": "Jeden z týmů nemá k dispozici žádné hráče, takže zápas nelze odehrát.",
         "maxSubstitutionsReached": "Bylo dosaženo maximálního počtu střídání",
         "preMatchSwapTooLate": "Předzápasové změny v sestavě jsou povoleny pouze před výkopem",
         "cannotSubstituteSentOffPlayer": "Nelze střídat vyloučeného hráče",

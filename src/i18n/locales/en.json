@@ -2590,6 +2590,7 @@
       "liveMatch": {
         "noLeague": "No league data is available for this match.",
         "fixtureNotFound": "The selected fixture could not be found.",
+        "emptySquad": "One of the teams has no available players, so the match cannot be played.",
         "maxSubstitutionsReached": "Maximum substitutions reached",
         "preMatchSwapTooLate": "Pre-match swaps are only allowed before kick-off",
         "cannotSubstituteSentOffPlayer": "Cannot substitute a sent-off player",

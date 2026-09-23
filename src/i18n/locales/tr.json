@@ -2590,6 +2590,7 @@
       "liveMatch": {
         "noLeague": "Bu maç için lig verisi mevcut değil.",
         "fixtureNotFound": "Seçilen maç bulunamadı.",
+        "emptySquad": "Takımlardan birinin uygun oyuncusu yok, bu yüzden maç oynanamaz.",
         "maxSubstitutionsReached": "Maksimum oyuncu değişikliği sayısına ulaşıldı",
         "preMatchSwapTooLate": "Maç öncesi değişikliklere yalnızca başlama vuruşundan önce izin verilir",
         "cannotSubstituteSentOffPlayer": "Oyundan atılmış bir oyuncu değiştirilemez",
