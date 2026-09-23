@@ -1558,9 +1558,8 @@ describe("TransfersTab", (): void => {
   });
 
   it("shows wage budget in annual units (/yr) matching the player wage display (regression #212)", (): void => {
-    // wage_budget = 52000 annual → should render as "50K/yr" style value
-    // If shown weekly: floor(52000/52) = 1000 → "1K/wk" — a clear unit mismatch
-    // Player.wage = 52000 annual → displayed as "50K/yr" in the player row
+    // wage_budget = 52000 → should render as "50K/yr" style value on this card
+    // Player.wage = 52000 → displayed as "50K/yr" in the player row
     const state = createGameState([createPlayer({ wage: 52000 })]);
     state.teams[0].wage_budget = 52000;
 

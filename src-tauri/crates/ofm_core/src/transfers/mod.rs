@@ -58,8 +58,9 @@ pub struct TransferBidFinancialProjection {
     pub annual_wage_bill_before: i64,
     pub annual_wage_bill_after: i64,
     pub annual_wage_budget: i64,
-    /// Weekly wage figures (annual / 52), so the UI can show the same before →
-    /// after breakdown the renewal projection uses instead of a lone usage %.
+    /// Weekly wage figures (stored wages are already weekly), so the UI can
+    /// show the same before → after breakdown the renewal projection uses
+    /// instead of a lone usage %.
     pub current_weekly_wage_spend: i64,
     pub projected_weekly_wage_spend: i64,
     pub weekly_wage_budget: i64,

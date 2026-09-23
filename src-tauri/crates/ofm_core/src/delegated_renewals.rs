@@ -149,7 +149,8 @@ pub fn delegate_renewals(
 
         if delegation_score >= 95 {
             let agreed_wage = expected_wage.min(max_wage);
-            if !renewal_wage_policy_allows(game, &team, player.wage, agreed_wage) {
+            let player_for_policy = player.clone();
+            if !renewal_wage_policy_allows(game, &team, &player_for_policy, agreed_wage) {
                 report.stalled_count += 1;
                 case.status = DelegatedRenewalResultStatus::Stalled;
                 case.note = String::new();

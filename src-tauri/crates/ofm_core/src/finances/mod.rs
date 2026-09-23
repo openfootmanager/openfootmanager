@@ -2,8 +2,12 @@ pub mod journal;
 
 pub use domain::finance::{CashJournal, CashKind};
 pub use journal::{
-    PostRequest, backfill_opening_balances, journal_matches_cash, post, post_all, validate_posts,
+    PostRequest, backfill_opening_balances, credit_opening_cash, journal_matches_cash, post,
+    post_all, validate_posts,
 };
+
+/// Weeks of committed wages a club must be able to cover after the weekly unit lock.
+pub const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
 
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
@@ -185,61 +189,102 @@ fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> Me
     }
 }
 
+/// Committed weekly wages for `team_id`, including the parent/loanee split.
 pub fn calc_wages(game: &Game, team_id: &str) -> i64 {
     let player_wages: i64 = game
         .players
         .iter()
-        .map(|player| player_annual_wage_for_team(player, team_id) / 52)
+        .map(|player| player_weekly_wage_for_team(player, team_id))
         .sum();
 
     let staff_wages: i64 = game
         .staff
         .iter()
         .filter(|staff_member| staff_member.team_id.as_deref() == Some(team_id))
-        .map(|staff_member| staff_member.wage as i64 / 52)
+        .map(|staff_member| i64::from(staff_member.wage))
         .sum();
 
     player_wages + staff_wages
 }
 
+/// Same committed weekly total as [`calc_wages`].
+///
+/// Named from when stored wages were treated as annual. A yearly figure is
+/// `calc_wages(...) * 52`.
 pub fn calc_annual_wages(game: &Game, team_id: &str) -> i64 {
-    let player_wages: i64 = game
-        .players
-        .iter()
-        .map(|player| player_annual_wage_for_team(player, team_id))
-        .sum();
-
-    let staff_wages: i64 = game
-        .staff
-        .iter()
-        .filter(|staff_member| staff_member.team_id.as_deref() == Some(team_id))
-        .map(|staff_member| staff_member.wage as i64)
-        .sum();
-
-    player_wages + staff_wages
+    calc_wages(game, team_id)
 }
 
-fn player_annual_wage_for_team(player: &domain::player::Player, team_id: &str) -> i64 {
-    if let Some(loan) = &player.active_loan {
-        let wage = i64::from(player.wage);
-        let loan_share = (wage * i64::from(loan.wage_contribution_pct)) / 100;
+/// This club's share of `player.wage` this week (loan split, otherwise the
+/// employing club).
+pub fn player_weekly_wage_for_team(player: &domain::player::Player, team_id: &str) -> i64 {
+    weekly_share(player, team_id, i64::from(player.wage), false)
+}
 
+/// This club's weekly commitment if `player` were paid `wage` (loan split on
+/// an existing loan; otherwise the full wage — signing and own-player renewal).
+pub fn weekly_commitment_at_wage(player: &domain::player::Player, team_id: &str, wage: i64) -> i64 {
+    weekly_share(player, team_id, wage, true)
+}
+
+fn weekly_share(
+    player: &domain::player::Player,
+    team_id: &str,
+    wage: i64,
+    offered_to_this_club: bool,
+) -> i64 {
+    if let Some(loan) = &player.active_loan {
+        let loan_share = (wage * i64::from(loan.wage_contribution_pct)) / 100;
         if loan.loan_team_id == team_id {
             return loan_share;
         }
-
         if loan.parent_team_id == team_id {
             return wage.saturating_sub(loan_share);
         }
-
         return 0;
     }
 
-    if player.team_id.as_deref() == Some(team_id) {
-        i64::from(player.wage)
+    if offered_to_this_club || player.team_id.as_deref() == Some(team_id) {
+        wage
     } else {
         0
     }
+}
+
+/// Raise cash to 16 weeks of committed weekly wages. Credits the gap as
+/// `OpeningBalance` so the journal still matches `Team.finance`.
+///
+/// Call from `save_manager::load_game` after opening-balance backfill, gated
+/// on `save_format_version < 6`. Returns whether any club was credited.
+pub fn apply_weekly_unit_runway_floor(game: &mut Game) -> bool {
+    let date = game.clock.current_date.date_naive();
+    let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+    let mut changed = false;
+
+    for team_id in team_ids {
+        let weekly = calc_wages(game, &team_id);
+        let required = weekly.saturating_mul(MIN_OPENING_RUNWAY_WEEKS);
+        let Some(finance) = game
+            .teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .map(|team| team.finance)
+        else {
+            continue;
+        };
+        let target = finance.max(required);
+        let delta = target.saturating_sub(finance);
+        if delta <= 0 {
+            continue;
+        }
+        if let Err(err) = credit_opening_cash(game, &team_id, delta, date) {
+            log::error!("weekly unit runway floor failed for {team_id}: {err}");
+            continue;
+        }
+        changed = true;
+    }
+
+    changed
 }
 
 pub fn calc_cash_runway_weeks(balance: i64, projected_weekly_net: i64) -> Option<i64> {
@@ -278,7 +323,7 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
     let team = game.teams.iter().find(|team| team.id == team_id)?;
     let annual_wage_bill = calc_annual_wages(game, team_id);
     let weekly_wage_spend = calc_wages(game, team_id);
-    let weekly_wage_budget = team.wage_budget / 52;
+    let weekly_wage_budget = team.wage_budget;
     let current_position = current_league_position(game, team_id);
     let weekly_sponsor_income = team
         .sponsorship
@@ -903,6 +948,13 @@ fn count_recent_home_matches(game: &Game, team_id: &str) -> i64 {
         .count() as i64
 }
 
+fn add_weekly_wage(map: &mut std::collections::HashMap<String, i64>, team_id: &str, amount: i64) {
+    if amount == 0 {
+        return;
+    }
+    *map.entry(team_id.to_string()).or_default() += amount;
+}
+
 fn commit_weekly_posts(game: &mut Game, reqs: &[PostRequest]) -> bool {
     if reqs.is_empty() {
         return true;
@@ -917,8 +969,8 @@ fn commit_weekly_posts(game: &mut Game, reqs: &[PostRequest]) -> bool {
 }
 
 /// Process weekly financial operations (called every Monday = weekday 0).
-/// - Deduct player wages (weekly = annual / 52)
-/// - Deduct staff wages
+/// - Deduct player wages (stored `Player.wage` is weekly; loanees split)
+/// - Deduct staff wages (stored `Staff.wage` is weekly)
 /// - Add matchday revenue for home matches played that week
 /// - Check financial health and generate warnings
 pub fn process_weekly_finances(game: &mut Game) {
@@ -937,14 +989,28 @@ pub fn process_weekly_finances(game: &mut Game) {
     let mut staff_wages_by_team: std::collections::HashMap<String, i64> =
         std::collections::HashMap::new();
     for player in &game.players {
-        if let Some(team_id) = &player.team_id {
-            *player_wages_by_team.entry(team_id.clone()).or_default() += player.wage as i64 / 52;
+        if let Some(loan) = &player.active_loan {
+            add_weekly_wage(
+                &mut player_wages_by_team,
+                &loan.loan_team_id,
+                player_weekly_wage_for_team(player, &loan.loan_team_id),
+            );
+            add_weekly_wage(
+                &mut player_wages_by_team,
+                &loan.parent_team_id,
+                player_weekly_wage_for_team(player, &loan.parent_team_id),
+            );
+        } else if let Some(team_id) = &player.team_id {
+            add_weekly_wage(&mut player_wages_by_team, team_id, i64::from(player.wage));
         }
     }
     for staff_member in &game.staff {
         if let Some(team_id) = &staff_member.team_id {
-            *staff_wages_by_team.entry(team_id.clone()).or_default() +=
-                staff_member.wage as i64 / 52;
+            add_weekly_wage(
+                &mut staff_wages_by_team,
+                team_id,
+                i64::from(staff_member.wage),
+            );
         }
     }
 

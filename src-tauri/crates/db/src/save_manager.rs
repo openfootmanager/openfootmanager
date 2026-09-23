@@ -536,6 +536,10 @@ impl SaveManager {
         if ofm_core::finances::backfill_opening_balances(&mut game) {
             needs_resave = true;
         }
+        if save_format_version < 6 && ofm_core::finances::apply_weekly_unit_runway_floor(&mut game)
+        {
+            needs_resave = true;
+        }
 
         // Backfill OVR/potential for players from older saves that don't have them yet.
         // We use the game clock year so age is accurate.
@@ -1638,6 +1642,60 @@ mod tests {
         let loaded = sm.load_game(&save_id).unwrap();
 
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
+    }
+
+    #[test]
+    fn loading_a_pre_v6_save_floors_cash_to_sixteen_weeks_of_wages() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.players[0].team_id = Some("team-001".to_string());
+        game.players[0].wage = 5_000;
+        game.teams[0].finance = 1_000;
+        let save_id = sm.create_save(&game, "Pre Weekly Lock").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 5;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        assert_eq!(
+            loaded.teams[0].finance,
+            5_000 * ofm_core::finances::MIN_OPENING_RUNWAY_WEEKS
+        );
+
+        let db = GameDatabase::open(&db_path).unwrap();
+        let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+        assert_eq!(
+            meta.save_format_version,
+            meta_repo::CURRENT_SAVE_FORMAT_VERSION
+        );
+
+        let loaded_again = sm.load_game(&save_id).unwrap();
+        assert_eq!(
+            loaded_again.teams[0].finance,
+            5_000 * ofm_core::finances::MIN_OPENING_RUNWAY_WEEKS
+        );
+    }
+
+    #[test]
+    fn loading_a_current_format_save_does_not_apply_the_weekly_unit_runway_floor() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.players[0].team_id = Some("team-001".to_string());
+        game.players[0].wage = 5_000;
+        game.teams[0].finance = 1_000;
+        let save_id = sm.create_save(&game, "Current Format").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded.teams[0].finance, 1_000);
     }
 
     #[test]
