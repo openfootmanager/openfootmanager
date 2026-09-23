@@ -25,8 +25,9 @@ const HEALTH_PRIORITY: Record<FinanceHealthLevel, number> = {
   critical: 3,
 };
 
+/** Wages and wage budgets are weekly euros. Identity so call sites stay explicit. */
 export function annualAmountToWeeklyCommitment(amount: number): number {
-  return Math.floor(Math.max(0, amount) / 52);
+  return Math.max(0, Math.floor(amount));
 }
 
 function clampPercent(value: number): number {

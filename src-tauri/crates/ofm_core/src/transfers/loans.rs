@@ -28,10 +28,6 @@ pub(crate) fn validate_loan_borrower_affordability(
         return Err(renewal_wage_policy_error_message(borrower_team));
     }
 
-    if borrower_team.finance < projected_wage_share {
-        return Err(ERR_INSUFFICIENT_FUNDS.to_string());
-    }
-
     Ok(())
 }
 /// Populate a small, deterministic opening loan market for AI clubs.

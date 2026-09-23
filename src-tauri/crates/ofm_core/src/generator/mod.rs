@@ -35,11 +35,11 @@ use log::info;
 use rand::RngExt;
 use uuid::Uuid;
 
+use crate::finances::MIN_OPENING_RUNWAY_WEEKS;
 use chrono::Datelike;
 use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
-const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
 const OPENING_SHORT_CONTRACT_END: &str = "2027-06-30";
 const OPENING_YOUTH_ACADEMY_SIZE: usize = 3;
 const OPENING_YOUTH_MAX_AGE: i32 = 21;
@@ -72,10 +72,10 @@ fn target_wage_usage_percent(reputation: u32) -> i64 {
     }
 }
 
-fn normalized_wage_budget(annual_wage_bill: i64, reputation: u32) -> i64 {
-    let annual_wage_bill = annual_wage_bill.max(0);
+fn normalized_wage_budget(weekly_wage_bill: i64, reputation: u32) -> i64 {
+    let weekly_wage_bill = weekly_wage_bill.max(0);
     let usage_target = target_wage_usage_percent(reputation);
-    ((annual_wage_bill * 100) + usage_target - 1) / usage_target
+    ((weekly_wage_bill * 100) + usage_target - 1) / usage_target
 }
 
 fn normalize_opening_contracts(players: &mut [Player]) {
@@ -327,13 +327,12 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_yea
     seed_opening_youth_academy(players, opening_year);
     normalize_opening_contracts(players);
 
-    let annual_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
-    let weekly_wage_spend = (annual_wage_bill + 51) / 52;
+    let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
 
-    team.wage_budget = normalized_wage_budget(annual_wage_bill, team.reputation);
+    team.wage_budget = normalized_wage_budget(weekly_wage_bill, team.reputation);
     team.finance = team
         .finance
-        .max(weekly_wage_spend.saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
+        .max(weekly_wage_bill.saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
 }
 
 /// The country a club's *people* should be drawn from.
@@ -2001,19 +2000,18 @@ mod tests {
                 &definitions::DefinitionSources::embedded_only(),
             );
             for team in &teams {
-                let annual_wages: i64 = players
+                let weekly_wages: i64 = players
                     .iter()
                     .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
                     .map(|player| player.wage as i64)
                     .sum();
-                let weekly_wage_spend = (annual_wages + 51) / 52;
-                let usage_percent = (annual_wages * 100) / std::cmp::max(1, team.wage_budget);
+                let usage_percent = (weekly_wages * 100) / std::cmp::max(1, team.wage_budget);
 
                 assert!(
-                    annual_wages <= team.wage_budget,
+                    weekly_wages <= team.wage_budget,
                     "{} started over budget: wages={} budget={}",
                     team.name,
-                    annual_wages,
+                    weekly_wages,
                     team.wage_budget
                 );
                 assert!(
@@ -2023,7 +2021,7 @@ mod tests {
                     usage_percent
                 );
                 assert!(
-                    team.finance >= weekly_wage_spend * MIN_OPENING_RUNWAY_WEEKS,
+                    team.finance >= weekly_wages * MIN_OPENING_RUNWAY_WEEKS,
                     "{} opened without the minimum wage runway",
                     team.name
                 );

@@ -282,8 +282,10 @@ fn loaned_out_player_termination_is_blocked_until_loan_ends() {
 
     let projection = project_renewal_financial_impact(&game, "player-1", 15_000)
         .expect("parent club should still own renewal financial projections");
-    assert_eq!(projection.current_annual_wage_bill, 12_000);
-    assert_eq!(projection.projected_annual_wage_bill, 15_000);
+    assert_eq!(projection.current_annual_wage_bill, 3_000);
+    assert_eq!(projection.projected_annual_wage_bill, 3_750);
+    assert_eq!(projection.current_weekly_wage_spend, 3_000);
+    assert_eq!(projection.projected_weekly_wage_spend, 3_750);
 
     let error = preview_contract_termination(&game, "player-1")
         .expect_err("active loans should block contract termination");

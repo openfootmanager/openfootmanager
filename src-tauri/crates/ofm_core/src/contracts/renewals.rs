@@ -284,12 +284,8 @@ pub fn propose_renewal(
     }
 
     if outcome.decision == RenewalDecision::Accepted {
-        if !renewal_wage_policy_allows(
-            game,
-            &team,
-            game.players[player_index].wage,
-            offer.weekly_wage,
-        ) {
+        let player = game.players[player_index].clone();
+        if !renewal_wage_policy_allows(game, &team, &player, offer.weekly_wage) {
             return Err(renewal_wage_policy_error_message(&team));
         }
 

@@ -32,7 +32,7 @@ pub fn project_free_agent_contract_impact(
     Ok(project_contract_offer_financial_impact(
         game,
         team,
-        0,
+        player,
         offered_wage,
     ))
 }
@@ -147,7 +147,8 @@ pub fn offer_free_agent_contract(
     }
 
     if offer.weekly_wage >= expected_wage && offer.contract_years >= expected_years {
-        if !renewal_wage_policy_allows(game, &team, 0, offer.weekly_wage) {
+        let player = game.players[player_index].clone();
+        if !renewal_wage_policy_allows(game, &team, &player, offer.weekly_wage) {
             return Err(renewal_wage_policy_error_message(&team));
         }
 
