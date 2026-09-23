@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+
+use db::save_manager::SaveManager;
 use domain::team::Team;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
@@ -49,6 +52,34 @@ where
             Ok(game.clone())
         })
         .unwrap_or_else(|| Err(NO_ACTIVE_GAME.to_string()))
+}
+
+/// Snapshot dirty journal ids, persist `&Game`, then drop flushed ids on the live Game.
+///
+/// Every `StateManager`-owned save must go through this helper so MCP autosave
+/// and Tauri `save_game` share one flush protocol. Collision on insert is a
+/// no-op (`INSERT OR IGNORE`).
+pub fn persist_active_game(
+    state: &StateManager,
+    save_manager: &mut SaveManager,
+) -> Result<(), String> {
+    let save_id = state
+        .get_save_id()
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| "be.error.noActiveSaveSession".to_string())?;
+    let (game, flushed) = state
+        .get_game(|game| (game.clone(), game.cash_journal_dirty_ids.clone()))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())?;
+    let stats = state
+        .get_stats_state(|stats| stats.clone())
+        .unwrap_or_default();
+    save_manager.save_game_with_stats(&game, &stats, &save_id)?;
+    let flushed: HashSet<String> = flushed.into_iter().collect();
+    state.update_game(|live| {
+        live.cash_journal_dirty_ids
+            .retain(|id| !flushed.contains(id));
+    });
+    Ok(())
 }
 
 #[cfg(test)]
@@ -118,5 +149,79 @@ mod tests {
             user_team_mut(&mut game).err(),
             Some("be.error.teamNotFound".into())
         );
+    }
+
+    #[test]
+    fn persist_active_game_flushes_dirty_ids_and_is_idempotent() {
+        use super::persist_active_game;
+        use db::save_manager::SaveManager;
+        use domain::finance::CashKind;
+        use ofm_core::finances::post;
+        use ofm_core::state::StateManager;
+        use std::fs;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("ofm-persist-journal-{unique}"));
+        fs::create_dir_all(&path).expect("temp dir");
+
+        let mut save_manager = SaveManager::init(&path).expect("save manager");
+        let mut team = make_team("team-1");
+        team.finance = 500_000;
+        let game = make_game(Some("team-1"), vec![team]);
+        let save_id = save_manager
+            .create_save(&game, "Journal Persist")
+            .expect("save");
+
+        let state = StateManager::new();
+        state.set_game(game);
+        state.set_save_id(save_id.clone());
+
+        state
+            .update_game(|live| {
+                post(
+                    live,
+                    "team-1",
+                    -1_000,
+                    CashKind::PlayerWages,
+                    live.clock.current_date.date_naive(),
+                )
+                .expect("post");
+            })
+            .expect("update");
+
+        persist_active_game(&state, &mut save_manager).expect("first persist");
+        assert!(state
+            .get_game(|live| live.cash_journal_dirty_ids.is_empty())
+            .expect("live game"));
+
+        let first = save_manager.load_game(&save_id).expect("load");
+        let first_len = first.cash_journal.len();
+        assert!(first_len >= 2, "seed + wages");
+
+        persist_active_game(&state, &mut save_manager).expect("second persist");
+        let second = save_manager.load_game(&save_id).expect("reload");
+        assert_eq!(second.cash_journal.len(), first_len);
+
+        state
+            .update_game(|live| {
+                post(
+                    live,
+                    "team-1",
+                    250,
+                    CashKind::Matchday,
+                    live.clock.current_date.date_naive(),
+                )
+                .expect("post");
+            })
+            .expect("update");
+        persist_active_game(&state, &mut save_manager).expect("third persist");
+        let third = save_manager.load_game(&save_id).expect("reload");
+        assert_eq!(third.cash_journal.len(), first_len + 1);
+
+        let _ = fs::remove_dir_all(&path);
     }
 }

@@ -13,9 +13,14 @@ pub fn inbox_get_messages(
 ) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
 
+    // Agents see the same inbox the player does, which means mail dated ahead of
+    // the clock is hidden from them too — an agent must not be able to act on an
+    // event the player cannot see yet.
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let messages: Vec<_> = game
         .messages
         .iter()
+        .filter(|m| ofm_core::slices::inbox::message_is_visible(&m.date, &today))
         .filter(|m| {
             if let Some(ref cat) = category {
                 format!("{:?}", m.category) == *cat

@@ -12,8 +12,9 @@ use ofm_core::game::{
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
-    competition_repo, league_repo, manager_repo, message_repo, meta_repo, national_team_repo,
-    news_repo, objective_repo, player_repo, scouting_repo, staff_repo, stats_repo, team_repo,
+    competition_repo, journal_repo, league_repo, manager_repo, message_repo, meta_repo,
+    national_team_repo, news_repo, objective_repo, player_repo, scouting_repo, staff_repo,
+    stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -83,6 +84,8 @@ fn write_game_to_connection(
         .map_err(|_| game_persistence_write_error())?;
     let world_history_json =
         serde_json::to_string(&game.world_history).map_err(|_| game_persistence_write_error())?;
+    let emitted_events_json =
+        serde_json::to_string(&game.emitted_events).map_err(|_| game_persistence_write_error())?;
     let extra_translations_json = serde_json::to_string(&game.extra_translations)
         .map_err(|_| game_persistence_write_error())?;
     let package_lockfile_json = serde_json::to_string(&game.package_lockfile)
@@ -111,6 +114,7 @@ fn write_game_to_connection(
             last_played_at: now,
             vacant_team_days_json,
             world_history_json,
+            emitted_events_json,
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -138,10 +142,11 @@ fn write_game_to_connection(
         manager_repo::upsert_manager(conn, manager)?;
     }
     team_repo::upsert_teams(conn, &game.teams)?;
+    journal_repo::persist_cash_journal(conn, game)?;
     player_repo::upsert_players(conn, &game.players)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;
-    news_repo::upsert_news_list(conn, &game.news)?;
+    news_repo::replace_news_list(conn, &game.news)?;
 
     if let Some(ref league) = game.league {
         league_repo::upsert_league(conn, league)?;
@@ -332,6 +337,19 @@ impl GamePersistenceReader {
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
+            // A malformed ledger degrades to the legacy-save path rather than
+            // failing the load: `seed_ledger_from_save` below re-seeds it from
+            // the inbox, which is exactly what a pre-v043 save does. Refusing to
+            // open an entire career over one bookkeeping column would be the
+            // worse trade — but it is not silent, because a repeat announcement
+            // months later is impossible to trace back to this line otherwise.
+            emitted_events: serde_json::from_str(&meta.emitted_events_json).unwrap_or_else(|_| {
+                log::warn!(
+                    "[load] sent-ledger JSON is malformed; reseeding it from the inbox. \
+                     Events whose messages were already deleted may be announced once more."
+                );
+                Default::default()
+            }),
             extra_translations: serde_json::from_str(&meta.extra_translations_json)
                 .unwrap_or_default(),
             package_lockfile: if meta.package_lockfile_json.trim().is_empty() {
@@ -340,8 +358,16 @@ impl GamePersistenceReader {
                 serde_json::from_str(&meta.package_lockfile_json)
                     .map_err(|_| "be.error.gamePersistence.loadFailed".to_string())?
             },
+            cash_journal: domain::finance::CashJournal::from_vec(journal_repo::load_cash_journal(
+                conn,
+            )?),
+            cash_journal_dirty_ids: Vec::new(),
         };
         game.promote_legacy_league();
+        // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done
+        // here: this reads whatever is on disk, and "is the ledger empty?" is not
+        // the same question as "was this save written before the ledger existed?".
+        // `SaveManager::load_game` owns that, gated on the save-format version.
         ofm_core::season_context::refresh_game_context(&mut game);
 
         Ok(game)
@@ -386,6 +412,7 @@ mod tests {
             active_competition_ids_json: "[]".to_string(),
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
+            emitted_events_json: "[]".to_string(),
         }
     }
 
@@ -447,6 +474,19 @@ mod tests {
             .with_ymd_and_hms(start_year, 7, current_day, 0, 0, 0)
             .unwrap();
         game
+    }
+
+    #[test]
+    fn read_game_does_not_invent_opening_balances() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2026, 1);
+        game.teams[0].finance = 1_000_000;
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(loaded.cash_journal.is_empty());
+        assert!(loaded.cash_journal_dirty_ids.is_empty());
+        assert_eq!(loaded.teams[0].finance, 1_000_000);
     }
 
     #[test]
@@ -538,6 +578,76 @@ mod tests {
 
         let loaded = GamePersistenceReader::read_game(&db).unwrap();
         assert_eq!(loaded.world_history, game.world_history);
+    }
+
+    #[test]
+    fn retiring_last_seasons_news_removes_it_from_the_file() {
+        // Asserted against the database, not a reload: the rollover clears
+        // `game.news`, and with upsert-only writes the rows stayed in the file
+        // and the whole previous season came back on the next load. A test that
+        // only compared the loaded `Game` to the written one would agree with
+        // itself and never notice.
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2032, 18);
+        game.news.push(domain::news::NewsArticle::new(
+            "roundup_md1".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2032-05-18".to_string(),
+            domain::news::NewsCategory::LeagueRoundup,
+        ));
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        game.news.clear();
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let remaining: i64 = db
+            .conn()
+            .query_row("SELECT COUNT(*) FROM news", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn write_and_read_game_preserves_the_sent_ledger() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2032, 18);
+        // The message is gone from the inbox, the ledger entry is not — which is
+        // the whole reason the ledger exists. A round trip must keep it that way,
+        // or the generator re-announces on the next advance.
+        game.emitted_events
+            .insert("world_cup_champion_2030".to_string());
+        game.emitted_events.insert("promotion_2032".to_string());
+
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(loaded.emitted_events, game.emitted_events);
+        assert!(loaded.messages.is_empty());
+    }
+
+    #[test]
+    fn reading_a_game_does_not_seed_the_sent_ledger() {
+        // Seeding is a save-format migration and belongs to `load_game`, which
+        // knows the version on disk. This reader only reports what is stored —
+        // an empty ledger here means the save has one and nothing has been
+        // announced yet, not that the save predates the ledger.
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2032, 18);
+        game.messages.push(domain::message::InboxMessage::new(
+            "world_cup_champion_2030".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2030-07-15".to_string(),
+        ));
+        game.emitted_events.clear();
+
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(loaded.emitted_events.is_empty());
     }
 
     #[test]

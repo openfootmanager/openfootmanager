@@ -562,7 +562,7 @@ fn notify_user_division_change(
     let division_name = new_division.name.clone();
     let kind = if promoted { "promotion" } else { "relegation" };
     let msg_id = format!("{kind}_{next_season}");
-    if game.messages.iter().any(|m| m.id == msg_id) {
+    if crate::inbox::already_emitted(game, &msg_id) {
         return;
     }
 
@@ -586,7 +586,7 @@ fn notify_user_division_change(
         params,
     )
     .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
-    game.messages.push(message);
+    crate::inbox::emit(game, message);
 }
 
 /// Process end-of-season: record history, compute awards, reset stats, generate next season.
@@ -688,12 +688,35 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .find(|(standings, _)| standings.iter().any(|s| s.team_id == user_team_id))
         .map(|(_, tier)| *tier)
         .unwrap_or(0);
+    let mut user_prize_posted = false;
     for (division_standings, tier) in divisions {
         for (idx, standing) in division_standings.iter().enumerate() {
-            if let Some(team) = game.teams.iter_mut().find(|t| t.id == standing.team_id) {
-                let position = (idx + 1) as u32;
-                let prize_money = division_prize_money(position, tier);
-
+            let position = (idx + 1) as u32;
+            let prize_money = division_prize_money(position, tier);
+            let team_id = standing.team_id.clone();
+            let prize_posted = if prize_money > 0 {
+                let date = chrono::NaiveDate::parse_from_str(&last_fixture_date, "%Y-%m-%d")
+                    .unwrap_or_else(|_| game.clock.current_date.date_naive());
+                match crate::finances::post(
+                    game,
+                    &team_id,
+                    prize_money,
+                    crate::finances::CashKind::PrizeMoney,
+                    date,
+                ) {
+                    Ok(_) => true,
+                    Err(err) => {
+                        log::error!("end-of-season prize post failed for {team_id}: {err}");
+                        false
+                    }
+                }
+            } else {
+                false
+            };
+            if prize_posted && team_id == user_team_id {
+                user_prize_posted = true;
+            }
+            if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
                 team.history.push(TeamSeasonRecord {
                     season,
                     league_position: position,
@@ -704,12 +727,9 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                     goals_for: standing.goals_for,
                     goals_against: standing.goals_against,
                 });
-                // Reset form
                 team.form.clear();
 
-                if prize_money > 0 {
-                    team.finance += prize_money;
-                    team.season_income += prize_money;
+                if prize_posted {
                     team.financial_ledger.push(FinancialTransaction {
                         date: last_fixture_date.clone(),
                         description: prize_money_ledger_description(
@@ -878,12 +898,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    let existing_ids: std::collections::HashSet<String> =
-        game.messages.iter().map(|m| m.id.clone()).collect();
-
+    // Each check reads the live ledger rather than a snapshot: the three emits
+    // below are interleaved with the checks, so a snapshot would go stale.
     let payout_msg_id = format!("season_payout_{}", season);
     let user_prize_money = division_prize_money(user_position, user_division_tier);
-    if user_prize_money > 0 && !existing_ids.contains(&payout_msg_id) {
+    if user_prize_posted && !crate::inbox::already_emitted(game, &payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,
             String::new(),
@@ -902,11 +921,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             params
         })
         .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
-        game.messages.push(payout_message);
+        crate::inbox::emit(game, payout_message);
     }
 
     let msg_id = format!("season_end_{}", season);
-    if !existing_ids.contains(&msg_id) {
+    if !crate::inbox::already_emitted(game, &msg_id) {
         let (body_key, mut i18n_params) = if user_position == 1 {
             let mut p = std::collections::HashMap::new();
             p.insert("team".to_string(), user_team_name.clone());
@@ -948,11 +967,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .with_sender_role("")
         .with_i18n("be.msg.seasonReview.subject", body_key, i18n_params)
         .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
-        game.messages.push(msg);
+        crate::inbox::emit(game, msg);
     }
 
     let sched_msg_id = format!("new_season_{}", next_season);
-    if !existing_ids.contains(&sched_msg_id) {
+    if !crate::inbox::already_emitted(game, &sched_msg_id) {
         let mut sched_params = std::collections::HashMap::new();
         sched_params.insert("season".to_string(), next_season.to_string());
         let sched_msg = InboxMessage::new(
@@ -971,7 +990,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             sched_params,
         )
         .with_sender_i18n("be.sender.leagueOffice", "be.role.competitionSecretary");
-        game.messages.push(sched_msg);
+        crate::inbox::emit(game, sched_msg);
     }
 
     crate::season_context::refresh_game_context(game);

@@ -1,17 +1,17 @@
 {
   "oversizedAggregate": {
-    "rust": 62875,
-    "ts": 35383
+    "rust": 63424,
+    "ts": 35366
   },
   "allowedOversized": {
     "src-tauri/crates/db/src/repositories/player_repo.rs": 1062,
-    "src-tauri/crates/db/src/save_manager.rs": 2338,
+    "src-tauri/crates/db/src/save_manager.rs": 2453,
     "src-tauri/crates/engine/tests/live_match_tests.rs": 1828,
     "src-tauri/crates/engine/tests/simulation_tests.rs": 1057,
-    "src-tauri/crates/ofm_core/src/board_objectives.rs": 1011,
+    "src-tauri/crates/ofm_core/src/board_objectives.rs": 1026,
     "src-tauri/crates/ofm_core/src/end_of_season/berths.rs": 1807,
-    "src-tauri/crates/ofm_core/src/end_of_season/mod.rs": 1118,
-    "src-tauri/crates/ofm_core/src/finances.rs": 1255,
+    "src-tauri/crates/ofm_core/src/end_of_season/mod.rs": 1137,
+    "src-tauri/crates/ofm_core/src/finances/mod.rs": 1319,
     "src-tauri/crates/ofm_core/src/generator/competition_def.rs": 1421,
     "src-tauri/crates/ofm_core/src/generator/generation.rs": 1642,
     "src-tauri/crates/ofm_core/src/generator/mod.rs": 2864,
@@ -21,17 +21,17 @@
     "src-tauri/crates/ofm_core/src/news.rs": 1451,
     "src-tauri/crates/ofm_core/src/schedule.rs": 1078,
     "src-tauri/crates/ofm_core/src/scouting.rs": 1022,
-    "src-tauri/crates/ofm_core/src/transfers/loans.rs": 1427,
+    "src-tauri/crates/ofm_core/src/transfers/loans.rs": 1441,
     "src-tauri/crates/ofm_core/src/turn/news.rs": 2055,
-    "src-tauri/crates/ofm_core/src/world_cup.rs": 2981,
-    "src-tauri/crates/ofm_core/tests/end_of_season_tests.rs": 2916,
-    "src-tauri/crates/ofm_core/tests/player_events_tests.rs": 1560,
+    "src-tauri/crates/ofm_core/src/world_cup.rs": 3084,
+    "src-tauri/crates/ofm_core/tests/end_of_season_tests.rs": 2925,
+    "src-tauri/crates/ofm_core/tests/player_events_tests.rs": 1754,
     "src-tauri/crates/ofm_core/tests/random_events_tests.rs": 1396,
     "src-tauri/crates/ofm_core/tests/training_tests.rs": 1164,
     "src-tauri/crates/ofm_core/tests/transfers_tests.rs": 3437,
-    "src-tauri/crates/ofm_core/tests/turn_tests.rs": 1975,
+    "src-tauri/crates/ofm_core/tests/turn_tests.rs": 2005,
     "src-tauri/crates/ofm-cli/src/main.rs": 1118,
-    "src-tauri/src/commands/game/mod.rs": 3334,
+    "src-tauri/src/commands/game/mod.rs": 3320,
     "src-tauri/src/commands/live_match.rs": 1040,
     "src-tauri/src/commands/package_editor.rs": 1392,
     "src-tauri/src/commands/squad.rs": 1257,
@@ -65,7 +65,7 @@
     "src/components/squad/SquadRosterView.tsx": 1002,
     "src/components/squad/SquadTab.helpers.test.ts": 720,
     "src/components/squad/SquadTab.helpers.ts": 938,
-    "src/components/tactics/TacticsPitch.tsx": 581,
+    "src/components/tactics/TacticsPitch.tsx": 564,
     "src/components/tactics/TacticsTab.test.tsx": 782,
     "src/components/tournaments/TournamentsTab.test.tsx": 684,
     "src/components/transfers/TransfersTab.model.test.ts": 526,
@@ -89,7 +89,7 @@
     "tsAnyAnnotation": 0,
     "tsAnyAssertion": 0,
     "tsIgnore": 0,
-    "biomeIgnore": 8,
+    "biomeIgnore": 9,
     "eslintDisable": 5,
     "rustAllow": 22,
     "rustExpect": 0,
@@ -109,7 +109,7 @@
     "duplicateExports": 3
   },
   "antiPatterns": {
-    "fullGameClones": 56,
+    "fullGameClones": 54,
     "crossFeatureSquadImports": 40
   }
 }

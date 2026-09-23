@@ -22,6 +22,7 @@ import HomeRecentMessagesCard from "./HomeRecentMessagesCard";
 import HomeSquadOverviewCard from "./HomeSquadOverviewCard";
 import HomeSeasonStatusCard from "./HomeSeasonStatusCard";
 import HomeUnavailablePlayersCard from "./HomeUnavailablePlayersCard";
+import { isMessageVisible } from "../../utils/newsVisibility";
 import {
   Dumbbell,
   Mail,
@@ -139,7 +140,10 @@ export default function HomeTab({
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 2)
     .map(resolveNewsArticle);
-  const recentMessages = (gameState.messages || []).slice(0, 4).map(resolveMessage);
+  const recentMessages = (gameState.messages || [])
+    .filter((message) => isMessageVisible(message.date, gameState.clock?.current_date))
+    .slice(0, 4)
+    .map(resolveMessage);
   const nextOpponent = getNextOpponentWidgetData(gameState);
   const leagueDigestArticles = getLeagueDigestArticles(gameState).map(resolveNewsArticle);
   const boardObjectives = (gameState.board_objectives || []).map(resolveBoardObjective);

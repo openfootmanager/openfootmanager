@@ -1,3 +1,5 @@
+use crate::finances::{CashKind, post};
+use crate::game::Game;
 use domain::team::{Facilities, FacilityType, Team};
 
 pub const BASE_FACILITY_UPGRADE_COST: i64 = 250_000;
@@ -27,15 +29,32 @@ pub fn next_upgrade_cost(team: &Team, facility_type: &FacilityType) -> i64 {
     i64::from(facility_level(&team.facilities, facility_type)) * BASE_FACILITY_UPGRADE_COST
 }
 
-pub fn upgrade_facility(team: &mut Team, facility_type: FacilityType) -> Result<i64, String> {
-    let cost = next_upgrade_cost(team, &facility_type);
-    if team.finance < cost {
-        return Err(facility_upgrade_insufficient_funds_error(cost));
-    }
+pub fn upgrade_facility(
+    game: &mut Game,
+    team_id: &str,
+    facility_type: FacilityType,
+) -> Result<i64, String> {
+    let cost = {
+        let team = game
+            .teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
+        let cost = next_upgrade_cost(team, &facility_type);
+        if team.finance < cost {
+            return Err(facility_upgrade_insufficient_funds_error(cost));
+        }
+        cost
+    };
 
-    team.finance -= cost;
-    team.season_expenses += cost;
+    let date = game.clock.current_date.date_naive();
+    post(game, team_id, -cost, CashKind::Facilities, date)?;
 
+    let team = game
+        .teams
+        .iter_mut()
+        .find(|team| team.id == team_id)
+        .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
     match facility_type {
         FacilityType::Training => {
             team.facilities.training = team.facilities.training.saturating_add(1);

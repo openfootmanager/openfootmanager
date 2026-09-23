@@ -408,6 +408,9 @@ pub fn make_transfer_bid(
     let (tension, patience) = transfer_negotiation_metrics(round, stalled, respected_signal);
 
     if fee >= adjusted_threshold {
+        if register_immediately {
+            ensure_transfer_cash_postable(game, &user_team_id, &owner_team_id, fee)?;
+        }
         let status = if register_immediately {
             TransferOfferStatus::Accepted
         } else {
@@ -604,6 +607,10 @@ pub fn respond_to_offer(
         .ok_or("be.error.teamNotFound")?;
     let openness_score = player_move_openness_score(current_date, player, owner_team, buyer_team);
 
+    if accept && register_immediately {
+        ensure_transfer_cash_postable(game, &from_team_id, &user_team_id, fee)?;
+    }
+
     // Update offer status
     if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id)
         && let Some(o) = p.transfer_offers.iter_mut().find(|o| o.id == offer_id)
@@ -712,6 +719,10 @@ pub fn counter_offer(
     let counter_window =
         ((counter_ceiling as f64) * if round >= 3 && stalled { 1.03 } else { 1.08 }).round() as u64;
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    if accepted && register_immediately {
+        ensure_transfer_cash_postable(game, &buyer_team_id, &user_team_id, requested_fee)?;
+    }
 
     if let Some(player) = game
         .players

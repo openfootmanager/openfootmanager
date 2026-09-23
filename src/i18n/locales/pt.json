@@ -2711,7 +2711,9 @@
         "marketingCampaignCoolingDown": "A equipa comercial precisa de tempo antes de lançar outra campanha de marketing.",
         "facilityUpgradeInsufficientFunds": "Fundos insuficientes para esta melhoria de infraestruturas. São necessários {{amount}}.",
         "facilityUpgradeOverBudget": "As melhorias das infraestruturas estão bloqueadas enquanto o clube exceder o orçamento salarial.",
-        "facilityUpgradeCritical": "As melhorias das infraestruturas estão bloqueadas enquanto o clube estiver sob forte pressão financeira."
+        "facilityUpgradeCritical": "As melhorias das infraestruturas estão bloqueadas enquanto o clube estiver sob forte pressão financeira.",
+        "amountOverflow": "Este movimento de numerário é demasiado grande para ser registado.",
+        "openingBalanceReserved": "Os lançamentos de saldo de abertura são criados automaticamente e não podem ser submetidos diretamente."
       },
       "createManager": {
         "nameRequired": "O primeiro nome e o apelido são obrigatórios.",

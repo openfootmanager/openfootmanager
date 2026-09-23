@@ -48,25 +48,25 @@ pub fn get_finance_snapshot_internal(
 ) -> Result<FinanceSnapshotCommandResponse, String> {
     info!("[cmd] get_finance_snapshot: team_id={:?}", team_id);
 
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    state
+        .get_game(|game| {
+            let resolved_team_id = match team_id {
+                Some(team_id) => team_id.to_string(),
+                None => game
+                    .manager
+                    .team_id
+                    .clone()
+                    .ok_or_else(|| "be.error.noTeamAssigned".to_string())?,
+            };
 
-    let resolved_team_id = match team_id {
-        Some(team_id) => team_id.to_string(),
-        None => game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?,
-    };
+            let snapshot = ofm_core::finances::team_finance_snapshot(game, &resolved_team_id)
+                .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
+            let previews = ofm_core::finances::finance_action_previews(game, &resolved_team_id)
+                .unwrap_or_default();
 
-    let snapshot = ofm_core::finances::team_finance_snapshot(&game, &resolved_team_id)
-        .ok_or("be.error.managedTeamNotFound".to_string())?;
-    let previews =
-        ofm_core::finances::finance_action_previews(&game, &resolved_team_id).unwrap_or_default();
-
-    Ok(FinanceSnapshotCommandResponse { snapshot, previews })
+            Ok(FinanceSnapshotCommandResponse { snapshot, previews })
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
 }
 
 #[tauri::command]

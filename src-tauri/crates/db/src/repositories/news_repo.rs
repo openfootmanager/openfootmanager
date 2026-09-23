@@ -55,6 +55,22 @@ pub fn upsert_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(
     Ok(())
 }
 
+/// Replace the stored feed with `articles`, dropping anything not in it.
+///
+/// The same reason `replace_messages` exists: a save re-writes an existing database, so upserting
+/// alone cannot express a removal. The season rollover clears `game.news` to retire last season's
+/// coverage — with upsert-only writes those rows survived in the file and the whole previous
+/// season came back on the next load, which also let a stale `roundup_md1` suppress the new
+/// season's first roundup.
+///
+/// Both statements run on the caller's connection, which `save_game` wraps in a transaction, so an
+/// interrupted save cannot leave the feed empty.
+pub fn replace_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(), String> {
+    conn.execute("DELETE FROM news", [])
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    upsert_news_list(conn, articles)
+}
+
 fn parse_news_category(s: &str) -> NewsCategory {
     match s {
         "MatchReport" => NewsCategory::MatchReport,

@@ -491,6 +491,15 @@ impl SaveManager {
                     seeded, save_id
                 );
             }
+            if save_format_version < 5 {
+                // Adopt the inbox of a save written before the sent-ledger, or
+                // the first advance re-announces everything still in it. Gated on
+                // the format version rather than on the ledger being empty: a
+                // career started from an existing save legitimately has an empty
+                // ledger and a populated `world_history`, and seeding that would
+                // suppress every World Cup the *previous* career had seen.
+                ofm_core::inbox::seed_ledger_from_save(&mut game);
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -521,6 +530,10 @@ impl SaveManager {
         }
 
         if ofm_core::football_identity::upgrade_game_football_identities(&mut game) {
+            needs_resave = true;
+        }
+
+        if ofm_core::finances::backfill_opening_balances(&mut game) {
             needs_resave = true;
         }
 
@@ -568,6 +581,7 @@ impl SaveManager {
             snapshot_db_before_write(&db_path)?;
             let db = GameDatabase::open(&db_path)?;
             GamePersistenceWriter::write_game(&db, &game, save_id, &save_name)?;
+            game.cash_journal_dirty_ids.clear();
             drop(db);
 
             let checksum = compute_checksum(&db_path)?;
@@ -615,6 +629,12 @@ impl SaveManager {
 
         // Strip session-specific data
         game.messages.clear();
+        // The sent-ledger records what *this career* has been told, so it is
+        // session state like the inbox it guards. Carried over, the new career
+        // would silently never receive anything the old one already saw — its
+        // board objectives briefing, its season summaries, a World Cup result in
+        // a year the previous save had reached.
+        game.emitted_events.clear();
         game.news.clear();
         game.scouting_assignments.clear();
         game.youth_scouting_assignments.clear();
@@ -1592,6 +1612,64 @@ mod tests {
     }
 
     #[test]
+    fn test_load_game_seeds_the_sent_ledger_when_upgrading_a_pre_v5_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.messages.push(domain::message::InboxMessage::new(
+            "world_cup_champion_2030".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2030-07-15".to_string(),
+        ));
+        game.emitted_events.clear();
+        let save_id = sm.create_save(&game, "Legacy Ledger").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 4;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
+    }
+
+    #[test]
+    fn test_load_game_does_not_seed_a_current_save_whose_ledger_is_merely_empty() {
+        // A career started from an existing save has an empty ledger and inherits
+        // the world's `world_history`. Seeding on emptiness rather than on the
+        // save format would take the previous career's World Cup winners as
+        // already announced, and this one would never hear about them.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.world_history.record_world_cup_champion(
+            domain::world_history::WorldCupChampionRecord {
+                year: 2030,
+                nation_code: "BRA".to_string(),
+                nation_name: "Brazil".to_string(),
+            },
+        );
+        game.emitted_events.clear();
+        let save_id = sm.create_save(&game, "Fresh Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(
+            loaded.emitted_events.is_empty(),
+            "a current-format save must keep its empty ledger, got {:?}",
+            loaded.emitted_events
+        );
+    }
+
+    #[test]
     fn test_save_game_updates_existing() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
@@ -2210,6 +2288,7 @@ mod tests {
                 days_remaining: 6,
             });
         game.manager.reputation = 999;
+        game.emitted_events.insert("board_objectives_1".to_string());
 
         let save_id = sm.create_save(&game, "Source Save").unwrap();
 
@@ -2222,6 +2301,9 @@ mod tests {
         assert!(new_game.scouting_assignments.is_empty());
         assert!(new_game.youth_scouting_assignments.is_empty());
         assert!(new_game.board_objectives.is_empty());
+        // The sent-ledger is session state too: carried over, the new career would
+        // never receive its own board objectives briefing.
+        assert!(new_game.emitted_events.is_empty());
         assert!(new_game.league.is_none());
 
         // Clock should be reset
@@ -2333,5 +2415,38 @@ mod tests {
 
         assert_eq!(league_count, 1);
         assert_eq!(fixture_count, 1);
+    }
+
+    #[test]
+    fn load_game_backfills_opening_balances_from_the_legacy_ledger() {
+        use domain::finance::CashKind;
+        use domain::team::{FinancialTransaction, FinancialTransactionKind};
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game();
+        game.teams[0].finance = 1_000_000;
+        game.teams[0].financial_ledger.push(FinancialTransaction {
+            date: "2026-01-01".to_string(),
+            description: "prize".to_string(),
+            amount: 5_000_000,
+            kind: FinancialTransactionKind::PrizeMoney,
+        });
+        let save_id = sm.create_save(&game, "Opening Balance Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded.cash_journal.cash_for(&loaded.teams[0].id), 1_000_000);
+        assert!(loaded.cash_journal_dirty_ids.is_empty());
+        let opening = loaded
+            .cash_journal
+            .iter()
+            .find(|post| post.kind == CashKind::OpeningBalance)
+            .expect("opening balance");
+        assert_eq!(opening.amount, -4_000_000);
+
+        let loaded_again = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded_again.cash_journal.len(), loaded.cash_journal.len());
     }
 }

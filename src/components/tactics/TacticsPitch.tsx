@@ -15,7 +15,7 @@ import {
 } from "../squad/SquadTab.helpers";
 import type { TacticsPitchSlot } from "./TacticsTab.helpers";
 import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
-import type { KitPattern, PlayerRole, TacticsPhaseSettings } from "../../store/types";
+import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { getRoleOptions } from "../../lib/playerRoles";
 
 interface TacticsPitchProps {
@@ -26,9 +26,6 @@ interface TacticsPitchProps {
   onRoleChange?: (playerId: string, role: PlayerRole) => void;
   playerRoles?: Record<string, PlayerRole>;
   tacticsPhase?: TacticsPhaseSettings;
-  teamKitPattern?: KitPattern;
-  teamPrimaryColor?: string;
-  teamSecondaryColor?: string;
   comparePlayerId: string | null;
   hoveredSlot: number | null;
   onAssignBestFit?: (playerId: string) => void;
@@ -262,9 +259,6 @@ export default function TacticsPitch({
   onRoleChange,
   playerRoles,
   tacticsPhase,
-  teamKitPattern,
-  teamPrimaryColor,
-  teamSecondaryColor,
   comparePlayerId,
   hoveredSlot,
   onAssignBestFit,
@@ -507,19 +501,8 @@ export default function TacticsPitch({
                               ovr={getPlayerOvr(player)}
                               condition={player.condition}
                               fitTone={fitTone}
-                              avatar={player}
+                              hidePortrait
                               markers={roleMarkers}
-                              jersey={
-                                teamSecondaryColor
-                                  ? {
-                                      primaryColor: teamPrimaryColor ?? "#1a3a6b",
-                                      secondaryColor: teamSecondaryColor,
-                                      pattern: teamKitPattern ?? "Solid",
-                                      number: player.jersey_number,
-                                    }
-                                  : undefined
-                              }
-                              jerseyNumber={player.jersey_number}
                             >
                               {/* Role combobox */}
                               {onRoleChange && (

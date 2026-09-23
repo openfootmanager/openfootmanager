@@ -2157,13 +2157,16 @@ fn lower_table_finish_receives_expected_prize_money() {
 #[test]
 fn prize_money_message_sent_once_per_season() {
     let mut game = make_completed_season_game();
-    game.messages.push(domain::message::InboxMessage::new(
-        "season_payout_1".to_string(),
-        "Already exists".to_string(),
-        "...".to_string(),
-        "Board".to_string(),
-        "2026-05-20".to_string(),
-    ));
+    ofm_core::inbox::emit(
+        &mut game,
+        domain::message::InboxMessage::new(
+            "season_payout_1".to_string(),
+            "Already exists".to_string(),
+            "...".to_string(),
+            "Board".to_string(),
+            "2026-05-20".to_string(),
+        ),
+    );
 
     process_end_of_season(&mut game);
 
@@ -2214,20 +2217,26 @@ fn new_season_schedule_message_sent() {
 fn messages_not_duplicated() {
     let mut game = make_completed_season_game();
     // Pre-add the messages
-    game.messages.push(domain::message::InboxMessage::new(
-        "season_end_1".to_string(),
-        "Already exists".to_string(),
-        "...".to_string(),
-        "Board".to_string(),
-        "2026-05-20".to_string(),
-    ));
-    game.messages.push(domain::message::InboxMessage::new(
-        "new_season_2".to_string(),
-        "Already exists".to_string(),
-        "...".to_string(),
-        "League".to_string(),
-        "2026-05-20".to_string(),
-    ));
+    ofm_core::inbox::emit(
+        &mut game,
+        domain::message::InboxMessage::new(
+            "season_end_1".to_string(),
+            "Already exists".to_string(),
+            "...".to_string(),
+            "Board".to_string(),
+            "2026-05-20".to_string(),
+        ),
+    );
+    ofm_core::inbox::emit(
+        &mut game,
+        domain::message::InboxMessage::new(
+            "new_season_2".to_string(),
+            "Already exists".to_string(),
+            "...".to_string(),
+            "League".to_string(),
+            "2026-05-20".to_string(),
+        ),
+    );
 
     process_end_of_season(&mut game);
 
