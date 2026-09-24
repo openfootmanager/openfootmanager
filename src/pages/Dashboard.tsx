@@ -47,7 +47,7 @@ import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import {
   formatDateFull,
-  getPrimaryCompetition,
+  getUserCompetition,
   isSeasonComplete as isLeagueSeasonComplete,
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
@@ -260,9 +260,17 @@ export default function Dashboard(): JSX.Element {
     }
   }, [isUnemployed, profileNavigation.activeTab]);
 
-  const seasonComplete = isLeagueSeasonComplete(
-    gameState ? getPrimaryCompetition(gameState) : null,
-  );
+  // The backend decides this, because it is the same answer
+  // `advance_to_next_season` enforces before it will roll the season over.
+  // Deriving it here from `competitions[0]` asked whichever competition sorted
+  // first — a foreign league on another calendar — so an English career whose
+  // season ended in April waited on an Argentine Apertura running to October,
+  // the end-of-season screen never appeared, and the player could not continue.
+  // The local rule is kept only for saves written before the backend sent the
+  // flag, where it is still better than nothing.
+  const seasonComplete =
+    gameState?.season_context?.season_complete ??
+    isLeagueSeasonComplete(gameState ? getUserCompetition(gameState) : null);
 
   // Advance-time hook
   const {

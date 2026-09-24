@@ -395,7 +395,7 @@ Competitions are the most complex entity. A competition defines a league, cup, o
 | `countryId` | string or null | `null` | Country this competition belongs to (required for `Domestic` scope). |
 | `regionId` | string or null | `null` | Region this competition belongs to (required for `Regional`/`Continental` scope). |
 | `requiredRegionIds` | array of strings | `[]` | Region ids that must be active for this competition to appear. |
-| `priority` | integer | `0` | Scheduling priority. Higher-priority competitions are scheduled first. |
+| `priority` | integer | `0` | Tier rank within a country: **lower is the higher division**. Domestic `League` competitions in `LeagueTable` format that share a `countryId` form a promotion/relegation pyramid ordered by it, so a first division is `0` and a second `1`. Gaps are fine — tiers are chained in rank order, not by consecutive numbers — but two tiers of one pyramid must not share a value. A tier that is the target of a `positionRange` berth, or one of several feeders into the same target, is filled through those berths instead and leaves the linear ladder, so it is exempt. Also ranks continental cups by prestige, lowest first. |
 | `berths` | array | `[]` | Qualification spots this competition awards to other competitions. See [Berths](#berths). |
 | `seasonStartMonth` | integer (1–12) | `8` | Month the season begins. |
 | `seasonStartDay` | integer (1–31) | `1` | Day of the month the season begins. |
@@ -528,7 +528,7 @@ A domestic league using `topByReputation` selector:
   "type": "League",
   "scope": "Domestic",
   "countryId": "ENG",
-  "priority": 100,
+  "priority": 0,
   "format": {
     "kind": "LeagueTable",
     "legs": 2
@@ -558,7 +558,7 @@ A group + knockout continental tournament:
   "type": "ContinentalClub",
   "scope": "Continental",
   "regionId": "europe",
-  "priority": 50,
+  "priority": 100,
   "format": {
     "kind": "GroupAndKnockout",
     "legs": 1,

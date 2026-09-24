@@ -72,16 +72,6 @@ export function isSeasonComplete(league: LeagueData | null | undefined): boolean
   return getCompetitiveFixtures(league.fixtures).every((fixture) => fixture.status === "Completed");
 }
 
-export function getPrimaryCompetition(
-  gameState: Pick<GameStateData, "competitions" | "league">,
-): LeagueData | null {
-  if (gameState.competitions && gameState.competitions.length > 0) {
-    return gameState.competitions[0];
-  }
-
-  return gameState.league ?? null;
-}
-
 export function getActiveCompetitions(
   gameState: Pick<GameStateData, "competitions" | "league" | "active_competition_ids">,
 ): LeagueData[] {

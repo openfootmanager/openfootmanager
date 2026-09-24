@@ -2577,6 +2577,7 @@
       "liveMatch": {
         "noLeague": "该比赛暂无联赛数据。",
         "fixtureNotFound": "未找到所选比赛。",
+        "emptySquad": "其中一支球队没有可用球员，因此无法进行比赛。",
         "maxSubstitutionsReached": "已达到最大换人次数",
         "preMatchSwapTooLate": "赛前对调只能在开球前进行",
         "cannotSubstituteSentOffPlayer": "不能换下被罚下的球员",
@@ -2633,6 +2634,7 @@
         "parseFailed": "无法将赛事定义文件解析为 JSON。",
         "unsupportedVersion": "不支持的格式版本 {{version}}；此版本最高支持 {{supported}}。",
         "berthUnknownTarget": "参赛资格指向未知的赛事 \"{{target}}\"。",
+        "berthSelfTarget": "参赛资格指向赛事自身 \"{{target}}\"。",
         "berthInvalidRange": "无效的名次范围 {{from}}–{{to}}。",
         "berthRequiresLeague": "按名次或附加赛产生的资格只能由联赛授予。",
         "berthRequiresCup": "杯赛冠军资格只能由淘汰赛赛事授予。",
@@ -2655,7 +2657,8 @@
         "unknownSourceCompetition": "未知的来源赛事“{{source}}”。",
         "selectorMissingSource": "该选择器需要一个来源赛事。",
         "unknownExcludedCompetition": "未知的排除赛事“{{excluded}}”。",
-        "selectorCycle": "赛事之间存在循环资格依赖。"
+        "selectorCycle": "赛事之间存在循环资格依赖。",
+        "duplicateTierPriority": "{{country}} 有多个级别的优先级同为 {{priority}}。数值越小级别越高，每个级别需要各自的数值，否则它们都不会升降级。"
       },
       "worldParseFailed": "解析世界数据库文件失败。",
       "worldWriteFileFailed": "导出世界数据库文件失败。",

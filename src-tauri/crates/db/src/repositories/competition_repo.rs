@@ -183,3 +183,81 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
     }
     Ok(competitions)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game_database::GameDatabase;
+    use domain::league::League;
+
+    fn division(id: &str, priority: u32, clubs: &[&str]) -> CompetitionState {
+        let team_ids: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
+        let mut league = League::new(id.to_string(), id.to_string(), 2035, &team_ids);
+        league.priority = priority;
+        league.country_id = Some("ENG".to_string());
+        league
+    }
+
+    /// Promotion and relegation are written back as nothing but a new
+    /// `participant_ids` list, so this column is the whole of what a rollover
+    /// persists. It is stored as JSON in a hand-written positional INSERT,
+    /// which is exactly the shape that loses a field silently.
+    #[test]
+    fn a_promoted_roster_survives_a_round_trip() {
+        let database = GameDatabase::open_in_memory().expect("an in-memory database");
+        let connection = database.conn();
+
+        let mut first = division("eng-d1", 0, &["a1", "a2", "a3", "a4"]);
+        let mut second = division("eng-d2", 1, &["b1", "b2", "b3", "b4"]);
+        replace_competitions(connection, &[first.clone(), second.clone()])
+            .expect("the initial write");
+
+        // The rollover swaps a club each way and writes the whole set again.
+        first.participant_ids = vec![
+            "a1".to_string(),
+            "a2".to_string(),
+            "a3".to_string(),
+            "b1".to_string(),
+        ];
+        second.participant_ids = vec![
+            "b2".to_string(),
+            "b3".to_string(),
+            "b4".to_string(),
+            "a4".to_string(),
+        ];
+        replace_competitions(connection, &[first.clone(), second.clone()])
+            .expect("the rollover write");
+
+        let loaded = load_competitions(connection).expect("the reload");
+        let by_id = |id: &str| {
+            loaded
+                .iter()
+                .find(|competition| competition.id == id)
+                .unwrap_or_else(|| panic!("{id} should have been stored"))
+        };
+        assert_eq!(by_id("eng-d1").participant_ids, first.participant_ids);
+        assert_eq!(by_id("eng-d2").participant_ids, second.participant_ids);
+        assert_eq!(by_id("eng-d1").priority, 0, "tier rank must survive too");
+        assert_eq!(by_id("eng-d2").priority, 1);
+    }
+
+    /// A competition retired at rollover — a World Cup edition, a cup that no
+    /// longer exists — must not come back on the next load. `replace_` is a
+    /// delete-then-insert, and this is what says so.
+    #[test]
+    fn a_retired_competition_does_not_come_back() {
+        let database = GameDatabase::open_in_memory().expect("an in-memory database");
+        let connection = database.conn();
+
+        let keep = division("eng-d1", 0, &["a1", "a2"]);
+        let retire = division("world-cup-2038", 9, &["a1", "a2"]);
+        replace_competitions(connection, &[keep.clone(), retire]).expect("the initial write");
+        assert_eq!(load_competitions(connection).expect("reload").len(), 2);
+
+        replace_competitions(connection, &[keep]).expect("the rollover write");
+
+        let loaded = load_competitions(connection).expect("the reload");
+        assert_eq!(loaded.len(), 1, "the retired edition is gone: {loaded:?}");
+        assert_eq!(loaded[0].id, "eng-d1");
+    }
+}

@@ -677,6 +677,9 @@ export interface SeasonContextData {
   season_end: string | null;
   days_until_season_start: number | null;
   transfer_window: TransferWindowContextData;
+  /** Whether the rollover to next season is available now. Decided by the
+   *  backend, which is also what `advance_to_next_season` enforces. */
+  season_complete?: boolean;
 }
 
 export interface NewsMatchScore {

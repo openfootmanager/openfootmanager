@@ -1,4 +1,4 @@
-use crate::end_of_season::is_league_complete;
+use crate::end_of_season::{is_league_complete, is_season_complete};
 use crate::game::Game;
 use chrono::{Datelike, Duration, NaiveDate};
 use domain::league::League;
@@ -41,6 +41,7 @@ pub fn derive_season_context(game: &Game) -> SeasonContext {
         season_end: season_end.map(format_date),
         days_until_season_start,
         transfer_window,
+        season_complete: is_season_complete(game),
     }
 }
 
@@ -152,6 +153,45 @@ mod tests {
     use domain::season::{SeasonPhase, TransferWindowStatus};
     use domain::team::Team;
 
+    /// The dashboard decides whether to show the end-of-season screen, and it
+    /// must agree with `advance_to_next_season`, which refuses to roll over
+    /// unless `is_season_complete`. The screen used to be driven from the
+    /// *first* competition in the list — in a generated world that is a foreign
+    /// league on another calendar, so an English career whose season ended in
+    /// April was told to wait for an Argentine Apertura that runs to October.
+    /// The screen never appeared and the player could not continue.
+    #[test]
+    fn season_complete_reports_the_users_own_season_not_the_first_competition() {
+        let mut ours = make_league(vec![
+            make_fixture("f1", "2035-08-10", FixtureStatus::Completed, 1),
+            make_fixture("f2", "2036-04-10", FixtureStatus::Completed, 2),
+        ]);
+        ours.id = "eng-d1".to_string();
+        ours.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+
+        // A foreign league that sorts first and is still mid-season.
+        let mut foreign = make_league(vec![
+            make_fixture("g1", "2036-02-10", FixtureStatus::Completed, 1),
+            make_fixture("g2", "2036-10-10", FixtureStatus::Scheduled, 2),
+        ]);
+        foreign.id = "ar-d1-apertura".to_string();
+        foreign.country_id = Some("AR".to_string());
+        foreign.participant_ids = vec!["team3".to_string(), "team4".to_string()];
+
+        let mut game = make_game((2036, 4, 20), Some(ours.clone()));
+        game.manager.hire("team1".to_string());
+        ours.country_id = Some("ENG".to_string());
+        game.competitions = vec![foreign, ours];
+
+        let context = derive_season_context(&game);
+
+        assert!(
+            context.season_complete,
+            "the user's own season is over, whatever the first competition is doing"
+        );
+        assert_eq!(context.phase, SeasonPhase::PostSeason);
+    }
+
     fn make_team(id: &str, name: &str) -> Team {
         Team::new(
             id.to_string(),
@@ -182,6 +222,20 @@ mod tests {
                 home_penalties: None,
                 away_penalties: None,
             }),
+            ..Default::default()
+        }
+    }
+
+    fn make_league(fixtures: Vec<Fixture>) -> League {
+        League {
+            id: "league1".to_string(),
+            name: "Premier Division".to_string(),
+            season: 2036,
+            fixtures,
+            standings: vec![
+                StandingEntry::new("team1".to_string()),
+                StandingEntry::new("team2".to_string()),
+            ],
             ..Default::default()
         }
     }

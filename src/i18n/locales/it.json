@@ -2577,6 +2577,7 @@
       "liveMatch": {
         "noLeague": "Non ci sono dati di campionato disponibili per questa partita.",
         "fixtureNotFound": "Impossibile trovare la partita selezionata.",
+        "emptySquad": "Una delle squadre non ha giocatori disponibili, quindi la partita non può essere giocata.",
         "maxSubstitutionsReached": "Raggiunto il numero massimo di sostituzioni",
         "preMatchSwapTooLate": "Gli scambi pre-partita sono consentiti solo prima del calcio d'inizio",
         "cannotSubstituteSentOffPlayer": "Non puoi sostituire un giocatore espulso",
@@ -2633,6 +2634,7 @@
         "parseFailed": "Impossibile leggere il file di definizione delle competizioni come JSON.",
         "unsupportedVersion": "Versione formato {{version}} non supportata; questa build supporta fino a {{supported}}.",
         "berthUnknownTarget": "Un posto di qualificazione punta a una competizione sconosciuta \"{{target}}\".",
+        "berthSelfTarget": "Un posto di qualificazione punta alla propria competizione \"{{target}}\".",
         "berthInvalidRange": "Intervallo di posizioni non valido {{from}}–{{to}}.",
         "berthRequiresLeague": "I posti per posizione o playoff possono essere assegnati solo da un campionato.",
         "berthRequiresCup": "Un posto da vincitore di coppa può essere assegnato solo da una competizione a eliminazione.",
@@ -2655,7 +2657,8 @@
         "unknownSourceCompetition": "Competizione di origine sconosciuta \"{{source}}\".",
         "selectorMissingSource": "Questo selettore richiede una competizione di origine.",
         "unknownExcludedCompetition": "Competizione esclusa sconosciuta \"{{excluded}}\".",
-        "selectorCycle": "Qualificazione circolare tra competizioni."
+        "selectorCycle": "Qualificazione circolare tra competizioni.",
+        "duplicateTierPriority": "Più divisioni di {{country}} condividono la priorità {{priority}}. Un numero più basso indica una divisione superiore, e ogni livello ha bisogno del proprio, altrimenti nessuna viene promossa o retrocessa."
       },
       "worldParseFailed": "Impossibile interpretare il file del database del mondo.",
       "worldWriteFileFailed": "Impossibile esportare il file del database del mondo.",

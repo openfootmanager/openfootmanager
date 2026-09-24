@@ -2577,6 +2577,7 @@
       "liveMatch": {
         "noLeague": "Não há dados da liga disponíveis para esta partida.",
         "fixtureNotFound": "Não foi possível encontrar a partida selecionada.",
+        "emptySquad": "Um dos times não tem jogadores disponíveis, então a partida não pode ser disputada.",
         "maxSubstitutionsReached": "O limite máximo de substituições foi atingido",
         "preMatchSwapTooLate": "As trocas pré-jogo só são permitidas antes do pontapé inicial",
         "cannotSubstituteSentOffPlayer": "Não é possível substituir um jogador expulso",
@@ -2633,6 +2634,7 @@
         "parseFailed": "Não foi possível ler o arquivo de definição de competições como JSON.",
         "unsupportedVersion": "Versão de formato {{version}} não suportada; esta versão suporta até {{supported}}.",
         "berthUnknownTarget": "Uma vaga de classificação aponta para uma competição desconhecida \"{{target}}\".",
+        "berthSelfTarget": "Uma vaga de classificação aponta para a própria competição \"{{target}}\".",
         "berthInvalidRange": "Intervalo de posições inválido {{from}}–{{to}}.",
         "berthRequiresLeague": "Vagas por posição ou playoff só podem ser concedidas por uma liga.",
         "berthRequiresCup": "Uma vaga de campeão de copa só pode ser concedida por uma competição de mata-mata.",
@@ -2655,7 +2657,8 @@
         "unknownSourceCompetition": "Competição de origem desconhecida \"{{source}}\".",
         "selectorMissingSource": "Este seletor precisa de uma competição de origem.",
         "unknownExcludedCompetition": "Competição excluída desconhecida \"{{excluded}}\".",
-        "selectorCycle": "Classificação circular entre competições."
+        "selectorCycle": "Classificação circular entre competições.",
+        "duplicateTierPriority": "Divisões de {{country}} compartilham a prioridade {{priority}}. Um número menor indica uma divisão superior, e cada nível precisa do seu, ou nenhuma sobe nem cai."
       },
       "worldParseFailed": "Falha ao interpretar o arquivo do banco de dados do mundo.",
       "worldWriteFileFailed": "Falha ao exportar o arquivo do banco de dados do mundo.",

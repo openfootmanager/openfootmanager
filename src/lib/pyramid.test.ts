@@ -82,4 +82,197 @@ describe("getPromotionRelegationZones", () => {
     expect(getPromotionRelegationZones(state, tinyTop).relegationSlots).toBe(1);
     expect(getPromotionRelegationZones(state, tinySecond).promotionSlots).toBe(1);
   });
+
+  // The frontend draws these bands from its own copy of the pyramid rules, so
+  // it has to refuse the same pairings the backend refuses. Otherwise the table
+  // shows a relegation zone that nothing will ever relegate anyone out of.
+
+  it("draws no zones between the two halves of a split season", () => {
+    // What create_game builds for Argentina: one division played twice, at
+    // consecutive priorities, over the same twenty clubs.
+    const roster = clubs("ar", 20);
+    const apertura = division({
+      id: "ar-d1-apertura",
+      country_id: "AR",
+      priority: 0,
+      participant_ids: roster,
+    });
+    const clausura = division({
+      id: "ar-d1-clausura",
+      country_id: "AR",
+      priority: 1,
+      participant_ids: roster,
+    });
+    const state = [apertura, clausura];
+
+    expect(getPromotionRelegationZones(state, apertura)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+    expect(getPromotionRelegationZones(state, clausura)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
+
+  it("ignores a neighbour that shares clubs with the division", () => {
+    // A reserve or B-team table drawn from the same clubs is not a tier below.
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("x", 20),
+    });
+    const shadow = division({
+      id: "xx-shadow",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: [...clubs("x", 5), ...clubs("y", 15)],
+    });
+
+    expect(getPromotionRelegationZones([first, shadow], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
+
+  // One predicate per test. Changing both scope and kind on the same fixture
+  // let either clause mask the other's removal: dropping just one still left
+  // the whole suite green.
+  it("ignores a regional competition scored as a table", () => {
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const regional = division({
+      id: "xx-regional",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("b", 20),
+      scope: "Regional",
+      // kind stays "League", so only the scope clause can refuse this.
+    });
+
+    expect(getPromotionRelegationZones([first, regional], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+    expect(getPromotionRelegationZones([first, regional], regional)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
+
+  it("ignores a cup scored as a table", () => {
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const cup = division({
+      id: "xx-cup",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("b", 20),
+      kind: "Cup",
+      // scope stays "Domestic", so only the kind clause can refuse this.
+    });
+
+    expect(getPromotionRelegationZones([first, cup], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+    expect(getPromotionRelegationZones([first, cup], cup)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
+
+  it("draws no zones when two eligible tiers share a priority", () => {
+    // The backend refuses a ladder run whose tiers do not rank distinctly, so
+    // the table must not promise movement it will not make.
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const peer = division({
+      id: "xx-1b",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("b", 20),
+    });
+    const below = division({
+      id: "xx-2",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("c", 20),
+    });
+
+    for (const competition of [first, peer, below]) {
+      expect(getPromotionRelegationZones([first, peer, below], competition)).toEqual({
+        promotionSlots: 0,
+        relegationSlots: 0,
+      });
+    }
+  });
+
+  it("treats a numeric gap in priorities as adjacent", () => {
+    // The backend sorts a country's tiers and chains neighbours by rank order,
+    // not by numeric adjacency, so 0 and 2 are neighbouring divisions.
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const second = division({
+      id: "xx-2",
+      country_id: "XX",
+      priority: 2,
+      participant_ids: clubs("b", 20),
+    });
+
+    expect(getPromotionRelegationZones([first, second], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 4,
+    });
+    expect(getPromotionRelegationZones([first, second], second)).toEqual({
+      promotionSlots: 4,
+      relegationSlots: 0,
+    });
+  });
+
+  it("draws no zones when two other tiers share clubs", () => {
+    // The queried division is disjoint from both tiers below it, but those two
+    // overlap each other. The backend evaluates tiers_share_clubs across the
+    // whole run and refuses it, so the table must not promise movement.
+    const first = division({
+      id: "xx-1",
+      country_id: "XX",
+      priority: 0,
+      participant_ids: clubs("a", 20),
+    });
+    const second = division({
+      id: "xx-2",
+      country_id: "XX",
+      priority: 1,
+      participant_ids: clubs("b", 20),
+    });
+    const third = division({
+      id: "xx-3",
+      country_id: "XX",
+      priority: 2,
+      participant_ids: [...clubs("b", 5), ...clubs("c", 15)],
+    });
+
+    expect(getPromotionRelegationZones([first, second, third], first)).toEqual({
+      promotionSlots: 0,
+      relegationSlots: 0,
+    });
+  });
 });

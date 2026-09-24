@@ -2577,6 +2577,7 @@
       "liveMatch": {
         "noLeague": "Aucune donnée de ligue n'est disponible pour ce match.",
         "fixtureNotFound": "Le match sélectionné est introuvable.",
+        "emptySquad": "L'une des équipes n'a aucun joueur disponible, le match ne peut donc pas se jouer.",
         "maxSubstitutionsReached": "Nombre maximal de remplacements atteint",
         "preMatchSwapTooLate": "Les permutations d'avant-match ne sont autorisées qu'avant le coup d'envoi",
         "cannotSubstituteSentOffPlayer": "Impossible de remplacer un joueur expulsé",
@@ -2633,6 +2634,7 @@
         "parseFailed": "Le fichier de définition de compétitions n'a pas pu être lu en tant que JSON.",
         "unsupportedVersion": "Version de format {{version}} non prise en charge ; cette version gère jusqu'à {{supported}}.",
         "berthUnknownTarget": "Une place qualificative pointe vers une compétition inconnue « {{target}} ».",
+        "berthSelfTarget": "Une place qualificative pointe vers sa propre compétition « {{target}} ».",
         "berthInvalidRange": "Plage de positions invalide {{from}}–{{to}}.",
         "berthRequiresLeague": "Les places par position ou par barrage ne peuvent être attribuées que par un championnat.",
         "berthRequiresCup": "Une place de vainqueur de coupe ne peut être attribuée que par une compétition à élimination directe.",
@@ -2655,7 +2657,8 @@
         "unknownSourceCompetition": "Compétition source inconnue \"{{source}}\".",
         "selectorMissingSource": "Ce sélecteur nécessite une compétition source.",
         "unknownExcludedCompetition": "Compétition exclue inconnue \"{{excluded}}\".",
-        "selectorCycle": "Qualification circulaire entre compétitions."
+        "selectorCycle": "Qualification circulaire entre compétitions.",
+        "duplicateTierPriority": "Des divisions de {{country}} partagent la priorité {{priority}}. Plus le nombre est bas, plus la division est élevée, et chaque échelon a besoin du sien, sinon aucune ne monte ni ne descend."
       },
       "worldParseFailed": "Impossible d'interpréter le fichier de base de données du monde.",
       "worldWriteFileFailed": "Impossible d'exporter le fichier de base de données du monde.",

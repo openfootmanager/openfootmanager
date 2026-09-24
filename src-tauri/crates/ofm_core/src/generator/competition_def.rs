@@ -280,7 +280,109 @@ pub fn validate_definitions(
     }
 
     detect_selector_cycles(file, &mut errors);
+    detect_duplicate_tier_priorities(file, &mut errors);
     errors
+}
+
+/// Two domestic league tables in one country must not share a `priority`.
+///
+/// `priority` is what ranks one division above another, so an equal pair are
+/// peers and the order between them is whatever the file happened to list
+/// first. The ladder refuses to promote across such a pair rather than guess,
+/// which means neither division promotes or relegates anyone — silently. The
+/// package editor and the scaffold both default a new competition to the same
+/// number, so this is easy to author by accident.
+fn detect_duplicate_tier_priorities(
+    file: &CompetitionDefinitionFile,
+    errors: &mut Vec<DefinitionError>,
+) {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    // Mirror the ladder's own exclusions, or this rejects configurations the
+    // game supports. Parallel regional groups at one tier feeding a central
+    // league are peers on purpose: they leave the ladder as a set through their
+    // berths, so they never reach the rank check and equal numbers are correct
+    // for them. A berth-fed target is off the ladder for the same reason.
+    let is_tier = |competition: &CompetitionDefinition| {
+        competition.scope == CompetitionScope::Domestic
+            && competition.r#type == CompetitionType::League
+            && competition.format.kind == CompetitionFormat::LeagueTable
+    };
+    fn position_targets(competition: &CompetitionDefinition) -> BTreeSet<&str> {
+        competition
+            .berths
+            .iter()
+            .filter(|berth| matches!(berth.rule, BerthRule::PositionRange { .. }))
+            .map(|berth| berth.target.as_str())
+            .collect()
+    }
+    // Only a berth into a tier makes siblings, because only those leave the
+    // runtime ladder. Counting a continental cup here would excuse the very
+    // shape `create_game` ships — every first division berths into the same cup
+    // — so two equal-ranked divisions would be waved through as "siblings" and
+    // then silently refused promotion at runtime.
+    let tier_ids: HashSet<&str> = file
+        .competitions
+        .iter()
+        .filter(|competition| is_tier(competition))
+        .map(|competition| competition.id.as_str())
+        .collect();
+    let tier_targets = |competition: &CompetitionDefinition| -> Vec<String> {
+        position_targets(competition)
+            .into_iter()
+            .filter(|target| tier_ids.contains(target))
+            .map(str::to_string)
+            .collect()
+    };
+    let berth_targets: HashSet<String> = file.competitions.iter().flat_map(&tier_targets).collect();
+    let mut feeders_by_target: BTreeMap<String, usize> = BTreeMap::new();
+    for competition in file.competitions.iter().filter(|c| is_tier(c)) {
+        for target in tier_targets(competition) {
+            *feeders_by_target.entry(target).or_default() += 1;
+        }
+    }
+    let is_sibling_feeder = |competition: &CompetitionDefinition| {
+        tier_targets(competition).iter().any(|target| {
+            feeders_by_target
+                .get(target)
+                .is_some_and(|count| *count > 1)
+        })
+    };
+
+    let mut by_country: BTreeMap<(&str, u32), Vec<(usize, &CompetitionDefinition)>> =
+        BTreeMap::new();
+    for (index, competition) in file.competitions.iter().enumerate() {
+        if !is_tier(competition)
+            || berth_targets.contains(competition.id.as_str())
+            || is_sibling_feeder(competition)
+        {
+            continue;
+        }
+        let Some(country) = competition.country_id.as_deref() else {
+            continue;
+        };
+        by_country
+            .entry((country, competition.priority))
+            .or_default()
+            .push((index, competition));
+    }
+
+    for ((country, priority), tiers) in by_country {
+        if tiers.len() < 2 {
+            continue;
+        }
+        // Blame every member: any one of them could be the one to renumber.
+        for (index, competition) in tiers {
+            let mut error = DefinitionError::new(
+                "be.error.competitionDef.duplicateTierPriority",
+                &competition.id,
+            )
+            .with("country", country.to_string())
+            .with("priority", priority.to_string());
+            error.competition_index = Some(index);
+            errors.push(error);
+        }
+    }
 }
 
 fn validate_berths(
@@ -340,6 +442,16 @@ fn check_berth_target(
                 &competition.id,
             )
             .with("target", target.to_string()),
+        );
+        return;
+    }
+    // A berth sends clubs somewhere else. Pointed at itself it validates
+    // cleanly, marks the competition as berth-fed, and quietly takes it off
+    // its own country's promotion ladder — a typo that costs a whole pyramid.
+    if target == competition.id {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.berthSelfTarget", &competition.id)
+                .with("target", target.to_string()),
         );
     }
 }
@@ -1019,6 +1131,108 @@ mod tests {
             competitions: vec![explicit("tr-1", &["team-a", "team-b"])],
         };
         assert!(validate_definitions(&file, &ctx()).is_empty());
+    }
+
+    /// Two divisions of one country at the same rank are peers, and the ladder
+    /// refuses to promote across them rather than guess the order — silently.
+    /// The package editor and the scaffold both default a new competition to
+    /// the same number, so this is easy to author by accident.
+    #[test]
+    fn two_domestic_league_tables_in_one_country_must_not_share_a_priority() {
+        let mut first = explicit("tr-1", &["team-a", "team-b"]);
+        let mut second = explicit("tr-2", &["team-b", "team-c"]);
+        first.priority = 1;
+        second.priority = 1;
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![first, second],
+        };
+
+        let errors = validate_definitions(&file, &ctx());
+        assert_eq!(
+            codes(&errors),
+            vec![
+                "be.error.competitionDef.duplicateTierPriority",
+                "be.error.competitionDef.duplicateTierPriority",
+            ],
+            "both divisions are blamed, because either could be the one to renumber"
+        );
+    }
+
+    /// The shape `create_game` ships: every first division berths into the same
+    /// continental cup. A cup is not a rung, so the two divisions are not
+    /// siblings at runtime — they stay in one ladder run and are refused
+    /// promotion for sharing a rank. Counting every berth target here excused
+    /// exactly that case.
+    #[test]
+    fn a_shared_continental_berth_does_not_excuse_a_duplicate_priority() {
+        let mut first = explicit("tr-1", &["team-a", "team-b"]);
+        let mut second = explicit("tr-2", &["team-b", "team-c"]);
+        first.priority = 1;
+        second.priority = 1;
+        for division in [&mut first, &mut second] {
+            division.berths = vec![Berth {
+                target: "ucl".to_string(),
+                rule: BerthRule::PositionRange { from: 1, to: 1 },
+                fallback_to: None,
+            }];
+        }
+        let mut cup = explicit("ucl", &["team-a", "team-b"]);
+        cup.r#type = CompetitionType::ContinentalClub;
+        cup.scope = CompetitionScope::Continental;
+        cup.country_id = None;
+        cup.region_id = Some("europe".to_string());
+        cup.format.kind = CompetitionFormat::GroupAndKnockout;
+
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![first, second, cup],
+        };
+
+        assert_eq!(
+            codes(&validate_definitions(&file, &ctx())),
+            vec![
+                "be.error.competitionDef.duplicateTierPriority",
+                "be.error.competitionDef.duplicateTierPriority",
+            ],
+            "a continental berth does not make two divisions siblings"
+        );
+    }
+
+    /// Ranked apart, the very same pair is an ordinary two-tier pyramid.""
+    #[test]
+    fn two_domestic_league_tables_ranked_apart_are_a_valid_pyramid() {
+        let mut first = explicit("tr-1", &["team-a", "team-b"]);
+        let mut second = explicit("tr-2", &["team-b", "team-c"]);
+        first.priority = 0;
+        second.priority = 1;
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![first, second],
+        };
+        assert!(validate_definitions(&file, &ctx()).is_empty());
+    }
+
+    /// A berth sends clubs somewhere else. Pointed at itself it used to
+    /// validate cleanly, then mark the competition as berth-fed and take it off
+    /// its own country's ladder — one typo costing a whole pyramid.
+    #[test]
+    fn a_berth_cannot_target_its_own_competition() {
+        let mut league = explicit("tr-1", &["team-a", "team-b"]);
+        league.berths = vec![Berth {
+            target: "tr-1".to_string(),
+            rule: BerthRule::PositionRange { from: 1, to: 1 },
+            fallback_to: None,
+        }];
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![league],
+        };
+
+        assert_eq!(
+            codes(&validate_definitions(&file, &ctx())),
+            vec!["be.error.competitionDef.berthSelfTarget"]
+        );
     }
 
     fn berth(target: &str, rule: BerthRule) -> Berth {

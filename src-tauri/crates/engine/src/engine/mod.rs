@@ -6,7 +6,7 @@ use rand::{Rng, RngExt};
 use crate::event::{EventType, MatchEvent};
 use crate::report::MatchReport;
 use crate::shared::{self, PlayerSnap};
-use crate::types::{MatchConfig, PlayerData, Position, Side, TeamData, Zone};
+use crate::types::{MatchConfig, Position, Side, TeamData, Zone};
 
 // ---------------------------------------------------------------------------
 // MatchEngine — the core minute-by-minute simulator
@@ -25,6 +25,12 @@ pub fn simulate_with_rng<R: Rng>(
     config: &MatchConfig,
     rng: &mut R,
 ) -> MatchReport {
+    // A side with nobody on its books cannot play. Refusing here keeps every
+    // player lookup below total: there is always someone to pick.
+    if home.players.is_empty() || away.players.is_empty() {
+        return MatchReport::from_events(Vec::new(), 0, 0, 0);
+    }
+
     let mut ctx = MatchContext::new(home, away, config);
 
     // Kick-off
@@ -169,28 +175,8 @@ fn snap_player<R: Rng>(
     rng: &mut R,
 ) -> PlayerSnap {
     let team = ctx.team(side);
-    let available: Vec<&PlayerData> = team
-        .players
-        .iter()
-        .filter(|p| !ctx.sent_off.contains(&p.id))
-        .collect();
-
-    let candidates: Vec<&PlayerData> = available
-        .iter()
-        .filter(|p| p.position == preferred)
-        .copied()
-        .collect();
-
-    let pool = if candidates.is_empty() {
-        &available
-    } else {
-        &candidates
-    };
-
-    if pool.is_empty() {
-        return PlayerSnap::from(&team.players[0]);
-    }
-    PlayerSnap::from(pool[rng.random_range(0..pool.len())])
+    crate::shared::snap_from_squad(&team.players, &ctx.sent_off, preferred, rng)
+        .unwrap_or_else(PlayerSnap::nobody)
 }
 
 // ---------------------------------------------------------------------------
@@ -239,5 +225,81 @@ fn simulate_minute<R: Rng>(ctx: &mut MatchContext, minute: u8, rng: &mut R) {
                 ctx.ball_zone = Zone::Midfield;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod empty_squad_tests {
+    use super::*;
+    use crate::types::{MatchConfig, PlayStyle, TacticsConfig, TeamData};
+
+    fn one_player(id: &str) -> crate::types::PlayerData {
+        crate::types::PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position: crate::types::Position::Forward,
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 50,
+            teamwork: 60,
+            leadership: 50,
+            handling: 20,
+            reflexes: 30,
+            aerial: 60,
+            condition: 100,
+            fitness: 100,
+            ovr: 60,
+            traits: vec![],
+            role: crate::types::PlayerRole::Standard,
+        }
+    }
+
+    fn empty_team(id: &str) -> TeamData {
+        TeamData {
+            id: id.to_string(),
+            name: id.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            tactics: TacticsConfig::default(),
+            players: vec![],
+        }
+    }
+
+    /// A club with nobody on its books used to take the whole game down: the
+    /// player picker indexed `players[0]`, the panic unwound out of the match
+    /// engine and through the day loop, and the Tauri command it was running
+    /// under never returned a response — so the window simply stopped
+    /// responding, with nothing written anywhere to say why.
+    ///
+    /// A match that cannot be played is a goalless non-event, not a crash.
+    #[test]
+    fn a_side_with_no_players_does_not_bring_the_game_down() {
+        let report = simulate(
+            &empty_team("home"),
+            &empty_team("away"),
+            &MatchConfig::default(),
+        );
+
+        assert_eq!(report.home_goals, 0);
+        assert_eq!(report.away_goals, 0);
+    }
+
+    #[test]
+    fn one_empty_side_is_enough_to_refuse_the_match() {
+        let mut filled = empty_team("away");
+        filled.players.push(one_player("a1"));
+        let report = simulate(&empty_team("home"), &filled, &MatchConfig::default());
+        assert_eq!((report.home_goals, report.away_goals), (0, 0));
     }
 }

@@ -34,6 +34,9 @@ fn phase_needs_manager(phase: MatchPhase) -> bool {
     )
 }
 const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
+/// A side with nobody available cannot play. Refused here rather than handed to
+/// the engine, which has no way to resolve a pass, a shot or a goalkeeper.
+const LIVE_MATCH_EMPTY_SQUAD_ERROR: &str = "be.error.liveMatch.emptySquad";
 
 fn resolve_match_role_assignment(
     assigned_id: &Option<String>,
@@ -261,6 +264,10 @@ pub fn create_live_match(
         .unwrap_or_default();
     let home_auto_selection = auto_select_set_pieces(game, &home_starter_ids);
     let away_auto_selection = auto_select_set_pieces(game, &away_starter_ids);
+
+    if home_xi.players.is_empty() || away_xi.players.is_empty() {
+        return Err(LIVE_MATCH_EMPTY_SQUAD_ERROR.to_string());
+    }
 
     let config = MatchConfig::default();
 
