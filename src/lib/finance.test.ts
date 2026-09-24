@@ -125,13 +125,13 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
 }
 
 describe("finance helpers", () => {
-  it("converts annual contracts to weekly commitments using per-person flooring", () => {
+  it("treats stored wages as weekly commitments", () => {
     const players = [createPlayer({ wage: 51 }), createPlayer({ id: "player-2", wage: 51 })];
     const staff = [createStaff({ wage: 103 })];
 
-    expect(annualAmountToWeeklyCommitment(103)).toBe(1);
+    expect(annualAmountToWeeklyCommitment(5_000)).toBe(5_000);
     expect(getAnnualWageBill(players, staff)).toBe(205);
-    expect(getWeeklyWageSpend(players, staff)).toBe(1);
+    expect(getWeeklyWageSpend(players, staff)).toBe(205);
   });
 
   it("computes runway from projected weekly net rather than wages alone", () => {
@@ -152,10 +152,10 @@ describe("finance helpers", () => {
     const snapshot = getTeamFinanceSnapshot(team, players);
 
     expect(snapshot.annualWageBill).toBe(600000);
-    expect(snapshot.weeklyWageSpend).toBe(11538);
-    expect(snapshot.weeklyWageBudget).toBe(9615);
-    expect(snapshot.projectedWeeklyNet).toBe(-11538);
-    expect(snapshot.cashRunwayWeeks).toBe(2);
+    expect(snapshot.weeklyWageSpend).toBe(600000);
+    expect(snapshot.weeklyWageBudget).toBe(500000);
+    expect(snapshot.projectedWeeklyNet).toBe(-600000);
+    expect(snapshot.cashRunwayWeeks).toBe(0);
     expect(snapshot.wageBudgetUsagePercent).toBe(120);
     expect(snapshot.wageBudgetStatus).toBe("critical");
     expect(snapshot.runwayStatus).toBe("critical");
@@ -188,9 +188,9 @@ describe("finance helpers", () => {
     expect(getPlayerAnnualWageCommitment(loanedPlayer, "parent")).toBe(208000);
     expect(getPlayerAnnualWageCommitment(loanedPlayer, "loan")).toBe(312000);
     expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).annualWageBill).toBe(208000);
-    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).weeklyWageSpend).toBe(4000);
+    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).weeklyWageSpend).toBe(208000);
     expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).annualWageBill).toBe(312000);
-    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).weeklyWageSpend).toBe(6000);
+    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).weeklyWageSpend).toBe(312000);
   });
 
   it("assigns the loan wage remainder to the parent club like the backend", () => {

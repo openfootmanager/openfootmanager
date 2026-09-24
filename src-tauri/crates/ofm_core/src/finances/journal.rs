@@ -186,6 +186,60 @@ fn club_matches_cash(game: &Game, team: &domain::team::Team) -> bool {
         || game.cash_journal.cash_for(&team.id) == team.finance
 }
 
+/// Credit cash as `OpeningBalance` and update `Team.finance`.
+///
+/// Public [`post`] rejects `OpeningBalance` so gameplay cannot mint it.
+/// Save-format floors (weekly unit lock) use this instead.
+pub fn credit_opening_cash(
+    game: &mut Game,
+    club_id: &str,
+    amount: i64,
+    date: NaiveDate,
+) -> Result<(), String> {
+    if amount == 0 {
+        return Ok(());
+    }
+    if amount < 0 {
+        return Err(ERR_OPENING_BALANCE.to_string());
+    }
+
+    let index = game
+        .teams
+        .iter()
+        .position(|team| team.id == club_id)
+        .ok_or_else(|| ERR_TEAM_NOT_FOUND.to_string())?;
+    let current = game.teams[index].finance;
+    let new_finance = current
+        .checked_add(amount)
+        .ok_or_else(|| ERR_OVERFLOW.to_string())?;
+
+    let mut posts = Vec::with_capacity(2);
+    if !game.cash_journal.contains_club(club_id) && current != 0 {
+        posts.push(build_post(
+            &game.teams[index].id,
+            current,
+            CashKind::OpeningBalance,
+            date,
+        ));
+    }
+    posts.push(build_post(
+        &game.teams[index].id,
+        amount,
+        CashKind::OpeningBalance,
+        date,
+    ));
+
+    game.teams[index].finance = new_finance;
+    game.cash_journal_dirty_ids
+        .extend(posts.iter().map(|post| post.id.clone()));
+    game.cash_journal.extend(posts);
+    debug_assert!(
+        club_matches_cash(game, &game.teams[index]),
+        "cash journal drifted from Team.finance"
+    );
+    Ok(())
+}
+
 /// Import `financial_ledger` rows and an OpeningBalance so `sum(journal) == finance`.
 ///
 /// Call from `save_manager::load_game` when the loaded journal is empty.
@@ -490,5 +544,17 @@ mod tests {
         assert_eq!(game.cash_journal[0].kind, CashKind::OpeningBalance);
         assert_eq!(game.cash_journal[0].amount, i64::MAX);
         assert_eq!(game.cash_journal.cash_for("alpha"), i64::MAX);
+    }
+
+    #[test]
+    fn credit_opening_cash_raises_finance_and_keeps_the_journal_in_sync() {
+        let mut game = make_game(vec![make_team("alpha", 1_000)]);
+
+        credit_opening_cash(&mut game, "alpha", 15_000, monday()).unwrap();
+
+        assert_eq!(game.teams[0].finance, 16_000);
+        assert_eq!(game.cash_journal.cash_for("alpha"), 16_000);
+        assert_eq!(game.teams[0].season_income, 0);
+        assert!(journal_matches_cash(&game));
     }
 }

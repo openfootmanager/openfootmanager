@@ -1007,24 +1007,19 @@ fn loan_offer_counts_existing_loan_wages_against_borrower_budget() {
 }
 
 #[test]
-fn loan_offer_rejects_terms_when_user_cannot_cover_loan_wage_share() {
+fn loan_offer_does_not_require_cash_to_cover_wage_share() {
     let mut player = make_player("player-loan-cash");
     player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
     player.wage = 120_000;
     let mut game = make_game_with_player(player, vec![], 50_000, 2_000_000);
     game.teams[0].wage_budget = 500_000;
 
-    let error = make_loan_offer(&mut game, "player-loan-cash", "2027-01-01", 100, None)
-        .expect_err("loan should be blocked by available finance");
-
-    assert_eq!(error, "be.error.transfers.insufficientFunds");
-    let player = game
-        .players
-        .iter()
-        .find(|player| player.id == "player-loan-cash")
-        .expect("player should exist");
-    assert!(player.active_loan.is_none());
-    assert!(player.loan_offers.is_empty());
+    let result = make_loan_offer(&mut game, "player-loan-cash", "2027-01-01", 100, None)
+        .expect("wage share is a weekly envelope check, not a cash gate");
+    assert_eq!(result.decision, LoanOfferDecision::Accepted);
 }
 
 #[test]
