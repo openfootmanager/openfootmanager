@@ -77,16 +77,18 @@ The newcomer who wants to casually play a season this evening, and the veteran w
 
 ---
 
-## What 1.0 Means
+## The Quality Bar
 
-1.0 is a **quality bar, not a feature bar**. Hitting 1.0 simply means:
+This bar has no version number. Every stable release moves the game closer to it. The game
+meets it when:
 
 1. You can play a multi-season career, in any region, from start to end, without hitting a wall.
 2. You can author the world you play in and easily share it.
 3. The game is fully translated and completely usable with a keyboard and a screen reader.
 4. Your saves survive upgrading the game.
 
-No single feature gates 1.0. A game that can do those four things flawlessly is finished enough to be called 1.0, regardless of what else it does or doesn't have yet.
+No single feature gates this bar. A game that can do those four things flawlessly meets it,
+regardless of what else it does or doesn't have yet.
 
 ---
 

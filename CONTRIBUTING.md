@@ -270,10 +270,9 @@ build date — is injected by `vite.config.ts` as `__APP_VERSION__`, `__APP_CHAN
 The channel is set by CI via the `OFM_CHANNEL` environment variable; locally it defaults to
 `dev`. It is deliberately not translated — it is part of a semver identifier, not prose.
 
-Version numbers do not carry a maturity tag. There is no `0.4.0-beta` — the odd/even number already
-says whether a build is stable, and "this project is pre-1.0" is said in
-[VISION.md](VISION.md#what-10-means), not in every version string. Older roadmap entries used
-`-alpha`/`-beta` suffixes; those are historical.
+Version numbers do not carry a maturity tag. There is no `0.4.0-beta`, because the odd/even number
+already says whether a build is stable. Older roadmap entries used `-alpha`/`-beta` suffixes. Those are
+historical.
 
 ### What "stable" means
 
