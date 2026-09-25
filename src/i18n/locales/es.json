@@ -24,7 +24,8 @@
     "openDiscord": "Abrir comunidad de Discord",
     "openGithub": "Abrir repositorio de GitHub",
     "mainMenu": "Menú principal",
-    "worldEditor": "Editor de Mundos"
+    "worldEditor": "Editor de Mundos",
+    "startupOptionsRejected": "No se han podido usar esos ajustes de carrera. Vuelve a la pantalla del mundo y revisa el año de inicio, la fase de inicio y cuánta historia previa generar."
   },
   "managerProfiles": {
     "saveConfirm": {

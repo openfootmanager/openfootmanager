@@ -24,7 +24,8 @@
     "openDiscord": "Buka komunitas Discord",
     "openGithub": "Buka repositori GitHub",
     "mainMenu": "Menu Utama",
-    "worldEditor": "Editor Dunia"
+    "worldEditor": "Editor Dunia",
+    "startupOptionsRejected": "Pengaturan karier itu tidak bisa digunakan. Kembali ke layar dunia dan periksa tahun mulai, fase mulai, dan berapa banyak riwayat masa lalu yang dibuat."
   },
   "managerProfiles": {
     "saveConfirm": {

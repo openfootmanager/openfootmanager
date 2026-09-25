@@ -24,7 +24,8 @@
     "openDiscord": "Ouvrir la communauté Discord",
     "openGithub": "Ouvrir le dépôt GitHub",
     "mainMenu": "Menu principal",
-    "worldEditor": "Éditeur de Monde"
+    "worldEditor": "Éditeur de Monde",
+    "startupOptionsRejected": "Ces paramètres de carrière n'ont pas pu être utilisés. Retourne à l'écran du monde et vérifie l'année de début, la phase de début et la quantité d'historique à générer."
   },
   "managerProfiles": {
     "saveConfirm": {

@@ -24,7 +24,8 @@
     "openDiscord": "打开 Discord 社区",
     "openGithub": "打开 GitHub 仓库",
     "mainMenu": "主菜单",
-    "worldEditor": "世界编辑器"
+    "worldEditor": "世界编辑器",
+    "startupOptionsRejected": "无法使用这些生涯设置。请返回世界界面，检查起始年份、起始阶段以及要生成的历史年限。"
   },
   "managerProfiles": {
     "saveConfirm": {

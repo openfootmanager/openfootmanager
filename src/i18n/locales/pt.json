@@ -24,7 +24,8 @@
     "openDiscord": "Abrir comunidade Discord",
     "openGithub": "Abrir repositório GitHub",
     "mainMenu": "Menu principal",
-    "worldEditor": "Editor de Mundo"
+    "worldEditor": "Editor de Mundo",
+    "startupOptionsRejected": "Não foi possível usar essas definições de carreira. Volte ao ecrã do mundo e verifique o ano de início, a fase de início e quanto histórico anterior gerar."
   },
   "managerProfiles": {
     "saveConfirm": {

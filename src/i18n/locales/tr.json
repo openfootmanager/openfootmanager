@@ -24,7 +24,8 @@
     "openDiscord": "Discord topluluğunu aç",
     "openGithub": "GitHub deposunu aç",
     "mainMenu": "Ana Menü",
-    "worldEditor": "Dünya Editörü"
+    "worldEditor": "Dünya Editörü",
+    "startupOptionsRejected": "Bu kariyer ayarları kullanılamadı. Dünya ekranına dönüp başlangıç yılını, başlangıç aşamasını ve ne kadar geçmiş oluşturulacağını kontrol et."
   },
   "managerProfiles": {
     "saveConfirm": {

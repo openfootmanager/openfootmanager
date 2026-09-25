@@ -24,7 +24,8 @@
     "openDiscord": "Открыть сообщество в Discord",
     "openGithub": "Открыть репозиторий на GitHub",
     "mainMenu": "Главное меню",
-    "worldEditor": "Редактор мира"
+    "worldEditor": "Редактор мира",
+    "startupOptionsRejected": "Эти настройки карьеры не удалось применить. Вернитесь к экрану мира и проверьте год начала, этап начала и объём генерируемой предыстории."
   },
   "managerProfiles": {
     "saveConfirm": {

@@ -24,7 +24,8 @@
     "openDiscord": "Discord-Community öffnen",
     "openGithub": "GitHub-Repository öffnen",
     "mainMenu": "Hauptmenü",
-    "worldEditor": "Welt-Editor"
+    "worldEditor": "Welt-Editor",
+    "startupOptionsRejected": "Diese Karriereeinstellungen konnten nicht verwendet werden. Geh zurück zum Weltbildschirm und prüfe Startjahr, Startphase und wie viel Vorgeschichte erzeugt werden soll."
   },
   "managerProfiles": {
     "saveConfirm": {

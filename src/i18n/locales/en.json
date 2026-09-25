@@ -24,7 +24,8 @@
     "openDiscord": "Open Discord community",
     "openGithub": "Open GitHub repository",
     "mainMenu": "Main Menu",
-    "worldEditor": "World Editor"
+    "worldEditor": "World Editor",
+    "startupOptionsRejected": "Those career settings could not be used. Go back to the world screen and check the start year, the start phase and how much past history to generate."
   },
   "managerProfiles": {
     "saveConfirm": {

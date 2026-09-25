@@ -24,7 +24,8 @@
     "openDiscord": "Otevřít Discord",
     "openGithub": "Otevřít GitHub",
     "mainMenu": "Hlavní menu",
-    "worldEditor": "Editor světa"
+    "worldEditor": "Editor světa",
+    "startupOptionsRejected": "Tato nastavení kariéry nebylo možné použít. Vrať se na obrazovku světa a zkontroluj rok začátku, fázi začátku a kolik minulé historie se má vygenerovat."
   },
   "managerProfiles": {
     "saveConfirm": {

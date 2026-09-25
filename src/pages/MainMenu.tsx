@@ -493,6 +493,14 @@ export default function MainMenu() {
     const startupOptions = buildStartupOptions(formData, historyDepthYears);
     if (!startupOptions) {
       const validation = validateForm();
+      if (validation.ok) {
+        // The two disagreed: `buildStartupOptions` rejected something `validateForm` does not
+        // check. Today that is only the generated-history depth, which lives on the world screen
+        // and has no field on this form — so bouncing to the create step would put the player in
+        // front of a form with no errors on it and no way to tell what was wrong. Say so instead.
+        await showError(t("errors.title"), t("menu.startupOptionsRejected"));
+        return;
+      }
       setMenuState("create");
       deferFocusToNextPaint(() => focusFirstCreateManagerError(validation.errors));
       return;
