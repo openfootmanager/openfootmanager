@@ -2,6 +2,7 @@ mod application;
 mod commands;
 mod crash;
 mod platform;
+mod report;
 use commands::*;
 
 #[cfg(feature = "mcp")]
@@ -330,7 +331,10 @@ pub fn run() {
             copy_package_asset,
             export_teams_csv,
             export_players_csv,
-            read_file_as_data_url
+            read_file_as_data_url,
+            commands::report::collect_diagnostics,
+            commands::report::export_report_bundle,
+            commands::report::suggested_report_file_name
         ])
         .run(tauri::generate_context!());
 

@@ -2551,6 +2551,9 @@
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
       "saveManagerUnavailable": "Data penyimpanan untuk sementara tidak tersedia.",
+      "report": {
+        "bundleFailed": "Berkas laporan tidak bisa ditulis. Periksa apakah kamu bisa menulis ke folder yang dipilih."
+      },
       "saveDeleteFailed": "Gagal menghapus berkas penyimpanan.",
       "settings": {
         "loadFailed": "Gagal memuat pengaturan.",

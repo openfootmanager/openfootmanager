@@ -2692,6 +2692,9 @@
         "writeFailed": "Impossible de mettre à jour l'index des sauvegardes."
       },
       "saveManagerUnavailable": "Les données de sauvegarde sont temporairement indisponibles.",
+      "report": {
+        "bundleFailed": "Le fichier de rapport n'a pas pu être écrit. Vérifie que tu peux écrire dans le dossier choisi."
+      },
       "saveDeleteFailed": "Impossible de supprimer le fichier de sauvegarde.",
       "settings": {
         "loadFailed": "Impossible de charger les paramètres.",

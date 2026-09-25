@@ -2692,6 +2692,9 @@
         "writeFailed": "Der Speicherstandsindex konnte nicht aktualisiert werden."
       },
       "saveManagerUnavailable": "Die Speicherdaten sind vorübergehend nicht verfügbar.",
+      "report": {
+        "bundleFailed": "Die Berichtsdatei konnte nicht geschrieben werden. Prüfe, ob du in den gewählten Ordner schreiben darfst."
+      },
       "saveDeleteFailed": "Die Speicherstandsdatei konnte nicht gelöscht werden.",
       "settings": {
         "loadFailed": "Die Einstellungen konnten nicht geladen werden.",

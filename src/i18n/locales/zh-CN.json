@@ -2692,6 +2692,9 @@
         "writeFailed": "更新存档索引失败。"
       },
       "saveManagerUnavailable": "存档数据暂时不可用。",
+      "report": {
+        "bundleFailed": "无法写入报告文件。请检查你是否有权写入所选文件夹。"
+      },
       "saveDeleteFailed": "无法删除存档文件。",
       "settings": {
         "loadFailed": "加载设置失败。",

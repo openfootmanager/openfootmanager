@@ -2551,6 +2551,9 @@
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
       "saveManagerUnavailable": "Uložená data jsou dočasně nedostupná.",
+      "report": {
+        "bundleFailed": "Soubor hlášení se nepodařilo zapsat. Zkontroluj, jestli máš právo zápisu do zvolené složky."
+      },
       "saveDeleteFailed": "Nepodařilo se smazat soubor uložené pozice.",
       "settings": {
         "loadFailed": "Nepodařilo se načíst nastavení.",

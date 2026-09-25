@@ -2692,6 +2692,9 @@
         "writeFailed": "No se pudo actualizar el índice de partidas guardadas."
       },
       "saveManagerUnavailable": "Los datos guardados no están disponibles temporalmente.",
+      "report": {
+        "bundleFailed": "No se ha podido escribir el archivo del informe. Comprueba que puedes escribir en la carpeta que has elegido."
+      },
       "saveDeleteFailed": "No se pudo eliminar el archivo de guardado.",
       "settings": {
         "loadFailed": "No se pudo cargar la configuración.",

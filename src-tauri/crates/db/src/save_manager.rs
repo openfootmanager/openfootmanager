@@ -139,6 +139,19 @@ impl SaveManager {
         self.save_index.list_saves()
     }
 
+    /// Where a save's database file lives, or `None` if no such save is indexed.
+    ///
+    /// Exists so the bug-report bundler can attach the active save without rebuilding
+    /// `saves_dir.join(entry.db_filename)` for itself. That join appears eight times in this file
+    /// and nowhere outside it, which is the property worth keeping.
+    pub fn save_db_path(&self, save_id: &str) -> Option<PathBuf> {
+        self.save_index
+            .list_saves()
+            .iter()
+            .find(|entry| entry.id == save_id)
+            .map(|entry| self.saves_dir.join(&entry.db_filename))
+    }
+
     pub fn load_saves(&mut self) -> Result<Vec<SaveEntry>, String> {
         self.ensure_save_index_ready()?;
         let mut saves = self.save_index.list_saves().to_vec();

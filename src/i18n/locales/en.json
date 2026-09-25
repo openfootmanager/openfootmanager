@@ -2551,6 +2551,9 @@
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
       "saveManagerUnavailable": "Save data is temporarily unavailable.",
+      "report": {
+        "bundleFailed": "The report file could not be written. Check you can write to the folder you chose."
+      },
       "saveDeleteFailed": "Failed to delete the save file.",
       "settings": {
         "loadFailed": "Failed to load settings.",

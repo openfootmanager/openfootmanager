@@ -2692,6 +2692,9 @@
         "writeFailed": "Não foi possível atualizar o índice de saves."
       },
       "saveManagerUnavailable": "Os dados salvos estão temporariamente indisponíveis.",
+      "report": {
+        "bundleFailed": "Não foi possível gravar o arquivo do relatório. Verifique se você pode gravar na pasta escolhida."
+      },
       "saveDeleteFailed": "Falha ao excluir o arquivo de save.",
       "settings": {
         "loadFailed": "Não foi possível carregar as configurações.",

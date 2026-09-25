@@ -2551,6 +2551,9 @@
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",
+      "report": {
+        "bundleFailed": "Rapor dosyası yazılamadı. Seçtiğin klasöre yazma iznin olduğunu kontrol et."
+      },
       "saveDeleteFailed": "Kayıt dosyası silinemedi.",
       "settings": {
         "loadFailed": "Ayarlar yüklenemedi.",

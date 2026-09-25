@@ -2692,6 +2692,9 @@
         "writeFailed": "Impossibile aggiornare l'indice dei salvataggi."
       },
       "saveManagerUnavailable": "I dati di salvataggio non sono temporaneamente disponibili.",
+      "report": {
+        "bundleFailed": "Non è stato possibile scrivere il file del report. Verifica di poter scrivere nella cartella scelta."
+      },
       "saveDeleteFailed": "Impossibile eliminare il file di salvataggio.",
       "settings": {
         "loadFailed": "Impossibile caricare le impostazioni.",

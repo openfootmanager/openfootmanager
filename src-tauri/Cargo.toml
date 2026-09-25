@@ -80,6 +80,11 @@ time = "=0.3.51"
 # byte-compatible with what we write.
 csv = "1"
 
+# Reused rather than re-implemented: the .ofm packager already writes zips with this exact crate
+# and version (crates/ofm_core). A report bundle is the same problem — a handful of files the user
+# will hand to someone else — so it uses the same writer.
+zip = { version = "2", features = ["deflate"] }
+
 [dev-dependencies]
 tempfile = "3"
 

@@ -2692,6 +2692,9 @@
         "writeFailed": "Não foi possível atualizar o índice de gravações."
       },
       "saveManagerUnavailable": "Os dados de gravação estão temporariamente indisponíveis.",
+      "report": {
+        "bundleFailed": "Não foi possível escrever o ficheiro do relatório. Verifique se tem permissão para escrever na pasta escolhida."
+      },
       "saveDeleteFailed": "Falha ao eliminar o ficheiro de gravação.",
       "settings": {
         "loadFailed": "Não foi possível carregar as definições.",
