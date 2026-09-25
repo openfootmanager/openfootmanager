@@ -62,9 +62,7 @@ describe("showError", () => {
   it("does not throw when the dialog plugin is unavailable", async () => {
     pluginMessage.mockRejectedValue(new Error("not permitted"));
 
-    await expect(
-      showError("Title", "Detail"),
-    ).resolves.toBeUndefined();
+    await expect(showError("Title", "Detail")).resolves.toBeUndefined();
     expect(logError).toHaveBeenCalled();
   });
 

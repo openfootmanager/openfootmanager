@@ -25,10 +25,7 @@ interface ErrorBoundaryState {
  * possible, and inlining English here would put untranslated text in front of eleven other
  * languages at the exact moment the app is least trustworthy.
  */
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: undefined };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -64,10 +61,7 @@ function ErrorFallback({ onRetry }: { onRetry: () => void }) {
       className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-navy-900 px-6 py-12"
     >
       <div className="w-full max-w-md bg-white dark:bg-navy-800 rounded-2xl border border-gray-200 dark:border-navy-700 shadow-sm p-8 text-center">
-        <AlertTriangle
-          aria-hidden="true"
-          className="w-10 h-10 mx-auto text-accent-400"
-        />
+        <AlertTriangle aria-hidden="true" className="w-10 h-10 mx-auto text-accent-400" />
         <h1 className="mt-4 font-heading font-bold uppercase tracking-wider text-xl text-gray-900 dark:text-gray-100">
           {t("errorBoundary.title")}
         </h1>

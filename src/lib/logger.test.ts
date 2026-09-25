@@ -10,12 +10,7 @@ vi.mock("@tauri-apps/plugin-log", () => ({
   info: (message: string) => pluginInfo(message),
 }));
 
-import {
-  installConsoleForwarding,
-  logError,
-  logInfo,
-  logWarn,
-} from "./logger";
+import { installConsoleForwarding, logError, logInfo } from "./logger";
 
 /** Lets a `.catch()` attached inside the logger run before we assert on it. */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -33,12 +28,10 @@ describe("logger", () => {
 
   it("sends messages to the log file", async () => {
     logError("boom");
-    logWarn("careful");
     logInfo("hello");
     await flush();
 
     expect(pluginError).toHaveBeenCalledWith("boom");
-    expect(pluginWarn).toHaveBeenCalledWith("careful");
     expect(pluginInfo).toHaveBeenCalledWith("hello");
   });
 

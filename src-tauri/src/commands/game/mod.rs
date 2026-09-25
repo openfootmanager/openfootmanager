@@ -58,9 +58,7 @@ pub async fn start_new_game(
     competition_definitions_json: Option<String>,
     package_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
-    // First statement in the function, before any validation can return: every `Err` below used to
-    // leave no trace at all, so a failed career start looked exactly like a click that did nothing.
-    // The summary deliberately omits the manager's name — see `StartRequestSummary`.
+    // Before any validation can return — see `StartRequestSummary` for why, and for what it omits.
     log::info!(
         "[cmd] start_new_game {}",
         startup::StartRequestSummary {

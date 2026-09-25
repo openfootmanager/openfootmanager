@@ -54,10 +54,6 @@ export function logError(message: string): void {
   send(error, message, "error");
 }
 
-export function logWarn(message: string): void {
-  send(warn, message, "warn");
-}
-
 export function logInfo(message: string): void {
   // Falls back to `console.warn`, not `console.info`: the fallback only exists to say that the
   // log file could not be written, which is worth a warning whatever the message's own level was.
@@ -65,7 +61,7 @@ export function logInfo(message: string): void {
 }
 
 /** Renders `console.*` varargs into the single string the log file takes. */
-export function formatLogArgs(args: unknown[]): string {
+function formatLogArgs(args: unknown[]): string {
   return args
     .map((arg) => {
       if (typeof arg === "string") return arg;

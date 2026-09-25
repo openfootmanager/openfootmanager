@@ -774,10 +774,7 @@ describe("MainMenu", () => {
     await waitFor(() => {
       // Title and detail are separate arguments now; the fake `t` returns the key it is
       // given, so these are the two keys the page passes.
-      expect(showErrorMock).toHaveBeenCalledWith(
-        "errors.title",
-        "menu.loadGameFailed",
-      );
+      expect(showErrorMock).toHaveBeenCalledWith("errors.title", "menu.loadGameFailed");
     });
     expect(navigateMock).not.toHaveBeenCalledWith("/dashboard");
   });

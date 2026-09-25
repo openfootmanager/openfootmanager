@@ -13,8 +13,7 @@ vi.mock("react-i18next", () => ({
     t: (key: string) => {
       const strings: Record<string, string> = {
         "errorBoundary.title": "Something went wrong",
-        "errorBoundary.description":
-          "This screen hit an error it could not recover from.",
+        "errorBoundary.description": "This screen hit an error it could not recover from.",
         "errorBoundary.retry": "Try again",
         "errorBoundary.reload": "Reload the game",
       };
@@ -56,14 +55,10 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Something went wrong" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Something went wrong" })).toBeInTheDocument();
     // Queried by role and name, so a fallback that loses its accessible name fails here.
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Reload the game" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reload the game" })).toBeInTheDocument();
   });
 
   it("writes the error and component stack to the log file", () => {
@@ -96,16 +91,12 @@ describe("ErrorBoundary", () => {
         <Flaky />
       </ErrorBoundary>,
     );
-    expect(
-      screen.getByRole("heading", { name: "Something went wrong" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Something went wrong" })).toBeInTheDocument();
 
     shouldThrow = false;
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(screen.getByText("all good")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Something went wrong" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Something went wrong" })).not.toBeInTheDocument();
   });
 });

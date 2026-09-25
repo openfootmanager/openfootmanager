@@ -1,6 +1,5 @@
 export { Card, CardHeader, CardBody } from "./Card";
 export { Button } from "./Button";
-export { ErrorBoundary } from "./ErrorBoundary";
 export { Badge } from "./Badge";
 export { ProgressBar } from "./ProgressBar";
 export { CountryFlag } from "./CountryFlag";
