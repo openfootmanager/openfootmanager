@@ -173,8 +173,8 @@ describe("PlayerProfile.helpers", (): void => {
     expect(formatPlayerWage(1000, "/wk")).toMatch(/^€1[.,]000\/wk$/);
   });
 
-  it("formats current player wages as annual display values", (): void => {
-    expect(formatPlayerAnnualWage(52000, "/yr")).toBe("€52K/yr");
+  it("formats current player wages as weekly display values", (): void => {
+    expect(formatPlayerAnnualWage(52000, "/wk")).toBe("€52K/wk");
   });
 
   it("respects the selected settings currency for market values and wages", (): void => {

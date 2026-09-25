@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PlayerData, StaffData, TeamData } from "../store/gameStore";
 import {
-  annualAmountToWeeklyCommitment,
+  weeklyWageAmount,
   getAnnualWageBill,
   getCashRunwayWeeks,
   getPlayerAnnualWageCommitment,
@@ -129,7 +129,7 @@ describe("finance helpers", () => {
     const players = [createPlayer({ wage: 51 }), createPlayer({ id: "player-2", wage: 51 })];
     const staff = [createStaff({ wage: 103 })];
 
-    expect(annualAmountToWeeklyCommitment(5_000)).toBe(5_000);
+    expect(weeklyWageAmount(5_000)).toBe(5_000);
     expect(getAnnualWageBill(players, staff)).toBe(205);
     expect(getWeeklyWageSpend(players, staff)).toBe(205);
   });

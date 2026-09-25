@@ -271,7 +271,7 @@ pub fn project_transfer_bid_financial_impact(
         .find(|team| team.id == user_team_id)
         .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
 
-    let annual_wage_bill_before = calc_annual_wages(game, &team.id);
+    let annual_wage_bill_before = calc_wages(game, &team.id);
     let annual_wage_bill_after = annual_wage_bill_before + player.wage as i64;
     let projected_wage_budget_usage_pct = if team.wage_budget > 0 {
         ((annual_wage_bill_after as f64 / team.wage_budget as f64) * 100.0).round() as i64

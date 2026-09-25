@@ -10,7 +10,7 @@ use domain::player::{
 use domain::season::TransferWindowStatus;
 use domain::team::Team;
 use ofm_core::clock::GameClock;
-use ofm_core::finances::calc_annual_wages;
+use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
 use ofm_core::transfers::{
     LoanOfferDecision, TransferNegotiationDecision, counter_loan_offer, counter_offer,
@@ -985,7 +985,7 @@ fn loan_offer_counts_existing_loan_wages_against_borrower_budget() {
     });
     game.players.push(existing_loan);
 
-    assert_eq!(calc_annual_wages(&game, "team-1"), 100_000);
+    assert_eq!(calc_wages(&game, "team-1"), 100_000);
 
     let error = make_loan_offer(
         &mut game,
@@ -1644,8 +1644,8 @@ fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
         Some(1_100_000)
     );
     assert!(game.teams[0].starting_xi_ids.is_empty());
-    assert_eq!(calc_annual_wages(&game, "team-1"), 130_000);
-    assert_eq!(calc_annual_wages(&game, "team-2"), 390_000);
+    assert_eq!(calc_wages(&game, "team-1"), 130_000);
+    assert_eq!(calc_wages(&game, "team-2"), 390_000);
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use crate::contract_wage_policy::{
     renewal_wage_policy_error_message, wage_policy_allows_projection,
 };
-use crate::finances::calc_annual_wages;
+use crate::finances::calc_wages;
 use crate::game::Game;
 use chrono::{Datelike, Duration, NaiveDate};
 use domain::league::CompletedTransfer;

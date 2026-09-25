@@ -157,12 +157,12 @@ pub fn transfer_preview_bid(
     let p = &response.projection;
 
     Ok(format!(
-        "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Annual Wage Bill Before | {} |\n| Annual Wage Bill After | {} |\n| Annual Wage Budget | {} |\n| Projected Wage Usage | {}% |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n\nThis is a preview — no bid was made.",
+        "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Weekly Wage Bill Before | {} |\n| Weekly Wage Bill After | {} |\n| Weekly Wage Budget | {} |\n| Projected Wage Usage | {}% |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n\nThis is a preview — no bid was made.",
         player_name, fee,
         p.transfer_budget_before, p.transfer_budget_after,
         p.finance_before, p.finance_after,
-        p.annual_wage_bill_before, p.annual_wage_bill_after,
-        p.annual_wage_budget, p.projected_wage_budget_usage_pct,
+        p.current_weekly_wage_spend, p.projected_weekly_wage_spend,
+        p.weekly_wage_budget, p.projected_wage_budget_usage_pct,
         if p.exceeds_transfer_budget { "Yes" } else { "No" },
         if p.exceeds_finance { "Yes" } else { "No" },
     ))
@@ -366,11 +366,10 @@ pub fn transfer_free_agent_preview(
     let p = &response.projection;
 
     Ok(format!(
-        "## Free Agent Preview\n\n| Field | Value |\n|-------|-------|\n| Weekly Wage Offered | {}/wk |\n| Current Annual Wage Bill | {} |\n| Projected Annual Wage Bill | {} |\n| Annual Wage Budget | {} |\n| Annual Soft Cap | {} |\n| Current Weekly Spend | {} |\n| Projected Weekly Spend | {} |\n| Cash Runway (weeks) | {} → {} |\n| Currently Over Budget | {} |\n| Policy Allows | {} |\n\nThis is a preview — no offer was made.",
+        "## Free Agent Preview\n\n| Field | Value |\n|-------|-------|\n| Weekly Wage Offered | {}/wk |\n| Current Weekly Wage Bill | {} |\n| Projected Weekly Wage Bill | {} |\n| Weekly Wage Budget | {} |\n| Weekly Soft Cap | {} |\n| Cash Runway (weeks) | {} → {} |\n| Currently Over Budget | {} |\n| Policy Allows | {} |\n\nThis is a preview — no offer was made.",
         weekly_wage,
-        p.current_annual_wage_bill, p.projected_annual_wage_bill,
-        p.annual_wage_budget, p.annual_soft_cap,
         p.current_weekly_wage_spend, p.projected_weekly_wage_spend,
+        p.annual_wage_budget, p.annual_soft_cap,
         p.current_cash_runway_weeks.map(|w| w.to_string()).unwrap_or_else(|| "N/A".to_string()),
         p.projected_cash_runway_weeks.map(|w| w.to_string()).unwrap_or_else(|| "N/A".to_string()),
         if p.currently_over_budget { "Yes" } else { "No" },

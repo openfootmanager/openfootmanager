@@ -21,7 +21,7 @@ pub(crate) fn validate_loan_borrower_affordability(
         .find(|team| team.id == borrower_team_id)
         .ok_or("be.error.teamNotFound")?;
     let projected_wage_share = loan_wage_share(player, wage_contribution_pct);
-    let current_wage_bill = calc_annual_wages(game, borrower_team_id);
+    let current_wage_bill = calc_wages(game, borrower_team_id);
     let projected_wage_bill = current_wage_bill.saturating_add(projected_wage_share);
 
     if !wage_policy_allows_projection(borrower_team, current_wage_bill, projected_wage_bill) {
