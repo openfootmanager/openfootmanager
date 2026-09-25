@@ -118,7 +118,7 @@ The gain is **probabilistic**: a gain of 0.3 means a 30% chance of +1 to that at
 ### Condition & Recovery
 
 - **Training days**: condition depleted by cost, then partially recovered (base 3, boosted by physio)
-- **Rest days**: no cost, generous recovery (base 7, boosted by physio)
+- **Rest days**: no cost, the most recovery of any day (base 10, boosted by physio)
 - **Recovery focus**: no cost, highest recovery (base 9, boosted by physio)
 - **Injured players**: receive 50% of base recovery, skip training
 
