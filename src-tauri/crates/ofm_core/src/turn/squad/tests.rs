@@ -619,3 +619,45 @@ fn an_injured_keeper_called_up_by_the_user_s_club_plays_in_goal() {
     let game = club_whose_only_keeper_is_injured(true);
     assert_eq!(who_keeps_goal(&game), vec!["keeper".to_string()]);
 }
+
+/// A level cup tie on the instant path goes to penalties, and the kicks are
+/// taken by the eleven who finished the match — not by the club's best players
+/// on paper, some of whom were in the treatment room and never took the field.
+#[test]
+fn a_shootout_is_rated_on_the_side_that_played_not_the_injured() {
+    use domain::player::Injury;
+
+    let mut game = club_whose_only_keeper_is_injured(false);
+    let mut fit_keeper = mk_pos("fit_keeper", DomainPos::Goalkeeper, 70, 100);
+    fit_keeper.team_id = Some("club".to_string());
+    game.players.push(fit_keeper);
+    for i in 0..5 {
+        let mut star = mk_pos(&format!("injured_star{i}"), DomainPos::Striker, 95, 100);
+        star.team_id = Some("club".to_string());
+        star.injury = Some(Injury {
+            name: "common.injuries.calfStrain".to_string(),
+            days_remaining: 20,
+        });
+        game.players.push(star);
+    }
+    for player in game.players.iter_mut() {
+        player.ovr = if player.id.starts_with("injured_star") {
+            95
+        } else {
+            70
+        };
+    }
+
+    // The rating of the club on paper — what an instant shootout used to be
+    // decided on — has to differ here, or this test proves nothing.
+    assert!(crate::catchup::club_strength(&game.players, "club") > 80.0);
+
+    let (fielded, _bench) = build_team_with_bench(&game, "club");
+
+    assert!(
+        (shootout_strength(&fielded) - 70.0).abs() < 1e-9,
+        "five injured 95-rated players who did not play must not take the kicks \
+         (got {})",
+        shootout_strength(&fielded)
+    );
+}

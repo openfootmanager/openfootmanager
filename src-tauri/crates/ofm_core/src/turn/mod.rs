@@ -453,8 +453,8 @@ where
     // A level knockout tie must produce a winner: resolve it with a simulated
     // shootout so the home side no longer advances by default on a draw.
     if is_knockout && report.home_goals == report.away_goals {
-        let home_strength = crate::catchup::club_strength(&game.players, &home_team_id);
-        let away_strength = crate::catchup::club_strength(&game.players, &away_team_id);
+        let home_strength = squad::shootout_strength(&home_data);
+        let away_strength = squad::shootout_strength(&away_data);
         let (home_pens, away_pens) =
             crate::national_team::simulate_shootout(home_strength, away_strength, &mut rand::rng());
         report.home_penalties = Some(home_pens);
