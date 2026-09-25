@@ -421,6 +421,39 @@ fn judgement_noise(seed: u64, player_id: &str) -> f64 {
     unit * 2.0 - 1.0
 }
 
+/// The eleven a club would pick if nobody were tired: for each formation slot in
+/// turn, the best condition-free positional fit not already chosen, returned in
+/// slot order.
+///
+/// Step one of the AI's team selection, and also what AI training reads to judge
+/// how fresh its first eleven is — the two must agree on who that eleven is, or
+/// the controller steers on players who never start (a spare keeper, most
+/// often). Ties break on id so the answer does not depend on the order the
+/// squad happens to be stored in.
+pub(crate) fn first_choice_eleven<'a>(
+    available_players: &[&'a domain::player::Player],
+    formation: &str,
+) -> Vec<&'a domain::player::Player> {
+    let mut chosen: Vec<&'a domain::player::Player> = Vec::with_capacity(11);
+    for slot in formation_slots(formation).iter().take(11) {
+        let best = available_players
+            .iter()
+            .copied()
+            .filter(|player| !chosen.iter().any(|picked| picked.id == player.id))
+            .max_by(|left, right| {
+                positional_fit_for_assignment(left, slot)
+                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| right.id.cmp(&left.id))
+            });
+        let Some(player) = best else {
+            break;
+        };
+        chosen.push(player);
+    }
+    chosen
+}
+
 /// Reputation-aware AI lineup selection.
 ///
 /// Step 1 picks the first-choice XI purely on condition-free positional fit, so a
@@ -475,28 +508,18 @@ fn ai_select_starting_xi<'a>(
     const MAX_MISJUDGEMENT: f64 = 9.0;
 
     let slots = formation_slots(formation);
-    let mut used_ids: HashSet<String> = HashSet::new();
-    // (slot index, chosen player) so the rotation step can re-evaluate per slot.
-    let mut selected: Vec<(usize, &'a domain::player::Player)> = Vec::with_capacity(11);
 
     // Step 1: first-choice XI by condition-free positional fit.
-    for (slot_index, slot) in slots.iter().take(11).enumerate() {
-        let best = available_players
-            .iter()
-            .copied()
-            .filter(|player| !used_ids.contains(&player.id))
-            .max_by(|left, right| {
-                positional_fit_for_assignment(left, slot)
-                    .partial_cmp(&positional_fit_for_assignment(right, slot))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-
-        let Some(player) = best else {
-            break;
-        };
-        used_ids.insert(player.id.clone());
-        selected.push((slot_index, player));
-    }
+    // (slot index, chosen player) so the rotation step can re-evaluate per slot.
+    let mut selected: Vec<(usize, &'a domain::player::Player)> =
+        first_choice_eleven(available_players, formation)
+            .into_iter()
+            .enumerate()
+            .collect();
+    let mut used_ids: HashSet<String> = selected
+        .iter()
+        .map(|(_, player)| player.id.clone())
+        .collect();
 
     // Step 2: load management.
     let (rest_threshold, min_tolerance) = match load {
