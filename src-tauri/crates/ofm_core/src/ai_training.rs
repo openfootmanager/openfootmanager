@@ -116,10 +116,7 @@ fn style_weekly_cycle(play_style: &PlayStyle) -> [TrainingFocus; 5] {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// How many players the readiness reading is taken across: a starting eleven.
-const LIKELY_STARTERS: usize = 11;
-
-/// Average condition of the eleven best players this club has available.
+/// Average condition of the eleven this club would pick if nobody were tired.
 ///
 /// This is the number the intensity bands are computed from, and it is
 /// deliberately *not* the squad average. A squad average is dominated by
@@ -139,27 +136,29 @@ const LIKELY_STARTERS: usize = 11;
 ///
 /// Injured players are excluded — they are not candidates for anything, and
 /// their condition is being managed by the treatment room rather than by the
-/// training ground. `ovr` is position-weighted, so a goalkeeper is comparable
-/// with an outfielder and the eleven cannot degenerate into one shape. Ties
-/// break on player id so a squad of equals gives the same reading every day.
-/// A club with nothing to read is reported fully fit rather than in crisis:
-/// there is nobody for a lighter session to protect.
+/// training ground. The eleven is the selector's own condition-free first choice
+/// through the club's formation, not "the eleven best-rated": a generated squad
+/// carries two keepers, a keeper's rating ignores every outfield attribute, and
+/// the spare one — who never plays, so is always fresh — would otherwise count
+/// as a starter. A club with nothing to read is reported fully fit rather than
+/// in crisis: there is nobody for a lighter session to protect.
 fn likely_starters_condition(game: &Game, team_id: &str) -> f64 {
-    let mut available: Vec<(u8, &str, u8)> = game
+    let available: Vec<&domain::player::Player> = game
         .players
         .iter()
         .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
-        .map(|p| (p.ovr, p.id.as_str(), p.condition))
         .collect();
+    let formation = game
+        .teams
+        .iter()
+        .find(|t| t.id == team_id)
+        .map_or("4-4-2", |t| t.formation.as_str());
 
-    if available.is_empty() {
+    let eleven = crate::turn::squad::first_choice_eleven(&available, formation);
+    if eleven.is_empty() {
         return 100.0;
     }
-
-    available.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
-    let eleven = &available[..LIKELY_STARTERS.min(available.len())];
-
-    eleven.iter().map(|(_, _, c)| *c as f64).sum::<f64>() / eleven.len() as f64
+    eleven.iter().map(|p| f64::from(p.condition)).sum::<f64>() / eleven.len() as f64
 }
 
 // ---------------------------------------------------------------------------
@@ -636,25 +635,59 @@ mod tests {
     // -----------------------------------------------------------------------
 
     /// A club of 22: eleven better players and eleven reserves, each half given
-    /// its own overall rating and condition.
+    /// its own standard and condition.
+    ///
+    /// The standard is set on every attribute, not just `ovr`, because the
+    /// reading picks its eleven by positional fit, which is computed from
+    /// attributes. The starters are named `star*` so that they sort *after* the
+    /// reserves: when the two halves are rated alike the id tie-break favours the
+    /// reserves, and a test can only pass on the ratings, never on the names.
     fn make_game_with_a_split_squad(
-        starter_ovr: u8,
+        starter_level: u8,
         starter_condition: u8,
-        reserve_ovr: u8,
+        reserve_level: u8,
         reserve_condition: u8,
     ) -> Game {
         let date = Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap();
         let clock = GameClock::new(date);
         let manager = make_manager(Some("user"));
+        let at_level = |id: String, level: u8, condition: u8| {
+            let mut player = make_player(&id, "ai", condition);
+            let a = &mut player.attributes;
+            for attribute in [
+                &mut a.pace,
+                &mut a.stamina,
+                &mut a.strength,
+                &mut a.agility,
+                &mut a.passing,
+                &mut a.shooting,
+                &mut a.tackling,
+                &mut a.dribbling,
+                &mut a.defending,
+                &mut a.positioning,
+                &mut a.vision,
+                &mut a.decisions,
+                &mut a.composure,
+                &mut a.teamwork,
+            ] {
+                *attribute = level;
+            }
+            player.ovr = level;
+            player
+        };
 
         let mut players: Vec<Player> = Vec::new();
         for i in 0..11 {
-            let mut starter = make_player(&format!("first{}", i), "ai", starter_condition);
-            starter.ovr = starter_ovr;
-            players.push(starter);
-            let mut reserve = make_player(&format!("reserve{}", i), "ai", reserve_condition);
-            reserve.ovr = reserve_ovr;
-            players.push(reserve);
+            players.push(at_level(
+                format!("star{i}"),
+                starter_level,
+                starter_condition,
+            ));
+            players.push(at_level(
+                format!("reserve{i}"),
+                reserve_level,
+                reserve_condition,
+            ));
         }
 
         Game::new(
@@ -704,6 +737,53 @@ mod tests {
             TrainingIntensity::High,
             "the players who play are at 90; the squad mean is being dragged \
              down by people who are not going to be picked"
+        );
+    }
+
+    /// A generated squad carries two keepers, and a keeper's rating is built
+    /// from handling and reflexes alone, so both can out-rate every outfielder.
+    /// Only one of them plays. A reading of "the eleven best-rated players"
+    /// would count the spare one — who never plays, so is always fresh — and
+    /// call a tired eleven fit enough to work hard.
+    #[test]
+    fn the_spare_keeper_is_not_counted_as_a_starter() {
+        let date = Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap();
+        let mut players = Vec::new();
+        let mut add = |id: &str, position: Position, ovr: u8, condition: u8| {
+            let mut player = make_player(id, "ai", condition);
+            player.position = position;
+            player.ovr = ovr;
+            players.push(player);
+        };
+        add("keeper", Position::Goalkeeper, 85, 84);
+        add("spare_keeper", Position::Goalkeeper, 84, 99);
+        for i in 0..7 {
+            add(&format!("def{i}"), Position::Defender, 70, 84);
+            add(&format!("mid{i}"), Position::Midfielder, 70, 84);
+        }
+        for i in 0..6 {
+            add(&format!("fwd{i}"), Position::Forward, 70, 84);
+        }
+        let mut ai = make_team("ai", PlayStyle::Balanced);
+        ai.formation = "4-4-2".to_string();
+        let mut game = Game::new(
+            GameClock::new(date),
+            make_manager(Some("user")),
+            vec![make_team("user", PlayStyle::Balanced), ai],
+            players,
+            vec![],
+            vec![],
+        );
+
+        // Tuesday, Technical slot: High is available if the reading clears 85.
+        apply_ai_training_policies(&mut game, 1);
+
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(
+            ai.training_intensity,
+            TrainingIntensity::Medium,
+            "the eleven who play are at 84; a fresh reserve keeper must not \
+             lift that over the High threshold"
         );
     }
 
