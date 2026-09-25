@@ -246,7 +246,7 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
         };
 
         // The near-match / congestion taper used to live here. It now lives in
-        // `training::is_tapering`, which applies it to every club — the human's
+        // `training::tapering_teams`, which applies it to every club — the human's
         // included — because reducing load before a game is a property of
         // training, not a manager's insight. What stays here is what a manager
         // genuinely decides: how hard to work when there is room to, and on what.
@@ -807,7 +807,7 @@ mod tests {
     // -----------------------------------------------------------------------
     // Fixture proximity is no longer this module's business
     //
-    // The near-match / congestion taper moved to `training::is_tapering`, which
+    // The near-match / congestion taper moved to `training::tapering_teams`, which
     // applies it to every club. What this planner writes is the club's standing
     // plan; the taper is applied on top of it, per day, without rewriting it.
     // -----------------------------------------------------------------------
