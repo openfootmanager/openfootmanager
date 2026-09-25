@@ -25,7 +25,8 @@
     "openGithub": "Buka repositori GitHub",
     "mainMenu": "Menu Utama",
     "worldEditor": "Editor Dunia",
-    "startupOptionsRejected": "Pengaturan karier itu tidak bisa digunakan. Kembali ke layar dunia dan periksa tahun mulai, fase mulai, dan berapa banyak riwayat masa lalu yang dibuat."
+    "startupOptionsRejected": "Pengaturan karier itu tidak bisa digunakan. Kembali ke layar dunia dan periksa tahun mulai, fase mulai, dan berapa banyak riwayat masa lalu yang dibuat.",
+    "reportBug": "Laporkan bug"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Masuk",
     "exitFullscreen": "Keluar",
     "switchToLightMode": "Beralih ke mode terang",
-    "switchToDarkMode": "Beralih ke mode gelap"
+    "switchToDarkMode": "Beralih ke mode gelap",
+    "help": "Bantuan",
+    "reportBug": "Laporkan bug",
+    "reportBugDesc": "Kirimkan apa yang salah; log kamu dilampirkan otomatis.",
+    "report": "Laporkan"
   },
   "preMatch": {
     "formationFit": "Kecocokan Formasi",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Ada yang tidak beres"
+  },
+  "reportBug": {
+    "describeTitle": "Laporkan bug",
+    "describeIntro": "Ceritakan apa yang salah. Log dan detail gim kamu ikut secara otomatis. Kamu akan melihat daftar lengkapnya sebelum apa pun disimpan.",
+    "previewTitle": "Yang akan dikirim",
+    "previewIntro": "Semua yang ada di bawah, dan tidak ada yang lain. Tidak ada yang meninggalkan komputer ini sampai kamu memilih tempat menyimpannya.",
+    "doneTitle": "Laporan tersimpan",
+    "doneIntro": "Formulir bug sudah terbuka di peramban dengan jawabanmu terisi.",
+    "whatHappened": "Apa yang terjadi",
+    "whatHappenedPlaceholder": "Gim membeku saat saya klik Turun ke Lapangan…",
+    "expected": "Apa yang kamu harapkan",
+    "expectedPlaceholder": "Saya mengharapkan pertandingan dimulai seperti biasa…",
+    "steps": "Langkah untuk mengulangi",
+    "stepsPlaceholder": "1. Mulai gim baru\n2. Lanjut ke hari pertandingan\n3. Klik Turun ke Lapangan…",
+    "required": "Wajib",
+    "fillRequired": "Mohon isi apa yang terjadi dan apa yang kamu harapkan.",
+    "frequencyLabel": "Seberapa sering terjadi",
+    "frequency": {
+      "everyTime": "Setiap kali",
+      "sometimes": "Kadang-kadang",
+      "once": "Hanya sekali"
+    },
+    "itemWhatYouWrote": "Yang kamu tulis",
+    "itemWhatYouWroteDesc": "Deskripsimu, harapanmu, langkah-langkahnya, dan seberapa sering terjadi.",
+    "itemSetup": "Perangkatmu",
+    "itemLogs": "Berkas log terbarumu",
+    "itemLogsDesc": "Nama pengguna, nama komputer, dan folder pribadimu dihapus sebelum disimpan.",
+    "itemCrash": "Crash dari sesi terakhirmu",
+    "itemCrashDesc": "Disertakan karena gim tidak tertutup normal terakhir kali.",
+    "optionalHeading": "Tambahkan kalau mau — mati secara bawaan",
+    "includeSave": "Berkas simpananku",
+    "includeSaveNoCareer": "Tidak ada karier yang terbuka, jadi tidak ada yang bisa dilampirkan.",
+    "nothingSentYet": "Tidak perlu akun. Tidak ada yang disimpan atau dibuka sampai kamu menekan tombol di bawah.",
+    "savedTo": "Berkas laporanmu disimpan di sini:",
+    "dragItIn": "Seret ke formulir GitHub di peramban, lalu kirim. Selesai.",
+    "review": "Tinjau yang akan dikirim",
+    "saveAndOpen": "Simpan berkas dan buka GitHub",
+    "working": "Sedang bekerja…"
   }
 }

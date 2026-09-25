@@ -25,7 +25,8 @@
     "openGithub": "Abrir repositorio de GitHub",
     "mainMenu": "Menú principal",
     "worldEditor": "Editor de Mundos",
-    "startupOptionsRejected": "No se han podido usar esos ajustes de carrera. Vuelve a la pantalla del mundo y revisa el año de inicio, la fase de inicio y cuánta historia previa generar."
+    "startupOptionsRejected": "No se han podido usar esos ajustes de carrera. Vuelve a la pantalla del mundo y revisa el año de inicio, la fase de inicio y cuánta historia previa generar.",
+    "reportBug": "Informar de un fallo"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Entrar",
     "exitFullscreen": "Salir",
     "switchToLightMode": "Cambiar al modo claro",
-    "switchToDarkMode": "Cambiar al modo oscuro"
+    "switchToDarkMode": "Cambiar al modo oscuro",
+    "help": "Ayuda",
+    "reportBug": "Informar de un fallo",
+    "reportBugDesc": "Cuéntanos qué ha salido mal; tus registros se adjuntan automáticamente.",
+    "report": "Informar"
   },
   "preMatch": {
     "formationFit": "Ajuste de Formación",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Algo ha salido mal"
+  },
+  "reportBug": {
+    "describeTitle": "Informar de un fallo",
+    "describeIntro": "Cuéntanos qué ha salido mal. Tus registros y los datos de la partida se añaden automáticamente. Verás la lista completa antes de guardar nada.",
+    "previewTitle": "Qué se envía",
+    "previewIntro": "Todo lo de abajo, y nada más. Nada sale de este equipo hasta que elijas dónde guardarlo.",
+    "doneTitle": "Informe guardado",
+    "doneIntro": "El formulario de fallos está abierto en tu navegador con tus respuestas ya rellenadas.",
+    "whatHappened": "Qué ha pasado",
+    "whatHappenedPlaceholder": "El juego se quedó colgado al pulsar Salir al campo…",
+    "expected": "Qué esperabas",
+    "expectedPlaceholder": "Esperaba que el partido empezara con normalidad…",
+    "steps": "Pasos para reproducirlo",
+    "stepsPlaceholder": "1. Empezar una partida nueva\n2. Avanzar hasta la jornada\n3. Pulsar Salir al campo…",
+    "required": "Obligatorio",
+    "fillRequired": "Rellena qué ha pasado y qué esperabas.",
+    "frequencyLabel": "Con qué frecuencia ocurre",
+    "frequency": {
+      "everyTime": "Siempre",
+      "sometimes": "A veces",
+      "once": "Solo una vez"
+    },
+    "itemWhatYouWrote": "Lo que has escrito",
+    "itemWhatYouWroteDesc": "Tu descripción, qué esperabas, los pasos y con qué frecuencia ocurre.",
+    "itemSetup": "Tu equipo",
+    "itemLogs": "Tus registros recientes",
+    "itemLogsDesc": "Tu nombre de usuario, el de tu equipo y tu carpeta personal se eliminan antes de guardar.",
+    "itemCrash": "Un cierre inesperado de tu última sesión",
+    "itemCrashDesc": "Se incluye porque el juego no se cerró con normalidad la última vez.",
+    "optionalHeading": "Añádelo si quieres: desactivado por defecto",
+    "includeSave": "Mi partida guardada",
+    "includeSaveNoCareer": "No hay ninguna carrera abierta, así que no hay nada que adjuntar.",
+    "nothingSentYet": "No hace falta cuenta. No se guarda ni se abre nada hasta que pulses el botón de abajo.",
+    "savedTo": "Tu archivo de informe se ha guardado aquí:",
+    "dragItIn": "Arrástralo al formulario de GitHub en tu navegador y envíalo. Eso es todo.",
+    "review": "Revisar qué se envía",
+    "saveAndOpen": "Guardar el archivo y abrir GitHub",
+    "working": "Trabajando…"
   }
 }

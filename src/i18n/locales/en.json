@@ -25,7 +25,8 @@
     "openGithub": "Open GitHub repository",
     "mainMenu": "Main Menu",
     "worldEditor": "World Editor",
-    "startupOptionsRejected": "Those career settings could not be used. Go back to the world screen and check the start year, the start phase and how much past history to generate."
+    "startupOptionsRejected": "Those career settings could not be used. Go back to the world screen and check the start year, the start phase and how much past history to generate.",
+    "reportBug": "Report a bug"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Enter",
     "exitFullscreen": "Exit",
     "switchToLightMode": "Switch to light mode",
-    "switchToDarkMode": "Switch to dark mode"
+    "switchToDarkMode": "Switch to dark mode",
+    "help": "Help",
+    "reportBug": "Report a bug",
+    "reportBugDesc": "Send us what went wrong, with your logs attached automatically.",
+    "report": "Report"
   },
   "preMatch": {
     "formationFit": "Formation Fit",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Something went wrong"
+  },
+  "reportBug": {
+    "describeTitle": "Report a bug",
+    "describeIntro": "Tell us what went wrong. Your logs and game details come along automatically. You will see the full list before anything is saved.",
+    "previewTitle": "What gets sent",
+    "previewIntro": "Everything below, and nothing else. Nothing leaves this machine until you choose where to save it.",
+    "doneTitle": "Report saved",
+    "doneIntro": "The bug form is open in your browser with your answers already filled in.",
+    "whatHappened": "What happened",
+    "whatHappenedPlaceholder": "The game froze when I clicked Go to the Field…",
+    "expected": "What did you expect",
+    "expectedPlaceholder": "I expected the match to start normally…",
+    "steps": "Steps to reproduce",
+    "stepsPlaceholder": "1. Start a new game\n2. Advance to matchday\n3. Click Go to the Field…",
+    "required": "Required",
+    "fillRequired": "Please fill in what happened and what you expected.",
+    "frequencyLabel": "How often does it happen",
+    "frequency": {
+      "everyTime": "Every time",
+      "sometimes": "Sometimes",
+      "once": "Only once"
+    },
+    "itemWhatYouWrote": "What you wrote",
+    "itemWhatYouWroteDesc": "Your description, what you expected, the steps, and how often it happens.",
+    "itemSetup": "Your setup",
+    "itemLogs": "Your recent log files",
+    "itemLogsDesc": "Your user name, computer name and home folder are stripped out before saving.",
+    "itemCrash": "A crash from your last session",
+    "itemCrashDesc": "Included because the game did not close normally last time.",
+    "optionalHeading": "Add if you want to — off by default",
+    "includeSave": "My save file",
+    "includeSaveNoCareer": "No career is open, so there is nothing to attach.",
+    "nothingSentYet": "No account needed. Nothing is saved or opened until you press the button below.",
+    "savedTo": "Your report file was saved here:",
+    "dragItIn": "Drag it onto the GitHub form in your browser, then submit. That is everything.",
+    "review": "Review what is sent",
+    "saveAndOpen": "Save the file and open GitHub",
+    "working": "Working…"
   }
 }

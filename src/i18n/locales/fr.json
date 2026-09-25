@@ -25,7 +25,8 @@
     "openGithub": "Ouvrir le dépôt GitHub",
     "mainMenu": "Menu principal",
     "worldEditor": "Éditeur de Monde",
-    "startupOptionsRejected": "Ces paramètres de carrière n'ont pas pu être utilisés. Retourne à l'écran du monde et vérifie l'année de début, la phase de début et la quantité d'historique à générer."
+    "startupOptionsRejected": "Ces paramètres de carrière n'ont pas pu être utilisés. Retourne à l'écran du monde et vérifie l'année de début, la phase de début et la quantité d'historique à générer.",
+    "reportBug": "Signaler un bug"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Entrer",
     "exitFullscreen": "Quitter",
     "switchToLightMode": "Passer au mode clair",
-    "switchToDarkMode": "Passer au mode sombre"
+    "switchToDarkMode": "Passer au mode sombre",
+    "help": "Aide",
+    "reportBug": "Signaler un bug",
+    "reportBugDesc": "Dis-nous ce qui a mal tourné ; tes journaux sont joints automatiquement.",
+    "report": "Signaler"
   },
   "preMatch": {
     "formationFit": "Ajustement Formation",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Une erreur est survenue"
+  },
+  "reportBug": {
+    "describeTitle": "Signaler un bug",
+    "describeIntro": "Dis-nous ce qui a mal tourné. Tes journaux et les détails de la partie suivent automatiquement. Tu verras la liste complète avant que quoi que ce soit ne soit enregistré.",
+    "previewTitle": "Ce qui est envoyé",
+    "previewIntro": "Tout ce qui suit, et rien d'autre. Rien ne quitte cette machine tant que tu n'as pas choisi où l'enregistrer.",
+    "doneTitle": "Rapport enregistré",
+    "doneIntro": "Le formulaire de bug est ouvert dans ton navigateur, tes réponses déjà remplies.",
+    "whatHappened": "Ce qui s'est passé",
+    "whatHappenedPlaceholder": "Le jeu s'est figé quand j'ai cliqué sur Entrer sur le terrain…",
+    "expected": "Ce que tu attendais",
+    "expectedPlaceholder": "Je m'attendais à ce que le match commence normalement…",
+    "steps": "Étapes pour reproduire",
+    "stepsPlaceholder": "1. Lancer une nouvelle partie\n2. Avancer jusqu'à la journée\n3. Cliquer sur Entrer sur le terrain…",
+    "required": "Obligatoire",
+    "fillRequired": "Remplis ce qui s'est passé et ce que tu attendais.",
+    "frequencyLabel": "À quelle fréquence ça arrive",
+    "frequency": {
+      "everyTime": "À chaque fois",
+      "sometimes": "Parfois",
+      "once": "Une seule fois"
+    },
+    "itemWhatYouWrote": "Ce que tu as écrit",
+    "itemWhatYouWroteDesc": "Ta description, ce que tu attendais, les étapes et la fréquence.",
+    "itemSetup": "Ta configuration",
+    "itemLogs": "Tes journaux récents",
+    "itemLogsDesc": "Ton nom d'utilisateur, celui de ta machine et ton dossier personnel sont retirés avant l'enregistrement.",
+    "itemCrash": "Un plantage lors de ta dernière session",
+    "itemCrashDesc": "Inclus parce que le jeu ne s'est pas fermé normalement la dernière fois.",
+    "optionalHeading": "À ajouter si tu veux — désactivé par défaut",
+    "includeSave": "Ma sauvegarde",
+    "includeSaveNoCareer": "Aucune carrière ouverte, il n'y a donc rien à joindre.",
+    "nothingSentYet": "Aucun compte nécessaire. Rien n'est enregistré ni ouvert avant que tu n'appuies sur le bouton ci-dessous.",
+    "savedTo": "Ton fichier de rapport a été enregistré ici :",
+    "dragItIn": "Glisse-le sur le formulaire GitHub dans ton navigateur, puis envoie. C'est tout.",
+    "review": "Vérifier ce qui est envoyé",
+    "saveAndOpen": "Enregistrer le fichier et ouvrir GitHub",
+    "working": "En cours…"
   }
 }

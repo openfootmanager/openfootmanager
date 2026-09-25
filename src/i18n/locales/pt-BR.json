@@ -25,7 +25,8 @@
     "openGithub": "Abrir repositório GitHub",
     "mainMenu": "Menu principal",
     "worldEditor": "Editor de Mundo",
-    "startupOptionsRejected": "Não foi possível usar essas configurações de carreira. Volte à tela do mundo e confira o ano de início, a fase de início e quanto histórico anterior gerar."
+    "startupOptionsRejected": "Não foi possível usar essas configurações de carreira. Volte à tela do mundo e confira o ano de início, a fase de início e quanto histórico anterior gerar.",
+    "reportBug": "Relatar um bug"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Entrar",
     "exitFullscreen": "Sair",
     "switchToLightMode": "Mudar para o modo claro",
-    "switchToDarkMode": "Mudar para o modo escuro"
+    "switchToDarkMode": "Mudar para o modo escuro",
+    "help": "Ajuda",
+    "reportBug": "Relatar um bug",
+    "reportBugDesc": "Conte o que deu errado; seus logs vão junto automaticamente.",
+    "report": "Relatar"
   },
   "preMatch": {
     "formationFit": "Ajuste da Formação",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Algo deu errado"
+  },
+  "reportBug": {
+    "describeTitle": "Relatar um bug",
+    "describeIntro": "Conte o que deu errado. Seus logs e os dados do jogo vão junto automaticamente. Você verá a lista completa antes de salvar qualquer coisa.",
+    "previewTitle": "O que é enviado",
+    "previewIntro": "Tudo o que está abaixo, e nada além disso. Nada sai deste computador até você escolher onde salvar.",
+    "doneTitle": "Relato salvo",
+    "doneIntro": "O formulário de bugs está aberto no seu navegador com suas respostas já preenchidas.",
+    "whatHappened": "O que aconteceu",
+    "whatHappenedPlaceholder": "O jogo travou quando cliquei em Ir para o campo…",
+    "expected": "O que você esperava",
+    "expectedPlaceholder": "Eu esperava que a partida começasse normalmente…",
+    "steps": "Passos para reproduzir",
+    "stepsPlaceholder": "1. Começar um jogo novo\n2. Avançar até a rodada\n3. Clicar em Ir para o campo…",
+    "required": "Obrigatório",
+    "fillRequired": "Preencha o que aconteceu e o que você esperava.",
+    "frequencyLabel": "Com que frequência acontece",
+    "frequency": {
+      "everyTime": "Toda vez",
+      "sometimes": "Às vezes",
+      "once": "Só uma vez"
+    },
+    "itemWhatYouWrote": "O que você escreveu",
+    "itemWhatYouWroteDesc": "Sua descrição, o que você esperava, os passos e com que frequência acontece.",
+    "itemSetup": "Seu sistema",
+    "itemLogs": "Seus logs recentes",
+    "itemLogsDesc": "Seu nome de usuário, o do computador e sua pasta pessoal são removidos antes de salvar.",
+    "itemCrash": "Um fechamento inesperado da sua última sessão",
+    "itemCrashDesc": "Incluído porque o jogo não fechou normalmente da última vez.",
+    "optionalHeading": "Adicione se quiser — desligado por padrão",
+    "includeSave": "Meu save",
+    "includeSaveNoCareer": "Nenhuma carreira aberta, então não há nada para anexar.",
+    "nothingSentYet": "Sem necessidade de conta. Nada é salvo nem aberto até você clicar no botão abaixo.",
+    "savedTo": "Seu arquivo de relato foi salvo aqui:",
+    "dragItIn": "Arraste-o para o formulário do GitHub no navegador e envie. É só isso.",
+    "review": "Revisar o que é enviado",
+    "saveAndOpen": "Salvar o arquivo e abrir o GitHub",
+    "working": "Trabalhando…"
   }
 }

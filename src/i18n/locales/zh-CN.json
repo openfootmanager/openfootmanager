@@ -25,7 +25,8 @@
     "openGithub": "打开 GitHub 仓库",
     "mainMenu": "主菜单",
     "worldEditor": "世界编辑器",
-    "startupOptionsRejected": "无法使用这些生涯设置。请返回世界界面，检查起始年份、起始阶段以及要生成的历史年限。"
+    "startupOptionsRejected": "无法使用这些生涯设置。请返回世界界面，检查起始年份、起始阶段以及要生成的历史年限。",
+    "reportBug": "报告错误"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "进入",
     "exitFullscreen": "退出",
     "switchToLightMode": "切换到浅色模式",
-    "switchToDarkMode": "切换到深色模式"
+    "switchToDarkMode": "切换到深色模式",
+    "help": "帮助",
+    "reportBug": "报告错误",
+    "reportBugDesc": "告诉我们出了什么问题，日志会自动附上。",
+    "report": "报告"
   },
   "preMatch": {
     "formationFit": "阵型契合度",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "出了点问题"
+  },
+  "reportBug": {
+    "describeTitle": "报告错误",
+    "describeIntro": "告诉我们出了什么问题。你的日志和游戏信息会自动随行。在保存任何内容之前，你会看到完整清单。",
+    "previewTitle": "将会发送的内容",
+    "previewIntro": "以下全部，仅此而已。在你选择保存位置之前，任何内容都不会离开这台电脑。",
+    "doneTitle": "报告已保存",
+    "doneIntro": "错误表单已在浏览器中打开，你的回答已经填好。",
+    "whatHappened": "发生了什么",
+    "whatHappenedPlaceholder": "我点击“进入球场”时游戏卡死了……",
+    "expected": "你期待的结果",
+    "expectedPlaceholder": "我以为比赛会正常开始……",
+    "steps": "复现步骤",
+    "stepsPlaceholder": "1. 开始新游戏\n2. 推进到比赛日\n3. 点击“进入球场”……",
+    "required": "必填",
+    "fillRequired": "请填写发生了什么以及你期待的结果。",
+    "frequencyLabel": "多久发生一次",
+    "frequency": {
+      "everyTime": "每次都是",
+      "sometimes": "有时",
+      "once": "仅发生过一次"
+    },
+    "itemWhatYouWrote": "你写的内容",
+    "itemWhatYouWroteDesc": "你的描述、期待结果、复现步骤和发生频率。",
+    "itemSetup": "你的设备信息",
+    "itemLogs": "你最近的日志文件",
+    "itemLogsDesc": "保存前会移除你的用户名、计算机名和个人文件夹。",
+    "itemCrash": "上次会话的崩溃记录",
+    "itemCrashDesc": "因为游戏上次没有正常关闭，所以一并包含。",
+    "optionalHeading": "可选添加 — 默认关闭",
+    "includeSave": "我的存档",
+    "includeSaveNoCareer": "当前没有进行中的生涯，没有可附加的内容。",
+    "nothingSentYet": "无需账号。在你点击下方按钮之前，不会保存或打开任何内容。",
+    "savedTo": "你的报告文件已保存在：",
+    "dragItIn": "把它拖到浏览器中的 GitHub 表单里，然后提交。就这么简单。",
+    "review": "查看将发送的内容",
+    "saveAndOpen": "保存文件并打开 GitHub",
+    "working": "处理中……"
   }
 }

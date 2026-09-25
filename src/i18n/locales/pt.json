@@ -25,7 +25,8 @@
     "openGithub": "Abrir repositório GitHub",
     "mainMenu": "Menu principal",
     "worldEditor": "Editor de Mundo",
-    "startupOptionsRejected": "Não foi possível usar essas definições de carreira. Volte ao ecrã do mundo e verifique o ano de início, a fase de início e quanto histórico anterior gerar."
+    "startupOptionsRejected": "Não foi possível usar essas definições de carreira. Volte ao ecrã do mundo e verifique o ano de início, a fase de início e quanto histórico anterior gerar.",
+    "reportBug": "Reportar um erro"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Entrar",
     "exitFullscreen": "Sair",
     "switchToLightMode": "Mudar para o modo claro",
-    "switchToDarkMode": "Mudar para o modo escuro"
+    "switchToDarkMode": "Mudar para o modo escuro",
+    "help": "Ajuda",
+    "reportBug": "Reportar um erro",
+    "reportBugDesc": "Conta-nos o que correu mal; os teus registos seguem automaticamente.",
+    "report": "Reportar"
   },
   "preMatch": {
     "formationFit": "Ajuste da Formação",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Algo correu mal"
+  },
+  "reportBug": {
+    "describeTitle": "Reportar um erro",
+    "describeIntro": "Conta-nos o que correu mal. Os teus registos e os dados do jogo seguem automaticamente. Verás a lista completa antes de guardar seja o que for.",
+    "previewTitle": "O que é enviado",
+    "previewIntro": "Tudo o que está abaixo, e mais nada. Nada sai deste computador até escolheres onde guardar.",
+    "doneTitle": "Relatório guardado",
+    "doneIntro": "O formulário de erros está aberto no teu navegador com as tuas respostas já preenchidas.",
+    "whatHappened": "O que aconteceu",
+    "whatHappenedPlaceholder": "O jogo bloqueou quando carreguei em Ir para o campo…",
+    "expected": "O que esperavas",
+    "expectedPlaceholder": "Esperava que o jogo começasse normalmente…",
+    "steps": "Passos para reproduzir",
+    "stepsPlaceholder": "1. Começar um jogo novo\n2. Avançar até à jornada\n3. Carregar em Ir para o campo…",
+    "required": "Obrigatório",
+    "fillRequired": "Preenche o que aconteceu e o que esperavas.",
+    "frequencyLabel": "Com que frequência acontece",
+    "frequency": {
+      "everyTime": "Sempre",
+      "sometimes": "Às vezes",
+      "once": "Só uma vez"
+    },
+    "itemWhatYouWrote": "O que escreveste",
+    "itemWhatYouWroteDesc": "A tua descrição, o que esperavas, os passos e com que frequência acontece.",
+    "itemSetup": "O teu sistema",
+    "itemLogs": "Os teus registos recentes",
+    "itemLogsDesc": "O teu nome de utilizador, o do computador e a tua pasta pessoal são removidos antes de guardar.",
+    "itemCrash": "Um encerramento inesperado da tua última sessão",
+    "itemCrashDesc": "Incluído porque o jogo não fechou normalmente da última vez.",
+    "optionalHeading": "Acrescenta se quiseres — desligado por omissão",
+    "includeSave": "O meu jogo guardado",
+    "includeSaveNoCareer": "Não há nenhuma carreira aberta, por isso não há nada para anexar.",
+    "nothingSentYet": "Não é preciso conta. Nada é guardado nem aberto até carregares no botão abaixo.",
+    "savedTo": "O teu ficheiro de relatório foi guardado aqui:",
+    "dragItIn": "Arrasta-o para o formulário do GitHub no teu navegador e submete. É tudo.",
+    "review": "Rever o que é enviado",
+    "saveAndOpen": "Guardar o ficheiro e abrir o GitHub",
+    "working": "A trabalhar…"
   }
 }

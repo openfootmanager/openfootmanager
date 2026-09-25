@@ -25,7 +25,8 @@
     "openGithub": "GitHub deposunu aç",
     "mainMenu": "Ana Menü",
     "worldEditor": "Dünya Editörü",
-    "startupOptionsRejected": "Bu kariyer ayarları kullanılamadı. Dünya ekranına dönüp başlangıç yılını, başlangıç aşamasını ve ne kadar geçmiş oluşturulacağını kontrol et."
+    "startupOptionsRejected": "Bu kariyer ayarları kullanılamadı. Dünya ekranına dönüp başlangıç yılını, başlangıç aşamasını ve ne kadar geçmiş oluşturulacağını kontrol et.",
+    "reportBug": "Hata bildir"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Aç",
     "exitFullscreen": "Çık",
     "switchToLightMode": "Açık moda geç",
-    "switchToDarkMode": "Koyu moda geç"
+    "switchToDarkMode": "Koyu moda geç",
+    "help": "Yardım",
+    "reportBug": "Hata bildir",
+    "reportBugDesc": "Neyin ters gittiğini bize ilet; günlüklerin otomatik olarak eklenir.",
+    "report": "Bildir"
   },
   "preMatch": {
     "formationFit": "Diziliş Uyumu",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Bir şeyler ters gitti"
+  },
+  "reportBug": {
+    "describeTitle": "Hata bildir",
+    "describeIntro": "Neyin ters gittiğini anlat. Günlüklerin ve oyun bilgilerin otomatik olarak eklenir. Hiçbir şey kaydedilmeden önce tam listeyi göreceksin.",
+    "previewTitle": "Neler gönderilecek",
+    "previewIntro": "Aşağıdakilerin hepsi, başka bir şey değil. Nereye kaydedeceğini seçene kadar hiçbir şey bu bilgisayardan çıkmaz.",
+    "doneTitle": "Rapor kaydedildi",
+    "doneIntro": "Hata formu tarayıcında açıldı ve cevapların çoktan dolduruldu.",
+    "whatHappened": "Ne oldu",
+    "whatHappenedPlaceholder": "Sahaya Çık'a tıkladığımda oyun dondu…",
+    "expected": "Ne olmasını bekliyordun",
+    "expectedPlaceholder": "Maçın normal şekilde başlamasını bekliyordum…",
+    "steps": "Yeniden oluşturma adımları",
+    "stepsPlaceholder": "1. Yeni oyun başlat\n2. Maç gününe ilerle\n3. Sahaya Çık'a tıkla…",
+    "required": "Zorunlu",
+    "fillRequired": "Lütfen ne olduğunu ve ne beklediğini doldur.",
+    "frequencyLabel": "Ne sıklıkla oluyor",
+    "frequency": {
+      "everyTime": "Her seferinde",
+      "sometimes": "Bazı zamanlar",
+      "once": "Yalnızca bir kez"
+    },
+    "itemWhatYouWrote": "Yazdıkların",
+    "itemWhatYouWroteDesc": "Açıklaman, beklentin, adımlar ve ne sıklıkla olduğu.",
+    "itemSetup": "Sistemin",
+    "itemLogs": "Son günlük dosyaların",
+    "itemLogsDesc": "Kullanıcı adın, bilgisayar adın ve kişisel klasörün kaydedilmeden önce çıkarılır.",
+    "itemCrash": "Son oturumundan bir çökme",
+    "itemCrashDesc": "Geçen sefer oyun normal kapanmadığı için eklendi.",
+    "optionalHeading": "İstersen ekle — varsayılan olarak kapalı",
+    "includeSave": "Kayıt dosyam",
+    "includeSaveNoCareer": "Açık bir kariyer yok, eklenecek bir şey de yok.",
+    "nothingSentYet": "Hesap gerekmez. Aşağıdaki düğmeye basana kadar hiçbir şey kaydedilmez veya açılmaz.",
+    "savedTo": "Rapor dosyan buraya kaydedildi:",
+    "dragItIn": "Tarayıcıdaki GitHub formuna sürükle ve gönder. Hepsi bu.",
+    "review": "Ne gönderildiğini incele",
+    "saveAndOpen": "Dosyayı kaydet ve GitHub'ı aç",
+    "working": "Çalışıyor…"
   }
 }

@@ -7,6 +7,8 @@ import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
 import { formatAppVersion } from "../lib/appVersion";
+import { SegmentedControl, Section, SettingRow, Toggle } from "./Settings.components";
+import { ReportBugModal } from "../components/diagnostics/ReportBugModal";
 import {
   ArrowLeft,
   Monitor,
@@ -21,6 +23,7 @@ import {
   Type,
   Maximize,
   Minimize,
+  Bug,
 } from "lucide-react";
 
 const CURRENCY_OPTIONS = [
@@ -41,6 +44,7 @@ export default function Settings() {
   const { settings, loaded, loadSettings, updateSettings } = useSettingsStore();
   const { theme, toggleTheme } = useTheme();
   const [confirmClear, setConfirmClear] = useState(false);
+  const [reportingBug, setReportingBug] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [exportPath, setExportPath] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
@@ -367,6 +371,20 @@ export default function Settings() {
           </div>
         </Section>
 
+        {/* ─── Help ─── */}
+        <Section title={t("settings.help")} icon={<Bug className="w-5 h-5" />}>
+          <SettingRow label={t("settings.reportBug")} description={t("settings.reportBugDesc")}>
+            <button
+              type="button"
+              onClick={() => setReportingBug(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400 hover:bg-primary-500/20 text-sm font-heading font-bold uppercase tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
+            >
+              <Bug className="w-4 h-4" />
+              {t("settings.report")}
+            </button>
+          </SettingRow>
+        </Section>
+
         {/* ─── About ─── */}
         <Section title={t("settings.about")} icon={<Zap className="w-5 h-5" />}>
           <div className="flex justify-between items-center">
@@ -384,104 +402,8 @@ export default function Settings() {
           </div>
         </Section>
       </div>
-    </div>
-  );
-}
 
-// ── Reusable sub-components ──
-
-function Section({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white dark:bg-navy-800 rounded-2xl border border-gray-200 dark:border-navy-700 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100 dark:border-navy-700">
-        <span className="text-primary-500">{icon}</span>
-        <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
-          {title}
-        </h2>
-      </div>
-      <div className="px-6 py-4 flex flex-col gap-5">{children}</div>
-    </div>
-  );
-}
-
-function SettingRow({
-  label,
-  description,
-  danger,
-  children,
-}: {
-  label: string;
-  description: string;
-  danger?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm font-medium ${danger ? "text-red-500" : "text-gray-800 dark:text-gray-200"}`}
-        >
-          {label}
-        </p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
-      </div>
-      <div className="flex-shrink-0">{children}</div>
-    </div>
-  );
-}
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-        checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
-      }`}
-    >
-      <div
-        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-          checked ? "translate-x-[22px]" : "translate-x-0.5"
-        }`}
-      />
-    </button>
-  );
-}
-
-function SegmentedControl({
-  options,
-  value,
-  onChange,
-}: {
-  options: Array<{ value: string; label?: string; icon?: React.ReactNode }>;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex rounded-lg bg-gray-100 dark:bg-navy-700 p-0.5 border border-gray-200 dark:border-navy-600">
-      {options.map((opt) => (
-        <button
-          type="button"
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-            value === opt.value
-              ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          {opt.icon}
-          {opt.label || opt.value}
-        </button>
-      ))}
+      {reportingBug && <ReportBugModal onClose={() => setReportingBug(false)} />}
     </div>
   );
 }

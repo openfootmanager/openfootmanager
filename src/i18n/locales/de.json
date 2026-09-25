@@ -25,7 +25,8 @@
     "openGithub": "GitHub-Repository öffnen",
     "mainMenu": "Hauptmenü",
     "worldEditor": "Welt-Editor",
-    "startupOptionsRejected": "Diese Karriereeinstellungen konnten nicht verwendet werden. Geh zurück zum Weltbildschirm und prüfe Startjahr, Startphase und wie viel Vorgeschichte erzeugt werden soll."
+    "startupOptionsRejected": "Diese Karriereeinstellungen konnten nicht verwendet werden. Geh zurück zum Weltbildschirm und prüfe Startjahr, Startphase und wie viel Vorgeschichte erzeugt werden soll.",
+    "reportBug": "Fehler melden"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1791,7 +1792,11 @@
     "enterFullscreen": "Aktivieren",
     "exitFullscreen": "Beenden",
     "switchToLightMode": "Zum hellen Modus wechseln",
-    "switchToDarkMode": "Zum dunklen Modus wechseln"
+    "switchToDarkMode": "Zum dunklen Modus wechseln",
+    "help": "Hilfe",
+    "reportBug": "Fehler melden",
+    "reportBugDesc": "Schick uns, was schiefgelaufen ist — deine Protokolle kommen automatisch mit.",
+    "report": "Melden"
   },
   "preMatch": {
     "formationFit": "Formationsanpassung",
@@ -4049,5 +4054,43 @@
   },
   "errors": {
     "title": "Etwas ist schiefgelaufen"
+  },
+  "reportBug": {
+    "describeTitle": "Fehler melden",
+    "describeIntro": "Erzähl uns, was schiefgelaufen ist. Deine Protokolle und die Spieldaten kommen automatisch mit. Du siehst die vollständige Liste, bevor irgendetwas gespeichert wird.",
+    "previewTitle": "Was gesendet wird",
+    "previewIntro": "Alles Folgende und sonst nichts. Nichts verlässt diesen Rechner, bevor du einen Speicherort wählst.",
+    "doneTitle": "Bericht gespeichert",
+    "doneIntro": "Das Fehlerformular ist in deinem Browser geöffnet, deine Antworten sind bereits eingetragen.",
+    "whatHappened": "Was ist passiert",
+    "whatHappenedPlaceholder": "Das Spiel fror ein, als ich auf Aufs Feld geklickt habe…",
+    "expected": "Was hast du erwartet",
+    "expectedPlaceholder": "Ich habe erwartet, dass das Spiel normal beginnt…",
+    "steps": "Schritte zum Nachstellen",
+    "stepsPlaceholder": "1. Neues Spiel starten\n2. Bis zum Spieltag vorspulen\n3. Auf Aufs Feld klicken…",
+    "required": "Pflichtfeld",
+    "fillRequired": "Bitte trage ein, was passiert ist und was du erwartet hast.",
+    "frequencyLabel": "Wie oft passiert es",
+    "frequency": {
+      "everyTime": "Jedes Mal",
+      "sometimes": "Manchmal",
+      "once": "Nur einmal"
+    },
+    "itemWhatYouWrote": "Was du geschrieben hast",
+    "itemWhatYouWroteDesc": "Deine Beschreibung, deine Erwartung, die Schritte und wie oft es auftritt.",
+    "itemSetup": "Dein System",
+    "itemLogs": "Deine letzten Protokolldateien",
+    "itemLogsDesc": "Dein Benutzername, dein Rechnername und dein persönlicher Ordner werden vor dem Speichern entfernt.",
+    "itemCrash": "Ein Absturz aus deiner letzten Sitzung",
+    "itemCrashDesc": "Enthalten, weil sich das Spiel letztes Mal nicht normal beendet hat.",
+    "optionalHeading": "Nach Wunsch hinzufügen — standardmäßig aus",
+    "includeSave": "Mein Spielstand",
+    "includeSaveNoCareer": "Keine Karriere geöffnet, also gibt es nichts anzuhängen.",
+    "nothingSentYet": "Kein Konto nötig. Es wird nichts gespeichert oder geöffnet, bis du unten drückst.",
+    "savedTo": "Deine Berichtsdatei wurde hier gespeichert:",
+    "dragItIn": "Zieh sie im Browser auf das GitHub-Formular und schick es ab. Das war's.",
+    "review": "Prüfen, was gesendet wird",
+    "saveAndOpen": "Datei speichern und GitHub öffnen",
+    "working": "Arbeitet…"
   }
 }
