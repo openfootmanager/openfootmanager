@@ -518,3 +518,14 @@ fn a_match_a_week_after_this_one_is_a_normal_week() {
     let game = game_with_fixtures_on(&[0, 7]);
     assert_eq!(fixture_load(&game, "club"), FixtureLoad::Normal);
 }
+
+/// The state a squad is actually picked in on a normal day advance: the
+/// competition being played has been moved into the legacy `game.league` slot
+/// for simulation, and its place in `game.competitions` holds an empty default.
+/// The next round of that same competition lives only in `game.league`.
+#[test]
+fn a_competition_moved_out_for_simulation_still_counts() {
+    let mut game = game_with_fixtures_on(&[0, 3]);
+    game.competitions = vec![domain::league::League::default()];
+    assert_eq!(fixture_load(&game, "club"), FixtureLoad::Congested);
+}
