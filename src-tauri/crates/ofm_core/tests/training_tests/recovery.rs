@@ -250,3 +250,68 @@ fn resting_more_beats_training_more_when_both_clubs_only_want_condition() {
          Intense {intense}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// A two-match week is recovery work between games
+//
+// One step down the ladder is right for a lone fixture, and not for two: from a
+// standing High it lands on Medium, which still costs more than it restores, and
+// squads that trained through a two-match week reached its second match below
+// 80. With two fixtures in the coming week every session is Recovery.
+// ---------------------------------------------------------------------------
+
+fn user_team_training_hard_at(condition: u8) -> Game {
+    let mut game = make_game();
+    game.teams[0].training_intensity = TrainingIntensity::High;
+    for player in game.players.iter_mut() {
+        player.condition = condition;
+    }
+    game
+}
+
+fn p2_condition(game: &Game) -> u8 {
+    game.players
+        .iter()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .condition
+}
+
+#[test]
+fn a_two_match_week_is_all_recovery_even_from_a_high_standing_intensity() {
+    let mut game = user_team_training_hard_at(60);
+    // Three and six days out: two fixtures in the week, neither near enough for
+    // the one-step near-match taper to be the reason.
+    schedule_user_fixture_in(&mut game, 3);
+    let mut second = game.league.as_ref().unwrap().fixtures[0].clone();
+    second.id = "fix2".to_string();
+    second.date = (game.clock.current_date + chrono::Duration::days(6))
+        .format("%Y-%m-%d")
+        .to_string();
+    game.league.as_mut().unwrap().fixtures.push(second);
+    let before = p2_condition(&game);
+
+    training::process_training(&mut game, 0); // Monday, a training day under Balanced
+
+    let after = p2_condition(&game);
+    assert!(
+        after > before,
+        "two matches this week: the session should restore, not load ({before} → {after})"
+    );
+}
+
+#[test]
+fn a_lone_fixture_still_only_tapers_one_step() {
+    let mut game = user_team_training_hard_at(60);
+    schedule_user_fixture_in(&mut game, 2);
+    let before = p2_condition(&game);
+
+    training::process_training(&mut game, 0);
+
+    let after = p2_condition(&game);
+    assert!(
+        after < before,
+        "one match two days out takes High down to Medium, which still costs \
+         ({before} → {after})"
+    );
+}

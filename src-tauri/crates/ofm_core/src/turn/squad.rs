@@ -519,7 +519,7 @@ fn ai_select_starting_xi<'a>(
     /// of a drop to do it — a tired first eleven asked to play twice in four days
     /// arrives spent at the second match however good it is. Manager quality
     /// still shades both: a better one rests sooner. See [`FixtureLoad`].
-    const CONGESTED_REST_THRESHOLD: f64 = 85.0;
+    const CONGESTED_REST_THRESHOLD: f64 = 90.0;
     const CONGESTED_REST_BY_QUALITY: f64 = 10.0;
     const CONGESTED_MIN_FIT_TOLERANCE: f64 = 10.0;
     /// And what any of them will accept to get an exhausted player off the pitch.
@@ -545,7 +545,7 @@ fn ai_select_starting_xi<'a>(
     let (rest_threshold, min_tolerance) = match load {
         // 50 (poor) .. 75 (elite); tolerance 6 .. 12.
         FixtureLoad::Normal => (50.0 + 25.0 * quality, MIN_FIT_TOLERANCE),
-        // 85 (poor) .. 95 (elite); tolerance 10 .. 12.
+        // 90 (poor) .. 100 (elite); tolerance 10 .. 12.
         FixtureLoad::Congested => (
             CONGESTED_REST_THRESHOLD + CONGESTED_REST_BY_QUALITY * quality,
             CONGESTED_MIN_FIT_TOLERANCE,

@@ -112,8 +112,23 @@ const FATIGUE_GUARD_CONDITION: u8 = 40;
 /// two sides of the game running on different physics.
 const MATCH_TAPER_DAYS: i64 = 2;
 
-/// This many fixtures inside a week is a congested run, and tapers the same way.
+/// This many fixtures inside a week is a congested run.
 const CONGESTION_FIXTURE_THRESHOLD: usize = 2;
+
+/// Why a club's sessions are lighter today.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Taper {
+    /// A fixture within `MATCH_TAPER_DAYS`: today's session runs one step
+    /// lighter than the club's standing intensity.
+    NearMatch,
+    /// Two or more fixtures inside the coming week: every session is recovery
+    /// work. A match costs a starter about 28 condition and a recovery day gives
+    /// back about 10; two matches in a week leave no room for training load at
+    /// all, and one step down from High is still Medium, which costs more than
+    /// it restores. Clubs that trained through a two-match week reached its
+    /// second match with squads averaging below 80.
+    Congested,
+}
 
 /// One step down the intensity ladder.
 fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
@@ -157,7 +172,7 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 /// tires a squad exactly as much as a league game. Built as one pass over the
 /// fixture list rather than a per-club scan — this runs for every club, every
 /// day, and a populated world holds tens of thousands of fixtures.
-fn tapering_teams(game: &Game) -> std::collections::HashSet<String> {
+fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use chrono::NaiveDate;
     use domain::league::FixtureStatus;
 
@@ -171,7 +186,7 @@ fn tapering_teams(game: &Game) -> std::collections::HashSet<String> {
     // team id → how many of its fixtures fall inside the next week.
     let mut fixtures_this_week: std::collections::HashMap<&str, usize> =
         std::collections::HashMap::new();
-    let mut tapering: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut tapering: std::collections::HashMap<String, Taper> = std::collections::HashMap::new();
 
     for fixture in competitions
         .iter()
@@ -187,12 +202,12 @@ fn tapering_teams(game: &Game) -> std::collections::HashSet<String> {
         }
         for team_id in [&fixture.home_team_id, &fixture.away_team_id] {
             if days <= MATCH_TAPER_DAYS {
-                tapering.insert(team_id.clone());
+                tapering.entry(team_id.clone()).or_insert(Taper::NearMatch);
             }
             let seen = fixtures_this_week.entry(team_id.as_str()).or_default();
             *seen += 1;
             if *seen >= CONGESTION_FIXTURE_THRESHOLD {
-                tapering.insert(team_id.clone());
+                tapering.insert(team_id.clone(), Taper::Congested);
             }
         }
     }
@@ -209,8 +224,8 @@ struct TeamTrainingPlan {
     medical_facility_mult: f64,
     /// player_id → group focus override (players not in any group use default_focus)
     group_overrides: std::collections::HashMap<String, TrainingFocus>,
-    /// A fixture is close enough that today's session runs at reduced load.
-    tapering: bool,
+    /// Why today's session runs at reduced load, if it does.
+    taper: Option<Taper>,
 }
 
 /// Process daily training for every club that is not playing today.
@@ -266,7 +281,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
                     bonus,
                     medical_facility_mult,
                     group_overrides,
-                    tapering: tapering.contains(&t.id),
+                    taper: tapering.get(&t.id).copied(),
                 },
             )
         })
@@ -296,10 +311,10 @@ fn train_player(
     // The taper: with a fixture close, today's session runs one step lighter than
     // the manager's standing setting. The setting itself is untouched — the club's
     // stored plan is the manager's, and a taper is not a change of plan.
-    let intensity = if plan.tapering && is_training_day {
-        downgrade_intensity(&plan.intensity)
-    } else {
-        plan.intensity.clone()
+    let intensity = match plan.taper {
+        Some(Taper::Congested) if is_training_day => TrainingIntensity::Low,
+        Some(Taper::NearMatch) if is_training_day => downgrade_intensity(&plan.intensity),
+        _ => plan.intensity.clone(),
     };
     let intensity_mult = match &intensity {
         TrainingIntensity::Low => 0.5,
@@ -321,7 +336,7 @@ fn train_player(
     let is_resting = is_training_day
         && player.injury.is_none()
         && (player.condition < FATIGUE_GUARD_CONDITION
-            || (plan.tapering && intensity == TrainingIntensity::Low));
+            || (plan.taper.is_some() && intensity == TrainingIntensity::Low));
     let player_focus = if is_resting {
         &recovery_focus
     } else {
