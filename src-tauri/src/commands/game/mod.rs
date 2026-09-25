@@ -58,6 +58,23 @@ pub async fn start_new_game(
     competition_definitions_json: Option<String>,
     package_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
+    // First statement in the function, before any validation can return: every `Err` below used to
+    // leave no trace at all, so a failed career start looked exactly like a click that did nothing.
+    // The summary deliberately omits the manager's name — see `StartRequestSummary`.
+    log::info!(
+        "[cmd] start_new_game {}",
+        startup::StartRequestSummary {
+            first_name: &first_name,
+            last_name: &last_name,
+            dob: &dob,
+            nationality: &nationality,
+            startup_options: startup_options.as_ref(),
+            world_source: world_source.as_deref(),
+            package_ids: package_ids.as_deref(),
+        }
+        .describe()
+    );
+
     // Validate inputs
     let first_name = first_name.trim().to_string();
     let last_name = last_name.trim().to_string();
