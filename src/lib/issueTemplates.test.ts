@@ -23,17 +23,13 @@ const templateSources = import.meta.glob("../../.github/ISSUE_TEMPLATE/*.yml", {
 }) as Record<string, string>;
 
 function sourceFor(fileName: string): string | undefined {
-  const entry = Object.entries(templateSources).find(([path]) =>
-    path.endsWith(`/${fileName}`),
-  );
+  const entry = Object.entries(templateSources).find(([path]) => path.endsWith(`/${fileName}`));
   return entry?.[1];
 }
 
 /** Field ids, in order. Matches `    id: foo` — two levels of indent, inside a `body:` item. */
 function fieldIdsIn(source: string): string[] {
-  return [...source.matchAll(/^\s{4}id:\s*(\S+)\s*$/gm)].map(
-    (match) => match[1],
-  );
+  return [...source.matchAll(/^\s{4}id:\s*(\S+)\s*$/gm)].map((match) => match[1]);
 }
 
 describe("bug report issue templates", () => {
@@ -52,16 +48,14 @@ describe("bug report issue templates", () => {
   });
 
   it("exposes every prefilled field id in every language", () => {
-    const gaps = Object.entries(BUG_REPORT_TEMPLATE_BY_LOCALE).flatMap(
-      ([locale, file]) => {
-        const source = sourceFor(file);
-        if (source === undefined) return [];
-        const ids = fieldIdsIn(source);
-        return PREFILLED_FIELD_IDS.filter((id) => !ids.includes(id)).map(
-          (id) => `${locale} (${file}) is missing "${id}"`,
-        );
-      },
-    );
+    const gaps = Object.entries(BUG_REPORT_TEMPLATE_BY_LOCALE).flatMap(([locale, file]) => {
+      const source = sourceFor(file);
+      if (source === undefined) return [];
+      const ids = fieldIdsIn(source);
+      return PREFILLED_FIELD_IDS.filter((id) => !ids.includes(id)).map(
+        (id) => `${locale} (${file}) is missing "${id}"`,
+      );
+    });
     expect(gaps).toEqual([]);
   });
 
@@ -76,9 +70,7 @@ describe("bug report issue templates", () => {
         const source = sourceFor(file);
         if (source === undefined) return [];
         const ids = fieldIdsIn(source);
-        return ids.join(",") === english.join(",")
-          ? []
-          : [`${locale} (${file}): ${ids.join(",")}`];
+        return ids.join(",") === english.join(",") ? [] : [`${locale} (${file}): ${ids.join(",")}`];
       });
     expect(divergent).toEqual([]);
   });
@@ -97,14 +89,11 @@ describe("issue template locale coverage", () => {
 
   it("ships all three forms in every supported language", () => {
     const missing = SUPPORTED_LANGUAGES.flatMap(({ code }) => {
-      const suffix = BUG_REPORT_TEMPLATE_BY_LOCALE[code]?.replace(
-        /^bug_report/,
-        "",
-      );
+      const suffix = BUG_REPORT_TEMPLATE_BY_LOCALE[code]?.replace(/^bug_report/, "");
       if (suffix === undefined) return [`${code}: no template mapping`];
-      return FAMILIES.filter(
-        (family) => sourceFor(`${family}${suffix}`) === undefined,
-      ).map((family) => `${code}: missing ${family}${suffix}`);
+      return FAMILIES.filter((family) => sourceFor(`${family}${suffix}`) === undefined).map(
+        (family) => `${code}: missing ${family}${suffix}`,
+      );
     });
     expect(missing).toEqual([]);
   });
