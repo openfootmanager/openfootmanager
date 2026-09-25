@@ -143,3 +143,64 @@ fn a_squad_too_short_to_field_eleven_is_topped_up_from_the_injured() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// A dormant match is a scoreline, not a workout
+//
+// Competitions outside the player's active scope are resolved by a
+// scoreline-only model that charges nobody any condition. Their clubs have not
+// played ninety minutes in any physical sense, so the training ground's "you
+// played today" gate must not close on them — or they lose the day's recovery
+// every matchday and get nothing for it.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_club_in_a_dormant_competition_still_recovers_on_its_matchday() {
+    let mut game = make_game_with_match();
+    add_idle_club(&mut game, "dormant_home", 50);
+    add_idle_club(&mut game, "dormant_away", 50);
+
+    let active = game.league.clone().expect("the fixture's league");
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let dormant = League {
+        id: "dormant_league".to_string(),
+        name: "Somewhere Else".to_string(),
+        season: 1,
+        fixtures: vec![Fixture {
+            id: "dormant_fix".to_string(),
+            matchday: 1,
+            date: today,
+            home_team_id: "dormant_home".to_string(),
+            away_team_id: "dormant_away".to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        }],
+        standings: vec![
+            StandingEntry::new("dormant_home".to_string()),
+            StandingEntry::new("dormant_away".to_string()),
+        ],
+        ..Default::default()
+    };
+    game.active_competition_ids = vec![active.id.clone()];
+    game.competitions = vec![active, dormant];
+    let before = condition_of(&game, "dormant_home");
+
+    // 2025-06-15 is a Sunday: a rest day on every schedule.
+    turn::process_day(&mut game);
+
+    let dormant_played = game.competitions[1]
+        .fixtures
+        .iter()
+        .all(|f| f.status == FixtureStatus::Completed);
+    assert!(
+        dormant_played,
+        "the dormant fixture should have been resolved"
+    );
+    let after = condition_of(&game, "dormant_home");
+    assert!(
+        after.iter().zip(&before).all(|(now, was)| now > was),
+        "a scoreline-only match costs nothing, so its rest day must still restore: \
+         {before:?} -> {after:?}"
+    );
+}

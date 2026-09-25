@@ -130,6 +130,11 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 /// fixtures read `Completed`; a status filter here would report the clubs that
 /// just played ninety minutes as free to train, and they would recover on the
 /// very day they were emptied.
+///
+/// Only competitions in the active scope count. A dormant competition is
+/// resolved by a scoreline-only model that charges nobody any condition, so its
+/// clubs have not had a match in any physical sense — closing the training
+/// ground on them would cost them the day's recovery for nothing.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
     let competitions: &[domain::league::League] = if game.competitions.is_empty() {
         game.league.as_slice()
@@ -139,6 +144,7 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 
     competitions
         .iter()
+        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.date == date)
         .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])
