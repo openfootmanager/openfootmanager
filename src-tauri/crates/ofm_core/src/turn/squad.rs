@@ -118,6 +118,26 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     (team_data, bench)
 }
 
+/// The strength a side takes into a penalty shootout: the average rating of the
+/// eleven who played the match.
+///
+/// Not `catchup::club_strength`, which rates a club by the best eleven on its
+/// books. That is the right question for a scoreline-only dormant match, where
+/// nobody is picked; here a side *was* picked, and its injured stars sat the
+/// match out. Rating the shootout on them would let players who never took the
+/// field decide who goes through.
+pub(crate) fn shootout_strength(fielded: &TeamData) -> f64 {
+    if fielded.players.is_empty() {
+        return 50.0;
+    }
+    fielded
+        .players
+        .iter()
+        .map(|player| f64::from(player.ovr))
+        .sum::<f64>()
+        / fielded.players.len() as f64
+}
+
 /// Make a short XI up to the number of slots the formation asks for, drawing on
 /// players who are carrying an injury.
 ///
