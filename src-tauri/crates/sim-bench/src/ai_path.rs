@@ -122,36 +122,36 @@ pub fn run(config: &MatchConfig, games: u32, seed: Option<u64>, rating: u8, form
 
     eprintln!("AI-path A/B: {games} matches per path (seed: {base})…");
 
+    // Identical squads for both paths and every game: built once, from one seed.
+    let mut team_rng = StdRng::seed_from_u64(base.wrapping_add(0xDEAD_BEEF));
+    let (home_xi, home_bench) = build_squad_with_bench(
+        "home",
+        "Home FC",
+        rating,
+        BENCH_OVR_PENALTY,
+        PlayStyle::Balanced,
+        formation,
+        &mut team_rng,
+    );
+    let (away_xi, away_bench) = build_squad_with_bench(
+        "away",
+        "Away FC",
+        rating,
+        BENCH_OVR_PENALTY,
+        PlayStyle::Balanced,
+        formation,
+        &mut team_rng,
+    );
+    let squad = squad_snapshot(&home_xi, &home_bench, &away_xi, &away_bench);
+    // Path A's view of the same clubs: in production this list is what
+    // `build_engine_team` already returned, so assembling it is not path A's cost.
+    let home_all = whole_squad(&home_xi, &home_bench);
+    let away_all = whole_squad(&away_xi, &away_bench);
+
     for i in 0..games {
         let game_seed = base.wrapping_add(u64::from(i));
-        // Identical squads for both paths: same builder seed, same everything.
-        let mut team_rng = StdRng::seed_from_u64(base.wrapping_add(0xDEAD_BEEF));
-        let (home_xi, home_bench) = build_squad_with_bench(
-            "home",
-            "Home FC",
-            rating,
-            BENCH_OVR_PENALTY,
-            PlayStyle::Balanced,
-            formation,
-            &mut team_rng,
-        );
-        let (away_xi, away_bench) = build_squad_with_bench(
-            "away",
-            "Away FC",
-            rating,
-            BENCH_OVR_PENALTY,
-            PlayStyle::Balanced,
-            formation,
-            &mut team_rng,
-        );
-        // Owned, because path B consumes the teams it is handed.
-        let squad = squad_snapshot(&home_xi, &home_bench, &away_xi, &away_bench);
 
         // ── Path A: the whole squad, one shot, no manager ───────────────────
-        // Assembled before the timer starts: in production this list is what
-        // `build_engine_team` already returns, so it is not path A's cost.
-        let home_all = whole_squad(&home_xi, &home_bench);
-        let away_all = whole_squad(&away_xi, &away_bench);
         let mut rng = StdRng::seed_from_u64(game_seed);
         let started = Instant::now();
         let report = simulate_with_rng(&home_all, &away_all, config, &mut rng);
@@ -159,10 +159,14 @@ pub fn run(config: &MatchConfig, games: u32, seed: Option<u64>, rating: u8, form
         accumulate(&mut instant, &report, &squad);
 
         // ── Path B: XI + bench, both sides managed ──────────────────────────
+        // Path B consumes the teams it is handed, so each game gets its own
+        // copies — made before the timer starts, like path A's list.
+        let (home, away) = (home_xi.clone(), away_xi.clone());
+        let (home_subs, away_subs) = (home_bench.clone(), away_bench.clone());
         let mut rng = StdRng::seed_from_u64(game_seed);
         let started = Instant::now();
         let report = run_live(
-            home_xi, away_xi, home_bench, away_bench, config, &mut rng, &mut live,
+            home, away, home_subs, away_subs, config, &mut rng, &mut live,
         );
         live.elapsed += started.elapsed();
         accumulate(&mut live, &report, &squad);

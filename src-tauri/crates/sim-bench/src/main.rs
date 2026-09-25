@@ -80,6 +80,10 @@ struct Cli {
     /// squad, no manager) and the live path (XI + bench, `ai_decide` on both
     /// sides), and tabulate who actually played, what the managers did, and how
     /// much condition the production wear formula would charge for it.
+    ///
+    /// Both sides are mirrors: Balanced, on the home rating and formation.
+    /// `--home-style`, `--away-style`, `--away-rating` and `--away-formation` do
+    /// not apply, because an A/B of two paths wants the matchup held fixed.
     #[arg(long)]
     ai_path_ab: bool,
 
