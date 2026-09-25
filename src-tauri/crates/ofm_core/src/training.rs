@@ -90,15 +90,130 @@ struct TrainingDay {
     year: u32,
 }
 
-/// Below this individual condition, an AI-managed player is automatically rested
-/// in training (treated as Recovery focus) regardless of the team's plan. The AI
-/// sets one team-wide intensity from the squad's *average* condition, but the
-/// per-player condition cost is flat — so a player who is individually exhausted
-/// in an otherwise-okay squad keeps net-losing condition (cost > their diminished
-/// recovery) and never climbs out. This guard breaks that fatigue spiral so a
-/// rested bench can recover and the condition-aware lineup picker can rotate.
-/// The user's own team is exempt — managers have manual control over training.
-const AI_FATIGUE_GUARD_CONDITION: u8 = 40;
+/// Below this individual condition a player is automatically rested in training
+/// (treated as Recovery focus) regardless of the team's plan. Team intensity is
+/// one setting for the whole squad, but the per-player condition cost is flat —
+/// so a player who is individually exhausted in an otherwise-okay squad keeps
+/// net-losing condition (cost > their diminished recovery) and never climbs out.
+/// This guard breaks that fatigue spiral so a rested bench can recover and the
+/// condition-aware lineup picker has someone to rotate to.
+///
+/// It applies to every club. It used to exempt the user's, on the grounds that a
+/// human manager has manual control — but the exemption was the difference
+/// between a squad that stabilises and one that reaches condition 2 by week five
+/// and stays there, which is not a choice anyone was making knowingly.
+const FATIGUE_GUARD_CONDITION: u8 = 40;
+
+/// A club within this many days of its next fixture trains at reduced load.
+///
+/// No squad does a full session two days before a game; the days before a match
+/// are a taper, not a decision the manager re-litigates each week. Keeping this
+/// as a property of training rather than of the AI's planner is what stops the
+/// two sides of the game running on different physics.
+const MATCH_TAPER_DAYS: i64 = 2;
+
+/// This many fixtures inside a week is a congested run.
+const CONGESTION_FIXTURE_THRESHOLD: usize = 2;
+
+/// Why a club's sessions are lighter today.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Taper {
+    /// A fixture within `MATCH_TAPER_DAYS`: today's session runs one step
+    /// lighter than the club's standing intensity.
+    NearMatch,
+    /// Two or more fixtures inside the coming week: every session is recovery
+    /// work. A match costs a starter about 28 condition and a recovery day gives
+    /// back about 10; two matches in a week leave no room for training load at
+    /// all, and one step down from High is still Medium, which costs more than
+    /// it restores. Clubs that trained through a two-match week reached its
+    /// second match with squads averaging below 80.
+    Congested,
+}
+
+/// One step down the intensity ladder.
+fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
+    match intensity {
+        TrainingIntensity::High => TrainingIntensity::Medium,
+        TrainingIntensity::Medium | TrainingIntensity::Low => TrainingIntensity::Low,
+    }
+}
+
+/// Every club with a fixture today, in any competition it plays in.
+///
+/// Deliberately matched on date alone, with no filter on `FixtureStatus`. This is
+/// asked *after* the day's matches have been simulated, by which point those
+/// fixtures read `Completed`; a status filter here would report the clubs that
+/// just played ninety minutes as free to train, and they would recover on the
+/// very day they were emptied.
+///
+/// Only competitions in the active scope count. A dormant competition is
+/// resolved by a scoreline-only model that charges nobody any condition, so its
+/// clubs have not had a match in any physical sense — closing the training
+/// ground on them would cost them the day's recovery for nothing.
+pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
+    let competitions: &[domain::league::League] = if game.competitions.is_empty() {
+        game.league.as_slice()
+    } else {
+        &game.competitions
+    };
+
+    competitions
+        .iter()
+        .filter(|competition| game.competition_in_active_scope(competition))
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.date == date)
+        .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])
+        .collect()
+}
+
+/// Every club whose fixture list puts it inside a taper today.
+///
+/// Reads every competition a club plays in, not just `game.league`: a cup tie
+/// tires a squad exactly as much as a league game. Built as one pass over the
+/// fixture list rather than a per-club scan — this runs for every club, every
+/// day, and a populated world holds tens of thousands of fixtures.
+fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
+    use chrono::NaiveDate;
+    use domain::league::FixtureStatus;
+
+    let today = game.clock.current_date.date_naive();
+    let competitions: &[domain::league::League] = if game.competitions.is_empty() {
+        game.league.as_slice()
+    } else {
+        &game.competitions
+    };
+
+    // team id → how many of its fixtures fall inside the next week.
+    let mut fixtures_this_week: std::collections::HashMap<&str, usize> =
+        std::collections::HashMap::new();
+    let mut tapering: std::collections::HashMap<String, Taper> = std::collections::HashMap::new();
+
+    for fixture in competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
+    {
+        let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
+            continue;
+        };
+        let days = (date - today).num_days();
+        if !(0..=7).contains(&days) {
+            continue;
+        }
+        for team_id in [&fixture.home_team_id, &fixture.away_team_id] {
+            if days <= MATCH_TAPER_DAYS {
+                tapering.entry(team_id.clone()).or_insert(Taper::NearMatch);
+            }
+            let seen = fixtures_this_week.entry(team_id.as_str()).or_default();
+            *seen += 1;
+            if *seen >= CONGESTION_FIXTURE_THRESHOLD {
+                tapering.insert(team_id.clone(), Taper::Congested);
+            }
+        }
+    }
+
+    tapering
+}
 
 /// Per-team data collected before mutating players.
 struct TeamTrainingPlan {
@@ -109,17 +224,22 @@ struct TeamTrainingPlan {
     medical_facility_mult: f64,
     /// player_id → group focus override (players not in any group use default_focus)
     group_overrides: std::collections::HashMap<String, TrainingFocus>,
-    /// Whether this team is controlled by the human manager (exempt from the
-    /// automatic fatigue guard, which compensates for the AI's lack of agency).
-    is_user_team: bool,
+    /// Why today's session runs at reduced load, if it does.
+    taper: Option<Taper>,
 }
 
-/// Process daily training for all teams.
-/// On non-match days each team's players train according to the team's
-/// current focus, intensity, and schedule. Rest days (determined by the
-/// weekly schedule) give full condition recovery with no training cost.
-/// Players assigned to a training group use that group's focus instead of
-/// the team default.
+/// Process daily training for every club that is not playing today.
+///
+/// A club's players train according to its current focus, intensity and
+/// schedule. Rest days (determined by the weekly schedule) give full condition
+/// recovery with no training cost. Players assigned to a training group use that
+/// group's focus instead of the team default.
+///
+/// Clubs with a fixture today are skipped, and only those clubs: whether the
+/// training ground opens is a question about *this* club's calendar, not the
+/// world's. It used to be asked globally, so one cup tie anywhere shut every
+/// training ground in the game and nobody recovered.
+///
 /// `weekday_num` is 0=Mon .. 6=Sun (chrono Weekday::num_days_from_monday()).
 pub fn process_training(game: &mut Game, weekday_num: u32) {
     // Derive the current year from the game clock for accurate age calculations.
@@ -133,10 +253,15 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
 
     // Index each team's plan by id so players are visited once (O(teams + players))
     // instead of rescanning every player for every team (O(teams * players)).
-    let user_team_id = game.manager.team_id.clone();
+    let tapering = tapering_teams(game);
+    let playing_today = teams_playing_on(
+        game,
+        &game.clock.current_date.format("%Y-%m-%d").to_string(),
+    );
     let plans: std::collections::HashMap<String, TeamTrainingPlan> = game
         .teams
         .iter()
+        .filter(|t| !playing_today.contains(&t.id))
         .map(|t| {
             let bonus = compute_coaching_bonus(game, &t.id, &t.training_focus);
             let medical_facility_mult =
@@ -156,7 +281,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
                     bonus,
                     medical_facility_mult,
                     group_overrides,
-                    is_user_team: user_team_id.as_deref() == Some(t.id.as_str()),
+                    taper: tapering.get(&t.id).copied(),
                 },
             )
         })
@@ -182,25 +307,37 @@ fn train_player(
     rng: &mut impl Rng,
 ) {
     let is_training_day = plan.schedule.is_training_day(day.weekday_num);
-    let intensity_mult = match &plan.intensity {
+
+    // The taper: with a fixture close, today's session runs one step lighter than
+    // the manager's standing setting. The setting itself is untouched — the club's
+    // stored plan is the manager's, and a taper is not a change of plan.
+    let intensity = match plan.taper {
+        Some(Taper::Congested) if is_training_day => TrainingIntensity::Low,
+        Some(Taper::NearMatch) if is_training_day => downgrade_intensity(&plan.intensity),
+        _ => plan.intensity.clone(),
+    };
+    let intensity_mult = match &intensity {
         TrainingIntensity::Low => 0.5,
         TrainingIntensity::Medium => 1.0,
         TrainingIntensity::High => 1.5,
     };
 
-    // AI fatigue guard: an exhausted player on an AI team is automatically rested
-    // (treated as Recovery focus) so they can recover instead of being run further
-    // into the ground by the squad-average-driven team intensity. See
-    // `AI_FATIGUE_GUARD_CONDITION`. The user's team is exempt — it has manual agency.
-    // Injured players are exempt: they don't train regardless, and routing them
-    // through Recovery focus here would inflate the injured-recovery base below
-    // (9.0 instead of 3.0), giving exhausted injured AI players ~3x recovery.
+    // Two ways a session becomes recovery work rather than a load:
+    //
+    // 1. The fatigue guard — a player this tired physically cannot take a hard
+    //    session. See `FATIGUE_GUARD_CONDITION`.
+    // 2. A tapered session that has already come down to Low. At that point the
+    //    squad is ticking over before a game, which is what Recovery models.
+    //
+    // Injured players are exempt from both: they don't train regardless, and
+    // routing them through Recovery focus here would inflate the injured-recovery
+    // base below (9.0 instead of 3.0), giving them ~3x recovery.
     let recovery_focus = TrainingFocus::Recovery;
-    let player_focus = if !plan.is_user_team
-        && is_training_day
+    let is_resting = is_training_day
         && player.injury.is_none()
-        && player.condition < AI_FATIGUE_GUARD_CONDITION
-    {
+        && (player.condition < FATIGUE_GUARD_CONDITION
+            || (plan.taper.is_some() && intensity == TrainingIntensity::Low));
+    let player_focus = if is_resting {
         &recovery_focus
     } else {
         // Determine this player's effective focus:
@@ -216,7 +353,7 @@ fn train_player(
     let condition_cost: u8 = if !is_training_day {
         0
     } else {
-        match (player_focus, &plan.intensity) {
+        match (player_focus, &intensity) {
             (TrainingFocus::Recovery, _) => 0,
             (_, TrainingIntensity::Low) => 3,
             (_, TrainingIntensity::Medium) => 6,
@@ -224,9 +361,16 @@ fn train_player(
         }
     };
 
-    // Recovery amount: rest days get boosted recovery (like Recovery focus)
+    // A scheduled day off restores more than any session, including a Recovery
+    // one. It has to: restoring condition is the *only* thing it does, while a
+    // Recovery session does that and nudges match fitness besides. At the old
+    // 7.0 against a session's 9.0 a day off was strictly dominated, so the
+    // schedule with the fewest of them was simply the best schedule — a club
+    // training six days a week finished it fresher than one resting five.
+    // The trade is now honest: days off buy condition, sessions buy sharpness
+    // and development.
     let recovery_base: f64 = if !is_training_day {
-        7.0 * plan.bonus.physio_mult * plan.medical_facility_mult
+        10.0 * plan.bonus.physio_mult * plan.medical_facility_mult
     } else {
         match player_focus {
             TrainingFocus::Recovery => 9.0 * plan.bonus.physio_mult * plan.medical_facility_mult,

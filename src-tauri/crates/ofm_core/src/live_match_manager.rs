@@ -1,8 +1,10 @@
-mod team_builder;
-pub use team_builder::auto_select_set_pieces;
-use team_builder::build_team_with_bench;
-pub(crate) use team_builder::domain_to_engine_role;
-pub(crate) use team_builder::domain_to_engine_tactics;
+// Squad selection and the domain → engine conversion live in `turn::squad`,
+// which is where the crate's boundary rule puts them: `engine` has no knowledge
+// of `domain`, and `ofm_core/turn/` is the single bridge between the two. The
+// live path and the instant path both build their sides from there, so there is
+// one answer to "who is playing" rather than one per code path.
+pub use crate::turn::squad::auto_select_set_pieces;
+use crate::turn::squad::build_team_with_bench;
 
 use rand::SeedableRng;
 use rand::rngs::StdRng;

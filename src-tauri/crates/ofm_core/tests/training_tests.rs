@@ -8,117 +8,12 @@ use ofm_core::game::Game;
 use ofm_core::player_rating::refresh_player_derived;
 use ofm_core::training;
 
-// ---------------------------------------------------------------------------
-// Test helpers
-// ---------------------------------------------------------------------------
+#[path = "training_tests/fixtures.rs"]
+mod fixtures;
+#[path = "training_tests/recovery.rs"]
+mod recovery;
 
-fn default_attrs() -> PlayerAttributes {
-    PlayerAttributes {
-        pace: 65,
-        stamina: 65,
-        strength: 65,
-        agility: 65,
-        passing: 65,
-        shooting: 65,
-        tackling: 65,
-        dribbling: 65,
-        defending: 65,
-        positioning: 65,
-        vision: 65,
-        decisions: 65,
-        composure: 65,
-        aggression: 50,
-        teamwork: 65,
-        leadership: 50,
-        handling: 20,
-        reflexes: 30,
-        aerial: 60,
-    }
-}
-
-fn make_player(id: &str, name: &str, team_id: &str, dob: &str) -> Player {
-    let mut p = Player::new(
-        id.to_string(),
-        name.to_string(),
-        format!("Full {}", name),
-        dob.to_string(),
-        "GB".to_string(),
-        Position::Midfielder,
-        default_attrs(),
-    );
-    p.team_id = Some(team_id.to_string());
-    p.morale = 70;
-    p.condition = 80;
-    p
-}
-
-fn make_team(id: &str, name: &str) -> Team {
-    Team::new(
-        id.to_string(),
-        name.to_string(),
-        name[..3].to_string(),
-        "England".to_string(),
-        "London".to_string(),
-        "Stadium".to_string(),
-        40_000,
-    )
-}
-
-fn make_staff(id: &str, team_id: &str, role: StaffRole, coaching: u8, physio: u8) -> Staff {
-    let mut s = Staff::new(
-        id.to_string(),
-        "Staff".to_string(),
-        id.to_string(),
-        "1980-01-01".to_string(),
-        role,
-        StaffAttributes {
-            coaching,
-            judging_ability: 50,
-            judging_potential: 50,
-            physiotherapy: physio,
-        },
-    );
-    s.team_id = Some(team_id.to_string());
-    s.nationality = "GB".to_string();
-    s
-}
-
-fn make_game() -> Game {
-    let date = Utc.with_ymd_and_hms(2025, 6, 16, 12, 0, 0).unwrap(); // Monday
-    let clock = GameClock::new(date);
-    let mut manager = Manager::new(
-        "mgr1".to_string(),
-        "Test".to_string(),
-        "Manager".to_string(),
-        "1980-01-01".to_string(),
-        "England".to_string(),
-    );
-    manager.hire("team1".to_string());
-
-    let mut team1 = make_team("team1", "Test FC");
-    team1.training_focus = TrainingFocus::Physical;
-    team1.training_intensity = TrainingIntensity::Medium;
-    team1.training_schedule = TrainingSchedule::Balanced;
-
-    // Young player (age ~21)
-    let p1 = make_player("p1", "Young", "team1", "2004-03-15");
-    // Prime player (age ~27)
-    let p2 = make_player("p2", "Prime", "team1", "1998-06-10");
-    // Old player (age ~35)
-    let p3 = make_player("p3", "Veteran", "team1", "1990-01-01");
-
-    let coach = make_staff("coach1", "team1", StaffRole::Coach, 80, 30);
-    let physio = make_staff("physio1", "team1", StaffRole::Physio, 30, 80);
-
-    Game::new(
-        clock,
-        manager,
-        vec![team1],
-        vec![p1, p2, p3],
-        vec![coach, physio],
-        vec![],
-    )
-}
+use fixtures::*;
 
 // ---------------------------------------------------------------------------
 // process_training — basic behavior
@@ -1002,71 +897,6 @@ fn injured_player_loses_fitness_over_time() {
         "Injured player's fitness ({}) should decay below initial ({})",
         final_fitness,
         initial_fitness
-    );
-}
-
-// ---------------------------------------------------------------------------
-// AI fatigue guard
-// ---------------------------------------------------------------------------
-
-/// Reproduces the fatigue spiral and verifies the AI-only guard breaks it.
-///
-/// An individually exhausted player on a team training at Medium intensity with a
-/// non-recovery focus pays a flat condition cost (6) that exceeds their diminished
-/// recovery — so without intervention they keep losing condition every training
-/// day and never climb out. The AI fatigue guard auto-rests such players on AI
-/// teams. The user's team is exempt (manual agency), so an identical exhausted
-/// player on the user's side keeps spiralling down.
-#[test]
-fn ai_fatigue_guard_rests_exhausted_ai_player_but_not_user_team() {
-    let mut game = make_game(); // manager is hired to "team1" (the user team)
-
-    // Add an AI-controlled team that trains hard (Medium, non-recovery focus).
-    let mut team2 = make_team("team2", "AI FC");
-    team2.training_focus = TrainingFocus::Physical;
-    team2.training_intensity = TrainingIntensity::Medium;
-    team2.training_schedule = TrainingSchedule::Balanced;
-    game.teams.push(team2);
-
-    // Two identical exhausted players: one on the user team, one on the AI team.
-    let mut user_tired = make_player("user_tired", "UserTired", "team1", "1998-06-10");
-    user_tired.condition = 22;
-    let mut ai_tired = make_player("ai_tired", "AiTired", "team2", "1998-06-10");
-    ai_tired.condition = 22;
-    game.players.push(user_tired);
-    game.players.push(ai_tired);
-
-    // Three consecutive training days (Monday is a training day under Balanced).
-    for _ in 0..3 {
-        training::process_training(&mut game, 0);
-    }
-
-    let user_after = game
-        .players
-        .iter()
-        .find(|p| p.id == "user_tired")
-        .unwrap()
-        .condition;
-    let ai_after = game
-        .players
-        .iter()
-        .find(|p| p.id == "ai_tired")
-        .unwrap()
-        .condition;
-
-    // Guard active: the AI's exhausted player recovers out of the spiral.
-    assert!(
-        ai_after > 22,
-        "AI exhausted player should recover under the fatigue guard, got {ai_after}"
-    );
-    // Exempt: the user's identical player keeps net-losing condition at Medium.
-    assert!(
-        user_after < 22,
-        "user-team exhausted player should not be auto-rested, got {user_after}"
-    );
-    assert!(
-        ai_after > user_after,
-        "guarded AI player ({ai_after}) should end fresher than the user player ({user_after})"
     );
 }
 

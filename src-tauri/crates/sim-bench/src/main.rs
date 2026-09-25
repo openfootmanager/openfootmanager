@@ -1,3 +1,4 @@
+mod ai_path;
 mod builder;
 mod html;
 mod stats;
@@ -74,6 +75,17 @@ struct Cli {
     /// shots for/against and goals. Tuning aid for the dial magnitudes.
     #[arg(long)]
     phase_sweep: bool,
+
+    /// AI-path A/B: run the same 22-man squads through the instant path (whole
+    /// squad, no manager) and the live path (XI + bench, `ai_decide` on both
+    /// sides), and tabulate who actually played, what the managers did, and how
+    /// much condition the production wear formula would charge for it.
+    ///
+    /// Both sides are mirrors: Balanced, on the home rating and formation.
+    /// `--home-style`, `--away-style`, `--away-rating` and `--away-formation` do
+    /// not apply, because an A/B of two paths wants the matchup held fixed.
+    #[arg(long)]
+    ai_path_ab: bool,
 
     // ── MatchConfig overrides ────────────────────────────────────────────────
     #[arg(long, help = "Home advantage multiplier (default 1.08)")]
@@ -172,6 +184,17 @@ fn main() {
 
     if cli.phase_sweep {
         run_phase_sweep(&config, &cli);
+        return;
+    }
+
+    if cli.ai_path_ab {
+        ai_path::run(
+            &config,
+            cli.games,
+            cli.seed,
+            cli.home_rating,
+            &cli.home_formation,
+        );
         return;
     }
 

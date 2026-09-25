@@ -2,10 +2,10 @@ mod dormant;
 mod news;
 mod post_match;
 mod round_summary;
+pub(crate) mod squad;
 
 use crate::board_objectives;
 use crate::game::Game;
-use crate::live_match_manager::{domain_to_engine_role, domain_to_engine_tactics};
 use crate::player_events;
 use crate::random_events;
 use crate::scouting;
@@ -13,7 +13,6 @@ use crate::training;
 use crate::transfers;
 use chrono::Datelike;
 use domain::league::FixtureStatus;
-use domain::player::Position as DomainPosition;
 use domain::stats::StatsState;
 use log::{debug, info};
 
@@ -139,6 +138,19 @@ fn simulate_competition_day_with_capture<F>(
     game.sync_legacy_league();
 }
 
+/// A day at the training ground, for every club that is not playing.
+///
+/// Lives here rather than inline because a day has two entry points and both owe
+/// the world the same one. `finish_live_match_day` used to run no training at
+/// all, so on the day the player watched their own fixture, nobody in the game
+/// recovered — the eighteen clubs with nothing on included.
+fn run_training_ground(game: &mut Game) {
+    let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
+    crate::ai_training::apply_ai_training_policies(game, weekday_num);
+    training::process_training(game, weekday_num);
+    training::check_squad_fitness_warnings(game);
+}
+
 /// Process a single day advance.
 pub fn process_day(game: &mut Game) {
     process_day_with_capture(game, &mut |_| {});
@@ -160,12 +172,11 @@ where
         for competition_index in due_competitions {
             simulate_competition_day_with_capture(game, competition_index, &today, on_capture);
         }
-    } else {
-        let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
-        crate::ai_training::apply_ai_training_policies(game, weekday_num);
-        training::process_training(game, weekday_num);
-        training::check_squad_fitness_warnings(game);
     }
+    // Unconditional, and after the matches: a fixture somewhere in the world says
+    // nothing about whether *this* club trains. `run_training_ground` skips only
+    // the clubs actually playing today.
+    run_training_ground(game);
 
     // Tiered simulation: competitions outside the active scope are resolved by
     // scoreline only, keeping the dormant world moving without the full engine.
@@ -222,6 +233,9 @@ pub fn finish_live_match_day(game: &mut Game) {
     transfers::process_loan_development_reports(game);
     transfers::process_loan_returns(game);
     generate_matchday_news(game, &today);
+    // The user's fixture is over; the rest of the world still had a day, and the
+    // clubs that were not in it still had a session or a rest day.
+    run_training_ground(game);
 
     crate::contracts::process_contract_expiries(game);
     crate::finances::process_weekly_finances(game);
@@ -365,92 +379,6 @@ mod tests {
 }
 
 // ---------------------------------------------------------------------------
-// Domain → Engine type conversion
-// ---------------------------------------------------------------------------
-
-fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
-    let team = game.teams.iter().find(|t| t.id == team_id);
-    let player_roles = team.map(|t| &t.player_roles);
-    let (name, formation, play_style, tactics) = match team {
-        Some(t) => (
-            t.name.clone(),
-            t.formation.clone(),
-            match t.play_style {
-                domain::team::PlayStyle::Attacking => engine::PlayStyle::Attacking,
-                domain::team::PlayStyle::Defensive => engine::PlayStyle::Defensive,
-                domain::team::PlayStyle::Possession => engine::PlayStyle::Possession,
-                domain::team::PlayStyle::Counter => engine::PlayStyle::Counter,
-                domain::team::PlayStyle::HighPress => engine::PlayStyle::HighPress,
-                _ => engine::PlayStyle::Balanced,
-            },
-            domain_to_engine_tactics(&t.tactics_phase),
-        ),
-        None => (
-            "Unknown".into(),
-            "4-4-2".into(),
-            engine::PlayStyle::Balanced,
-            engine::TacticsConfig::default(),
-        ),
-    };
-
-    let players: Vec<engine::PlayerData> = game
-        .players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(team_id))
-        .map(|p| {
-            let pos = match p.position.to_group_position() {
-                DomainPosition::Goalkeeper => engine::Position::Goalkeeper,
-                DomainPosition::Defender => engine::Position::Defender,
-                DomainPosition::Midfielder => engine::Position::Midfielder,
-                DomainPosition::Forward => engine::Position::Forward,
-                _ => engine::Position::Midfielder,
-            };
-            engine::PlayerData {
-                id: p.id.clone(),
-                name: p.match_name.clone(),
-                position: pos,
-                ovr: p.ovr,
-                condition: p.condition,
-                fitness: p.fitness,
-                pace: p.attributes.pace,
-                stamina: p.attributes.stamina,
-                strength: p.attributes.strength,
-                agility: p.attributes.agility,
-                passing: p.attributes.passing,
-                shooting: p.attributes.shooting,
-                tackling: p.attributes.tackling,
-                dribbling: p.attributes.dribbling,
-                defending: p.attributes.defending,
-                positioning: p.attributes.positioning,
-                vision: p.attributes.vision,
-                decisions: p.attributes.decisions,
-                composure: p.attributes.composure,
-                aggression: p.attributes.aggression,
-                teamwork: p.attributes.teamwork,
-                leadership: p.attributes.leadership,
-                handling: p.attributes.handling,
-                reflexes: p.attributes.reflexes,
-                aerial: p.attributes.aerial,
-                traits: p.traits.iter().map(|t| format!("{:?}", t)).collect(),
-                role: player_roles
-                    .and_then(|roles| roles.get(&p.id))
-                    .map(domain_to_engine_role)
-                    .unwrap_or(engine::PlayerRole::Standard),
-            }
-        })
-        .collect();
-
-    engine::TeamData {
-        id: team_id.to_string(),
-        name,
-        formation,
-        play_style,
-        players,
-        tactics,
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Matchday simulation using the engine crate
 // ---------------------------------------------------------------------------
 
@@ -510,15 +438,23 @@ where
         )
     };
 
-    let home_data = build_engine_team(game, &home_team_id);
-    let away_data = build_engine_team(game, &away_team_id);
+    // The same builder the live path uses, so both answer "who is playing" the
+    // same way: eleven players in slot order, chosen by the user's saved XI or
+    // the AI's selection policy, fit ones first and the walking wounded only to
+    // make up a shortfall. The bench is discarded — `engine::simulate`
+    // is a one-shot with no command loop, so nobody can come off it. That means
+    // no substitutions in an instant match, which is a real gap and a later
+    // slice's job; what matters here is that reserves are no longer credited
+    // with minutes, appearances and match wear for a game they never played.
+    let (home_data, _home_bench) = squad::build_team_with_bench(game, &home_team_id);
+    let (away_data, _away_bench) = squad::build_team_with_bench(game, &away_team_id);
     let config = engine::MatchConfig::default();
     let mut report = engine::simulate(&home_data, &away_data, &config);
     // A level knockout tie must produce a winner: resolve it with a simulated
     // shootout so the home side no longer advances by default on a draw.
     if is_knockout && report.home_goals == report.away_goals {
-        let home_strength = crate::catchup::club_strength(&game.players, &home_team_id);
-        let away_strength = crate::catchup::club_strength(&game.players, &away_team_id);
+        let home_strength = squad::shootout_strength(&home_data);
+        let away_strength = squad::shootout_strength(&away_data);
         let (home_pens, away_pens) =
             crate::national_team::simulate_shootout(home_strength, away_strength, &mut rand::rng());
         report.home_penalties = Some(home_pens);

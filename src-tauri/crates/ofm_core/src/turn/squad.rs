@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 // Domain → Engine conversion with starting XI / bench split
 // ---------------------------------------------------------------------------
 
-pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
+pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (name, formation, play_style, tactics, saved_xi_ids) = match team {
         Some(t) => (
@@ -64,19 +64,28 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     // load management. Gate on the user team explicitly, NOT on "saved XI empty",
     // so the human's early-career auto-built XI stays reputation-independent.
     let is_user_team = game.manager.team_id.as_deref() == Some(team_id);
-    let starting_players = if is_user_team {
+    let mut starting_players = if is_user_team {
         select_starting_xi(saved_xi_ids, &available_players, &formation)
     } else {
         let quality = team_management_quality(game, team);
-        ai_select_starting_xi(&available_players, &formation, quality)
+        // The same club must name the same side however often this is called for
+        // one fixture, so the manager's misjudgements are seeded from the club and
+        // the date rather than rolled fresh. A new matchday is a new judgement.
+        let seed = selection_seed(
+            team_id,
+            &game.clock.current_date.format("%Y-%m-%d").to_string(),
+        );
+        let load = fixture_load(game, team_id);
+        ai_select_starting_xi(&available_players, &formation, quality, seed, load)
     };
+    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
+    // (entry i plays formation slot i), so the list index is the deployed slot.
+    let slots = formation_slots(&formation);
+    fill_from_the_treatment_room(game, team_id, &slots, &mut starting_players);
     let used_ids: HashSet<String> = starting_players
         .iter()
         .map(|player| player.id.clone())
         .collect();
-    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
-    // (entry i plays formation slot i), so the list index is the deployed slot.
-    let slots = formation_slots(&formation);
     let starting_xi = starting_players
         .into_iter()
         .enumerate()
@@ -107,6 +116,111 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     };
 
     (team_data, bench)
+}
+
+/// The strength a side takes into a penalty shootout: the average rating of the
+/// eleven who played the match.
+///
+/// Not `catchup::club_strength`, which rates a club by the best eleven on its
+/// books. That is the right question for a scoreline-only dormant match, where
+/// nobody is picked; here a side *was* picked, and its injured stars sat the
+/// match out. Rating the shootout on them would let players who never took the
+/// field decide who goes through.
+pub(crate) fn shootout_strength(fielded: &TeamData) -> f64 {
+    if fielded.players.is_empty() {
+        return 50.0;
+    }
+    fielded
+        .players
+        .iter()
+        .map(|player| f64::from(player.ovr))
+        .sum::<f64>()
+        / fielded.players.len() as f64
+}
+
+/// Make a short XI up to the number of slots the formation asks for, drawing on
+/// players who are carrying an injury.
+///
+/// Selection proper only ever considers fit players, so this runs on what it
+/// leaves behind: it can add nobody a manager would have picked anyway. It
+/// exists because a side has to be put out. Handed a side with nobody in it the
+/// engine indexes a player who is not there and brings the whole day down; and
+/// handed a short one it never counts the missing men, since an absent position
+/// group falls back to a fixed rating and absent roles borrow whoever is left.
+/// So neither fielding nobody nor fielding four is a thing the simulation can
+/// be trusted to punish. A club that cannot name eleven fit players plays its
+/// walking wounded instead, least serious knock first.
+///
+/// A club with no registered players at all still comes back empty. That is a
+/// broken save rather than an injury crisis, and papering over it here would
+/// only hide it.
+fn fill_from_the_treatment_room<'a>(
+    game: &'a Game,
+    team_id: &str,
+    slots: &[DomainPosition],
+    starting_players: &mut Vec<&'a domain::player::Player>,
+) {
+    let wanted = slots.len().min(11);
+    if starting_players.len() >= wanted {
+        return;
+    }
+
+    let mut used: HashSet<&str> = starting_players.iter().map(|p| p.id.as_str()).collect();
+    let already_named = starting_players.len();
+    for slot in slots.iter().take(wanted).skip(already_named) {
+        let best = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some(team_id))
+            .filter(|p| p.injury.is_some() && !used.contains(p.id.as_str()))
+            .min_by(|left, right| {
+                let days = |p: &domain::player::Player| {
+                    p.injury.as_ref().map_or(0, |injury| injury.days_remaining)
+                };
+                days(left).cmp(&days(right)).then_with(|| {
+                    effective_rating_for_assignment(right, slot)
+                        .partial_cmp(&effective_rating_for_assignment(left, slot))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+            });
+
+        let Some(player) = best else {
+            break; // The treatment room is empty too — field what we have.
+        };
+        used.insert(player.id.as_str());
+        starting_players.push(player);
+    }
+
+    reseat_by_position(slots, starting_players);
+}
+
+/// Put a topped-up eleven back into the slots its players actually fit.
+///
+/// Selection filled the formation from the front with the fit players it had,
+/// so the vacancies a top-up fills are whatever slots were left over at the
+/// back — in a 4-4-2, up front. Appending there would play an injured keeper at
+/// centre-forward with an outfielder in goal in his place. Who plays is already
+/// decided; this only decides where, slot by slot, by the same condition-free
+/// fit the AI's first-choice eleven is picked on.
+fn reseat_by_position(
+    slots: &[DomainPosition],
+    starting_players: &mut Vec<&domain::player::Player>,
+) {
+    let mut unseated = std::mem::take(starting_players);
+    for slot in slots.iter().take(unseated.len()) {
+        let best = unseated
+            .iter()
+            .enumerate()
+            .max_by(|(_, left), (_, right)| {
+                positional_fit_for_assignment(left, slot)
+                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(index, _)| index);
+        if let Some(index) = best {
+            starting_players.push(unseated.remove(index));
+        }
+    }
 }
 
 fn select_starting_xi<'a>(
@@ -241,62 +355,229 @@ fn team_management_quality(game: &Game, team: Option<&domain::team::Team>) -> f6
     management_quality(team.reputation)
 }
 
+/// FNV-1a, hand-rolled rather than reached for from the standard library.
+/// `DefaultHasher`'s output is explicitly not promised to stay the same across
+/// Rust releases, and an AI team sheet that changed when the toolchain moved
+/// would make a saved season impossible to reproduce.
+fn stable_hash(bytes: &[u8], seed: u64) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325 ^ seed;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+/// Whether this club plays again soon after the match it is picking a side for.
+///
+/// This is what makes resting a merely tired player worth fielding a weaker one.
+/// On a normal week the next match is seven days off and a tired first eleven
+/// recovers by then; on a congested run it is three or four, and it does not.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FixtureLoad {
+    Normal,
+    Congested,
+}
+
+/// A club that plays again within this many days of a match is on a congested
+/// run. Midweek to weekend is three or four days; weekend to weekend is seven.
+///
+/// Deliberately not training's congestion rule ("two fixtures in the coming
+/// week"). That is counted the morning *after* a match, when the day's fixture
+/// has already been played; asked at kick-off it would count today's match as
+/// well, and every ordinary weekend-to-weekend season would read as congested.
+const CONGESTED_WITHIN_DAYS: i64 = 4;
+
+/// See [`FixtureLoad`]. Compares ISO dates as strings — they sort and match
+/// correctly that way — so nothing is parsed per fixture: this runs twice for
+/// every match in the world, and a populated world holds tens of thousands of
+/// fixtures.
+pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
+    use domain::league::FixtureStatus;
+
+    let today = game.clock.current_date;
+    let soon: Vec<String> = (1..=CONGESTED_WITHIN_DAYS)
+        .map(|days| {
+            (today + chrono::Duration::days(days))
+                .format("%Y-%m-%d")
+                .to_string()
+        })
+        .collect();
+    // Both collections, not the usual "competitions, else the legacy slot". A
+    // side is picked *during* simulation, and `simulate_competition_day_with_capture`
+    // moves the competition being played out of `game.competitions` into
+    // `game.league` for the length of it, leaving an empty default behind. Reading
+    // `competitions` alone would miss that competition's own next round — a
+    // league's midweek fixture — which is the commonest congested run there is.
+    // Outside simulation the legacy slot mirrors one of the competitions, and a
+    // fixture seen twice cannot change an `any`.
+    let plays_again_soon = game
+        .competitions
+        .iter()
+        .chain(game.league.iter())
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
+        .filter(|fixture| soon.contains(&fixture.date))
+        .any(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id);
+
+    if plays_again_soon {
+        FixtureLoad::Congested
+    } else {
+        FixtureLoad::Normal
+    }
+}
+
+/// One club's judgement for one matchday. Derived rather than rolled, so asking
+/// for the same fixture's lineup twice gives the same answer — the builder runs
+/// on both match paths and must not name a different side each time.
+fn selection_seed(team_id: &str, date: &str) -> u64 {
+    stable_hash(date.as_bytes(), stable_hash(team_id.as_bytes(), 0))
+}
+
+/// How wrong this manager is about this player today, as −1.0 ..= 1.0.
+fn judgement_noise(seed: u64, player_id: &str) -> f64 {
+    let hash = stable_hash(player_id.as_bytes(), seed);
+    let unit = (hash >> 11) as f64 / (1u64 << 53) as f64;
+    unit * 2.0 - 1.0
+}
+
+/// The eleven a club would pick if nobody were tired: for each formation slot in
+/// turn, the best condition-free positional fit not already chosen, returned in
+/// slot order.
+///
+/// Step one of the AI's team selection, and also what AI training reads to judge
+/// how fresh its first eleven is — the two must agree on who that eleven is, or
+/// the controller steers on players who never start (a spare keeper, most
+/// often). Ties break on id so the answer does not depend on the order the
+/// squad happens to be stored in.
+pub(crate) fn first_choice_eleven<'a>(
+    available_players: &[&'a domain::player::Player],
+    formation: &str,
+) -> Vec<&'a domain::player::Player> {
+    let mut chosen: Vec<&'a domain::player::Player> = Vec::with_capacity(11);
+    for slot in formation_slots(formation).iter().take(11) {
+        let best = available_players
+            .iter()
+            .copied()
+            .filter(|player| !chosen.iter().any(|picked| picked.id == player.id))
+            .max_by(|left, right| {
+                positional_fit_for_assignment(left, slot)
+                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| right.id.cmp(&left.id))
+            });
+        let Some(player) = best else {
+            break;
+        };
+        chosen.push(player);
+    }
+    chosen
+}
+
 /// Reputation-aware AI lineup selection.
 ///
 /// Step 1 picks the first-choice XI purely on condition-free positional fit, so a
-/// club always fields its best players when fresh. Step 2 applies load management:
-/// a tired starter is rested ONLY when (a) their condition is below a
-/// quality-dependent fatigue threshold AND (b) a fresher squad option exists whose
-/// quality is within a quality-dependent tolerance. Well-run clubs (high quality)
-/// rest players earlier and accept a slightly larger quality drop to keep the
-/// squad fresh; poorly-run clubs ride their best XI into the ground. The
-/// gap-aware tolerance guarantees a strong starter is never benched for a much
-/// weaker fresh player — better clubs still field better teams.
+/// club always fields its best players when fresh. Step 2 rests the tired ones.
+///
+/// What management quality buys is **judgement, not willingness**. A weak manager
+/// notices fatigue later (`rest_threshold`) and is a worse judge of who can
+/// deputise (`misjudgement`) — but every manager wants to win, so none of them
+/// deliberately sends out a player who cannot run. Two rules keep that honest:
+///
+/// - The quality drop a manager will accept in order to rest someone is bounded
+///   below. It used to be `12 × quality`, which handed the worst manager a
+///   tolerance of exactly zero: since step 1 has already taken the best player
+///   for the slot, no remaining deputy can match them, so rotation was
+///   arithmetically impossible however exhausted the XI became. That was not a
+///   gradient, it was self-harm.
+/// - Below `EXHAUSTED` there is no gradient at all. A player that spent is
+///   visibly unfit to start and comes out for anyone adequate.
+///
+/// Where judgement does bite is *which* deputy gets the shirt: the adequacy gate
+/// is applied to a player's real standard, so no manager talks themselves into
+/// fielding someone hopeless, but the choice between adequate options is made on
+/// what the manager believes, which a poor one gets wrong.
 fn ai_select_starting_xi<'a>(
     available_players: &[&'a domain::player::Player],
     formation: &str,
     quality: f64,
+    seed: u64,
+    load: FixtureLoad,
 ) -> Vec<&'a domain::player::Player> {
     /// A rotation candidate must be at least this fresh to be worth considering.
     const FRESH_FLOOR: f64 = 60.0;
     /// And meaningfully fresher than the starter it would replace.
     const MIN_FRESHNESS_GAIN: i16 = 10;
+    /// Below this a player is not fit to start, whatever their manager makes of
+    /// the alternatives. This is the floor the quality gradient stands on.
+    const EXHAUSTED: f64 = 45.0;
+    /// Quality drop a manager will accept to rest someone, worst and best. Never
+    /// zero: a manager who will accept no drop can never rotate at all.
+    const MIN_FIT_TOLERANCE: f64 = 6.0;
+    const MAX_FIT_TOLERANCE: f64 = 12.0;
+    /// On a congested run every manager rests earlier, and accepts a little more
+    /// of a drop to do it — a tired first eleven asked to play twice in four days
+    /// arrives spent at the second match however good it is. Manager quality
+    /// still shades both: a better one rests sooner. See [`FixtureLoad`].
+    const CONGESTED_REST_THRESHOLD: f64 = 90.0;
+    const CONGESTED_REST_BY_QUALITY: f64 = 10.0;
+    const CONGESTED_MIN_FIT_TOLERANCE: f64 = 10.0;
+    /// And what any of them will accept to get an exhausted player off the pitch.
+    const EXHAUSTED_FIT_TOLERANCE: f64 = 20.0;
+    /// How far the worst manager can misread a player's standard, either way.
+    const MAX_MISJUDGEMENT: f64 = 9.0;
 
     let slots = formation_slots(formation);
-    let mut used_ids: HashSet<String> = HashSet::new();
-    // (slot index, chosen player) so the rotation step can re-evaluate per slot.
-    let mut selected: Vec<(usize, &'a domain::player::Player)> = Vec::with_capacity(11);
 
     // Step 1: first-choice XI by condition-free positional fit.
-    for (slot_index, slot) in slots.iter().take(11).enumerate() {
-        let best = available_players
-            .iter()
-            .copied()
-            .filter(|player| !used_ids.contains(&player.id))
-            .max_by(|left, right| {
-                positional_fit_for_assignment(left, slot)
-                    .partial_cmp(&positional_fit_for_assignment(right, slot))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+    // (slot index, chosen player) so the rotation step can re-evaluate per slot.
+    let mut selected: Vec<(usize, &'a domain::player::Player)> =
+        first_choice_eleven(available_players, formation)
+            .into_iter()
+            .enumerate()
+            .collect();
+    let mut used_ids: HashSet<String> = selected
+        .iter()
+        .map(|(_, player)| player.id.clone())
+        .collect();
 
-        let Some(player) = best else {
-            break;
-        };
-        used_ids.insert(player.id.clone());
-        selected.push((slot_index, player));
-    }
+    // Step 2: load management.
+    let (rest_threshold, min_tolerance) = match load {
+        // 50 (poor) .. 75 (elite); tolerance 6 .. 12.
+        FixtureLoad::Normal => (50.0 + 25.0 * quality, MIN_FIT_TOLERANCE),
+        // 90 (poor) .. 100 (elite); tolerance 10 .. 12.
+        FixtureLoad::Congested => (
+            CONGESTED_REST_THRESHOLD + CONGESTED_REST_BY_QUALITY * quality,
+            CONGESTED_MIN_FIT_TOLERANCE,
+        ),
+    };
+    let fit_tolerance = min_tolerance + (MAX_FIT_TOLERANCE - min_tolerance) * quality;
+    let misjudgement = MAX_MISJUDGEMENT * (1.0 - quality); // 9 (poor) .. 0 (elite)
 
-    // Step 2: reputation-driven load management.
-    let rest_threshold = 50.0 + 25.0 * quality; // 50 (poor) .. 75 (elite)
-    let fit_tolerance = 12.0 * quality; // 0 (poor) .. 12 (elite)
+    // What the manager believes a player is worth in this slot, which is the
+    // truth only for the very best of them. Stable per player per matchday, so a
+    // manager holds one opinion for the whole team sheet rather than a fresh one
+    // per comparison.
+    let perceived_fit = |player: &domain::player::Player, slot: &DomainPosition| {
+        positional_fit_for_assignment(player, slot)
+            + judgement_noise(seed, &player.id) * misjudgement
+    };
 
     for entry in selected.iter_mut() {
         let slot = &slots[entry.0];
         let starter = entry.1;
 
-        if f64::from(starter.condition) >= rest_threshold {
+        let condition = f64::from(starter.condition);
+        if condition >= rest_threshold {
             continue; // Fresh enough — no reason to rotate.
         }
+        // A spent player comes out for anyone adequate; a merely tired one only
+        // for someone close to their own standard.
+        let tolerance = if condition < EXHAUSTED {
+            EXHAUSTED_FIT_TOLERANCE
+        } else {
+            fit_tolerance
+        };
 
         let starter_fit = positional_fit_for_assignment(starter, slot);
         let starter_group = starter.position.to_group_position();
@@ -312,12 +593,14 @@ fn ai_select_starting_xi<'a>(
             .filter(|player| {
                 i16::from(player.condition) - i16::from(starter.condition) >= MIN_FRESHNESS_GAIN
             })
-            .filter(|player| {
-                positional_fit_for_assignment(player, slot) >= starter_fit - fit_tolerance
-            })
+            // Adequacy is measured against what the deputy can actually do. A
+            // manager may misjudge which of two capable players is better; none of
+            // them mistakes a reserve-team player for a first-choice one.
+            .filter(|player| positional_fit_for_assignment(player, slot) >= starter_fit - tolerance)
+            // The choice between adequate options, though, is the manager's read.
             .max_by(|left, right| {
-                positional_fit_for_assignment(left, slot)
-                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                perceived_fit(left, slot)
+                    .partial_cmp(&perceived_fit(right, slot))
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
 
@@ -527,280 +810,4 @@ pub fn auto_select_set_pieces(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use domain::player::{Player, PlayerAttributes, Position as DomainPos};
-
-    /// Uniform attributes: `weighted_score` averages attributes, so setting them
-    /// all to `v` makes the condition-free positional fit ≈ `v` for any slot, with
-    /// the per-slot compatibility/foot penalty identical across players (same
-    /// position + footedness) — so it cancels in within-slot comparisons.
-    fn attrs(v: u8) -> PlayerAttributes {
-        PlayerAttributes {
-            pace: v,
-            stamina: v,
-            strength: v,
-            agility: v,
-            passing: v,
-            shooting: v,
-            tackling: v,
-            dribbling: v,
-            defending: v,
-            positioning: v,
-            vision: v,
-            decisions: v,
-            composure: v,
-            aggression: v,
-            teamwork: v,
-            leadership: v,
-            handling: v,
-            reflexes: v,
-            aerial: v,
-        }
-    }
-
-    fn mk(id: &str, attr: u8, condition: u8) -> Player {
-        mk_pos(id, DomainPos::CenterBack, attr, condition)
-    }
-
-    fn mk_pos(id: &str, position: DomainPos, attr: u8, condition: u8) -> Player {
-        let mut p = Player::new(
-            id.to_string(),
-            id.to_string(),
-            id.to_string(),
-            "1998-01-01".to_string(),
-            "GB".to_string(),
-            position,
-            attrs(attr),
-        );
-        p.condition = condition;
-        p
-    }
-
-    #[test]
-    fn management_quality_maps_reputation_to_unit_range() {
-        assert_eq!(management_quality(300), 0.0);
-        assert_eq!(management_quality(900), 1.0);
-        assert!((management_quality(600) - 0.5).abs() < 1e-9);
-        assert_eq!(management_quality(100), 0.0); // clamped below
-        assert_eq!(management_quality(1200), 1.0); // clamped above
-    }
-
-    /// The discriminating test: an elite club must NOT bench a strong (but mildly
-    /// tired) starter for a much weaker fresh player. Better clubs field better
-    /// teams — the gap-aware tolerance enforces this.
-    #[test]
-    fn elite_club_keeps_strong_starters_over_fresh_scrubs() {
-        let mut squad = Vec::new();
-        for i in 0..11 {
-            squad.push(mk(&format!("star{i}"), 80, 70)); // strong, mildly tired
-        }
-        for i in 0..3 {
-            squad.push(mk(&format!("weak{i}"), 50, 100)); // weak, fully fresh
-        }
-        let refs: Vec<&Player> = squad.iter().collect();
-
-        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0);
-
-        assert_eq!(xi.len(), 11);
-        assert!(
-            xi.iter().all(|p| p.id.starts_with("star")),
-            "elite club fielded a weak fresh player over a strong starter: {:?}",
-            xi.iter().map(|p| &p.id).collect::<Vec<_>>()
-        );
-    }
-
-    /// An elite club rotates a tired starter for a *comparable* fresh deputy
-    /// (within the fit tolerance), but still leaves the much-weaker scrubs benched.
-    #[test]
-    fn elite_club_rotates_tired_starter_for_comparable_fresh_player() {
-        let mut squad = Vec::new();
-        for i in 0..11 {
-            squad.push(mk(&format!("star{i}"), 80, 65)); // strong, tired
-        }
-        squad.push(mk("deputy", 72, 100)); // comparable, fresh
-        for i in 0..2 {
-            squad.push(mk(&format!("weak{i}"), 50, 100)); // scrub, fresh
-        }
-        let refs: Vec<&Player> = squad.iter().collect();
-
-        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0);
-
-        assert_eq!(xi.len(), 11);
-        assert!(
-            xi.iter().any(|p| p.id == "deputy"),
-            "comparable fresh deputy should rotate in for a tired star"
-        );
-        assert_eq!(
-            xi.iter().filter(|p| p.id.starts_with("star")).count(),
-            10,
-            "exactly one tired star should be rested"
-        );
-        assert!(
-            xi.iter().all(|p| !p.id.starts_with("weak")),
-            "scrubs are too far below tolerance to be rotated in"
-        );
-    }
-
-    /// Same squad as above, but a poorly-run club: it rides its tired starters and
-    /// does not rotate. Proves the reputation gradient.
-    #[test]
-    fn low_reputation_club_rides_tired_starters() {
-        let mut squad = Vec::new();
-        for i in 0..11 {
-            squad.push(mk(&format!("star{i}"), 80, 65));
-        }
-        squad.push(mk("deputy", 72, 100));
-        for i in 0..2 {
-            squad.push(mk(&format!("weak{i}"), 50, 100));
-        }
-        let refs: Vec<&Player> = squad.iter().collect();
-
-        let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300)); // q = 0
-
-        assert_eq!(xi.len(), 11);
-        assert!(
-            xi.iter().all(|p| p.id.starts_with("star")),
-            "a low-reputation club should ride its tired first XI, not rotate"
-        );
-    }
-
-    /// Regression: load-management rotation must not skew the formation's
-    /// position distribution. A tired XI plus one fresh midfielder must still
-    /// field 1 GK / 4 DEF / 4 MID / 2 FWD — never a defender short (which
-    /// rendered only 10 players on the pitch).
-    #[test]
-    fn rotation_preserves_formation_position_distribution() {
-        use DomainPos::{
-            CenterBack, CentralMidfielder, Forward, Goalkeeper, LeftBack, LeftMidfielder,
-            RightBack, RightMidfielder, Striker,
-        };
-        let squad = vec![
-            mk_pos("gk", Goalkeeper, 75, 65),
-            mk_pos("d1", CenterBack, 75, 65),
-            mk_pos("d2", CenterBack, 75, 65),
-            mk_pos("d3", LeftBack, 75, 65),
-            mk_pos("d4", RightBack, 75, 65),
-            mk_pos("m1", CentralMidfielder, 75, 65),
-            mk_pos("m2", CentralMidfielder, 75, 65),
-            mk_pos("m3", LeftMidfielder, 75, 65),
-            mk_pos("m4", RightMidfielder, 75, 65),
-            mk_pos("f1", Striker, 75, 65),
-            mk_pos("f2", Striker, 75, 65),
-            // Fresh midfielder load management will want to bring in.
-            mk_pos("m_fresh", CentralMidfielder, 75, 100),
-        ];
-        let refs: Vec<&Player> = squad.iter().collect();
-
-        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0); // elite: rotates eagerly
-
-        assert_eq!(xi.len(), 11);
-        let group_count = |group: DomainPos| {
-            xi.iter()
-                .filter(|p| p.position.to_group_position() == group)
-                .count()
-        };
-        assert_eq!(group_count(Goalkeeper), 1, "exactly one keeper");
-        assert_eq!(
-            group_count(DomainPos::Defender),
-            4,
-            "must field four defenders"
-        );
-        assert_eq!(
-            group_count(DomainPos::Midfielder),
-            4,
-            "must field four midfielders"
-        );
-        assert_eq!(group_count(Forward), 2, "must field two forwards");
-    }
-
-    /// With fewer available players than formation slots, the slot-aligned fill
-    /// leaves gaps; the function must fall back to a contiguous selection rather
-    /// than flatten()ing those gaps (which would shift starters into wrong slots).
-    #[test]
-    fn select_starting_xi_falls_back_when_fewer_players_than_slots() {
-        let squad: Vec<Player> = (0..9)
-            .map(|i| mk_pos(&format!("p{i}"), DomainPos::CenterBack, 70, 100))
-            .collect();
-        let refs: Vec<&Player> = squad.iter().collect();
-        let saved: Vec<String> = (0..9).map(|i| format!("p{i}")).collect();
-
-        let xi = select_starting_xi(&saved, &refs, "4-4-2");
-
-        // Every available player fielded once, with no slot-misaligning gaps.
-        assert_eq!(xi.len(), 9);
-        let unique: HashSet<&String> = xi.iter().map(|p| &p.id).collect();
-        assert_eq!(unique.len(), 9);
-    }
-
-    /// When a saved starter is unavailable the user XI compacts; the surviving
-    /// starters must keep their real saved slot (matching deployed_position /
-    /// the UI), not shift up into the vacated slot. Regression for an injured
-    /// keeper turning an outfielder into the engine's goalkeeper.
-    #[test]
-    fn user_team_starter_keeps_saved_slot_when_xi_compacts() {
-        use crate::clock::GameClock;
-        use chrono::{TimeZone, Utc};
-        use domain::manager::Manager;
-        use domain::team::Team;
-
-        let mut players: Vec<Player> = (1..=11)
-            .map(|i| mk_pos(&format!("p{i}"), DomainPos::CenterBack, 70, 100))
-            .collect();
-        // p1 is a natural Forward saved into the LEFT-BACK slot (index 1).
-        players[0] = mk_pos("p1", DomainPos::Forward, 70, 100);
-        for player in players.iter_mut() {
-            player.team_id = Some("user".to_string());
-        }
-
-        let mut team = Team::new(
-            "user".to_string(),
-            "User FC".to_string(),
-            "USR".to_string(),
-            "England".to_string(),
-            "London".to_string(),
-            "Ground".to_string(),
-            25_000,
-        );
-        team.formation = "4-4-2".to_string();
-        // Slot 0 (GK) references a player that no longer exists, so
-        // select_starting_xi drops it and the survivors compact.
-        team.starting_xi_ids = std::iter::once("ghost-gk".to_string())
-            .chain((1..=10).map(|i| format!("p{i}")))
-            .collect();
-
-        let mut manager = Manager::new(
-            "mgr".to_string(),
-            "Test".to_string(),
-            "Manager".to_string(),
-            "1980-01-01".to_string(),
-            "England".to_string(),
-        );
-        manager.hire("user".to_string());
-
-        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
-        let game = Game::new(clock, manager, vec![team], players, vec![], vec![]);
-
-        let (team_data, _bench) = build_team_with_bench(&game, "user");
-
-        let p1 = team_data
-            .players
-            .iter()
-            .find(|p| p.id == "p1")
-            .expect("p1 should be fielded");
-        // Saved at the left-back slot -> simulated as a defender, never shoved
-        // into the vacated goalkeeper slot.
-        assert_eq!(p1.position, Position::Defender);
-        assert_ne!(p1.position, Position::Goalkeeper);
-
-        // The vacated goalkeeper slot must be refilled, so the XI still fields
-        // exactly one keeper (otherwise the engine's goalkeeper rating collapses
-        // to its empty-set fallback).
-        let keepers = team_data
-            .players
-            .iter()
-            .filter(|p| p.position == Position::Goalkeeper)
-            .count();
-        assert_eq!(keepers, 1, "the XI must still contain a goalkeeper");
-    }
-}
+mod tests;
