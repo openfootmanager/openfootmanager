@@ -170,6 +170,37 @@ fn fill_from_the_treatment_room<'a>(
         used.insert(player.id.as_str());
         starting_players.push(player);
     }
+
+    reseat_by_position(slots, starting_players);
+}
+
+/// Put a topped-up eleven back into the slots its players actually fit.
+///
+/// Selection filled the formation from the front with the fit players it had,
+/// so the vacancies a top-up fills are whatever slots were left over at the
+/// back — in a 4-4-2, up front. Appending there would play an injured keeper at
+/// centre-forward with an outfielder in goal in his place. Who plays is already
+/// decided; this only decides where, slot by slot, by the same condition-free
+/// fit the AI's first-choice eleven is picked on.
+fn reseat_by_position(
+    slots: &[DomainPosition],
+    starting_players: &mut Vec<&domain::player::Player>,
+) {
+    let mut unseated = std::mem::take(starting_players);
+    for slot in slots.iter().take(unseated.len()) {
+        let best = unseated
+            .iter()
+            .enumerate()
+            .max_by(|(_, left), (_, right)| {
+                positional_fit_for_assignment(left, slot)
+                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(index, _)| index);
+        if let Some(index) = best {
+            starting_players.push(unseated.remove(index));
+        }
+    }
 }
 
 fn select_starting_xi<'a>(

@@ -529,3 +529,93 @@ fn a_competition_moved_out_for_simulation_still_counts() {
     game.competitions = vec![domain::league::League::default()];
     assert_eq!(fixture_load(&game, "club"), FixtureLoad::Congested);
 }
+
+/// Ten fit outfielders and a goalkeeper in the treatment room — a club that
+/// has to field a sore keeper or put a defender in goal.
+fn club_whose_only_keeper_is_injured(managed_by_the_user: bool) -> Game {
+    use crate::clock::GameClock;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::player::Injury;
+    use domain::team::Team;
+
+    let mut keeper = mk_pos("keeper", DomainPos::Goalkeeper, 70, 100);
+    keeper.injury = Some(Injury {
+        name: "common.injuries.calfStrain".to_string(),
+        days_remaining: 3,
+    });
+    let mut players = vec![keeper];
+    let outfield = [
+        (DomainPos::CenterBack, 4),
+        (DomainPos::CentralMidfielder, 4),
+        (DomainPos::Striker, 2),
+    ];
+    for (position, count) in outfield {
+        for i in 0..count {
+            players.push(mk_pos(
+                &format!("{position:?}{i}"),
+                position.clone(),
+                70,
+                100,
+            ));
+        }
+    }
+    for player in players.iter_mut() {
+        player.team_id = Some("club".to_string());
+    }
+
+    let mut team = Team::new(
+        "club".to_string(),
+        "Club".to_string(),
+        "CLB".to_string(),
+        "England".to_string(),
+        "London".to_string(),
+        "Ground".to_string(),
+        25_000,
+    );
+    team.formation = "4-4-2".to_string();
+
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire(
+        if managed_by_the_user {
+            "club"
+        } else {
+            "elsewhere"
+        }
+        .to_string(),
+    );
+
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+    Game::new(clock, manager, vec![team], players, vec![], vec![])
+}
+
+fn who_keeps_goal(game: &Game) -> Vec<String> {
+    let (team_data, _bench) = build_team_with_bench(game, "club");
+    team_data
+        .players
+        .iter()
+        .filter(|p| p.position == Position::Goalkeeper)
+        .map(|p| p.id.clone())
+        .collect()
+}
+
+/// Called up from the treatment room to make up the numbers, the keeper goes in
+/// goal — not into whichever slot happened to be left over, which in a 4-4-2 is
+/// up front, with a centre-back in goal in his place.
+#[test]
+fn an_injured_keeper_called_up_by_an_ai_club_plays_in_goal() {
+    let game = club_whose_only_keeper_is_injured(false);
+    assert_eq!(who_keeps_goal(&game), vec!["keeper".to_string()]);
+}
+
+#[test]
+fn an_injured_keeper_called_up_by_the_user_s_club_plays_in_goal() {
+    let game = club_whose_only_keeper_is_injured(true);
+    assert_eq!(who_keeps_goal(&game), vec!["keeper".to_string()]);
+}
