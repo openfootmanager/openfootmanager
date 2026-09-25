@@ -138,7 +138,9 @@ Quand tu signales un bug, **merci d'inclure tes fichiers de log**. Ils contienne
 - **macOS :** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
 - **Linux :** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
 
-Compresse (zip) simplement tout le dossier `logs` et joins-le à ton rapport. Les logs ne contiennent aucune information personnelle — juste des événements de jeu, des commandes et des traces d'erreurs.
+Compresse (zip) simplement tout le dossier `logs` et joins-le à ton rapport.
+
+Une chose à savoir avant : les logs enregistrent le dossier dans lequel le jeu sauvegarde, et sur toutes les plateformes ce chemin passe par ton dossier personnel — il contient donc généralement le nom de ton compte utilisateur. Il n'y a rien d'autre de personnel dedans, juste des événements de jeu, des commandes et des traces d'erreurs. Si tu préfères ne pas l'envoyer, utilise **Signaler un bug** dans le jeu : il emporte les mêmes logs, avec le nom de ton compte, celui de ta machine et ton dossier personnel retirés.
 
 ---
 

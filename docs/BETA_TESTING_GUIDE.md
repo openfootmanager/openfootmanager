@@ -141,7 +141,9 @@ When you report a bug, **please include your log files**. They contain detailed 
 - **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
 - **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
 
-Just zip up the whole `logs` folder and attach it to your report. The logs don't contain any personal information — just game events, commands, and error traces.
+Just zip up the whole `logs` folder and attach it to your report.
+
+One thing to know before you do: the logs record the folder the game saves into, and on every platform that path runs through your home folder — so it usually contains your computer account name. There is nothing else personal in there, just game events, commands and error traces. If you would rather not send that, use **Report a bug** inside the game instead: it packs the same logs with your account name, computer name and home folder stripped out.
 
 ---
 
