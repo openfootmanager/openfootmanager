@@ -2892,7 +2892,7 @@
       },
       "wageOverBudget": {
         "subject": "Mzdové náklady překračují rozpočet",
-        "body": "Naše roční mzdové náklady ({{annualWages}}) momentálně překračují vyhrazený rozpočet na platy ({{wageBudget}}).\n\nAčkoliv to v krátkodobém horizontu dokážeme utáhnout, představenstvo by rádo vidělo mzdové náklady pod kontrolou."
+        "body": "Naše týdenní mzdové náklady ({{annualWages}}) momentálně překračují vyhrazený rozpočet na platy ({{wageBudget}}).\n\nAčkoliv to v krátkodobém horizontu dokážeme utáhnout, představenstvo by rádo vidělo mzdové náklady pod kontrolou."
       },
       "financeBoardPressure": {
         "subject": "Hodnocení představenstva — Finanční tlak",

@@ -1,6 +1,6 @@
 import { DollarSign, Trophy, Users } from "lucide-react";
 
-import { annualAmountToWeeklyCommitment } from "../../lib/finance";
+import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyAmount } from "../../lib/helpers";
 import type { TeamData } from "../../store/gameStore";
 import { Card, CardBody, CardHeader } from "../ui";
@@ -37,7 +37,7 @@ export default function TeamProfileSummaryCard({
               icon={<DollarSign className="w-4 h-4" />}
               label={t("finances.wageBudget")}
               value={formatWeeklyAmount(
-                formatVal(annualAmountToWeeklyCommitment(team.wage_budget)),
+                formatVal(weeklyWageAmount(team.wage_budget)),
                 weeklySuffix,
               )}
             />
@@ -50,7 +50,7 @@ export default function TeamProfileSummaryCard({
               icon={<DollarSign className="w-4 h-4" />}
               label={t("teamProfile.totalWages")}
               value={formatWeeklyAmount(
-                formatVal(annualAmountToWeeklyCommitment(viewModel.totalWages)),
+                formatVal(weeklyWageAmount(viewModel.totalWages)),
                 weeklySuffix,
               )}
             />

@@ -1004,7 +1004,6 @@ pub fn info_finance_snapshot(
     Ok(format!(
         "## Detailed Financial Snapshot\n\n\
          | Metric | Value |\n|--------|-------|\n\
-         | Annual Wage Bill | {} |\n\
          | Weekly Wage Spend | {} |\n\
          | Weekly Wage Budget | {} |\n\
          | Weekly Recurring Income | {} |\n\
@@ -1017,7 +1016,6 @@ pub fn info_finance_snapshot(
          | Budget Status | {:?} |\n\
          | Runway Status | {:?} |\n\
          | Overall Status | {:?} |",
-        snap.annual_wage_bill,
         snap.weekly_wage_spend,
         snap.weekly_wage_budget,
         snap.weekly_recurring_income,

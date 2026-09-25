@@ -124,11 +124,13 @@ fn calc_wages_sums_player_and_staff_wages_for_a_team() {
 }
 
 #[test]
-fn calc_annual_wages_sums_full_contract_values_for_a_team() {
+fn calc_annual_wages_is_an_alias_of_weekly_calc_wages() {
     let game = make_monday_game();
 
+    #[allow(deprecated)]
     let annual_wages = finances::calc_annual_wages(&game, "team1");
 
+    assert_eq!(annual_wages, finances::calc_wages(&game, "team1"));
     assert_eq!(annual_wages, 1_700);
 }
 

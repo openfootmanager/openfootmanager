@@ -2892,7 +2892,7 @@
       },
       "wageOverBudget": {
         "subject": "Wage Bill Exceeds Budget",
-        "body": "Our annual wage bill ({{annualWages}}) currently exceeds the allocated wage budget ({{wageBudget}}).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control."
+        "body": "Our weekly wage bill ({{annualWages}}) currently exceeds the allocated wage budget ({{wageBudget}}).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control."
       },
       "financeBoardPressure": {
         "subject": "Board Review — Financial Pressure",

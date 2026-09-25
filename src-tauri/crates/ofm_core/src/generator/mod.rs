@@ -330,9 +330,13 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_yea
     let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
 
     team.wage_budget = normalized_wage_budget(weekly_wage_bill, team.reputation);
+    floor_opening_cash(team, weekly_wage_bill);
+}
+
+fn floor_opening_cash(team: &mut Team, weekly_wage_bill: i64) {
     team.finance = team
         .finance
-        .max(weekly_wage_bill.saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
+        .max(weekly_wage_bill.max(0).saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
 }
 
 /// The country a club's *people* should be drawn from.
@@ -507,6 +511,28 @@ pub fn replenish_available_staff_market(
 pub fn normalize_imported_world_for_career_start(world: &mut WorldData, opening_year: u32) {
     generate_missing_team_staff(world, opening_year);
     let _ = replenish_available_staff_market(&mut world.staff, &world.teams, opening_year);
+    floor_imported_world_opening_cash(world);
+}
+
+fn floor_imported_world_opening_cash(world: &mut WorldData) {
+    let bills: Vec<(String, i64)> = world
+        .teams
+        .iter()
+        .map(|team| {
+            let weekly_wage_bill: i64 = world
+                .players
+                .iter()
+                .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
+                .map(|player| i64::from(player.wage))
+                .sum();
+            (team.id.clone(), weekly_wage_bill)
+        })
+        .collect();
+    for (team_id, weekly_wage_bill) in bills {
+        if let Some(team) = world.teams.iter_mut().find(|team| team.id == team_id) {
+            floor_opening_cash(team, weekly_wage_bill);
+        }
+    }
 }
 
 pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
@@ -2749,6 +2775,26 @@ mod tests {
                 .filter(|staff_member| staff_member.team_id.is_none())
                 .count(),
             12
+        );
+    }
+
+    #[test]
+    fn normalize_imported_world_floors_cash_to_sixteen_weeks_of_wages() {
+        let mut world = make_roster_baseline_world_without_staff();
+        world.teams[0].finance = 1_000;
+        world.players[0].team_id = Some("team-1".to_string());
+        world.players[0].wage = 5_000;
+        for player in world.players.iter_mut().skip(1) {
+            if player.team_id.as_deref() == Some("team-1") {
+                player.wage = 0;
+            }
+        }
+
+        normalize_imported_world_for_career_start(&mut world, TEST_OPENING_YEAR);
+
+        assert_eq!(
+            world.teams[0].finance,
+            5_000 * crate::finances::MIN_OPENING_RUNWAY_WEEKS
         );
     }
 

@@ -1685,6 +1685,8 @@ mod tests {
 
     #[test]
     fn loading_a_current_format_save_does_not_apply_the_weekly_unit_runway_floor() {
+        // Guard only: develop never topped up, so this also passed there.
+        // Proof of the format-6 migration is the pre-v6 load tests above.
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
         let mut sm = SaveManager::init(&saves_dir).unwrap();

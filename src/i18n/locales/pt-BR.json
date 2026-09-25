@@ -2892,7 +2892,7 @@
       },
       "wageOverBudget": {
         "subject": "Folha Salarial Acima do Orçamento",
-        "body": "Nossa folha salarial anual ({{annualWages}}) atualmente excede o orçamento salarial definido ({{wageBudget}}).\n\nEmbora possamos sustentar isso no curto prazo, a diretoria prefere ver a folha salarial sob controle."
+        "body": "Nossa folha salarial semanal ({{annualWages}}) atualmente excede o orçamento salarial definido ({{wageBudget}}).\n\nEmbora possamos sustentar isso no curto prazo, a diretoria prefere ver a folha salarial sob controle."
       },
       "financeBoardPressure": {
         "subject": "Diretoria — Pressão financeira",

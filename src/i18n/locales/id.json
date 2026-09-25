@@ -2892,7 +2892,7 @@
       },
       "wageOverBudget": {
         "subject": "Tagihan Gaji Melampaui Anggaran",
-        "body": "Tagihan gaji tahunan kami ({{annualWages}}) saat ini melampaui anggaran gaji yang dialokasikan ({{wageBudget}}).\n\nMeskipun kami dapat menahannya dalam jangka pendek, manajemen lebih suka melihat tagihan gaji terkendali."
+        "body": "Tagihan gaji mingguan kami ({{annualWages}}) saat ini melampaui anggaran gaji yang dialokasikan ({{wageBudget}}).\n\nMeskipun kami dapat menahannya dalam jangka pendek, manajemen lebih suka melihat tagihan gaji terkendali."
       },
       "financeBoardPressure": {
         "subject": "Tinjauan Manajemen — Tekanan Keuangan",

@@ -25,8 +25,8 @@ const HEALTH_PRIORITY: Record<FinanceHealthLevel, number> = {
   critical: 3,
 };
 
-/** Wages and wage budgets are weekly euros. Identity so call sites stay explicit. */
-export function annualAmountToWeeklyCommitment(amount: number): number {
+/** Stored wages and wage budgets are already weekly euros. */
+export function weeklyWageAmount(amount: number): number {
   return Math.max(0, Math.floor(amount));
 }
 
@@ -89,14 +89,14 @@ export function getWeeklyWageSpend(
   teamId?: string | null,
 ): number {
   const playerWages = players.reduce((sum, player) => {
-    return sum + annualAmountToWeeklyCommitment(getPlayerAnnualWageCommitment(player, teamId));
+    return sum + weeklyWageAmount(getPlayerAnnualWageCommitment(player, teamId));
   }, 0);
   const staffWages = staff.reduce((sum, staffMember) => {
     if (teamId && staffMember.team_id !== teamId) {
       return sum;
     }
 
-    return sum + annualAmountToWeeklyCommitment(Math.max(0, staffMember.wage));
+    return sum + weeklyWageAmount(Math.max(0, staffMember.wage));
   }, 0);
 
   return playerWages + staffWages;
@@ -200,7 +200,7 @@ export function getTeamFinanceSnapshot(
 ): TeamFinanceSnapshot {
   const annualWageBill = getAnnualWageBill(players, staff, team.id);
   const weeklyWageSpend = getWeeklyWageSpend(players, staff, team.id);
-  const weeklyWageBudget = annualAmountToWeeklyCommitment(team.wage_budget);
+  const weeklyWageBudget = weeklyWageAmount(team.wage_budget);
   const weeklySponsorIncome = team.sponsorship?.base_value ?? 0;
   const projectedWeeklyNet = weeklySponsorIncome - weeklyWageSpend;
   const cashRunwayWeeks = getCashRunwayWeeks(team.finance, projectedWeeklyNet);

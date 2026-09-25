@@ -31,6 +31,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "finances.perWeekSuffix") return "/wk";
+      if (key === "finances.perWeekSuffix") return "/wk";
       if (key === "finances.perYearSuffix") return "/yr";
       if (key === "common.nResults") return `${params?.count} results`;
       if (key === "common.action") return "Action";
@@ -1557,9 +1558,9 @@ describe("TransfersTab", (): void => {
     expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
-  it("shows wage budget in annual units (/yr) matching the player wage display (regression #212)", (): void => {
-    // wage_budget = 52000 → should render as "50K/yr" style value on this card
-    // Player.wage = 52000 → displayed as "50K/yr" in the player row
+  it("shows wage budget in weekly units (/wk) matching the player wage display (regression #212)", (): void => {
+    // Stored wages are weekly. After the unit lock the card must say /wk,
+    // not /yr, or a 52,000 offer is charged every Monday.
     const state = createGameState([createPlayer({ wage: 52000 })]);
     state.teams[0].wage_budget = 52000;
 
@@ -1572,14 +1573,9 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    const wkElements = document.querySelectorAll("*");
-    const hasWeeklySuffix = Array.from(wkElements).some(
-      (el) => el.children.length === 0 && el.textContent?.includes("/wk"),
-    );
-    expect(hasWeeklySuffix).toBe(false);
-
     const wageBudgetCard = screen.getByTestId("wage-budget-card");
-    expect(wageBudgetCard.textContent).toContain("/yr");
+    expect(wageBudgetCard.textContent).toContain("/wk");
+    expect(wageBudgetCard.textContent).not.toContain("/yr");
   });
 
   it("shows a dual-listed player once in the my-list view", (): void => {

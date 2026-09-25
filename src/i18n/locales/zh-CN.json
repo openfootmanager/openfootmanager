@@ -2892,7 +2892,7 @@
       },
       "wageOverBudget": {
         "subject": "薪资支出超出预算",
-        "body": "我们的年度薪资支出({{annualWages}})目前已超过分配的薪资预算({{wageBudget}})。\n\n短期内尚可维持,但董事会希望看到薪资支出得到控制。"
+        "body": "我们的每周薪资支出({{annualWages}})目前已超过分配的薪资预算({{wageBudget}})。\n\n短期内尚可维持,但董事会希望看到薪资支出得到控制。"
       },
       "financeBoardPressure": {
         "subject": "董事会审查——财务压力",

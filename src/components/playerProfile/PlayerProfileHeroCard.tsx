@@ -22,7 +22,7 @@ interface PlayerProfileHeroCardProps {
   teamName: string;
   footednessLabel: string;
   weakFootValue: number;
-  annualSuffix: string;
+  wageSuffix: string;
   language: string;
   isOwnClub: boolean;
   scoutAvailability: ScoutAvailability;
@@ -42,7 +42,7 @@ export default function PlayerProfileHeroCard({
   teamName,
   footednessLabel,
   weakFootValue,
-  annualSuffix,
+  wageSuffix,
   language,
   isOwnClub,
   scoutAvailability,
@@ -170,7 +170,7 @@ export default function PlayerProfileHeroCard({
             />
             <QuickStat
               label={t("common.wage")}
-              value={formatPlayerAnnualWage(player.wage, annualSuffix)}
+              value={formatPlayerAnnualWage(player.wage, wageSuffix)}
               color="text-white"
             />
           </div>
@@ -195,7 +195,7 @@ export default function PlayerProfileHeroCard({
         />
         <MobileQuickStat
           label={t("common.wage")}
-          value={formatPlayerAnnualWage(player.wage, annualSuffix)}
+          value={formatPlayerAnnualWage(player.wage, wageSuffix)}
           color="text-gray-700 dark:text-gray-200"
         />
       </div>

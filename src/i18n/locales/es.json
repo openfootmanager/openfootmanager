@@ -2892,7 +2892,7 @@
       },
       "wageOverBudget": {
         "subject": "La masa salarial supera el presupuesto",
-        "body": "Nuestra masa salarial anual ({{annualWages}}) supera actualmente el presupuesto salarial asignado ({{wageBudget}}).\n\nAunque podemos sostenerlo a corto plazo, la directiva preferiría ver la masa salarial bajo control."
+        "body": "Nuestra masa salarial semanal ({{annualWages}}) supera actualmente el presupuesto salarial asignado ({{wageBudget}}).\n\nAunque podemos sostenerlo a corto plazo, la directiva preferiría ver la masa salarial bajo control."
       },
       "financeBoardPressure": {
         "subject": "Revisión de la directiva — Presión financiera",

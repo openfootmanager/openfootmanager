@@ -2909,7 +2909,7 @@
       },
       "wageOverBudget": {
         "subject": "Monte ingaggi oltre il budget",
-        "body": "Il nostro monte ingaggi annuale ({{annualWages}}) supera attualmente il budget stipendi assegnato ({{wageBudget}}).\n\nAnche se possiamo sostenerlo nel breve periodo, il consiglio preferirebbe vedere il monte ingaggi tornare sotto controllo."
+        "body": "Il nostro monte ingaggi settimanale ({{annualWages}}) supera attualmente il budget stipendi assegnato ({{wageBudget}}).\n\nAnche se possiamo sostenerlo nel breve periodo, il consiglio preferirebbe vedere il monte ingaggi tornare sotto controllo."
       },
       "financeBoardPressure": {
         "subject": "Consiglio — Pressione finanziaria",

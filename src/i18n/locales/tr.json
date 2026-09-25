@@ -2892,7 +2892,7 @@
       },
       "wageOverBudget": {
         "subject": "Maaş Yükü Bütçeyi Aşıyor",
-        "body": "Yıllık maaş yükümüz ({{annualWages}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
+        "body": "Haftalık maaş yükümüz ({{annualWages}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
       },
       "financeBoardPressure": {
         "subject": "Yönetim Değerlendirmesi — Finansal Baskı",

@@ -21,10 +21,10 @@ const mockTranslationState = vi.hoisted(() => ({
       "inbox.responded": "Response sent",
       "inbox.youthProspectSigned": "Signed to academy",
       "finances.marketValue": "Market Value",
-      "finances.perWeekSuffix": "/wk",
       "finances.perYearSuffix": "/yr",
-      "finances.wagePerWeek": "Wage/wk",
+      "finances.perWeekSuffix": "/wk",
       "finances.wagePerYear": "Wage/yr",
+      "finances.wagePerWeek": "Wage/wk",
       "playerProfile.contractInfo": "Contract",
       "scouting.youthTargetLabel": "Youth target",
       "scouting.youthAnyPosition": "Any position",
@@ -1243,7 +1243,7 @@ describe("InboxTab", (): void => {
     expect(screen.getByText("Balanced")).toBeInTheDocument();
     expect(screen.getAllByText("Signed to academy").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "View profile" })).toBeInTheDocument();
-    expect(screen.getAllByText(/Wage\/yr:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Wage\/wk:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Market Value:/).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Sign to academy" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Shortlist" })).toBeInTheDocument();

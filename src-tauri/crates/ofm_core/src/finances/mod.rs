@@ -209,8 +209,9 @@ pub fn calc_wages(game: &Game, team_id: &str) -> i64 {
 
 /// Same committed weekly total as [`calc_wages`].
 ///
-/// Named from when stored wages were treated as annual. A yearly figure is
-/// `calc_wages(...) * 52`.
+/// Named from when stored wages were treated as annual. Call [`calc_wages`].
+/// A yearly figure is `calc_wages(...) * 52`.
+#[deprecated(note = "stored wages are weekly; use calc_wages")]
 pub fn calc_annual_wages(game: &Game, team_id: &str) -> i64 {
     calc_wages(game, team_id)
 }
@@ -321,8 +322,8 @@ fn estimated_weekly_matchday_income(game: &Game, team: &Team) -> i64 {
 
 pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSnapshot> {
     let team = game.teams.iter().find(|team| team.id == team_id)?;
-    let annual_wage_bill = calc_annual_wages(game, team_id);
     let weekly_wage_spend = calc_wages(game, team_id);
+    let annual_wage_bill = weekly_wage_spend;
     let weekly_wage_budget = team.wage_budget;
     let current_position = current_league_position(game, team_id);
     let weekly_sponsor_income = team
@@ -1160,7 +1161,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
     };
 
     let weekly_wages = calc_wages(game, &user_team_id);
-    let annual_wages = calc_annual_wages(game, &user_team_id);
+    let annual_wages = weekly_wages;
     let weeks_left = snapshot.cash_runway_weeks.unwrap_or(999);
 
     // Critical: finances negative
