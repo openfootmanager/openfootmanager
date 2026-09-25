@@ -16,6 +16,7 @@ import { formatAppVersion } from "../lib/appVersion";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import { FolderOpen, Settings, PlusCircle, ChevronRight, Power, Package } from "lucide-react";
+import { showError } from "../lib/errorDialog";
 
 const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
 const GITHUB_REPO_URL = "https://github.com/openfootmanager/openfootmanager";
@@ -463,7 +464,7 @@ export default function MainMenu() {
       await loadInstalledPackages();
     } catch (err) {
       console.error("Failed to install package:", err);
-      alert(resolveBackendError(err));
+      await showError(t("errors.title"), resolveBackendError(err));
     } finally {
       setIsInstallingPackage(false);
     }
@@ -477,7 +478,7 @@ export default function MainMenu() {
       setPackageStackErrors([]);
     } catch (err) {
       console.error("Failed to uninstall package:", err);
-      alert(resolveBackendError(err));
+      await showError(t("errors.title"), resolveBackendError(err));
     }
   };
 
@@ -512,10 +513,9 @@ export default function MainMenu() {
       navigate("/select-team");
     } catch (error) {
       console.error("Failed to start game:", error);
-      alert(
-        t("menu.failedStartGame", {
-          error: resolveBackendError(error),
-        }),
+      await showError(
+        t("errors.title"),
+        t("menu.failedStartGame", { error: resolveBackendError(error) }),
       );
     } finally {
       setIsStarting(false);
@@ -551,7 +551,10 @@ export default function MainMenu() {
     } catch (error) {
       console.error("Failed to load game:", error);
       setLoadingSaveId(null);
-      alert(t("menu.loadGameFailed", { error: resolveBackendError(error) }));
+      await showError(
+        t("errors.title"),
+        t("menu.loadGameFailed", { error: resolveBackendError(error) }),
+      );
     }
   };
 

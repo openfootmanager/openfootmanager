@@ -4042,5 +4042,8 @@
     "description": "Questa schermata ha riscontrato un errore da cui non è riuscita a riprendersi. Prova prima a riprovare: ricaricare riavvia il gioco e i progressi non salvati vanno persi.",
     "retry": "Riprova",
     "reload": "Ricarica il gioco"
+  },
+  "errors": {
+    "title": "Qualcosa è andato storto"
   }
 }

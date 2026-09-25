@@ -4042,5 +4042,8 @@
     "description": "Cet écran a rencontré une erreur dont il n'a pas pu se remettre. Essayez d'abord de réessayer — recharger redémarre le jeu et la progression non sauvegardée est perdue.",
     "retry": "Réessayer",
     "reload": "Recharger le jeu"
+  },
+  "errors": {
+    "title": "Une erreur est survenue"
   }
 }

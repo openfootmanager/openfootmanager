@@ -4042,5 +4042,8 @@
     "description": "This screen hit an error it couldn't recover from. Try again first — reloading restarts the game and any unsaved progress is lost.",
     "retry": "Try again",
     "reload": "Reload the game"
+  },
+  "errors": {
+    "title": "Something went wrong"
   }
 }

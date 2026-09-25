@@ -4042,5 +4042,8 @@
     "description": "Na této obrazovce došlo k chybě, ze které se nepodařilo zotavit. Zkuste to nejdřív znovu — načtení restartuje hru a neuložený postup se ztratí.",
     "retry": "Zkusit znovu",
     "reload": "Načíst hru znovu"
+  },
+  "errors": {
+    "title": "Něco se pokazilo"
   }
 }

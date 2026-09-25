@@ -4042,5 +4042,8 @@
     "description": "Esta pantalla ha sufrido un error del que no ha podido recuperarse. Prueba primero a reintentar: recargar reinicia el juego y se pierde el progreso no guardado.",
     "retry": "Reintentar",
     "reload": "Recargar el juego"
+  },
+  "errors": {
+    "title": "Algo ha salido mal"
   }
 }
