@@ -352,14 +352,18 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
                 .to_string()
         })
         .collect();
-    let competitions: &[domain::league::League] = if game.competitions.is_empty() {
-        game.league.as_slice()
-    } else {
-        &game.competitions
-    };
-
-    let plays_again_soon = competitions
+    // Both collections, not the usual "competitions, else the legacy slot". A
+    // side is picked *during* simulation, and `simulate_competition_day_with_capture`
+    // moves the competition being played out of `game.competitions` into
+    // `game.league` for the length of it, leaving an empty default behind. Reading
+    // `competitions` alone would miss that competition's own next round — a
+    // league's midweek fixture — which is the commonest congested run there is.
+    // Outside simulation the legacy slot mirrors one of the competitions, and a
+    // fixture seen twice cannot change an `any`.
+    let plays_again_soon = game
+        .competitions
         .iter()
+        .chain(game.league.iter())
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
         .filter(|fixture| soon.contains(&fixture.date))
