@@ -131,9 +131,13 @@ recovery = base × (0.5 + stamina/100 × 0.5)
 
 No squad does a full session two days before a game, so this is not left to the
 manager. A club within `MATCH_TAPER_DAYS` (2) of its next fixture — in *any*
-competition — or facing two or more fixtures inside a week runs today's session
-one step lighter than its standing intensity, and a tapered session that lands on
-Low counts as recovery work rather than a load.
+competition — runs today's session one step lighter than its standing intensity,
+and a tapered session that lands on Low counts as recovery work rather than a load.
+
+A club facing two or more fixtures inside the coming week goes further: every
+session is recovery work, whatever its standing intensity. One step down from High
+is Medium, which still costs more than it restores, and a club that trained
+through a two-match week reached the second match with its squad below 80.
 
 The club's stored focus, intensity and schedule are **not** rewritten: the plan on
 the Training tab stays the manager's, and the taper is applied on top of it, per
