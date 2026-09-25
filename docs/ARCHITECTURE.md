@@ -221,6 +221,9 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `save_settings` | settings | — | Persist settings |
 | `clear_all_saves` | — | — | Delete all save files |
 | `export_world_database` | export_path | `String` | Export world to JSON |
+| `collect_diagnostics` | — | `DiagnosticsReport` | App version, platform and webview, for a bug report |
+| `export_report_bundle` | output_path, include_save | `BundleSummary` | Write the redacted report bundle where the player chose |
+| `suggested_report_file_name` | — | `String` | Dated default name for the save dialog |
 
 ---
 
