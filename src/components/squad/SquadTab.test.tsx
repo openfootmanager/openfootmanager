@@ -7,6 +7,7 @@ import type {
   PlayerSelectionOptions,
   TeamData,
 } from "../../store/gameStore";
+import { createPlayer } from "../../test-utils/factories";
 import SquadTab from "./SquadTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -45,66 +46,28 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+// Squad fixtures rate every player 60 across the board — keepers' handling and reflexes included —
+// so formation and style fit differ only by position. The rest comes from the shared factory.
 const makePlayer = (
   id: string,
   position: string,
   overrides: Partial<PlayerData> = {},
-): PlayerData => ({
-  id,
-  match_name: id.toUpperCase(),
-  full_name: `Player ${id}`,
-  date_of_birth: "1998-01-01",
-  nationality: "GB",
-  position,
-  natural_position: position,
-  alternate_positions: [],
-  training_focus: null,
-  attributes: {
-    pace: 60,
-    stamina: 60,
-    strength: 60,
-    agility: 60,
-    passing: 60,
-    shooting: 60,
-    tackling: 60,
-    dribbling: 60,
-    defending: 60,
-    positioning: 60,
-    vision: 60,
-    decisions: 60,
-    composure: 60,
-    aggression: 60,
-    teamwork: 60,
-    leadership: 60,
-    handling: 60,
-    reflexes: 60,
-    aerial: 60,
-  },
-  condition: 100,
-  morale: 80,
-  injury: null,
-  team_id: "team1",
-  retired: false,
-  contract_end: "2027-06-30",
-  wage: 1000,
-  market_value: 100000,
-  stats: {
-    appearances: 0,
-    goals: 0,
-    assists: 0,
-    clean_sheets: 0,
-    yellow_cards: 0,
-    red_cards: 0,
-    avg_rating: 0,
-    minutes_played: 0,
-  },
-  career: [],
-  transfer_listed: false,
-  loan_listed: false,
-  transfer_offers: [],
-  traits: [],
-  ...overrides,
-});
+): PlayerData =>
+  createPlayer({
+    id,
+    match_name: id.toUpperCase(),
+    full_name: `Player ${id}`,
+    date_of_birth: "1998-01-01",
+    position,
+    natural_position: position,
+    attributes: { ...createPlayer().attributes, handling: 60, reflexes: 60 },
+    condition: 100,
+    morale: 80,
+    team_id: "team1",
+    wage: 1000,
+    market_value: 100000,
+    ...overrides,
+  });
 
 const makeTeam = (overrides: Partial<TeamData> = {}): TeamData => ({
   id: "team1",
@@ -473,6 +436,33 @@ describe("SquadTab", () => {
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    });
+  });
+  it("names each roster filter after its visible label", async () => {
+    renderSquadTab(makeGameState());
+
+    // Each <label> has to be tied to its control, or a screen reader announces three unnamed
+    // fields and these queries find nothing.
+    expect(await screen.findByRole("textbox", { name: "common.search" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "squad.pos" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "common.status" })).toBeInTheDocument();
+  });
+
+  it("keeps the same column-header node when a filter changes", async () => {
+    // A header that remounts throws away focus and any in-flight transition. A component declared
+    // inside the render body does it — Biome's noNestedComponentDefinitions catches that case —
+    // but so does anything else that changes the header's identity, such as a key derived from
+    // filter state, which no lint rule sees.
+    renderSquadTab(makeGameState());
+
+    const headerBefore = await screen.findByRole("columnheader", { name: "#" });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "common.search" }), {
+      target: { value: "z" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("columnheader", { name: "#" })).toBe(headerBefore);
     });
   });
 });

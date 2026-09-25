@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import type {
   GameStateData,
   PlayerData,
@@ -8,8 +8,6 @@ import type {
 import { Badge, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
 import {
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   MoreVertical,
   Repeat,
   RotateCcw,
@@ -18,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { TraitList } from "../TraitBadge";
+import { SquadSortHeader } from "./SquadSortHeader";
 import {
   calcAge,
   getPlayerOvr,
@@ -52,6 +51,7 @@ import {
   positionSortRank,
   translatePositionAbbreviation,
 } from "./SquadTab.helpers";
+import { positionGroupRank } from "../../lib/positions";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import {
   buildDelegateToYouthAcademyMenuItem,
@@ -85,45 +85,6 @@ type FilterScope =
   | "outOfPosition"
   | "injured";
 
-/**
- * Declared at module scope on purpose. Defined inside `SquadRosterView` it was a *new component
- * type* on every render, so React unmounted and remounted all ten header cells each time the
- * sort changed — the thing `noNestedComponentDefinitions` exists to catch.
- */
-function SortHeader({
-  col,
-  label,
-  sortKey,
-  sortDir,
-  onSort,
-}: {
-  col: SquadListSortKey;
-  label: string;
-  sortKey: SquadListSortKey;
-  sortDir: "asc" | "desc";
-  onSort: (col: SquadListSortKey) => void;
-}) {
-  const active = sortKey === col;
-
-  return (
-    <th
-      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
-      onClick={() => onSort(col)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {active ? (
-          sortDir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )
-        ) : null}
-      </div>
-    </th>
-  );
-}
-
 export default function SquadRosterView({
   players,
   team,
@@ -135,6 +96,10 @@ export default function SquadRosterView({
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
   const [playerSearch, setPlayerSearch] = useState("");
+  // Ties each visible filter label to its control, so the control is announced by that label.
+  const searchInputId = useId();
+  const positionFilterId = useId();
+  const statusFilterId = useId();
   const [positionFilter, setPositionFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
   const [localSortState, setLocalSortState] = useState<SquadListSortState>(
@@ -145,19 +110,12 @@ export default function SquadRosterView({
   const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
-  const posOrder: Record<string, number> = {
-    Goalkeeper: 1,
-    Defender: 2,
-    Midfielder: 3,
-    Forward: 4,
-  };
-
   const roster = players
     .filter((player) => isSeniorSquadPlayer(player))
     .sort(
       (a, b) =>
-        (posOrder[normalisePosition(a.position)] || 99) -
-          (posOrder[normalisePosition(b.position)] || 99) || getPlayerOvr(b) - getPlayerOvr(a),
+        positionGroupRank(a.position) - positionGroupRank(b.position) ||
+        getPlayerOvr(b) - getPlayerOvr(a),
     );
 
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
@@ -426,22 +384,30 @@ export default function SquadRosterView({
       <Card>
         <div className="p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_auto] gap-3 items-end">
           <div>
-            <label className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block">
+            <label
+              htmlFor={searchInputId}
+              className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block"
+            >
               {t("common.search")}
             </label>
             <input
+              id={searchInputId}
               type="text"
               value={playerSearch}
               onChange={(event) => setPlayerSearch(event.target.value)}
               placeholder={t("squad.filterPlayers")}
-              className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+              className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             />
           </div>
           <div>
-            <label className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block">
+            <label
+              htmlFor={positionFilterId}
+              className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block"
+            >
               {t("squad.pos")}
             </label>
             <Select
+              id={positionFilterId}
               value={positionFilter}
               onChange={(event) => setPositionFilter(event.target.value)}
               fullWidth
@@ -455,10 +421,14 @@ export default function SquadRosterView({
             </Select>
           </div>
           <div>
-            <label className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block">
+            <label
+              htmlFor={statusFilterId}
+              className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block"
+            >
               {t("common.status")}
             </label>
             <Select
+              id={statusFilterId}
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as FilterScope)}
               fullWidth
@@ -573,35 +543,35 @@ export default function SquadRosterView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                <SortHeader
+                <SquadSortHeader
                   col="jersey"
                   label="#"
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="name"
                   label={t("common.name")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="pos"
                   label={t("squad.pos")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="fit"
                   label={t("squad.formationFit")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="style"
                   label={t("squad.styleFit")}
                   sortKey={sortKey}
@@ -611,35 +581,35 @@ export default function SquadRosterView({
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.traits")}
                 </th>
-                <SortHeader
+                <SquadSortHeader
                   col="age"
                   label={t("common.age")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="condition"
                   label={t("common.condition")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="morale"
                   label={t("common.morale")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="ovr"
                   label={t("common.ovr")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SortHeader
+                <SquadSortHeader
                   col="contract"
                   label={t("common.contract")}
                   sortKey={sortKey}

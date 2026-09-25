@@ -1,7 +1,7 @@
 {
   "oversizedAggregate": {
     "rust": 62266,
-    "ts": 35970
+    "ts": 35835
   },
   "allowedOversized": {
     "src-tauri/crates/db/src/repositories/player_repo.rs": 1062,
@@ -61,9 +61,9 @@
     "src/components/schedule/ScheduleTab.test.tsx": 609,
     "src/components/schedule/ScheduleTab.tsx": 851,
     "src/components/scouting/ScoutingTab.test.tsx": 538,
-    "src/components/squad/SquadRosterView.tsx": 1002,
+    "src/components/squad/SquadRosterView.tsx": 972,
     "src/components/squad/SquadTab.helpers.test.ts": 720,
-    "src/components/squad/SquadTab.helpers.ts": 938,
+    "src/components/squad/SquadTab.helpers.ts": 833,
     "src/components/tactics/TacticsPitch.tsx": 564,
     "src/components/tactics/TacticsTab.test.tsx": 782,
     "src/components/tournaments/TournamentsTab.test.tsx": 684,
@@ -96,7 +96,7 @@
     "rustUnsafeBlocks": 0
   },
   "lintDebt": {
-    "a11y/noLabelWithoutControl": 35,
+    "a11y/noLabelWithoutControl": 32,
     "a11y/noStaticElementInteractions": 24,
     "a11y/useKeyWithClickEvents": 24,
     "a11y/useSemanticElements": 10,
