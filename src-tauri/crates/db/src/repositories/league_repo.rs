@@ -348,6 +348,25 @@ mod tests {
     use domain::league::{FixtureCompetition, GoalEvent, MatchResult};
     use rusqlite::Connection;
 
+    /// Pins the stored name of every fixture status. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn fixture_statuses_are_stored_by_name() {
+        use FixtureStatus as S;
+        match S::Scheduled {
+            S::Scheduled | S::InProgress | S::Completed => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("Scheduled", S::Scheduled),
+                ("InProgress", S::InProgress),
+                ("Completed", S::Completed),
+            ],
+            |value| format!("{value:?}"),
+            parse_fixture_status,
+        );
+    }
+
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
     }

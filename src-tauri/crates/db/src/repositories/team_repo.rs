@@ -311,6 +311,94 @@ mod tests {
     use domain::team::{Facilities, Sponsorship, SponsorshipBonusCriterion, TeamSeasonRecord};
     use rusqlite::Connection;
 
+    /// Pins the stored name of every play style. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn play_styles_are_stored_by_name() {
+        use PlayStyle as S;
+        match S::Balanced {
+            S::Balanced
+            | S::Attacking
+            | S::Defensive
+            | S::Possession
+            | S::Counter
+            | S::HighPress => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("Balanced", S::Balanced),
+                ("Attacking", S::Attacking),
+                ("Defensive", S::Defensive),
+                ("Possession", S::Possession),
+                ("Counter", S::Counter),
+                ("HighPress", S::HighPress),
+            ],
+            |value| format!("{value:?}"),
+            parse_play_style,
+        );
+    }
+
+    /// Pins the stored name of every team training focus. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn team_training_focuses_are_stored_by_name() {
+        use TrainingFocus as F;
+        match F::Physical {
+            F::Physical
+            | F::Technical
+            | F::Tactical
+            | F::Defending
+            | F::Attacking
+            | F::Recovery => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("Physical", F::Physical),
+                ("Technical", F::Technical),
+                ("Tactical", F::Tactical),
+                ("Defending", F::Defending),
+                ("Attacking", F::Attacking),
+                ("Recovery", F::Recovery),
+            ],
+            |value| format!("{value:?}"),
+            parse_training_focus,
+        );
+    }
+
+    /// Pins the stored name of every training intensity. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn training_intensities_are_stored_by_name() {
+        use TrainingIntensity as I;
+        match I::Low {
+            I::Low | I::Medium | I::High => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[("Low", I::Low), ("Medium", I::Medium), ("High", I::High)],
+            |value| format!("{value:?}"),
+            parse_training_intensity,
+        );
+    }
+
+    /// Pins the stored name of every training schedule. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn training_schedules_are_stored_by_name() {
+        use TrainingSchedule as S;
+        match S::Intense {
+            S::Intense | S::Balanced | S::Light => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("Intense", S::Intense),
+                ("Balanced", S::Balanced),
+                ("Light", S::Light),
+            ],
+            |value| format!("{value:?}"),
+            parse_training_schedule,
+        );
+    }
+
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
     }

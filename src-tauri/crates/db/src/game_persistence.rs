@@ -393,6 +393,72 @@ mod tests {
     };
     use domain::{manager::Manager, team::Team};
 
+    /// Pins the stored name of every board objective type. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn objective_types_are_stored_by_name() {
+        use ObjectiveType as O;
+        match O::LeaguePosition {
+            O::LeaguePosition | O::Wins | O::GoalsScored | O::FinancialStability => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("LeaguePosition", O::LeaguePosition),
+                ("Wins", O::Wins),
+                ("GoalsScored", O::GoalsScored),
+                ("FinancialStability", O::FinancialStability),
+            ],
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_objective_type(stored)
+                    .unwrap_or_else(|error| panic!("{stored:?} does not load back: {error}"))
+            },
+        );
+    }
+
+    /// Pins the stored name of every youth scouting region. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn youth_scouting_regions_are_stored_by_name() {
+        use YouthScoutingRegion as R;
+        match R::Domestic {
+            R::Domestic | R::International => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("Domestic", R::Domestic),
+                ("International", R::International),
+            ],
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_youth_region(stored)
+                    .unwrap_or_else(|error| panic!("{stored:?} does not load back: {error}"))
+            },
+        );
+    }
+
+    /// Pins the stored name of every youth scouting objective. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn youth_scouting_objectives_are_stored_by_name() {
+        use YouthScoutingObjective as O;
+        match O::Balanced {
+            O::Balanced | O::HighPotential | O::ReadySoon => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("Balanced", O::Balanced),
+                ("HighPotential", O::HighPotential),
+                ("ReadySoon", O::ReadySoon),
+            ],
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_youth_objective(stored)
+                    .unwrap_or_else(|error| panic!("{stored:?} does not load back: {error}"))
+            },
+        );
+    }
+
     fn sample_meta(start_date: &str, game_date: &str, manager_id: &str) -> meta_repo::GameMeta {
         meta_repo::GameMeta {
             save_id: "save-1".to_string(),

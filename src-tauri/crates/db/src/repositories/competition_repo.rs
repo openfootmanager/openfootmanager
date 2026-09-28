@@ -190,6 +190,53 @@ mod tests {
     use crate::game_database::GameDatabase;
     use domain::league::League;
 
+    /// Pins the stored name of every competition type. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn competition_types_are_stored_by_name() {
+        use CompetitionType as T;
+        match T::League {
+            T::League
+            | T::Cup
+            | T::ContinentalClub
+            | T::InternationalClub
+            | T::InternationalNation
+            | T::FriendlyCup => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("League", T::League),
+                ("Cup", T::Cup),
+                ("ContinentalClub", T::ContinentalClub),
+                ("InternationalClub", T::InternationalClub),
+                ("InternationalNation", T::InternationalNation),
+                ("FriendlyCup", T::FriendlyCup),
+            ],
+            |value| competition_type_to_string(value).to_string(),
+            parse_competition_type,
+        );
+    }
+
+    /// Pins the stored name of every competition scope. The `match` has no wildcard: a new variant is a
+    /// compile error here until it has a stored name and a parser arm.
+    #[test]
+    fn competition_scopes_are_stored_by_name() {
+        use CompetitionScope as S;
+        match S::Domestic {
+            S::Domestic | S::Regional | S::Continental | S::International => {}
+        }
+        crate::stored_text::assert_stored_as(
+            &[
+                ("Domestic", S::Domestic),
+                ("Regional", S::Regional),
+                ("Continental", S::Continental),
+                ("International", S::International),
+            ],
+            |value| competition_scope_to_string(value).to_string(),
+            parse_competition_scope,
+        );
+    }
+
     fn division(id: &str, priority: u32, clubs: &[&str]) -> CompetitionState {
         let team_ids: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
         let mut league = League::new(id.to_string(), id.to_string(), 2035, &team_ids);
