@@ -63,7 +63,6 @@ pub fn replace_staff_list(conn: &Connection, staff: &[Staff]) -> Result<(), Stri
 fn parse_role(s: &str) -> StaffRole {
     match s {
         "AssistantManager" => StaffRole::AssistantManager,
-        "Coach" => StaffRole::Coach,
         "Scout" => StaffRole::Scout,
         "Physio" => StaffRole::Physio,
         _ => StaffRole::Coach,

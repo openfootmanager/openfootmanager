@@ -146,7 +146,6 @@ pub(crate) fn parse_position(s: &str) -> Position {
     match s {
         "Goalkeeper" => Position::Goalkeeper,
         "Defender" => Position::Defender,
-        "Midfielder" => Position::Midfielder,
         "Forward" => Position::Forward,
         "RightBack" => Position::RightBack,
         "CenterBack" => Position::CenterBack,
