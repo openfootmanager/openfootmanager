@@ -11,11 +11,12 @@ use super::*;
 // ---------------------------------------------------------------------------
 // Instant simulation fields an eleven, not a squad list
 //
-// Every fixture the player is not watching goes through `build_engine_team`,
-// which used to hand the engine every player on the books — injured included —
-// and the report then credited each of them a full match. A squad was charged
-// roughly twice the condition it should have been, every fixture, and reserves
-// banked appearances for games they never played.
+// Every fixture the player was not watching used to go through
+// `build_engine_team`, which handed the engine every player on the books —
+// injured included — and the report then credited each of them a full match. A
+// squad was charged roughly twice the condition it should have been, every
+// fixture, and reserves banked appearances for games they never played. Both
+// match paths now build their sides with `turn::squad::build_team_with_bench`.
 // ---------------------------------------------------------------------------
 
 #[test]

@@ -1,50 +1,40 @@
 //! Season-length probe: what condition do clubs actually arrive at matches in?
 //!
-//! Run it explicitly — it advances a simulated season day by day, so it is far
-//! too slow for the normal suite:
+//! Two kinds of test live here. The **red lines** — every AI club reaches every
+//! settled match at 80 or better, on one fixture a week and on two — run in the
+//! normal suite: this world is eight clubs of 22, and two of its seasons take a
+//! tenth of a second in a debug build. The **report** prints the whole season
+//! match by match, and is ignored by default because it is for reading, not
+//! asserting:
 //!
 //! ```text
 //! cargo test -p ofm_core --test ai_readiness_probe -- --ignored --nocapture
 //! ```
 //!
-//! It reports two numbers per club per matchday, and the gap between them is the
-//! point. **Squad** is the average across the whole squad — the number
-//! `ai_training`'s intensity bands are computed from. **XI** is the average
-//! across the eleven players most likely to actually start. A controller reading
-//! the first cannot see an exhausted first eleven propped up by a fresh bench.
+//! The report shows three numbers per matchday. **Squad** is the average across
+//! the whole squad; it is a diagnostic, not what the training controller reads.
+//! **First XI** is this probe's own approximation of each club's first choice —
+//! best by rating within 4-4-2 position quotas — which on these squads picks the
+//! same players as `turn::squad::first_choice_eleven`, the selector's
+//! formation-and-positional-fit first choice that `ai_training` steers on.
+//! **Fielded** is the side that actually took the field, read back from who
+//! gained an appearance, so it is whatever the production selector named,
+//! rotation and all. The red lines hold the fielded side and the squad of the
+//! least-ready AI club, not an average.
 //!
 //! The user's club is reported separately, because changes on either side of the
 //! human/AI line move the difficulty curve in opposite directions and the net
 //! effect is not visible from the AI clubs alone.
 //!
-//! The "likely XI" here is this probe's own approximation (best by rating within
-//! position quotas), not a call into the production selector — `ai_select_starting_xi`
-//! is private to `turn::squad`. It is a measuring stick, not an assertion about
-//! which players the game would pick.
-//!
-//! Since AI clubs started rotating in earnest, that distinction has teeth: the
-//! side a club actually names on a congested week is deliberately *not* its best
-//! eleven. So read this column as "what condition are this club's best players
-//! arriving in", which is the question the readiness controller ought to be
-//! asking, rather than as the average of whoever took the field. The wear behind
-//! the number is real either way — every match here is simulated through
-//! `turn::process_day`, so it is the production selector that decides who is
-//! charged for it.
-//!
 //! # What this models, and what it does not
 //!
-//! Every day here goes through `turn::process_day`. A real career takes the same
-//! route on ordinary days, and on the day the player watches or delegates its own
-//! fixture it takes `turn::finish_live_match_day` instead — which also runs no
-//! training, so the recovery ledger below is faithful either way.
-//!
-//! The **XI** columns are therefore representative. The **squad** columns are
-//! pessimistic for the user's club: this probe drives every match through the
-//! instant path, which charges a full match to every squad member, whereas the
-//! player's own fixture is simulated live and only charges the eleven who played
-//! plus the substitutes. Read the user's squad column as "what the instant path
-//! does to a squad", not as a shipped number — until slice 1 lands, at which
-//! point the two agree.
+//! Every day here goes through `turn::process_day`, the route a real career takes
+//! on every day it does not watch or delegate the player's own fixture; on that
+//! day it takes `turn::finish_live_match_day`, which runs the same training
+//! ground. Fixtures are held the way a save holds them — in `game.competitions`,
+//! with `game.league` as its mirror — so simulation takes the code path a real
+//! career takes, including moving the competition being played into the legacy
+//! slot while it runs.
 
 use chrono::{TimeZone, Utc};
 use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
