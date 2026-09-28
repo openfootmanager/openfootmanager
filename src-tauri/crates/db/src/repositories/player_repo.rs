@@ -140,7 +140,9 @@ pub fn upsert_players(conn: &Connection, players: &[Player]) -> Result<(), Strin
     Ok(())
 }
 
-fn parse_position(s: &str) -> Position {
+/// Also reads youth scouting's target position in `game_persistence`, which is written the same
+/// way; one parser, so the two cannot drift apart.
+pub(crate) fn parse_position(s: &str) -> Position {
     match s {
         "Goalkeeper" => Position::Goalkeeper,
         "Defender" => Position::Defender,

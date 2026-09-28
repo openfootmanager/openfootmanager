@@ -1,5 +1,4 @@
 use chrono::Utc;
-use domain::player::Position;
 use domain::stats::StatsState;
 use domain::world_history::WorldHistoryArchive;
 use rusqlite::Connection;
@@ -304,7 +303,10 @@ impl GamePersistenceReader {
                     scout_id: assignment.scout_id,
                     region: parse_youth_region(&assignment.region)?,
                     objective: parse_youth_objective(&assignment.objective)?,
-                    target_position: assignment.target_position.as_deref().map(parse_position),
+                    target_position: assignment
+                        .target_position
+                        .as_deref()
+                        .map(player_repo::parse_position),
                     days_remaining: assignment.days_remaining,
                 })
             })
@@ -728,29 +730,6 @@ fn parse_objective_type(value: &str) -> Result<ObjectiveType, String> {
         "GoalsScored" => Ok(ObjectiveType::GoalsScored),
         "FinancialStability" => Ok(ObjectiveType::FinancialStability),
         _ => Err(game_persistence_load_error()),
-    }
-}
-
-fn parse_position(value: &str) -> Position {
-    match value {
-        "Goalkeeper" => Position::Goalkeeper,
-        "Defender" => Position::Defender,
-        "Midfielder" => Position::Midfielder,
-        "Forward" => Position::Forward,
-        "RightBack" => Position::RightBack,
-        "CenterBack" => Position::CenterBack,
-        "LeftBack" => Position::LeftBack,
-        "RightWingBack" => Position::RightWingBack,
-        "LeftWingBack" => Position::LeftWingBack,
-        "DefensiveMidfielder" => Position::DefensiveMidfielder,
-        "CentralMidfielder" => Position::CentralMidfielder,
-        "AttackingMidfielder" => Position::AttackingMidfielder,
-        "RightMidfielder" => Position::RightMidfielder,
-        "LeftMidfielder" => Position::LeftMidfielder,
-        "RightWinger" => Position::RightWinger,
-        "LeftWinger" => Position::LeftWinger,
-        "Striker" => Position::Striker,
-        _ => Position::Midfielder,
     }
 }
 
