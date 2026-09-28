@@ -315,3 +315,41 @@ fn a_lone_fixture_still_only_tapers_one_step() {
          ({before} → {after})"
     );
 }
+
+/// A dormant competition is resolved by a scoreline-only model that charges no
+/// condition, so a two-match week in one is no reason to spend a week on
+/// recovery sessions. Only the active fixture here counts, and it is six days
+/// off: the session is a normal one and costs.
+#[test]
+fn a_two_match_week_in_a_dormant_competition_does_not_taper() {
+    let mut game = user_team_training_hard_at(60);
+    schedule_user_fixture_in(&mut game, 6);
+    let active = game.league.clone().expect("the active league");
+
+    let mut dormant = active.clone();
+    dormant.id = "dormant".to_string();
+    for (fixture, days) in dormant.fixtures.iter_mut().zip([3, 4]) {
+        fixture.date = (game.clock.current_date + chrono::Duration::days(days))
+            .format("%Y-%m-%d")
+            .to_string();
+    }
+    let mut second = dormant.fixtures[0].clone();
+    second.id = "dormant_fix2".to_string();
+    second.date = (game.clock.current_date + chrono::Duration::days(4))
+        .format("%Y-%m-%d")
+        .to_string();
+    dormant.fixtures.push(second);
+
+    game.active_competition_ids = vec![active.id.clone()];
+    game.competitions = vec![active, dormant];
+    let before = p2_condition(&game);
+
+    training::process_training(&mut game, 0);
+
+    let after = p2_condition(&game);
+    assert!(
+        after < before,
+        "the only congestion is in a competition nobody plays out, so the session \
+         should load ({before} → {after})"
+    );
+}

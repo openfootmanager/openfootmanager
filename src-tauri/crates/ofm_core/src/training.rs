@@ -172,6 +172,9 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 /// tires a squad exactly as much as a league game. Built as one pass over the
 /// fixture list rather than a per-club scan — this runs for every club, every
 /// day, and a populated world holds tens of thousands of fixtures.
+///
+/// Only competitions in the active scope count, as in [`teams_playing_on`]: a
+/// dormant match charges nobody any condition, so it is nothing to taper for.
 fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use chrono::NaiveDate;
     use domain::league::FixtureStatus;
@@ -190,6 +193,7 @@ fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
 
     for fixture in competitions
         .iter()
+        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
     {

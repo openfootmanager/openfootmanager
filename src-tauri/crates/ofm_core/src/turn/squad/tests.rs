@@ -530,6 +530,23 @@ fn a_competition_moved_out_for_simulation_still_counts() {
     assert_eq!(fixture_load(&game, "club"), FixtureLoad::Congested);
 }
 
+/// A competition outside the active scope is resolved by a scoreline-only model
+/// that charges nobody any condition, so its next fixture is no reason to rest
+/// anyone for this one.
+#[test]
+fn a_fixture_in_a_dormant_competition_is_not_a_congested_run() {
+    let mut game = game_with_fixtures_on(&[0]);
+    let active = game.league.clone().expect("the active league");
+    let mut dormant = game_with_fixtures_on(&[3])
+        .league
+        .expect("a league to borrow fixtures from");
+    dormant.id = "dormant".to_string();
+    game.active_competition_ids = vec![active.id.clone()];
+    game.competitions = vec![active, dormant];
+
+    assert_eq!(fixture_load(&game, "club"), FixtureLoad::Normal);
+}
+
 /// Ten fit outfielders and a goalkeeper in the treatment room — a club that
 /// has to field a sore keeper or put a defender in goal.
 fn club_whose_only_keeper_is_injured(managed_by_the_user: bool) -> Game {

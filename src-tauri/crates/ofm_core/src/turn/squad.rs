@@ -411,10 +411,15 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
     // league's midweek fixture — which is the commonest congested run there is.
     // Outside simulation the legacy slot mirrors one of the competitions, and a
     // fixture seen twice cannot change an `any`.
+    //
+    // Only competitions in the active scope count: a dormant one is resolved by a
+    // scoreline-only model that charges nobody any condition, so its next round
+    // is no reason to rest a player for this one.
     let plays_again_soon = game
         .competitions
         .iter()
         .chain(game.league.iter())
+        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
         .filter(|fixture| soon.contains(&fixture.date))
