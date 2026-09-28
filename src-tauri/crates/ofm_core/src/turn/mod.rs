@@ -309,7 +309,7 @@ mod tests {
             attrs,
         );
         player.team_id = Some("team1".to_string());
-        player.wage = 52_000;
+        player.wage = 1_000;
         player
     }
 
@@ -329,7 +329,7 @@ mod tests {
         );
         staff.team_id = Some("team1".to_string());
         staff.nationality = "GB".to_string();
-        staff.wage = 10_400;
+        staff.wage = 200;
         staff
     }
 
@@ -357,10 +357,7 @@ mod tests {
 
         finish_live_match_day(&mut game);
 
-        assert_eq!(
-            game.teams[0].finance,
-            initial_finance - ((52_000 + 10_400) / 52)
-        );
+        assert_eq!(game.teams[0].finance, initial_finance - 1_200);
     }
 }
 

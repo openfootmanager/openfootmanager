@@ -63,7 +63,7 @@ fn default_emitted_events_json() -> String {
 /// v5 = the inbox sent-ledger (`Game::emitted_events`); pre-v5 saves have theirs
 /// seeded from the inbox on load, which must not happen to a v5 save whose
 /// ledger is merely empty.
-pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 5;
+pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 6;
 
 /// Baseline for a save that predates the version field entirely (reads as the
 /// pre-gate format, so it gets migrated and restamped to current on load).

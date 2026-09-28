@@ -1,5 +1,7 @@
 use crate::contracts::RenewalFinancialProjection;
-use crate::finances::calc_cash_runway_weeks;
+use crate::finances::{
+    calc_cash_runway_weeks, calc_wages, player_weekly_wage_for_team, weekly_commitment_at_wage,
+};
 use crate::game::Game;
 use domain::team::Team;
 
@@ -27,63 +29,45 @@ fn contract_owner_team_id(player: &domain::player::Player) -> Option<&str> {
         .or(player.team_id.as_deref())
 }
 
-fn annual_team_wage_bill(game: &Game, team_id: &str) -> i64 {
-    let player_wages: i64 = game
-        .players
-        .iter()
-        .filter(|player| contract_owner_team_id(player) == Some(team_id))
-        .map(|player| player.wage as i64)
-        .sum();
-
-    let staff_wages: i64 = game
-        .staff
-        .iter()
-        .filter(|staff_member| staff_member.team_id.as_deref() == Some(team_id))
-        .map(|staff_member| staff_member.wage as i64)
-        .sum();
-
-    player_wages + staff_wages
-}
-
-fn projected_annual_wage_bill(
+fn projected_wage_bills(
     game: &Game,
     team_id: &str,
-    current_player_wage: u32,
+    player: &domain::player::Player,
     offered_wage: u32,
-) -> i64 {
-    annual_team_wage_bill(game, team_id) - current_player_wage as i64 + offered_wage as i64
+) -> (i64, i64) {
+    let current_bill = calc_wages(game, team_id);
+    let current_contribution = player_weekly_wage_for_team(player, team_id);
+    let offered_contribution = weekly_commitment_at_wage(player, team_id, i64::from(offered_wage));
+    (
+        current_bill,
+        current_bill - current_contribution + offered_contribution,
+    )
 }
 
 pub fn project_contract_offer_financial_impact(
     game: &Game,
     team: &Team,
-    current_player_wage: u32,
+    player: &domain::player::Player,
     offered_wage: u32,
 ) -> RenewalFinancialProjection {
-    let current_bill = annual_team_wage_bill(game, &team.id);
-    let projected_bill =
-        projected_annual_wage_bill(game, &team.id, current_player_wage, offered_wage);
-    let annual_wage_budget = team.wage_budget;
-    let annual_soft_cap = (annual_wage_budget * WAGE_SOFT_CAP_PCT) / 100;
-    let current_weekly_wage_spend = current_bill / 52;
-    let projected_weekly_wage_spend = projected_bill / 52;
+    let (current_bill, projected_bill) = projected_wage_bills(game, &team.id, player, offered_wage);
+    let wage_budget = team.wage_budget;
+    let soft_cap = (wage_budget * WAGE_SOFT_CAP_PCT) / 100;
 
-    let current_cash_runway_weeks =
-        calc_cash_runway_weeks(team.finance, -current_weekly_wage_spend);
-    let projected_cash_runway_weeks =
-        calc_cash_runway_weeks(team.finance, -projected_weekly_wage_spend);
+    let current_cash_runway_weeks = calc_cash_runway_weeks(team.finance, -current_bill);
+    let projected_cash_runway_weeks = calc_cash_runway_weeks(team.finance, -projected_bill);
 
     RenewalFinancialProjection {
         current_annual_wage_bill: current_bill,
         projected_annual_wage_bill: projected_bill,
-        annual_wage_budget,
-        annual_soft_cap,
-        current_weekly_wage_spend,
-        projected_weekly_wage_spend,
+        annual_wage_budget: wage_budget,
+        annual_soft_cap: soft_cap,
+        current_weekly_wage_spend: current_bill,
+        projected_weekly_wage_spend: projected_bill,
         current_cash_runway_weeks,
         projected_cash_runway_weeks,
-        currently_over_budget: current_bill > annual_wage_budget,
-        policy_allows: renewal_wage_policy_allows(game, team, current_player_wage, offered_wage),
+        currently_over_budget: current_bill > wage_budget,
+        policy_allows: wage_policy_allows_projection(team, current_bill, projected_bill),
     }
 }
 
@@ -109,13 +93,10 @@ pub fn wage_policy_allows_projection(team: &Team, current_bill: i64, projected_b
 pub fn renewal_wage_policy_allows(
     game: &Game,
     team: &Team,
-    current_player_wage: u32,
+    player: &domain::player::Player,
     offered_wage: u32,
 ) -> bool {
-    let current_bill = annual_team_wage_bill(game, &team.id);
-    let projected_bill =
-        projected_annual_wage_bill(game, &team.id, current_player_wage, offered_wage);
-
+    let (current_bill, projected_bill) = projected_wage_bills(game, &team.id, player, offered_wage);
     wage_policy_allows_projection(team, current_bill, projected_bill)
 }
 
@@ -148,7 +129,7 @@ pub fn project_renewal_financial_impact(
     Ok(project_contract_offer_financial_impact(
         game,
         team,
-        player.wage,
+        player,
         offered_wage,
     ))
 }

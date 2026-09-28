@@ -1,6 +1,6 @@
 import type { PlayerData, PlayerSeasonStats, TeamData } from "../../store/gameStore";
 import type { TOptions } from "i18next";
-import { annualAmountToWeeklyCommitment } from "../../lib/finance";
+import { weeklyWageAmount } from "../../lib/finance";
 import {
   formatAnnualAmount,
   formatExactMoney,
@@ -80,7 +80,7 @@ export function formatPlayerMarketValue(value: number): string {
 }
 
 export function formatPlayerWage(annualWage: number, weeklySuffix: string): string {
-  const weeklyWage = annualAmountToWeeklyCommitment(annualWage);
+  const weeklyWage = weeklyWageAmount(annualWage);
   return formatWeeklyAmount(formatExactMoney(weeklyWage), weeklySuffix);
 }
 

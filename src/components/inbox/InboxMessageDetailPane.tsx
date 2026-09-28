@@ -4,7 +4,7 @@ import type { JSX } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { calcAge, formatAnnualAmount, formatDateFull, formatVal } from "../../lib/helpers";
+import { calcAge, formatDateFull, formatVal, formatWeeklyAmount } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/playerRating";
 import type { MessageData } from "../../store/gameStore";
@@ -84,7 +84,7 @@ export default function InboxMessageDetailPane({
     const newClubName = selectedMessage.context?.team_name ?? "";
     setPendingSwitch({ messageId, actionId, optionId, newClubName });
   };
-  const annualSuffix = t("finances.perYearSuffix", "/yr");
+  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
 
   if (!selectedMessage) {
     return (
@@ -315,8 +315,8 @@ export default function InboxMessageDetailPane({
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <Badge variant="neutral" size="sm">
-                                  {t("finances.wagePerYear")}:{" "}
-                                  {formatAnnualAmount(formatVal(prospect.wage ?? 0), annualSuffix)}
+                                  {t("finances.wagePerWeek")}:{" "}
+                                  {formatWeeklyAmount(formatVal(prospect.wage ?? 0), weeklySuffix)}
                                 </Badge>
                                 {prospect.contract_end ? (
                                   <Badge variant="neutral" size="sm">

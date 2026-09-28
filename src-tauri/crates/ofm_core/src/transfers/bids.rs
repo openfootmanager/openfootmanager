@@ -271,7 +271,7 @@ pub fn project_transfer_bid_financial_impact(
         .find(|team| team.id == user_team_id)
         .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
 
-    let annual_wage_bill_before = calc_annual_wages(game, &team.id);
+    let annual_wage_bill_before = calc_wages(game, &team.id);
     let annual_wage_bill_after = annual_wage_bill_before + player.wage as i64;
     let projected_wage_budget_usage_pct = if team.wage_budget > 0 {
         ((annual_wage_bill_after as f64 / team.wage_budget as f64) * 100.0).round() as i64
@@ -302,10 +302,10 @@ pub fn project_transfer_bid_financial_impact(
         annual_wage_bill_before,
         annual_wage_bill_after,
         annual_wage_budget: team.wage_budget,
-        current_weekly_wage_spend: annual_wage_bill_before / 52,
-        projected_weekly_wage_spend: annual_wage_bill_after / 52,
-        weekly_wage_budget: team.wage_budget / 52,
-        incoming_player_weekly_wage: player.wage as i64 / 52,
+        current_weekly_wage_spend: annual_wage_bill_before,
+        projected_weekly_wage_spend: annual_wage_bill_after,
+        weekly_wage_budget: team.wage_budget,
+        incoming_player_weekly_wage: i64::from(player.wage),
         projected_wage_budget_usage_pct,
         exceeds_transfer_budget: transfer_budget_after < 0,
         exceeds_finance: finance_after < 0,

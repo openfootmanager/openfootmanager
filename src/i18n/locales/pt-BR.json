@@ -2760,7 +2760,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Encerrar este contrato deixaria seu elenco sem condições de escalar um onze no dia do jogo",
         "noAssistantManagerAssigned": "Nenhum auxiliar técnico foi atribuído ao seu time",
         "playerHasNoTeam": "O jogador não tem time",
-        "boardWagePolicy": "A renovação foi bloqueada pela política salarial da diretoria. Mantenha os salários anuais perto de {{budget}} para se recuperar."
+        "boardWagePolicy": "A renovação foi bloqueada pela política salarial da diretoria. Mantenha os salários semanais perto de {{budget}} para se recuperar."
       },
       "scouting": {
         "scoutNotFound": "Olheiro não encontrado",
@@ -2895,7 +2895,7 @@
       },
       "wageOverBudget": {
         "subject": "Folha Salarial Acima do Orçamento",
-        "body": "Nossa folha salarial anual ({{annualWages}}) atualmente excede o orçamento salarial definido ({{wageBudget}}).\n\nEmbora possamos sustentar isso no curto prazo, a diretoria prefere ver a folha salarial sob controle."
+        "body": "Nossa folha salarial semanal ({{annualWages}}) atualmente excede o orçamento salarial definido ({{wageBudget}}).\n\nEmbora possamos sustentar isso no curto prazo, a diretoria prefere ver a folha salarial sob controle."
       },
       "financeBoardPressure": {
         "subject": "Diretoria — Pressão financeira",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "Você me disse para ainda não reabrir as conversas contratuais.",
           "completed": "Consegui fechar essa sem que você precisasse intervir.",
           "beyondLimits": "O estafe deles quer cerca de {{wage}}/semana por {{years}} anos, acima dos limites da delegação.",
-          "boardWagePolicy": "A política salarial da diretoria bloqueia esta renovação. Mantenha os salários anuais perto de {{budget}} enquanto nos recuperamos.",
+          "boardWagePolicy": "A política salarial da diretoria bloqueia esta renovação. Mantenha os salários semanais perto de {{budget}} enquanto nos recuperamos.",
           "prefersManager": "Eles até ouviriam, mas ainda querem cerca de {{wage}}/semana por {{years}} anos e preferem falar diretamente com você.",
           "relationshipBlocked": "Eles não estão dispostos a se comprometer por meu intermédio com o relacionamento e a situação contratual atuais."
         }

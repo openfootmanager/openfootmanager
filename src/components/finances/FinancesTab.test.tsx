@@ -751,7 +751,7 @@ describe("FinancesTab facilities", () => {
         },
       },
       [],
-      [createPlayer({ wage: 2080000, market_value: 200000 })],
+      [createPlayer({ wage: 40000, market_value: 200000 })],
     );
 
     render(<FinancesTab gameState={gameState} />);
@@ -806,7 +806,7 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Warning")).toBeInTheDocument();
     expect(screen.getByText("Expires 2025-04-30")).toBeInTheDocument();
     expect(screen.getByText("Expires 2025-10-15")).toBeInTheDocument();
-    expect(screen.getByText("€1,153/wk at risk")).toBeInTheDocument();
+    expect(screen.getByText("€60,000/wk at risk")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Renew Contract" })).toHaveLength(2);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Renew Contract" })[0]);

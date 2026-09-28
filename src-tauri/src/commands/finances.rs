@@ -219,7 +219,7 @@ mod tests {
             attrs,
         );
         player.team_id = Some("team-1".to_string());
-        player.wage = 52_000;
+        player.wage = 1_000;
         player
     }
 
@@ -251,9 +251,9 @@ mod tests {
 
         let response = get_finance_snapshot_internal(&state, None).expect("response");
 
-        assert_eq!(response.snapshot.annual_wage_bill, 52_000);
+        assert_eq!(response.snapshot.annual_wage_bill, 1_000);
         assert_eq!(response.snapshot.weekly_wage_spend, 1_000);
-        assert_eq!(response.snapshot.weekly_wage_budget, 120_000 / 52);
+        assert_eq!(response.snapshot.weekly_wage_budget, 120_000);
         assert!(response.previews.board_support.is_none());
         assert!(response.previews.sponsor_pitch.is_none());
         assert!(response.previews.marketing_campaign.is_none());
@@ -299,7 +299,7 @@ mod tests {
     fn request_sponsor_pitch_internal_creates_pending_offer() {
         let state = StateManager::new();
         let mut game = make_game();
-        game.teams[0].wage_budget = 50_000;
+        game.teams[0].wage_budget = 500;
         state.set_game(game);
 
         let response = request_sponsor_pitch_internal(&state).expect("response");

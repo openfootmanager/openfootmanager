@@ -28,7 +28,7 @@ import {
   getTeamName,
   calcAge,
   formatVal,
-  formatAnnualAmount,
+  formatWeeklyAmount,
   getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
@@ -147,7 +147,7 @@ export default function TransfersTab({
   onGameUpdate,
 }: TransfersTabProps) {
   const { t, i18n } = useTranslation();
-  const annualSuffix = t("finances.perYearSuffix", "/yr");
+  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const userTeamId = gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const transferWindow = seasonContext.transfer_window;
@@ -971,7 +971,7 @@ export default function TransfersTab({
                   {t("finances.wageBudget")}
                 </p>
                 <p className="font-heading font-bold text-lg text-white">
-                  {formatAnnualAmount(formatVal(annualWageBudget), annualSuffix)}
+                  {formatWeeklyAmount(formatVal(annualWageBudget), weeklySuffix)}
                 </p>
               </div>
               <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
@@ -1375,7 +1375,7 @@ export default function TransfersTab({
                           {formatVal(player.market_value)}
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
+                          {formatWeeklyAmount(formatVal(player.wage), weeklySuffix)}
                         </td>
                         <td className="py-2.5 px-4">
                           <span
@@ -1657,7 +1657,7 @@ export default function TransfersTab({
           player={dealWorkspaceTarget}
           teams={gameState.teams}
           myTeam={myTeam ?? null}
-          annualSuffix={annualSuffix}
+          weeklySuffix={weeklySuffix}
           transferWindowBlocksRegistration={transferWindowBlocksRegistration}
           transferWindowSummary={transferWindowSummary}
           loanNoticeDetail={loanWindowNoticeDetail}

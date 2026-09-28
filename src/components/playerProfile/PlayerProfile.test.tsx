@@ -18,8 +18,8 @@ type MockInvokePayload = {
   weeklyWage?: number;
 };
 
-function hasAnnualWage(text: string, amount: string): boolean {
-  return text.replace(/\s+/g, "").includes(`€${amount}/yr`);
+function hasWeeklyWage(text: string, amount: string): boolean {
+  return text.replace(/\s+/g, "").includes(`€${amount}/wk`);
 }
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -495,9 +495,9 @@ describe("PlayerProfile contract surfaces", () => {
     expect(screen.getByText("Years Remaining")).toBeInTheDocument();
     expect(screen.getByText("Contract Risk")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(screen.getByText("Annual Wage")).toBeInTheDocument();
+    expect(screen.getByText("Weekly Wage")).toBeInTheDocument();
     expect(
-      screen.getAllByText((_, element) => hasAnnualWage(element?.textContent ?? "", "12K")).length,
+      screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "12K")).length,
     ).toBeGreaterThan(0);
   });
 
@@ -848,8 +848,8 @@ describe("PlayerProfile contract surfaces", () => {
             projected_annual_wage_bill: 24000 - 12000 + offered,
             annual_wage_budget: 50000,
             annual_soft_cap: 55000,
-            current_weekly_wage_spend: 461,
-            projected_weekly_wage_spend: Math.round((24000 - 12000 + offered) / 52),
+            current_weekly_wage_spend: 24000,
+            projected_weekly_wage_spend: 24000 - 12000 + offered,
             current_cash_runway_weeks: 1084,
             projected_cash_runway_weeks: 500,
             currently_over_budget: false,
@@ -927,7 +927,7 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("Offer accepted")).toBeInTheDocument();
       expect(screen.getByText("Expires 2029-08-01")).toBeInTheDocument();
       expect(
-        screen.getAllByText((_, element) => hasAnnualWage(element?.textContent ?? "", "15K"))
+        screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "15K"))
           .length,
       ).toBeGreaterThan(0);
       expect(screen.getByText("Stable")).toBeInTheDocument();

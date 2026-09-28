@@ -2760,7 +2760,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Résilier ce contrat laisserait votre effectif incapable d'aligner un onze le jour du match",
         "noAssistantManagerAssigned": "Aucun entraîneur adjoint n'est assigné à votre équipe",
         "playerHasNoTeam": "Le joueur n'a pas d'équipe",
-        "boardWagePolicy": "Le renouvellement est bloqué par la politique salariale du conseil. Gardez la masse salariale annuelle proche de {{budget}} pour vous rétablir."
+        "boardWagePolicy": "Le renouvellement est bloqué par la politique salariale du conseil. Gardez la masse salariale hebdomadaire proche de {{budget}} pour vous rétablir."
       },
       "scouting": {
         "scoutNotFound": "Recruteur introuvable",
@@ -2895,7 +2895,7 @@
       },
       "wageOverBudget": {
         "subject": "La masse salariale dépasse le budget",
-        "body": "Notre masse salariale annuelle ({{annualWages}}) dépasse actuellement le budget salarial alloué ({{wageBudget}}).\n\nMême si cela reste soutenable à court terme, le conseil préférerait voir la masse salariale revenir sous contrôle."
+        "body": "Notre masse salariale hebdomadaire ({{annualWages}}) dépasse actuellement le budget salarial alloué ({{wageBudget}}).\n\nMême si cela reste soutenable à court terme, le conseil préférerait voir la masse salariale revenir sous contrôle."
       },
       "financeBoardPressure": {
         "subject": "Conseil — Pression financière",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "Tu m'as dit de ne pas rouvrir les discussions contractuelles pour l'instant.",
           "completed": "J'ai pu régler ce dossier sans que tu aies besoin d'intervenir.",
           "beyondLimits": "Le clan du joueur veut environ {{wage}}/semaine pour {{years}} ans, au-delà des limites de délégation.",
-          "boardWagePolicy": "La politique salariale du conseil bloque ce renouvellement. Maintiens la masse salariale annuelle près de {{budget}} pendant la phase de redressement.",
+          "boardWagePolicy": "La politique salariale du conseil bloque ce renouvellement. Maintiens la masse salariale hebdomadaire près de {{budget}} pendant la phase de redressement.",
           "prefersManager": "Ils écouteraient, mais demandent encore environ {{wage}}/semaine pour {{years}} ans et préfèrent parler directement avec toi.",
           "relationshipBlocked": "Ils ne sont pas prêts à s'engager par mon intermédiaire dans le contexte relationnel et contractuel actuel."
         }

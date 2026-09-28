@@ -2768,7 +2768,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Bu sözleşmenin feshi, kadronuzu maç günü 11'i çıkaramayacak duruma düşürür",
         "noAssistantManagerAssigned": "Takımınıza atanmış yardımcı antrenör yok",
         "playerHasNoTeam": "Oyuncunun takımı yok",
-        "boardWagePolicy": "Yenileme, yönetimin maaş politikası tarafından engellendi. Toparlanmak için yıllık maaşları {{budget}} civarında tutun."
+        "boardWagePolicy": "Yenileme, yönetimin maaş politikası tarafından engellendi. Toparlanmak için haftalık maaşları {{budget}} civarında tutun."
       },
       "scouting": {
         "scoutNotFound": "Gözlemci bulunamadı",
@@ -2895,7 +2895,7 @@
       },
       "wageOverBudget": {
         "subject": "Maaş Yükü Bütçeyi Aşıyor",
-        "body": "Yıllık maaş yükümüz ({{annualWages}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
+        "body": "Haftalık maaş yükümüz ({{annualWages}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
       },
       "financeBoardPressure": {
         "subject": "Yönetim Değerlendirmesi — Finansal Baskı",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "Sözleşme görüşmelerini henüz yeniden açmamamı söylemiştiniz.",
           "completed": "Bu görüşmeyi siz devreye girmeden tamamlayabildim.",
           "beyondLimits": "Oyuncunun kampı {{years}} yıl için haftalık {{wage}} civarı istiyor; bu, devretme sınırlarının ötesinde.",
-          "boardWagePolicy": "Yönetimin maaş politikası bu yenilemeyi engelliyor. Toparlanırken yıllık maaşları {{budget}} civarında tutun.",
+          "boardWagePolicy": "Yönetimin maaş politikası bu yenilemeyi engelliyor. Toparlanırken haftalık maaşları {{budget}} civarında tutun.",
           "prefersManager": "Dinlemeye açıklar, ancak hâlâ {{years}} yıl için haftalık {{wage}} civarı istiyorlar ve bunu doğrudan sizden duymayı tercih ediyorlar.",
           "relationshipBlocked": "Mevcut ilişki ve sözleşme durumu altında benim aracılığımla taahhütte bulunmaya istekli değiller."
         }

@@ -1147,14 +1147,14 @@ describe("resolveBackendError", () => {
       "translation",
       {
         "be.error.contracts.boardWagePolicy":
-          "Renewal blocked by board wage policy. Keep annual wages near {{budget}} to recover.",
+          "Renewal blocked by board wage policy. Keep weekly wages near {{budget}} to recover.",
       },
       true,
       true,
     );
 
     expect(resolveBackendError("be.error.contracts.boardWagePolicy?budget=200000")).toBe(
-      "Renewal blocked by board wage policy. Keep annual wages near €200,000 to recover.",
+      "Renewal blocked by board wage policy. Keep weekly wages near €200,000 to recover.",
     );
   });
 

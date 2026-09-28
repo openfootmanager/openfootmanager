@@ -169,12 +169,12 @@ describe("PlayerProfile.helpers", (): void => {
     expect(formatPlayerMarketValue(2500000)).toBe("€2.5M");
   });
 
-  it("formats annual wages as weekly display values", (): void => {
-    expect(formatPlayerWage(52000, "/wk")).toMatch(/^€1[.,]000\/wk$/);
+  it("formats stored wages as weekly display values", (): void => {
+    expect(formatPlayerWage(1000, "/wk")).toMatch(/^€1[.,]000\/wk$/);
   });
 
-  it("formats current player wages as annual display values", (): void => {
-    expect(formatPlayerAnnualWage(52000, "/yr")).toBe("€52K/yr");
+  it("formats current player wages as weekly display values", (): void => {
+    expect(formatPlayerAnnualWage(52000, "/wk")).toBe("€52K/wk");
   });
 
   it("respects the selected settings currency for market values and wages", (): void => {
@@ -184,7 +184,7 @@ describe("PlayerProfile.helpers", (): void => {
     });
 
     expect(formatPlayerMarketValue(125000)).toBe("£108K");
-    expect(formatPlayerWage(52000, "/wk")).toBe("£860/wk");
+    expect(formatPlayerWage(1000, "/wk")).toBe("£860/wk");
   });
 
   it("maps attribute values to readable shared color classes", (): void => {

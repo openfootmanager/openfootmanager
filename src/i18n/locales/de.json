@@ -2760,7 +2760,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Eine Vertragsauflösung würde deinen Kader daran hindern, am Spieltag eine Startelf zu stellen",
         "noAssistantManagerAssigned": "Kein Co-Trainer ist deinem Team zugewiesen",
         "playerHasNoTeam": "Der Spieler hat kein Team",
-        "boardWagePolicy": "Die Verlängerung wird durch die Gehaltspolitik des Vorstands blockiert. Halte die Jahresgehälter nahe bei {{budget}}, um dich zu erholen."
+        "boardWagePolicy": "Die Verlängerung wird durch die Gehaltspolitik des Vorstands blockiert. Halte die Wochengehälter nahe bei {{budget}}, um dich zu erholen."
       },
       "scouting": {
         "scoutNotFound": "Scout nicht gefunden",
@@ -2895,7 +2895,7 @@
       },
       "wageOverBudget": {
         "subject": "Gehaltsbudget überschritten",
-        "body": "Unsere jährlichen Gehaltskosten ({{annualWages}}) übersteigen derzeit das vorgesehene Gehaltsbudget ({{wageBudget}}).\n\nKurzfristig ist das noch tragbar, aber der Vorstand würde die Gehaltskosten lieber wieder unter Kontrolle sehen."
+        "body": "Unsere wöchentlichen Gehaltskosten ({{annualWages}}) übersteigen derzeit das vorgesehene Gehaltsbudget ({{wageBudget}}).\n\nKurzfristig ist das noch tragbar, aber der Vorstand würde die Gehaltskosten lieber wieder unter Kontrolle sehen."
       },
       "financeBoardPressure": {
         "subject": "Vorstandssitzung — Finanzdruck",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "Du hast mir gesagt, ich soll die Vertragsgespräche noch nicht wieder aufnehmen.",
           "completed": "Ich konnte das ohne dein Eingreifen abschließen.",
           "beyondLimits": "Die Spielerseite will etwa {{wage}}/Woche für {{years}} Jahre, das liegt außerhalb der Delegationsgrenzen.",
-          "boardWagePolicy": "Die Gehaltspolitik des Vorstands blockiert diese Verlängerung. Halte die Jahreslöhne während der Erholung nahe bei {{budget}}.",
+          "boardWagePolicy": "Die Gehaltspolitik des Vorstands blockiert diese Verlängerung. Halte die Wochengehälter während der Erholung nahe bei {{budget}}.",
           "prefersManager": "Sie würden zuhören, wollen aber noch etwa {{wage}}/Woche für {{years}} Jahre und bevorzugen ein Gespräch direkt mit dir.",
           "relationshipBlocked": "Unter der aktuellen Beziehung und Vertragssituation wollen sie sich über mich nicht festlegen."
         }
