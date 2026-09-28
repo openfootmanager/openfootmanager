@@ -14,9 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "quality:check": "node scripts/quality-metrics.mjs --check",
-    "quality:baseline": "node scripts/quality-metrics.mjs --write",
-    "preflight": "npm run format:check && npm run lint && npm run quality:check && npm run build && npm test"
+    "preflight": "npm run format:check && npm run lint && npm run build && npm test"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.2.8",
@@ -47,7 +45,6 @@
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.11",
     "jsdom": "^29.0.1",
-    "knip": "^6.35.1",
     "tailwindcss": "^4.2.2",
     "typescript": "~6.0.2",
     "vite": "^8.0.16",

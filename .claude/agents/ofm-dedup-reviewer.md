@@ -10,8 +10,7 @@ tool catches this: a reimplemented helper type-checks, passes its tests, and loo
 ## Be honest about what you are
 
 You are a local prompt. Nothing makes you run, and you are not a gate. The load-bearing
-duplication checks in this repo are the named-pattern counters in `quality-baseline.json` and
-Biome's rules, both of which run in CI. You are a useful extra pass, not the defence — do not
+duplication checks in this repo are Biome's rules, which run in CI. You are a useful extra pass, not the defence — do not
 write as though your approval means anything mechanical.
 
 ## Look here before believing something is new

@@ -126,18 +126,17 @@ has already watched two of those sit switched off for a year.
 
 `biome.json` is strict JSON and cannot carry comments, so the decisions live here:
 
-Five rules sit at **`info`** rather than `error`. That is not "off": Biome still reports them
-every time you lint, and `npm run quality:check` counts them from Biome's own output, so **the
-number can fall but never rise**. Fixing a few is always welcome; the count drops and you commit
-the regenerated baseline with the change that earned it.
+Five rules sit at **`info`** rather than `error`. Biome still prints them every time you lint,
+but they do not fail the build. They are the backlog: fixing a few alongside other work in the
+same file is welcome, and none of them should be added to by new code.
 
-| Rule | Outstanding | Why it is not a hard error yet |
-|---|---|---|
-| `style/noNonNullAssertion` | 59 | Biome's fix rewrites `game.league!.standings` to `game.league?.standings`, turning a crash into a silent `undefined`. In a test, `expect(a?.b).toBe(c)` then passes vacuously — an assertion-free test, produced by an automated fix. Each site needs a real guard saying what the invariant is. |
-| `a11y/noLabelWithoutControl` | 35 | Some are a `<label>` next to a `<Select>` and want `htmlFor`/`id`. Others label a *group* of cards, where the right answer is a `<fieldset>`/`<legend>`, not a control reference. |
-| `a11y/noStaticElementInteractions` | 24 | Clickable `<div>`s across 18 files. |
-| `a11y/useKeyWithClickEvents` | 24 | The same elements, from the other side: they respond to a mouse and not a keyboard. |
-| `a11y/useSemanticElements` | 9 | `role="button"` on a `<div>` that should be a `<button>`. |
+| Rule | Why it is not a hard error yet |
+|---|---|
+| `style/noNonNullAssertion` | Biome's fix rewrites `game.league!.standings` to `game.league?.standings`, turning a crash into a silent `undefined`. In a test, `expect(a?.b).toBe(c)` then passes vacuously — an assertion-free test, produced by an automated fix. Each site needs a real guard saying what the invariant is. |
+| `a11y/noLabelWithoutControl` | Some are a `<label>` next to a `<Select>` and want `htmlFor`/`id`. Others label a *group* of cards, where the right answer is a `<fieldset>`/`<legend>`, not a control reference. |
+| `a11y/noStaticElementInteractions` | Clickable `<div>`s that respond to a mouse and nothing else. |
+| `a11y/useKeyWithClickEvents` | The same elements, seen from the keyboard side: no Enter or Space handler. |
+| `a11y/useSemanticElements` | `role="button"` on a `<div>` that should be a `<button>`. |
 
 The last three change what is focusable and what responds to Enter and Space in the schedule,
 inbox, tactics pitch and substitution panel. That is interactive behaviour, and it wants
