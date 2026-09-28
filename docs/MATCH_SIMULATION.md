@@ -302,15 +302,28 @@ The experience factor scales how early and aggressively the AI makes decisions.
 
 ## Integration: Domain ↔ Engine
 
-The `turn.rs` module in `ofm_core` handles the conversion:
+The `ofm_core/turn/` bridge is the only place the conversion is allowed to live —
+`engine` never imports `domain`, so every domain type is translated here.
 
-1. **`build_engine_team()`** — converts domain `Player`/`Team` objects into engine `PlayerData`/`TeamData`, mapping positions, play styles, and all 19 attributes + traits.
-2. **`simulate_matchday()`** — for each fixture on a match day, builds engine teams and calls `engine::simulate()`.
+1. **`turn/squad.rs`** — the single domain→engine squad builder, shared by both match
+   paths. `build_team_with_bench()` picks eleven slot-aligned starters from the club's fit
+   players and returns the bench separately, so only actual participants are handed to the
+   engine. Who picks them depends on whose club it is: the user's own club goes through
+   `select_starting_xi()`, which honours the saved XI and rebuilds one only when fewer than
+   eight saved starters are still available; every other club goes through
+   `ai_select_starting_xi()`, a reputation-driven policy that rotates for freshness. A club
+   with too few fit players to fill the formation makes the shortfall up from its injured
+   list rather than fielding a short side — the engine has no forfeit, and an empty side
+   would crash it. The builder also maps positions, play styles, roles, the nine tactical
+   dials, and all 19 attributes + traits.
+2. **`simulate_matchday()`** — for each fixture on a match day, builds both squads through
+   `turn/squad.rs` and calls `engine::simulate()`. The bench is discarded on this path:
+   `simulate()` is one-shot with no command loop, so an instant match has no substitutions.
 3. **`apply_match_report()`** — writes results back to the domain: fixture status, match result, standings updates, player season stats (goals, assists, cards, rating, clean sheets).
 4. **`apply_player_stats()`** — updates individual `PlayerSeasonStats` from the engine's `PlayerMatchStats`.
 
 For live matches, `live_match_manager.rs` provides:
-- **`create_live_match()`** — builds a `LiveMatchSession` from the current game state, splitting players into starting XI and bench based on the team's formation
+- **`create_live_match()`** — builds a `LiveMatchSession` from the current game state, using the same `turn/squad.rs` builder and keeping the bench for substitutions
 - **`LiveMatchSession`** — wraps `LiveMatchState` with an RNG, AI profiles for both sides, and metadata. Provides `step()`, `step_many()`, `run_to_completion()`, `snapshot()`, and `apply_command()` methods.
 
 ---

@@ -33,51 +33,6 @@ pub fn build_team_with_tactics(
     rng: &mut impl Rng,
 ) -> TeamData {
     let (n_def, n_mid, n_fwd, used_fallback) = parse_formation(formation);
-    let mut players = Vec::with_capacity(11);
-
-    players.push(make_player(
-        id,
-        "GK",
-        1,
-        1,
-        Position::Goalkeeper,
-        avg_ovr,
-        rng,
-    ));
-    for i in 1..=n_def {
-        players.push(make_player(
-            id,
-            "DEF",
-            i,
-            n_def,
-            Position::Defender,
-            avg_ovr,
-            rng,
-        ));
-    }
-    for i in 1..=n_mid {
-        players.push(make_player(
-            id,
-            "MID",
-            i,
-            n_mid,
-            Position::Midfielder,
-            avg_ovr,
-            rng,
-        ));
-    }
-    for i in 1..=n_fwd {
-        players.push(make_player(
-            id,
-            "FWD",
-            i,
-            n_fwd,
-            Position::Forward,
-            avg_ovr,
-            rng,
-        ));
-    }
-
     TeamData {
         id: id.to_string(),
         name: name.to_string(),
@@ -88,8 +43,108 @@ pub fn build_team_with_tactics(
         },
         play_style,
         tactics,
-        players,
+        players: build_group(id, "", avg_ovr, (n_def, n_mid, n_fwd), rng),
     }
+}
+
+/// Build a full 22-man squad: a starting XI plus a same-shaped bench.
+///
+/// Real squads carry a second choice for every slot, which is exactly what the
+/// instant-simulation path currently hands to the engine wholesale. The A/B mode
+/// needs both halves separately so it can ask what each path does with them.
+/// Bench players are `bench_ovr_penalty` points weaker so rotation has a cost.
+pub fn build_squad_with_bench(
+    id: &str,
+    name: &str,
+    avg_ovr: u8,
+    bench_ovr_penalty: u8,
+    play_style: PlayStyle,
+    formation: &str,
+    rng: &mut impl Rng,
+) -> (TeamData, Vec<PlayerData>) {
+    let (n_def, n_mid, n_fwd, used_fallback) = parse_formation(formation);
+    let shape = (n_def, n_mid, n_fwd);
+    let starters = build_group(id, "", avg_ovr, shape, rng);
+    let bench = build_group(
+        id,
+        "sub",
+        avg_ovr.saturating_sub(bench_ovr_penalty),
+        shape,
+        rng,
+    );
+
+    let team = TeamData {
+        id: id.to_string(),
+        name: name.to_string(),
+        formation: if used_fallback {
+            "4-4-2".to_string()
+        } else {
+            formation.to_string()
+        },
+        play_style,
+        tactics: TacticsConfig::default(),
+        players: starters,
+    };
+    (team, bench)
+}
+
+/// One GK plus the outfield shape, ids namespaced by `tag` so a squad's starters
+/// and its bench never collide. `tag` is empty for starters, which keeps their
+/// ids byte-identical to what the single-XI builders have always produced — the
+/// existing seeded benchmarks stay reproducible.
+fn build_group(
+    team_id: &str,
+    tag: &str,
+    avg_ovr: u8,
+    shape: (u8, u8, u8),
+    rng: &mut impl Rng,
+) -> Vec<PlayerData> {
+    let (n_def, n_mid, n_fwd) = shape;
+    let mut players = Vec::with_capacity(11);
+
+    players.push(make_player(
+        team_id,
+        &format!("{tag}GK"),
+        1,
+        1,
+        Position::Goalkeeper,
+        avg_ovr,
+        rng,
+    ));
+    for i in 1..=n_def {
+        players.push(make_player(
+            team_id,
+            &format!("{tag}DEF"),
+            i,
+            n_def,
+            Position::Defender,
+            avg_ovr,
+            rng,
+        ));
+    }
+    for i in 1..=n_mid {
+        players.push(make_player(
+            team_id,
+            &format!("{tag}MID"),
+            i,
+            n_mid,
+            Position::Midfielder,
+            avg_ovr,
+            rng,
+        ));
+    }
+    for i in 1..=n_fwd {
+        players.push(make_player(
+            team_id,
+            &format!("{tag}FWD"),
+            i,
+            n_fwd,
+            Position::Forward,
+            avg_ovr,
+            rng,
+        ));
+    }
+    players
 }
 
 fn sample_role(
@@ -185,9 +240,11 @@ fn parse_formation(formation: &str) -> (u8, u8, u8, bool) {
     (result.0, result.1, result.2, false)
 }
 
+/// `label` is the player's position label, already carrying any group tag —
+/// `"GK"` for a starter, `"subGK"` for his deputy.
 fn make_player(
     team_id: &str,
-    pos_label: &str,
+    label: &str,
     idx: u8,
     total_in_position: u8,
     position: Position,
@@ -213,8 +270,8 @@ fn make_player(
     let role = sample_role(position, idx, total_in_position, rng);
 
     PlayerData {
-        id: format!("{team_id}_{pos_label}{idx}"),
-        name: format!("{pos_label}{idx}"),
+        id: format!("{team_id}_{label}{idx}"),
+        name: format!("{label}{idx}"),
         position,
         ovr: avg_ovr,
         condition: rng.random_range(80u8..=100u8),
