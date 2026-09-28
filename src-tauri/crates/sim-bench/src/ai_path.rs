@@ -36,9 +36,13 @@ pub struct PathTotals {
     participants: u64,
     /// Sum of every squad member's minutes.
     player_minutes: u64,
+    /// Commands the engine accepted, by kind — what actually changed on the pitch.
     substitutions: u64,
     style_changes: u64,
     formation_changes: u64,
+    /// Commands the engine refused (no bench cover, substitutions used up), kept
+    /// apart so the rows above count changes rather than attempts.
+    rejected_commands: u64,
     /// Condition the production wear formula would charge, summed over the squad.
     condition_burn: u64,
     elapsed: Duration,
@@ -209,15 +213,26 @@ fn run_live<R: Rng>(
         state.step_minute(rng);
         for side in [Side::Home, Side::Away] {
             for cmd in ai_decide(&state, side, &profile, rng) {
-                count_command(totals, &cmd);
-                // A rejected command is a real outcome (no bench cover, subs
-                // exhausted), not a bench failure — record the attempt and move on.
-                let _ = state.apply_command(cmd);
+                apply_and_count(&mut state, cmd, totals);
             }
         }
     }
 
     state.into_report()
+}
+
+/// Hand one AI command to the engine and count it as what it turned out to be.
+///
+/// A rejected command is a real outcome (no bench cover, substitutions used up),
+/// not a bench failure — but it changed nothing, so it is counted apart from the
+/// changes that happened. Counting before applying would report attempts as
+/// substitutions.
+fn apply_and_count(state: &mut LiveMatchState, cmd: engine::MatchCommand, totals: &mut PathTotals) {
+    if state.apply_command(cmd.clone()).is_ok() {
+        count_command(totals, &cmd);
+    } else {
+        totals.rejected_commands += 1;
+    }
 }
 
 fn count_command(totals: &mut PathTotals, cmd: &engine::MatchCommand) {
@@ -247,7 +262,7 @@ fn print_table(instant: &PathTotals, live: &PathTotals, games: u32) {
     );
     println!("{sep}");
 
-    let rows: [(&str, f64, f64); 6] = [
+    let rows: [(&str, f64, f64); 7] = [
         (
             "participants",
             instant.per_match(instant.participants),
@@ -272,6 +287,11 @@ fn print_table(instant: &PathTotals, live: &PathTotals, games: u32) {
             "formation changes",
             instant.per_match(instant.formation_changes),
             live.per_match(live.formation_changes),
+        ),
+        (
+            "commands rejected",
+            instant.per_match(instant.rejected_commands),
+            live.per_match(live.rejected_commands),
         ),
         (
             "condition burned",
@@ -420,6 +440,97 @@ mod tests {
             totals.condition_burn > 1_000,
             "44 players × ~28 condition — got {}",
             totals.condition_burn
+        );
+    }
+
+    fn two_mirrored_squads() -> (TeamData, Vec<PlayerData>, TeamData, Vec<PlayerData>) {
+        let mut team_rng = StdRng::seed_from_u64(3);
+        let (home_xi, home_bench) = build_squad_with_bench(
+            "home",
+            "Home FC",
+            70,
+            BENCH_OVR_PENALTY,
+            PlayStyle::Balanced,
+            "4-4-2",
+            &mut team_rng,
+        );
+        let (away_xi, away_bench) = build_squad_with_bench(
+            "away",
+            "Away FC",
+            70,
+            BENCH_OVR_PENALTY,
+            PlayStyle::Balanced,
+            "4-4-2",
+            &mut team_rng,
+        );
+        (home_xi, home_bench, away_xi, away_bench)
+    }
+
+    /// The table's "substitutions" row is changes made, not changes asked for.
+    #[test]
+    fn a_refused_substitution_is_not_counted_as_one() {
+        let (home_xi, home_bench, away_xi, away_bench) = two_mirrored_squads();
+        let mut state = LiveMatchState::new(
+            home_xi,
+            away_xi,
+            MatchConfig::default(),
+            home_bench,
+            away_bench,
+            false,
+        );
+        let mut totals = PathTotals::default();
+
+        apply_and_count(
+            &mut state,
+            engine::MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "nobody".to_string(),
+                player_on_id: "nobody_either".to_string(),
+            },
+            &mut totals,
+        );
+
+        assert_eq!(totals.substitutions, 0, "the engine refused it");
+        assert_eq!(totals.rejected_commands, 1);
+    }
+
+    /// The live arm plays a whole match with an eleven and a bench, both sides
+    /// managed: every starter features, and nobody beyond the substitutions the
+    /// engine allows joins them.
+    #[test]
+    fn the_live_arm_plays_a_managed_match_with_an_eleven_and_a_bench() {
+        let mut totals = PathTotals::default();
+        for seed in 0..20 {
+            let (home_xi, home_bench, away_xi, away_bench) = two_mirrored_squads();
+            let squad = squad_snapshot(&home_xi, &home_bench, &away_xi, &away_bench);
+            let mut rng = StdRng::seed_from_u64(seed);
+            let report = run_live(
+                home_xi,
+                away_xi,
+                home_bench,
+                away_bench,
+                &MatchConfig::default(),
+                &mut rng,
+                &mut totals,
+            );
+            assert!(
+                report.total_minutes >= 90,
+                "seed {seed}: the match stopped at {}",
+                report.total_minutes
+            );
+            accumulate(&mut totals, &report, &squad);
+        }
+
+        let per_match = |n: u64| n as f64 / 20.0;
+        assert!(
+            (22.0..=32.0).contains(&per_match(totals.participants)),
+            "22 starters plus at most five substitutes a side, got {} a match",
+            per_match(totals.participants)
+        );
+        assert!(
+            totals.substitutions <= 20 * 10,
+            "at most five substitutions a side are ever made, counted {}",
+            totals.substitutions
         );
     }
 }
