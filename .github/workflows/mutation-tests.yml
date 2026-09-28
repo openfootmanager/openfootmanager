@@ -14,9 +14,17 @@ name: mutation-tests
 # person to judge — plenty are equivalent mutants that no test could reasonably catch. Blocking a
 # PR on that would be the fastest way to get this deleted.
 #
-# One crate a week, rotating by week number through engine, domain, ofm_core and db. The first
-# two are pure logic with no database and no Tauri, so they are the fastest and the ones where
-# a survivor most clearly means a gap.
+# One *slot* a week, not one crate. Measured on the first scheduled run, each mutant costs about
+# 18 seconds here (~14.7s to build, ~4.8s to test), and the crates are very different sizes:
+#
+#   domain      312 mutants    ~1.5 h
+#   db          499 mutants    ~2.5 h   (actual first run: 2h 27m)
+#   engine    1,508 mutants    ~7.5 h
+#   ofm_core  7,438 mutants     ~37 h
+#
+# GitHub stops any hosted job at six hours, so whole-crate weeks for `engine` and `ofm_core`
+# could never finish. The rotation below splits them with `--shard` into slots of roughly 500-570
+# mutants (about three hours each): 18 slots, so every mutant is exercised once every 18 weeks.
 
 on:
   schedule:
@@ -28,13 +36,18 @@ on:
       crate:
         description: Which crate to mutate
         required: false
-        default: engine
+        default: domain
         type: choice
         options:
-          - engine
           - domain
-          - ofm_core
           - db
+          - engine
+          - ofm_core
+      shard:
+        description: "Zero-based shard, e.g. 0/3. Needed for engine (use /3) and ofm_core (use /13), which do not fit in one run."
+        required: false
+        default: "0/1"
+        type: string
 
 permissions:
   contents: read
@@ -72,36 +85,58 @@ jobs:
         with:
           tool: cargo-mutants@25.3.1
 
-      # A cron trigger carries no inputs, so `inputs.crate` is empty every week — the first
-      # version of this said "one crate a week" and then ran `engine` every time. The week number
-      # picks one, so the rotation actually rotates; a manual dispatch still names its own.
-      - name: Choose this week's crate
+      # A cron trigger carries no inputs, so the week number picks the slot; a manual dispatch
+      # names its own crate and shard. Shards are zero-based: `ofm_core 12/13` is the last one.
+      - name: Choose this week's slot
         id: crate
         run: |
           set -euo pipefail
           if [ -n "${{ inputs.crate }}" ]; then
             crate="${{ inputs.crate }}"
+            shard="${{ inputs.shard || '0/1' }}"
           else
-            crates=(engine domain ofm_core db)
+            slots=("domain 0/1" "db 0/1")
+            for i in 0 1 2; do slots+=("engine $i/3"); done
+            for i in $(seq 0 12); do slots+=("ofm_core $i/13"); done
             week="$(date -u +%V)"
-            crate="${crates[$((10#$week % ${#crates[@]}))]}"
+            read -r crate shard <<< "${slots[$((10#$week % ${#slots[@]}))]}"
           fi
           echo "name=$crate" >> "$GITHUB_OUTPUT"
-          echo "Mutating $crate"
+          echo "shard=$shard" >> "$GITHUB_OUTPUT"
+          # A filesystem-safe label for the artifact name: `ofm_core 3/13` -> `ofm_core-3of13`.
+          echo "label=${crate}-${shard/\//of}" >> "$GITHUB_OUTPUT"
+          echo "Mutating $crate, shard $shard"
 
       # Surviving mutants are the *output*, not a failure — a red tick on a weekly job nobody can
       # act on today is how a scheduled job becomes invisible. cargo-mutants exits 2 for exactly
       # that case, so that one status is swallowed and nothing else is: a bare `|| true` would
       # have turned a missing tool or a compilation failure into a green job with no report,
       # which is the same silent-pass shape this whole programme exists to stop.
-      - name: Mutate ${{ steps.crate.outputs.name }}
+      #
+      # Two traps, both sprung on this job's first scheduled run (27 Sep 2026), which tested 495
+      # mutants of `db` over 2h 27m and then threw the results away:
+      #
+      #   * Actions runs every `run:` block under `bash -e`. A `set -uo pipefail` does not turn
+      #     `-e` off, so the moment cargo-mutants exited 2 the step died — the line meant to accept
+      #     exit 2 was never reached. `|| status=$?` is what exempts the call from `-e`.
+      #   * `--output DIR` creates `mutants.out` *inside* DIR ("Create mutants.out within this
+      #     directory", per the CLI's own help), so the report is `DIR/mutants.out/outcomes.json`.
+      #     The first version checked `DIR/outcomes.json` and would have failed every week even
+      #     with the exit status fixed.
+      #
+      # The step timeout sits under the job's on purpose. A slot that overruns fails *this step*,
+      # and the upload below still runs; if it were the job that timed out instead, GitHub would
+      # cancel the whole job and the upload would never happen.
+      - name: Mutate ${{ steps.crate.outputs.name }} (shard ${{ steps.crate.outputs.shard }})
+        timeout-minutes: 270
         run: |
           set -uo pipefail
+          status=0
           cargo mutants --manifest-path src-tauri/Cargo.toml \
             --package "${{ steps.crate.outputs.name }}" \
+            --shard "${{ steps.crate.outputs.shard }}" \
             --in-place --no-shuffle --timeout 300 \
-            --output mutants-out
-          status=$?
+            --output mutants-out || status=$?
 
           # 0 = nothing survived, 2 = some mutants survived. Anything else is a real failure.
           if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
@@ -111,14 +146,18 @@ jobs:
           fi
 
           # And a run that produced no report produced nothing, whatever it exited with.
-          if [ ! -s mutants-out/outcomes.json ]; then
-            echo "cargo-mutants exited $status but wrote no outcomes.json." >&2
+          if [ ! -s mutants-out/mutants.out/outcomes.json ]; then
+            echo "cargo-mutants exited $status but wrote no mutants-out/mutants.out/outcomes.json." >&2
             exit 1
           fi
 
+      # `!cancelled()` rather than the default `success()`: a run that fails partway still leaves
+      # whatever it measured on disk, and two hours of mutants are worth keeping even then. The
+      # first scheduled run lost its entire report to exactly that default.
       - name: Upload the survivor list
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: mutants-${{ steps.crate.outputs.name }}
+          name: mutants-${{ steps.crate.outputs.label }}
           path: mutants-out/
           retention-days: 30
