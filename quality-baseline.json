@@ -1,6 +1,6 @@
 {
   "oversizedAggregate": {
-    "rust": 63507,
+    "rust": 63509,
     "ts": 35965
   },
   "allowedOversized": {
@@ -14,7 +14,7 @@
     "src-tauri/crates/ofm_core/src/finances/mod.rs": 1386,
     "src-tauri/crates/ofm_core/src/generator/competition_def.rs": 1635,
     "src-tauri/crates/ofm_core/src/generator/generation.rs": 1642,
-    "src-tauri/crates/ofm_core/src/generator/mod.rs": 2908,
+    "src-tauri/crates/ofm_core/src/generator/mod.rs": 2910,
     "src-tauri/crates/ofm_core/src/generator/package.rs": 4790,
     "src-tauri/crates/ofm_core/src/job_offers.rs": 1496,
     "src-tauri/crates/ofm_core/src/nations.rs": 1379,
@@ -92,7 +92,7 @@
     "tsIgnore": 0,
     "biomeIgnore": 9,
     "eslintDisable": 5,
-    "rustAllow": 22,
+    "rustAllow": 23,
     "rustExpect": 0,
     "rustUnsafeBlocks": 0
   },

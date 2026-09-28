@@ -2768,7 +2768,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Mengakhiri kontrak ini akan membuat skuad kamu tidak dapat menurunkan XI pertandingan",
         "noAssistantManagerAssigned": "Tidak ada asisten manajer yang ditugaskan ke tim kamu",
         "playerHasNoTeam": "Pemain tidak memiliki tim",
-        "boardWagePolicy": "Perpanjangan diblokir oleh kebijakan gaji manajemen. Jaga gaji tahunan di sekitar {{budget}} untuk pulih."
+        "boardWagePolicy": "Perpanjangan diblokir oleh kebijakan gaji manajemen. Jaga gaji mingguan di sekitar {{budget}} untuk pulih."
       },
       "scouting": {
         "scoutNotFound": "Scout tidak ditemukan",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "Kamu meminta saya untuk belum membuka kembali pembicaraan kontrak.",
           "completed": "Saya berhasil menyelesaikan yang satu ini tanpa perlu kamu turun tangan.",
           "beyondLimits": "Mereka menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun, yang melebihi batas pendelegasian.",
-          "boardWagePolicy": "Kebijakan gaji manajemen menghalangi perpanjangan ini. Jaga gaji tahunan di sekitar {{budget}} sambil kami pulih.",
+          "boardWagePolicy": "Kebijakan gaji manajemen menghalangi perpanjangan ini. Jaga gaji mingguan di sekitar {{budget}} sambil kami pulih.",
           "prefersManager": "Mereka bersedia mendengarkan, tetapi masih menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun dan lebih suka mendengarnya langsung dari kamu.",
           "relationshipBlocked": "Mereka tidak bersedia berkomitmen melalui saya dalam situasi hubungan dan kontrak saat ini."
         }

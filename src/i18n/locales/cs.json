@@ -2768,7 +2768,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Ukončení této smlouvy by způsobilo, že váš kádr nebude schopen postavit zápasovou jedenáctku",
         "noAssistantManagerAssigned": "K vašemu týmu není přiřazen žádný asistent manažera",
         "playerHasNoTeam": "Hráč nemá žádný tým",
-        "boardWagePolicy": "Prodloužení smlouvy je zablokováno mzdovou politikou představenstva. Pro nápravu udržujte roční platy blízko částky {{budget}}."
+        "boardWagePolicy": "Prodloužení smlouvy je zablokováno mzdovou politikou představenstva. Pro nápravu udržujte týdenní platy blízko částky {{budget}}."
       },
       "scouting": {
         "scoutNotFound": "Skaut nebyl nalezen",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "Řekl jste mi, abych jednání o nové smlouvě zatím znovu neotvíral.",
           "completed": "Tento případ se mi podařil uzavřít, aniž byste musel zasahovat.",
           "beyondLimits": "Jeho strana požaduje přibližně {{wage}}/týdně na {{years}} let, což přesahuje limity mého pověření.",
-          "boardWagePolicy": "Mzdová politika představenstva toto prodloužení blokuje. Během naší nápravy udržujte roční platy blízko částky {{budget}}.",
+          "boardWagePolicy": "Mzdová politika představenstva toto prodloužení blokuje. Během naší nápravy udržujte týdenní platy blízko částky {{budget}}.",
           "prefersManager": "Byli by ochotni naslouchat, ale stále požadují kolem {{wage}}/týdně na {{years}} let a raději by jednali přímo s vámi.",
           "relationshipBlocked": "Za současné situace kolem smluv a našich vztahů nejsou ochotni se mi skrze mou osobu zavázat."
         }

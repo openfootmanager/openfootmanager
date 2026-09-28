@@ -334,9 +334,11 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_yea
 }
 
 fn floor_opening_cash(team: &mut Team, weekly_wage_bill: i64) {
-    team.finance = team
-        .finance
-        .max(weekly_wage_bill.max(0).saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
+    team.finance = team.finance.max(
+        weekly_wage_bill
+            .max(0)
+            .saturating_mul(MIN_OPENING_RUNWAY_WEEKS),
+    );
 }
 
 /// The country a club's *people* should be drawn from.

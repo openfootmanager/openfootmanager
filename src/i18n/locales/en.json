@@ -2768,7 +2768,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Terminating this contract would leave your squad unable to field a matchday XI",
         "noAssistantManagerAssigned": "No assistant manager assigned to your team",
         "playerHasNoTeam": "Player has no team",
-        "boardWagePolicy": "Renewal blocked by board wage policy. Keep annual wages near {{budget}} to recover."
+        "boardWagePolicy": "Renewal blocked by board wage policy. Keep weekly wages near {{budget}} to recover."
       },
       "scouting": {
         "scoutNotFound": "Scout not found",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "You told me not to reopen contract talks yet.",
           "completed": "I was able to close this one without needing you to step in.",
           "beyondLimits": "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
-          "boardWagePolicy": "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
+          "boardWagePolicy": "Board wage policy blocks this renewal. Keep weekly wages near {{budget}} while we recover.",
           "prefersManager": "They would listen, but they still want about {{wage}}/wk for {{years}} years and prefer to hear from you directly.",
           "relationshipBlocked": "They are not willing to commit through me under the current relationship and contract situation."
         }

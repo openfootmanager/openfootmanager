@@ -2760,7 +2760,7 @@
         "terminationWouldLeaveMatchdaySquadShort": "Rescindir este contrato dejaría a tu plantilla sin poder presentar un once para el día del partido",
         "noAssistantManagerAssigned": "No hay un segundo entrenador asignado a tu equipo",
         "playerHasNoTeam": "El jugador no tiene equipo",
-        "boardWagePolicy": "La renovación está bloqueada por la política salarial de la directiva. Mantén los salarios anuales cerca de {{budget}} para recuperarte."
+        "boardWagePolicy": "La renovación está bloqueada por la política salarial de la directiva. Mantén los salarios semanales cerca de {{budget}} para recuperarte."
       },
       "scouting": {
         "scoutNotFound": "Ojeador no encontrado",
@@ -3241,7 +3241,7 @@
           "managerBlocked": "Me dijiste que todavía no reabriera las conversaciones contractuales.",
           "completed": "Pude cerrar esta sin que tuvieras que intervenir.",
           "beyondLimits": "Su entorno pide alrededor de {{wage}}/semana por {{years}} años, fuera de los límites de delegación.",
-          "boardWagePolicy": "La política salarial de la directiva bloquea esta renovación. Mantén los salarios anuales cerca de {{budget}} mientras nos recuperamos.",
+          "boardWagePolicy": "La política salarial de la directiva bloquea esta renovación. Mantén los salarios semanales cerca de {{budget}} mientras nos recuperamos.",
           "prefersManager": "Escucharían, pero siguen pidiendo unos {{wage}}/semana por {{years}} años y prefieren hablar contigo directamente.",
           "relationshipBlocked": "No están dispuestos a comprometerse a través de mí con la relación y situación contractual actuales."
         }
