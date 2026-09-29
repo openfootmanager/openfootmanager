@@ -220,3 +220,21 @@ fn finishing_a_live_match_resolves_a_dormant_competition_due_today() {
         "a scoreline-only resolution runs no engine, so it captures no stats state"
     );
 }
+
+#[test]
+fn the_sweeps_matches_hand_back_their_stats() {
+    // `finish_live_match_day_with_capture` exists so the stats produced by the matches the sweep
+    // plays are not dropped on the floor — the plain `finish_live_match_day` passes a no-op and
+    // would lose them silently. Nothing asserted that the closure ever fires for a real match,
+    // so the capture-preserving half of the API was untested.
+    let mut game = game_with_a_second_competition();
+
+    let mut captures = Vec::new();
+    turn::finish_live_match_day_with_capture(&mut game, &mut |capture| captures.push(capture));
+
+    assert!(
+        !captures.is_empty(),
+        "the other competition's fixture was played by the engine, so its stats must be handed \
+         back to the caller rather than discarded"
+    );
+}

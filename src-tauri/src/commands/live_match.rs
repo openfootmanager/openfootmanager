@@ -912,7 +912,11 @@ mod tests {
     fn finish_live_match_applies_cup_result_to_the_cup_competition() {
         let state = StateManager::new();
         let mut game = make_game_with_round();
-        let cup = make_knockout_cup("2025-06-15");
+        let mut cup = make_knockout_cup("2025-06-15");
+        // A cup round is numbered independently of the league's. Keeping them different is what
+        // lets this test tell apart "the digest used the league's round context" from "it used
+        // the cup session's" — with both on matchday 1 the two are indistinguishable.
+        cup.fixtures[0].matchday = 2;
         game.competitions.push(cup.clone());
 
         // Mimic the GUI match-day flow: the cup is swapped into game.league,
@@ -980,6 +984,22 @@ mod tests {
         assert!(
             round_summary.is_complete,
             "both of today's league fixtures were played, so the round is complete"
+        );
+        // Identity, not just presence. The session played a cup tie, so its own
+        // `round_matchday`/`round_previous_standings` describe the cup — and a knockout cup has
+        // no table, so using them here would compute the league's deltas against an empty
+        // baseline. Both league fixtures are in this round, and neither is the cup tie.
+        assert_eq!(
+            round_summary.completed_results.len(),
+            2,
+            "the digest covers the league round, not the cup tie the user played"
+        );
+        assert!(
+            round_summary
+                .completed_results
+                .iter()
+                .all(|result| result.home_team_id != "team1" || result.away_team_id != "team3"),
+            "the cup tie must not appear in the league round digest"
         );
     }
 

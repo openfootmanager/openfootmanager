@@ -20,11 +20,20 @@ pub struct AdvanceTimeWithModeResponse {
     pub results: Vec<AdvanceMatchResult>,
 }
 
-fn round_context_for_today(
+/// The matchday and pre-round standings of the competition the round digest will describe.
+///
+/// This must be the same competition `build_round_summary` reads — the user's, which
+/// `sync_legacy_league` mirrors — or the summary computes one competition's deltas from
+/// another's table. It used to read `primary_competition()`, which is `competitions.first()`
+/// and so, for any career outside the first country, a foreign league on another calendar.
+pub(crate) fn round_context_for_today(
     game: &Game,
     today: &str,
 ) -> Option<(u32, Vec<domain::league::StandingEntry>)> {
-    let league = game.primary_competition()?;
+    // Exactly what `build_round_summary` will read: the user's competition, which
+    // `sync_legacy_league` mirrors — falling back to the mirror itself for a save written before
+    // `competitions` existed, where it is the only copy there is.
+    let league = game.user_competition().or(game.league.as_ref())?;
     let matchday = league
         .fixtures
         .iter()
