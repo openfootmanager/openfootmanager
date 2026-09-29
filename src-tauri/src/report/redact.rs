@@ -161,7 +161,10 @@ fn replace_whole_words(haystack: &str, needle: &str, replacement: &str) -> Strin
         if before_ok && after_ok {
             out.push_str(replacement);
         } else {
-            out.push_str(needle);
+            // The text as it was written, not as the needle spells it. Matching folds case, so
+            // these differ — and putting the needle back would rewrite a word the rule just
+            // decided *not* to redact.
+            out.push_str(&haystack[start..end]);
         }
         cursor = end;
     }
@@ -312,6 +315,19 @@ mod tests {
         let out = Redactor::new(None, None, None).apply("/home/srobot/save.db");
 
         assert_eq!(out, "/home/srobot/save.db");
+    }
+
+    #[test]
+    fn preserves_the_original_casing_of_a_word_it_declines_to_redact() {
+        // Case-insensitive matching means the text found is not always spelled like the needle.
+        // Putting the needle back would silently rewrite the log: `SROBOTICS` is not the user, so
+        // it must survive exactly as written, not become `SrobotICS`.
+        let redactor = Redactor::new(None, Some("Srobot"), None);
+
+        let out = redactor.apply("loaded SROBOTICS.ofm and srobot_backup");
+
+        assert!(out.contains("SROBOTICS.ofm"), "{out}");
+        assert!(out.contains("srobot_backup"), "{out}");
     }
 
     #[test]
