@@ -256,9 +256,9 @@ The base version lives in three files that must stay in sync:
 - `package.json`
 
 **Do not bump these per build.** They only change when a release stream branches
-(`0.3` → `0.4`). Everything that varies build to build — the channel, the commit hash, the
-build date — is injected by `vite.config.ts` as `__APP_VERSION__`, `__APP_CHANNEL__`,
-`__APP_COMMIT__` and `__APP_BUILD_DATE__`, and formatted by `formatAppVersion()` in
+(`0.3` → `0.4`). Everything that varies build to build — the channel and the commit hash — is
+injected by `vite.config.ts` as `__APP_VERSION__`, `__APP_CHANNEL__` and `__APP_COMMIT__`, and
+formatted by `formatAppVersion()` in
 `src/lib/appVersion.ts`:
 
 | build | shown in the UI and window title |

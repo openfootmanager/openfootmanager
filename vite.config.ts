@@ -132,7 +132,6 @@ export default defineConfig(async ({ command }) => ({
       __APP_VERSION__: JSON.stringify(version),
       __APP_CHANNEL__: JSON.stringify(resolveChannel(version, command === "build")),
       __APP_COMMIT__: JSON.stringify(readCommitSha()),
-      __APP_BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
     };
   })(),
   test: {

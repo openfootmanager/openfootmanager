@@ -3,8 +3,8 @@
  *
  * The base semver comes from `src-tauri/tauri.conf.json` and only moves when a
  * release stream branches: odd minor versions (0.3.x) are the unstable stream
- * published as nightlies, even minors (0.4.x) are stable releases. The channel,
- * commit and build date are baked in by `vite.config.ts` at build time, so no
+ * published as nightlies, even minors (0.4.x) are stable releases. The channel
+ * and commit are baked in by `vite.config.ts` at build time, so no
  * per-build edits to Cargo.toml / tauri.conf.json / package.json are needed.
  */
 
