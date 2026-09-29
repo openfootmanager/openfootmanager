@@ -52,9 +52,16 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     // where the player's own position is used instead. The engine's coarse
     // position is derived from this so a player fielded out of position (e.g. a
     // striker at centre-back) is simulated in the position they actually play.
+    // A role counts only where the position a player is playing admits it: his
+    // slot if he starts, his natural position on the bench — the same rule the
+    // player's own role command enforces. Stored roles can outlive it: AI roles
+    // are chosen against a coarse bucket (`Forward` admits `WideForward`, a
+    // striker's slot does not), and anyone's can go stale when the side changes.
     let convert_player = |p: &domain::player::Player, deployed: Option<&DomainPosition>| {
+        let playing_at = deployed.unwrap_or(&p.natural_position);
         let role = player_roles
             .and_then(|roles| roles.get(&p.id))
+            .filter(|role| playing_at.admits_role(role))
             .map(domain_to_engine_role)
             .unwrap_or(EnginePlayerRole::Standard);
         to_engine_player(p, role, deployed)

@@ -172,12 +172,12 @@ fn player_baseline(player: &Player) -> f64 {
         a.teamwork,
         a.aerial,
     ];
-    let specialised = if player.position.to_group_position() == domain::player::Position::Goalkeeper
-    {
-        vec![a.handling, a.reflexes]
-    } else {
-        vec![a.shooting, a.tackling, a.defending, a.aggression]
-    };
+    let specialised =
+        if player.natural_position.to_group_position() == domain::player::Position::Goalkeeper {
+            vec![a.handling, a.reflexes]
+        } else {
+            vec![a.shooting, a.tackling, a.defending, a.aggression]
+        };
     mean_of(outfield.into_iter().chain(specialised))
 }
 
@@ -191,7 +191,11 @@ fn player_baseline(player: &Player) -> f64 {
 fn role_for(player: &Player, play_style: &PlayStyle) -> PlayerRole {
     let baseline = player_baseline(player);
     let preferred = style_preferences(play_style);
-    let candidates = player.position.valid_roles().len().saturating_sub(1);
+    let candidates = player
+        .natural_position
+        .valid_roles()
+        .len()
+        .saturating_sub(1);
 
     // A role is earned on the player's own profile, against the margin; the
     // style bonus then only ranks the roles he has earned. Adding it before the
@@ -201,7 +205,7 @@ fn role_for(player: &Player, play_style: &PlayStyle) -> PlayerRole {
     let mut best = PlayerRole::Standard;
     let mut best_score = f64::NEG_INFINITY;
 
-    for role in player.position.valid_roles() {
+    for role in player.natural_position.valid_roles() {
         if *role == PlayerRole::Standard {
             continue;
         }
@@ -410,6 +414,27 @@ mod tests {
         // But no style can talk a player with no case at all into a specialism.
         let flat = player("flat", Position::Midfielder, flat_attrs(70));
         assert_eq!(role_for(&flat, &PlayStyle::HighPress), PlayerRole::Standard);
+    }
+
+    /// Roles are chosen for the player's natural position, not for whatever
+    /// `position` says. Older saves let formation logic overwrite `position`
+    /// with the slot a player was last fielded in; `natural_position` is the one
+    /// that stayed true, and it is what the player's own role command checks.
+    #[test]
+    fn a_role_is_chosen_for_the_natural_position_not_a_stale_slot() {
+        let mut attrs = flat_attrs(60);
+        attrs.tackling = 90;
+        attrs.aggression = 90;
+        attrs.stamina = 90;
+        let mut midfielder = player("destroyer", Position::Midfielder, attrs);
+        // What an old save left behind: fielded in goal once, remembered there.
+        midfielder.position = Position::Goalkeeper;
+
+        assert_eq!(
+            role_for(&midfielder, &PlayStyle::Balanced),
+            PlayerRole::BallWinner,
+            "a midfielder was judged as the goalkeeper a stale slot said he was"
+        );
     }
 
     /// Nor one with *almost* a case. A ball-winning profile that falls short of
