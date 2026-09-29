@@ -155,6 +155,7 @@ pub async fn export_report_bundle(
     save_manager: State<'_, Arc<SaveManagerState>>,
     previous_crash: State<'_, crash::PreviousCrash>,
     output_path: String,
+    report_text: String,
     include_save: bool,
 ) -> Result<BundleSummary, String> {
     // Read everything off `State` before crossing the thread boundary: the guards themselves are
@@ -170,6 +171,7 @@ pub async fn export_report_bundle(
             &save_manager,
             crash_json,
             &output_path,
+            &report_text,
             include_save,
         )
     })
@@ -186,6 +188,7 @@ fn write_report_bundle(
     save_manager: &SaveManagerState,
     crash_json: Option<String>,
     output_path: &str,
+    report_text: &str,
     include_save: bool,
 ) -> Result<BundleSummary, String> {
     let redactor = Redactor::from_environment();
@@ -214,6 +217,7 @@ fn write_report_bundle(
         &BundleInputs {
             log_dir: &log_dir(app_handle).unwrap_or_default(),
             diagnostics_json: &diagnostics_json,
+            report_text,
             crash_json: crash_json.as_deref(),
             save_path: save_copy.as_ref().map(|copy| copy.file.as_path()),
         },

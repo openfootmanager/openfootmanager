@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_DRAFT,
+  composeReportText,
   describeBundle,
   describeContext,
   describeMachine,
@@ -111,5 +112,47 @@ describe("describeBundle", () => {
     });
 
     expect(out).toBe("/home/x/ofm-report.zip (1.4 MB)");
+  });
+});
+
+describe("composeReportText", () => {
+  const LABELS = {
+    whatHappened: "What happened",
+    expected: "What did you expect",
+    steps: "Steps to reproduce",
+    frequency: "Every time",
+  };
+
+  const filled = {
+    ...EMPTY_DRAFT,
+    whatHappened: "It froze",
+    expected: "It should have started",
+    steps: "1. Advance",
+  };
+
+  it("keeps everything the player wrote, at full length", () => {
+    // This file is the copy that survives the URL being trimmed, so it must never be the one that
+    // does the trimming.
+    const long = "x".repeat(20_000);
+
+    const out = composeReportText({ ...filled, whatHappened: long }, LABELS);
+
+    expect(out).toContain(long);
+  });
+
+  it("labels each section so the file reads on its own", () => {
+    const out = composeReportText(filled, LABELS);
+
+    expect(out).toContain("## What happened");
+    expect(out).toContain("It froze");
+    expect(out).toContain("## Steps to reproduce");
+    expect(out).toContain("Every time");
+  });
+
+  it("leaves out a section the player skipped", () => {
+    const out = composeReportText({ ...filled, steps: "   " }, LABELS);
+
+    expect(out).not.toContain("## Steps to reproduce");
+    expect(out).toContain("## What happened");
   });
 });

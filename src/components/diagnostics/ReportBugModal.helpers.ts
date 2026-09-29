@@ -69,6 +69,28 @@ export function describeContext(frequencyLabel: string, careerLine: string): str
   return [careerLine, frequencyLabel].filter((part) => part.trim() !== "").join("\n");
 }
 
+/**
+ * The player's own words, as the bundle stores them.
+ *
+ * The GitHub link has a length limit and trims what will not fit, so without this the trimmed
+ * version would be the only copy — and a description in a script that percent-encodes to several
+ * bytes per character reaches that limit quickly. This file is what survives.
+ */
+export function composeReportText(
+  draft: ReportDraft,
+  labels: { whatHappened: string; expected: string; steps: string; frequency: string },
+): string {
+  const sections: string[] = [
+    `## ${labels.whatHappened}\n\n${draft.whatHappened.trim()}`,
+    `## ${labels.expected}\n\n${draft.expected.trim()}`,
+  ];
+  if (draft.steps.trim() !== "") {
+    sections.push(`## ${labels.steps}\n\n${draft.steps.trim()}`);
+  }
+  sections.push(`## ${labels.frequency}`);
+  return `${sections.join("\n\n")}\n`;
+}
+
 /** A sentence naming where the bundle landed and how big it turned out. */
 export function describeBundle(summary: BundleSummary): string {
   return `${summary.path} (${formatBytes(summary.bytes)})`;

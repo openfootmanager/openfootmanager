@@ -16,7 +16,8 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 }));
 vi.mock("../../services/reportService", () => ({
   collectDiagnostics: () => collectDiagnostics(),
-  exportReportBundle: (path: string, includeSave: boolean) => exportReportBundle(path, includeSave),
+  exportReportBundle: (path: string, reportText: string, includeSave: boolean) =>
+    exportReportBundle(path, reportText, includeSave),
   suggestedReportFileName: () => suggestedReportFileName(),
 }));
 vi.mock("../../lib/logger", () => ({
@@ -114,7 +115,11 @@ describe("ReportBugModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
     await waitFor(() => expect(exportReportBundle).toHaveBeenCalled());
-    expect(exportReportBundle).toHaveBeenCalledWith("/home/x/ofm-report.zip", false);
+    expect(exportReportBundle).toHaveBeenCalledWith(
+      "/home/x/ofm-report.zip",
+      expect.stringContaining("It froze"),
+      false,
+    );
   });
 
   it("disables the save box, and says so, when no career is open", async () => {
@@ -163,7 +168,11 @@ describe("ReportBugModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
 
     await waitFor(() =>
-      expect(exportReportBundle).toHaveBeenCalledWith("/home/x/ofm-report.zip", true),
+      expect(exportReportBundle).toHaveBeenCalledWith(
+        "/home/x/ofm-report.zip",
+        expect.stringContaining("It froze"),
+        true,
+      ),
     );
   });
 

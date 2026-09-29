@@ -20,6 +20,7 @@ import {
   EMPTY_DRAFT,
   type Frequency,
   type ReportDraft,
+  composeReportText,
   describeBundle,
   describeContext,
   describeMachine,
@@ -104,7 +105,16 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
       // The dialog returns null when the player backs out; that is not a failure.
       if (typeof chosen !== "string") return;
 
-      const written = await exportReportBundle(chosen, canAttachSave && includeSave);
+      const written = await exportReportBundle(
+        chosen,
+        composeReportText(draft, {
+          whatHappened: t("reportBug.whatHappened"),
+          expected: t("reportBug.expected"),
+          steps: t("reportBug.steps"),
+          frequency: t(`reportBug.frequency.${draft.frequency}`),
+        }),
+        canAttachSave && includeSave,
+      );
       setSummary(written);
 
       await openUrl(

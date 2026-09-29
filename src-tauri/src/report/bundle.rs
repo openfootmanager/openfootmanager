@@ -100,6 +100,13 @@ fn log_candidates(log_dir: &Path) -> Vec<LogCandidate> {
 pub struct BundleInputs<'a> {
     pub log_dir: &'a Path,
     pub diagnostics_json: &'a str,
+    /// What the player actually wrote.
+    ///
+    /// The GitHub URL has a length limit, and a description in a script that percent-encodes to
+    /// several bytes per character reaches it quickly — 1 000 Chinese characters encode to over
+    /// 9 000. What does not fit is trimmed from the link, so unless it is also written here it is
+    /// gone the moment the modal closes. This file is the copy that survives.
+    pub report_text: &'a str,
     pub crash_json: Option<&'a str>,
     pub save_path: Option<&'a Path>,
 }
@@ -117,6 +124,9 @@ pub fn write_bundle(
     let mut zip = zip::ZipWriter::new(file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     let to_io = |e: zip::result::ZipError| std::io::Error::other(e.to_string());
+
+    zip.start_file("report.md", options).map_err(to_io)?;
+    zip.write_all(redactor.apply(inputs.report_text).as_bytes())?;
 
     zip.start_file("diagnostics.json", options).map_err(to_io)?;
     // The summary is built from values we chose, but it carries paths, so it goes through the
@@ -292,6 +302,62 @@ mod tests {
     }
 
     #[test]
+    fn keeps_the_players_own_words_whatever_the_url_does_with_them() {
+        // The link trims long text to stay under the URL limit. If the bundle did not hold the
+        // full text, that trim would be the only copy and the rest would be lost on close.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let out = dir.path().join("report.zip");
+        let long = "x".repeat(20_000);
+
+        write_bundle(
+            &BundleInputs {
+                log_dir: &dir.path().join("logs"),
+                diagnostics_json: "{}",
+                report_text: &long,
+                crash_json: None,
+                save_path: None,
+            },
+            &out,
+            &redactor(),
+        )
+        .expect("write bundle");
+
+        let packed = read_zip(&out);
+        let report = packed
+            .iter()
+            .find(|(name, _)| name == "report.md")
+            .expect("the report entry");
+        assert_eq!(report.1.len(), 20_000, "the full text should survive");
+    }
+
+    #[test]
+    fn redacts_the_report_text_too() {
+        // The player can paste a path into their own description.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let out = dir.path().join("report.zip");
+
+        write_bundle(
+            &BundleInputs {
+                log_dir: &dir.path().join("logs"),
+                diagnostics_json: "{}",
+                report_text: "it died opening /home/srobot/saves/a.db",
+                crash_json: None,
+                save_path: None,
+            },
+            &out,
+            &redactor(),
+        )
+        .expect("write bundle");
+
+        let packed = read_zip(&out);
+        let report = packed
+            .iter()
+            .find(|(name, _)| name == "report.md")
+            .expect("the report entry");
+        assert!(!report.1.contains("srobot"), "{report:?}");
+    }
+
+    #[test]
     fn writes_the_diagnostics_summary() {
         let dir = tempfile::tempdir().expect("temp dir");
         let out = dir.path().join("report.zip");
@@ -300,6 +366,7 @@ mod tests {
             &BundleInputs {
                 log_dir: &dir.path().join("logs"),
                 diagnostics_json: "{\"version\":\"0.3.0\"}",
+                report_text: "",
                 crash_json: None,
                 save_path: None,
             },
@@ -309,9 +376,18 @@ mod tests {
         .expect("write bundle");
 
         let entries = read_zip(&out);
-        assert_eq!(entries.len(), 1, "{entries:?}");
-        assert_eq!(entries[0].0, "diagnostics.json");
-        assert!(entries[0].1.contains("0.3.0"));
+        let diagnostics = entries
+            .iter()
+            .find(|(name, _)| name == "diagnostics.json")
+            .expect("the diagnostics entry");
+        assert!(diagnostics.1.contains("0.3.0"), "{diagnostics:?}");
+        // No logs, no crash, no save were given, so those are the entries that must be absent.
+        assert!(
+            !entries.iter().any(|(name, _)| name.starts_with("logs/")
+                || name.starts_with("save/")
+                || name == "last-crash.json"),
+            "{entries:?}"
+        );
     }
 
     #[test]
@@ -332,6 +408,7 @@ mod tests {
             &BundleInputs {
                 log_dir: &logs,
                 diagnostics_json: "{}",
+                report_text: "",
                 crash_json: None,
                 save_path: None,
             },
@@ -360,6 +437,7 @@ mod tests {
             &BundleInputs {
                 log_dir: &dir.path().join("logs"),
                 diagnostics_json: "{}",
+                report_text: "",
                 crash_json: None,
                 save_path: None,
             },
@@ -373,6 +451,7 @@ mod tests {
             &BundleInputs {
                 log_dir: &dir.path().join("logs"),
                 diagnostics_json: "{}",
+                report_text: "",
                 crash_json: None,
                 save_path: Some(&save),
             },
@@ -395,6 +474,7 @@ mod tests {
             &BundleInputs {
                 log_dir: &dir.path().join("logs"),
                 diagnostics_json: "{}",
+                report_text: "",
                 crash_json: Some("{\"message\":\"boom at /home/srobot/x\"}"),
                 save_path: None,
             },
@@ -422,6 +502,7 @@ mod tests {
             &BundleInputs {
                 log_dir: &dir.path().join("nothing-here"),
                 diagnostics_json: "{}",
+                report_text: "",
                 crash_json: None,
                 save_path: None,
             },
@@ -446,6 +527,7 @@ mod tests {
             &BundleInputs {
                 log_dir: &logs,
                 diagnostics_json: "{}",
+                report_text: "",
                 crash_json: None,
                 save_path: None,
             },

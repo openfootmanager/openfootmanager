@@ -30,10 +30,12 @@ export function suggestedReportFileName(): Promise<string> {
 
 export function exportReportBundle(
   outputPath: string,
+  reportText: string,
   includeSave: boolean,
 ): Promise<BundleSummary> {
   return invoke<BundleSummary>("export_report_bundle", {
     outputPath,
+    reportText,
     includeSave,
   });
 }
