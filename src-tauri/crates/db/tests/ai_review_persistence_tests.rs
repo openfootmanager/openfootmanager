@@ -225,11 +225,12 @@ fn what_the_weekly_review_decides_is_written_into_the_save_file() {
         "the review's settings did not survive the write: column held {tactics_json}"
     );
 
-    let stored_roles: std::collections::HashMap<String, serde_json::Value> =
+    // The whole map, not its size: a write that kept every player but lost or
+    // scrambled their roles would pass a length check.
+    let stored_roles: std::collections::HashMap<String, domain::team::PlayerRole> =
         serde_json::from_str(&roles_json).unwrap();
     assert_eq!(
-        stored_roles.len(),
-        reviewed.player_roles.len(),
+        stored_roles, reviewed.player_roles,
         "the review's role assignments did not survive the write: column held {roles_json}"
     );
 }
