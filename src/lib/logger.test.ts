@@ -111,6 +111,26 @@ describe("console forwarding", () => {
     expect(pluginError).toHaveBeenCalledTimes(1);
   });
 
+  it("never throws at the call site, whatever it is handed", async () => {
+    // A null-prototype cyclic object defeats both renderers: `JSON.stringify` refuses the cycle,
+    // and `String()` has no `toString` to convert through, so it throws too. That throw came out
+    // of the patched `console.error` at whatever call site was reporting the original problem —
+    // losing the error being logged and replacing it with a different one. The `unhandledrejection`
+    // handler reaches here with a rejection reason that can be any value at all.
+    const hostile: Record<string, unknown> = Object.create(null);
+    hostile.self = hostile;
+    expect(() => JSON.stringify(hostile)).toThrow();
+    expect(() => String(hostile)).toThrow();
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    restore = installConsoleForwarding();
+
+    expect(() => console.error("while loading", hostile)).not.toThrow();
+    await flush();
+
+    expect(pluginError).toHaveBeenCalledWith("while loading [unprintable]");
+  });
+
   it("restores the original console when uninstalled", async () => {
     const original = console.error;
     restore = installConsoleForwarding();

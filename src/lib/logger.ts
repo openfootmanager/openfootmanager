@@ -60,20 +60,34 @@ export function logInfo(message: string): void {
   send(info, message, "warn");
 }
 
+/** Stands in for an argument that cannot be rendered at all. */
+const UNPRINTABLE = "[unprintable]";
+
 /** Renders `console.*` varargs into the single string the log file takes. */
 function formatLogArgs(args: unknown[]): string {
-  return args
-    .map((arg) => {
-      if (typeof arg === "string") return arg;
-      if (arg instanceof Error) return arg.stack ?? `${arg.name}: ${arg.message}`;
-      try {
-        return JSON.stringify(arg);
-      } catch {
-        // Cyclic objects, and anything with a throwing `toJSON`.
-        return String(arg);
-      }
-    })
-    .join(" ");
+  return args.map(formatLogArg).join(" ");
+}
+
+function formatLogArg(arg: unknown): string {
+  // The outer guard is the one that matters. `String()` was the fallback for a value
+  // `JSON.stringify` refuses, but it throws in its own right on an object with a null prototype —
+  // it has no `toString` to convert through. A cyclic null-prototype object therefore defeated
+  // both, and the throw came out of the patched `console.error` at whatever call site was
+  // reporting the original problem: the error being logged was lost, and a new one took its place.
+  // Reachable from `unhandledrejection`, where the rejection reason can be any value at all.
+  try {
+    if (typeof arg === "string") return arg;
+    if (arg instanceof Error) return arg.stack ?? `${arg.name}: ${arg.message}`;
+    try {
+      // `undefined` in, `undefined` out — not a string, despite what the signature says.
+      return JSON.stringify(arg) ?? String(arg);
+    } catch {
+      // Cyclic objects, and anything with a throwing `toJSON`.
+      return String(arg);
+    }
+  } catch {
+    return UNPRINTABLE;
+  }
 }
 
 /**
