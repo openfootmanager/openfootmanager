@@ -63,6 +63,28 @@ fn log_dir(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     app_handle.path().app_log_dir().ok()
 }
 
+/// The redactor every path in this module goes through.
+///
+/// `from_environment` alone knows only the home directory and the account name. On a machine where
+/// `XDG_DATA_HOME` (or its log and cache siblings) points outside `$HOME`, the app's own
+/// directories carry the identity instead and nothing would strip them — including from
+/// `log_directory`, which the preview prints under the sentence promising it has been stripped.
+fn redactor_for(app_handle: &tauri::AppHandle) -> Redactor {
+    let mut redactor = Redactor::from_environment();
+    let paths = app_handle.path();
+    for dir in [
+        paths.app_log_dir(),
+        paths.app_data_dir(),
+        paths.app_cache_dir(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        redactor.add_path(&dir.to_string_lossy());
+    }
+    redactor
+}
+
 fn collect(
     app_handle: &tauri::AppHandle,
     redactor: &Redactor,
@@ -122,7 +144,7 @@ pub fn collect_diagnostics(
 ) -> DiagnosticsReport {
     collect(
         &app_handle,
-        &Redactor::from_environment(),
+        &redactor_for(&app_handle),
         state.get_save_id().is_some(),
         previous_crash.0.is_some(),
         active_save_bytes(&state, &save_manager),
@@ -247,7 +269,7 @@ fn write_report_bundle(
     report_text: &str,
     include_save: bool,
 ) -> Result<BundleSummary, String> {
-    let redactor = Redactor::from_environment();
+    let redactor = redactor_for(app_handle);
     let diagnostics = collect(
         app_handle,
         &redactor,

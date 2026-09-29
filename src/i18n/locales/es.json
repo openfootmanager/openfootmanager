@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "Tu descripción, qué esperabas, los pasos y con qué frecuencia ocurre.",
     "itemSetup": "Tu equipo",
     "itemLogs": "Tus registros recientes",
-    "itemLogsDesc": "Tu nombre de usuario, el de tu equipo y tu carpeta personal se eliminan antes de guardar.",
+    "itemLogsDesc": "Tu carpeta personal y tu nombre de usuario se eliminan antes de guardar, junto con el nombre de tu equipo cuando el sistema lo indica.",
     "itemCrash": "Un cierre inesperado de tu última sesión",
     "itemCrashDesc": "Se incluye porque el juego no se cerró con normalidad la última vez.",
     "optionalHeading": "Añádelo si quieres: desactivado por defecto",

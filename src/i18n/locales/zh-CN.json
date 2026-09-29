@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "你的描述、期待结果、复现步骤和发生频率。",
     "itemSetup": "你的设备信息",
     "itemLogs": "你最近的日志文件",
-    "itemLogsDesc": "保存前会移除你的用户名、计算机名和个人文件夹。",
+    "itemLogsDesc": "保存前会移除你的主目录和用户名；若系统提供计算机名，也会一并移除。",
     "itemCrash": "上次会话的崩溃记录",
     "itemCrashDesc": "因为游戏上次没有正常关闭，所以一并包含。",
     "optionalHeading": "可选添加 — 默认关闭",

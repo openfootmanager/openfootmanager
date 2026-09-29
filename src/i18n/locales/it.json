@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "La tua descrizione, cosa ti aspettavi, i passi e con che frequenza accade.",
     "itemSetup": "La tua configurazione",
     "itemLogs": "I tuoi log recenti",
-    "itemLogsDesc": "Il tuo nome utente, quello del computer e la tua cartella personale vengono rimossi prima del salvataggio.",
+    "itemLogsDesc": "La tua cartella personale e il tuo nome utente vengono rimossi prima del salvataggio, insieme al nome del computer quando il sistema lo comunica.",
     "itemCrash": "Un crash della tua ultima sessione",
     "itemCrashDesc": "Incluso perché l'ultima volta il gioco non si è chiuso normalmente.",
     "optionalHeading": "Aggiungi se vuoi — disattivato di default",

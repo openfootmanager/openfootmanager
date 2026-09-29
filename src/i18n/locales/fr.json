@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "Ta description, ce que tu attendais, les étapes et la fréquence.",
     "itemSetup": "Ta configuration",
     "itemLogs": "Tes journaux récents",
-    "itemLogsDesc": "Ton nom d'utilisateur, celui de ta machine et ton dossier personnel sont retirés avant l'enregistrement.",
+    "itemLogsDesc": "Ton dossier personnel et ton nom d'utilisateur sont retirés avant l'enregistrement, ainsi que le nom de ton ordinateur lorsque le système le fournit.",
     "itemCrash": "Un plantage lors de ta dernière session",
     "itemCrashDesc": "Inclus parce que le jeu ne s'est pas fermé normalement la dernière fois.",
     "optionalHeading": "À ajouter si tu veux — désactivé par défaut",

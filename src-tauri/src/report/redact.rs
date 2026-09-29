@@ -79,6 +79,24 @@ impl Redactor {
         Self { paths, names }
     }
 
+    /// Register another directory whose path must not leave the machine.
+    ///
+    /// `XDG_DATA_HOME` and friends can put the app's own data, log and cache directories outside
+    /// `$HOME`, and then the home rule never sees them. The log directory matters most: it is
+    /// printed on the preview screen, directly underneath the promise that identity has been taken
+    /// out.
+    pub fn add_path(&mut self, path: &str) {
+        let path = path.trim();
+        if path.len() < MIN_NAME_LEN {
+            return;
+        }
+        self.paths.extend(path_spellings(path));
+        // Longest first again: a directory nested inside one already registered must not be
+        // replaced before its parent.
+        self.paths.sort_by_key(|p| std::cmp::Reverse(p.len()));
+        self.paths.dedup();
+    }
+
     pub fn from_environment() -> Self {
         let home = std::env::var("HOME")
             .or_else(|_| std::env::var("USERPROFILE"))
@@ -86,9 +104,16 @@ impl Redactor {
         let user = std::env::var("USER")
             .or_else(|_| std::env::var("USERNAME"))
             .ok();
-        // Windows publishes the machine name as COMPUTERNAME and has neither HOSTNAME nor
-        // /etc/hostname, so without it the preview's promise to strip the computer name was simply
-        // untrue on that platform.
+        // Three sources, because no one of them covers every platform. Windows publishes the
+        // machine name as COMPUTERNAME and has neither of the others.
+        //
+        // macOS has none of the three: a GUI app is started by launchd with no HOSTNAME in its
+        // environment, and there is no /etc/hostname to read. Reading it there would mean spawning
+        // `scutil` on a path the player is waiting on, for a value that is often just the account
+        // name again — which the USER rule already covers. So the host name is best-effort, and
+        // `reportBug.itemLogsDesc` says "where the system reports it" rather than promising it
+        // outright. The home folder and the account name, which are the parts that actually appear
+        // in a log line, are not best-effort.
         let host = std::env::var("HOSTNAME")
             .ok()
             .or_else(|| std::env::var("COMPUTERNAME").ok())
@@ -416,6 +441,19 @@ mod tests {
 
         assert!(!out.contains(r#""message""#), "{out}");
         assert!(out.contains(r#""user":"#), "{out}");
+    }
+
+    #[test]
+    fn redacts_an_app_directory_that_sits_outside_home() {
+        // `XDG_DATA_HOME` can put the app's data, log and cache directories anywhere. When it
+        // does, the home rule never sees them — and the log directory is printed on the preview,
+        // directly under the sentence promising the player's identity has been taken out of it.
+        let mut redactor = Redactor::new(Some("/home/srobot"), None, None);
+        redactor.add_path("/mnt/data/srobot-games/openfootmanager/logs");
+
+        let out = redactor.apply("writing /mnt/data/srobot-games/openfootmanager/logs/app.log");
+
+        assert!(!out.contains("srobot-games"), "{out}");
     }
 
     #[test]

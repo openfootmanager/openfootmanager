@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "Your description, what you expected, the steps, and how often it happens.",
     "itemSetup": "Your setup",
     "itemLogs": "Your recent log files",
-    "itemLogsDesc": "Your user name, computer name and home folder are stripped out before saving.",
+    "itemLogsDesc": "Your home folder and user name are removed before saving, along with your computer name where the system reports it.",
     "itemCrash": "A crash from your last session",
     "itemCrashDesc": "Included because the game did not close normally last time.",
     "optionalHeading": "Add if you want to — off by default",

@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "Deskripsimu, harapanmu, langkah-langkahnya, dan seberapa sering terjadi.",
     "itemSetup": "Perangkatmu",
     "itemLogs": "Berkas log terbarumu",
-    "itemLogsDesc": "Nama pengguna, nama komputer, dan folder pribadimu dihapus sebelum disimpan.",
+    "itemLogsDesc": "Folder pribadi dan nama penggunamu dihapus sebelum disimpan, begitu juga nama komputermu bila sistem melaporkannya.",
     "itemCrash": "Crash dari sesi terakhirmu",
     "itemCrashDesc": "Disertakan karena gim tidak tertutup normal terakhir kali.",
     "optionalHeading": "Tambahkan kalau mau — mati secara bawaan",

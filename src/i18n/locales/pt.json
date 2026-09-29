@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "A tua descrição, o que esperavas, os passos e com que frequência acontece.",
     "itemSetup": "O teu sistema",
     "itemLogs": "Os teus registos recentes",
-    "itemLogsDesc": "O teu nome de utilizador, o do computador e a tua pasta pessoal são removidos antes de guardar.",
+    "itemLogsDesc": "A tua pasta pessoal e o teu nome de utilizador são removidos antes de guardar, tal como o nome do computador quando o sistema o indica.",
     "itemCrash": "Um encerramento inesperado da tua última sessão",
     "itemCrashDesc": "Incluído porque o jogo não fechou normalmente da última vez.",
     "optionalHeading": "Acrescenta se quiseres — desligado por omissão",

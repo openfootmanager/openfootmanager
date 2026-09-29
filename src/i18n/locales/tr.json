@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "Açıklaman, beklentin, adımlar ve ne sıklıkla olduğu.",
     "itemSetup": "Sistemin",
     "itemLogs": "Son günlük dosyaların",
-    "itemLogsDesc": "Kullanıcı adın, bilgisayar adın ve kişisel klasörün kaydedilmeden önce çıkarılır.",
+    "itemLogsDesc": "Kişisel klasörün ve kullanıcı adın kaydetmeden önce kaldırılır; sistem bildiriyorsa bilgisayar adın da kaldırılır.",
     "itemCrash": "Son oturumundan bir çökme",
     "itemCrashDesc": "Geçen sefer oyun normal kapanmadığı için eklendi.",
     "optionalHeading": "İstersen ekle — varsayılan olarak kapalı",

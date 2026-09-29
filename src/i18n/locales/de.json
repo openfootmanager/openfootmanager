@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "Deine Beschreibung, deine Erwartung, die Schritte und wie oft es auftritt.",
     "itemSetup": "Dein System",
     "itemLogs": "Deine letzten Protokolldateien",
-    "itemLogsDesc": "Dein Benutzername, dein Rechnername und dein persönlicher Ordner werden vor dem Speichern entfernt.",
+    "itemLogsDesc": "Dein Benutzerordner und dein Benutzername werden vor dem Speichern entfernt, ebenso der Computername, sofern das System ihn meldet.",
     "itemCrash": "Ein Absturz aus deiner letzten Sitzung",
     "itemCrashDesc": "Enthalten, weil sich das Spiel letztes Mal nicht normal beendet hat.",
     "optionalHeading": "Nach Wunsch hinzufügen — standardmäßig aus",

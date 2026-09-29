@@ -4082,7 +4082,7 @@
     "itemWhatYouWroteDesc": "Tvůj popis, očekávání, postup a jak často k tomu dochází.",
     "itemSetup": "Tvůj systém",
     "itemLogs": "Tvé poslední soubory protokolu",
-    "itemLogsDesc": "Tvé uživatelské jméno, jméno počítače a domácí složka se před uložením odstraní.",
+    "itemLogsDesc": "Tvoje domovská složka a uživatelské jméno se před uložením odstraní, stejně jako název počítače, pokud ho systém uvádí.",
     "itemCrash": "Pád z tvé poslední relace",
     "itemCrashDesc": "Přiloženo, protože se hra minule neukončila normálně.",
     "optionalHeading": "Přidej, pokud chceš — ve výchozím stavu vypnuto",
