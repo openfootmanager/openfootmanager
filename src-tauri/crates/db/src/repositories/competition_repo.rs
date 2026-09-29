@@ -190,6 +190,46 @@ mod tests {
     use crate::game_database::GameDatabase;
     use domain::league::League;
 
+    /// Pins the stored name of every competition type.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn competition_types_are_stored_by_name() {
+        use CompetitionType as T;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                T::League; [
+                    ("League", T::League),
+                    ("Cup", T::Cup),
+                    ("ContinentalClub", T::ContinentalClub),
+                    ("InternationalClub", T::InternationalClub),
+                    ("InternationalNation", T::InternationalNation),
+                    ("FriendlyCup", T::FriendlyCup),
+                ]
+            ),
+            |value| competition_type_to_string(value).to_string(),
+            parse_competition_type,
+        );
+    }
+
+    /// Pins the stored name of every competition scope.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn competition_scopes_are_stored_by_name() {
+        use CompetitionScope as S;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                S::Domestic; [
+                    ("Domestic", S::Domestic),
+                    ("Regional", S::Regional),
+                    ("Continental", S::Continental),
+                    ("International", S::International),
+                ]
+            ),
+            |value| competition_scope_to_string(value).to_string(),
+            parse_competition_scope,
+        );
+    }
+
     fn division(id: &str, priority: u32, clubs: &[&str]) -> CompetitionState {
         let team_ids: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
         let mut league = League::new(id.to_string(), id.to_string(), 2035, &team_ids);

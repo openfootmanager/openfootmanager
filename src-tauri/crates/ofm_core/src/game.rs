@@ -14,7 +14,7 @@ use domain::world_history::WorldHistoryArchive;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ObjectiveType {
     LeaguePosition,
     Wins,

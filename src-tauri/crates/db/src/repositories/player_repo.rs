@@ -140,11 +140,12 @@ pub fn upsert_players(conn: &Connection, players: &[Player]) -> Result<(), Strin
     Ok(())
 }
 
-fn parse_position(s: &str) -> Position {
+/// Also reads youth scouting's target position in `game_persistence`, which is written the same
+/// way; one parser, so the two cannot drift apart.
+pub(crate) fn parse_position(s: &str) -> Position {
     match s {
         "Goalkeeper" => Position::Goalkeeper,
         "Defender" => Position::Defender,
-        "Midfielder" => Position::Midfielder,
         "Forward" => Position::Forward,
         "RightBack" => Position::RightBack,
         "CenterBack" => Position::CenterBack,
@@ -364,6 +365,90 @@ mod tests {
         TransferOfferStatus,
     };
     use rusqlite::Connection;
+
+    /// Pins the stored name of every position.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn positions_are_stored_by_name() {
+        use Position as P;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                P::Goalkeeper; [
+                    ("Goalkeeper", P::Goalkeeper),
+                    ("Defender", P::Defender),
+                    ("Midfielder", P::Midfielder),
+                    ("Forward", P::Forward),
+                    ("RightBack", P::RightBack),
+                    ("CenterBack", P::CenterBack),
+                    ("LeftBack", P::LeftBack),
+                    ("RightWingBack", P::RightWingBack),
+                    ("LeftWingBack", P::LeftWingBack),
+                    ("DefensiveMidfielder", P::DefensiveMidfielder),
+                    ("CentralMidfielder", P::CentralMidfielder),
+                    ("AttackingMidfielder", P::AttackingMidfielder),
+                    ("RightMidfielder", P::RightMidfielder),
+                    ("LeftMidfielder", P::LeftMidfielder),
+                    ("RightWinger", P::RightWinger),
+                    ("LeftWinger", P::LeftWinger),
+                    ("Striker", P::Striker),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            parse_position,
+        );
+    }
+
+    /// Pins the stored name of every footedness.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn footedness_is_stored_by_name() {
+        use Footedness as F;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                F::Left; [("Left", F::Left), ("Right", F::Right), ("Both", F::Both)]
+            ),
+            |value| format!("{value:?}"),
+            parse_footedness,
+        );
+    }
+
+    /// Pins the stored name of every squad role.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn squad_roles_are_stored_by_name() {
+        use SquadRole as R;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                R::Senior; [("Senior", R::Senior), ("Youth", R::Youth)]
+            ),
+            |value| format!("{value:?}"),
+            parse_squad_role,
+        );
+    }
+
+    /// Pins the stored name of every individual training focus.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn player_training_focuses_are_stored_by_name() {
+        use TrainingFocus as F;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                F::Physical; [
+                    ("Physical", F::Physical),
+                    ("Technical", F::Technical),
+                    ("Tactical", F::Tactical),
+                    ("Defending", F::Defending),
+                    ("Attacking", F::Attacking),
+                    ("Recovery", F::Recovery),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_training_focus(stored)
+                    .unwrap_or_else(|| panic!("{stored:?} does not load back"))
+            },
+        );
+    }
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
