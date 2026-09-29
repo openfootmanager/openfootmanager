@@ -7,8 +7,8 @@
 
 use chrono::{Datelike, Duration, TimeZone, Utc};
 
-use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
+use ofm_core::world::MIN_START_YEAR;
 
 pub(super) const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
 pub(super) const MAX_GENERATED_HISTORY_DEPTH_YEARS: u32 = 24;
@@ -53,12 +53,6 @@ pub(super) struct StartupOptions {
     pub(super) start_phase: StartPhase,
     pub(super) history_depth_years: u32,
 }
-
-/// Earliest year a career may start. Historical world packages recreate eras
-/// decades before the modern game — a 1962 Santos world is the motivating case —
-/// so the floor only needs to keep the clock inside a sane calendar range.
-/// Must match `MIN_CAREER_START_YEAR` in `src/pages/MainMenu.tsx`.
-pub(super) const MIN_START_YEAR: i32 = 1900;
 
 fn default_start_year() -> i32 {
     chrono::Utc::now().year().max(MIN_START_YEAR)
@@ -110,16 +104,6 @@ pub(crate) fn start_phase_for_game(game: &Game) -> StartPhase {
     }
 }
 
-pub(super) fn preseason_season_start(clock: &GameClock) -> chrono::DateTime<Utc> {
-    clock.start_date + Duration::days(30)
-}
-
-pub(super) fn preseason_league_year(clock: &GameClock) -> u32 {
-    let year = clock.start_date.year() + i32::from(clock.start_date.month() == 12);
-    // Only reachable for a negative year, which the start-year floor rules out.
-    u32::try_from(year).unwrap_or(MIN_START_YEAR as u32)
-}
-
 pub(super) fn normalize_startup_options(
     raw: Option<RawStartupOptions>,
 ) -> Result<StartupOptions, String> {
@@ -161,7 +145,9 @@ mod tests {
     use super::*;
     use crate::commands::game::game_clock_for_world;
     use crate::commands::game::testkit::make_historical_snapshot_world;
+    use ofm_core::clock::GameClock;
     use ofm_core::season_context::refresh_game_context;
+    use ofm_core::world::{preseason_league_year, preseason_season_start};
 
     #[test]
     fn normalize_startup_options_defaults_to_current_year_and_season_start() {
