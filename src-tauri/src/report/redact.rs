@@ -83,8 +83,12 @@ impl Redactor {
         let user = std::env::var("USER")
             .or_else(|_| std::env::var("USERNAME"))
             .ok();
+        // Windows publishes the machine name as COMPUTERNAME and has neither HOSTNAME nor
+        // /etc/hostname, so without it the preview's promise to strip the computer name was simply
+        // untrue on that platform.
         let host = std::env::var("HOSTNAME")
             .ok()
+            .or_else(|| std::env::var("COMPUTERNAME").ok())
             .or_else(|| std::fs::read_to_string("/etc/hostname").ok());
         Self::new(
             home.as_deref(),
@@ -308,6 +312,15 @@ mod tests {
         let out = redactor().apply("/home/srobot -> /home/srobot/backup");
 
         assert_eq!(out, "~ -> ~/backup");
+    }
+
+    #[test]
+    fn redacts_a_windows_computer_name() {
+        // Windows exposes it as COMPUTERNAME; the preview promises it is stripped on every
+        // platform, so the promise has to hold on the one that spells it differently.
+        let out = Redactor::new(None, None, Some("THINKPAD-X1")).apply("host THINKPAD-X1 ready");
+
+        assert!(!out.contains("THINKPAD-X1"), "{out}");
     }
 
     #[test]
