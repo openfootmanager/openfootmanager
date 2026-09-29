@@ -4084,7 +4084,7 @@
     "itemLogs": "你最近的日志文件",
     "itemLogsDesc": "保存前会移除你的主目录和用户名；若系统提供计算机名，也会一并移除。",
     "itemCrash": "上次会话的崩溃记录",
-    "itemCrashDesc": "因为游戏上次没有正常关闭，所以一并包含。",
+    "itemCrashDesc": "包含在内，因为你上次游戏时有程序崩溃。",
     "optionalHeading": "可选添加 — 默认关闭",
     "includeSave": "我的存档",
       "includeSaveDesc": "让我们能重现你当时的确切情况。",

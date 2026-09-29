@@ -4084,7 +4084,7 @@
     "itemLogs": "Son günlük dosyaların",
     "itemLogsDesc": "Kişisel klasörün ve kullanıcı adın kaydetmeden önce kaldırılır; sistem bildiriyorsa bilgisayar adın da kaldırılır.",
     "itemCrash": "Son oturumundan bir çökme",
-    "itemCrashDesc": "Geçen sefer oyun normal kapanmadığı için eklendi.",
+    "itemCrashDesc": "Son oturumunda bir şey çöktüğü için eklendi.",
     "optionalHeading": "İstersen ekle — varsayılan olarak kapalı",
     "includeSave": "Kayıt dosyam",
       "includeSaveDesc": "İçinde bulunduğun durumu birebir yeniden oynatmamızı sağlar.",

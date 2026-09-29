@@ -4084,7 +4084,7 @@
     "itemLogs": "Your recent log files",
     "itemLogsDesc": "Your home folder and user name are removed before saving, along with your computer name where the system reports it.",
     "itemCrash": "A crash from your last session",
-    "itemCrashDesc": "Included because the game did not close normally last time.",
+    "itemCrashDesc": "Included because something crashed during your last session.",
     "optionalHeading": "Add if you want to — off by default",
     "includeSave": "My save file",
       "includeSaveDesc": "Lets us replay the exact situation you were in.",

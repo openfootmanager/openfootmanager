@@ -4084,7 +4084,7 @@
     "itemLogs": "I tuoi log recenti",
     "itemLogsDesc": "La tua cartella personale e il tuo nome utente vengono rimossi prima del salvataggio, insieme al nome del computer quando il sistema lo comunica.",
     "itemCrash": "Un crash della tua ultima sessione",
-    "itemCrashDesc": "Incluso perché l'ultima volta il gioco non si è chiuso normalmente.",
+    "itemCrashDesc": "Incluso perché qualcosa si è bloccato durante la tua ultima sessione.",
     "optionalHeading": "Aggiungi se vuoi — disattivato di default",
     "includeSave": "Il mio salvataggio",
       "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",

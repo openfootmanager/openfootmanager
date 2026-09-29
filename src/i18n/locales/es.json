@@ -4084,7 +4084,7 @@
     "itemLogs": "Tus registros recientes",
     "itemLogsDesc": "Tu carpeta personal y tu nombre de usuario se eliminan antes de guardar, junto con el nombre de tu equipo cuando el sistema lo indica.",
     "itemCrash": "Un cierre inesperado de tu última sesión",
-    "itemCrashDesc": "Se incluye porque el juego no se cerró con normalidad la última vez.",
+    "itemCrashDesc": "Se incluye porque algo falló durante tu última sesión.",
     "optionalHeading": "Añádelo si quieres: desactivado por defecto",
     "includeSave": "Mi partida guardada",
       "includeSaveDesc": "Nos permite reproducir la situación exacta en la que estabas.",

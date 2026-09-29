@@ -4084,7 +4084,7 @@
     "itemLogs": "Os teus registos recentes",
     "itemLogsDesc": "A tua pasta pessoal e o teu nome de utilizador são removidos antes de guardar, tal como o nome do computador quando o sistema o indica.",
     "itemCrash": "Um encerramento inesperado da tua última sessão",
-    "itemCrashDesc": "Incluído porque o jogo não fechou normalmente da última vez.",
+    "itemCrashDesc": "Incluído porque algo falhou durante a tua última sessão.",
     "optionalHeading": "Acrescenta se quiseres — desligado por omissão",
     "includeSave": "O meu jogo guardado",
       "includeSaveDesc": "Permite-nos reproduzir a situação exata em que estavas.",

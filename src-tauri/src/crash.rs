@@ -105,9 +105,10 @@ fn record_from(info: &PanicHookInfo<'_>) -> CrashRecord {
         payload_message(info),
         location,
         thread,
-        // `force_capture`, not `capture`: the latter is a no-op unless the player happens to have
-        // set RUST_BACKTRACE, which no player ever has. The release profile keeps `debuginfo`
-        // precisely so this comes back with function names rather than bare addresses.
+        // `force_capture`, not `capture`: the latter is a no-op unless the player happens to
+        // have set RUST_BACKTRACE, which no player ever has. The release profile sets
+        // `strip = "debuginfo"`, which keeps the symbol table — so this comes back with function
+        // names, though without file and line numbers.
         std::backtrace::Backtrace::force_capture().to_string(),
     )
 }
@@ -118,7 +119,16 @@ fn write_record(path: &Path, record: &CrashRecord) -> std::io::Result<()> {
     }
     let json = serde_json::to_string_pretty(record)
         .map_err(|error| std::io::Error::other(error.to_string()))?;
-    std::fs::write(path, json)
+
+    // Beside the target and then renamed, rather than straight over the top. `fs::write` truncates
+    // first, so a process that dies partway through this — which is not far-fetched, given what
+    // has just happened to it — used to leave a `last-crash.json` that exists, parses as nothing,
+    // and makes the next launch believe it has a crash record when it has half of one.
+    let mut scratch_name = path.file_name().unwrap_or_default().to_owned();
+    scratch_name.push(".part");
+    let scratch = path.with_file_name(scratch_name);
+    std::fs::write(&scratch, json)?;
+    std::fs::rename(&scratch, path)
 }
 
 /// Install the hook. Safe to call once, early, before anything else can panic.
@@ -135,14 +145,19 @@ pub fn install_panic_hook() {
         // is the failure this module exists to prevent.
         if let Some(path) = CRASH_FILE.get() {
             if let Err(error) = write_record(path, &record) {
-                log::error!("[crash] could not write {}: {error}", path.display());
+                // Deliberately not `log::error!`: see below — this is the one path where the
+                // logger may be the thing that is stuck.
+                eprintln!("[crash] could not write {}: {error}", path.display());
             }
         }
-        log::error!("[crash] {}\n{}", record.summary(), record.backtrace);
-        // Chain rather than replace: the default hook's stderr output is what a developer running
-        // `cargo tauri dev` actually reads, and swallowing it would trade one blind spot for
-        // another.
+
+        // Chain rather than replace, and do it here rather than last: the default hook's stderr
+        // output is what a developer running `cargo tauri dev` actually reads. Leaving it until
+        // after the `log::error!` below meant that in the deadlock this comment describes — the
+        // one case where the ordering matters at all — stderr never printed a thing.
         previous(info);
+
+        log::error!("[crash] {}\n{}", record.summary(), record.backtrace);
     }));
 }
 
@@ -234,6 +249,29 @@ mod tests {
         let parsed: CrashRecord = serde_json::from_str(&raw).expect("parse");
 
         assert_eq!(parsed, record);
+    }
+
+    #[test]
+    fn never_creates_the_crash_file_it_cannot_fill() {
+        // `fs::write` truncates the destination before writing a byte, so a process that died
+        // partway through — not far-fetched, given what has just happened to it — left a
+        // `last-crash.json` that exists and parses as nothing, and the next launch believed it had
+        // a crash record when it had half of one.
+        //
+        // A directory sitting where the scratch file goes is the cheapest way to fail the write
+        // after the point `fs::write` would already have created the destination.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = crash_file_in(dir.path());
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("parent dir");
+        let mut scratch_name = path.file_name().expect("name").to_owned();
+        scratch_name.push(".part");
+        std::fs::create_dir(path.with_file_name(scratch_name)).expect("blocking dir");
+
+        assert!(write_record(&path, &sample()).is_err());
+        assert!(
+            !path.exists(),
+            "the name must not appear without a record behind it"
+        );
     }
 
     #[test]

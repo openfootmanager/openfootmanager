@@ -4084,7 +4084,7 @@
     "itemLogs": "Tes journaux récents",
     "itemLogsDesc": "Ton dossier personnel et ton nom d'utilisateur sont retirés avant l'enregistrement, ainsi que le nom de ton ordinateur lorsque le système le fournit.",
     "itemCrash": "Un plantage lors de ta dernière session",
-    "itemCrashDesc": "Inclus parce que le jeu ne s'est pas fermé normalement la dernière fois.",
+    "itemCrashDesc": "Inclus parce que quelque chose a planté pendant ta dernière session.",
     "optionalHeading": "À ajouter si tu veux — désactivé par défaut",
     "includeSave": "Ma sauvegarde",
       "includeSaveDesc": "Nous permet de rejouer exactement la situation dans laquelle tu étais.",

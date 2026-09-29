@@ -4084,7 +4084,7 @@
     "itemLogs": "Deine letzten Protokolldateien",
     "itemLogsDesc": "Dein Benutzerordner und dein Benutzername werden vor dem Speichern entfernt, ebenso der Computername, sofern das System ihn meldet.",
     "itemCrash": "Ein Absturz aus deiner letzten Sitzung",
-    "itemCrashDesc": "Enthalten, weil sich das Spiel letztes Mal nicht normal beendet hat.",
+    "itemCrashDesc": "Enthalten, weil in deiner letzten Sitzung etwas abgestürzt ist.",
     "optionalHeading": "Nach Wunsch hinzufügen — standardmäßig aus",
     "includeSave": "Mein Spielstand",
       "includeSaveDesc": "Damit können wir genau die Situation nachstellen, in der du warst.",

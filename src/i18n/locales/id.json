@@ -4084,7 +4084,7 @@
     "itemLogs": "Berkas log terbarumu",
     "itemLogsDesc": "Folder pribadi dan nama penggunamu dihapus sebelum disimpan, begitu juga nama komputermu bila sistem melaporkannya.",
     "itemCrash": "Crash dari sesi terakhirmu",
-    "itemCrashDesc": "Disertakan karena gim tidak tertutup normal terakhir kali.",
+    "itemCrashDesc": "Disertakan karena ada yang macet pada sesi terakhirmu.",
     "optionalHeading": "Tambahkan kalau mau — mati secara bawaan",
     "includeSave": "Berkas simpananku",
       "includeSaveDesc": "Memungkinkan kami memutar ulang situasi persis yang kamu alami.",

@@ -4084,7 +4084,7 @@
     "itemLogs": "Tvé poslední soubory protokolu",
     "itemLogsDesc": "Tvoje domovská složka a uživatelské jméno se před uložením odstraní, stejně jako název počítače, pokud ho systém uvádí.",
     "itemCrash": "Pád z tvé poslední relace",
-    "itemCrashDesc": "Přiloženo, protože se hra minule neukončila normálně.",
+    "itemCrashDesc": "Přiloženo, protože při tvé minulé hře něco spadlo.",
     "optionalHeading": "Přidej, pokud chceš — ve výchozím stavu vypnuto",
     "includeSave": "Moje uložená hra",
       "includeSaveDesc": "Umožní nám přehrát přesně tu situaci, ve které jsi byl.",
