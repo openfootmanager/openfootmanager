@@ -124,17 +124,6 @@ fn calc_wages_sums_player_and_staff_wages_for_a_team() {
 }
 
 #[test]
-fn calc_annual_wages_is_an_alias_of_weekly_calc_wages() {
-    let game = make_monday_game();
-
-    #[allow(deprecated)]
-    let annual_wages = finances::calc_annual_wages(&game, "team1");
-
-    assert_eq!(annual_wages, finances::calc_wages(&game, "team1"));
-    assert_eq!(annual_wages, 1_700);
-}
-
-#[test]
 fn calc_cash_runway_weeks_uses_projected_weekly_net() {
     assert_eq!(finances::calc_cash_runway_weeks(180_000, -30_000), Some(6));
     assert_eq!(finances::calc_cash_runway_weeks(180_000, 5_000), None);
