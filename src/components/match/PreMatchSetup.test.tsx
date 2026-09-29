@@ -11,7 +11,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: unknown) => {
-      if (key === "tournaments.competitions.worldCup") return "Copa do Mundo 2026";
+      if (key === "tournaments.competitions.nationalCup") return "Copa Nacional";
       if (typeof opts === "string") return opts;
       if (opts && typeof opts === "object" && "defaultValue" in opts) {
         return (opts as { defaultValue: string }).defaultValue;
@@ -151,11 +151,11 @@ describe("PreMatchSetup opponent scout panel", () => {
     expect(screen.getByText("Away Fwd")).toBeTruthy();
   });
 
-  it("shows the translated competition name for the current international fixture", () => {
+  it("shows the translated competition name for the current named cup fixture", () => {
     const fixture: FixtureData = {
-      id: "world-cup-match",
-      competition_id: "world-cup-2026",
-      competition: "InternationalNation",
+      id: "cup-match",
+      competition_id: "cup-2026",
+      competition: "Cup",
       matchday: 1,
       date: "2026-08-01",
       home_team_id: "home1",
@@ -165,15 +165,15 @@ describe("PreMatchSetup opponent scout panel", () => {
     };
     renderSetup(fixture, [
       {
-        id: "world-cup-2026",
-        name: "2026 World Cup",
-        name_key: "tournaments.competitions.worldCup",
+        id: "cup-2026",
+        name: "National Cup",
+        name_key: "tournaments.competitions.nationalCup",
         season: 2026,
         fixtures: [fixture],
         standings: [],
       },
     ]);
 
-    expect(screen.getByText("Copa do Mundo 2026")).toBeInTheDocument();
+    expect(screen.getByText("Copa Nacional")).toBeInTheDocument();
   });
 });
