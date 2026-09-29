@@ -231,23 +231,6 @@ function buildTraitTooltip(traitName: string, translate: (key: string) => string
   return `${baseDescription} | ${requirements.join(", ")}`;
 }
 
-export function getTraitMeta(
-  trait: string,
-  translate: (key: string) => string = (key) => key,
-): (TraitMeta & { label: string; description: string }) | null {
-  const meta = TRAIT_META[trait];
-
-  if (!meta) {
-    return null;
-  }
-
-  return {
-    ...meta,
-    label: trait,
-    description: buildTraitTooltip(trait, translate),
-  };
-}
-
 export function TraitBadge({
   trait: traitName,
   size = "sm",
@@ -306,5 +289,3 @@ export function TraitList({
     </div>
   );
 }
-
-export default TraitBadge;

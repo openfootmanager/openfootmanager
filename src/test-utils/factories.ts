@@ -1,4 +1,4 @@
-import type { PlayerData, StaffData, TeamData } from "../store/gameStore";
+import type { PlayerData, TeamData } from "../store/gameStore";
 
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -85,28 +85,6 @@ export function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     loan_listed: false,
     transfer_offers: [],
     traits: [],
-    ...overrides,
-  };
-}
-
-export function createStaff(overrides: Partial<StaffData> = {}): StaffData {
-  return {
-    id: "staff-1",
-    first_name: "Sam",
-    last_name: "Scout",
-    date_of_birth: "1985-01-01",
-    nationality: "GB",
-    role: "Scout",
-    attributes: {
-      coaching: 20,
-      judgingAbility: 65,
-      judgingPotential: 70,
-      physiotherapy: 10,
-    },
-    team_id: "team-1",
-    specialization: null,
-    wage: 1000,
-    contract_end: "2027-06-30",
     ...overrides,
   };
 }
