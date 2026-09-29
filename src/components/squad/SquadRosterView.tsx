@@ -547,7 +547,7 @@ export default function SquadRosterView({
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
                 <SquadSortHeader
                   col="jersey"
-                  label="#"
+                  label={t("squad.jerseyNumber")}
                   ariaLabel={t("squad.jerseyNumberFull")}
                   sortKey={sortKey}
                   sortDir={sortDir}

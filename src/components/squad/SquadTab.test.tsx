@@ -458,6 +458,7 @@ describe("SquadTab", () => {
     const headerBefore = await screen.findByRole("columnheader", {
       name: "squad.jerseyNumberFull",
     });
+    expect(headerBefore).toHaveTextContent("squad.jerseyNumber");
 
     fireEvent.change(screen.getByRole("textbox", { name: "common.search" }), {
       target: { value: "z" },
