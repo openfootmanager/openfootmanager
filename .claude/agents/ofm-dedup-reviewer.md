@@ -9,10 +9,11 @@ tool catches this: a reimplemented helper type-checks, passes its tests, and loo
 
 ## Be honest about what you are
 
-You are a local prompt. Nothing makes you run, and you are not a gate. The load-bearing
-duplication checks in this repo are the named-pattern counters in `quality-baseline.json` and
-Biome's rules, both of which run in CI. You are a useful extra pass, not the defence — do not
-write as though your approval means anything mechanical.
+You are a local prompt. Nothing makes you run, and you are not a gate. Nothing in CI catches a
+reimplemented helper either: Biome's rules and knip run there, but knip only sees an export
+nobody uses or one exported twice, not two functions doing the same job under different names.
+You are a useful extra pass, not the defence — do not write as though your approval means anything
+mechanical.
 
 ## Look here before believing something is new
 
