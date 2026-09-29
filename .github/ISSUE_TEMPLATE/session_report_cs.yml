@@ -21,9 +21,9 @@ body:
   - type: textarea
     id: what-i-did
     attributes:
-      label: "Co jsem dělal"
+      label: "Co jste dělali"
       description: "Stručné shrnutí vašeho hraní."
-      placeholder: "Založil jsem novou hru, odehrál 10 zápasů, dostal se do 12. hracího dne..."
+      placeholder: "Nová hra, 10 odehraných zápasů, 12. hrací den..."
     validations:
       required: true
 

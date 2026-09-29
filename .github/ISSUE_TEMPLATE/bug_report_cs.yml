@@ -14,7 +14,7 @@ body:
     attributes:
       label: "Co se stalo?"
       description: "Popište chybu co nejsrozumitelněji."
-      placeholder: "Hra spadla, když jsem zkusil..."
+      placeholder: "Hra spadla při pokusu o..."
     validations:
       required: true
 
@@ -23,7 +23,7 @@ body:
     attributes:
       label: "Co jste očekávali?"
       description: "Co se mělo stát místo toho?"
-      placeholder: "Čekal jsem, že zápas normálně začne..."
+      placeholder: "Zápas měl normálně začít..."
     validations:
       required: true
 
@@ -57,7 +57,7 @@ body:
     attributes:
       label: "Situace ve hře"
       description: "V jakém dni nebo hracím dni jste byli? Co jste dělali? Načetli jste těsně předtím uloženou hru?"
-      placeholder: "Byl jsem v 5. hracím dni, hned po zápase..."
+      placeholder: "5. hrací den, hned po zápase..."
     validations:
       required: false
 
@@ -98,7 +98,7 @@ body:
         **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
         **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
       options:
-        - label: "Přiložil jsem soubory protokolu (přetáhněte níže zazipovanou složku logs)"
+        - label: "Soubory protokolu jsou přiložené (přetáhněte níže zazipovanou složku logs)"
           required: false
 
   - type: textarea

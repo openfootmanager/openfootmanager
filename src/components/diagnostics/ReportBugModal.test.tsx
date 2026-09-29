@@ -349,13 +349,20 @@ describe("ReportBugModal", () => {
     review.focus();
     fireEvent.click(review);
 
-    expect(await screen.findByRole("heading", { name: "reportBug.previewTitle" })).toHaveFocus();
+    // `waitFor`, not a bare assertion after `findBy`: the heading's text changes when React
+    // commits, and the effect that moves focus runs after that — so a query resolving on the text
+    // alone can read focus a beat too early. This failed that way once in ten runs.
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "reportBug.previewTitle" })).toHaveFocus(),
+    );
 
     const submit = screen.getByRole("button", { name: "reportBug.saveAndOpen" });
     submit.focus();
     fireEvent.click(submit);
 
-    expect(await screen.findByRole("heading", { name: "reportBug.doneTitle" })).toHaveFocus();
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "reportBug.doneTitle" })).toHaveFocus(),
+    );
   });
 
   it("redacts what the player typed before it reaches the URL", async () => {

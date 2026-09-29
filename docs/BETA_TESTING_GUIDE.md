@@ -143,7 +143,7 @@ When you report a bug, **please include your log files**. They contain detailed 
 
 Just zip up the whole `logs` folder and attach it to your report.
 
-One thing to know before you do: the logs record the folder the game saves into, and on every platform that path runs through your home folder — so it usually contains your computer account name. There is nothing else personal in there, just game events, commands and error traces. If you would rather not send that, use **Report a bug** inside the game instead: it packs the same logs with your account name, computer name and home folder stripped out.
+One thing to know before you do: the logs record the folder the game saves into, and on every platform that path runs through your home folder — so it usually contains your computer account name. There is nothing else personal in there, just game events, commands and error traces. If you would rather not send that, use **Report a bug** inside the game instead: it packs the same logs with your account name and home folder stripped out, along with your computer name where the system reports it.
 
 ---
 

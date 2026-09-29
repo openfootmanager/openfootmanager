@@ -14,7 +14,7 @@ body:
     attributes:
       label: "Что произошло?"
       description: "Опишите ошибку как можно понятнее."
-      placeholder: "Игра вылетела, когда я попытался..."
+      placeholder: "Игра вылетела при попытке..."
     validations:
       required: true
 
@@ -23,7 +23,7 @@ body:
     attributes:
       label: "Чего вы ожидали?"
       description: "Что должно было произойти вместо этого?"
-      placeholder: "Я ожидал, что матч начнётся как обычно..."
+      placeholder: "Матч должен был начаться как обычно..."
     validations:
       required: true
 

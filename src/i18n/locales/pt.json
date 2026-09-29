@@ -25,7 +25,7 @@
     "openGithub": "Abrir repositório GitHub",
     "mainMenu": "Menu principal",
     "worldEditor": "Editor de Mundo",
-    "startupOptionsRejected": "Não foi possível usar essas definições de carreira. Volte ao ecrã do mundo e verifique o ano de início, a fase de início e quanto histórico anterior gerar.",
+    "startupOptionsRejected": "Não foi possível usar essas definições de carreira. Volta ao ecrã do mundo e verifica o ano de início, a fase de início e quanto histórico anterior gerar.",
     "reportBug": "Reportar um erro"
   },
   "managerProfiles": {
@@ -2698,7 +2698,7 @@
       },
       "saveManagerUnavailable": "Os dados de gravação estão temporariamente indisponíveis.",
       "report": {
-        "bundleFailed": "Não foi possível escrever o ficheiro do relatório. Verifique se tem permissão para escrever na pasta escolhida.",
+        "bundleFailed": "Não foi possível escrever o ficheiro do relatório. Verifica se tens permissão para escrever na pasta escolhida.",
         "saveMissing": "Não foi possível encontrar o teu jogo guardado, por isso nada foi escrito. Desmarca o jogo guardado e tenta de novo, ou carrega a tua carreira primeiro."
       },
       "saveDeleteFailed": "Falha ao eliminar o ficheiro de gravação.",

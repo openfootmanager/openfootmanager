@@ -21,9 +21,9 @@ body:
   - type: textarea
     id: what-i-did
     attributes:
-      label: "Чем я занимался"
+      label: "Чем вы занимались"
       description: "Кратко опишите свою сессию."
-      placeholder: "Начал новую игру, провёл 10 матчей, дошёл до 12-го игрового дня..."
+      placeholder: "Новая игра, 10 матчей, 12-й игровой день..."
     validations:
       required: true
 
@@ -41,7 +41,7 @@ body:
     attributes:
       label: "Что раздражало"
       description: "Из-за чего вы чуть не бросили играть? Что показалось сломанным или утомительным?"
-      placeholder: "Я запутался на странице тренировок и..."
+      placeholder: "Страница тренировок сбивает с толку, потому что..."
     validations:
       required: true
 
