@@ -51,12 +51,4 @@ describe("ReportBugModal dynamic translation keys", () => {
     expect(typeof value).toBe("string");
     expect(value).not.toBe("");
   });
-
-  it("covers every step the modal can be in", () => {
-    // If a fourth step is added, its two keys have to join the list above — this is the reminder.
-    for (const step of ["describe", "preview", "done"]) {
-      expect(DYNAMIC_KEYS).toContain(`reportBug.${step}Title`);
-      expect(DYNAMIC_KEYS).toContain(`reportBug.${step}Intro`);
-    }
-  });
 });

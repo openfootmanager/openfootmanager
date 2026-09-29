@@ -319,6 +319,12 @@ mod tests {
 
     /// The end-to-end path: an installed hook, a real panic, a file on disk.
     ///
+    /// Note the process-wide residue this leaves, because it is not obvious: `CRASH_FILE` is a
+    /// `OnceLock`, so the temporary directory set here is where *every* later panic in this test
+    /// binary writes — including ordinary assertion failures — and the directory is gone by then,
+    /// so each one recreates it and captures a backtrace. Harmless, but it is why a failing test
+    /// run leaves a stray `last-crash.json` behind and costs a little extra time.
+    ///
     /// Everything else here tests the pieces, which would all keep passing if the hook were never
     /// installed or never fired — the one failure that makes the whole module pointless. Worth the
     /// process-global side effects: the hook chains to the previous one, so any other test that
