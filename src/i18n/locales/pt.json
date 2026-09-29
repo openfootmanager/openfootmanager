@@ -2883,7 +2883,7 @@
       },
       "boardObjectives": {
         "subject": "Época {{season}} — Objectivos da Direção",
-        "body": "A direção definiu os seguintes objectivos para esta época:\n\n1. Terminar entre os primeiros {{expectedPos}}\n2. Ganhar pelo menos {{winTarget}} jogos\n3. Marcar pelo menos {{goalsTarget}} golos\n\nCumprir estes objectivos irá melhorar a confiança da direção na sua gestão. O incumprimento das expectativas pode resultar em orçamentos mais baixos ou noutras consequências."
+        "body": "A direção definiu os seguintes objectivos para esta época:\n\n1. Terminar entre os primeiros {{expectedPos}}\n2. Ganhar pelo menos {{winTarget}} jogos\n3. Marcar pelo menos {{goalsTarget}} golos\n4. Manter a massa salarial em, no máximo, {{financeTarget}}% do orçamento\n\nCumprir estes objectivos irá melhorar a confiança da direção na sua gestão. O incumprimento das expectativas pode resultar em orçamentos mais baixos ou noutras consequências."
       },
       "financeCritical": {
         "subject": "URGENTE: Clube endividado",

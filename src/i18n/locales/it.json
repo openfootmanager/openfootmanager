@@ -2866,7 +2866,7 @@
       },
       "boardObjectives": {
         "subject": "Stagione {{season}} — Obiettivi della dirigenza",
-        "body": "La dirigenza ha fissato i seguenti obiettivi per questa stagione:\n\n1. Chiudere tra le prime {{expectedPos}}\n2. Vincere almeno {{winTarget}} partite\n3. Segnare almeno {{goalsTarget}} gol\n\nRaggiungere questi traguardi aumenterà la fiducia della dirigenza nel tuo operato. Il mancato rispetto delle aspettative potrebbe comportare budget ridotti o ulteriori conseguenze."
+        "body": "La dirigenza ha fissato i seguenti obiettivi per questa stagione:\n\n1. Chiudere tra le prime {{expectedPos}}\n2. Vincere almeno {{winTarget}} partite\n3. Segnare almeno {{goalsTarget}} gol\n4. Mantenere la spesa salariale entro il {{financeTarget}}% del budget\n\nRaggiungere questi traguardi aumenterà la fiducia della dirigenza nel tuo operato. Il mancato rispetto delle aspettative potrebbe comportare budget ridotti o ulteriori conseguenze."
       },
       "trainingInjury": {
         "subject": "Infortunio — {{player}} ({{injury}})",

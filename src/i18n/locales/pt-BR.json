@@ -1102,7 +1102,7 @@
     "marketingCampaignDescription": "Lance uma campanha pontual de merchandising e divulgação para gerar caixa imediato quando o clube estiver sob pressão.",
     "marketingCampaignUnavailable": "Campanhas de marketing são reservadas a clubes sob pressão salarial ou de caixa.",
     "marketingCampaignCoolingDown": "A campanha de marketing ficará disponível novamente em {{days}} dias.",
-    "marketingCampaignSummary": "A campanha gerou {{netIncome}} líquidos após {{campaignCost}} de gasto ({{grossRevenue}} brutos). Intervalo: {{days}} dias.",
+    "marketingCampaignSummary": "A campanha gerou {{netIncome}} líquidos após {{cost}} de gasto ({{grossRevenue}} brutos). Intervalo: {{days}} dias.",
     "sponsorPitchUnavailable": "A busca por patrocinadores é reservada a clubes sob pressão salarial ou de caixa.",
     "sponsorPitchActiveSponsor": "Já existe um patrocínio ativo em andamento.",
     "sponsorPitchPendingOffer": "Analise primeiro a oferta de patrocínio pendente.",
