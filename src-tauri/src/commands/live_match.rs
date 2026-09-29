@@ -947,6 +947,14 @@ mod tests {
         );
         assert!(cup.knockout_rounds[0].completed, "cup bracket advances");
 
+        // The league fixture sits at the same index as the cup tie and falls on the same day.
+        // It used to be asserted Scheduled here — which was the index-collision guard, but also
+        // encoded a second bug: finishing a live match never played the rest of the day, so a
+        // league fixture due that day was skipped and, since a fixture is only due on an exact
+        // date match, skipped for good. The day now plays it, so the guard moves to what it was
+        // really about: the cup's report landed on the cup fixture and the bracket advanced
+        // (asserted above), and the league fixture carries a result of its own rather than the
+        // cup's.
         let league = response
             .game
             .competitions
@@ -955,13 +963,17 @@ mod tests {
             .expect("league competition");
         assert_eq!(
             league.fixtures[0].status,
-            FixtureStatus::Scheduled,
-            "league fixture at the same index must be untouched"
+            FixtureStatus::Completed,
+            "a league fixture due the same day must be played, not stranded"
         );
-        assert!(league.fixtures[0].result.is_none());
         assert!(
-            league.standings.iter().all(|entry| entry.played == 0),
-            "league standings must not record the cup result"
+            league.fixtures[0].result.is_some(),
+            "the league fixture gets its own result"
+        );
+        assert!(
+            league.standings.iter().all(|entry| entry.played == 1),
+            "the league had two fixtures today and four clubs, so each plays exactly once; \
+             a cup result leaking into the league table would give one of them two"
         );
     }
 

@@ -238,7 +238,9 @@ pub fn advance_time_with_mode(
                                 build_round_summary_dto(game, *matchday, previous_standings)
                             });
 
-                    ofm_core::turn::finish_live_match_day(game);
+                    ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
+                        captures.push(capture)
+                    });
                     let results = collect_advance_results(game, &today);
 
                     Ok(AdvanceTimeWithModeResponse {

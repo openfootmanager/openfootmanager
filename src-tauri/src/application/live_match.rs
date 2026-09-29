@@ -105,7 +105,9 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             let round_summary =
                 build_round_summary_dto(game, round_matchday, &round_previous_standings);
 
-            ofm_core::turn::finish_live_match_day(game);
+            ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
+                captures.push(capture)
+            });
 
             Ok((game.clone(), round_summary))
         })
