@@ -2698,7 +2698,8 @@
       },
       "saveManagerUnavailable": "I dati di salvataggio non sono temporaneamente disponibili.",
       "report": {
-        "bundleFailed": "Non è stato possibile scrivere il file del report. Verifica di poter scrivere nella cartella scelta."
+        "bundleFailed": "Non è stato possibile scrivere il file del report. Verifica di poter scrivere nella cartella scelta.",
+        "saveMissing": "Non è stato possibile trovare il tuo salvataggio, quindi non è stato scritto nulla. Togli la spunta al salvataggio e riprova, oppure ricarica prima la carriera."
       },
       "saveDeleteFailed": "Impossibile eliminare il file di salvataggio.",
       "settings": {

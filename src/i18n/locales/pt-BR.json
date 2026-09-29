@@ -2698,7 +2698,8 @@
       },
       "saveManagerUnavailable": "Os dados salvos estão temporariamente indisponíveis.",
       "report": {
-        "bundleFailed": "Não foi possível gravar o arquivo do relatório. Verifique se você pode gravar na pasta escolhida."
+        "bundleFailed": "Não foi possível gravar o arquivo do relatório. Verifique se você pode gravar na pasta escolhida.",
+        "saveMissing": "Não foi possível encontrar seu save, então nada foi gravado. Desmarque o save e tente de novo, ou recarregue sua carreira primeiro."
       },
       "saveDeleteFailed": "Falha ao excluir o arquivo de save.",
       "settings": {

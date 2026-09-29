@@ -2557,7 +2557,8 @@
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
       "saveManagerUnavailable": "Uložená data jsou dočasně nedostupná.",
       "report": {
-        "bundleFailed": "Soubor hlášení se nepodařilo zapsat. Zkontroluj, jestli máš právo zápisu do zvolené složky."
+        "bundleFailed": "Soubor hlášení se nepodařilo zapsat. Zkontroluj, jestli máš právo zápisu do zvolené složky.",
+        "saveMissing": "Tvůj uložený soubor se nepodařilo najít, takže se nic nezapsalo. Zruš zaškrtnutí uložené hry a zkus to znovu, nebo nejdřív načti kariéru."
       },
       "saveDeleteFailed": "Nepodařilo se smazat soubor uložené pozice.",
       "settings": {

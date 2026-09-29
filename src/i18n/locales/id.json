@@ -2557,7 +2557,8 @@
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
       "saveManagerUnavailable": "Data penyimpanan untuk sementara tidak tersedia.",
       "report": {
-        "bundleFailed": "Berkas laporan tidak bisa ditulis. Periksa apakah kamu bisa menulis ke folder yang dipilih."
+        "bundleFailed": "Berkas laporan tidak bisa ditulis. Periksa apakah kamu bisa menulis ke folder yang dipilih.",
+        "saveMissing": "Berkas simpananmu tidak ditemukan, jadi tidak ada yang ditulis. Hapus centang pada simpanan lalu coba lagi, atau muat ulang kariermu dulu."
       },
       "saveDeleteFailed": "Gagal menghapus berkas penyimpanan.",
       "settings": {

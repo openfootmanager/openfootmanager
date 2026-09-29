@@ -2698,7 +2698,8 @@
       },
       "saveManagerUnavailable": "Die Speicherdaten sind vorübergehend nicht verfügbar.",
       "report": {
-        "bundleFailed": "Die Berichtsdatei konnte nicht geschrieben werden. Prüfe, ob du in den gewählten Ordner schreiben darfst."
+        "bundleFailed": "Die Berichtsdatei konnte nicht geschrieben werden. Prüfe, ob du in den gewählten Ordner schreiben darfst.",
+        "saveMissing": "Dein Spielstand wurde nicht gefunden, also wurde nichts geschrieben. Nimm den Haken beim Spielstand weg und versuch es erneut, oder lade zuerst deine Karriere."
       },
       "saveDeleteFailed": "Die Speicherstandsdatei konnte nicht gelöscht werden.",
       "settings": {

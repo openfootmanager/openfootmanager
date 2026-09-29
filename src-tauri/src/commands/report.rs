@@ -17,6 +17,7 @@ use crate::SaveManagerState;
 
 const SAVE_MANAGER_UNAVAILABLE: &str = "be.error.saveManagerUnavailable";
 const REPORT_BUNDLE_FAILED: &str = "be.error.report.bundleFailed";
+const REPORT_SAVE_MISSING: &str = "be.error.report.saveMissing";
 
 /// What this machine is, for someone reading the report later.
 ///
@@ -112,6 +113,8 @@ fn copy_active_save(
     save_manager: &SaveManagerState,
     scratch_root: &Path,
 ) -> Result<Option<TempSaveCopy>, String> {
+    // No career open is not a failure — the preview does not offer the save in that case, and the
+    // request simply carries nothing.
     let Some(save_id) = state.get_save_id() else {
         return Ok(None);
     };
@@ -119,8 +122,13 @@ fn copy_active_save(
         .0
         .lock()
         .map_err(|_| SAVE_MANAGER_UNAVAILABLE.to_owned())?;
+    // A career IS open and its file cannot be found — a stale id, a save deleted underneath us.
+    // Returning `Ok(None)` here would write a bundle without the save and report success, so the
+    // player is told their career was attached when it was not. On the one screen that exists to
+    // say what is being sent, a quiet omission is worse than a failure they can retry.
     let Some(source) = manager.save_db_path(&save_id) else {
-        return Ok(None);
+        log::error!("[report] the active save {save_id} is not in the index");
+        return Err(REPORT_SAVE_MISSING.to_owned());
     };
     let file_name = source.file_name().map_or_else(
         || std::ffi::OsString::from("save.db"),
@@ -263,16 +271,16 @@ mod tests {
     }
 
     #[test]
-    fn copies_nothing_when_the_save_id_is_not_indexed() {
-        // A stale id must not attach some other player's file, or nothing at all is safer.
+    fn fails_rather_than_quietly_omitting_a_save_it_cannot_find() {
+        // The player ticked the box. Writing the bundle without the save and calling it a success
+        // tells them their career went along when it did not.
         let dir = tempfile::tempdir().expect("temp dir");
         let state = StateManager::new();
         state.set_save_id("no-such-save".to_owned());
 
-        let copied =
-            copy_active_save(&state, &save_manager_in(dir.path()), dir.path()).expect("no error");
+        let result = copy_active_save(&state, &save_manager_in(dir.path()), dir.path());
 
-        assert!(copied.is_none());
+        assert_eq!(result.err(), Some(REPORT_SAVE_MISSING.to_owned()));
     }
 
     #[test]

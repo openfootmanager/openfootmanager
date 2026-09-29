@@ -2698,7 +2698,8 @@
       },
       "saveManagerUnavailable": "Los datos guardados no están disponibles temporalmente.",
       "report": {
-        "bundleFailed": "No se ha podido escribir el archivo del informe. Comprueba que puedes escribir en la carpeta que has elegido."
+        "bundleFailed": "No se ha podido escribir el archivo del informe. Comprueba que puedes escribir en la carpeta que has elegido.",
+        "saveMissing": "No se ha encontrado tu partida guardada, así que no se ha escrito nada. Desmarca la partida e inténtalo de nuevo, o vuelve a cargar tu carrera primero."
       },
       "saveDeleteFailed": "No se pudo eliminar el archivo de guardado.",
       "settings": {

@@ -2557,7 +2557,8 @@
       "saveNotFound": "Save '{{saveId}}' not found.",
       "saveManagerUnavailable": "Save data is temporarily unavailable.",
       "report": {
-        "bundleFailed": "The report file could not be written. Check you can write to the folder you chose."
+        "bundleFailed": "The report file could not be written. Check you can write to the folder you chose.",
+        "saveMissing": "Your save file could not be found, so nothing was written. Untick the save and try again, or reload your career first."
       },
       "saveDeleteFailed": "Failed to delete the save file.",
       "settings": {

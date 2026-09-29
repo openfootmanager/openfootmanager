@@ -2557,7 +2557,8 @@
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",
       "report": {
-        "bundleFailed": "Rapor dosyası yazılamadı. Seçtiğin klasöre yazma iznin olduğunu kontrol et."
+        "bundleFailed": "Rapor dosyası yazılamadı. Seçtiğin klasöre yazma iznin olduğunu kontrol et.",
+        "saveMissing": "Kayıt dosyan bulunamadı, bu yüzden hiçbir şey yazılmadı. Kaydın işaretini kaldırıp tekrar dene ya da önce kariyerini yeniden yükle."
       },
       "saveDeleteFailed": "Kayıt dosyası silinemedi.",
       "settings": {

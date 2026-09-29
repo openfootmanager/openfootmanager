@@ -2698,7 +2698,8 @@
       },
       "saveManagerUnavailable": "存档数据暂时不可用。",
       "report": {
-        "bundleFailed": "无法写入报告文件。请检查你是否有权写入所选文件夹。"
+        "bundleFailed": "无法写入报告文件。请检查你是否有权写入所选文件夹。",
+        "saveMissing": "找不到你的存档文件，因此什么都没有写入。请取消勾选存档后重试，或先重新加载你的生涯。"
       },
       "saveDeleteFailed": "无法删除存档文件。",
       "settings": {
