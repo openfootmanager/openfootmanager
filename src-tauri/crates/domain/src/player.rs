@@ -136,9 +136,11 @@ impl Position {
     /// `TrainingSchedule::is_training_day` is a property of a schedule, so it
     /// belongs here where every layer can reach it.
     ///
-    /// **The front-end mirror must stay in lock-step**, and
-    /// `role_valid_for_position_matches_canonical_table` in `commands/squad.rs`
-    /// is what pins the two together. Change one side, change the other.
+    /// **The front-end mirror must stay in lock-step, and nothing checks that
+    /// mechanically.** `role_valid_for_position_matches_canonical_table` in
+    /// `commands/squad.rs` pins this table to a literal copy of it, and
+    /// `src/lib/playerRoles.test.ts` pins the TypeScript mirror to its own; no
+    /// test compares the two. Change one side, change the other.
     ///
     /// The four coarse buckets are the legacy position groups, and they admit
     /// every role of every granular position beneath them — a squad generated

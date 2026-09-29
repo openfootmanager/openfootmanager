@@ -28,22 +28,24 @@
 //!   and pays in fouls, plus a stamina cost that only the live path currently
 //!   charges — so its price is real but under-collected until every match runs
 //!   through that path.
-//! - **One-sided in the club's favour: `defensive_line` low, `defensive_shape`
-//!   compact, `width` narrow, `counter_press_duration` long.** A very low line
-//!   concedes 1.54 against 1.78 and gives up nothing, because the territory it
-//!   surrenders is not modelled. A long counter-press is the largest single
-//!   effect on the board — 55.4% possession and 2.12 goals for, at no cost at
-//!   all, because the energy it burns and the space it leaves behind are not
-//!   modelled either.
+//! - **Were one-sided in the club's favour: `defensive_line` low,
+//!   `defensive_shape` compact, `width` narrow, `counter_press_duration` long.**
+//!   When the blueprints were written, a very low line conceded 1.54 against
+//!   1.78 and gave up nothing, and a long counter-press bought 55.4% possession
+//!   and 2.12 goals for at no cost at all. The engine now charges the other half
+//!   of each trade (`engine::shared`'s `tactics_defensive_line_recovery`,
+//!   `tactics_break_distance`, `tactics_counter_press_exposure` and
+//!   `tactics_width_versus_shape`), and the identity probe's spread between the
+//!   best and worst style fell from 6.3 points to about 4.
 //!
-//! So blueprints are built for football sense with the one-sided dials
-//! **rationed** — a style gets one where the football demands it and neutral
-//! elsewhere — rather than budgeted to equalise net value under the current
-//! numbers. Budgeting would be tuning against an accounting error: when the
-//! engine learns to charge for a counter-press, every budget struck here would
-//! be wrong again. Fixing that pricing is its own piece of work, and the
-//! identity-vs-identity probe in `tests/tactical_identity_probe.rs` is what
-//! says whether it has become urgent.
+//! The blueprints still **ration** those four — a style gets one where the
+//! football demands it and neutral elsewhere — rather than budgeting to
+//! equalise net value. The pricing narrowed the gap; it has not been shown to
+//! close it, and budgeting against numbers that move every time the engine is
+//! re-priced would be wrong again at the next change. The ration is a pin to
+//! revisit after a fresh `--phase-sweep`: if that run shows the four dials
+//! trading evenly, it can go. `tests/tactical_identity_probe.rs` is what says
+//! whether it has become urgent either way.
 
 use crate::game::Game;
 use crate::stable_hash::stable_hash;
@@ -143,11 +145,12 @@ pub fn blueprint_for(play_style: &PlayStyle) -> TacticsPhaseSettings {
 // The weekly review
 // ---------------------------------------------------------------------------
 
-/// The four dials `--phase-sweep` found the engine gives away, and the most any
-/// one club may hold. Slice 6 rationed the blueprints by hand; adaptation has to
+/// The four dials `--phase-sweep` found the engine giving away, and the most any
+/// one club may hold. The blueprints are rationed by hand; adaptation has to
 /// obey the same limit at run time, because "we keep conceding" pushes a club
-/// straight at the deep line and the compact block — the two cheapest of the
-/// four.
+/// straight at the deep line and the compact block. The engine now charges for
+/// all four, but not provably in full — see the module docs for when this
+/// limit can be revisited.
 const MAX_UNDER_PRICED_DIALS: usize = 2;
 
 fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
@@ -433,7 +436,7 @@ fn go_more_direct(settings: &mut TacticsPhaseSettings) -> bool {
 ///
 /// One change per problem, deliberately. A manager reacting to a bad run moves
 /// one thing; a policy that moved all three would have rebuilt the blueprint,
-/// and the identity slice 6 gave the club would last exactly one bad month.
+/// and the club's identity would last exactly one bad month.
 fn shade(settings: &mut TacticsPhaseSettings, moves: &[fn(&mut TacticsPhaseSettings) -> bool]) {
     for change in moves {
         let mut trial = settings.clone();
@@ -762,10 +765,9 @@ mod tests {
     }
 
     /// The reason this exists: the natural answer to conceding is a deeper line
-    /// and a compact block, which are two of the four dials the engine hands out
-    /// for free. Left alone, adaptation would quietly undo the ration slice 6
-    /// imposed on the blueprints, and every struggling club in the world would
-    /// converge on the same under-priced shape.
+    /// and a compact block, two of the four dials the engine priced one-sidedly.
+    /// Left alone, adaptation would quietly undo the ration on the blueprints,
+    /// and every struggling club in the world would converge on the same shape.
     #[test]
     fn no_adaptation_stacks_every_under_priced_dial() {
         let squads = [
