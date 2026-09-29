@@ -5,20 +5,15 @@ import {
   buildPitchRows,
   buildStartingXIIds,
   type PitchSlotRow,
-  canonicalPosition,
   comparePlayersForSlot,
   getPreferredPositions,
   isPlayerOutOfPosition,
   normalisePosition,
   positionCode,
-  translatePositionAbbreviation,
-  translatePositionLabel,
   type SquadSection,
 } from "../squad/SquadTab.helpers";
 export { FORMATIONS } from "../match/types";
 
-export type TacticsLayoutMode = "balanced" | "pitch" | "analysis";
-export type TacticsTableMode = "lineup" | "roles";
 export type SortDirection = "asc" | "desc";
 export type SortKey = "pos" | "name" | "condition" | "morale" | "ovr";
 
@@ -36,13 +31,6 @@ export interface TacticsPitchSlot {
   rowLabel: string;
   x: number;
   y: number;
-}
-
-export interface TacticsFormationSlotOption {
-  index: number;
-  label: string;
-  position: string;
-  shortLabel: string;
 }
 
 export const TACTICS_PRESETS: TacticsPresetDefinition[] = [
@@ -320,99 +308,6 @@ export function buildTacticsPitchSlots(rows: PitchSlotRow[]): TacticsPitchSlot[]
   });
 }
 
-function getDuplicatedSlotShortLabel(
-  position: string,
-  duplicateIndex: number,
-  duplicateCount: number,
-): string {
-  const canonical = canonicalPosition(position);
-
-  if (canonical === "CenterBack") {
-    if (duplicateCount === 2) return duplicateIndex === 0 ? "LCB" : "RCB";
-    if (duplicateCount === 3) {
-      return ["LCB", "CB", "RCB"][duplicateIndex] ?? "CB";
-    }
-  }
-
-  if (canonical === "CentralMidfielder") {
-    if (duplicateCount === 2) return duplicateIndex === 0 ? "LCM" : "RCM";
-    if (duplicateCount === 3) {
-      return ["LCM", "CM", "RCM"][duplicateIndex] ?? "CM";
-    }
-  }
-
-  if (canonical === "Striker") {
-    if (duplicateCount === 2) return duplicateIndex === 0 ? "LS" : "RS";
-    if (duplicateCount === 3) {
-      return ["LF", "ST", "RF"][duplicateIndex] ?? "ST";
-    }
-  }
-
-  return `${positionCode(position)} ${duplicateIndex + 1}`;
-}
-
-function getDuplicatedSlotLabel(
-  translate: (key: string) => string,
-  position: string,
-  duplicateIndex: number,
-  duplicateCount: number,
-): string {
-  const positionLabel = translatePositionLabel(translate, position);
-
-  if (duplicateCount === 2) {
-    return duplicateIndex === 0
-      ? `${translate("common.left")} ${positionLabel}`
-      : `${translate("common.right")} ${positionLabel}`;
-  }
-
-  if (duplicateCount === 3) {
-    const descriptors = [
-      translate("common.left"),
-      translate("common.center"),
-      translate("common.right"),
-    ];
-
-    return `${descriptors[duplicateIndex] ?? duplicateIndex + 1} ${positionLabel}`;
-  }
-
-  return `${positionLabel} ${duplicateIndex + 1}`;
-}
-
-export function buildFormationSlotOptions(
-  formation: string,
-  translate: (key: string) => string,
-): TacticsFormationSlotOption[] {
-  const positions = buildPitchRows(formation).flatMap((row) => row.positions);
-  const duplicateCounts = new Map<string, number>();
-  const duplicateIndexes = new Map<string, number>();
-
-  positions.forEach((position) => {
-    duplicateCounts.set(position, (duplicateCounts.get(position) ?? 0) + 1);
-  });
-
-  return positions.map((position, index) => {
-    const duplicateIndex = duplicateIndexes.get(position) ?? 0;
-    const duplicateCount = duplicateCounts.get(position) ?? 1;
-    duplicateIndexes.set(position, duplicateIndex + 1);
-
-    if (duplicateCount === 1) {
-      return {
-        index,
-        label: translatePositionLabel(translate, position),
-        position,
-        shortLabel: translatePositionAbbreviation(translate, position),
-      };
-    }
-
-    return {
-      index,
-      label: getDuplicatedSlotLabel(translate, position, duplicateIndex, duplicateCount),
-      position,
-      shortLabel: getDuplicatedSlotShortLabel(position, duplicateIndex, duplicateCount),
-    };
-  });
-}
-
 export function findTacticsPresetBySetup(
   formation: string,
   playStyle: string,
@@ -422,16 +317,4 @@ export function findTacticsPresetBySetup(
       (preset) => preset.formation === formation && preset.playStyle === playStyle,
     ) ?? null
   );
-}
-
-export function getOverallRatingClassName(overallRating: number): string {
-  if (overallRating >= 75) {
-    return "text-success-500 dark:text-success-400";
-  }
-
-  if (overallRating >= 55) {
-    return "text-accent-600 dark:text-accent-400";
-  }
-
-  return "text-gray-500 dark:text-gray-400";
 }

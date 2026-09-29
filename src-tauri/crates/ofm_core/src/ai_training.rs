@@ -3,11 +3,18 @@
 //! Applies automated training focus and intensity decisions to all non-user teams
 //! each non-match training day, BEFORE `training::process_training` runs.
 //!
+//! Every reading here is taken across the eleven best available players rather
+//! than the whole squad. A squad mean is the average of a group most of whom are
+//! not going to play: a first eleven worn down to 50 sitting behind eleven
+//! untouched reserves reads as a comfortable 75, and the planner answers by
+//! putting that same eleven through a hard session. See
+//! [`likely_starters_condition`].
+//!
 //! Algorithm:
 //! 1. Skip the user-controlled team entirely.
 //! 2. Skip if today is a rest day for that team's schedule.
-//! 3. If avg available-player condition < 10 → Recovery focus + Low intensity (no cycle advance).
-//! 4. Otherwise compute intensity from condition band (Low/Medium/High).
+//! 3. If the likely starters' condition < 10 → Recovery focus + Low intensity (no cycle advance).
+//! 4. Otherwise compute intensity from that same reading's band (Low/Medium/High).
 //! 5. Apply near-match / congestion downgrade where applicable.
 //! 6. Pick focus from the style-biased 5-slot weekly cycle (indexed by weekday % 5).
 //! 7. Force Recovery focus when final intensity is Low (fatigue band or downgraded).
@@ -15,24 +22,35 @@
 //! 9. V1 safety rule: Physical + High → downgrade intensity to Medium.
 
 use crate::game::Game;
-use chrono::NaiveDate;
-use domain::league::FixtureStatus;
 use domain::team::{PlayStyle, TrainingFocus, TrainingIntensity};
 
 // ---------------------------------------------------------------------------
 // Thresholds
 // ---------------------------------------------------------------------------
 
-/// Below this avg condition: full recovery day (no cycle advance).
+// All three are read against `likely_starters_condition`, not the squad mean.
+//
+// `HIGH_INTENSITY_MIN` is, in effect, where a club settles: above it the planner
+// works the squad hard, below it eases off, so the eleven hover at the band's
+// edge. It used to be 70, and a club's best eleven arrived at matches at about
+// 73 on a normal week. That was worse than the number suggests, because the
+// taper before a match only steps a session down one level: from Medium it
+// reaches Low, which is a Recovery session and gives condition back, but from
+// High it only reaches Medium, which still costs. A club that lives in the High
+// band never gets a real run-in to a match.
+//
+// 85 is the lowest edge at which every settled week of a one-fixture season
+// clears 80 (readiness probe, physio 60: worst week 86.9, against 70.8 at 70
+// and 79.9 at 80). The cost is development: High is where a session builds
+// the most, and a club at this setpoint spends more of its week on Medium —
+// which is where the player's own club sits by default.
+
+/// Below this starters' condition: full recovery day (no cycle advance).
 const RECOVERY_CRISIS_THRESHOLD: f64 = 10.0;
-/// Below this avg condition: Low intensity band.
+/// Below this starters' condition: Low intensity band.
 const LOW_INTENSITY_MAX: f64 = 40.0;
-/// Above this avg condition: High intensity band (40–70 inclusive is Medium).
-const HIGH_INTENSITY_MIN: f64 = 70.0;
-/// Fixture within this many days is considered "near match".
-const NEAR_MATCH_DAYS: i64 = 2;
-/// This many fixtures in the next 7 days counts as congested.
-const CONGESTION_FIXTURE_THRESHOLD: usize = 2;
+/// Above this starters' condition: High intensity band (40–85 inclusive is Medium).
+const HIGH_INTENSITY_MIN: f64 = 85.0;
 
 // ---------------------------------------------------------------------------
 // Style-biased weekly cycle
@@ -98,11 +116,49 @@ fn style_weekly_cycle(play_style: &PlayStyle) -> [TrainingFocus; 5] {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn downgrade_intensity(intensity: TrainingIntensity) -> TrainingIntensity {
-    match intensity {
-        TrainingIntensity::High => TrainingIntensity::Medium,
-        TrainingIntensity::Medium | TrainingIntensity::Low => TrainingIntensity::Low,
+/// Average condition of the eleven this club would pick if nobody were tired.
+///
+/// This is the number the intensity bands are computed from, and it is
+/// deliberately *not* the squad average. A squad average is dominated by
+/// whoever is not playing: a first eleven ground down to 50 sitting behind
+/// eleven untouched reserves reads as a comfortable 75, so the planner sees
+/// room to work and puts the same exhausted eleven through a High session. The
+/// gap between the two numbers is not small — over a simulated season an AI
+/// squad averages around 71 while its best eleven arrive at matches in the
+/// high 40s.
+///
+/// It is also deliberately not the side the lineup picker would actually name.
+/// That side is rotation-adjusted: the tired stars have been left out of it, so
+/// reading it would launder the fatigue back out of the signal exactly the way
+/// a fresh bench launders it out of the squad mean. The question worth asking
+/// is "what condition are this club's best players in", and the answer has to
+/// stay uncomfortable while they are tired.
+///
+/// Injured players are excluded — they are not candidates for anything, and
+/// their condition is being managed by the treatment room rather than by the
+/// training ground. The eleven is the selector's own condition-free first choice
+/// through the club's formation, not "the eleven best-rated": a generated squad
+/// carries two keepers, a keeper's rating ignores every outfield attribute, and
+/// the spare one — who never plays, so is always fresh — would otherwise count
+/// as a starter. A club with nothing to read is reported fully fit rather than
+/// in crisis: there is nobody for a lighter session to protect.
+fn likely_starters_condition(game: &Game, team_id: &str) -> f64 {
+    let available: Vec<&domain::player::Player> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
+        .collect();
+    let formation = game
+        .teams
+        .iter()
+        .find(|t| t.id == team_id)
+        .map_or("4-4-2", |t| t.formation.as_str());
+
+    let eleven = crate::turn::squad::first_choice_eleven(&available, formation);
+    if eleven.is_empty() {
+        return 100.0;
     }
+    eleven.iter().map(|p| f64::from(p.condition)).sum::<f64>() / eleven.len() as f64
 }
 
 // ---------------------------------------------------------------------------
@@ -110,9 +166,9 @@ fn downgrade_intensity(intensity: TrainingIntensity) -> TrainingIntensity {
 // ---------------------------------------------------------------------------
 
 struct TeamSnapshot {
-    avg_condition: f64,
-    days_to_next_fixture: i64,
-    fixtures_in_next_7: usize,
+    /// Average condition of the eleven best available players — see
+    /// [`likely_starters_condition`] for why it is not the squad average.
+    starters_condition: f64,
     play_style: PlayStyle,
     is_training_day: bool,
 }
@@ -128,48 +184,8 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
 
     let is_training_day = schedule.is_training_day(weekday_num);
 
-    let available_players: Vec<_> = game
-        .players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
-        .collect();
-
-    let avg_condition = if available_players.is_empty() {
-        100.0
-    } else {
-        available_players
-            .iter()
-            .map(|p| p.condition as f64)
-            .sum::<f64>()
-            / available_players.len() as f64
-    };
-
-    let today = game.clock.current_date.date_naive();
-    let (days_to_next, fixtures_in_next_7) = match &game.league {
-        None => (i64::MAX, 0),
-        Some(league) => {
-            let upcoming: Vec<i64> = league
-                .fixtures
-                .iter()
-                .filter(|f| {
-                    f.status == FixtureStatus::Scheduled
-                        && (f.home_team_id == team_id || f.away_team_id == team_id)
-                })
-                .filter_map(|f| NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
-                .filter(|d| *d >= today)
-                .map(|d| (d - today).num_days())
-                .collect();
-
-            let days_to_next = upcoming.iter().copied().min().unwrap_or(i64::MAX);
-            let fixtures_in_next_7 = upcoming.iter().filter(|&&d| d <= 7).count();
-            (days_to_next, fixtures_in_next_7)
-        }
-    };
-
     TeamSnapshot {
-        avg_condition,
-        days_to_next_fixture: days_to_next,
-        fixtures_in_next_7,
+        starters_condition: likely_starters_condition(game, team_id),
         play_style,
         is_training_day,
     }
@@ -185,12 +201,20 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
 /// chosen focus and intensity are in effect when training effects are applied.
 pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
     let user_team_id = game.manager.team_id.clone();
+    // A club playing today is not training today, so there is no session for a
+    // plan to describe. Skipping it also keeps the daily write off the record for
+    // clubs that would only have it overwritten unread.
+    let playing_today = crate::training::teams_playing_on(
+        game,
+        &game.clock.current_date.format("%Y-%m-%d").to_string(),
+    );
 
     // Collect AI team IDs up front to avoid borrow conflicts.
     let team_ids: Vec<String> = game
         .teams
         .iter()
         .filter(|t| Some(&t.id) != user_team_id.as_ref())
+        .filter(|t| !playing_today.contains(&t.id))
         .map(|t| t.id.clone())
         .collect();
 
@@ -204,7 +228,7 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
         }
 
         // Recovery crisis: full recovery day, cycle does NOT advance.
-        if snap.avg_condition < RECOVERY_CRISIS_THRESHOLD {
+        if snap.starters_condition < RECOVERY_CRISIS_THRESHOLD {
             if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
                 team.training_focus = TrainingFocus::Recovery;
                 team.training_intensity = TrainingIntensity::Low;
@@ -213,35 +237,30 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
         }
 
         // Base intensity from condition band.
-        let base_intensity = if snap.avg_condition < LOW_INTENSITY_MAX {
+        let base_intensity = if snap.starters_condition < LOW_INTENSITY_MAX {
             TrainingIntensity::Low
-        } else if snap.avg_condition <= HIGH_INTENSITY_MIN {
+        } else if snap.starters_condition <= HIGH_INTENSITY_MIN {
             TrainingIntensity::Medium
         } else {
             TrainingIntensity::High
         };
 
-        let near_match = snap.days_to_next_fixture <= NEAR_MATCH_DAYS;
-        let congested = snap.fixtures_in_next_7 >= CONGESTION_FIXTURE_THRESHOLD;
-        let congestion_active = near_match || congested;
-
-        let intensity = if congestion_active {
-            downgrade_intensity(base_intensity)
-        } else {
-            base_intensity
-        };
+        // The near-match / congestion taper used to live here. It now lives in
+        // `training::tapering_teams`, which applies it to every club — the human's
+        // included — because reducing load before a game is a property of
+        // training, not a manager's insight. What stays here is what a manager
+        // genuinely decides: how hard to work when there is room to, and on what.
+        let intensity = base_intensity;
 
         // Style-biased weekly cycle; slot is based on weekday mod 5.
         let cycle = style_weekly_cycle(&snap.play_style);
         let slot = (weekday_num as usize) % 5;
         let rotation_focus = cycle[slot].clone();
 
-        // Focus override based on effective intensity / congestion.
+        // Focus override based on effective intensity.
         let focus = match &intensity {
-            // Low intensity (fatigue or congestion-downgraded) → recovery-first.
+            // Low intensity band (a tired squad) → recovery-first.
             TrainingIntensity::Low => TrainingFocus::Recovery,
-            // Medium + congestion active → pre-match tactical work.
-            TrainingIntensity::Medium if congestion_active => TrainingFocus::Tactical,
             // Healthy band → follow style-biased rotation.
             _ => rotation_focus,
         };
@@ -451,7 +470,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn avg_condition_39_gives_low_intensity() {
+    fn likely_starters_at_39_give_low_intensity() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 39);
         apply_ai_training_policies(&mut game, 0);
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
@@ -459,7 +478,7 @@ mod tests {
     }
 
     #[test]
-    fn avg_condition_40_gives_medium_intensity() {
+    fn likely_starters_at_40_give_medium_intensity() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 40);
         apply_ai_training_policies(&mut game, 0);
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
@@ -467,8 +486,18 @@ mod tests {
     }
 
     #[test]
-    fn avg_condition_71_gives_high_intensity() {
-        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 71);
+    fn likely_starters_at_85_give_medium_intensity() {
+        // The top of the Medium band. A club settles near this edge, so it is the
+        // one that decides whether its eleven reach matches fresh.
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 85);
+        apply_ai_training_policies(&mut game, 1);
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(ai.training_intensity, TrainingIntensity::Medium);
+    }
+
+    #[test]
+    fn likely_starters_at_86_give_high_intensity() {
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 86);
         // Use Tuesday (weekday 1, Balanced schedule trains Tue) → slot 1 = Technical.
         // Technical + High does not trigger the safety rule, so intensity stays High.
         apply_ai_training_policies(&mut game, 1);
@@ -567,8 +596,8 @@ mod tests {
 
     #[test]
     fn physical_focus_with_high_intensity_is_downgraded_to_medium() {
-        // Condition 80 → High base intensity; slot 0 = Physical for any style
-        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
+        // Condition 90 → High base intensity; slot 0 = Physical for any style
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 90);
 
         apply_ai_training_policies(&mut game, 0); // Mon slot 0 = Physical
 
@@ -598,11 +627,193 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Congestion → Tactical focus + downgraded intensity
+    // What the controller steers on
+    //
+    // These two cases pull in opposite directions on purpose. A statistic that
+    // gets one of them right by accident — the squad mean, the squad minimum, a
+    // low percentile — gets the other one wrong.
+    // -----------------------------------------------------------------------
+
+    /// A club of 22: eleven better players and eleven reserves, each half given
+    /// its own standard and condition.
+    ///
+    /// The standard is set on every attribute, not just `ovr`, because the
+    /// reading picks its eleven by positional fit, which is computed from
+    /// attributes. The starters are named `star*` so that they sort *after* the
+    /// reserves: when the two halves are rated alike the id tie-break favours the
+    /// reserves, and a test can only pass on the ratings, never on the names.
+    fn make_game_with_a_split_squad(
+        starter_level: u8,
+        starter_condition: u8,
+        reserve_level: u8,
+        reserve_condition: u8,
+    ) -> Game {
+        let date = Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap();
+        let clock = GameClock::new(date);
+        let manager = make_manager(Some("user"));
+        let at_level = |id: String, level: u8, condition: u8| {
+            let mut player = make_player(&id, "ai", condition);
+            let a = &mut player.attributes;
+            for attribute in [
+                &mut a.pace,
+                &mut a.stamina,
+                &mut a.strength,
+                &mut a.agility,
+                &mut a.passing,
+                &mut a.shooting,
+                &mut a.tackling,
+                &mut a.dribbling,
+                &mut a.defending,
+                &mut a.positioning,
+                &mut a.vision,
+                &mut a.decisions,
+                &mut a.composure,
+                &mut a.teamwork,
+            ] {
+                *attribute = level;
+            }
+            player.ovr = level;
+            player
+        };
+
+        let mut players: Vec<Player> = Vec::new();
+        for i in 0..11 {
+            players.push(at_level(
+                format!("star{i}"),
+                starter_level,
+                starter_condition,
+            ));
+            players.push(at_level(
+                format!("reserve{i}"),
+                reserve_level,
+                reserve_condition,
+            ));
+        }
+
+        Game::new(
+            clock,
+            manager,
+            vec![
+                make_team("user", PlayStyle::Balanced),
+                make_team("ai", PlayStyle::Balanced),
+            ],
+            players,
+            vec![],
+            vec![],
+        )
+    }
+
+    #[test]
+    fn a_fresh_bench_does_not_authorise_working_a_tired_first_eleven() {
+        // Eleven at 50 behind eleven at 100: the squad averages 75, which reads
+        // as a squad with room to work. The eleven who play do not have it.
+        let mut game = make_game_with_a_split_squad(75, 50, 50, 100);
+
+        // Tuesday: a Balanced training day whose cycle slot is Technical, so the
+        // Physical-and-High safety rule cannot stand in for the result.
+        apply_ai_training_policies(&mut game, 1);
+
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(
+            ai.training_intensity,
+            TrainingIntensity::Medium,
+            "a first eleven at 50 must not be worked at High just because the \
+             reserves are fresh"
+        );
+    }
+
+    #[test]
+    fn a_shattered_reserve_squad_does_not_wrap_the_first_eleven_in_cotton_wool() {
+        // The mirror image: the eleven who play are fresh at 90 and the reserves
+        // are wrecked at 20. The squad averages 55. Nothing about the players who
+        // take the field says this club should be training lightly.
+        let mut game = make_game_with_a_split_squad(75, 90, 50, 20);
+
+        apply_ai_training_policies(&mut game, 1);
+
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(
+            ai.training_intensity,
+            TrainingIntensity::High,
+            "the players who play are at 90; the squad mean is being dragged \
+             down by people who are not going to be picked"
+        );
+    }
+
+    /// A generated squad carries two keepers, and a keeper's rating is built
+    /// from handling and reflexes alone, so both can out-rate every outfielder.
+    /// Only one of them plays. A reading of "the eleven best-rated players"
+    /// would count the spare one — who never plays, so is always fresh — and
+    /// call a tired eleven fit enough to work hard.
+    #[test]
+    fn the_spare_keeper_is_not_counted_as_a_starter() {
+        let date = Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap();
+        let mut players = Vec::new();
+        let mut add = |id: &str, position: Position, ovr: u8, condition: u8| {
+            let mut player = make_player(id, "ai", condition);
+            player.position = position;
+            player.ovr = ovr;
+            players.push(player);
+        };
+        add("keeper", Position::Goalkeeper, 85, 84);
+        add("spare_keeper", Position::Goalkeeper, 84, 99);
+        for i in 0..7 {
+            add(&format!("def{i}"), Position::Defender, 70, 84);
+            add(&format!("mid{i}"), Position::Midfielder, 70, 84);
+        }
+        for i in 0..6 {
+            add(&format!("fwd{i}"), Position::Forward, 70, 84);
+        }
+        let mut ai = make_team("ai", PlayStyle::Balanced);
+        ai.formation = "4-4-2".to_string();
+        let mut game = Game::new(
+            GameClock::new(date),
+            make_manager(Some("user")),
+            vec![make_team("user", PlayStyle::Balanced), ai],
+            players,
+            vec![],
+            vec![],
+        );
+
+        // Tuesday, Technical slot: High is available if the reading clears 85.
+        apply_ai_training_policies(&mut game, 1);
+
+        let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
+        assert_eq!(
+            ai.training_intensity,
+            TrainingIntensity::Medium,
+            "the eleven who play are at 84; a fresh reserve keeper must not \
+             lift that over the High threshold"
+        );
+    }
+
+    #[test]
+    fn the_reading_does_not_depend_on_the_order_players_happen_to_be_stored_in() {
+        // Every player rated the same, so rating cannot separate them and the
+        // tiebreak decides which eleven the signal reads. It must decide the
+        // same way whichever end of the squad list it starts from.
+        let mut game = make_game_with_a_split_squad(60, 100, 60, 20);
+        let first = likely_starters_condition(&game, "ai");
+        game.players.reverse();
+        let second = likely_starters_condition(&game, "ai");
+
+        assert!(
+            (first - second).abs() < f64::EPSILON,
+            "the same squad gave two different readings ({first} then {second}) \
+             once its players were stored in a different order"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Fixture proximity is no longer this module's business
+    //
+    // The near-match / congestion taper moved to `training::tapering_teams`, which
+    // applies it to every club. What this planner writes is the club's standing
+    // plan; the taper is applied on top of it, per day, without rewriting it.
     // -----------------------------------------------------------------------
 
     #[test]
-    fn congestion_downgrades_intensity_and_sets_tactical_focus() {
+    fn a_congested_fixture_list_does_not_change_the_standing_plan() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
 
         // Add 2 fixtures in the next 7 days for the AI team
@@ -637,8 +848,16 @@ mod tests {
         apply_ai_training_policies(&mut game, 0); // Mon, healthy squad, but congested
 
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
-        // High base → downgraded to Medium due to congestion, Tactical focus
-        assert_eq!(ai.training_focus, TrainingFocus::Tactical);
+        // The fixture list no longer reaches into the standing plan: a condition-80
+        // squad follows its style's Monday slot, which for Balanced is Physical, and
+        // lands on Medium only because of the Physical-and-High safety rule.
+        // `training_tests` covers what those fixtures actually do — taper the session.
+        assert_eq!(ai.training_focus, TrainingFocus::Physical);
         assert_eq!(ai.training_intensity, TrainingIntensity::Medium);
+        assert_eq!(
+            style_weekly_cycle(&PlayStyle::Balanced)[0],
+            TrainingFocus::Physical,
+            "this test reads the Monday slot; if the cycle changes, so must it"
+        );
     }
 }
