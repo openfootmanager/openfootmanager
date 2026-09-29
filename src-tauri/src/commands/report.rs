@@ -24,6 +24,13 @@ const REPORT_SAVE_MISSING: &str = "be.error.report.saveMissing";
 /// Everything here is about the build and the platform. Nothing about the player's game is
 /// included: the frontend already holds the active career and composes that part of the report
 /// itself, so duplicating it across the IPC boundary would be a second copy that can disagree.
+/// One log file the report would carry.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct LogFileSummary {
+    pub name: String,
+    pub bytes: u64,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DiagnosticsReport {
     pub app_version: String,
@@ -38,6 +45,18 @@ pub struct DiagnosticsReport {
     /// same `get_save_id()` the export uses, is the point: when the screen computed it for itself
     /// it said "no career is open" while the export attached one.
     pub has_active_save: bool,
+    /// The log files this report would carry, newest first, with their sizes.
+    ///
+    /// Named here rather than described in prose because the preview is the consent screen, and
+    /// "your logs" is not consent to something whose size the player cannot see. Chosen by the
+    /// same `planned_logs` the export uses, so the two cannot disagree about which files those
+    /// are.
+    pub log_files: Vec<LogFileSummary>,
+    /// Size of the save the tick box would attach, when there is one.
+    ///
+    /// This is the number that actually changes a decision: a career database is the largest
+    /// thing in the bundle by a wide margin, and it is the one part the player chooses.
+    pub save_bytes: Option<u64>,
 }
 
 fn log_dir(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
@@ -49,7 +68,21 @@ fn collect(
     redactor: &Redactor,
     has_active_save: bool,
     crash_on_previous_run: bool,
+    save_bytes: Option<u64>,
 ) -> DiagnosticsReport {
+    let log_files = log_dir(app_handle)
+        .map(|dir| {
+            bundle::planned_logs(&dir)
+                .into_iter()
+                .map(|candidate| LogFileSummary {
+                    // The names are rotation stamps, not anything of the player's, but they go
+                    // through the redactor anyway rather than being trusted for their shape.
+                    name: redactor.apply(&candidate.name),
+                    bytes: candidate.bytes,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
     DiagnosticsReport {
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         os: std::env::consts::OS.to_owned(),
@@ -64,13 +97,27 @@ fn collect(
             .unwrap_or_default(),
         crash_on_previous_run,
         has_active_save,
+        log_files,
+        save_bytes,
     }
+}
+
+/// Size of the active save on disk, or `None` when there is no career or no file behind it.
+///
+/// A number the preview only displays, so a missing one is not worth failing over — the export
+/// is where a save that cannot be found becomes an error the player has to answer.
+fn active_save_bytes(state: &StateManager, save_manager: &SaveManagerState) -> Option<u64> {
+    let save_id = state.get_save_id()?;
+    let manager = save_manager.0.lock().ok()?;
+    let path = manager.save_db_path(&save_id)?;
+    std::fs::metadata(path).ok().map(|meta| meta.len())
 }
 
 #[tauri::command]
 pub fn collect_diagnostics(
     app_handle: tauri::AppHandle,
     state: State<'_, Arc<StateManager>>,
+    save_manager: State<'_, Arc<SaveManagerState>>,
     previous_crash: State<'_, crash::PreviousCrash>,
 ) -> DiagnosticsReport {
     collect(
@@ -78,6 +125,7 @@ pub fn collect_diagnostics(
         &Redactor::from_environment(),
         state.get_save_id().is_some(),
         previous_crash.0.is_some(),
+        active_save_bytes(&state, &save_manager),
     )
 }
 
@@ -205,6 +253,7 @@ fn write_report_bundle(
         &redactor,
         state.get_save_id().is_some(),
         crash_json.is_some(),
+        active_save_bytes(state, save_manager),
     );
     let diagnostics_json =
         serde_json::to_string_pretty(&diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;

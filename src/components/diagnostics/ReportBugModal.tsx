@@ -10,6 +10,7 @@ import { logError } from "../../lib/logger";
 import {
   type BundleSummary,
   type DiagnosticsReport,
+  type LogFileSummary,
   collectDiagnostics,
   exportReportBundle,
   suggestedReportFileName,
@@ -25,6 +26,7 @@ import {
   describeContext,
   describeMachine,
   describeResolution,
+  formatBytes,
   missingRequiredFields,
 } from "./ReportBugModal.helpers";
 
@@ -125,6 +127,16 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
 
   const missing = useMemo(() => missingRequiredFields(draft), [draft]);
 
+  // What the logs add up to, so the preview can put one number against the list. `null` while the
+  // backend summary has not arrived — a total of zero would read as "there are no logs".
+  const logBytes = useMemo(
+    () =>
+      diagnostics === null
+        ? null
+        : diagnostics.log_files.reduce((total, file) => total + file.bytes, 0),
+    [diagnostics],
+  );
+
   // Fails closed. `diagnostics` is null until the backend answers and stays null if it never does,
   // and offering to attach a save we cannot confirm exists is the same mistake as denying one that
   // does. The export reads `get_save_id()` — the value behind this flag — so the two agree.
@@ -221,12 +233,31 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
     );
   };
 
-  const previewRow = (icon: React.ReactNode, name: string, detail: string, size?: string) => (
+  const previewRow = (
+    icon: React.ReactNode,
+    name: string,
+    detail: string,
+    size?: string,
+    files?: LogFileSummary[],
+  ) => (
     <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600">
       <span className="text-primary-600 dark:text-primary-400 shrink-0 mt-0.5">{icon}</span>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">{name}</p>
         <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">{detail}</p>
+        {files && files.length > 0 && (
+          <ul className="mt-1.5 flex flex-col gap-0.5">
+            {files.map((file) => (
+              <li
+                key={file.name}
+                className="flex items-baseline justify-between gap-3 text-[11px] font-mono text-gray-500 dark:text-gray-400"
+              >
+                <span className="truncate">{file.name}</span>
+                <span className="shrink-0">{formatBytes(file.bytes)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {size && (
         <span className="text-[11px] font-mono text-gray-600 dark:text-gray-400 shrink-0">
@@ -332,6 +363,8 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               <FileText className="w-4 h-4" />,
               t("reportBug.itemLogs"),
               t("reportBug.itemLogsDesc"),
+              logBytes === null ? undefined : formatBytes(logBytes),
+              diagnostics?.log_files,
             )}
             {diagnostics?.crash_on_previous_run &&
               previewRow(
@@ -371,6 +404,11 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
                     : t("reportBug.includeSaveNoCareer")}
                 </p>
               </div>
+              {canAttachSave && diagnostics !== null && diagnostics.save_bytes !== null && (
+                <span className="text-[11px] font-mono text-gray-600 dark:text-gray-400 shrink-0">
+                  {formatBytes(diagnostics.save_bytes)}
+                </span>
+              )}
             </div>
 
             <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-2">

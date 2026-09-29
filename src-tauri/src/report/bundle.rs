@@ -78,6 +78,15 @@ pub(crate) fn choose_logs(
     chosen
 }
 
+/// The logs a bundle written now would carry, newest first — without writing anything.
+///
+/// The preview and the export both go through this, so the screen cannot name one set of files
+/// and the zip contain another. Sizes are a snapshot: the live log keeps growing while the player
+/// reads the screen, which is why the preview shows what is there rather than a promise.
+pub fn planned_logs(log_dir: &Path) -> Vec<LogCandidate> {
+    choose_logs(log_candidates(log_dir), MAX_LOG_FILES, MAX_LOG_BYTES)
+}
+
 fn log_candidates(log_dir: &Path) -> Vec<LogCandidate> {
     let Ok(entries) = std::fs::read_dir(log_dir) else {
         // No log directory is not a reason to fail the whole bundle — the diagnostics summary and
@@ -171,7 +180,7 @@ fn write_bundle_inner(
         included_crash = true;
     }
 
-    let chosen = choose_logs(log_candidates(inputs.log_dir), MAX_LOG_FILES, MAX_LOG_BYTES);
+    let chosen = planned_logs(inputs.log_dir);
     let mut log_files = Vec::new();
     for candidate in &chosen {
         let source = inputs.log_dir.join(&candidate.name);
@@ -489,6 +498,39 @@ mod tests {
             .expect("the log entry");
         assert!(log.1.contains("~/saves/a.db"), "{log:?}");
         assert!(!log.1.contains("srobot"), "{log:?}");
+    }
+
+    #[test]
+    fn the_preview_names_the_files_the_bundle_packs() {
+        // The preview screen is the consent surface: it lists the logs by name and size before
+        // anything is written. If it read the directory for itself, the two could disagree —
+        // a rotation between the two reads is enough — and the player would have consented to a
+        // set of files that is not the set that left the machine.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let logs = dir.path().join("logs");
+        std::fs::create_dir_all(&logs).expect("logs dir");
+        for i in 0..MAX_LOG_FILES + 2 {
+            std::fs::write(logs.join(format!("app-{i}.log")), format!("line {i}"))
+                .expect("write log");
+        }
+        let out = dir.path().join("report.zip");
+
+        let planned: Vec<String> = planned_logs(&logs).into_iter().map(|c| c.name).collect();
+        let summary = write_bundle(
+            &BundleInputs {
+                log_dir: &logs,
+                diagnostics_json: "{}",
+                report_text: "",
+                crash_json: None,
+                save_path: None,
+            },
+            &out,
+            &redactor(),
+        )
+        .expect("write bundle");
+
+        assert_eq!(planned.len(), MAX_LOG_FILES, "{planned:?}");
+        assert_eq!(summary.log_files, planned);
     }
 
     #[test]

@@ -68,6 +68,8 @@ describe("describeMachine", () => {
     log_directory: "~/.local/share/ofm/logs",
     crash_on_previous_run: false,
     has_active_save: false,
+    log_files: [],
+    save_bytes: null,
   };
 
   it("names the platform and the webview", () => {

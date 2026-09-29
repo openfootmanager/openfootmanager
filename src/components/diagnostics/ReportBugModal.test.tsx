@@ -40,6 +40,11 @@ const DIAGNOSTICS = {
   webview_version: "2.50.1",
   log_directory: "~/.local/share/ofm/logs",
   crash_on_previous_run: false,
+  log_files: [
+    { name: "app.log", bytes: 1_468_006 },
+    { name: "app.2026-09-28.log", bytes: 1024 * 1024 },
+  ],
+  save_bytes: 12 * 1024 * 1024,
 };
 
 const SUMMARY = {
@@ -284,6 +289,40 @@ describe("ReportBugModal", () => {
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("names every file it is about to pack, with its size", async () => {
+    // The preview is the consent screen, and "your logs" is not consent to something whose size
+    // the player cannot see — a career database is tens of megabytes and it is the one part they
+    // choose. The names come from the backend, which picks them with the same code the export
+    // uses, so the screen cannot list one set of files and the zip hold another.
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(screen.getByText("app.log")).toBeInTheDocument();
+    expect(screen.getByText("app.2026-09-28.log")).toBeInTheDocument();
+    expect(screen.getByText("1.4 MB")).toBeInTheDocument();
+    expect(screen.getByText("1.0 MB")).toBeInTheDocument();
+    // And the two of them together, against the row that holds the list.
+    expect(screen.getByText("2.4 MB")).toBeInTheDocument();
+    // And the save, which is only offered because a career is open.
+    expect(screen.getByText("12 MB")).toBeInTheDocument();
+  });
+
+  it("shows no save size when there is no career to attach", async () => {
+    collectDiagnostics.mockResolvedValue({
+      ...DIAGNOSTICS,
+      has_active_save: false,
+      save_bytes: null,
+    });
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(screen.queryByText("12 MB")).not.toBeInTheDocument();
   });
 
   it("gives the save checkbox exactly one label", async () => {
