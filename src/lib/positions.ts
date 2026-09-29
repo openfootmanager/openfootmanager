@@ -4,8 +4,8 @@
 // Defender, Midfielder, Forward) and thirteen granular ones; `is_legacy_bucket`
 // on the Rust side exists because the buckets are the older shape. Both reach
 // the frontend, so anything ordering or grouping players has to handle both —
-// which is why four separate copies of a four-bucket table had drifted into
-// components, one of them reading a granular value and silently sorting
+// which is why six separate copies of a four-bucket table had drifted into
+// components, two of them reading a granular value and silently sorting
 // nothing. Sits beside `positionColors.ts`, which keeps the colour half of the
 // same vocabulary for the same reason.
 
