@@ -4087,7 +4087,7 @@
     "includeSave": "My save file",
       "includeSaveDesc": "Lets us replay the exact situation you were in.",
     "includeSaveNoCareer": "No career is open, so there is nothing to attach.",
-    "nothingSentYet": "No account needed. Nothing is saved or opened until you press the button below.",
+    "nothingSentYet": "Nothing is saved or opened until you press the button below. Submitting the form needs a GitHub account — the file is yours either way.",
     "savedTo": "Your report file was saved here:",
     "dragItIn": "Drag it onto the GitHub form in your browser, then submit. That is everything.",
       "browserDidNotOpen": "Your browser did not open. The file above is saved — attach it to a new issue on GitHub when you can.",

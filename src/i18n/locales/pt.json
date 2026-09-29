@@ -4087,7 +4087,7 @@
     "includeSave": "O meu jogo guardado",
       "includeSaveDesc": "Permite-nos reproduzir a situação exata em que estavas.",
     "includeSaveNoCareer": "Não há nenhuma carreira aberta, por isso não há nada para anexar.",
-    "nothingSentYet": "Não é preciso conta. Nada é guardado nem aberto até carregares no botão abaixo.",
+    "nothingSentYet": "Nada é guardado nem aberto até carregares no botão abaixo. Submeter o formulário exige uma conta no GitHub — o ficheiro é teu de qualquer forma.",
     "savedTo": "O teu ficheiro de relatório foi guardado aqui:",
     "dragItIn": "Arrasta-o para o formulário do GitHub no teu navegador e submete. É tudo.",
       "browserDidNotOpen": "O teu navegador não abriu. O ficheiro acima está guardado — anexa-o a um novo issue no GitHub quando puderes.",

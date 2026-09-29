@@ -4087,7 +4087,7 @@
     "includeSave": "Kayıt dosyam",
       "includeSaveDesc": "İçinde bulunduğun durumu birebir yeniden oynatmamızı sağlar.",
     "includeSaveNoCareer": "Açık bir kariyer yok, eklenecek bir şey de yok.",
-    "nothingSentYet": "Hesap gerekmez. Aşağıdaki düğmeye basana kadar hiçbir şey kaydedilmez veya açılmaz.",
+    "nothingSentYet": "Aşağıdaki düğmeye basana kadar hiçbir şey kaydedilmez veya açılmaz. Formu göndermek için bir GitHub hesabı gerekir — dosya her durumda senin.",
     "savedTo": "Rapor dosyan buraya kaydedildi:",
     "dragItIn": "Tarayıcıdaki GitHub formuna sürükle ve gönder. Hepsi bu.",
       "browserDidNotOpen": "Tarayıcın açılmadı. Yukarıdaki dosya kaydedildi — fırsatın olduğunda GitHub'da yeni bir issue'ya ekle.",

@@ -4087,7 +4087,7 @@
     "includeSave": "Moje uložená hra",
       "includeSaveDesc": "Umožní nám přehrát přesně tu situaci, ve které jsi byl.",
     "includeSaveNoCareer": "Žádná kariéra není otevřená, není co přiložit.",
-    "nothingSentYet": "Žádný účet není potřeba. Nic se neuloží ani neotevře, dokud nestiskneš tlačítko níže.",
+    "nothingSentYet": "Nic se neuloží ani neotevře, dokud nestiskneš tlačítko níže. Odeslání formuláře vyžaduje účet na GitHubu — soubor je tvůj tak jako tak.",
     "savedTo": "Soubor s hlášením byl uložen sem:",
     "dragItIn": "Přetáhni ho do formuláře na GitHubu v prohlížeči a odešli. A to je všechno.",
       "browserDidNotOpen": "Prohlížeč se neotevřel. Soubor výše je uložený — přilož ho k novému issue na GitHubu, až budeš moci.",

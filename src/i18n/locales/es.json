@@ -4087,7 +4087,7 @@
     "includeSave": "Mi partida guardada",
       "includeSaveDesc": "Nos permite reproducir la situación exacta en la que estabas.",
     "includeSaveNoCareer": "No hay ninguna carrera abierta, así que no hay nada que adjuntar.",
-    "nothingSentYet": "No hace falta cuenta. No se guarda ni se abre nada hasta que pulses el botón de abajo.",
+    "nothingSentYet": "No se guarda ni se abre nada hasta que pulses el botón de abajo. Enviar el formulario requiere una cuenta de GitHub; el archivo es tuyo en cualquier caso.",
     "savedTo": "Tu archivo de informe se ha guardado aquí:",
     "dragItIn": "Arrástralo al formulario de GitHub en tu navegador y envíalo. Eso es todo.",
       "browserDidNotOpen": "Tu navegador no se ha abierto. El archivo de arriba está guardado: adjúntalo a una incidencia nueva en GitHub cuando puedas.",

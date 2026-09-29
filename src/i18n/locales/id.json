@@ -4087,7 +4087,7 @@
     "includeSave": "Berkas simpananku",
       "includeSaveDesc": "Memungkinkan kami memutar ulang situasi persis yang kamu alami.",
     "includeSaveNoCareer": "Tidak ada karier yang terbuka, jadi tidak ada yang bisa dilampirkan.",
-    "nothingSentYet": "Tidak perlu akun. Tidak ada yang disimpan atau dibuka sampai kamu menekan tombol di bawah.",
+    "nothingSentYet": "Tidak ada yang disimpan atau dibuka sampai kamu menekan tombol di bawah. Mengirim formulir butuh akun GitHub — berkasnya tetap milikmu.",
     "savedTo": "Berkas laporanmu disimpan di sini:",
     "dragItIn": "Seret ke formulir GitHub di peramban, lalu kirim. Selesai.",
       "browserDidNotOpen": "Peramban tidak terbuka. Berkas di atas sudah tersimpan — lampirkan ke issue baru di GitHub saat sempat.",

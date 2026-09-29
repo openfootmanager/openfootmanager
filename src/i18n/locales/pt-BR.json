@@ -4087,7 +4087,7 @@
     "includeSave": "Meu save",
       "includeSaveDesc": "Permite reproduzir a situação exata em que você estava.",
     "includeSaveNoCareer": "Nenhuma carreira aberta, então não há nada para anexar.",
-    "nothingSentYet": "Sem necessidade de conta. Nada é salvo nem aberto até você clicar no botão abaixo.",
+    "nothingSentYet": "Nada é salvo nem aberto até você clicar no botão abaixo. Enviar o formulário exige uma conta no GitHub — o arquivo é seu de qualquer jeito.",
     "savedTo": "Seu arquivo de relato foi salvo aqui:",
     "dragItIn": "Arraste-o para o formulário do GitHub no navegador e envie. É só isso.",
       "browserDidNotOpen": "Seu navegador não abriu. O arquivo acima está salvo — anexe-o a uma nova issue no GitHub quando puder.",

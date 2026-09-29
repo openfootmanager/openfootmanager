@@ -4087,7 +4087,7 @@
     "includeSave": "Mein Spielstand",
       "includeSaveDesc": "Damit können wir genau die Situation nachstellen, in der du warst.",
     "includeSaveNoCareer": "Keine Karriere geöffnet, also gibt es nichts anzuhängen.",
-    "nothingSentYet": "Kein Konto nötig. Es wird nichts gespeichert oder geöffnet, bis du unten drückst.",
+    "nothingSentYet": "Es wird nichts gespeichert oder geöffnet, bis du unten drückst. Zum Absenden des Formulars brauchst du ein GitHub-Konto — die Datei gehört dir so oder so.",
     "savedTo": "Deine Berichtsdatei wurde hier gespeichert:",
     "dragItIn": "Zieh sie im Browser auf das GitHub-Formular und schick es ab. Das war's.",
       "browserDidNotOpen": "Dein Browser hat sich nicht geöffnet. Die Datei oben ist gespeichert — hänge sie an, wenn du auf GitHub ein neues Issue anlegst.",

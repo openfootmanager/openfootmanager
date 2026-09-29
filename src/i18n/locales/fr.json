@@ -4087,7 +4087,7 @@
     "includeSave": "Ma sauvegarde",
       "includeSaveDesc": "Nous permet de rejouer exactement la situation dans laquelle tu étais.",
     "includeSaveNoCareer": "Aucune carrière ouverte, il n'y a donc rien à joindre.",
-    "nothingSentYet": "Aucun compte nécessaire. Rien n'est enregistré ni ouvert avant que tu n'appuies sur le bouton ci-dessous.",
+    "nothingSentYet": "Rien n'est enregistré ni ouvert avant que tu n'appuies sur le bouton ci-dessous. Envoyer le formulaire demande un compte GitHub — le fichier est à toi dans tous les cas.",
     "savedTo": "Ton fichier de rapport a été enregistré ici :",
     "dragItIn": "Glisse-le sur le formulaire GitHub dans ton navigateur, puis envoie. C'est tout.",
       "browserDidNotOpen": "Ton navigateur ne s'est pas ouvert. Le fichier ci-dessus est enregistré — joins-le à un nouveau ticket sur GitHub quand tu peux.",

@@ -4087,7 +4087,7 @@
     "includeSave": "Il mio salvataggio",
       "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",
     "includeSaveNoCareer": "Nessuna carriera aperta, quindi non c'è nulla da allegare.",
-    "nothingSentYet": "Nessun account necessario. Nulla viene salvato o aperto finché non premi il pulsante qui sotto.",
+    "nothingSentYet": "Nulla viene salvato o aperto finché non premi il pulsante qui sotto. Inviare il modulo richiede un account GitHub: il file è tuo in ogni caso.",
     "savedTo": "Il file della segnalazione è stato salvato qui:",
     "dragItIn": "Trascinalo sul modulo GitHub nel browser e invialo. Tutto qui.",
       "browserDidNotOpen": "Il browser non si è aperto. Il file qui sopra è salvato: allegalo a una nuova issue su GitHub quando puoi.",

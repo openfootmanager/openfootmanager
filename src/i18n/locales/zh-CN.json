@@ -4087,7 +4087,7 @@
     "includeSave": "我的存档",
       "includeSaveDesc": "让我们能重现你当时的确切情况。",
     "includeSaveNoCareer": "当前没有进行中的生涯，没有可附加的内容。",
-    "nothingSentYet": "无需账号。在你点击下方按钮之前，不会保存或打开任何内容。",
+    "nothingSentYet": "在你点击下方按钮之前，不会保存或打开任何内容。提交表单需要 GitHub 账号 —— 无论如何，文件都是你的。",
     "savedTo": "你的报告文件已保存在：",
     "dragItIn": "把它拖到浏览器中的 GitHub 表单里，然后提交。就这么简单。",
       "browserDidNotOpen": "浏览器没有打开。上方的文件已保存 —— 方便时把它附加到 GitHub 上的新 issue 里。",
