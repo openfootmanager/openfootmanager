@@ -18,24 +18,20 @@ use super::*;
 // it needs a re-export rather than the plain import the plan builder gets.
 pub use plan::team_season_anchor;
 
-pub fn finalize_brazil_state_competition(competition: &mut League) {
+fn finalize_brazil_state_competition(competition: &mut League) {
     competition.rules.counts_in_season_flow = false;
     competition.rules.knockout_round_gap_days = 7;
 }
 
-pub fn build_foundation_competitions(game: &Game) -> Vec<League> {
-    build_foundation_competitions_with(game, TOP_DIVISION_SIZE)
-}
-
-/// As [`build_foundation_competitions`], but with the size a country's clubs
-/// are chunked into divisions by.
+/// Build a game's competitions, chunking each country's clubs into divisions
+/// of `division_size`.
 ///
 /// Only the season harness passes anything but [`TOP_DIVISION_SIZE`]. It needs
 /// the *shapes* that break — a two-tier pyramid, a split-season country, a
 /// shared continental cup — without the club count that normally comes with
 /// them, because a simulated season costs about n^2.43 in the size of the
 /// world and the shipped one is 440 clubs.
-pub fn build_foundation_competitions_with(game: &Game, division_size: usize) -> Vec<League> {
+pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -> Vec<League> {
     let game_start = game.clock.start_date;
     let season = preseason_league_year(&game.clock);
     build_foundation_competition_plan(game, game_start, division_size)
@@ -124,13 +120,13 @@ pub fn ensure_multi_competition_foundations(game: &mut Game) {
 }
 
 /// As [`ensure_multi_competition_foundations`], but with an explicit division
-/// size. See [`build_foundation_competitions_with`] for why that exists.
+/// size. See [`build_foundation_competitions`] for why that exists.
 pub fn ensure_multi_competition_foundations_with(game: &mut Game, division_size: usize) {
     if game.national_teams.is_empty() {
         game.national_teams = build_national_teams(game);
     }
     if game.competitions.is_empty() {
-        game.competitions = build_foundation_competitions_with(game, division_size);
+        game.competitions = build_foundation_competitions(game, division_size);
     }
     if game.active_region_ids.is_empty() {
         game.active_region_ids = game
@@ -156,7 +152,7 @@ pub fn ensure_multi_competition_foundations_with(game: &mut Game, division_size:
 /// fixtures off those dates, so call-ups never clash with club matches.
 /// Idempotent: existing national-team fixtures (e.g. from a loaded save) are
 /// left untouched, and shifting already-clear club fixtures is a no-op.
-pub fn ensure_international_windows(game: &mut Game) {
+fn ensure_international_windows(game: &mut Game) {
     // A career that opens during a World Cup summer stages the tournament right
     // away: the World Cup is otherwise created only at season rollover, which a
     // fresh save beginning in a cup summer (e.g. mid-2026) never reaches, so the
@@ -486,7 +482,7 @@ mod tests {
         );
         let game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
 
-        let competitions = build_foundation_competitions(&game);
+        let competitions = build_foundation_competitions(&game, TOP_DIVISION_SIZE);
 
         type CompetitionSummary = (
             CompetitionType,
@@ -693,7 +689,7 @@ mod tests {
             vec![],
             vec![],
         );
-        game.competitions = build_foundation_competitions(&game);
+        game.competitions = build_foundation_competitions(&game, TOP_DIVISION_SIZE);
         crate::schedule::append_south_american_preseason_friendlies(&mut game.competitions, &[]);
 
         let serie_a = game

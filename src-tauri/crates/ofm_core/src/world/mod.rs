@@ -51,18 +51,18 @@ pub fn preseason_league_year(clock: &GameClock) -> u32 {
     u32::try_from(year).unwrap_or(MIN_START_YEAR as u32)
 }
 
-pub fn infer_region_id(country_code: &str) -> String {
+pub(crate) fn infer_region_id(country_code: &str) -> String {
     crate::nations::region_for_code(country_code).to_string()
 }
 
-pub fn infer_team_region_id(team: &domain::team::Team) -> String {
+fn infer_team_region_id(team: &domain::team::Team) -> String {
     if !team.football_nation.is_empty() {
         return infer_region_id(&team.football_nation);
     }
     infer_region_id(&team.country)
 }
 
-pub fn competition_required_region_ids(competition: &League) -> Vec<String> {
+fn competition_required_region_ids(competition: &League) -> Vec<String> {
     let mut region_ids = competition.required_region_ids.clone();
     if matches!(
         competition.scope,
@@ -76,7 +76,7 @@ pub fn competition_required_region_ids(competition: &League) -> Vec<String> {
     region_ids
 }
 
-pub fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
+fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
     use std::collections::BTreeMap;
 
     let mut players_by_nation: BTreeMap<String, Vec<&domain::player::Player>> = BTreeMap::new();
@@ -113,7 +113,7 @@ pub fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
 /// Pick continental-cup entrants: the strongest clubs by reputation from each
 /// region, capped so the bracket stays manageable. Entrants are returned
 /// strongest-first so the top seeds receive any knockout byes.
-pub fn select_continental_entrants(
+fn select_continental_entrants(
     teams: &[domain::team::Team],
     per_region: usize,
     max_entrants: usize,
@@ -155,15 +155,15 @@ pub fn select_continental_entrants(
 pub const TOP_DIVISION_SIZE: usize = 20;
 
 /// Stable id of the generated world's continental club competition.
-pub const CONTINENTAL_CHAMPIONS_CUP_ID: &str = "continental-champions-cup";
+const CONTINENTAL_CHAMPIONS_CUP_ID: &str = "continental-champions-cup";
 /// Top finishers of each first division that earn a continental berth — matches
 /// the inferred `CONTINENTAL_LEAGUE_SLOTS` so built-in qualification is unchanged.
-pub const CONTINENTAL_QUALIFYING_POSITIONS: u32 = 4;
+const CONTINENTAL_QUALIFYING_POSITIONS: u32 = 4;
 
 /// Split a country's clubs (passed strongest-first) into divisions of
 /// `division_size`, strongest tier first. A trailing remainder smaller than
 /// half a division is folded up so no tier is left tiny.
-pub fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec<Vec<String>> {
+fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec<Vec<String>> {
     let division_size = division_size.max(2);
     if sorted_team_ids.len() <= division_size {
         return vec![sorted_team_ids.to_vec()];
@@ -200,13 +200,13 @@ pub fn division_tier_name_key(tier: usize, division_count: usize) -> &'static st
 }
 
 /// Name a division within a country's pyramid.
-pub fn division_name(country: &str, tier: usize, division_count: usize) -> String {
+pub(crate) fn division_name(country: &str, tier: usize, division_count: usize) -> String {
     format!("{country} {}", division_tier_name(tier, division_count))
 }
 
 /// Default league-start month for a region. South American leagues start in
 /// March, Asian in February, Oceanian in October; everything else in August.
-pub fn default_season_month_for_region(region_id: &str) -> u8 {
+fn default_season_month_for_region(region_id: &str) -> u8 {
     match region_id {
         "south-america" => 3,
         "asia" => 2,
@@ -215,7 +215,7 @@ pub fn default_season_month_for_region(region_id: &str) -> u8 {
     }
 }
 
-pub fn brazil_state_region(city: &str) -> Option<&'static str> {
+fn brazil_state_region(city: &str) -> Option<&'static str> {
     match city {
         "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino"
         | "Juiz de Fora" | "Vitória" => Some("southeast"),

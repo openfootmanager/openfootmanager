@@ -16,7 +16,7 @@ use super::*;
 /// begins, so the player gets a pre-season (with friendlies) instead of being
 /// dropped onto matchday one. Covers the four-friendly pre-season window
 /// (earliest friendly is ~28 days out).
-pub const PRESEASON_ANCHOR_BUFFER_DAYS: i64 = 30;
+const PRESEASON_ANCHOR_BUFFER_DAYS: i64 = 30;
 
 /// When a player picks SeasonStart, anchor the clock a pre-season buffer before
 /// the team's first competitive fixture so they begin in pre-season. Returns
@@ -68,7 +68,7 @@ pub fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
 /// years so the WC opens in June). Each competition's start date is derived from
 /// its region's default season month via
 /// [`crate::generator::start_date_at_game_open`].
-pub fn build_foundation_competition_plan(
+pub(super) fn build_foundation_competition_plan(
     game: &Game,
     game_start: DateTime<Utc>,
     division_size: usize,
