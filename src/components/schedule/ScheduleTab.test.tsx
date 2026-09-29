@@ -36,6 +36,7 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.calendar.prevMonth") return "Previous month";
       if (key === "schedule.calendar.nextMonth") return "Next month";
       if (key === "schedule.season") return `Season ${(params as Record<string, number>)?.number}`;
+      if (key === "tournaments.competitions.worldCup") return "Copa do Mundo 2026";
       if (key === "common.matchday") return `Matchday ${(params as Record<string, number>)?.n}`;
       if (key === "season.friendly") return "Friendly";
       if (key === "common.team") return "Team";
@@ -287,6 +288,29 @@ describe("ScheduleTab", () => {
       expect(screen.getByText(`Friendly – ${formatMatchDate("2026-09-05")}`)).toBeInTheDocument();
     });
     expect(screen.queryByText(/Premier League/)).not.toBeInTheDocument();
+  });
+
+  it("uses the translated competition name for a cup group header", async () => {
+    const state = makeGameState(true);
+    const competition = state.competitions?.[0];
+    if (!competition) throw new Error("expected a competition");
+    competition.name = "2026 World Cup";
+    competition.name_key = "tournaments.competitions.worldCup";
+    competition.season = 2026;
+    mockedInvoke.mockResolvedValue(
+      makeSlice({
+        competition_name: "2026 World Cup",
+        upcoming_groups: [makeGroup({ competition: "InternationalNation" })],
+      }),
+    );
+
+    render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(`Copa do Mundo 2026 – ${formatMatchDate("2026-09-05")}`),
+      ).toBeInTheDocument();
+    });
   });
 
   it("fixtures view shows all fixture rows from the slice", async () => {

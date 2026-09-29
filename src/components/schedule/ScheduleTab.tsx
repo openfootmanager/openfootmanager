@@ -73,6 +73,10 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
     userCompetitions[0] ??
     activeCompetitions[0] ??
     null;
+  const sliceCompetition = activeCompetitions.find((c) => c.id === slice?.competition_id);
+  const sliceCompetitionName = sliceCompetition
+    ? competitionDisplayName(sliceCompetition, t)
+    : (slice?.competition_name ?? "");
 
   // Initialise the competition selection.
   useEffect(() => {
@@ -213,6 +217,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
       {view === "calendar" && (
         <CalendarView
           slice={slice}
+          competitionName={sliceCompetitionName}
           userTeamId={userTeamId ?? null}
           groupRefs={groupRefs}
           visiblePastCount={visiblePastCount}
@@ -227,6 +232,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
       {view === "fixtures" && (
         <FixturesListView
           slice={slice}
+          competitionName={sliceCompetitionName}
           userTeamId={userTeamId ?? null}
           groupRefs={groupRefs}
           onSelectTeam={onSelectTeam}
@@ -288,6 +294,7 @@ function ViewButton({
 
 function CalendarView({
   slice,
+  competitionName,
   userTeamId,
   groupRefs,
   visiblePastCount,
@@ -298,6 +305,7 @@ function CalendarView({
   t,
 }: {
   slice: ScheduleSlice | null;
+  competitionName: string;
   userTeamId: string | null;
   groupRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
   visiblePastCount: number;
@@ -331,7 +339,7 @@ function CalendarView({
               group={group}
               userTeamId={userTeamId}
               groupRefs={groupRefs}
-              competitionName={slice.competition_name}
+              competitionName={competitionName}
               onSelectTeam={onSelectTeam}
               buildTeamMenuItem={buildTeamMenuItem}
               t={t}
@@ -361,7 +369,7 @@ function CalendarView({
                 group={group}
                 userTeamId={userTeamId}
                 groupRefs={groupRefs}
-                competitionName={slice.competition_name}
+                competitionName={competitionName}
                 dimmed
                 onSelectTeam={onSelectTeam}
                 buildTeamMenuItem={buildTeamMenuItem}
@@ -386,6 +394,7 @@ function CalendarView({
 
 function FixturesListView({
   slice,
+  competitionName,
   userTeamId,
   groupRefs,
   onSelectTeam,
@@ -393,6 +402,7 @@ function FixturesListView({
   t,
 }: {
   slice: ScheduleSlice | null;
+  competitionName: string;
   userTeamId: string | null;
   groupRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
   onSelectTeam: (id: string) => void;
@@ -417,7 +427,7 @@ function FixturesListView({
           group={group}
           userTeamId={userTeamId}
           groupRefs={groupRefs}
-          competitionName={slice.competition_name}
+          competitionName={competitionName}
           onSelectTeam={onSelectTeam}
           buildTeamMenuItem={buildTeamMenuItem}
           t={t}

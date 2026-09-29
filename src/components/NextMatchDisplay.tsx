@@ -40,7 +40,7 @@ export default function NextMatchDisplay({ gameState }: { gameState: GameStateDa
   const fixtureLabel = getFixtureDisplayLabel(
     t,
     nextFixture,
-    getFixtureCompetitionName(gameState, nextFixture),
+    getFixtureCompetitionName(gameState, nextFixture, t),
   );
 
   return (

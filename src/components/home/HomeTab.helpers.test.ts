@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
+import i18n, { i18nReady } from "../../i18n";
 
 import type {
   FixtureData,
@@ -271,7 +272,7 @@ describe("HomeTab.helpers", (): void => {
       },
     });
 
-    const result = getNextOpponentWidgetData(gameState);
+    const result = getNextOpponentWidgetData(gameState, i18n.getFixedT("en"));
 
     expect(result).not.toBeNull();
     expect(result?.fixture.id).toBe("fixture-next");
@@ -365,7 +366,7 @@ describe("HomeTab.helpers", (): void => {
       },
     });
 
-    const result = getNextOpponentWidgetData(gameState);
+    const result = getNextOpponentWidgetData(gameState, i18n.getFixedT("en"));
 
     expect(result).not.toBeNull();
     expect(result?.fixture.id).toBe("comp-fixture-next");
@@ -399,10 +400,38 @@ describe("HomeTab.helpers", (): void => {
       ],
     });
 
-    const result = getNextOpponentWidgetData(gameState);
+    const result = getNextOpponentWidgetData(gameState, i18n.getFixedT("en"));
 
     expect(result?.fixture.id).toBe("cup-tie");
     expect(result?.competitionName).toBe("Brazil Cup");
+  });
+
+  it("localizes the next opponent's competition when it has a name key", async () => {
+    await i18nReady;
+    await i18n.loadLanguages("pt-BR");
+    const gameState = createGameState({
+      teams: [createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })],
+      competitions: [
+        {
+          id: "world-cup-2026",
+          name: "2026 World Cup",
+          name_key: "tournaments.competitions.worldCup",
+          season: 2026,
+          participant_ids: ["team-1", "team-2"],
+          fixtures: [
+            createFixture({
+              competition_id: "world-cup-2026",
+              competition: "InternationalNation",
+            }),
+          ],
+          standings: [],
+        },
+      ],
+    });
+
+    const result = getNextOpponentWidgetData(gameState, i18n.getFixedT("pt-BR"));
+
+    expect(result?.competitionName).toBe("Copa do Mundo 2026");
   });
 
   it("returns the latest league digest articles in reverse chronological order", (): void => {

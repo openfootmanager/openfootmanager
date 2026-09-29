@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import type { FixtureData, GameStateData, LeagueData } from "../store/gameStore";
+import { competitionDisplayName } from "./competitionName";
 
 /**
  * The one label rule for a fixture's competition slot ("Matchday 3", "Friendly",
@@ -36,12 +37,15 @@ export function getFixtureDisplayLabel(
 export function getFixtureCompetitionName(
   gameState: Pick<GameStateData, "competitions">,
   fixture: Pick<FixtureData, "competition_id">,
+  t: TFunction,
 ): string | undefined {
   if (!fixture.competition_id) {
     return undefined;
   }
-  return gameState.competitions?.find((competition) => competition.id === fixture.competition_id)
-    ?.name;
+  const competition = gameState.competitions?.find(
+    (candidate) => candidate.id === fixture.competition_id,
+  );
+  return competition ? competitionDisplayName(competition, t) : undefined;
 }
 
 export function isCompetitiveFixture(fixture: FixtureData): boolean {

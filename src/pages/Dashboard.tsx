@@ -188,7 +188,7 @@ export default function Dashboard(): JSX.Element {
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;
   const todayMatchCompetitionName =
     gameState && todayMatchFixture
-      ? getFixtureCompetitionName(gameState, todayMatchFixture)
+      ? getFixtureCompetitionName(gameState, todayMatchFixture, t)
       : undefined;
   const hasMatchToday = todayMatchFixture !== null;
   const backgroundPortraitPrewarmKey = gameState

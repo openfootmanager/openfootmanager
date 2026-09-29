@@ -144,7 +144,7 @@ export default function HomeTab({
     .filter((message) => isMessageVisible(message.date, gameState.clock?.current_date))
     .slice(0, 4)
     .map(resolveMessage);
-  const nextOpponent = getNextOpponentWidgetData(gameState);
+  const nextOpponent = getNextOpponentWidgetData(gameState, t);
   const leagueDigestArticles = getLeagueDigestArticles(gameState).map(resolveNewsArticle);
   const boardObjectives = (gameState.board_objectives || []).map(resolveBoardObjective);
   const onboardingState = getOnboardingCompletionState(gameState, visitedOnboardingTabs);

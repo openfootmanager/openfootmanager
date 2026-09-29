@@ -5,7 +5,7 @@ import NextMatchDisplay from "./NextMatchDisplay";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string) => (key === "tournaments.competitions.worldCup" ? "Copa do Mundo 2026" : key),
   }),
 }));
 
@@ -124,5 +124,34 @@ describe("NextMatchDisplay", () => {
     expect(screen.getByText("Munich Bayern")).toBeInTheDocument();
     expect(screen.getAllByText("Munich Bayern")).toHaveLength(1);
     expect(screen.getByText("home.away")).toBeInTheDocument();
+  });
+
+  it("shows the translated name of a cup fixture", () => {
+    const state = createGameState();
+    const leagueFixture = state.league?.fixtures[0];
+    if (!leagueFixture) throw new Error("expected the existing fixture");
+    const cupFixture = {
+      ...leagueFixture,
+      id: "cup-fixture",
+      competition_id: "world-cup-2026",
+      competition: "InternationalNation" as const,
+    };
+    state.competitions = [
+      {
+        id: "world-cup-2026",
+        name: "2026 World Cup",
+        name_key: "tournaments.competitions.worldCup",
+        season: 2026,
+        participant_ids: ["barcelona", "bayern"],
+        fixtures: [cupFixture],
+        standings: [],
+      },
+    ];
+    state.active_competition_ids = ["world-cup-2026"];
+
+    render(<NextMatchDisplay gameState={state} />);
+
+    expect(screen.getByText("Copa do Mundo 2026")).toBeInTheDocument();
+    expect(screen.queryByText("2026 World Cup")).not.toBeInTheDocument();
   });
 });

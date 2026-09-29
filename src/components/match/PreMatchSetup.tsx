@@ -222,7 +222,7 @@ export default function PreMatchSetup({
     ? getFixtureDisplayLabel(
         t,
         currentFixture,
-        getFixtureCompetitionName(gameState, currentFixture),
+        getFixtureCompetitionName(gameState, currentFixture, t),
       )
     : t("match.matchDay");
 
