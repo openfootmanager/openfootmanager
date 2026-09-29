@@ -430,6 +430,72 @@ describe("ReportBugModal", () => {
     expect(screen.queryByText("12 MB")).not.toBeInTheDocument();
   });
 
+  it("locks the save box and says it is busy while exporting", async () => {
+    // The refusal to close was invisible: no `aria-busy`, a close button with no disabled styling,
+    // and a tick box still accepting clicks after the export had already read it.
+    let release: (value: unknown) => void = () => {};
+    exportReportBundle.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    const { container } = render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+    await waitFor(() => expect(exportReportBundle).toHaveBeenCalled());
+
+    expect(container.querySelector('[role="dialog"]')).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "common.close" })).toBeDisabled();
+
+    release(SUMMARY);
+  });
+
+  it("says on the done screen whether the save went in", async () => {
+    // The preview asked the player to decide about their career. Never saying afterwards whether
+    // it was attached leaves the one question they were asked to answer unanswered.
+    exportReportBundle.mockResolvedValue({ ...SUMMARY, included_save: true });
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+    await screen.findByRole("heading", { name: "reportBug.doneTitle" });
+
+    expect(screen.getByText(/reportBug\.includeSave/)).toBeInTheDocument();
+  });
+
+  it("does not claim a save that was left out", async () => {
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+    await screen.findByRole("heading", { name: "reportBug.doneTitle" });
+
+    expect(screen.queryByText(/reportBug\.includeSave/)).not.toBeInTheDocument();
+    expect(screen.getByText(/reportBug\.itemLogs/)).toBeInTheDocument();
+  });
+
+  it("tells a screen reader which field is missing", async () => {
+    render(<ReportBugModal onClose={vi.fn()} />);
+
+    const whatHappened = screen.getByLabelText(/reportBug\.whatHappened/);
+    expect(whatHappened).toHaveAttribute("aria-required", "true");
+    expect(whatHappened).not.toHaveAttribute("aria-describedby");
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+
+    const error = screen.getByRole("alert");
+    expect(whatHappened).toHaveAttribute("aria-describedby", error.id);
+    expect(error.id).not.toBe("");
+  });
+
   it("gives the save checkbox exactly one label", async () => {
     // `Checkbox` renders its own `<label>` around the real input. Wrapping that in a second label
     // is invalid, and the browser then associates the input with only one of them — so the row

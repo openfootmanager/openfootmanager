@@ -47,6 +47,9 @@ interface ReportBugModalProps {
  * is saved where they choose and the GitHub form opens with the text already filled in. That path
  * needs no server, which is why it is also the permanent fallback once one exists.
  */
+/** Ties an invalid field to the one error message the step shows. */
+const REQUIRED_ERROR_ID = "report-required-error";
+
 export function ReportBugModal({ onClose }: ReportBugModalProps) {
   const { t, i18n } = useTranslation();
   const [step, setStep] = useState<"describe" | "preview" | "done">("describe");
@@ -256,7 +259,9 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
           id={`report-${key}`}
           rows={rows}
           value={draft[key]}
+          aria-required={required}
           aria-invalid={invalid}
+          aria-describedby={invalid ? REQUIRED_ERROR_ID : undefined}
           onChange={(event) => setDraft((prev) => ({ ...prev, [key]: event.target.value }))}
           placeholder={t(`reportBug.${key}Placeholder`)}
           className={`w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 ${
@@ -302,11 +307,14 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
   );
 
   return (
+    // `aria-busy` because Escape and the close button both refuse while the export runs: without
+    // it the refusal is silent to a screen reader, and the dialog just appears to stop responding.
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="report-bug-title"
+      aria-busy={busy}
     >
       <div
         ref={dialogRef}
@@ -340,7 +348,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             onClick={requestClose}
             disabled={busy}
             aria-label={t("common.close")}
-            className="p-1 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
+            className="p-1 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
           >
             <X className="w-4 h-4" />
           </button>
@@ -374,7 +382,11 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               </div>
             </fieldset>
             {showErrors && missing.length > 0 && (
-              <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+              <p
+                id={REQUIRED_ERROR_ID}
+                role="alert"
+                className="text-xs text-red-600 dark:text-red-400"
+              >
                 {t("reportBug.fillRequired")}
               </p>
             )}
@@ -419,10 +431,12 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
                 below is the single label that owns this input, and it names it for a screen
                 reader, so the checkbox carries no `aria-label` of its own to override it. */}
             <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600">
+              {/* Locked once the export has read it: changing it then would put the screen out
+                  of step with the file being written. */}
               <Checkbox
                 id="report-include-save"
                 checked={canAttachSave && includeSave}
-                disabled={!canAttachSave}
+                disabled={!canAttachSave || busy}
                 onChange={(event) => setIncludeSave(event.target.checked)}
               />
               <div className="flex-1 min-w-0">
@@ -464,6 +478,18 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             <code className="block px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-[11px] font-mono text-gray-700 dark:text-gray-300 break-all">
               {describeBundle(summary)}
             </code>
+            {/* What is actually in the file. The screen asked the player to decide about the
+                save; not saying afterwards whether it went in leaves the one question they were
+                asked to answer unanswered. */}
+            <p className="text-[11px] text-gray-600 dark:text-gray-400">
+              {[
+                t("reportBug.itemLogs"),
+                summary.included_save ? t("reportBug.includeSave") : null,
+                summary.included_crash ? t("reportBug.itemCrash") : null,
+              ]
+                .filter((part): part is string => part !== null)
+                .join(" · ")}
+            </p>
             <p className="text-xs text-gray-600 dark:text-gray-400">
               {browserFailed ? t("reportBug.browserDidNotOpen") : t("reportBug.dragItIn")}
             </p>
