@@ -5,10 +5,10 @@
 //! the validated shape everything after this point may rely on, and
 //! `normalize_startup_options` is the only bridge between them.
 
-use chrono::{Datelike, Duration, TimeZone, Utc};
+use chrono::{Datelike, Duration, Utc};
 
 use ofm_core::game::Game;
-use ofm_core::world::MIN_START_YEAR;
+use ofm_core::world::{start_date_for_year, MIN_START_YEAR};
 
 pub(super) const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
 pub(super) const MAX_GENERATED_HISTORY_DEPTH_YEARS: u32 = 24;
@@ -60,19 +60,6 @@ fn default_start_year() -> i32 {
 
 fn default_history_depth_years() -> u32 {
     DEFAULT_GENERATED_HISTORY_DEPTH_YEARS
-}
-
-pub(super) fn start_date_for_year(start_year: i32) -> Result<chrono::DateTime<Utc>, String> {
-    // Use June 1 in World Cup years so a fresh career opens just before the
-    // tournament, keeping the WC in June rather than scheduling it in July.
-    let month = if ofm_core::world_cup::is_world_cup_summer(start_year) {
-        6
-    } else {
-        7
-    };
-    Utc.with_ymd_and_hms(start_year, month, 1, 0, 0, 0)
-        .single()
-        .ok_or_else(|| "be.error.createManager.invalidStartYear".to_string())
 }
 
 pub(super) fn current_date_for_phase(

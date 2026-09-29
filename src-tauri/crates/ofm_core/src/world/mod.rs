@@ -8,9 +8,16 @@
 //! while it sat behind a private module in the Tauri crate, no test could reach
 //! it — which is why promotion, relegation and season rollover went unguarded.
 
-use chrono::{Datelike, Duration, Utc};
+use chrono::{Datelike, Duration, TimeZone, Utc};
 use domain::league::{CompetitionScope, League};
 use domain::national_team::NationalTeam;
+
+pub mod foundations;
+mod plan;
+#[cfg(test)]
+mod test_fixtures;
+
+pub use foundations::*;
 
 use crate::clock::GameClock;
 use crate::game::Game;
@@ -20,6 +27,19 @@ use crate::game::Game;
 /// so the floor only needs to keep the clock inside a sane calendar range.
 /// Must match `MIN_CAREER_START_YEAR` in `src/pages/MainMenu.tsx`.
 pub const MIN_START_YEAR: i32 = 1900;
+
+pub fn start_date_for_year(start_year: i32) -> Result<chrono::DateTime<Utc>, String> {
+    // Use June 1 in World Cup years so a fresh career opens just before the
+    // tournament, keeping the WC in June rather than scheduling it in July.
+    let month = if crate::world_cup::is_world_cup_summer(start_year) {
+        6
+    } else {
+        7
+    };
+    Utc.with_ymd_and_hms(start_year, month, 1, 0, 0, 0)
+        .single()
+        .ok_or_else(|| "be.error.createManager.invalidStartYear".to_string())
+}
 
 pub fn preseason_season_start(clock: &GameClock) -> chrono::DateTime<Utc> {
     clock.start_date + Duration::days(30)
@@ -47,10 +67,9 @@ pub fn competition_required_region_ids(competition: &League) -> Vec<String> {
     if matches!(
         competition.scope,
         CompetitionScope::Domestic | CompetitionScope::Regional
-    ) {
-        if let Some(region_id) = &competition.region_id {
-            region_ids.push(region_id.clone());
-        }
+    ) && let Some(region_id) = &competition.region_id
+    {
+        region_ids.push(region_id.clone());
     }
     region_ids.sort();
     region_ids.dedup();

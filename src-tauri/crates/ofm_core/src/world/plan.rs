@@ -7,31 +7,23 @@
 
 use chrono::{DateTime, Datelike, Duration, TimeZone, Utc};
 
+use crate::game::Game;
 use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition};
-use ofm_core::game::Game;
 
-use super::super::{
-    brazil_state_region, default_season_month_for_region, division_name, division_tier_name,
-    division_tier_name_key, infer_region_id, infer_team_region_id, select_continental_entrants,
-    split_into_divisions, CONTINENTAL_CHAMPIONS_CUP_ID, CONTINENTAL_QUALIFYING_POSITIONS,
-    TOP_DIVISION_SIZE,
-};
+use super::*;
 
 /// Days before a club's first competitive match that a Season-Start career
 /// begins, so the player gets a pre-season (with friendlies) instead of being
 /// dropped onto matchday one. Covers the four-friendly pre-season window
 /// (earliest friendly is ~28 days out).
-pub(super) const PRESEASON_ANCHOR_BUFFER_DAYS: i64 = 30;
+pub const PRESEASON_ANCHOR_BUFFER_DAYS: i64 = 30;
 
 /// When a player picks SeasonStart, anchor the clock a pre-season buffer before
 /// the team's first competitive fixture so they begin in pre-season. Returns
 /// `None` only when the club has no league. Northern (August) leagues resolve to
 /// a date after the July game anchor, so the caller's `actual_start < now` guard
 /// leaves them on the default start.
-pub(in crate::commands::game) fn team_season_anchor(
-    game: &Game,
-    team_id: &str,
-) -> Option<DateTime<Utc>> {
+pub fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
     let team = game.teams.iter().find(|team| team.id == team_id)?;
     let country = if team.football_nation.is_empty() {
         &team.country
@@ -75,13 +67,13 @@ pub(in crate::commands::game) fn team_season_anchor(
 /// `game_start` is the game anchor (July 1 in normal years; June 1 in World Cup
 /// years so the WC opens in June). Each competition's start date is derived from
 /// its region's default season month via
-/// [`ofm_core::generator::start_date_at_game_open`].
-pub(super) fn build_foundation_competition_plan(
+/// [`crate::generator::start_date_at_game_open`].
+pub fn build_foundation_competition_plan(
     game: &Game,
     game_start: DateTime<Utc>,
-) -> Vec<(ofm_core::generator::CompetitionDefinition, DateTime<Utc>)> {
+) -> Vec<(crate::generator::CompetitionDefinition, DateTime<Utc>)> {
+    use crate::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
     use domain::league::{Berth, BerthRule};
-    use ofm_core::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
     use std::collections::BTreeMap;
 
     // Default berth into the continental cup; reproduces the inferred field so a
@@ -130,7 +122,7 @@ pub(super) fn build_foundation_competition_plan(
         });
         let region_id = infer_region_id(&country);
         // Human-readable nation name for competition titles ("ES" → "Spain").
-        let country_label = ofm_core::nations::nation_display_name(&country);
+        let country_label = crate::nations::nation_display_name(&country);
         let country_slug = country.to_lowercase();
 
         let league_month = if country == "BR" {
@@ -138,7 +130,7 @@ pub(super) fn build_foundation_competition_plan(
         } else {
             default_season_month_for_region(&region_id)
         };
-        let (league_start, _) = ofm_core::generator::start_date_at_game_open(
+        let (league_start, _) = crate::generator::start_date_at_game_open(
             game_start,
             league_month,
             if country == "BR" { 28 } else { 1 },
@@ -148,14 +140,12 @@ pub(super) fn build_foundation_competition_plan(
         let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
         let division_count = divisions.len();
 
-        if ofm_core::nations::is_split_season_country(&country) {
+        if crate::nations::is_split_season_country(&country) {
             // Split-season format: Apertura (first half, Feb) + Clausura (second
             // half, Jul). Only the Clausura carries promotion/relegation berths
             // since it closes the year.
-            let (apertura_start, _) =
-                ofm_core::generator::start_date_at_game_open(game_start, 2, 1);
-            let (clausura_start, _) =
-                ofm_core::generator::start_date_at_game_open(game_start, 7, 1);
+            let (apertura_start, _) = crate::generator::start_date_at_game_open(game_start, 2, 1);
+            let (clausura_start, _) = crate::generator::start_date_at_game_open(game_start, 7, 1);
 
             for (tier, division_ids) in divisions.iter().enumerate() {
                 let clausura_berths = if tier == 0 {
@@ -229,7 +219,7 @@ pub(super) fn build_foundation_competition_plan(
                     Vec::new()
                 };
                 let actual_start = if country == "BR" && tier > 0 {
-                    ofm_core::generator::start_date_at_game_open(game_start, 3, 21).0
+                    crate::generator::start_date_at_game_open(game_start, 3, 21).0
                 } else {
                     league_start
                 };
@@ -273,13 +263,13 @@ pub(super) fn build_foundation_competition_plan(
         }
 
         // National cup contested by every club in the country.
-        let cup_month = if ofm_core::nations::is_split_season_country(&country) {
+        let cup_month = if crate::nations::is_split_season_country(&country) {
             2
         } else {
             league_month
         };
         let (actual_cup_start, _) =
-            ofm_core::generator::start_date_at_game_open(game_start, cup_month, 1);
+            crate::generator::start_date_at_game_open(game_start, cup_month, 1);
         let cup_actual_start = actual_cup_start + Duration::days(35);
         planned.push((
             CompetitionDefinition {
@@ -354,7 +344,7 @@ pub(super) fn build_foundation_competition_plan(
                     .unwrap();
                 pools.get_mut(smallest).unwrap().push(team_id);
             }
-            let state_start = ofm_core::generator::start_date_at_game_open(game_start, 1, 11).0;
+            let state_start = crate::generator::start_date_at_game_open(game_start, 1, 11).0;
             for (id, name, name_key) in labels {
                 let participants = pools.remove(id).unwrap_or_default();
                 if participants.len() < 2 {
@@ -413,8 +403,7 @@ pub(super) fn build_foundation_competition_plan(
         };
         // Continental cup starts in October regardless of hemisphere (it draws
         // from multiple regions and is keyed to the European calendar).
-        let (continental_start, _) =
-            ofm_core::generator::start_date_at_game_open(game_start, 10, 1);
+        let (continental_start, _) = crate::generator::start_date_at_game_open(game_start, 10, 1);
         planned.push((
             CompetitionDefinition {
                 id: "continental-champions-cup".to_string(),
