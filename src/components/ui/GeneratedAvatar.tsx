@@ -42,5 +42,3 @@ export function GeneratedAvatar({ name, initials, className }: GeneratedAvatarPr
     </svg>
   );
 }
-
-export default GeneratedAvatar;

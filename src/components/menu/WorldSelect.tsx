@@ -8,19 +8,6 @@ import type { CareerStartPhase } from "./CreateManagerForm";
 // Shared types — imported by MainMenu and PackageBuildStep
 // ---------------------------------------------------------------------------
 
-export interface WorldDatabaseInfo {
-  id: string;
-  name: string;
-  description: string;
-  team_count: number;
-  player_count: number;
-  history_mode?: "generated" | "reference" | "hybrid";
-  base_year?: number | null;
-  snapshot_date?: string | null;
-  source: string;
-  path: string;
-}
-
 export interface PackageIssue {
   code: string;
   file: string;

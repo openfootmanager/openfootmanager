@@ -7,7 +7,7 @@ import {
   type PlayerPortraitIdentity,
 } from "../../services/portraitService";
 import AssetImage from "./AssetImage";
-import GeneratedAvatar from "./GeneratedAvatar";
+import { GeneratedAvatar } from "./GeneratedAvatar";
 
 interface PlayerAvatarPlayer extends PlayerPortraitIdentity {
   full_name: string;

@@ -11,8 +11,6 @@
 export const APP_VERSION = __APP_VERSION__;
 export const APP_CHANNEL = __APP_CHANNEL__;
 export const APP_COMMIT = __APP_COMMIT__;
-export const APP_BUILD_DATE = __APP_BUILD_DATE__;
-
 export const IS_STABLE_BUILD = APP_CHANNEL === "stable";
 
 /**
