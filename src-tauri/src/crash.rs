@@ -126,12 +126,19 @@ pub fn install_panic_hook() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let record = record_from(info);
-        log::error!("[crash] {}\n{}", record.summary(), record.backtrace);
+
+        // The file first, the log second, and the order is load-bearing. The logger formats its
+        // arguments *inside* its own stream lock, so a panic raised while a log line is being
+        // formatted arrives here with that lock already held by this thread — and the `log::error!`
+        // below then blocks on it forever. Writing the record first means the evidence survives
+        // even in that case; a crash that hangs is bad, a crash that hangs having recorded nothing
+        // is the failure this module exists to prevent.
         if let Some(path) = CRASH_FILE.get() {
             if let Err(error) = write_record(path, &record) {
                 log::error!("[crash] could not write {}: {error}", path.display());
             }
         }
+        log::error!("[crash] {}\n{}", record.summary(), record.backtrace);
         // Chain rather than replace: the default hook's stderr output is what a developer running
         // `cargo tauri dev` actually reads, and swallowing it would trade one blind spot for
         // another.

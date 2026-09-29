@@ -21,10 +21,14 @@ const MAX_LOG_FILES: usize = 3;
 
 /// Ceiling on raw log text, before compression.
 ///
-/// Logs are the only part of the bundle that can grow without the player choosing it — a long
-/// session writes 5 MB on its own. The save file is not capped here, because attaching it is an
-/// explicit decision the player made on the preview screen.
-const MAX_LOG_BYTES: u64 = 8 * 1024 * 1024;
+/// Logs are the only part of the bundle that can grow without the player choosing it. The save
+/// file is not capped here, because attaching it is an explicit decision made on the preview.
+///
+/// This has to clear `MAX_LOG_FILES` times the rotation size or the file count is a fiction. It
+/// was 8 MiB against a 5 MB rotation, which admitted a second file only while the newest was under
+/// ~3.4 MB and made a third arithmetically impossible — so the "three files" above was never true
+/// and the common case was one. 16 MiB leaves room for all three.
+const MAX_LOG_BYTES: u64 = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogCandidate {
@@ -117,10 +121,37 @@ pub fn write_bundle(
     output: &Path,
     redactor: &Redactor,
 ) -> std::io::Result<BundleSummary> {
+    // `File::create` truncates the target before a single byte is written, so a failure partway
+    // through — a full disk while copying the save, a drive unplugged — used to leave a
+    // zero-length or half-written file with exactly the name the player chose. They would find it,
+    // assume it was the report, and attach it. Build beside the target and rename on success:
+    // the name only ever appears once the file behind it is complete.
+    match write_bundle_inner(inputs, output, redactor) {
+        Ok(summary) => Ok(summary),
+        Err(error) => {
+            let _ = std::fs::remove_file(scratch_path(output));
+            Err(error)
+        }
+    }
+}
+
+/// Where the bundle is assembled before it takes the name the player chose.
+fn scratch_path(output: &Path) -> std::path::PathBuf {
+    let mut name = output.file_name().unwrap_or_default().to_owned();
+    name.push(".part");
+    output.with_file_name(name)
+}
+
+fn write_bundle_inner(
+    inputs: &BundleInputs<'_>,
+    output: &Path,
+    redactor: &Redactor,
+) -> std::io::Result<BundleSummary> {
     if let Some(parent) = output.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let file = std::fs::File::create(output)?;
+    let scratch = scratch_path(output);
+    let file = std::fs::File::create(&scratch)?;
     let mut zip = zip::ZipWriter::new(file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     let to_io = |e: zip::result::ZipError| std::io::Error::other(e.to_string());
@@ -144,14 +175,18 @@ pub fn write_bundle(
     let mut log_files = Vec::new();
     for candidate in &chosen {
         let source = inputs.log_dir.join(&candidate.name);
-        // A log that cannot be read is skipped, not fatal: it is being written to as we read it,
-        // and one unreadable file must not cost the player the rest of the report.
-        let Ok(text) = std::fs::read_to_string(&source) else {
+        // A log that cannot be read at all is skipped, not fatal: one unreadable file must not
+        // cost the player the rest of the report.
+        let Ok(bytes) = std::fs::read(&source) else {
             continue;
         };
+        // Lossy rather than strict. A hard kill can cut a multi-byte character at the end of the
+        // file, and the session that crashed is the likeliest to have one — so strict decoding
+        // dropped precisely the log worth reading, silently.
+        let text = String::from_utf8_lossy(&bytes);
         zip.start_file(format!("logs/{}", candidate.name), options)
             .map_err(to_io)?;
-        zip.write_all(redactor.apply(&text).as_bytes())?;
+        zip.write_all(redactor.apply(text.as_ref()).as_bytes())?;
         log_files.push(candidate.name.clone());
     }
 
@@ -170,6 +205,8 @@ pub fn write_bundle(
     }
 
     zip.finish().map_err(to_io)?;
+    // Only now does the player's chosen name exist, and it names a complete file.
+    std::fs::rename(&scratch, output)?;
     let bytes = std::fs::metadata(output).map(|m| m.len()).unwrap_or(0);
 
     Ok(BundleSummary {
@@ -232,6 +269,27 @@ mod tests {
         );
 
         assert_eq!(names(&chosen), ["a.log", "b.log", "c.log"]);
+    }
+
+    #[test]
+    fn the_ceiling_admits_as_many_files_as_the_count_promises() {
+        // Guards the relationship rather than the constants: whichever is changed, three rotations
+        // at the plugin's configured size must still fit, or MAX_LOG_FILES is decoration.
+        const ROTATION_BYTES: u64 = 5_000_000; // `max_file_size` in lib.rs
+
+        let chosen = choose_logs(
+            (0..MAX_LOG_FILES)
+                .map(|i| candidate(&format!("{i}.log"), ROTATION_BYTES, i as u64 * 10))
+                .collect(),
+            MAX_LOG_FILES,
+            MAX_LOG_BYTES,
+        );
+
+        assert_eq!(
+            chosen.len(),
+            MAX_LOG_FILES,
+            "the byte ceiling must admit MAX_LOG_FILES rotations"
+        );
     }
 
     #[test]
@@ -375,6 +433,12 @@ mod tests {
         )
         .expect("write bundle");
 
+        // The scratch file the bundle is assembled in must not outlive a successful write.
+        assert!(
+            !dir.path().join("report.zip.part").exists(),
+            "the scratch file should have been renamed, not left behind"
+        );
+
         let entries = read_zip(&out);
         let diagnostics = entries
             .iter()
@@ -490,6 +554,36 @@ mod tests {
             .find(|(name, _)| name == "last-crash.json")
             .expect("the crash entry");
         assert!(!crash.1.contains("srobot"), "{crash:?}");
+    }
+
+    #[test]
+    fn leaves_no_file_behind_when_the_bundle_cannot_be_written() {
+        // The player picks a path, the write fails, and they must not find a truncated file
+        // wearing the name they chose — they would attach it to the issue.
+        let dir = tempfile::tempdir().expect("temp dir");
+        // A regular file where a directory would have to be, so `create_dir_all` fails.
+        let blocked = dir.path().join("blocked");
+        std::fs::write(&blocked, b"not a directory").expect("write blocker");
+        let out = blocked.join("report.zip");
+
+        let result = write_bundle(
+            &BundleInputs {
+                log_dir: &dir.path().join("logs"),
+                diagnostics_json: "{}",
+                report_text: "",
+                crash_json: None,
+                save_path: None,
+            },
+            &out,
+            &redactor(),
+        );
+
+        assert!(result.is_err(), "the write should have failed");
+        assert!(!out.exists(), "no file should wear the chosen name");
+        assert!(
+            blocked.is_file(),
+            "the blocker should be untouched, proving nothing was created under it"
+        );
     }
 
     #[test]
