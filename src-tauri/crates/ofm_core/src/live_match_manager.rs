@@ -18,7 +18,8 @@ use domain::manager::Manager;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{
-    LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchSnapshot, MinuteResult, Side,
+    LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchReport, MatchSnapshot,
+    MinuteResult, Side,
 };
 
 const LIVE_MATCH_NO_LEAGUE_ERROR: &str = "be.error.liveMatch.noLeague";
@@ -405,6 +406,53 @@ pub fn create_live_match(
         user_side,
         ai_home,
         ai_away,
+    })
+}
+
+/// What a fixture nobody watched produced, with the two clubs it belongs to so
+/// the caller can apply it without re-reading the fixture.
+#[derive(Debug)]
+pub struct UnwatchedFixture {
+    pub report: MatchReport,
+    pub home_team_id: String,
+    pub away_team_id: String,
+    /// The user's league round as it stood before this fixture was played, for
+    /// the round digest — see [`crate::matchday::user_league_round_context`].
+    pub league_round_context: Option<(u32, Vec<StandingEntry>)>,
+}
+
+/// Play a fixture nobody is watching, start to finish.
+///
+/// The same session the player's own match runs on, with one difference: no side
+/// belongs to the user. `create_live_match` reads the user's club off
+/// `game.manager`, which is the right answer while the player is sitting through
+/// the match and exactly the wrong one here — it would leave one dugout empty,
+/// and the empty one would always be the player's. A match nobody watches has an
+/// AI manager on both touchlines.
+///
+/// The one way a fixture in `game.league` is played without anyone watching:
+/// the matchday loop plays every other fixture of the day through it, and
+/// [`crate::matchday::play_user_matchday_with_capture`] the player's own when
+/// they delegate. It kicks off through the squad floor's gate
+/// ([`kick_off_live_match`]) and decides extra time by the one predicate,
+/// [`crate::matchday::fixture_allows_extra_time`], so no caller can pass the
+/// wrong answer (#601). An `Err` is a side nobody could field.
+pub fn play_unwatched_fixture(
+    game: &mut Game,
+    fixture_index: usize,
+) -> Result<UnwatchedFixture, String> {
+    let allows_extra_time = crate::matchday::fixture_allows_extra_time(game, fixture_index);
+    let mut session =
+        kick_off_live_match(game, fixture_index, MatchMode::Instant, allows_extra_time)?;
+    session.user_side = None;
+    let league_round_context = session.league_round_context.clone();
+    session.run_to_completion();
+
+    Ok(UnwatchedFixture {
+        home_team_id: session.home_team_id.clone(),
+        away_team_id: session.away_team_id.clone(),
+        report: session.match_state.into_report(),
+        league_round_context,
     })
 }
 

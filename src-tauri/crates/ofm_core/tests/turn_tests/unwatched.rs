@@ -19,8 +19,12 @@ use super::*;
 // match paths now build their sides with `turn::squad::build_team_with_bench`.
 // ---------------------------------------------------------------------------
 
+/// Eleven start and at most five come on, so a side spends between eleven and
+/// sixteen of its twenty-two. The assertion that survives the arrival of the
+/// bench is the one the bug was about: a player who did not take the field is
+/// not charged for the match.
 #[test]
-fn an_instant_match_charges_eleven_players_a_side_not_the_whole_squad() {
+fn an_instant_match_charges_the_players_who_took_the_field_and_nobody_else() {
     let mut game = game_with_deep_squads();
     let before: HashMap<String, u8> = game
         .players
@@ -31,15 +35,24 @@ fn an_instant_match_charges_eleven_players_a_side_not_the_whole_squad() {
     turn::process_day(&mut game);
 
     for team_id in ["team1", "team2"] {
-        let played = game
+        for player in game
             .players
             .iter()
             .filter(|p| p.team_id.as_deref() == Some(team_id))
-            .filter(|p| p.condition < before[&p.id])
-            .count();
-        assert_eq!(
-            played, 11,
-            "{team_id} should have charged exactly its eleven starters, not {played} players"
+        {
+            assert!(
+                player.stats.appearances > 0 || player.condition >= before[&player.id],
+                "unused {} was charged for a match it never played ({} → {})",
+                player.id,
+                before[&player.id],
+                player.condition
+            );
+        }
+
+        let used = fielded_count(&game, team_id);
+        assert!(
+            (11..=16).contains(&used),
+            "{team_id} put out eleven and may bring on five, so {used} players is not a team sheet"
         );
     }
 }
@@ -204,4 +217,140 @@ fn a_club_in_a_dormant_competition_still_recovers_on_its_matchday() {
         "a scoreline-only match costs nothing, so its rest day must still restore: \
          {before:?} -> {after:?}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// A match nobody watches is still a match somebody manages
+//
+// Every fixture in the world bar the one the player sat through was resolved by
+// `engine::simulate`: a one-shot with no command loop, so eleven players a side
+// played ninety minutes and the bench never moved. The manager the AI slices
+// taught to read a game only ever managed one club a matchday.
+// ---------------------------------------------------------------------------
+
+/// Both squads flat out, so the branch that fires every minute rather than at a
+/// checkpoint is certain to reach for the bench whatever the scoreline does.
+/// Substitutions average under three a match; a level game between fresh sides
+/// can honestly produce none, and a red line must not turn on the dice.
+fn spend_every_squad(game: &mut Game) {
+    for player in game.players.iter_mut() {
+        player.condition = 40;
+    }
+}
+
+#[test]
+fn a_match_nobody_watches_still_uses_the_bench() {
+    let mut game = game_with_deep_squads();
+    spend_every_squad(&mut game);
+
+    turn::process_day(&mut game);
+
+    for team_id in ["team1", "team2"] {
+        let used = fielded_count(&game, team_id);
+        assert!(
+            used > 11,
+            "{team_id} played a match on its knees and finished with the eleven \
+             it started ({used} players credited with an appearance)"
+        );
+    }
+}
+
+/// team1 is the manager's own club. Nobody is watching this fixture either — the
+/// player advanced past it — so it gets a touchline like everyone else. The side
+/// the player happens to own is not the side that goes unmanaged.
+#[test]
+fn the_players_own_club_is_managed_when_the_player_is_not_watching() {
+    let mut game = game_with_deep_squads();
+    spend_every_squad(&mut game);
+
+    turn::process_day(&mut game);
+
+    assert!(
+        fielded_count(&game, "team1") > 11,
+        "the manager's own club was left without a touchline"
+    );
+}
+
+/// The bench path now runs for every club in the world, so it meets clubs that
+/// have no bench: `make_game_with_match` gives each side exactly eleven. They
+/// must play the match out — not panic, and not field a short side.
+#[test]
+fn a_club_with_exactly_eleven_players_plays_the_match_out() {
+    let mut game = make_game_with_match();
+    spend_every_squad(&mut game);
+
+    turn::process_day(&mut game);
+
+    for team_id in ["team1", "team2"] {
+        assert_eq!(
+            fielded_count(&game, team_id),
+            11,
+            "{team_id} has nobody to bring on and eleven who must finish"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// A level knockout tie that nobody watched
+//
+// These used to be settled with a strength-weighted coin toss at 90'. They
+// are now played by the live engine, which goes to extra time and only then
+// to penalties, as the player's own knockout matches always have.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn simulate_other_matches_settles_knockout_draws_with_shootout() {
+    // Regression: an AI-simulated knockout tie that ended level persisted with
+    // no shootout score, so advance_knockout_competition_round always advanced
+    // the home team. The full-engine sim path must resolve level knockout
+    // ties with a simulated shootout.
+    let mut saw_draw = false;
+    for _attempt in 0..200 {
+        let mut game = make_game_with_match();
+        {
+            let league = game.league.as_mut().unwrap();
+            league.fixtures[0].competition = FixtureCompetition::Cup;
+            league.knockout_rounds = vec![KnockoutRoundState {
+                id: "round-1".to_string(),
+                name: "Final".to_string(),
+                fixture_ids: vec!["fix1".to_string()],
+                bye_team_ids: Vec::new(),
+                completed: false,
+            }];
+        }
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        turn::simulate_other_matches(&mut game, &today, None);
+
+        let result = game.league.as_ref().unwrap().fixtures[0]
+            .result
+            .as_ref()
+            .expect("fixture should have a result");
+        if result.home_goals == result.away_goals {
+            saw_draw = true;
+            let home_pens = result.home_penalties.expect("level knockout needs pens");
+            let away_pens = result.away_penalties.expect("level knockout needs pens");
+            assert_ne!(home_pens, away_pens, "shootout must have a winner");
+            // The shootout is now the end of a tie that went to extra time
+            // rather than a coin toss thrown at 90'. Neither side has a bench,
+            // so every starter is still on and must be credited with the extra
+            // half hour; ninety minutes here means the tie never played it.
+            let longest = game
+                .players
+                .iter()
+                .map(|player| player.stats.minutes_played)
+                .max()
+                .unwrap_or(0);
+            assert!(
+                longest >= 120,
+                "a level knockout tie goes to extra time before penalties, \
+                 but the longest shift was {longest} minutes"
+            );
+            break;
+        }
+        assert!(
+            result.home_penalties.is_none() && result.away_penalties.is_none(),
+            "decisive results must not carry a shootout"
+        );
+    }
+    assert!(saw_draw, "expected at least one drawn knockout in 200 sims");
 }

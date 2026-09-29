@@ -29,6 +29,44 @@ pub(crate) fn club_strength(players: &[Player], club_id: &str) -> f64 {
     total as f64 / count as f64
 }
 
+/// Settle one fixture of `competition` by scoreline alone: a score drawn from
+/// the two clubs' strength, a shootout if a knockout tie is level, and the
+/// result applied to the fixture, the table and any bracket. How the dormant
+/// tier plays every fixture, and how an active one is settled when a side
+/// cannot be fielded at all.
+pub(crate) fn resolve_fixture_by_scoreline(
+    players: &[Player],
+    competition: &mut League,
+    fixture_index: usize,
+    rng: &mut impl rand::Rng,
+) {
+    let Some(fixture) = competition.fixtures.get(fixture_index) else {
+        return;
+    };
+    let (fixture_id, home_team_id, away_team_id) = (
+        fixture.id.clone(),
+        fixture.home_team_id.clone(),
+        fixture.away_team_id.clone(),
+    );
+    let home_strength = club_strength(players, &home_team_id);
+    let away_strength = club_strength(players, &away_team_id);
+    let (home_goals, away_goals) =
+        crate::national_team::simulate_scoreline(home_strength, away_strength, rng);
+    // Level knockout ties are settled by a simulated shootout so the bracket
+    // advances with a real winner instead of defaulting to home.
+    let penalties = (home_goals == away_goals && competition.is_knockout_fixture(&fixture_id))
+        .then(|| crate::national_team::simulate_shootout(home_strength, away_strength, rng));
+    apply_simulated_result(
+        competition,
+        fixture_index,
+        &home_team_id,
+        &away_team_id,
+        home_goals,
+        away_goals,
+        penalties,
+    );
+}
+
 /// Apply a pre-computed scoreline to a fixture, updating standings and
 /// advancing group/knockout state. Shared by the catch-up and dormant paths.
 /// `penalties` carries a simulated shootout score for level knockout ties so

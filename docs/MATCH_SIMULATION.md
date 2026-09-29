@@ -1,8 +1,10 @@
 # Match Simulation
 
-This document describes how OpenFoot Manager simulates football matches. The simulation has two modes: **instant** (used for AI-vs-AI matches during day advancement) and **live** (step-by-step, used when the player watches or controls a match).
+This document describes how OpenFoot Manager simulates football matches. There are two engines. The **live** engine (`live_match/`) plays a match a minute at a time and accepts commands between minutes — substitutions, formation changes, tactical instructions, half-time talks — and depletes condition per minute. The **instant** engine (`engine.rs`) resolves a whole match in one call and takes no commands.
 
-Both modes share the same core resolution logic, but the live system adds interactivity — substitutions, formation changes, halftime talks — and per-minute stamina depletion.
+**Every fixture in an actively simulated competition is played by the live engine**, whether or not anybody is watching. The difference between the player's own match and the other nine on the same date is who is in the dugout, not which engine plays it: an unwatched match simply has an AI manager on both touchlines. Competitions outside the player's active scope are a third, much cheaper tier — a scoreline model, not a match engine (`turn/dormant.rs`).
+
+The instant engine is now used only by the tools: `sim-bench` (including its `--phase-sweep` dial table and the control arm of its A/B) and the `sim_lab` developer command. Numbers measured through it describe the same resolution logic but not the same match — no bench, no manager, no per-minute condition.
 
 ## Historical Context
 
@@ -179,10 +181,15 @@ club per game** after #605 changed the selected eleven. A scoring change needs
 a fresh run of `tactical_adaptation_probe` before those cutoffs can be trusted.
 
 Both the instant engine (`engine/`) and the live engine (`live_match/`) consume
-the dials identically; the stamina cost of pressing applies only to the live
-engine, which tracks per-minute condition. Magnitudes live in `engine::shared`
-and are tuned with `cargo run -p sim-bench -- --phase-sweep`, which tabulates
-each dial's effect on possession %, shots and goals against a neutral opponent.
+the dials identically, with one exception: the stamina cost of pressing needs
+per-minute condition, so it exists only in the live engine — which, since every
+competitive fixture goes through that engine, means it is now charged in every
+match the game plays. Magnitudes live in `engine::shared` and are tabulated by
+`cargo run -p sim-bench -- --phase-sweep`, each dial's effect on possession %,
+shots and goals against a neutral opponent. Read that table with its path in
+mind: the sweep runs through the instant engine, so it prices a dial in a match
+with no bench and no pressing cost. `tests/tactical_identity_probe.rs` is the
+measurement taken on the path the game actually plays.
 
 ---
 
@@ -369,9 +376,12 @@ The `ofm_core/turn/` bridge is the only place the conversion is allowed to live 
    list rather than fielding a short side — the engine has no forfeit, and an empty side
    would crash it. The builder also maps positions, play styles, roles, the nine tactical
    dials, and all 19 attributes + traits.
-2. **`simulate_matchday()`** — for each fixture on a match day, builds both squads through
-   `turn/squad.rs` and calls `engine::simulate()`. The bench is discarded on this path:
-   `simulate()` is one-shot with no command loop, so an instant match has no substitutions.
+2. **`simulate_matchday()`** — for each fixture on a match day, opens a `LiveMatchSession`
+   through `create_live_match()` and runs it to completion. The bench comes with it, so an
+   unwatched match has substitutions and tactical changes like any other; `user_side` is
+   cleared, because with nobody watching, both dugouts are the AI's — including the player's
+   own club when the day was advanced past its fixture. A knockout tie plays extra time and,
+   if still level, the engine's penalty shootout.
 3. **`apply_match_report()`** — writes results back to the domain: fixture status, match result, standings updates, player season stats (goals, assists, cards, rating, clean sheets).
 4. **`apply_player_stats()`** — updates individual `PlayerSeasonStats` from the engine's `PlayerMatchStats`.
 

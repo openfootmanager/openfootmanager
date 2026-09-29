@@ -6,6 +6,7 @@ pub(crate) mod squad;
 
 use crate::board_objectives;
 use crate::game::Game;
+use crate::live_match_manager;
 use crate::player_events;
 use crate::random_events;
 use crate::scouting;
@@ -457,38 +458,41 @@ fn simulate_single_match_with_capture<F>(game: &mut Game, idx: usize, on_capture
 where
     F: FnMut(StatsState),
 {
-    let (home_team_id, away_team_id, is_knockout) = {
-        let league = game.league.as_ref().unwrap();
-        let f = &league.fixtures[idx];
-        (
-            f.home_team_id.clone(),
-            f.away_team_id.clone(),
-            league.is_knockout_fixture(&f.id),
-        )
-    };
-
-    // The same builder the live path uses, so both answer "who is playing" the
-    // same way: eleven players in slot order, chosen by the user's saved XI or
-    // the AI's selection policy, fit ones first and the walking wounded only to
-    // make up a shortfall. The bench is discarded — `engine::simulate`
-    // is a one-shot with no command loop, so nobody can come off it. That means
-    // no substitutions in an instant match, which is a real gap and a later
-    // slice's job; what matters here is that reserves are no longer credited
-    // with minutes, appearances and match wear for a game they never played.
-    crate::live_match_manager::prepare_kick_off(game, idx);
-    let (home_data, _home_bench) = squad::build_team_with_bench(game, &home_team_id);
-    let (away_data, _away_bench) = squad::build_team_with_bench(game, &away_team_id);
-    let config = engine::MatchConfig::default();
-    let mut report = engine::simulate(&home_data, &away_data, &config);
-    // A level knockout tie must produce a winner: resolve it with a simulated
-    // shootout so the home side no longer advances by default on a draw.
-    if is_knockout && report.home_goals == report.away_goals {
-        let home_strength = squad::shootout_strength(&home_data);
-        let away_strength = squad::shootout_strength(&away_data);
-        let (home_pens, away_pens) =
-            crate::national_team::simulate_shootout(home_strength, away_strength, &mut rand::rng());
-        report.home_penalties = Some(home_pens);
-        report.away_penalties = Some(away_pens);
+    // One match path. Every fixture in an active competition is played by the
+    // engine the player watches: eleven starters, a real bench, and a manager on
+    // both touchlines reading the game at the same checkpoints. It used to be
+    // `engine::simulate`, a one-shot with no command loop — so no substitution
+    // and no tactical change was possible in any match but the player's own.
+    // Extra time, and the engine's own shootout, follow the one knockout
+    // predicate inside `play_unwatched_fixture`.
+    match live_match_manager::play_unwatched_fixture(game, idx) {
+        Ok(played) => apply_match_report_with_capture(
+            game,
+            idx,
+            &played.home_team_id,
+            &played.away_team_id,
+            &played.report,
+            on_capture,
+        ),
+        // A side nobody could field, after the kick-off gate found no academy
+        // player and no free agent: the world has run out of players, which
+        // ordinary squad management exists to prevent. The day still finishes —
+        // the fixture is settled by scoreline, as the dormant tier settles every
+        // fixture, rather than left scheduled in the past.
+        Err(error) => {
+            log::error!(
+                "[turn] fixture {idx} could not be played live ({error}); settled by scoreline"
+            );
+            let league = game
+                .league
+                .as_mut()
+                .expect("simulate_matchday runs with the competition in the legacy slot");
+            crate::catchup::resolve_fixture_by_scoreline(
+                &game.players,
+                league,
+                idx,
+                &mut rand::rng(),
+            );
+        }
     }
-    apply_match_report_with_capture(game, idx, &home_team_id, &away_team_id, &report, on_capture);
 }

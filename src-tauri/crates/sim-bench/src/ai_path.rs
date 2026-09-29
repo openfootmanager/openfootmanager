@@ -3,10 +3,14 @@
 //! **A — one shot.** The whole squad is handed to `engine::simulate` at once.
 //! There is no starting XI, no bench, and no AI manager on either touchline.
 //! This is the shape every unwatched fixture had before `ofm_core` learned to
-//! build an XI for the instant path; it is kept as the control arm.
+//! build an XI for the instant path, and no fixture in the game takes it any
+//! more — `engine::simulate` is now reached only from this bench and the
+//! `sim_lab` command. It is kept as the historical control arm: it is what the
+//! numbers below are a distance from.
 //!
-//! **B — live.** What the player's own fixture gets: eleven starters, a real
-//! bench, and `ai_decide` consulted every minute for both sides.
+//! **B — live.** What every competitive fixture now gets, the player's own and
+//! the other nine alike: eleven starters, a real bench, and `ai_decide`
+//! consulted every minute for both sides.
 //!
 //! The interesting column is `burn` — the condition the *production* wear
 //! formula would charge this squad for the match, projected onto each path's
