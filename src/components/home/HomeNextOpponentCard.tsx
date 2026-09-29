@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { formatDateShort } from "../../lib/helpers";
+import { formatDateShort, getFixtureDisplayLabel } from "../../lib/helpers";
 import { Badge, Card, CardBody, CardHeader, TeamLogo } from "../ui";
 import type { NextOpponentWidgetData } from "./HomeTab.helpers";
 
@@ -36,14 +36,11 @@ export default function HomeNextOpponentCard({
         {nextOpponent ? (
           <div className="flex flex-col gap-3">
             {(() => {
-              const fixtureLabel =
-                nextOpponent.fixture.competition === "League"
-                  ? t("home.matchdayN", {
-                      n: nextOpponent.fixture.matchday,
-                    })
-                  : nextOpponent.fixture.competition === "PreseasonTournament"
-                    ? t("season.preseasonTournament")
-                    : t("season.friendly");
+              const fixtureLabel = getFixtureDisplayLabel(
+                t,
+                nextOpponent.fixture,
+                nextOpponent.competitionName,
+              );
 
               return (
                 <div className="flex items-start justify-between gap-3">

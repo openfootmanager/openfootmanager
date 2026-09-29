@@ -9,6 +9,7 @@ import {
   getPromotionRelegationZones,
   getTeamName,
   formatMatchDate,
+  getFixtureDisplayLabel,
   getUserCalledUpPlayers,
   nationalTeamDisplayName,
 } from "../../lib/helpers";
@@ -431,16 +432,16 @@ function groupLabel(
   competitionName: string,
   t: ReturnType<typeof useTranslation>["t"],
 ): string {
-  if (group.competition === "League" && group.matchday > 0) {
-    return `${competitionName} – ${t("schedule.matchday", { number: group.matchday })} – ${formatMatchDate(group.date)}`;
+  const date = formatMatchDate(group.date);
+  if (group.competition === "League" && group.matchday <= 0) {
+    return `${competitionName} – ${date}`;
   }
-  if (group.competition === "PreseasonTournament") {
-    return `${competitionName} – ${t("season.preseasonTournament", "Pre-season")} – ${formatMatchDate(group.date)}`;
+  const label = getFixtureDisplayLabel(t, group, competitionName);
+  // A friendly belongs to no competition, and a cup's label already is its name.
+  if (group.competition === "Friendly" || label === competitionName) {
+    return `${label} – ${date}`;
   }
-  if (group.competition === "Friendly") {
-    return `${t("season.friendly", "Friendly")} – ${formatMatchDate(group.date)}`;
-  }
-  return `${competitionName} – ${formatMatchDate(group.date)}`;
+  return `${competitionName} – ${label} – ${date}`;
 }
 
 function MatchdayGroupCard({

@@ -1,7 +1,7 @@
 {
   "oversizedAggregate": {
     "rust": 61847,
-    "ts": 35965
+    "ts": 36008
   },
   "allowedOversized": {
     "src-tauri/crates/db/src/repositories/player_repo.rs": 1062,
@@ -43,13 +43,13 @@
     "src/components/dashboard/DashboardSimulatingModal.tsx": 539,
     "src/components/finances/FinancesTab.test.tsx": 931,
     "src/components/finances/FinancesTab.tsx": 972,
-    "src/components/home/HomeTab.helpers.test.ts": 704,
+    "src/components/home/HomeTab.helpers.test.ts": 734,
     "src/components/inbox/InboxMessageDetailPane.tsx": 523,
     "src/components/inbox/InboxTab.test.tsx": 1253,
     "src/components/match/MatchLive.tsx": 612,
     "src/components/match/PostMatchScreen.test.tsx": 709,
     "src/components/match/PostMatchScreen.tsx": 798,
-    "src/components/match/PreMatchSetup.tsx": 711,
+    "src/components/match/PreMatchSetup.tsx": 715,
     "src/components/match/RoundDigestScreen.tsx": 603,
     "src/components/match/SubPanel.tsx": 633,
     "src/components/menu/PackageEditor/CompetitionForm.tsx": 591,
@@ -58,8 +58,8 @@
     "src/components/playerProfile/PlayerProfile.test.tsx": 1760,
     "src/components/players/PlayersListTab.test.tsx": 632,
     "src/components/players/PlayersListTab.tsx": 661,
-    "src/components/schedule/ScheduleTab.test.tsx": 609,
-    "src/components/schedule/ScheduleTab.tsx": 851,
+    "src/components/schedule/ScheduleTab.test.tsx": 608,
+    "src/components/schedule/ScheduleTab.tsx": 852,
     "src/components/scouting/ScoutingTab.test.tsx": 538,
     "src/components/squad/SquadRosterView.tsx": 1002,
     "src/components/squad/SquadTab.helpers.test.ts": 720,
@@ -75,13 +75,13 @@
     "src/hooks/useEntityEditor.test.ts": 791,
     "src/lib/helpers.test.ts": 752,
     "src/pages/Dashboard.test.tsx": 593,
-    "src/pages/Dashboard.tsx": 591,
+    "src/pages/Dashboard.tsx": 597,
     "src/pages/MainMenu.test.tsx": 994,
     "src/pages/MainMenu.tsx": 893,
     "src/pages/MatchSimulation.test.tsx": 623,
     "src/pages/SimLab.tsx": 945,
     "src/pages/WorldEditor.tsx": 790,
-    "src/store/types.ts": 792,
+    "src/store/types.ts": 795,
     "src/utils/backendI18n.test.ts": 1182,
     "src/utils/backendI18n.ts": 693
   },

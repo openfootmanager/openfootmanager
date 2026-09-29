@@ -375,6 +375,36 @@ describe("HomeTab.helpers", (): void => {
     expect(result?.standingPoints).toBe(3);
   });
 
+  it("names the competition of a next fixture that is a cup tie", (): void => {
+    const gameState = createGameState({
+      teams: [createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })],
+      competitions: [
+        {
+          id: "comp-cup",
+          name: "Brazil Cup",
+          kind: "Cup",
+          scope: "Domestic",
+          season: 1,
+          participant_ids: ["team-1", "team-2"],
+          fixtures: [
+            createFixture({
+              id: "cup-tie",
+              competition_id: "comp-cup",
+              competition: "Cup",
+              status: "Scheduled",
+            }),
+          ],
+          standings: [],
+        },
+      ],
+    });
+
+    const result = getNextOpponentWidgetData(gameState);
+
+    expect(result?.fixture.id).toBe("cup-tie");
+    expect(result?.competitionName).toBe("Brazil Cup");
+  });
+
   it("returns the latest league digest articles in reverse chronological order", (): void => {
     const gameState = createGameState({
       news: [

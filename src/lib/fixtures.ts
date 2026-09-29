@@ -1,16 +1,47 @@
 import type { TFunction } from "i18next";
 import type { FixtureData, GameStateData, LeagueData } from "../store/gameStore";
 
-export function getFixtureDisplayLabel(t: TFunction, fixture: FixtureData): string {
-  if (fixture.competition === "PreseasonTournament") {
-    return t("season.preseasonTournament");
+/**
+ * The one label rule for a fixture's competition slot ("Matchday 3", "Friendly",
+ * "Copa Libertadores"). Exhaustive over the competition kind, so a new kind is a
+ * compile error here instead of a fixture that silently calls itself a friendly.
+ */
+export function getFixtureDisplayLabel(
+  t: TFunction,
+  fixture: Pick<FixtureData, "competition" | "matchday">,
+  competitionName?: string,
+): string {
+  const kind = fixture.competition;
+  switch (kind) {
+    case "League":
+      return t("common.matchday", { n: fixture.matchday });
+    case "PreseasonTournament":
+      return t("season.preseasonTournament");
+    case "Friendly":
+      return t("season.friendly");
+    case "Cup":
+    case "ContinentalClub":
+    case "InternationalClub":
+    case "InternationalNation":
+    case "FriendlyCup":
+      return competitionName || t(`teamSelect.kinds.${kind}`);
+    default: {
+      const unhandled: never = kind;
+      return unhandled;
+    }
   }
+}
 
-  if (fixture.competition === "Friendly") {
-    return t("season.friendly");
+/** The name of the competition a fixture belongs to, when the game knows it. */
+export function getFixtureCompetitionName(
+  gameState: Pick<GameStateData, "competitions">,
+  fixture: Pick<FixtureData, "competition_id">,
+): string | undefined {
+  if (!fixture.competition_id) {
+    return undefined;
   }
-
-  return t("common.matchday", { n: fixture.matchday });
+  return gameState.competitions?.find((competition) => competition.id === fixture.competition_id)
+    ?.name;
 }
 
 export function isCompetitiveFixture(fixture: FixtureData): boolean {

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { FixtureData, GameStateData } from "../../store/gameStore";
-import { getFixtureDisplayLabel } from "../../lib/helpers";
+import { getFixtureCompetitionName, getFixtureDisplayLabel } from "../../lib/helpers";
 import { type MatchSnapshot, type EnginePlayerData, FORMATIONS, PLAY_STYLES } from "./types";
 import PreMatchLineup, {
   parseFormationNeeds,
@@ -219,7 +219,11 @@ export default function PreMatchSetup({
   };
 
   const fixtureLabel = currentFixture
-    ? getFixtureDisplayLabel(t, currentFixture)
+    ? getFixtureDisplayLabel(
+        t,
+        currentFixture,
+        getFixtureCompetitionName(gameState, currentFixture),
+      )
     : t("match.matchDay");
 
   const allSquadPlayers = gameState.players.filter((p) => p.team_id === userTeam.id);

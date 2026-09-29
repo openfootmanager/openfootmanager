@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../store/gameStore";
 import { Badge, TeamLogo } from "./ui";
 import {
+  getFixtureCompetitionName,
+  getFixtureDisplayLabel,
   getTeamName,
   getUserCompetition,
   getUserNextFixture,
@@ -35,12 +37,11 @@ export default function NextMatchDisplay({ gameState }: { gameState: GameStateDa
   const opponentId = isHome ? nextFixture.away_team_id : nextFixture.home_team_id;
   const userTeam = gameState.teams.find((team) => team.id === userTeamId);
   const opponentTeam = gameState.teams.find((team) => team.id === opponentId);
-  const fixtureLabel =
-    nextFixture.competition === "League"
-      ? t("home.matchdayN", { n: nextFixture.matchday })
-      : nextFixture.competition === "PreseasonTournament"
-        ? t("season.preseasonTournament")
-        : t("season.friendly");
+  const fixtureLabel = getFixtureDisplayLabel(
+    t,
+    nextFixture,
+    getFixtureCompetitionName(gameState, nextFixture),
+  );
 
   return (
     <div className="flex items-center justify-between py-6 px-4 bg-gray-50 dark:bg-navy-800 rounded-lg border border-gray-100 dark:border-navy-600 transition-colors">

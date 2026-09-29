@@ -29,6 +29,7 @@ interface DashboardOverlaysProps {
   showMatchConfirm: boolean;
   teams: TeamData[];
   todayMatchFixture: FixtureData | null;
+  todayMatchCompetitionName?: string;
   // Digest feed props (present when digest mode is active)
   digestEntries?: DigestEntry[];
   digestStopReason?: DigestStopReason | null;
@@ -60,6 +61,7 @@ export default function DashboardOverlays({
   showMatchConfirm,
   teams,
   todayMatchFixture,
+  todayMatchCompetitionName,
   digestEntries,
   digestStopReason,
   isDigestVisible,
@@ -118,6 +120,7 @@ export default function DashboardOverlays({
           onConfirm={handleConfirmMatch}
           teams={teams}
           todayMatchFixture={todayMatchFixture}
+          competitionName={todayMatchCompetitionName}
         />
       ) : null}
 

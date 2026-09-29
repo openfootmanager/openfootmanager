@@ -1,4 +1,5 @@
 import {
+  getFixtureCompetitionName,
   getPlayerOvr,
   getUserCompetition,
   getUserCompetitions,
@@ -40,6 +41,7 @@ export interface NextOpponentWidgetData {
   recentForm: string[];
   standingPoints: number | null;
   standingPosition: number | null;
+  competitionName?: string;
 }
 
 export interface HomeRosterOverview {
@@ -119,6 +121,7 @@ export function getNextOpponentWidgetData(gameState: GameStateData): NextOpponen
     recentForm: opponent.form.slice(-5),
     standingPoints: standingEntry?.points ?? null,
     standingPosition: canShowStandings && league ? getStandingPosition(league, opponentId) : null,
+    competitionName: getFixtureCompetitionName(gameState, nextFixture),
   };
 }
 

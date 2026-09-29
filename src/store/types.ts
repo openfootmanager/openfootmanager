@@ -518,6 +518,17 @@ export interface ManagerData {
   career_history: ManagerCareerEntry[];
 }
 
+/** Mirrors the backend's `FixtureCompetition` enum. */
+export type FixtureCompetition =
+  | "League"
+  | "Cup"
+  | "ContinentalClub"
+  | "InternationalClub"
+  | "InternationalNation"
+  | "Friendly"
+  | "FriendlyCup"
+  | "PreseasonTournament";
+
 export interface FixtureData {
   id: string;
   competition_id?: string;
@@ -525,15 +536,7 @@ export interface FixtureData {
   date: string;
   home_team_id: string;
   away_team_id: string;
-  competition:
-    | "League"
-    | "Cup"
-    | "ContinentalClub"
-    | "InternationalClub"
-    | "InternationalNation"
-    | "Friendly"
-    | "FriendlyCup"
-    | "PreseasonTournament";
+  competition: FixtureCompetition;
   status: "Scheduled" | "InProgress" | "Completed";
   result: null | {
     home_goals: number;

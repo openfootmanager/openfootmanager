@@ -9,6 +9,7 @@ export {
   findNextFixture,
   getActiveCompetitions,
   getCompetitiveFixtures,
+  getFixtureCompetitionName,
   getFixtureDisplayLabel,
   getUserCompetition,
   getUserCompetitions,

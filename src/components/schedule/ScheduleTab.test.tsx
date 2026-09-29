@@ -36,8 +36,7 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.calendar.prevMonth") return "Previous month";
       if (key === "schedule.calendar.nextMonth") return "Next month";
       if (key === "schedule.season") return `Season ${(params as Record<string, number>)?.number}`;
-      if (key === "schedule.matchday")
-        return `Matchday ${(params as Record<string, number>)?.number}`;
+      if (key === "common.matchday") return `Matchday ${(params as Record<string, number>)?.n}`;
       if (key === "season.friendly") return "Friendly";
       if (key === "common.team") return "Team";
       if (key === "common.viewTeam") return "View team";
