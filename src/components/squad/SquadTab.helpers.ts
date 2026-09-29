@@ -2,7 +2,6 @@ export {
   CORE_POSITIONS,
   canonicalPosition,
   normalisePosition,
-  positionSortRank,
 } from "../../lib/positions";
 import { canonicalPosition, normalisePosition } from "../../lib/positions";
 

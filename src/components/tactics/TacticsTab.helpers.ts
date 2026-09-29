@@ -1,6 +1,6 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
-import { positionGroupRank } from "../../lib/positions";
+import { normalisePosition, positionGroupRank } from "../../lib/positions";
 import type { PlayerData } from "../../store/gameStore";
 import {
   buildPitchRows,
@@ -9,7 +9,6 @@ import {
   comparePlayersForSlot,
   getPreferredPositions,
   isPlayerOutOfPosition,
-  normalisePosition,
   positionCode,
   type SquadSection,
 } from "../squad/SquadTab.helpers";

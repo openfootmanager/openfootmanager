@@ -43,15 +43,17 @@ import {
   buildPitchSlotRows,
   buildPromoteToStartingXi,
   buildStartingXIIds,
-  CORE_POSITIONS,
   getPreferredPositions,
   getSquadTacticalFit,
   isPlayerOutOfPosition,
-  normalisePosition,
-  positionSortRank,
   translatePositionAbbreviation,
 } from "./SquadTab.helpers";
-import { positionGroupRank } from "../../lib/positions";
+import {
+  CORE_POSITIONS,
+  normalisePosition,
+  positionGroupRank,
+  positionSortRank,
+} from "../../lib/positions";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import {
   buildDelegateToYouthAcademyMenuItem,
