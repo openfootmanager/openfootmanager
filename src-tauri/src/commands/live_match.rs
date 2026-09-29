@@ -947,14 +947,9 @@ mod tests {
         );
         assert!(cup.knockout_rounds[0].completed, "cup bracket advances");
 
-        // The league fixture sits at the same index as the cup tie and falls on the same day.
-        // It used to be asserted Scheduled here — which was the index-collision guard, but also
-        // encoded a second bug: finishing a live match never played the rest of the day, so a
-        // league fixture due that day was skipped and, since a fixture is only due on an exact
-        // date match, skipped for good. The day now plays it, so the guard moves to what it was
-        // really about: the cup's report landed on the cup fixture and the bracket advanced
-        // (asserted above), and the league fixture carries a result of its own rather than the
-        // cup's.
+        // This league fixture is due the same day as the cup tie, so asserting it stayed
+        // Scheduled was also asserting #608's bug. The index-collision guard is now the pair
+        // above plus the standings count below: a leaked cup result gives a club two games.
         let league = response
             .game
             .competitions
