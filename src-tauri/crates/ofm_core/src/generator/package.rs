@@ -792,9 +792,9 @@ pub fn validate_format_version(package: &WorldPackage) -> Vec<PackageError> {
 /// ordinary id again.
 pub const RESERVED_PACKAGE_ID: &str = "assets";
 
-/// The longest id, in bytes, whose `<id>.ofm` still fits the 255-byte filename
-/// limit that ext4, APFS and NTFS all share. Bytes, not characters: `süper-lig`
-/// is ten bytes long, and the filesystem counts the encoded form.
+/// The longest id, in UTF-8 bytes, whose `<id>.ofm` fits ext4's 255-byte
+/// filename limit. This byte cap is also conservative on filesystems that
+/// measure filename length differently. `süper-lig` is ten UTF-8 bytes.
 const MAX_PACKAGE_ID_BYTES: usize = 255 - ".ofm".len();
 
 /// Whether `id` can be used as a package identifier.
