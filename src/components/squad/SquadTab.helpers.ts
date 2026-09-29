@@ -359,13 +359,6 @@ export function buildPitchRows(formation: string): PitchRow[] {
   ];
 }
 
-export function getPitchRowWidth(slotCount: number): string {
-  if (slotCount >= 5) return "88%";
-  if (slotCount === 4) return "82%";
-  if (slotCount === 3) return "68%";
-  if (slotCount === 2) return "50%";
-  return "28%";
-}
 export function getPitchSlotWidth(slotCount: number): number {
   if (slotCount >= 5) return 66;
   if (slotCount === 4) return 70;

@@ -315,10 +315,6 @@ export function parsePoolText(text: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-export function poolToText(names: string[]): string {
-  return names.join("\n");
-}
-
 export function buildParticipantSpec(
   mode: "explicit" | "selector",
   explicitText: string,
