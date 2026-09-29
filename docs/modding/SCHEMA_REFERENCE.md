@@ -122,9 +122,11 @@ missing, so a package can no longer be written to an unnamed file.
 
 Because it becomes a filename, the `id` must be a plain one, or validation
 reports `be.error.package.invalidPackageId`: it cannot start with a dot, end
-with a dot or a space, contain `/`, `\`, `..` or control characters, exceed
+with a dot or a space, contain `/`, `\`, `..`, control characters or
+Windows-reserved punctuation (`<`, `>`, `:`, `"`, `|`, `?`, `*`), exceed
 251 bytes, be a Windows device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`,
-`LPT1`–`LPT9`, in any case and with any extension), or be `assets`.
+`LPT1`–`LPT9`, `COM¹`–`COM³`, `LPT¹`–`LPT³`, in any case and with any extension),
+or be `assets`.
 
 ---
 

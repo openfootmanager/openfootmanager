@@ -2594,7 +2594,7 @@
       "worldReadFileFailed": "Falha ao ler o arquivo do banco de dados do mundo.",
       "package": {
         "invalid": "Este pacote de mundo é inválido e não pôde ser carregado.",
-        "invalidPackageId": "Não é possível usar o ID do pacote \"{{id}}\". Ele precisa ser um nome de arquivo simples: não vazio, diferente de \"assets\", sem começar com ponto nem terminar com ponto ou espaço, com no máximo 251 bytes, sem \"/\", \"\\\", \"..\" ou caracteres de controle, e não um nome reservado pelo Windows, como CON ou NUL.",
+        "invalidPackageId": "Não é possível usar o ID do pacote \"{{id}}\". Ele precisa ser um nome de arquivo simples: não vazio, diferente de \"assets\", sem começar com ponto nem terminar com ponto ou espaço, com no máximo 251 bytes, sem \"/\", \"\\\", \"..\", caracteres de controle ou sinais de pontuação reservados pelo Windows, e não um nome reservado pelo Windows, como CON ou NUL.",
         "readFailed": "Não foi possível ler um arquivo do pacote.",
         "missingSchema": "Falta o campo \"schema\" em um arquivo do pacote.",
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Mundos exportados usam um formato diferente e não podem ser editados aqui.",

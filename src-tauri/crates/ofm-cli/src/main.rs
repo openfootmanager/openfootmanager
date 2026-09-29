@@ -833,7 +833,7 @@ mod tests {
     /// not name the artifact either.
     #[test]
     fn pack_never_names_the_archive_after_an_invalid_id() {
-        for bad in [".", "..", ".hidden", "a/b"] {
+        for bad in [".", "..", ".hidden", "a/b", "league:2026", "COM¹"] {
             assert_eq!(
                 default_pack_path(Some(bad), Path::new("/tmp/my-package")),
                 PathBuf::from("my-package.ofm"),

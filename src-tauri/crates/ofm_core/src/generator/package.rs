@@ -815,8 +815,9 @@ const MAX_PACKAGE_ID_BYTES: usize = 255 - ".ofm".len();
 /// uninstalling it deleted every other package's artwork (#470). An id must be:
 ///
 /// - non-empty and at most `MAX_PACKAGE_ID_BYTES` (251) bytes;
-/// - free of `/`, `\`, `..` and control characters (NUL, newlines, escapes —
-///   the id is printed to terminals and shown in dialogs);
+/// - free of `/`, `\`, `..`, Windows-reserved punctuation and control
+///   characters (NUL, newlines, escapes — the id is printed to terminals
+///   and shown in dialogs);
 /// - not start with a dot (`.` itself, and hidden files like `.ofm`);
 /// - not end with a dot or a space, which Windows strips from filenames;
 /// - not a Windows device name (`CON`, `NUL`, `COM1`…), in any case and with
@@ -829,6 +830,9 @@ pub fn is_valid_package_id(id: &str) -> bool {
         || id.contains('\\')
         || id.contains("..")
         || id.chars().any(char::is_control)
+        || id
+            .chars()
+            .any(|ch| matches!(ch, '<' | '>' | ':' | '"' | '|' | '?' | '*'))
         || id.starts_with('.')
         || id.ends_with('.')
         || id.ends_with(' ')
@@ -837,9 +841,8 @@ pub fn is_valid_package_id(id: &str) -> bool {
 }
 
 /// Whether Windows reserves `id` as a device name. It reserves the stem, so
-/// `aux.league` is as unusable as `AUX`. `COM0`/`LPT0` and the superscript
-/// digits are left out: they vary by Windows version, and nobody names a
-/// football package after a serial port.
+/// `aux.league` is as unusable as `AUX`. Windows also reserves the superscript
+/// digits `¹`, `²` and `³` after `COM` or `LPT`.
 fn is_windows_device_name(id: &str) -> bool {
     const DEVICES: [&str; 4] = ["CON", "PRN", "AUX", "NUL"];
     const NUMBERED: [&str; 2] = ["COM", "LPT"];
@@ -849,10 +852,15 @@ fn is_windows_device_name(id: &str) -> bool {
         return true;
     }
     NUMBERED.iter().any(|prefix| {
-        stem.len() == prefix.len() + 1
-            && stem.is_char_boundary(prefix.len())
-            && stem[..prefix.len()].eq_ignore_ascii_case(prefix)
-            && matches!(stem.as_bytes()[prefix.len()], b'1'..=b'9')
+        let Some(head) = stem.get(..prefix.len()) else {
+            return false;
+        };
+        let Some(suffix) = stem.get(prefix.len()..) else {
+            return false;
+        };
+        head.eq_ignore_ascii_case(prefix)
+            && ((suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
+                || matches!(suffix, "¹" | "²" | "³"))
     })
 }
 
@@ -2486,11 +2494,24 @@ mod tests {
             "trailing-space ",
             "evil\r\n\x1b[2J",
             "tab\there",
+            "league:2026",
+            "league*2026",
+            "league?2026",
+            "league\"2026",
+            "league<2026",
+            "league>2026",
+            "league|2026",
             "CON",
             "con",
             "Nul",
             "com1",
+            "COM¹",
+            "com².league",
+            "COM³",
             "LPT9",
+            "LPT¹",
+            "lpt².league",
+            "LPT³",
             "aux.league",
             too_long.as_str(),
         ] {
