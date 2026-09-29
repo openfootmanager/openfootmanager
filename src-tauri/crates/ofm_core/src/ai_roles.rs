@@ -193,24 +193,34 @@ fn role_for(player: &Player, play_style: &PlayStyle) -> PlayerRole {
     let preferred = style_preferences(play_style);
     let candidates = player.position.valid_roles().len().saturating_sub(1);
 
+    // A role is earned on the player's own profile, against the margin; the
+    // style bonus then only ranks the roles he has earned. Adding it before the
+    // margin check would let a club's taste carry a player short of the margin
+    // over it, which is exactly what `STYLE_PREFERENCE` promises not to do.
+    let threshold = baseline + specialist_margin(candidates);
     let mut best = PlayerRole::Standard;
-    let mut best_score = baseline + specialist_margin(candidates);
+    let mut best_score = f64::NEG_INFINITY;
 
     for role in player.position.valid_roles() {
         if *role == PlayerRole::Standard {
             continue;
         }
         let profile = role_profile(role);
-        let mut score = mean_of(
+        let earned = mean_of(
             profile
                 .iter()
                 .map(|attribute| attribute(&player.attributes)),
         );
-        if preferred.contains(role) {
-            score += STYLE_PREFERENCE;
+        if earned <= threshold {
+            continue;
         }
-        if score > best_score {
-            best_score = score;
+        let ranked = if preferred.contains(role) {
+            earned + STYLE_PREFERENCE
+        } else {
+            earned
+        };
+        if ranked > best_score {
+            best_score = ranked;
             best = role.clone();
         }
     }
@@ -372,15 +382,18 @@ mod tests {
     /// reach further than that.
     #[test]
     fn a_clubs_style_shades_a_close_call_without_overruling_the_player() {
-        // Equally good at winning the ball and at reading the game: the two
-        // profiles score within the style bonus of each other.
+        // Good enough at winning the ball and at reading the game to earn either
+        // job on his own, and the two profiles within the style bonus of each
+        // other — a close call between roles he has both earned. (Under a
+        // pressing club, getting `BallWinner` here is itself the proof that
+        // the profile cleared the margin unaided: the bonus no longer can.)
         let mut attrs = flat_attrs(60);
-        attrs.tackling = 82;
-        attrs.aggression = 82;
-        attrs.stamina = 82;
-        attrs.positioning = 84;
-        attrs.defending = 84;
-        attrs.decisions = 84;
+        attrs.tackling = 90;
+        attrs.aggression = 90;
+        attrs.stamina = 90;
+        attrs.positioning = 92;
+        attrs.defending = 92;
+        attrs.decisions = 92;
         let all_rounder = player("both", Position::Midfielder, attrs);
 
         assert_eq!(
@@ -397,6 +410,30 @@ mod tests {
         // But no style can talk a player with no case at all into a specialism.
         let flat = player("flat", Position::Midfielder, flat_attrs(70));
         assert_eq!(role_for(&flat, &PlayStyle::HighPress), PlayerRole::Standard);
+    }
+
+    /// Nor one with *almost* a case. A ball-winning profile that falls short of
+    /// the specialist margin on its own must not be carried over it by the
+    /// club's taste for pressing: the style chooses between roles a player has
+    /// earned, it does not earn one for him.
+    #[test]
+    fn a_clubs_style_cannot_lift_a_player_over_the_specialist_margin() {
+        let mut attrs = flat_attrs(60);
+        attrs.stamina = 76;
+        attrs.tackling = 76;
+        attrs.aggression = 76;
+        let nearly = player("nearly", Position::Midfielder, attrs);
+
+        assert_eq!(
+            role_for(&nearly, &PlayStyle::Balanced),
+            PlayerRole::Standard,
+            "the profile should fall short of the margin on its own, or this test proves nothing"
+        );
+        assert_eq!(
+            role_for(&nearly, &PlayStyle::HighPress),
+            PlayerRole::Standard,
+            "a pressing club's preference made a ball-winner out of a player short of the margin"
+        );
     }
 
     #[test]
