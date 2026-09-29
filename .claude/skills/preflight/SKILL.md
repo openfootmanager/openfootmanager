@@ -2,7 +2,7 @@
 name: preflight
 description: Run the full local verification gauntlet before opening a pull request — type check, frontend tests, build, backend tests, clippy, and the i18n audit — in cheapest-first order, and confirm the PR hygiene items (branch, conventional commit, linked issue, AI disclosure).
 when_to_use: Before opening or updating a pull request, before asking for review, or any time you want to know whether the change is actually ready.
-allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npm run preflight), Bash(npm run build), Bash(npm run lint), Bash(npm run format:check), Bash(npm run quality:check), Bash(npm run quality:baseline), Bash(npm run audit:i18n), Bash(npm exec --no -- vitest run*), Bash(npm exec --no -- tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
+allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npm run preflight), Bash(npm run build), Bash(npm run lint), Bash(npm run format:check), Bash(npm run knip), Bash(npm run audit:i18n), Bash(npm exec --no -- vitest run*), Bash(npm exec --no -- tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
 ---
 
 # Preflight
@@ -107,20 +107,18 @@ cargo fmt --manifest-path src-tauri/Cargo.toml --all
 running the formatter now touches only what you touched — there is no unrelated churn to avoid
 any more, and the old advice to format by hand is retired.
 
-## 8. Lint and the quality ratchet
+## 8. Lint and unused code
 
 ```bash
-npm run lint          # biome, --error-on-warnings: warnings fail, same as CI
-npm run quality:check # nothing in quality-baseline.json may rise
+npm run lint   # biome, --error-on-warnings: warnings fail, same as CI
+npm run knip   # unused files, exports, types, duplicate exports and dependencies
 ```
 
-Both **are** CI gates now. `npm run lint` is the same command CI runs, strictness included, so a
-green run here is a green run there.
+Both **are** CI gates, run exactly as CI runs them, so a green run here is a green run there.
 
-`quality:check` compares the repo against `quality-baseline.json`: file sizes, suppression counts,
-named anti-patterns, dead exports, and the lint rules that sit at `info` while their backlog is
-worked down. Numbers may fall, never rise. If yours fall, run `npm run quality:baseline` and
-commit the regenerated file with the change that earned it.
+`knip` passes only at zero. If it reports something your change left unused, delete it. If an
+export is genuinely meant to have no importer yet, say why in the PR rather than working around
+the gate.
 
 **The whole frontend gauntlet is one command**, in cheapest-first order:
 
