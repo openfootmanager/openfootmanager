@@ -44,9 +44,9 @@ on:
           - engine
           - ofm_core
       shard:
-        description: "Zero-based shard, e.g. 0/3. Needed for engine (use /3) and ofm_core (use /13), which do not fit in one run."
+        description: "Zero-based shard, e.g. 0/3. Leave blank for the first shard of the chosen crate."
         required: false
-        default: "0/1"
+        default: ""
         type: string
 
 permissions:
@@ -87,19 +87,47 @@ jobs:
 
       # A cron trigger carries no inputs, so the week number picks the slot; a manual dispatch
       # names its own crate and shard. Shards are zero-based: `ofm_core 12/13` is the last one.
+      # Count weeks from the Unix epoch so the rotation continues across year boundaries.
       - name: Choose this week's slot
         id: crate
+        env:
+          INPUT_CRATE: ${{ inputs.crate }}
+          INPUT_SHARD: ${{ inputs.shard }}
         run: |
           set -euo pipefail
-          if [ -n "${{ inputs.crate }}" ]; then
-            crate="${{ inputs.crate }}"
-            shard="${{ inputs.shard || '0/1' }}"
+          if [ -n "$INPUT_CRATE" ]; then
+            crate="$INPUT_CRATE"
+            shard="$INPUT_SHARD"
+            if [ -z "$shard" ]; then
+              case "$crate" in
+                engine) shard="0/3" ;;
+                ofm_core) shard="0/13" ;;
+                *) shard="0/1" ;;
+              esac
+            fi
           else
             slots=("domain 0/1" "db 0/1")
             for i in 0 1 2; do slots+=("engine $i/3"); done
-            for i in $(seq 0 12); do slots+=("ofm_core $i/13"); done
-            week="$(date -u +%V)"
-            read -r crate shard <<< "${slots[$((10#$week % ${#slots[@]}))]}"
+            for ((i=0;i<13;i++)); do slots+=("ofm_core $i/13"); done
+            week=$(( $(date -u +%s) / 604800 ))
+            read -r crate shard <<< "${slots[$((week % ${#slots[@]}))]}"
+          fi
+          case "$crate" in
+            domain|db|engine|ofm_core) ;;
+            *) echo "Invalid crate: $crate" >&2; exit 1 ;;
+          esac
+          if [[ ! "$shard" =~ ^[0-9]+/[0-9]+$ ]]; then
+            echo "Invalid shard: $shard" >&2
+            exit 1
+          fi
+          IFS=/ read -r shard_index shard_count <<< "$shard"
+          if (( ${#shard_index} > 18 || ${#shard_count} > 18 )); then
+            echo "Invalid shard: $shard" >&2
+            exit 1
+          fi
+          if (( 10#$shard_count == 0 || 10#$shard_index >= 10#$shard_count )); then
+            echo "Invalid shard: $shard" >&2
+            exit 1
           fi
           echo "name=$crate" >> "$GITHUB_OUTPUT"
           echo "shard=$shard" >> "$GITHUB_OUTPUT"
@@ -129,12 +157,15 @@ jobs:
       # cancel the whole job and the upload would never happen.
       - name: Mutate ${{ steps.crate.outputs.name }} (shard ${{ steps.crate.outputs.shard }})
         timeout-minutes: 270
+        env:
+          MUTATION_CRATE: ${{ steps.crate.outputs.name }}
+          MUTATION_SHARD: ${{ steps.crate.outputs.shard }}
         run: |
           set -uo pipefail
           status=0
           cargo mutants --manifest-path src-tauri/Cargo.toml \
-            --package "${{ steps.crate.outputs.name }}" \
-            --shard "${{ steps.crate.outputs.shard }}" \
+            --package "$MUTATION_CRATE" \
+            --shard "$MUTATION_SHARD" \
             --in-place --no-shuffle --timeout 300 \
             --output mutants-out || status=$?
 
