@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import cs from "../../../i18n/locales/cs.json";
-import de from "../../../i18n/locales/de.json";
-import en from "../../../i18n/locales/en.json";
-import es from "../../../i18n/locales/es.json";
-import fr from "../../../i18n/locales/fr.json";
-import itIT from "../../../i18n/locales/it.json";
-import ptBR from "../../../i18n/locales/pt-BR.json";
-import pt from "../../../i18n/locales/pt.json";
-import ru from "../../../i18n/locales/ru.json";
-import tr from "../../../i18n/locales/tr.json";
-import zhCN from "../../../i18n/locales/zh-CN.json";
+import { LOCALE_FILES, type LocaleTree } from "../../../i18n/i18nTestHelpers";
 
-const LOCALE_BUNDLES = { cs, de, en, es, fr, it: itIT, pt, "pt-BR": ptBR, ru, tr, "zh-CN": zhCN };
+// Derived from the locale directory; this file kept its own eleven-entry list.
+const LOCALE_BUNDLES = LOCALE_FILES;
+
+function localeLabel(bundle: LocaleTree, keyPath: string): unknown {
+  return keyPath.split(".").reduce<unknown>((value, segment) => {
+    if (value === null || typeof value !== "object") {
+      return undefined;
+    }
+    return (value as Record<string, unknown>)[segment];
+  }, bundle);
+}
 import {
   PLAY_STYLES,
   buildParticipantSpec,
@@ -404,11 +404,11 @@ describe("PLAY_STYLES", () => {
 
   it("has a translation in every supported locale for every style it offers", () => {
     // LabeledSelect renders raw option values unless given labels, so every
-    // style must resolve through playStyles.* — and in all 11 locales, not
-    // just English, or a missing entry ships as a raw enum name.
+    // style must resolve through playStyles.* — and in every locale we ship,
+    // not just English, or a missing entry ships as a raw enum name.
     for (const [code, bundle] of Object.entries(LOCALE_BUNDLES)) {
       for (const style of PLAY_STYLES) {
-        const label = bundle.common.playStyles[style as keyof typeof bundle.common.playStyles];
+        const label = localeLabel(bundle, `common.playStyles.${style}`);
         expect(label, `${code} is missing common.playStyles.${style}`).toBeTruthy();
       }
     }

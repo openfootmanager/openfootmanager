@@ -1,5 +1,31 @@
 export type LocaleTree = Record<string, unknown>;
 
+/**
+ * Every locale file on disk, keyed by its code.
+ *
+ * Read from the directory rather than listed by hand. Three test files used to
+ * keep their own list of imports, and a locale missing from one of them was
+ * simply not checked by it — silently, because a shorter list still passes.
+ * Deriving the set here means a new locale is covered by every suite the day
+ * its file lands, and `localeCoverage` asserts this set and
+ * `SUPPORTED_LANGUAGES` name exactly the same locales.
+ */
+const localeModules = import.meta.glob<{ default: LocaleTree }>("./locales/*.json", {
+  eager: true,
+});
+
+export const LOCALE_FILES: Record<string, LocaleTree> = Object.fromEntries(
+  Object.entries(localeModules).map(([path, module]) => [
+    path.replace("./locales/", "").replace(/\.json$/, ""),
+    module.default,
+  ]),
+);
+
+/** The locales checked against English, which is the reference and so excluded. */
+export const NON_ENGLISH_LOCALES: Record<string, LocaleTree> = Object.fromEntries(
+  Object.entries(LOCALE_FILES).filter(([code]) => code !== "en"),
+);
+
 type LeafResult = string[];
 
 function traverseLocaleTree(
