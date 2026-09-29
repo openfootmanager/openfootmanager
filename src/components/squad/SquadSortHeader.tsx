@@ -45,7 +45,7 @@ export function SquadSortHeader({
         type="button"
         onClick={() => onSort(col)}
         aria-label={ariaLabel}
-        className={`flex w-full items-center gap-1 py-2.5 px-4 font-heading font-bold uppercase tracking-wider select-none transition-colors hover:text-primary-400 dark:hover:text-primary-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+        className={`flex w-full items-center gap-1 py-2.5 px-4 font-heading font-bold uppercase tracking-wider select-none transition-colors hover:text-primary-400 dark:hover:text-primary-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 ${active ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
       >
         {label}
         {active ? (
