@@ -223,6 +223,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `export_world_database` | export_path | `String` | Export world to JSON |
 | `collect_diagnostics` | — | `DiagnosticsReport` | App version, platform and webview, for a bug report |
 | `export_report_bundle` | output_path, report_text, include_save | `BundleSummary` | Write the redacted report bundle where the player chose |
+| `redact_report_fields` | values | `Vec<String>` | Redact free text for anything leaving outside the bundle |
 | `suggested_report_file_name` | — | `String` | Dated default name for the save dialog |
 
 ---

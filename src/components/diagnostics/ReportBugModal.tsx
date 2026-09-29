@@ -13,6 +13,7 @@ import {
   type LogFileSummary,
   collectDiagnostics,
   exportReportBundle,
+  redactReportFields,
   suggestedReportFileName,
 } from "../../services/reportService";
 import { resolveBackendError } from "../../utils/backendI18n";
@@ -177,14 +178,28 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
 
       // Two outcomes, reported separately on purpose. Once the bundle exists the player has a
       // file; telling them only that something failed, without saying where it is, sends them
-      // round again to write a second copy of it.
+      // round again to write a second copy of it. The redaction belongs inside this block for the
+      // same reason: if it fails, the file is still theirs and the browser step is what is lost.
       try {
+        // Through the same redactor the bundle uses. The player's own words are the one part of
+        // the report nobody vets, and a path pasted into "what happened" went into the URL
+        // verbatim — which is to say into GitHub and into their browser history, neither of which
+        // can be undone, while the copy in the zip beside it was clean. There is no falling back
+        // to the raw text here: not opening the form is recoverable, publishing a path is not.
+        const redacted = await redactReportFields([
+          draft.whatHappened,
+          draft.expected,
+          draft.steps,
+          describeContext(t(`reportBug.frequency.${draft.frequency}`), ""),
+        ]);
+        const [whatHappened = "", expected = "", steps = "", gameContext = ""] = redacted;
+
         await openUrl(
           buildBugReportUrl(i18n.language, {
-            whatHappened: draft.whatHappened,
-            expected: draft.expected,
-            steps: draft.steps,
-            gameContext: describeContext(t(`reportBug.frequency.${draft.frequency}`), ""),
+            whatHappened,
+            expected,
+            steps,
+            gameContext,
             appVersion: formatAppVersion(),
             os: describeMachine(diagnostics),
             resolution: describeResolution(window.screen),

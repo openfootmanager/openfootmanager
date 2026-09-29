@@ -338,6 +338,7 @@ pub fn run() {
             read_file_as_data_url,
             commands::report::collect_diagnostics,
             commands::report::export_report_bundle,
+            commands::report::redact_report_fields,
             commands::report::suggested_report_file_name
         ])
         .run(tauri::generate_context!());

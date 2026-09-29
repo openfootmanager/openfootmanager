@@ -6,6 +6,7 @@ const openUrl = vi.fn();
 const collectDiagnostics = vi.fn();
 const exportReportBundle = vi.fn();
 const suggestedReportFileName = vi.fn();
+const redactReportFields = vi.fn();
 const logError = vi.fn();
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -19,6 +20,7 @@ vi.mock("../../services/reportService", () => ({
   exportReportBundle: (path: string, reportText: string, includeSave: boolean) =>
     exportReportBundle(path, reportText, includeSave),
   suggestedReportFileName: () => suggestedReportFileName(),
+  redactReportFields: (values: string[]) => redactReportFields(values),
 }));
 vi.mock("../../lib/logger", () => ({
   logError: (message: string) => logError(message),
@@ -70,6 +72,12 @@ describe("ReportBugModal", () => {
     exportReportBundle.mockReset().mockResolvedValue(SUMMARY);
     suggestedReportFileName.mockReset().mockResolvedValue("ofm-report.zip");
     saveDialog.mockReset().mockResolvedValue("/home/x/ofm-report.zip");
+    // The real command replaces the home directory with `~`; the modal must send what comes back.
+    redactReportFields
+      .mockReset()
+      .mockImplementation((values: string[]) =>
+        Promise.resolve(values.map((value) => value.replace("/home/alice", "~"))),
+      );
     openUrl.mockReset().mockResolvedValue(undefined);
     logError.mockReset();
   });
@@ -289,6 +297,44 @@ describe("ReportBugModal", () => {
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("redacts what the player typed before it reaches the URL", async () => {
+    // The bundle's copy of these words was redacted while the URL's was not, so a path pasted
+    // into the description went to GitHub and into the browser's history — neither of which gives
+    // it back.
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/reportBug\.whatHappened/), {
+      target: { value: "it died loading /home/alice/private/save.db" },
+    });
+    fireEvent.change(screen.getByLabelText(/reportBug\.expected/), {
+      target: { value: "it should open" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+    await waitFor(() => expect(openUrl).toHaveBeenCalled());
+
+    const url = String(openUrl.mock.calls[0]?.[0]);
+    expect(url).not.toContain("alice");
+    expect(decodeURIComponent(url)).toContain("~/private/save.db");
+  });
+
+  it("does not fall back to the raw text when redaction fails", async () => {
+    // Not opening the form is recoverable — the file is written and the done screen says where.
+    // Publishing an unredacted path is not, so a failure here must not become a plain URL.
+    redactReportFields.mockRejectedValue(new Error("no"));
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+    await screen.findByRole("heading", { name: "reportBug.doneTitle" });
+
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(screen.getByText("reportBug.browserDidNotOpen")).toBeInTheDocument();
   });
 
   it("names every file it is about to pack, with its size", async () => {

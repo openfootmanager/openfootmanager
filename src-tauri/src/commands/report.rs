@@ -309,6 +309,25 @@ mod tests {
     }
 
     #[test]
+    fn redacts_every_field_the_url_will_carry() {
+        // The prefilled issue URL used to carry what the player typed verbatim, while the copy of
+        // the same words inside the zip was redacted. A path in the description then reached
+        // GitHub and the browser's history, and neither gives it back.
+        let redactor = Redactor::new(Some("/home/srobot"), Some("srobot"), None);
+
+        let out = redact_all(
+            &redactor,
+            &[
+                "it died loading /home/srobot/saves/a.db".to_owned(),
+                "srobot expected it to open".to_owned(),
+            ],
+        );
+
+        assert_eq!(out[0], "it died loading ~/saves/a.db");
+        assert!(!out[1].contains("srobot"), "{out:?}");
+    }
+
+    #[test]
     fn copies_nothing_when_no_career_is_open() {
         let dir = tempfile::tempdir().expect("temp dir");
         let state = StateManager::new();
@@ -355,6 +374,26 @@ mod tests {
 }
 
 /// A dated default for the save dialog, so a second report does not overwrite the first.
+/// Redact free text the same way the bundle does, for the parts that leave by another route.
+///
+/// The prefilled issue URL carried the player's own words verbatim while the copy inside the zip
+/// was redacted — so a path they pasted into the description reached GitHub and their browser
+/// history, and neither of those is somewhere it can be taken back from. One call for the whole
+/// set rather than one per field: the redactor reads the environment on construction, and doing
+/// that four times to answer one screen is waste.
+#[tauri::command]
+pub fn redact_report_fields(values: Vec<String>) -> Vec<String> {
+    redact_all(&Redactor::from_environment(), &values)
+}
+
+/// Split from the command so it can be tested against a redactor built for the test.
+///
+/// `from_environment` reads the real machine, and a test that set `HOME` to assert on the result
+/// would be mutating process-wide state under a parallel test runner.
+fn redact_all(redactor: &Redactor, values: &[String]) -> Vec<String> {
+    values.iter().map(|value| redactor.apply(value)).collect()
+}
+
 #[tauri::command]
 pub fn suggested_report_file_name() -> String {
     bundle::suggested_file_name(chrono::Utc::now())

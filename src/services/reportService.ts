@@ -34,6 +34,16 @@ export function collectDiagnostics(): Promise<DiagnosticsReport> {
   return invoke<DiagnosticsReport>("collect_diagnostics");
 }
 
+/**
+ * Redact free text through the backend, for anything that leaves outside the bundle.
+ *
+ * The prefilled issue URL is the case that matters: it reaches GitHub and the browser's history,
+ * and neither can be taken back.
+ */
+export function redactReportFields(values: string[]): Promise<string[]> {
+  return invoke<string[]>("redact_report_fields", { values });
+}
+
 export function suggestedReportFileName(): Promise<string> {
   return invoke<string>("suggested_report_file_name");
 }
