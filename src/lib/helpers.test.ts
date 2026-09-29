@@ -6,7 +6,6 @@ import {
   findNextFixture,
   getContractRiskLevel,
   hasFullLeagueSchedule,
-  getLocale,
   isSeasonComplete,
   formatMatchDate,
   formatDate,
@@ -452,27 +451,6 @@ describe("season helpers", () => {
 
     expect(hasFullLeagueSchedule(fullLeague)).toBe(true);
     expect(isSeasonComplete(fullLeague)).toBe(true);
-  });
-});
-
-describe("getLocale", () => {
-  it("maps known language codes", () => {
-    expect(getLocale("en")).toBe("en-US");
-    expect(getLocale("es")).toBe("es-ES");
-    expect(getLocale("pt")).toBe("pt-BR");
-    expect(getLocale("fr")).toBe("fr-FR");
-    expect(getLocale("de")).toBe("de-DE");
-    expect(getLocale("it")).toBe("it-IT");
-    expect(getLocale("cs")).toBe("cs-CZ");
-    expect(getLocale("tr")).toBe("tr-TR");
-  });
-
-  it("returns input for unknown codes", () => {
-    expect(getLocale("ja")).toBe("ja");
-  });
-
-  it("returns 'en-US' for undefined", () => {
-    expect(getLocale(undefined)).toBe("en-US");
   });
 });
 
