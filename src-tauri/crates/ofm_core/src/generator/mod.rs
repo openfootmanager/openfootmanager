@@ -142,7 +142,9 @@ pub fn default_opening_year() -> u32 {
         .clamp(MIN_OPENING_YEAR as i32, MAX_OPENING_YEAR as i32) as u32
 }
 
-fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
+/// Age on 1 July of `opening_year`, by month and day (not day-of-year, which is off by one
+/// for birthdays after 28 February across a leap boundary). `None` for an unparseable date.
+pub(crate) fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
     use chrono::{Datelike, NaiveDate};
 
     let opening_date = NaiveDate::from_ymd_opt(opening_year, 7, 1)?;
