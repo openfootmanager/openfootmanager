@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { usePackageAssetSrc } from "../../hooks/usePackageAssetSrc";
 import AssetImage from "./AssetImage";
-import GeneratedCrest from "./GeneratedCrest";
+import { GeneratedCrest } from "./GeneratedCrest";
 
 interface TeamLogoTeam {
   name: string;
