@@ -32,6 +32,15 @@ const GENERIC_NAMES: &[&str] = &[
     "debian",
     "localhost",
     "default",
+    // Structural words, not account names in any practical sense. An account called one of these
+    // would still be caught by its home directory, which is the rule that does the real work.
+    "null",
+    "none",
+    "true",
+    "false",
+    "unknown",
+    "system",
+    "public",
 ];
 
 /// Shorter than this and a name is more likely to collide with ordinary text than to identify
@@ -135,6 +144,25 @@ fn path_spellings(path: &str) -> Vec<String> {
     spellings
 }
 
+/// True when the match is the *key* of a JSON object member, rather than a value.
+///
+/// `diagnostics.json` and `last-crash.json` go through the same redactor as the log text, and an
+/// account name that happens to be an ordinary word — `message`, `thread`, `error`, `path` — would
+/// otherwise rewrite the field names and leave a file nothing can parse. That costs the whole
+/// report: the crash record is the part a triager reads first. The value on the other side of the
+/// colon is still redacted, which is where a name would actually appear.
+fn is_json_key(haystack: &str, start: usize, end: usize) -> bool {
+    let bytes = haystack.as_bytes();
+    if start == 0 || bytes[start - 1] != b'"' {
+        return false;
+    }
+    let after = &haystack[end..];
+    let Some(rest) = after.strip_prefix('"') else {
+        return false;
+    };
+    rest.trim_start().starts_with(':')
+}
+
 /// True when `byte` can sit inside a name — so a match flanked by one of these is part of a longer
 /// word and must be left alone.
 fn is_word_byte(byte: u8) -> bool {
@@ -188,7 +216,7 @@ fn replace_whole_words(haystack: &str, needle: &str, replacement: &str) -> Strin
         let after_ok = end == bytes.len() || !is_word_byte(bytes[end]);
 
         out.push_str(&haystack[cursor..start]);
-        if before_ok && after_ok {
+        if before_ok && after_ok && !is_json_key(haystack, start, end) {
             out.push_str(replacement);
         } else {
             // The text as it was written, not as the needle spells it. Matching folds case, so
@@ -364,6 +392,30 @@ mod tests {
 
         assert!(!out.contains("Lovelace"), "{out}");
         assert!(out.contains('~'), "{out}");
+    }
+
+    #[test]
+    fn leaves_json_field_names_alone() {
+        // `message` and `thread` are real account names as well as the field names in
+        // last-crash.json. Rewriting the keys leaves a file nothing can parse — and the crash
+        // record is the part of a bundle a triager reads first.
+        let redactor = Redactor::new(None, Some("message"), None);
+
+        let out = redactor.apply(r#"{"message": "it broke", "thread": "main"}"#);
+
+        assert!(out.contains(r#""message":"#), "{out}");
+    }
+
+    #[test]
+    fn still_redacts_the_name_where_it_is_a_value() {
+        // The guard is about keys only. A name appearing as a value is exactly what redaction is
+        // for, and skipping that to protect the file would be the wrong trade.
+        let redactor = Redactor::new(None, Some("message"), None);
+
+        let out = redactor.apply(r#"{"user": "message"}"#);
+
+        assert!(!out.contains(r#""message""#), "{out}");
+        assert!(out.contains(r#""user":"#), "{out}");
     }
 
     #[test]
