@@ -120,6 +120,12 @@ to `"database"`, so only an explicitly empty value fails.
 runs validation first and refuses to build an archive while any of these are
 missing, so a package can no longer be written to an unnamed file.
 
+Because it becomes a filename, the `id` must be a plain one, or validation
+reports `be.error.package.invalidPackageId`: it cannot start with a dot, end
+with a dot or a space, contain `/`, `\`, `..` or control characters, exceed
+251 bytes, be a Windows device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`,
+`LPT1`–`LPT9`, in any case and with any extension), or be `assets`.
+
 ---
 
 ## `team` — Club Definition

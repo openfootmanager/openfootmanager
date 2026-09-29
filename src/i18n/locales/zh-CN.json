@@ -2594,7 +2594,7 @@
       "worldReadFileFailed": "读取世界数据库文件失败。",
       "package": {
         "invalid": "此世界包无效，无法加载。",
-        "invalidPackageId": "无法使用软件包 ID“{{id}}”。它不能为空，不能命名为“assets”，也不能包含“/”、“\\”、“..”或控制字符。",
+        "invalidPackageId": "无法使用软件包 ID“{{id}}”。它必须是一个普通文件名：不能为空，不能是“assets”，不能以点开头，也不能以点或空格结尾，长度不超过 251 字节，不能包含“/”、“\\”、“..”或控制字符，也不能是 CON、NUL 等 Windows 保留名称。",
         "readFailed": "无法读取某个包文件。",
         "missingSchema": "某个包文件缺少 \"schema\" 字段。",
         "worldExportNotPackage": "此文件夹是导出的世界存档，而不是软件包项目。导出的世界使用不同的格式，无法在此处编辑。",

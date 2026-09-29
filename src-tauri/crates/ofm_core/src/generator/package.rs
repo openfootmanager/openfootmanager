@@ -792,6 +792,11 @@ pub fn validate_format_version(package: &WorldPackage) -> Vec<PackageError> {
 /// ordinary id again.
 pub const RESERVED_PACKAGE_ID: &str = "assets";
 
+/// The longest id, in bytes, whose `<id>.ofm` still fits the 255-byte filename
+/// limit that ext4, APFS and NTFS all share. Bytes, not characters: `süper-lig`
+/// is ten bytes long, and the filesystem counts the encoded form.
+const MAX_PACKAGE_ID_BYTES: usize = 255 - ".ofm".len();
+
 /// Whether `id` can be used as a package identifier.
 ///
 /// The id is not just a label. It becomes a filename under the packages
@@ -804,13 +809,51 @@ pub const RESERVED_PACKAGE_ID: &str = "assets";
 /// still fix it. Before they shared this function a manifest could declare an
 /// id that the editor and the CLI both called valid and the installer then
 /// refused with a generic "invalid package" — issue #414, `trendyol-super-lig-25/26`.
+///
+/// The rule is an allow-shape, not a blocklist of known-bad substrings, because
+/// the blocklist missed `"."` — which joins onto the assets root itself, so
+/// uninstalling it deleted every other package's artwork (#470). An id must be:
+///
+/// - non-empty and at most `MAX_PACKAGE_ID_BYTES` (251) bytes;
+/// - free of `/`, `\`, `..` and control characters (NUL, newlines, escapes —
+///   the id is printed to terminals and shown in dialogs);
+/// - not start with a dot (`.` itself, and hidden files like `.ofm`);
+/// - not end with a dot or a space, which Windows strips from filenames;
+/// - not a Windows device name (`CON`, `NUL`, `COM1`…), in any case and with
+///   any extension, because `<id>.ofm` cannot be created there;
+/// - not [`RESERVED_PACKAGE_ID`].
 pub fn is_valid_package_id(id: &str) -> bool {
     !(id.is_empty()
+        || id.len() > MAX_PACKAGE_ID_BYTES
         || id.contains('/')
         || id.contains('\\')
         || id.contains("..")
-        || id.contains('\0')
+        || id.chars().any(char::is_control)
+        || id.starts_with('.')
+        || id.ends_with('.')
+        || id.ends_with(' ')
+        || is_windows_device_name(id)
         || id == RESERVED_PACKAGE_ID)
+}
+
+/// Whether Windows reserves `id` as a device name. It reserves the stem, so
+/// `aux.league` is as unusable as `AUX`. `COM0`/`LPT0` and the superscript
+/// digits are left out: they vary by Windows version, and nobody names a
+/// football package after a serial port.
+fn is_windows_device_name(id: &str) -> bool {
+    const DEVICES: [&str; 4] = ["CON", "PRN", "AUX", "NUL"];
+    const NUMBERED: [&str; 2] = ["COM", "LPT"];
+
+    let stem = id.split('.').next().unwrap_or(id);
+    if DEVICES.iter().any(|d| stem.eq_ignore_ascii_case(d)) {
+        return true;
+    }
+    NUMBERED.iter().any(|prefix| {
+        stem.len() == prefix.len() + 1
+            && stem.is_char_boundary(prefix.len())
+            && stem[..prefix.len()].eq_ignore_ascii_case(prefix)
+            && matches!(stem.as_bytes()[prefix.len()], b'1'..=b'9')
+    })
 }
 
 /// Check the manifest declares the metadata a package cannot work without, and
@@ -2424,6 +2467,44 @@ mod tests {
             assert!(!is_valid_package_id(bad), "expected {bad:?} to be refused");
         }
         for good in ["eng-premier-league", "brasileirao_2026", "süper-lig-25-26"] {
+            assert!(is_valid_package_id(good), "expected {good:?} to pass");
+        }
+    }
+
+    #[test]
+    fn a_package_id_must_be_a_plain_filename() {
+        // Issue #470: "." passed every clause, and `assets_root.join(".")` is
+        // the assets root itself — uninstalling it deleted every other
+        // package's artwork. The rest are the same class: ids that are not an
+        // ordinary, visible, portable filename component.
+        let too_long = "a".repeat(MAX_PACKAGE_ID_BYTES + 1);
+        for bad in [
+            ".",
+            ".hidden",
+            " ",
+            "trailing-dot.",
+            "trailing-space ",
+            "evil\r\n\x1b[2J",
+            "tab\there",
+            "CON",
+            "con",
+            "Nul",
+            "com1",
+            "LPT9",
+            "aux.league",
+            too_long.as_str(),
+        ] {
+            assert!(!is_valid_package_id(bad), "expected {bad:?} to be refused");
+        }
+        let longest = "a".repeat(MAX_PACKAGE_ID_BYTES);
+        for good in [
+            "la-liga-2012",
+            "v1.2",
+            "console",
+            "com10",
+            "nullable",
+            longest.as_str(),
+        ] {
             assert!(is_valid_package_id(good), "expected {good:?} to pass");
         }
     }

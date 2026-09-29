@@ -401,7 +401,10 @@ pub fn uninstall_package(app_handle: tauri::AppHandle, id: String) -> Result<(),
 /// package with no artwork produces no directory, and a failure here must not
 /// block the install — the world plays, its clubs just keep generated crests.
 fn extract_assets_for_package(ofm_path: &std::path::Path, assets_root: &std::path::Path, id: &str) {
-    let package_assets = assets_root.join(id);
+    let Some(package_assets) = package_assets_subdir(assets_root, id) else {
+        warn!("[assets] refusing to extract assets for package id {id:?}");
+        return;
+    };
     // Replace, don't merge. Installing over an existing version is the normal
     // upgrade path, and a version that renamed or dropped a badge would
     // otherwise leave the old file in place — where a save's already-qualified
@@ -418,10 +421,29 @@ fn extract_assets_for_package(ofm_path: &std::path::Path, assets_root: &std::pat
     }
 }
 
+/// `<assets_root>/<id>`, but only when `id` is exactly one ordinary path
+/// component — so the result is strictly inside the root.
+///
+/// `validate_package_id` should already have refused anything else. This is
+/// the second line: `assets_root.join(".")` is the root itself, and a recursive
+/// delete of it wiped every installed package's artwork (#470). A gap in the
+/// validator must not be able to reach `remove_dir_all` again.
+fn package_assets_subdir(assets_root: &std::path::Path, id: &str) -> Option<std::path::PathBuf> {
+    use std::path::Component;
+    let mut components = std::path::Path::new(id).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(name)), None) if name == id => Some(assets_root.join(name)),
+        _ => None,
+    }
+}
+
 /// Delete a package's extracted artwork. Best effort: a package with no assets
 /// has no directory, and a failure here must not block the uninstall itself.
 fn remove_package_assets(assets_root: &std::path::Path, id: &str) {
-    let dir = assets_root.join(id);
+    let Some(dir) = package_assets_subdir(assets_root, id) else {
+        warn!("[assets] refusing to remove assets for package id {id:?}");
+        return;
+    };
     if dir.exists() {
         if let Err(err) = std::fs::remove_dir_all(&dir) {
             warn!("[assets] could not remove {}: {err}", dir.display());
@@ -883,6 +905,33 @@ mod tests {
     }
 
     #[test]
+    fn removing_assets_for_a_non_component_id_touches_no_other_package() {
+        // Issue #470: `root.join(".")` is the root itself, and remove_dir_all
+        // emptied it before failing on the final rmdir — every installed
+        // package's artwork gone, the error swallowed as a warning. The
+        // validator refuses these ids now; this guard means a future gap in it
+        // still cannot reach a recursive delete.
+        let temp_dir = TempCommandDir::new();
+        let root = temp_dir.path().join("package-assets");
+        for id in ["pkg-a", "pkg-b"] {
+            let dir = root.join(id).join("assets/images");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("badge.png"), b"PNG").unwrap();
+        }
+
+        for id in [".", "", "..", "./", "pkg-a/.."] {
+            super::remove_package_assets(&root, id);
+        }
+
+        for id in ["pkg-a", "pkg-b"] {
+            assert!(
+                root.join(id).join("assets/images/badge.png").exists(),
+                "{id}'s assets must survive",
+            );
+        }
+    }
+
+    #[test]
     fn removing_package_assets_tolerates_a_package_with_none() {
         let temp_dir = TempCommandDir::new();
         let root = temp_dir.path().join("package-assets");
@@ -905,6 +954,8 @@ mod tests {
             "a/b",
             "a\\b",
             "with\0null",
+            // "." joins onto the assets root itself (#470).
+            ".",
             // Qualified asset paths are `<package_id>/assets/...`, so a package
             // called "assets" produces `assets/assets/images/x.png`, which the
             // frontend classifier reads as an app-bundled path and serves from

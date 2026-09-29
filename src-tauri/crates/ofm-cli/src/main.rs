@@ -2,9 +2,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
-    entity_template, export_directory_to_ofm, load_world_package, load_world_package_from_ofm,
-    new_package_meta, read_package_manifest_from_ofm, scaffold_package, slugify, validate_package,
-    EntityKind as CoreEntityKind,
+    entity_template, export_directory_to_ofm, is_valid_package_id, load_world_package,
+    load_world_package_from_ofm, new_package_meta, read_package_manifest_from_ofm,
+    scaffold_package, slugify, validate_package, EntityKind as CoreEntityKind,
 };
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -622,8 +622,11 @@ fn cmd_validate(path: &Path) -> i32 {
 /// refuses before reaching here. This stays because a package with *no*
 /// manifest at all is still legal to pack, and the fallback is what names that
 /// artifact. Removable only if packing ever requires a manifest outright.
+///
+/// The same goes for any id the installer would refuse, not only a blank one:
+/// `"."` passed the old check and named the archive `..ofm` (#470).
 fn default_pack_path(meta_id: Option<&str>, dir: &Path) -> PathBuf {
-    let id = meta_id.map(str::trim).filter(|id| !id.is_empty());
+    let id = meta_id.map(str::trim).filter(|id| is_valid_package_id(id));
     let name = id
         .or_else(|| dir.file_name().and_then(|n| n.to_str()))
         .unwrap_or("package");
@@ -821,6 +824,20 @@ mod tests {
                 default_pack_path(Some(blank), Path::new("/tmp/my-package")),
                 PathBuf::from("my-package.ofm"),
                 "a blank id must fall back to the directory name"
+            );
+        }
+    }
+
+    /// "." passed the id check and produced `..ofm`, the same hidden-file
+    /// symptom as a blank id (#470). An id the installer would refuse must
+    /// not name the artifact either.
+    #[test]
+    fn pack_never_names_the_archive_after_an_invalid_id() {
+        for bad in [".", "..", ".hidden", "a/b"] {
+            assert_eq!(
+                default_pack_path(Some(bad), Path::new("/tmp/my-package")),
+                PathBuf::from("my-package.ofm"),
+                "{bad:?} must fall back to the directory name"
             );
         }
     }
