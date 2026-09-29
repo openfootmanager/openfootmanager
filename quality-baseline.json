@@ -1,6 +1,6 @@
 {
   "oversizedAggregate": {
-    "rust": 61847,
+    "rust": 59477,
     "ts": 35965
   },
   "allowedOversized": {
@@ -9,7 +9,6 @@
     "src-tauri/crates/engine/tests/live_match_tests.rs": 1828,
     "src-tauri/crates/engine/tests/simulation_tests.rs": 1057,
     "src-tauri/crates/ofm_core/src/board_objectives.rs": 1026,
-    "src-tauri/crates/ofm_core/src/end_of_season/berths.rs": 2370,
     "src-tauri/crates/ofm_core/src/end_of_season/mod.rs": 1354,
     "src-tauri/crates/ofm_core/src/finances/mod.rs": 1386,
     "src-tauri/crates/ofm_core/src/generator/competition_def.rs": 1635,
