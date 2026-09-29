@@ -215,10 +215,19 @@ impl Game {
         // The legacy `league` field backs the home dashboard (next match, league
         // position, etc.), so it must mirror the competition the user's club
         // actually plays in — not just the first competition in the world.
-        self.league = self
+        //
+        // When there is nothing to sync from, leave the mirror alone rather than clearing it. A
+        // save written before `competitions` existed has the legacy field as its only copy, and
+        // `promote_legacy_league` fills `competitions` from it on load — so an empty vector here
+        // means "no competitions to mirror", never "the user has no league". Clearing it cost the
+        // delegate path its round summary, which reads the mirror.
+        if let Some(mirrored) = self
             .user_competition_index()
             .map(|index| self.competitions[index].clone())
-            .or_else(|| self.competitions.first().cloned());
+            .or_else(|| self.competitions.first().cloned())
+        {
+            self.league = Some(mirrored);
+        }
     }
 
     /// Whether the user's club has a scheduled fixture on `date` in ANY of its

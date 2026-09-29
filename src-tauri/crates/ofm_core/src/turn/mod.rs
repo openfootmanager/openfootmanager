@@ -196,7 +196,11 @@ fn simulate_the_rest_of_the_world<F>(game: &mut Game, today: &str, on_capture: &
 where
     F: FnMut(StatsState),
 {
-    for competition_index in competition_indices_due_today(game, today) {
+    let due = competition_indices_due_today(game, today);
+    if !due.is_empty() {
+        info!("[turn] {}: matchday in {} competition(s)", today, due.len());
+    }
+    for competition_index in due {
         simulate_competition_day_with_capture(game, competition_index, today, on_capture);
     }
 
@@ -229,9 +233,6 @@ where
     transfers::process_loan_development_reports(game);
     transfers::process_loan_returns(game);
 
-    if !competition_indices_due_today(game, &today).is_empty() {
-        info!("[turn] process_day {}: matchday", today);
-    }
     simulate_the_rest_of_the_world(game, &today, on_capture);
 
     // Unconditional, and after the matches: a fixture somewhere in the world says

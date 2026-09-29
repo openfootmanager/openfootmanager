@@ -231,16 +231,18 @@ pub fn advance_time_with_mode(
                         }
                     }
 
+                    ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
+                        captures.push(capture)
+                    });
+
+                    // After the sweep: see the note in `application/live_match.rs`. Built before
+                    // it, the summary describes a round the response has since played.
                     let round_summary =
                         round_context
                             .as_ref()
                             .and_then(|(matchday, previous_standings)| {
                                 build_round_summary_dto(game, *matchday, previous_standings)
                             });
-
-                    ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
-                        captures.push(capture)
-                    });
                     let results = collect_advance_results(game, &today);
 
                     Ok(AdvanceTimeWithModeResponse {

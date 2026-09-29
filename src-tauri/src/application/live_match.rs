@@ -102,12 +102,17 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
                 game.sync_legacy_league();
             }
 
-            let round_summary =
-                build_round_summary_dto(game, round_matchday, &round_previous_standings);
-
             ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
                 captures.push(capture)
             });
+
+            // After the sweep, not before: on a cup day with domestic fixtures also due, the
+            // summary built beforehand described a round that had not been played yet and came
+            // back `None`, so the digest read "unavailable" for a round the response was
+            // carrying. The matchday and previous standings are passed explicitly, so the
+            // advanced clock does not affect it.
+            let round_summary =
+                build_round_summary_dto(game, round_matchday, &round_previous_standings);
 
             Ok((game.clone(), round_summary))
         })

@@ -79,7 +79,7 @@ fn finishing_a_live_match_plays_the_other_competitions_due_today() {
 
 #[test]
 fn finishing_a_live_match_plays_a_national_team_fixture_due_today() {
-    let mut game = make_game_with_match();
+    let mut game = game_with_a_second_competition();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
     let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
@@ -112,7 +112,7 @@ fn finishing_a_live_match_plays_a_national_team_fixture_due_today() {
 
 #[test]
 fn finishing_a_live_match_plays_a_world_cup_fixture_due_today() {
-    let mut game = make_game_with_match();
+    let mut game = game_with_a_second_competition();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
     let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
@@ -161,5 +161,62 @@ fn finishing_a_live_match_plays_a_world_cup_fixture_due_today() {
         cup.fixtures[0].status,
         FixtureStatus::Completed,
         "a World Cup tie due today must be played on a live-match day too"
+    );
+}
+
+#[test]
+fn finishing_a_live_match_resolves_a_dormant_competition_due_today() {
+    // The dormant tier was the one claimed omission with no test behind it: with no
+    // `active_competition_ids` set, every competition counts as active, so
+    // `dormant_competition_indices_due_today` selects nothing and the dormant loop could be
+    // deleted with every other test still green. Scoping the world is what makes it bite.
+    let mut game = game_with_a_second_competition();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    game.teams.push(make_team("dormant_home", "Dormant United"));
+    game.teams.push(make_team("dormant_away", "Dormant Rovers"));
+
+    let mut dormant = League::new(
+        "dormant_league".to_string(),
+        "Somewhere Else".to_string(),
+        1,
+        &["dormant_home".to_string(), "dormant_away".to_string()],
+    );
+    dormant.fixtures.push(Fixture {
+        id: "dormant_fix".to_string(),
+        competition_id: "dormant_league".to_string(),
+        matchday: 1,
+        date: today,
+        home_team_id: "dormant_home".to_string(),
+        away_team_id: "dormant_away".to_string(),
+        competition: FixtureCompetition::League,
+        status: FixtureStatus::Scheduled,
+        result: None,
+    });
+    game.competitions.push(dormant);
+
+    // Only the user's own competition is simulated in full; the rest is the dormant tier.
+    game.active_competition_ids = vec!["league1".to_string()];
+
+    let mut captured = 0usize;
+    turn::finish_live_match_day_with_capture(&mut game, &mut |_| captured += 1);
+
+    let dormant = game
+        .competitions
+        .iter()
+        .find(|competition| competition.id == "dormant_league")
+        .expect("the dormant competition survives the day");
+    assert_eq!(
+        dormant.fixtures[0].status,
+        FixtureStatus::Completed,
+        "a dormant competition's fixture due today must still be resolved by scoreline"
+    );
+    assert!(
+        dormant.fixtures[0].result.is_some(),
+        "the dormant fixture gets a scoreline"
+    );
+    assert_eq!(
+        captured, 0,
+        "a scoreline-only resolution runs no engine, so it captures no stats state"
     );
 }

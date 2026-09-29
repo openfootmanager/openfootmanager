@@ -1,6 +1,6 @@
 {
   "oversizedAggregate": {
-    "rust": 61856,
+    "rust": 61908,
     "ts": 35965
   },
   "allowedOversized": {
@@ -18,11 +18,11 @@
     "src-tauri/crates/ofm_core/src/generator/package.rs": 4790,
     "src-tauri/crates/ofm_core/src/job_offers.rs": 1496,
     "src-tauri/crates/ofm_core/src/nations.rs": 1379,
-    "src-tauri/crates/ofm_core/src/news.rs": 1451,
+    "src-tauri/crates/ofm_core/src/news.rs": 1453,
     "src-tauri/crates/ofm_core/src/schedule.rs": 1078,
     "src-tauri/crates/ofm_core/src/scouting.rs": 1022,
     "src-tauri/crates/ofm_core/src/transfers/loans.rs": 1444,
-    "src-tauri/crates/ofm_core/src/turn/news.rs": 2055,
+    "src-tauri/crates/ofm_core/src/turn/news.rs": 2094,
     "src-tauri/crates/ofm_core/src/world_cup.rs": 3084,
     "src-tauri/crates/ofm_core/tests/end_of_season_tests.rs": 3646,
     "src-tauri/crates/ofm_core/tests/finances_tests.rs": 1083,
@@ -31,7 +31,7 @@
     "src-tauri/crates/ofm_core/tests/transfers_tests.rs": 3774,
     "src-tauri/crates/ofm_core/tests/turn_tests.rs": 1509,
     "src-tauri/crates/ofm-cli/src/main.rs": 1118,
-    "src-tauri/src/commands/live_match.rs": 1047,
+    "src-tauri/src/commands/live_match.rs": 1058,
     "src-tauri/src/commands/package_editor.rs": 1392,
     "src-tauri/src/commands/squad.rs": 1257,
     "src-tauri/src/commands/time.rs": 1429,

@@ -970,6 +970,17 @@ mod tests {
             "the league had two fixtures today and four clubs, so each plays exactly once; \
              a cup result leaking into the league table would give one of them two"
         );
+
+        // The summary is built after the day's sweep, so it describes the round the response is
+        // actually carrying. Built before it, this came back `None` on exactly this shape — a cup
+        // day with domestic fixtures also due — and the digest read "unavailable".
+        let round_summary = response
+            .round_summary
+            .expect("the domestic round played today is summarised");
+        assert!(
+            round_summary.is_complete,
+            "both of today's league fixtures were played, so the round is complete"
+        );
     }
 
     #[test]
