@@ -14,9 +14,9 @@ use super::redact::Redactor;
 
 /// How many log files a bundle carries.
 ///
-/// Rotation keeps five (`KeepSome(5)`), and a report wants the session that broke plus enough
-/// before it to show the run-up. Three covers that; the older two are almost always a different
-/// week's play.
+/// Rotation keeps six — `KeepSome(5)` archived files plus the one being written — and a report
+/// wants the session that broke plus enough before it to show the run-up. Three covers that; the
+/// older ones are almost always a different week's play.
 const MAX_LOG_FILES: usize = 3;
 
 /// Ceiling on raw log text, before compression.
@@ -201,16 +201,19 @@ fn write_bundle_inner(
 
     let mut included_save = false;
     if let Some(save) = inputs.save_path {
-        if let Ok(bytes) = std::fs::read(save) {
-            let name = save.file_name().map_or_else(
-                || "save.db".to_owned(),
-                |n| n.to_string_lossy().into_owned(),
-            );
-            zip.start_file(format!("save/{name}"), options)
-                .map_err(to_io)?;
-            zip.write_all(&bytes)?;
-            included_save = true;
-        }
+        // Not `if let Ok(..)`. A log that cannot be read is skipped above, because the rest of the
+        // report is still worth having; a save is the opposite. The player ticked a box for it,
+        // the screen will tell them it went in, and a bundle quietly missing the one thing they
+        // chose to include is worse than a failure they can see and retry.
+        let bytes = std::fs::read(save)?;
+        let name = save.file_name().map_or_else(
+            || "save.db".to_owned(),
+            |n| n.to_string_lossy().into_owned(),
+        );
+        zip.start_file(format!("save/{name}"), options)
+            .map_err(to_io)?;
+        zip.write_all(&bytes)?;
+        included_save = true;
     }
 
     zip.finish().map_err(to_io)?;
@@ -531,6 +534,39 @@ mod tests {
 
         assert_eq!(planned.len(), MAX_LOG_FILES, "{planned:?}");
         assert_eq!(summary.log_files, planned);
+    }
+
+    #[test]
+    fn fails_rather_than_dropping_a_save_it_cannot_read() {
+        // A log that cannot be read is skipped, because the rest of the report is still worth
+        // having. A save is the opposite: the player ticked a box for it and the done screen will
+        // tell them it went in, so a bundle quietly missing the one part they chose is worse than
+        // an error they can see and retry.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let logs = dir.path().join("logs");
+        std::fs::create_dir_all(&logs).expect("logs dir");
+        // A directory where the save should be: readable as an entry, not readable as a file.
+        let save = dir.path().join("career.db");
+        std::fs::create_dir(&save).expect("blocking dir");
+        let out = dir.path().join("report.zip");
+
+        let result = write_bundle(
+            &BundleInputs {
+                log_dir: &logs,
+                diagnostics_json: "{}",
+                report_text: "",
+                crash_json: None,
+                save_path: Some(&save),
+            },
+            &out,
+            &redactor(),
+        );
+
+        assert!(result.is_err());
+        assert!(
+            !out.exists(),
+            "a failed bundle must not leave a file behind"
+        );
     }
 
     #[test]

@@ -46,7 +46,8 @@ pub fn run() {
                 // pruned — on a machine that had played a few hundred hours, the folder a bug
                 // reporter is asked to zip up is the largest thing in the report and almost all of
                 // it predates the bug. Five rotations of 5 MB bounds it at ~25 MB while still
-                // covering several sessions back.
+                // covering several sessions back. `KeepSome(5)` is five archived files plus
+                // the one currently being written, so the real ceiling is ~30 MB.
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(5))
                 .max_file_size(5_000_000) // 5 MB per log file
                 .build(),

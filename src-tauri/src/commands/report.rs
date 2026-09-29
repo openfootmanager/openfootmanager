@@ -13,9 +13,10 @@ use tauri::{Manager, State};
 use crate::crash;
 use crate::report::bundle::{self, BundleInputs, BundleSummary};
 use crate::report::redact::Redactor;
-use crate::SaveManagerState;
+// The key itself lives at the crate root, where the other holders of this lock already read it
+// from. Spelling it out again here is how two copies of a translation key drift apart.
+use crate::{SaveManagerState, SAVE_MANAGER_UNAVAILABLE_ERROR};
 
-const SAVE_MANAGER_UNAVAILABLE: &str = "be.error.saveManagerUnavailable";
 const REPORT_BUNDLE_FAILED: &str = "be.error.report.bundleFailed";
 const REPORT_SAVE_MISSING: &str = "be.error.report.saveMissing";
 
@@ -191,7 +192,7 @@ fn copy_active_save(
     let manager = save_manager
         .0
         .lock()
-        .map_err(|_| SAVE_MANAGER_UNAVAILABLE.to_owned())?;
+        .map_err(|_| SAVE_MANAGER_UNAVAILABLE_ERROR.to_owned())?;
     // A career IS open and its file cannot be found — a stale id, a save deleted underneath us.
     // Returning `Ok(None)` here would write a bundle without the save and report success, so the
     // player is told their career was attached when it was not. On the one screen that exists to
