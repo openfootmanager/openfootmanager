@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectMissingKeys, LOCALE_FILES, type LocaleTree } from "../i18n/i18nTestHelpers";
+import { collectMissingKeys, LOCALE_FILES, localeValue } from "../i18n/i18nTestHelpers";
 
 // Derived, not listed. This file used to import eleven locales by hand and was
 // missing Indonesian, so it silently checked one locale fewer than it claimed.
@@ -117,22 +117,12 @@ const REQUIRED_KEYS = [
   "boardObjectives.objective.FinancialStability",
 ] as const;
 
-function getNestedValue(tree: LocaleTree, keyPath: string): unknown {
-  return keyPath.split(".").reduce<unknown>((value, segment) => {
-    if (value === null || typeof value !== "object") {
-      return undefined;
-    }
-
-    return (value as Record<string, unknown>)[segment];
-  }, tree);
-}
-
 describe("backend i18n locale coverage", () => {
   it("keeps required backend-facing translation keys in every supported locale", () => {
     const missingKeysByLocale = Object.entries(LOCALES).reduce<Record<string, string[]>>(
       (accumulator, [localeCode, translations]) => {
         const missingKeys = REQUIRED_KEYS.filter((keyPath) => {
-          return getNestedValue(translations, keyPath) === undefined;
+          return localeValue(translations, keyPath) === undefined;
         });
 
         if (missingKeys.length > 0) {

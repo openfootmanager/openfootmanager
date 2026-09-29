@@ -1,18 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LOCALE_FILES, type LocaleTree } from "../../../i18n/i18nTestHelpers";
-
-// Derived from the locale directory; this file kept its own eleven-entry list.
-const LOCALE_BUNDLES = LOCALE_FILES;
-
-function localeLabel(bundle: LocaleTree, keyPath: string): unknown {
-  return keyPath.split(".").reduce<unknown>((value, segment) => {
-    if (value === null || typeof value !== "object") {
-      return undefined;
-    }
-    return (value as Record<string, unknown>)[segment];
-  }, bundle);
-}
+import { LOCALE_FILES, localeValue } from "../../../i18n/i18nTestHelpers";
 import {
   PLAY_STYLES,
   buildParticipantSpec,
@@ -33,6 +21,9 @@ import {
   toSlug,
 } from "./helpers";
 import type { SelectorSpec } from "./types";
+
+// Derived from the locale directory; this file kept its own eleven-entry list.
+const LOCALE_BUNDLES = LOCALE_FILES;
 
 describe("parseRangeBound", () => {
   it("returns null for empty string", () => {
@@ -408,7 +399,7 @@ describe("PLAY_STYLES", () => {
     // not just English, or a missing entry ships as a raw enum name.
     for (const [code, bundle] of Object.entries(LOCALE_BUNDLES)) {
       for (const style of PLAY_STYLES) {
-        const label = localeLabel(bundle, `common.playStyles.${style}`);
+        const label = localeValue(bundle, `common.playStyles.${style}`);
         expect(label, `${code} is missing common.playStyles.${style}`).toBeTruthy();
       }
     }

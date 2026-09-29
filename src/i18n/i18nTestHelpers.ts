@@ -132,22 +132,37 @@ export function collectOrphanKeys(
   });
 }
 
-export function hasLocaleKey(locale: LocaleTree, keyPath: string): boolean {
-  const segments = keyPath.split(".");
+/**
+ * The value a dotted key path resolves to in a locale tree, or `undefined`.
+ *
+ * One walker, because there were three: this one, a looser copy in the
+ * backend-key suite, and a third in the Package Editor's tests. Two of them
+ * would happily return a table or a number where a leaf was expected, which is
+ * the kind of difference nobody notices until the assertions disagree.
+ *
+ * Callers decide what counts: `hasLocaleKey` wants a string, while a test
+ * asserting a label is present wants any truthy value so an empty string still
+ * fails.
+ */
+export function localeValue(locale: LocaleTree, keyPath: string): unknown {
   let current: unknown = locale;
 
-  for (const segment of segments) {
+  for (const segment of keyPath.split(".")) {
     if (
       current === null ||
       typeof current !== "object" ||
       Array.isArray(current) ||
       !(segment in current)
     ) {
-      return false;
+      return undefined;
     }
 
     current = (current as LocaleTree)[segment];
   }
 
-  return typeof current === "string";
+  return current;
+}
+
+export function hasLocaleKey(locale: LocaleTree, keyPath: string): boolean {
+  return typeof localeValue(locale, keyPath) === "string";
 }
