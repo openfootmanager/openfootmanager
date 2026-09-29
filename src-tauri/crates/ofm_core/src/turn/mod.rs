@@ -151,8 +151,9 @@ fn run_training_ground(game: &mut Game) {
     training::check_squad_fitness_warnings(game);
     // Not a session, and deliberately not skipped for the clubs playing today:
     // a league plays whole rounds on one date, so a club whose review day landed
-    // on its matchday would never review at all. It runs after the matches, so
-    // today's result is part of the form it reads.
+    // on its matchday would never review at all. It runs after active matches,
+    // so those results are part of the form it reads. Dormant scoreline-only
+    // competitions resolve later in `process_day` and enter the next review.
     crate::ai_tactics::apply_ai_tactical_reviews(game, weekday_num);
 }
 

@@ -40,12 +40,13 @@
 //! |---|---|
 //! | blueprints alone, before the engine charged for the free dials | 6.3 |
 //! | blueprints alone, after it did | 3.7 |
-//! | blueprints plus the weekly review | 4.8 |
+//! | blueprints plus the weekly review, after Slow → Fast review fix | 3.4 |
 //!
-//! The last step is about one standard error on the difference of the two
-//! extremes, so it is not evidence that adapting costs balance — and the order
-//! is unchanged, Counter still highest and Attacking still lowest. Unifying the
-//! match paths re-prices every blueprint and this gets re-run then anyway.
+//! The final row is one 12,000-match run: Counter was highest (42.3%) and
+//! HighPress lowest (38.9%). It includes the blunt-attack review's Slow → Fast
+//! move, which skips Medium because Medium has no engine effect. Sampling noise
+//! still matters at this spread; re-run before using it for further calibration.
+//! Unifying the match paths would also re-price every blueprint.
 
 use chrono::{TimeZone, Utc};
 use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};

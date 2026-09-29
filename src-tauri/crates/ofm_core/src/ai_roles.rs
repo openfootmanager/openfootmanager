@@ -27,6 +27,7 @@
 //! rather than decorative: within a bucket the candidates are genuinely
 //! different jobs, and the attributes are the only thing that separates them.
 
+use crate::ai_math::mean_u8;
 use domain::player::Player;
 use domain::team::{PlayStyle, PlayerRole, Team};
 
@@ -142,14 +143,6 @@ fn style_preferences(play_style: &PlayStyle) -> &'static [PlayerRole] {
     }
 }
 
-fn mean_of(values: impl IntoIterator<Item = u8>) -> f64 {
-    let values: Vec<u8> = values.into_iter().collect();
-    if values.is_empty() {
-        return 0.0;
-    }
-    values.iter().map(|v| f64::from(*v)).sum::<f64>() / values.len() as f64
-}
-
 /// The player's own average across everything an outfielder is judged on.
 ///
 /// Goalkeeping attributes are left out on purpose. A goalkeeper's `shooting` of
@@ -178,7 +171,7 @@ fn player_baseline(player: &Player) -> f64 {
         } else {
             vec![a.shooting, a.tackling, a.defending, a.aggression]
         };
-    mean_of(outfield.into_iter().chain(specialised))
+    mean_u8(outfield.into_iter().chain(specialised))
 }
 
 /// The role this player is best suited to, given what his club is trying to do.
@@ -210,7 +203,7 @@ fn role_for(player: &Player, play_style: &PlayStyle) -> PlayerRole {
             continue;
         }
         let profile = role_profile(role);
-        let earned = mean_of(
+        let earned = mean_u8(
             profile
                 .iter()
                 .map(|attribute| attribute(&player.attributes)),

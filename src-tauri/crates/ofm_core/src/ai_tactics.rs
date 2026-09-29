@@ -47,6 +47,7 @@
 //! trading evenly, it can go. `tests/tactical_identity_probe.rs` is what says
 //! whether it has become urgent either way.
 
+use crate::ai_math::mean_u8;
 use crate::game::Game;
 use crate::stable_hash::stable_hash;
 use domain::league::FixtureStatus;
@@ -238,7 +239,7 @@ fn read_squad(squad: &[&Player]) -> Option<SquadReading> {
     }
     by_standing(&mut available);
     let eleven = &available[..LIKELY_STARTERS.min(available.len())];
-    let legs = mean(eleven.iter().map(|p| p.attributes.stamina));
+    let legs = mean_u8(eleven.iter().map(|p| p.attributes.stamina));
 
     let mut defenders: Vec<&&Player> = available
         .iter()
@@ -249,9 +250,9 @@ fn read_squad(squad: &[&Player]) -> Option<SquadReading> {
     let defensive_pace = if defenders.is_empty() {
         // No recognised defenders is a broken squad, not a fast one. Read the
         // eleven rather than claim the back line can do anything.
-        mean(eleven.iter().map(|p| p.attributes.pace))
+        mean_u8(eleven.iter().map(|p| p.attributes.pace))
     } else {
-        mean(
+        mean_u8(
             defenders[..BACK_LINE.min(defenders.len())]
                 .iter()
                 .map(|p| p.attributes.pace),
@@ -262,16 +263,6 @@ fn read_squad(squad: &[&Player]) -> Option<SquadReading> {
         legs,
         defensive_pace,
     })
-}
-
-fn mean(values: impl Iterator<Item = u8>) -> f64 {
-    let mut total = 0.0;
-    let mut count = 0.0;
-    for value in values {
-        total += value as f64;
-        count += 1.0;
-    }
-    if count == 0.0 { 0.0 } else { total / count }
 }
 
 /// How many recent matches the manager judges the plan on.
@@ -408,7 +399,9 @@ fn press_higher(settings: &mut TacticsPhaseSettings) -> bool {
 
 fn break_faster(settings: &mut TacticsPhaseSettings) -> bool {
     settings.break_speed = match settings.break_speed {
-        BreakSpeed::Slow => BreakSpeed::Medium,
+        // The engine gives Slow and Medium the same zero counter chance. A
+        // blunt side must reach Fast to change what happens on the pitch.
+        BreakSpeed::Slow => BreakSpeed::Fast,
         BreakSpeed::Medium => BreakSpeed::Fast,
         BreakSpeed::Fast => return false,
     };
@@ -547,6 +540,68 @@ pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{Fixture, FixtureCompetition, League, MatchResult};
+    use domain::manager::Manager;
+    use domain::player::PlayerAttributes;
+    use domain::team::Team;
+
+    fn form_game() -> Game {
+        let clock =
+            crate::clock::GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "manager".into(),
+            "Test".into(),
+            "Manager".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        manager.hire("user".into());
+        let mut teams: Vec<Team> = ["home", "away", "user"]
+            .into_iter()
+            .map(|id| {
+                Team::new(
+                    id.into(),
+                    id.into(),
+                    id.into(),
+                    "England".into(),
+                    "London".into(),
+                    "Ground".into(),
+                    20_000,
+                )
+            })
+            .collect();
+        teams[0].play_style = PlayStyle::Attacking;
+        let participants = teams.iter().map(|team| team.id.clone()).collect::<Vec<_>>();
+        let mut league = League::new("league".into(), "League".into(), 2026, &participants);
+        for (index, (home, away, home_goals, away_goals)) in [
+            ("home", "away", 1, 4),
+            ("away", "home", 5, 0),
+            ("home", "away", 0, 3),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            league.fixtures.push(Fixture {
+                id: format!("fixture-{index}"),
+                competition_id: "league".into(),
+                matchday: index as u32 + 1,
+                date: format!("2026-08-{:02}", index + 1),
+                home_team_id: home.into(),
+                away_team_id: away.into(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals,
+                    away_goals,
+                    ..Default::default()
+                }),
+            });
+        }
+        let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+        game.competitions = vec![league];
+        game
+    }
 
     const EVERY_STYLE: [PlayStyle; 6] = [
         PlayStyle::Balanced,
@@ -762,6 +817,106 @@ mod tests {
                 "{style:?} has not scored in a month and changed nothing"
             );
         }
+    }
+
+    #[test]
+    fn blunt_slow_blueprints_gain_an_effective_fast_break() {
+        for style in [PlayStyle::Defensive, PlayStyle::Possession] {
+            let plan = match_plan(&style, None, Some(&toothless()));
+            assert_eq!(
+                plan.break_speed,
+                BreakSpeed::Fast,
+                "{style:?} still cannot break fast"
+            );
+            assert_ne!(plan.break_speed, blueprint_for(&style).break_speed);
+        }
+    }
+
+    #[test]
+    fn completed_home_and_away_results_read_from_each_clubs_perspective() {
+        let game = form_game();
+        let form = read_form(&game);
+        let home = &form["home"];
+        let away = &form["away"];
+        assert_eq!(home.scored_per_game, 1.0 / 3.0);
+        assert_eq!(home.conceded_per_game, 4.0);
+        assert_eq!(away.scored_per_game, 4.0);
+        assert_eq!(away.conceded_per_game, 1.0 / 3.0);
+    }
+
+    #[test]
+    fn a_leaky_club_reacts_to_real_results_at_its_review() {
+        let mut game = form_game();
+        apply_ai_tactical_reviews(&mut game, review_weekday("home"));
+        let home = game.teams.iter().find(|team| team.id == "home").unwrap();
+        assert_eq!(home.tactics_phase.defensive_shape, DefensiveShape::Compact);
+    }
+
+    #[test]
+    fn a_second_review_of_the_same_game_changes_nothing() {
+        let mut game = form_game();
+        let weekday = review_weekday("home");
+        apply_ai_tactical_reviews(&mut game, weekday);
+        let first = game.teams.clone();
+        assert_ne!(first[0].tactics_phase, blueprint_for(&PlayStyle::Attacking));
+        apply_ai_tactical_reviews(&mut game, weekday);
+        for (first, second) in first.iter().zip(&game.teams) {
+            assert_eq!(first.tactics_phase, second.tactics_phase);
+            assert_eq!(first.player_roles, second.player_roles);
+        }
+    }
+
+    #[test]
+    fn squad_reading_excludes_injured_stars_and_reads_the_defenders_pace() {
+        let make_player = |id: &str, position: Position, stamina: u8, pace: u8, injured: bool| {
+            let attributes = PlayerAttributes {
+                pace,
+                stamina,
+                strength: 50,
+                agility: 50,
+                passing: 50,
+                shooting: 50,
+                tackling: 50,
+                dribbling: 50,
+                defending: 50,
+                positioning: 50,
+                vision: 50,
+                decisions: 50,
+                composure: 50,
+                aggression: 50,
+                teamwork: 50,
+                leadership: 50,
+                handling: 50,
+                reflexes: 50,
+                aerial: 50,
+            };
+            let mut player = Player::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "1998-01-01".into(),
+                "England".into(),
+                position,
+                attributes,
+            );
+            player.ovr = if injured { 99 } else { 60 };
+            if injured {
+                player.injury = Some(domain::player::Injury {
+                    name: "Test".into(),
+                    days_remaining: 3,
+                });
+            }
+            player
+        };
+        let players = [
+            make_player("defender", Position::Defender, 50, 45, false),
+            make_player("forward", Position::Forward, 70, 90, false),
+            make_player("injured", Position::Defender, 99, 99, true),
+        ];
+        let squad = players.iter().collect::<Vec<_>>();
+        let reading = read_squad(&squad).unwrap();
+        assert_eq!(reading.legs, 60.0);
+        assert_eq!(reading.defensive_pace, 45.0);
     }
 
     /// The reason this exists: the natural answer to conceding is a deeper line

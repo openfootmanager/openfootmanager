@@ -247,6 +247,14 @@ pub(crate) fn bootstrap_team_selection(
         }
     };
 
+    // World generation has already equipped every club for AI management.
+    // At career selection the chosen club becomes the player's blank slate;
+    // rivals keep the identity the generator gave them.
+    if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
+        team.tactics_phase = domain::team::TacticsPhaseSettings::default();
+        team.player_roles.clear();
+    }
+
     ofm_core::transfers::seed_opening_ai_loan_market(game);
     Ok(stats_state)
 }

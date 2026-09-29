@@ -201,6 +201,18 @@ fn a_club_carried_over_from_an_older_save_does_not_stay_neutral_forever() {
 #[test]
 fn the_club_the_player_manages_is_never_overwritten() {
     let mut game = make_world_frozen_as_it_was_generated();
+    // This player clears the specialist margin. If the review visits the user's
+    // club, it will assign a role and the assertion below will catch it.
+    for id in ["club0_fwd0", "club1_fwd0"] {
+        let poacher = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == id)
+            .unwrap();
+        poacher.attributes.shooting = 99;
+        poacher.attributes.positioning = 99;
+        poacher.attributes.composure = 99;
+    }
     let chosen = TacticsPhaseSettings {
         defensive_line: domain::team::DefensiveLine::High,
         ..Default::default()
@@ -221,5 +233,10 @@ fn the_club_the_player_manages_is_never_overwritten() {
     assert!(
         user_club.player_roles.is_empty(),
         "the player's own role assignments were rewritten underneath them"
+    );
+    let ai_control = game.teams.iter().find(|team| team.id == "club1").unwrap();
+    assert!(
+        ai_control.player_roles.contains_key("club1_fwd0"),
+        "the identical AI player did not earn a role, so this cannot prove exclusion"
     );
 }
