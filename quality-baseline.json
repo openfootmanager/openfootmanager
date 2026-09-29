@@ -1,7 +1,7 @@
 {
   "oversizedAggregate": {
     "rust": 61847,
-    "ts": 35965
+    "ts": 35943
   },
   "allowedOversized": {
     "src-tauri/crates/db/src/repositories/player_repo.rs": 1062,
@@ -73,7 +73,7 @@
     "src/components/youthAcademy/YouthAcademyTab.test.tsx": 518,
     "src/components/youthAcademy/YouthAcademyTab.tsx": 599,
     "src/hooks/useEntityEditor.test.ts": 791,
-    "src/lib/helpers.test.ts": 752,
+    "src/lib/helpers.test.ts": 730,
     "src/pages/Dashboard.test.tsx": 593,
     "src/pages/Dashboard.tsx": 591,
     "src/pages/MainMenu.test.tsx": 994,
