@@ -83,6 +83,7 @@ export function composeReportText(
     whatHappened: string;
     expected: string;
     steps: string;
+    frequencyLabel: string;
     frequency: string;
     career: string;
   },
@@ -95,7 +96,9 @@ export function composeReportText(
   if (draft.steps.trim() !== "") {
     sections.push(`## ${labels.steps}\n\n${draft.steps.trim()}`);
   }
-  sections.push(`## ${labels.frequency}`);
+  // The question, then the answer. This was a bare `## Every time`, which reads as a heading
+  // with nothing under it and says nothing about what it is answering.
+  sections.push(`## ${labels.frequencyLabel}\n\n${labels.frequency}`);
   if (careerLine !== "") {
     sections.push(`## ${labels.career}\n\n${careerLine}`);
   }

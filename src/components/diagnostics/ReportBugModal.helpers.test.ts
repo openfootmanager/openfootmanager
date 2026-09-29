@@ -124,6 +124,7 @@ describe("composeReportText", () => {
     whatHappened: "What happened",
     expected: "What did you expect",
     steps: "Steps to reproduce",
+    frequencyLabel: "How often does it happen",
     frequency: "Every time",
     career: "Your career",
   };
@@ -151,7 +152,8 @@ describe("composeReportText", () => {
     expect(out).toContain("## What happened");
     expect(out).toContain("It froze");
     expect(out).toContain("## Steps to reproduce");
-    expect(out).toContain("Every time");
+    // The question as a heading, the answer underneath — not a heading that IS the answer.
+    expect(out).toContain("## How often does it happen\n\nEvery time");
   });
 
   it("leaves out a section the player skipped", () => {

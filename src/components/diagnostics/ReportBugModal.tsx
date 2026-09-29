@@ -189,6 +189,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             whatHappened: t("reportBug.whatHappened"),
             expected: t("reportBug.expected"),
             steps: t("reportBug.steps"),
+            frequencyLabel: t("reportBug.frequencyLabel"),
             frequency: t(`reportBug.frequency.${draft.frequency}`),
             career: t("reportBug.gameContext"),
           },
