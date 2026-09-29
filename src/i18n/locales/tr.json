@@ -4090,6 +4090,7 @@
     "nothingSentYet": "Hesap gerekmez. Aşağıdaki düğmeye basana kadar hiçbir şey kaydedilmez veya açılmaz.",
     "savedTo": "Rapor dosyan buraya kaydedildi:",
     "dragItIn": "Tarayıcıdaki GitHub formuna sürükle ve gönder. Hepsi bu.",
+      "browserDidNotOpen": "Tarayıcın açılmadı. Yukarıdaki dosya kaydedildi — fırsatın olduğunda GitHub'da yeni bir issue'ya ekle.",
     "review": "Ne gönderildiğini incele",
     "saveAndOpen": "Dosyayı kaydet ve GitHub'ı aç",
     "working": "Çalışıyor…"

@@ -4090,6 +4090,7 @@
     "nothingSentYet": "Aucun compte nécessaire. Rien n'est enregistré ni ouvert avant que tu n'appuies sur le bouton ci-dessous.",
     "savedTo": "Ton fichier de rapport a été enregistré ici :",
     "dragItIn": "Glisse-le sur le formulaire GitHub dans ton navigateur, puis envoie. C'est tout.",
+      "browserDidNotOpen": "Ton navigateur ne s'est pas ouvert. Le fichier ci-dessus est enregistré — joins-le à un nouveau ticket sur GitHub quand tu peux.",
     "review": "Vérifier ce qui est envoyé",
     "saveAndOpen": "Enregistrer le fichier et ouvrir GitHub",
     "working": "En cours…"

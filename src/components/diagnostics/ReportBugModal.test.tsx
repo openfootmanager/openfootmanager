@@ -236,6 +236,47 @@ describe("ReportBugModal", () => {
     await waitFor(() => expect(logError).toHaveBeenCalled());
   });
 
+  it("still names the saved file when the browser will not open", async () => {
+    // The bundle exists at this point. Reporting only a failure, without the path, sends the
+    // player round again to write a second copy of it.
+    openUrl.mockRejectedValue(new Error("no handler"));
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+
+    expect(await screen.findByRole("heading", { name: "reportBug.doneTitle" })).toBeInTheDocument();
+    expect(screen.getByText(/ofm-report\.zip/)).toBeInTheDocument();
+    expect(screen.getByText("reportBug.browserDidNotOpen")).toBeInTheDocument();
+  });
+
+  it("refuses to close while the export is running", async () => {
+    // Leaving mid-export used to let it finish and open the browser afterwards, on a report the
+    // player had already dismissed.
+    let release: (value: unknown) => void = () => {};
+    exportReportBundle.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    const onClose = vi.fn();
+    render(<ReportBugModal onClose={onClose} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+    await waitFor(() => expect(exportReportBundle).toHaveBeenCalled());
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "common.close" }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    release(SUMMARY);
+  });
+
   it("closes on Escape", () => {
     const onClose = vi.fn();
     render(<ReportBugModal onClose={onClose} />);

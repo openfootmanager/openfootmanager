@@ -4090,6 +4090,7 @@
     "nothingSentYet": "Žádný účet není potřeba. Nic se neuloží ani neotevře, dokud nestiskneš tlačítko níže.",
     "savedTo": "Soubor s hlášením byl uložen sem:",
     "dragItIn": "Přetáhni ho do formuláře na GitHubu v prohlížeči a odešli. A to je všechno.",
+      "browserDidNotOpen": "Prohlížeč se neotevřel. Soubor výše je uložený — přilož ho k novému issue na GitHubu, až budeš moci.",
     "review": "Zkontrolovat, co se odešle",
     "saveAndOpen": "Uložit soubor a otevřít GitHub",
     "working": "Pracuji…"

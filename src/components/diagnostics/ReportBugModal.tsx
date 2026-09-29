@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -15,7 +15,7 @@ import {
   suggestedReportFileName,
 } from "../../services/reportService";
 import { resolveBackendError } from "../../utils/backendI18n";
-import { Button } from "../ui";
+import { Button, Checkbox } from "../ui";
 import {
   EMPTY_DRAFT,
   type Frequency,
@@ -52,6 +52,8 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
   const [summary, setSummary] = useState<BundleSummary | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [browserFailed, setBrowserFailed] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,13 +71,30 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
     };
   }, []);
 
+  // One guard for every way out of the dialog. Leaving while an export is running used to let
+  // the export finish and open the browser afterwards, on a report the player had just dismissed —
+  // and the done screen naming the file they now had was never shown.
+  const requestClose = useCallback(() => {
+    if (busy) return;
+    onClose();
+  }, [busy, onClose]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  }, [requestClose]);
+
+  // A dialog that never takes focus is one a keyboard user cannot reach: `aria-modal` alone leaves
+  // focus on the button behind the overlay, and Tab keeps walking the page underneath. Focus moves
+  // in on open and returns to wherever it was on close.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    headingRef.current?.focus();
+    return () => previouslyFocused?.focus?.();
+  }, []);
 
   const missing = useMemo(() => missingRequiredFields(draft), [draft]);
 
@@ -117,17 +136,25 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
       );
       setSummary(written);
 
-      await openUrl(
-        buildBugReportUrl(i18n.language, {
-          whatHappened: draft.whatHappened,
-          expected: draft.expected,
-          steps: draft.steps,
-          gameContext: describeContext(t(`reportBug.frequency.${draft.frequency}`), ""),
-          appVersion: formatAppVersion(),
-          os: describeMachine(diagnostics),
-          resolution: describeResolution(window.screen),
-        }),
-      );
+      // Two outcomes, reported separately on purpose. Once the bundle exists the player has a
+      // file; telling them only that something failed, without saying where it is, sends them
+      // round again to write a second copy of it.
+      try {
+        await openUrl(
+          buildBugReportUrl(i18n.language, {
+            whatHappened: draft.whatHappened,
+            expected: draft.expected,
+            steps: draft.steps,
+            gameContext: describeContext(t(`reportBug.frequency.${draft.frequency}`), ""),
+            appVersion: formatAppVersion(),
+            os: describeMachine(diagnostics),
+            resolution: describeResolution(window.screen),
+          }),
+        );
+      } catch (error: unknown) {
+        logError(`[report] could not open the issue form: ${String(error)}`);
+        setBrowserFailed(true);
+      }
       setStep("done");
     } catch (error: unknown) {
       logError(`[report] export failed: ${String(error)}`);
@@ -203,7 +230,9 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
           <div className="flex-1 min-w-0">
             <h2
               id="report-bug-title"
-              className="font-heading font-bold uppercase tracking-wider text-xl text-gray-900 dark:text-gray-100"
+              ref={headingRef}
+              tabIndex={-1}
+              className="font-heading font-bold uppercase tracking-wider text-xl text-gray-900 dark:text-gray-100 focus:outline-none"
             >
               {t(`reportBug.${step}Title`)}
             </h2>
@@ -213,7 +242,8 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
+            disabled={busy}
             aria-label={t("common.close")}
             className="p-1 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
           >
@@ -284,13 +314,19 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             <p className="text-[11px] font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {t("reportBug.optionalHeading")}
             </p>
-            <label className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 cursor-pointer">
-              <input
-                type="checkbox"
+            {/* `htmlFor` rather than wrapping: `Checkbox` keeps its real input visually hidden
+                inside itself, so a wrapping label no longer contains a control the browser — or a
+                screen reader — can associate with it. */}
+            <label
+              htmlFor="report-include-save"
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 cursor-pointer"
+            >
+              <Checkbox
+                id="report-include-save"
                 checked={canAttachSave && includeSave}
                 disabled={!canAttachSave}
                 onChange={(event) => setIncludeSave(event.target.checked)}
-                className="w-4 h-4 rounded border-gray-400 dark:border-gray-500 text-primary-600 focus:ring-2 focus:ring-primary-500"
+                aria-label={t("reportBug.includeSave")}
               />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">
@@ -321,7 +357,9 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             <code className="block px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-[11px] font-mono text-gray-700 dark:text-gray-300 break-all">
               {describeBundle(summary)}
             </code>
-            <p className="text-xs text-gray-600 dark:text-gray-400">{t("reportBug.dragItIn")}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              {browserFailed ? t("reportBug.browserDidNotOpen") : t("reportBug.dragItIn")}
+            </p>
           </div>
         )}
 
@@ -331,7 +369,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               <Button className="flex-1" onClick={handleContinue}>
                 {t("reportBug.review")}
               </Button>
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={requestClose}>
                 {t("common.cancel")}
               </Button>
             </>
@@ -347,7 +385,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               >
                 {busy ? t("reportBug.working") : t("reportBug.saveAndOpen")}
               </Button>
-              <Button variant="outline" onClick={() => setStep("describe")}>
+              <Button variant="outline" disabled={busy} onClick={() => setStep("describe")}>
                 {t("common.back")}
               </Button>
             </>

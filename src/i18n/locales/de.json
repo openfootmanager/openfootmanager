@@ -4090,6 +4090,7 @@
     "nothingSentYet": "Kein Konto nötig. Es wird nichts gespeichert oder geöffnet, bis du unten drückst.",
     "savedTo": "Deine Berichtsdatei wurde hier gespeichert:",
     "dragItIn": "Zieh sie im Browser auf das GitHub-Formular und schick es ab. Das war's.",
+      "browserDidNotOpen": "Dein Browser hat sich nicht geöffnet. Die Datei oben ist gespeichert — hänge sie an, wenn du auf GitHub ein neues Issue anlegst.",
     "review": "Prüfen, was gesendet wird",
     "saveAndOpen": "Datei speichern und GitHub öffnen",
     "working": "Arbeitet…"

@@ -4090,6 +4090,7 @@
     "nothingSentYet": "Sem necessidade de conta. Nada é salvo nem aberto até você clicar no botão abaixo.",
     "savedTo": "Seu arquivo de relato foi salvo aqui:",
     "dragItIn": "Arraste-o para o formulário do GitHub no navegador e envie. É só isso.",
+      "browserDidNotOpen": "Seu navegador não abriu. O arquivo acima está salvo — anexe-o a uma nova issue no GitHub quando puder.",
     "review": "Revisar o que é enviado",
     "saveAndOpen": "Salvar o arquivo e abrir o GitHub",
     "working": "Trabalhando…"

@@ -4090,6 +4090,7 @@
     "nothingSentYet": "Tidak perlu akun. Tidak ada yang disimpan atau dibuka sampai kamu menekan tombol di bawah.",
     "savedTo": "Berkas laporanmu disimpan di sini:",
     "dragItIn": "Seret ke formulir GitHub di peramban, lalu kirim. Selesai.",
+      "browserDidNotOpen": "Peramban tidak terbuka. Berkas di atas sudah tersimpan — lampirkan ke issue baru di GitHub saat sempat.",
     "review": "Tinjau yang akan dikirim",
     "saveAndOpen": "Simpan berkas dan buka GitHub",
     "working": "Sedang bekerja…"
