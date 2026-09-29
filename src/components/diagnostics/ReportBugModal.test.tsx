@@ -285,4 +285,44 @@ describe("ReportBugModal", () => {
 
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("gives the save checkbox exactly one label", async () => {
+    // `Checkbox` renders its own `<label>` around the real input. Wrapping that in a second label
+    // is invalid, and the browser then associates the input with only one of them — so the row
+    // the player clicks may not be the one that toggles anything.
+    const { container } = render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(container.querySelector("label label")).toBeNull();
+
+    // And the visible title is what names it, now that the checkbox carries no `aria-label`.
+    const checkbox = screen.getByLabelText("reportBug.includeSave");
+    expect(checkbox).toBe(screen.getByRole("checkbox"));
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+  });
+
+  it("keeps Tab inside the dialog", async () => {
+    // `aria-modal` is a promise to assistive technology, not something the browser enforces: the
+    // page behind the overlay stays tabbable, so without a trap the player tabs into controls
+    // they cannot see while the dialog is still open.
+    const { container } = render(<ReportBugModal onClose={vi.fn()} />);
+    await waitFor(() => expect(collectDiagnostics).toHaveBeenCalled());
+
+    const focusable = Array.from(
+      container.querySelectorAll<HTMLElement>("button:not([disabled]), textarea, input"),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
 });

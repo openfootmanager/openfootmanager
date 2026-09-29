@@ -54,6 +54,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
   const [busy, setBusy] = useState(false);
   const [browserFailed, setBrowserFailed] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +82,33 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose();
+      if (event.key === "Escape") {
+        requestClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (dialog === null) return;
+
+      // `aria-modal` is a promise to assistive technology, not something the browser enforces: the
+      // page behind the overlay stays fully tabbable. Without this, Tab walks out of the dialog
+      // into controls the player cannot see, and the export they started is still running.
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      const outside = !dialog.contains(active);
+
+      if (!event.shiftKey && (active === last || outside)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && (active === first || outside)) {
+        event.preventDefault();
+        last.focus();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -216,7 +243,10 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
       aria-modal="true"
       aria-labelledby="report-bug-title"
     >
-      <div className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div
+        ref={dialogRef}
+        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-start gap-3 mb-5">
           <span className="text-primary-600 dark:text-primary-400 shrink-0 mt-0.5">
             {step === "done" ? (
@@ -314,31 +344,34 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             <p className="text-[11px] font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {t("reportBug.optionalHeading")}
             </p>
-            {/* `htmlFor` rather than wrapping: `Checkbox` keeps its real input visually hidden
-                inside itself, so a wrapping label no longer contains a control the browser — or a
-                screen reader — can associate with it. */}
-            <label
-              htmlFor="report-include-save"
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 cursor-pointer"
-            >
+            {/* A plain row, not a `<label>`: `Checkbox` renders its own label around the real
+                input, and a label nested inside another label is invalid — the browser associates
+                the input with one of them and the other stops toggling anything. The visible title
+                below is the single label that owns this input, and it names it for a screen
+                reader, so the checkbox carries no `aria-label` of its own to override it. */}
+            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600">
               <Checkbox
                 id="report-include-save"
                 checked={canAttachSave && includeSave}
                 disabled={!canAttachSave}
                 onChange={(event) => setIncludeSave(event.target.checked)}
-                aria-label={t("reportBug.includeSave")}
               />
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">
+                <label
+                  htmlFor="report-include-save"
+                  className={`block text-[13px] font-medium text-gray-800 dark:text-gray-200 ${
+                    canAttachSave ? "cursor-pointer" : "cursor-not-allowed"
+                  }`}
+                >
                   {t("reportBug.includeSave")}
-                </p>
+                </label>
                 <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">
                   {canAttachSave
                     ? t("reportBug.includeSaveDesc")
                     : t("reportBug.includeSaveNoCareer")}
                 </p>
               </div>
-            </label>
+            </div>
 
             <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-2">
               {t("reportBug.nothingSentYet")}
