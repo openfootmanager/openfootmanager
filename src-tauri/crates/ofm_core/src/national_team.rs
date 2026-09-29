@@ -19,8 +19,9 @@ use crate::game::Game;
 /// Synthetic competition id used to tag national-team friendly fixtures.
 pub const INTERNATIONAL_FRIENDLY_COMPETITION_ID: &str = "international-friendlies";
 
-/// Number of players that feature (and therefore wear) per national-team match.
-const MATCH_SQUAD_SIZE: usize = 11;
+/// Shape a national XI is picked against. National teams carry no tactics of their own,
+/// so they line up in the same default a new club does (`Team::new`).
+const NATIONAL_TEAM_FORMATION: &str = "4-4-2";
 
 /// International break dates for a season. FIFA-style: autumn windows in
 /// September, October and November, then spring windows in March and June of
@@ -195,22 +196,16 @@ pub(crate) fn squad_ids_for(game: &Game, national_team_id: &str) -> Vec<String> 
         .unwrap_or_default()
 }
 
-/// The best XI ids from a squad, strongest first.
+/// The best XI ids from a squad, one per formation slot: a flat `ovr` ranking could field
+/// three goalkeepers and no defender. Picked the way club first-choice XIs are.
 fn match_day_xi(squad_player_ids: &[String], players: &[Player]) -> Vec<String> {
-    let mut rated: Vec<(String, u8)> = squad_player_ids
+    let squad: Vec<&Player> = squad_player_ids
         .iter()
-        .filter_map(|pid| {
-            players
-                .iter()
-                .find(|p| &p.id == pid)
-                .map(|p| (p.id.clone(), p.ovr))
-        })
+        .filter_map(|pid| players.iter().find(|p| &p.id == pid))
         .collect();
-    rated.sort_by_key(|entry| std::cmp::Reverse(entry.1));
-    rated
+    crate::turn::squad::first_choice_eleven(&squad, NATIONAL_TEAM_FORMATION)
         .into_iter()
-        .take(MATCH_SQUAD_SIZE)
-        .map(|(id, _)| id)
+        .map(|player| player.id.clone())
         .collect()
 }
 
@@ -515,6 +510,52 @@ mod tests {
             "ENG".to_string(),
         );
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    fn make_positioned_player(id: &str, position: Position, ovr: u8) -> Player {
+        let mut player = make_player(id, ovr);
+        player.position = position.clone();
+        player.natural_position = position;
+        player
+    }
+
+    #[test]
+    fn match_day_xi_fields_one_goalkeeper_even_when_keepers_rate_highest() {
+        let mut keepers = Vec::new();
+        for (id, handling) in [("gk-best", 92), ("gk-2", 88), ("gk-3", 86)] {
+            let mut keeper = make_positioned_player(id, Position::Goalkeeper, 90);
+            keeper.attributes.handling = handling;
+            keeper.attributes.reflexes = handling;
+            keepers.push(keeper);
+        }
+        let outfield = [
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Midfielder,
+            Position::Forward,
+            Position::Forward,
+            Position::Forward,
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, position)| make_positioned_player(&format!("out-{index}"), position, 70));
+        let players: Vec<Player> = keepers.into_iter().chain(outfield).collect();
+        let squad: Vec<String> = players.iter().map(|player| player.id.clone()).collect();
+
+        let xi = match_day_xi(&squad, &players);
+
+        let keepers_in_xi: Vec<&str> = xi
+            .iter()
+            .filter(|id| id.starts_with("gk-"))
+            .map(String::as_str)
+            .collect();
+        assert_eq!(xi.len(), 11);
+        assert_eq!(keepers_in_xi, vec!["gk-best"]);
     }
 
     #[test]
