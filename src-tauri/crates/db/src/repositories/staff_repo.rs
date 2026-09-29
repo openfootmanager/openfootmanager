@@ -136,50 +136,42 @@ mod tests {
     use crate::game_database::GameDatabase;
     use rusqlite::Connection;
 
-    /// Pins the stored name of every staff role. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every staff role.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn staff_roles_are_stored_by_name() {
         use StaffRole as R;
-        match R::AssistantManager {
-            R::AssistantManager | R::Coach | R::Scout | R::Physio => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("AssistantManager", R::AssistantManager),
-                ("Coach", R::Coach),
-                ("Scout", R::Scout),
-                ("Physio", R::Physio),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                R::AssistantManager; [
+                    ("AssistantManager", R::AssistantManager),
+                    ("Coach", R::Coach),
+                    ("Scout", R::Scout),
+                    ("Physio", R::Physio),
+                ]
+            ),
             |value| format!("{value:?}"),
             parse_role,
         );
     }
 
-    /// Pins the stored name of every coaching specialization. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every coaching specialization.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn coaching_specializations_are_stored_by_name() {
         use CoachingSpecialization as S;
-        match S::Fitness {
-            S::Fitness
-            | S::Technique
-            | S::Tactics
-            | S::Defending
-            | S::Attacking
-            | S::GoalKeeping
-            | S::Youth => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("Fitness", S::Fitness),
-                ("Technique", S::Technique),
-                ("Tactics", S::Tactics),
-                ("Defending", S::Defending),
-                ("Attacking", S::Attacking),
-                ("GoalKeeping", S::GoalKeeping),
-                ("Youth", S::Youth),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                S::Fitness; [
+                    ("Fitness", S::Fitness),
+                    ("Technique", S::Technique),
+                    ("Tactics", S::Tactics),
+                    ("Defending", S::Defending),
+                    ("Attacking", S::Attacking),
+                    ("GoalKeeping", S::GoalKeeping),
+                    ("Youth", S::Youth),
+                ]
+            ),
             |value| format!("{value:?}"),
             |stored: &str| {
                 parse_specialization(stored)

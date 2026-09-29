@@ -152,34 +152,25 @@ mod tests {
     use domain::news::NewsMatchScore;
     use rusqlite::Connection;
 
-    /// Pins the stored name of every news category. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every news category.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn news_categories_are_stored_by_name() {
         use NewsCategory as C;
-        match C::MatchReport {
-            C::MatchReport
-            | C::LeagueRoundup
-            | C::StandingsUpdate
-            | C::TransferRumour
-            | C::TransferRoundup
-            | C::InjuryNews
-            | C::ManagerialChange
-            | C::SeasonPreview
-            | C::Editorial => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("MatchReport", C::MatchReport),
-                ("LeagueRoundup", C::LeagueRoundup),
-                ("StandingsUpdate", C::StandingsUpdate),
-                ("TransferRumour", C::TransferRumour),
-                ("TransferRoundup", C::TransferRoundup),
-                ("InjuryNews", C::InjuryNews),
-                ("ManagerialChange", C::ManagerialChange),
-                ("SeasonPreview", C::SeasonPreview),
-                ("Editorial", C::Editorial),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                C::MatchReport; [
+                    ("MatchReport", C::MatchReport),
+                    ("LeagueRoundup", C::LeagueRoundup),
+                    ("StandingsUpdate", C::StandingsUpdate),
+                    ("TransferRumour", C::TransferRumour),
+                    ("TransferRoundup", C::TransferRoundup),
+                    ("InjuryNews", C::InjuryNews),
+                    ("ManagerialChange", C::ManagerialChange),
+                    ("SeasonPreview", C::SeasonPreview),
+                    ("Editorial", C::Editorial),
+                ]
+            ),
             |value| format!("{value:?}"),
             parse_news_category,
         );

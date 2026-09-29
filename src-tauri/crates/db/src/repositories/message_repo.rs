@@ -170,66 +170,50 @@ mod tests {
     use crate::game_database::GameDatabase;
     use std::collections::HashMap;
 
-    /// Pins the stored name of every message category. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every message category.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn message_categories_are_stored_by_name() {
         use MessageCategory as C;
-        match C::Welcome {
-            C::Welcome
-            | C::LeagueInfo
-            | C::MatchPreview
-            | C::MatchResult
-            | C::Transfer
-            | C::BoardDirective
-            | C::PlayerMorale
-            | C::Injury
-            | C::Training
-            | C::Finance
-            | C::Contract
-            | C::ScoutReport
-            | C::Media
-            | C::System
-            | C::JobOffer => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("Welcome", C::Welcome),
-                ("LeagueInfo", C::LeagueInfo),
-                ("MatchPreview", C::MatchPreview),
-                ("MatchResult", C::MatchResult),
-                ("Transfer", C::Transfer),
-                ("BoardDirective", C::BoardDirective),
-                ("PlayerMorale", C::PlayerMorale),
-                ("Injury", C::Injury),
-                ("Training", C::Training),
-                ("Finance", C::Finance),
-                ("Contract", C::Contract),
-                ("ScoutReport", C::ScoutReport),
-                ("Media", C::Media),
-                ("System", C::System),
-                ("JobOffer", C::JobOffer),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                C::Welcome; [
+                    ("Welcome", C::Welcome),
+                    ("LeagueInfo", C::LeagueInfo),
+                    ("MatchPreview", C::MatchPreview),
+                    ("MatchResult", C::MatchResult),
+                    ("Transfer", C::Transfer),
+                    ("BoardDirective", C::BoardDirective),
+                    ("PlayerMorale", C::PlayerMorale),
+                    ("Injury", C::Injury),
+                    ("Training", C::Training),
+                    ("Finance", C::Finance),
+                    ("Contract", C::Contract),
+                    ("ScoutReport", C::ScoutReport),
+                    ("Media", C::Media),
+                    ("System", C::System),
+                    ("JobOffer", C::JobOffer),
+                ]
+            ),
             |value| format!("{value:?}"),
             parse_category,
         );
     }
 
-    /// Pins the stored name of every message priority. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every message priority.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn message_priorities_are_stored_by_name() {
         use MessagePriority as P;
-        match P::Low {
-            P::Low | P::Normal | P::High | P::Urgent => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("Low", P::Low),
-                ("Normal", P::Normal),
-                ("High", P::High),
-                ("Urgent", P::Urgent),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                P::Low; [
+                    ("Low", P::Low),
+                    ("Normal", P::Normal),
+                    ("High", P::High),
+                    ("Urgent", P::Urgent),
+                ]
+            ),
             |value| format!("{value:?}"),
             parse_priority,
         );

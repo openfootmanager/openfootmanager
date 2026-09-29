@@ -393,21 +393,20 @@ mod tests {
     };
     use domain::{manager::Manager, team::Team};
 
-    /// Pins the stored name of every board objective type. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every board objective type.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn objective_types_are_stored_by_name() {
         use ObjectiveType as O;
-        match O::LeaguePosition {
-            O::LeaguePosition | O::Wins | O::GoalsScored | O::FinancialStability => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("LeaguePosition", O::LeaguePosition),
-                ("Wins", O::Wins),
-                ("GoalsScored", O::GoalsScored),
-                ("FinancialStability", O::FinancialStability),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                O::LeaguePosition; [
+                    ("LeaguePosition", O::LeaguePosition),
+                    ("Wins", O::Wins),
+                    ("GoalsScored", O::GoalsScored),
+                    ("FinancialStability", O::FinancialStability),
+                ]
+            ),
             |value| format!("{value:?}"),
             |stored: &str| {
                 parse_objective_type(stored)
@@ -416,19 +415,18 @@ mod tests {
         );
     }
 
-    /// Pins the stored name of every youth scouting region. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every youth scouting region.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn youth_scouting_regions_are_stored_by_name() {
         use YouthScoutingRegion as R;
-        match R::Domestic {
-            R::Domestic | R::International => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("Domestic", R::Domestic),
-                ("International", R::International),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                R::Domestic; [
+                    ("Domestic", R::Domestic),
+                    ("International", R::International),
+                ]
+            ),
             |value| format!("{value:?}"),
             |stored: &str| {
                 parse_youth_region(stored)
@@ -437,20 +435,19 @@ mod tests {
         );
     }
 
-    /// Pins the stored name of every youth scouting objective. The `match` has no wildcard: a new variant is a
-    /// compile error here until it has a stored name and a parser arm.
+    /// Pins the stored name of every youth scouting objective.
+    /// The case list also generates an exhaustive match for new variants.
     #[test]
     fn youth_scouting_objectives_are_stored_by_name() {
         use YouthScoutingObjective as O;
-        match O::Balanced {
-            O::Balanced | O::HighPotential | O::ReadySoon => {}
-        }
         crate::stored_text::assert_stored_as(
-            &[
-                ("Balanced", O::Balanced),
-                ("HighPotential", O::HighPotential),
-                ("ReadySoon", O::ReadySoon),
-            ],
+            &crate::stored_text::stored_text_cases!(
+                O::Balanced; [
+                    ("Balanced", O::Balanced),
+                    ("HighPotential", O::HighPotential),
+                    ("ReadySoon", O::ReadySoon),
+                ]
+            ),
             |value| format!("{value:?}"),
             |stored: &str| {
                 parse_youth_objective(stored)

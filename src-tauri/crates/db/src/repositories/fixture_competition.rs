@@ -32,16 +32,12 @@ pub(crate) fn parse_fixture_competition(value: &str) -> FixtureCompetition {
     }
 }
 
-/// Every kind of fixture, once. The `match` has no wildcard on purpose: a new variant stops
-/// this compiling until it is listed here, and so until its save/load is tested.
+/// Every kind of fixture, once. The shared list generates an exhaustive match, so a new
+/// variant requires a stored name and a save/load test.
 #[cfg(test)]
 pub(crate) fn every_fixture_competition() -> [(&'static str, FixtureCompetition); 8] {
     use FixtureCompetition::*;
-    match League {
-        League | Cup | ContinentalClub | InternationalClub | InternationalNation | Friendly
-        | FriendlyCup | PreseasonTournament => {}
-    }
-    [
+    crate::stored_text::stored_text_cases!(League; [
         ("League", League),
         ("Cup", Cup),
         ("ContinentalClub", ContinentalClub),
@@ -50,7 +46,7 @@ pub(crate) fn every_fixture_competition() -> [(&'static str, FixtureCompetition)
         ("Friendly", Friendly),
         ("FriendlyCup", FriendlyCup),
         ("PreseasonTournament", PreseasonTournament),
-    ]
+    ])
 }
 
 #[cfg(test)]

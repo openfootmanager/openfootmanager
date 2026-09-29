@@ -14,8 +14,8 @@ use std::fmt::Debug;
 
 /// Assert that each `(stored, value)` pair reads and writes as that exact string.
 ///
-/// Every call site pairs this with a `match` over the enum that names every variant and has no
-/// wildcard, so a new variant fails to compile until it is added to the table.
+/// Every call site builds its cases with `stored_text_cases!`, so the exhaustive match and
+/// the values checked here come from the same list.
 pub(crate) fn assert_stored_as<T: PartialEq + Debug>(
     cases: &[(&str, T)],
     write: impl Fn(&T) -> String,
@@ -30,3 +30,15 @@ pub(crate) fn assert_stored_as<T: PartialEq + Debug>(
         );
     }
 }
+
+/// Keep the compile-time exhaustiveness check tied to the stored names tested at runtime.
+macro_rules! stored_text_cases {
+    ($sample:expr; [$(($stored:literal, $variant:path)),+ $(,)?]) => {{
+        match $sample {
+            $($variant)|+ => {}
+        }
+        [$(($stored, $variant)),+]
+    }};
+}
+
+pub(crate) use stored_text_cases;
