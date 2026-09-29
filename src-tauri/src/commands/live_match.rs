@@ -774,6 +774,26 @@ mod tests {
         assert!(round_summary.is_complete);
         assert_eq!(round_summary.pending_fixture_count, 0);
         assert_eq!(round_summary.completed_results.len(), 2);
+        // The digest exists to show movement, so at least one club has to have moved. Taking the
+        // baseline at finish time instead of at session creation makes every delta zero — the
+        // round has already been played by then — and the assertions above all still pass.
+        assert!(
+            round_summary
+                .standings_delta
+                .iter()
+                .any(|delta| delta.points_delta != 0),
+            "a played round must move somebody: {:?}",
+            round_summary
+                .standings_delta
+                .iter()
+                .map(|delta| (
+                    delta.team_id.as_str(),
+                    delta.previous_position,
+                    delta.current_position,
+                    delta.points_delta
+                ))
+                .collect::<Vec<_>>()
+        );
         assert_eq!(
             response
                 .game
