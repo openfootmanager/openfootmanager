@@ -299,6 +299,31 @@ describe("ReportBugModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("moves focus to the title of every step, not just the first", async () => {
+    // Each step replaces the body of the dialog, including the button just pressed. Without this
+    // focus falls to <body>: the new title is never announced, and the next Tab starts at the top
+    // of the page behind the overlay rather than inside the dialog.
+    render(<ReportBugModal onClose={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "reportBug.describeTitle" })).toHaveFocus();
+
+    fillRequired();
+    // Focused explicitly because `fireEvent.click` does not move focus the way a real activation
+    // does — and the button holding focus when it unmounts is the whole failure being guarded.
+    const review = screen.getByRole("button", { name: "reportBug.review" });
+    review.focus();
+    fireEvent.click(review);
+
+    expect(
+      await screen.findByRole("heading", { name: "reportBug.previewTitle" }),
+    ).toHaveFocus();
+
+    const submit = screen.getByRole("button", { name: "reportBug.saveAndOpen" });
+    submit.focus();
+    fireEvent.click(submit);
+
+    expect(await screen.findByRole("heading", { name: "reportBug.doneTitle" })).toHaveFocus();
+  });
+
   it("redacts what the player typed before it reaches the URL", async () => {
     // The bundle's copy of these words was redacted while the URL's was not, so a path pasted
     // into the description went to GitHub and into the browser's history — neither of which gives

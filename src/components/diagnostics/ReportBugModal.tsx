@@ -118,13 +118,19 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
   }, [requestClose]);
 
   // A dialog that never takes focus is one a keyboard user cannot reach: `aria-modal` alone leaves
-  // focus on the button behind the overlay, and Tab keeps walking the page underneath. Focus moves
-  // in on open and returns to wherever it was on close.
+  // focus on the button behind the overlay. Whatever had focus when the dialog opened gets it back
+  // when it closes.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    headingRef.current?.focus();
     return () => previouslyFocused?.focus?.();
   }, []);
+
+  // On every step, not only the first. Each step replaces the whole body of the dialog, including
+  // the button that was just pressed, so focus fell to `<body>`: the new title was never announced,
+  // and the next Tab started from the top of the page — outside the dialog entirely.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [step]);
 
   const missing = useMemo(() => missingRequiredFields(draft), [draft]);
 
