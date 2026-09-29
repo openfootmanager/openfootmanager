@@ -48,21 +48,15 @@ impl Redactor {
     /// Build from explicit values. The command layer uses [`Redactor::from_environment`]; tests
     /// use this, so none of them depend on who is running them.
     pub fn new(home: Option<&str>, user: Option<&str>, host: Option<&str>) -> Self {
-        let mut paths = Vec::new();
+        let mut paths: Vec<String> = Vec::new();
         if let Some(home) = home.map(str::trim).filter(|h| h.len() >= MIN_NAME_LEN) {
-            paths.push(home.to_owned());
-            if home.contains('\\') {
-                // Three spellings reach the log, and missing any one of them ships the whole home
-                // directory. `{:?}` of a `Path` goes through `OsStr` Debug and `char::escape_debug`,
-                // which DOUBLES every backslash — and that is how `game_database.rs` writes the save
-                // path on every launch. `serde_json` (last-crash.json) and `JSON.stringify` in the
-                // frontend logger produce the same doubled form. The forward-slash form turns up
-                // when a path came from a URL rather than from `Path`.
-                paths.push(home.replace('\\', "/"));
-                paths.push(home.replace('\\', "\\\\"));
-            }
+            paths.extend(path_spellings(home));
         }
+        // Longest first, and deduplicated: a path that spells the same on two routes would
+        // otherwise be searched for twice, and a shorter spelling nested inside a longer one must
+        // not be replaced first.
         paths.sort_by_key(|p| std::cmp::Reverse(p.len()));
+        paths.dedup();
 
         let names = [user, host]
             .into_iter()
@@ -107,6 +101,38 @@ impl Redactor {
         }
         out
     }
+}
+
+/// Every way one sensitive path can be written by the time it reaches a log line.
+///
+/// Missing any single spelling ships the whole home directory, so this is deliberately generous —
+/// a spelling that never occurs costs one failed substring search.
+///
+/// - `{:?}` of a `Path` goes through `OsStr` Debug and `char::escape_debug`, which DOUBLES every
+///   backslash. That is how `game_database.rs` writes the save path on every launch, and
+///   `serde_json` and the frontend's `JSON.stringify` produce the same doubled form.
+/// - **Doubled twice.** A panic message that already holds a `{:?}` path is itself serialised
+///   into `last-crash.json`, and the escaping runs a second time over the escapes.
+/// - Forward slashes turn up when a path came from a URL rather than from `Path`.
+/// - Percent-encoding turns up in `asset://` URLs, and anywhere a path with a space in it — which
+///   is most Windows profile folders named after a person — is put in a URL.
+fn path_spellings(path: &str) -> Vec<String> {
+    let mut spellings = vec![path.to_owned()];
+    if path.contains('\\') {
+        spellings.push(path.replace('\\', "/"));
+        spellings.push(path.replace('\\', "\\\\"));
+        spellings.push(path.replace('\\', "\\\\\\\\"));
+    }
+    for spelling in spellings.clone() {
+        let encoded = spelling
+            .replace('%', "%25")
+            .replace(' ', "%20")
+            .replace('\\', "%5C");
+        if encoded != spelling {
+            spellings.push(encoded);
+        }
+    }
+    spellings
 }
 
 /// True when `byte` can sit inside a name — so a match flanked by one of these is part of a longer
@@ -312,6 +338,32 @@ mod tests {
         let out = redactor().apply("/home/srobot -> /home/srobot/backup");
 
         assert_eq!(out, "~ -> ~/backup");
+    }
+
+    #[test]
+    fn redacts_a_windows_path_escaped_twice_over() {
+        // A panic message already holds the `{:?}` spelling, with its backslashes doubled. Writing
+        // that message into last-crash.json escapes it AGAIN, so the path arrives with four
+        // backslashes per separator — and the crash file is the one part of a report nobody reads
+        // before it is sent.
+        // No user name is given, so the path rule is the only thing that can satisfy this.
+        let out = Redactor::new(Some("C:\\Users\\srobot"), None, None)
+            .apply(r"panicked at C:\\\\Users\\\\srobot\\\\saves\\\\a.db");
+
+        assert!(!out.contains("srobot"), "{out}");
+        assert!(out.contains('~'), "{out}");
+    }
+
+    #[test]
+    fn redacts_a_percent_encoded_path() {
+        // `asset://` URLs and anything else that puts a path in a URL. A profile folder named
+        // after a person usually has a space in it, and a space is where the encoding starts.
+        let redactor = Redactor::new(Some(r"C:\Users\Ada Lovelace"), None, None);
+
+        let out = redactor.apply("asset://localhost/C:%5CUsers%5CAda%20Lovelace%5Clogs%5Capp.log");
+
+        assert!(!out.contains("Lovelace"), "{out}");
+        assert!(out.contains('~'), "{out}");
     }
 
     #[test]
