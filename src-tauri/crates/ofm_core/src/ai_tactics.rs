@@ -276,11 +276,18 @@ const FORM_WINDOW: usize = 5;
 /// Fewer results than this is not evidence, it is a new season.
 const FORM_MINIMUM: usize = 3;
 
-// Both triggers sit at the same tail of the same measured distribution. Over
-// every five-match window a probe season produces, a club scores and concedes
-// 2.06 a game on average, with p15 at 1.2 and p85 at 2.8 — the two numbers are
-// the same because every match is counted from both ends. So these are the
+// Both triggers sit at the same tail of the same measured distribution: p85 of
+// goals conceded and p15 of goals scored, over every five-match window a probe
+// season produces (`tests/tactical_adaptation_probe.rs`). The two tails mirror
+// each other because every match is counted from both ends. So these are the
 // worst and best sixth of runs a club actually lives through.
+//
+// They are measurements, and they move when the football does. First set at 2.8
+// and 1.2 when a club scored 2.06 a game; fielding a real, rested eleven instead
+// of a whole tired squad lifted that to about 2.29, where 2.8 conceded sits near
+// p70 and a third of clubs read as leaking. Six probe seasons put p85 at 3.2 in
+// four of them and p15 at 1.4 in four. Anything that changes how many goals are
+// scored should re-read that table before trusting these.
 //
 // The first pass used 2.2 and 0.8, which read like a matched pair and were
 // nothing of the kind: 2.2 sat just above the median and fired for two clubs in
@@ -289,9 +296,9 @@ const FORM_MINIMUM: usize = 3;
 // and the reaction table came out as one column of compact blocks.
 
 /// Conceding at this rate says the plan is not holding, whatever the badge says.
-const LEAKY: f64 = 2.8;
+const LEAKY: f64 = 3.2;
 /// Scoring at this rate says the same about the other end.
-const BLUNT: f64 = 1.2;
+const BLUNT: f64 = 1.4;
 
 struct FormReading {
     conceded_per_game: f64,
@@ -675,17 +682,20 @@ mod tests {
         }
     }
 
+    /// Conceding at exactly the rate that says the plan is not holding, and
+    /// scoring well enough that the other trigger stays quiet.
     fn leaking() -> FormReading {
         FormReading {
-            conceded_per_game: 3.0,
+            conceded_per_game: LEAKY,
             scored_per_game: 2.0,
         }
     }
 
+    /// Scoring at exactly the blunt rate, and keeping them out at the other end.
     fn toothless() -> FormReading {
         FormReading {
             conceded_per_game: 1.0,
-            scored_per_game: 0.2,
+            scored_per_game: BLUNT,
         }
     }
 
