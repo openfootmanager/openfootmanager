@@ -51,10 +51,15 @@ impl Redactor {
         let mut paths = Vec::new();
         if let Some(home) = home.map(str::trim).filter(|h| h.len() >= MIN_NAME_LEN) {
             paths.push(home.to_owned());
-            // Logs quote paths in whichever separator the writer used; a Windows home directory
-            // shows up both ways depending on whether it came from `Path` or from a URL.
             if home.contains('\\') {
+                // Three spellings reach the log, and missing any one of them ships the whole home
+                // directory. `{:?}` of a `Path` goes through `OsStr` Debug and `char::escape_debug`,
+                // which DOUBLES every backslash — and that is how `game_database.rs` writes the save
+                // path on every launch. `serde_json` (last-crash.json) and `JSON.stringify` in the
+                // frontend logger produce the same doubled form. The forward-slash form turns up
+                // when a path came from a URL rather than from `Path`.
                 paths.push(home.replace('\\', "/"));
+                paths.push(home.replace('\\', "\\\\"));
             }
         }
         paths.sort_by_key(|p| std::cmp::Reverse(p.len()));
@@ -91,7 +96,7 @@ impl Redactor {
     pub fn apply(&self, text: &str) -> String {
         let mut out = text.to_owned();
         for path in &self.paths {
-            out = out.replace(path.as_str(), "~");
+            out = replace_ignoring_ascii_case(&out, path, "~");
         }
         for name in &self.names {
             out = replace_whole_words(&out, name, "<redacted>");
@@ -106,15 +111,47 @@ fn is_word_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
+/// Case-insensitive replace, ASCII only.
+///
+/// `to_ascii_lowercase` is deliberate rather than `to_lowercase`: it preserves byte length, so an
+/// index found in the lowered copy is valid in the original. Full Unicode folding can change the
+/// length (`İ` lowers to two chars) and the offsets would no longer line up. The cost is that a
+/// non-ASCII account name is matched case-sensitively, which is the safe direction — it can only
+/// fail to redact a spelling that never appears, never corrupt one that does.
+///
+/// Windows paths are case-insensitive, and Windows reports `USERNAME` as the account was typed
+/// while the profile folder keeps the case it was created with. Matching exactly is how a home
+/// directory survives redaction on the platform.
+fn replace_ignoring_ascii_case(haystack: &str, needle: &str, replacement: &str) -> String {
+    if needle.is_empty() {
+        return haystack.to_owned();
+    }
+    let lowered_haystack = haystack.to_ascii_lowercase();
+    let lowered_needle = needle.to_ascii_lowercase();
+    let mut out = String::with_capacity(haystack.len());
+    let mut cursor = 0;
+
+    while let Some(found) = lowered_haystack[cursor..].find(&lowered_needle) {
+        let start = cursor + found;
+        out.push_str(&haystack[cursor..start]);
+        out.push_str(replacement);
+        cursor = start + needle.len();
+    }
+    out.push_str(&haystack[cursor..]);
+    out
+}
+
 fn replace_whole_words(haystack: &str, needle: &str, replacement: &str) -> String {
     if needle.is_empty() {
         return haystack.to_owned();
     }
     let bytes = haystack.as_bytes();
+    let lowered_haystack = haystack.to_ascii_lowercase();
+    let lowered_needle = needle.to_ascii_lowercase();
     let mut out = String::with_capacity(haystack.len());
     let mut cursor = 0;
 
-    while let Some(found) = haystack[cursor..].find(needle) {
+    while let Some(found) = lowered_haystack[cursor..].find(&lowered_needle) {
         let start = cursor + found;
         let end = start + needle.len();
         let before_ok = start == 0 || !is_word_byte(bytes[start - 1]);
@@ -214,6 +251,53 @@ mod tests {
         assert!(redactor
             .apply("opening C:/Users/Sturdy/AppData/logs")
             .contains("~/AppData/logs"));
+    }
+
+    #[test]
+    fn redacts_a_path_as_rust_debug_actually_writes_it() {
+        // `game_database.rs` logs `{:?}` of a `&Path`, and Path -> OsStr Debug escapes through
+        // `char::escape_debug`, which DOUBLES every backslash. The unescaped spelling the older
+        // test used is a string no producer in this app ever emits, so the suite stayed green
+        // while the whole home directory shipped in the bundle.
+        let redactor = Redactor::new(Some(r"C:\Users\Bob"), Some("Bob"), None);
+
+        let out =
+            redactor.apply(r#"[game_db] opening database at "C:\\Users\\Bob\\AppData\\a.db""#);
+
+        assert!(!out.contains("Bob"), "{out}");
+        assert!(out.contains('~'), "{out}");
+    }
+
+    #[test]
+    fn redacts_a_path_json_escaped_the_way_serde_writes_it() {
+        // `last-crash.json` and the frontend's `JSON.stringify` produce the same doubled form.
+        let redactor = Redactor::new(Some(r"C:\Users\Bob"), Some("Bob"), None);
+
+        let out = redactor.apply(r#"{"message":"could not open C:\\Users\\Bob\\x.db"}"#);
+
+        assert!(!out.contains("Bob"), "{out}");
+    }
+
+    #[test]
+    fn redacts_a_home_directory_whose_case_differs_from_the_account_name() {
+        // Windows reports USERNAME as the account was typed and the profile folder as it was
+        // created; the two differ often enough to matter, and paths are case-insensitive there.
+        let redactor = Redactor::new(Some(r"C:\Users\Sturdy"), Some("sturdy"), None);
+
+        let out = redactor.apply(r#"[game_db] ready at "C:\\USERS\\STURDY\\AppData""#);
+
+        assert!(!out.to_ascii_lowercase().contains("sturdy"), "{out}");
+    }
+
+    #[test]
+    fn redacts_a_short_account_name_through_its_own_home_path() {
+        // `Bob` is under MIN_NAME_LEN, so the whole-word rule skips it by design. The path rule has
+        // to carry it, or a three-letter account leaks on every launch.
+        let out = Redactor::new(Some("/home/bob"), Some("bob"), None)
+            .apply(r#"[game_db] opening database at "/home/bob/.local/share/ofm/a.db""#);
+
+        assert!(!out.contains("/home/bob"), "{out}");
+        assert!(out.contains("~/.local/share/ofm/a.db"), "{out}");
     }
 
     #[test]
