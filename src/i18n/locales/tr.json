@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Geçen sefer oyun normal kapanmadığı için eklendi.",
     "optionalHeading": "İstersen ekle — varsayılan olarak kapalı",
     "includeSave": "Kayıt dosyam",
+      "includeSaveDesc": "İçinde bulunduğun durumu birebir yeniden oynatmamızı sağlar.",
     "includeSaveNoCareer": "Açık bir kariyer yok, eklenecek bir şey de yok.",
     "nothingSentYet": "Hesap gerekmez. Aşağıdaki düğmeye basana kadar hiçbir şey kaydedilmez veya açılmaz.",
     "savedTo": "Rapor dosyan buraya kaydedildi:",

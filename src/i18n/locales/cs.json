@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Přiloženo, protože se hra minule neukončila normálně.",
     "optionalHeading": "Přidej, pokud chceš — ve výchozím stavu vypnuto",
     "includeSave": "Moje uložená hra",
+      "includeSaveDesc": "Umožní nám přehrát přesně tu situaci, ve které jsi byl.",
     "includeSaveNoCareer": "Žádná kariéra není otevřená, není co přiložit.",
     "nothingSentYet": "Žádný účet není potřeba. Nic se neuloží ani neotevře, dokud nestiskneš tlačítko níže.",
     "savedTo": "Soubor s hlášením byl uložen sem:",

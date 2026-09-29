@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Disertakan karena gim tidak tertutup normal terakhir kali.",
     "optionalHeading": "Tambahkan kalau mau — mati secara bawaan",
     "includeSave": "Berkas simpananku",
+      "includeSaveDesc": "Memungkinkan kami memutar ulang situasi persis yang kamu alami.",
     "includeSaveNoCareer": "Tidak ada karier yang terbuka, jadi tidak ada yang bisa dilampirkan.",
     "nothingSentYet": "Tidak perlu akun. Tidak ada yang disimpan atau dibuka sampai kamu menekan tombol di bawah.",
     "savedTo": "Berkas laporanmu disimpan di sini:",

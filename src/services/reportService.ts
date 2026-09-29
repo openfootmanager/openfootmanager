@@ -8,6 +8,7 @@ export interface DiagnosticsReport {
   webview_version: string;
   log_directory: string;
   crash_on_previous_run: boolean;
+  has_active_save: boolean;
 }
 
 /** What actually went into the bundle, for the preview and the confirmation. */

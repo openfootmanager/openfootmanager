@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "因为游戏上次没有正常关闭，所以一并包含。",
     "optionalHeading": "可选添加 — 默认关闭",
     "includeSave": "我的存档",
+      "includeSaveDesc": "让我们能重现你当时的确切情况。",
     "includeSaveNoCareer": "当前没有进行中的生涯，没有可附加的内容。",
     "nothingSentYet": "无需账号。在你点击下方按钮之前，不会保存或打开任何内容。",
     "savedTo": "你的报告文件已保存在：",

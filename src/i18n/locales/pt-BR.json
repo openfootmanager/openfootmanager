@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Incluído porque o jogo não fechou normalmente da última vez.",
     "optionalHeading": "Adicione se quiser — desligado por padrão",
     "includeSave": "Meu save",
+      "includeSaveDesc": "Permite reproduzir a situação exata em que você estava.",
     "includeSaveNoCareer": "Nenhuma carreira aberta, então não há nada para anexar.",
     "nothingSentYet": "Sem necessidade de conta. Nada é salvo nem aberto até você clicar no botão abaixo.",
     "savedTo": "Seu arquivo de relato foi salvo aqui:",

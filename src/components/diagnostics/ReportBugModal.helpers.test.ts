@@ -66,6 +66,7 @@ describe("describeMachine", () => {
     webview_version: "2.50.1",
     log_directory: "~/.local/share/ofm/logs",
     crash_on_previous_run: false,
+    has_active_save: false,
   };
 
   it("names the platform and the webview", () => {

@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Inclus parce que le jeu ne s'est pas fermé normalement la dernière fois.",
     "optionalHeading": "À ajouter si tu veux — désactivé par défaut",
     "includeSave": "Ma sauvegarde",
+      "includeSaveDesc": "Nous permet de rejouer exactement la situation dans laquelle tu étais.",
     "includeSaveNoCareer": "Aucune carrière ouverte, il n'y a donc rien à joindre.",
     "nothingSentYet": "Aucun compte nécessaire. Rien n'est enregistré ni ouvert avant que tu n'appuies sur le bouton ci-dessous.",
     "savedTo": "Ton fichier de rapport a été enregistré ici :",

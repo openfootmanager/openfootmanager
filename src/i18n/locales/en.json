@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Included because the game did not close normally last time.",
     "optionalHeading": "Add if you want to — off by default",
     "includeSave": "My save file",
+      "includeSaveDesc": "Lets us replay the exact situation you were in.",
     "includeSaveNoCareer": "No career is open, so there is nothing to attach.",
     "nothingSentYet": "No account needed. Nothing is saved or opened until you press the button below.",
     "savedTo": "Your report file was saved here:",

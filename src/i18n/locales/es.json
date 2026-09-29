@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Se incluye porque el juego no se cerró con normalidad la última vez.",
     "optionalHeading": "Añádelo si quieres: desactivado por defecto",
     "includeSave": "Mi partida guardada",
+      "includeSaveDesc": "Nos permite reproducir la situación exacta en la que estabas.",
     "includeSaveNoCareer": "No hay ninguna carrera abierta, así que no hay nada que adjuntar.",
     "nothingSentYet": "No hace falta cuenta. No se guarda ni se abre nada hasta que pulses el botón de abajo.",
     "savedTo": "Tu archivo de informe se ha guardado aquí:",

@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Enthalten, weil sich das Spiel letztes Mal nicht normal beendet hat.",
     "optionalHeading": "Nach Wunsch hinzufügen — standardmäßig aus",
     "includeSave": "Mein Spielstand",
+      "includeSaveDesc": "Damit können wir genau die Situation nachstellen, in der du warst.",
     "includeSaveNoCareer": "Keine Karriere geöffnet, also gibt es nichts anzuhängen.",
     "nothingSentYet": "Kein Konto nötig. Es wird nichts gespeichert oder geöffnet, bis du unten drückst.",
     "savedTo": "Deine Berichtsdatei wurde hier gespeichert:",

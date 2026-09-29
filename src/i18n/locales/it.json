@@ -4085,6 +4085,7 @@
     "itemCrashDesc": "Incluso perché l'ultima volta il gioco non si è chiuso normalmente.",
     "optionalHeading": "Aggiungi se vuoi — disattivato di default",
     "includeSave": "Il mio salvataggio",
+      "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",
     "includeSaveNoCareer": "Nessuna carriera aperta, quindi non c'è nulla da allegare.",
     "nothingSentYet": "Nessun account necessario. Nulla viene salvato o aperto finché non premi il pulsante qui sotto.",
     "savedTo": "Il file della segnalazione è stato salvato qui:",

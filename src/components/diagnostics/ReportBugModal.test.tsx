@@ -33,6 +33,7 @@ import { ReportBugModal } from "./ReportBugModal";
 
 const DIAGNOSTICS = {
   app_version: "0.3.0",
+  has_active_save: true,
   os: "linux",
   arch: "x86_64",
   webview_version: "2.50.1",
@@ -114,6 +115,42 @@ describe("ReportBugModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
     await waitFor(() => expect(exportReportBundle).toHaveBeenCalled());
     expect(exportReportBundle).toHaveBeenCalledWith("/home/x/ofm-report.zip", false);
+  });
+
+  it("disables the save box, and says so, when no career is open", async () => {
+    // The preview is the consent step. Claiming there is nothing to attach while the backend
+    // would attach the open career is the one failure this screen must not have.
+    collectDiagnostics.mockResolvedValue({ ...DIAGNOSTICS, has_active_save: false });
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+    expect(screen.getByText("reportBug.includeSaveNoCareer")).toBeInTheDocument();
+  });
+
+  it("offers the save when a career is open, without claiming there is none", async () => {
+    collectDiagnostics.mockResolvedValue({ ...DIAGNOSTICS, has_active_save: true });
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(screen.getByRole("checkbox")).toBeEnabled();
+    expect(screen.queryByText("reportBug.includeSaveNoCareer")).not.toBeInTheDocument();
+  });
+
+  it("keeps the save box disabled when diagnostics could not be read", async () => {
+    // Unknown must fail closed: offering to attach a save we cannot confirm exists is the same
+    // mistake in the other direction.
+    collectDiagnostics.mockRejectedValue(new Error("no backend"));
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 
   it("includes the save when the box is ticked", async () => {

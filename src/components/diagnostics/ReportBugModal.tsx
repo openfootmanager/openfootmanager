@@ -31,8 +31,6 @@ const FREQUENCIES: Frequency[] = ["everyTime", "sometimes", "once"];
 
 interface ReportBugModalProps {
   onClose: () => void;
-  /** One line describing the open career, if there is one. Empty when at the main menu. */
-  careerLine?: string;
 }
 
 /**
@@ -43,7 +41,7 @@ interface ReportBugModalProps {
  * is saved where they choose and the GitHub form opens with the text already filled in. That path
  * needs no server, which is why it is also the permanent fallback once one exists.
  */
-export function ReportBugModal({ onClose, careerLine = "" }: ReportBugModalProps) {
+export function ReportBugModal({ onClose }: ReportBugModalProps) {
   const { t, i18n } = useTranslation();
   const [step, setStep] = useState<"describe" | "preview" | "done">("describe");
   const [draft, setDraft] = useState<ReportDraft>(EMPTY_DRAFT);
@@ -80,6 +78,11 @@ export function ReportBugModal({ onClose, careerLine = "" }: ReportBugModalProps
 
   const missing = useMemo(() => missingRequiredFields(draft), [draft]);
 
+  // Fails closed. `diagnostics` is null until the backend answers and stays null if it never does,
+  // and offering to attach a save we cannot confirm exists is the same mistake as denying one that
+  // does. The export reads `get_save_id()` — the value behind this flag — so the two agree.
+  const canAttachSave = diagnostics?.has_active_save === true;
+
   const handleContinue = () => {
     if (missing.length > 0) {
       setShowErrors(true);
@@ -101,7 +104,7 @@ export function ReportBugModal({ onClose, careerLine = "" }: ReportBugModalProps
       // The dialog returns null when the player backs out; that is not a failure.
       if (typeof chosen !== "string") return;
 
-      const written = await exportReportBundle(chosen, includeSave);
+      const written = await exportReportBundle(chosen, canAttachSave && includeSave);
       setSummary(written);
 
       await openUrl(
@@ -109,7 +112,7 @@ export function ReportBugModal({ onClose, careerLine = "" }: ReportBugModalProps
           whatHappened: draft.whatHappened,
           expected: draft.expected,
           steps: draft.steps,
-          gameContext: describeContext(t(`reportBug.frequency.${draft.frequency}`), careerLine),
+          gameContext: describeContext(t(`reportBug.frequency.${draft.frequency}`), ""),
           appVersion: formatAppVersion(),
           os: describeMachine(diagnostics),
           resolution: describeResolution(window.screen),
@@ -274,7 +277,8 @@ export function ReportBugModal({ onClose, careerLine = "" }: ReportBugModalProps
             <label className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 cursor-pointer">
               <input
                 type="checkbox"
-                checked={includeSave}
+                checked={canAttachSave && includeSave}
+                disabled={!canAttachSave}
                 onChange={(event) => setIncludeSave(event.target.checked)}
                 className="w-4 h-4 rounded border-gray-400 dark:border-gray-500 text-primary-600 focus:ring-2 focus:ring-primary-500"
               />
@@ -283,7 +287,9 @@ export function ReportBugModal({ onClose, careerLine = "" }: ReportBugModalProps
                   {t("reportBug.includeSave")}
                 </p>
                 <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">
-                  {careerLine || t("reportBug.includeSaveNoCareer")}
+                  {canAttachSave
+                    ? t("reportBug.includeSaveDesc")
+                    : t("reportBug.includeSaveNoCareer")}
                 </p>
               </div>
             </label>

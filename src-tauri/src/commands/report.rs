@@ -31,13 +31,23 @@ pub struct DiagnosticsReport {
     pub webview_version: String,
     pub log_directory: String,
     pub crash_on_previous_run: bool,
+    /// Whether a career is open, so the preview and the backend cannot disagree about it.
+    ///
+    /// The preview decides from this whether to offer the save at all. Deriving it here, from the
+    /// same `get_save_id()` the export uses, is the point: when the screen computed it for itself
+    /// it said "no career is open" while the export attached one.
+    pub has_active_save: bool,
 }
 
 fn log_dir(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     app_handle.path().app_log_dir().ok()
 }
 
-fn collect(app_handle: &tauri::AppHandle, redactor: &Redactor) -> DiagnosticsReport {
+fn collect(
+    app_handle: &tauri::AppHandle,
+    redactor: &Redactor,
+    has_active_save: bool,
+) -> DiagnosticsReport {
     let crash_on_previous_run = app_handle
         .path()
         .app_data_dir()
@@ -57,12 +67,20 @@ fn collect(app_handle: &tauri::AppHandle, redactor: &Redactor) -> DiagnosticsRep
             .map(|dir| redactor.apply(&dir.to_string_lossy()))
             .unwrap_or_default(),
         crash_on_previous_run,
+        has_active_save,
     }
 }
 
 #[tauri::command]
-pub fn collect_diagnostics(app_handle: tauri::AppHandle) -> DiagnosticsReport {
-    collect(&app_handle, &Redactor::from_environment())
+pub fn collect_diagnostics(
+    app_handle: tauri::AppHandle,
+    state: State<'_, Arc<StateManager>>,
+) -> DiagnosticsReport {
+    collect(
+        &app_handle,
+        &Redactor::from_environment(),
+        state.get_save_id().is_some(),
+    )
 }
 
 /// Write the report bundle to a path the player chose, and say what went into it.
@@ -75,7 +93,8 @@ pub fn export_report_bundle(
     include_save: bool,
 ) -> Result<BundleSummary, String> {
     let redactor = Redactor::from_environment();
-    let diagnostics = collect(&app_handle, &redactor);
+    let has_active_save = state.get_save_id().is_some();
+    let diagnostics = collect(&app_handle, &redactor, has_active_save);
     let diagnostics_json =
         serde_json::to_string_pretty(&diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;
 
