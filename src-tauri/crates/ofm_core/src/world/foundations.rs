@@ -931,4 +931,51 @@ mod tests {
             .count();
         assert_eq!(tiers, 1);
     }
+
+    /// `division_tier_name` names a first and a second division and nothing
+    /// else, so a third tier would share both its display name and its
+    /// translation key with the second. The shipped world never reaches that —
+    /// the largest nation has 40 clubs and the default size is 20 — but a
+    /// caller-chosen size could, so the plan builder widens the divisions
+    /// rather than adding a tier nothing can name.
+    #[test]
+    fn a_division_size_that_would_need_a_third_tier_widens_the_two_instead() {
+        let teams: Vec<_> = (0..18)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2032).expect("a valid start year"));
+        let mut game = Game::new(clock, manager_for("eng-00"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations_with(&mut game, 6);
+
+        let tiers: Vec<_> = game
+            .competitions
+            .iter()
+            .filter(|competition| {
+                competition.rules.format == CompetitionFormat::LeagueTable
+                    && competition.scope == CompetitionScope::Domestic
+            })
+            .collect();
+        assert_eq!(
+            tiers.len(),
+            2,
+            "eighteen clubs at a size of six must not become three tiers"
+        );
+        for tier in &tiers {
+            assert_eq!(
+                tier.participant_ids.len(),
+                9,
+                "{} is the wrong size",
+                tier.id
+            );
+        }
+
+        let names: std::collections::BTreeSet<_> =
+            tiers.iter().map(|tier| tier.name.as_str()).collect();
+        assert_eq!(
+            names.len(),
+            2,
+            "two divisions must not share a name: {names:?}"
+        );
+    }
 }

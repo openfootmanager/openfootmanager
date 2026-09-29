@@ -137,7 +137,18 @@ pub(super) fn build_foundation_competition_plan(
             if country == "BR" { 28 } else { 1 },
         );
 
-        // One or two divisions depending on how many clubs the country has.
+        // One or two divisions depending on how many clubs the country has —
+        // and never more, because `division_tier_name` names a first and a
+        // second and nothing else. A third tier would share both its display
+        // name and its translation key with the second, so two real
+        // competitions would be indistinguishable in the UI.
+        //
+        // The shipped world cannot reach that (the largest nation has 40 clubs
+        // and the default size is 20, which is exactly two), but a
+        // caller-chosen size can, so widen the divisions instead of adding a
+        // tier nothing can name. Remove this clamp when the tier names go
+        // beyond two.
+        let division_size = division_size.max(team_ids.len().div_ceil(2));
         let divisions = split_into_divisions(&team_ids, division_size);
         let division_count = divisions.len();
 
