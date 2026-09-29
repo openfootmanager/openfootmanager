@@ -4072,6 +4072,7 @@
     "required": "Zorunlu",
     "fillRequired": "Lütfen ne olduğunu ve ne beklediğini doldur.",
     "frequencyLabel": "Ne sıklıkla oluyor",
+    "gameContext": "Kariyerin",
     "frequency": {
       "everyTime": "Her seferinde",
       "sometimes": "Bazı zamanlar",

@@ -4072,6 +4072,7 @@
     "required": "Wajib",
     "fillRequired": "Mohon isi apa yang terjadi dan apa yang kamu harapkan.",
     "frequencyLabel": "Seberapa sering terjadi",
+    "gameContext": "Kariermu",
     "frequency": {
       "everyTime": "Setiap kali",
       "sometimes": "Kadang-kadang",

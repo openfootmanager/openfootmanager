@@ -4072,6 +4072,7 @@
     "required": "Required",
     "fillRequired": "Please fill in what happened and what you expected.",
     "frequencyLabel": "How often does it happen",
+    "gameContext": "Your career",
     "frequency": {
       "everyTime": "Every time",
       "sometimes": "Sometimes",

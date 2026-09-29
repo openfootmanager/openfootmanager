@@ -1,3 +1,4 @@
+import type { GameStateData } from "../../store/types";
 import type { BundleSummary, DiagnosticsReport } from "../../services/reportService";
 
 export type Frequency = "everyTime" | "sometimes" | "once";
@@ -78,7 +79,14 @@ export function describeContext(frequencyLabel: string, careerLine: string): str
  */
 export function composeReportText(
   draft: ReportDraft,
-  labels: { whatHappened: string; expected: string; steps: string; frequency: string },
+  labels: {
+    whatHappened: string;
+    expected: string;
+    steps: string;
+    frequency: string;
+    career: string;
+  },
+  careerLine = "",
 ): string {
   const sections: string[] = [
     `## ${labels.whatHappened}\n\n${draft.whatHappened.trim()}`,
@@ -88,7 +96,37 @@ export function composeReportText(
     sections.push(`## ${labels.steps}\n\n${draft.steps.trim()}`);
   }
   sections.push(`## ${labels.frequency}`);
+  if (careerLine !== "") {
+    sections.push(`## ${labels.career}\n\n${careerLine}`);
+  }
   return `${sections.join("\n\n")}\n`;
+}
+
+/**
+ * Where the player was when it broke: club, competition, in-game date, and the packages the world
+ * was built from.
+ *
+ * Untranslated on purpose, like `describeMachine`. This is data a triager reads to reproduce the
+ * bug, not prose — and the package ids in particular are the difference between "cannot reproduce"
+ * and loading the same world. The manager's own name is deliberately absent: it is the one field
+ * in the save that is usually the player's real one.
+ */
+export function describeCareer(gameState: GameStateData | null): string {
+  if (!gameState) return "";
+  const club = gameState.teams.find((team) => team.id === gameState.manager?.team_id)?.name;
+  const league = gameState.league;
+  const packages = (gameState.package_lockfile ?? [])
+    .map((entry) => `${entry.id}@${entry.version}`)
+    .join(", ");
+
+  return [
+    club,
+    league === null ? undefined : `${league.name} ${league.season}`,
+    gameState.clock?.current_date,
+    packages === "" ? undefined : `packages: ${packages}`,
+  ]
+    .filter((part): part is string => typeof part === "string" && part.trim() !== "")
+    .join(" · ");
 }
 
 /** A sentence naming where the bundle landed and how big it turned out. */

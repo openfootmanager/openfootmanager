@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import type { GameStateData } from "../../store/types";
 import {
   EMPTY_DRAFT,
   composeReportText,
+  describeCareer,
   describeBundle,
   describeContext,
   describeMachine,
@@ -123,6 +125,7 @@ describe("composeReportText", () => {
     expected: "What did you expect",
     steps: "Steps to reproduce",
     frequency: "Every time",
+    career: "Your career",
   };
 
   const filled = {
@@ -156,5 +159,62 @@ describe("composeReportText", () => {
 
     expect(out).not.toContain("## Steps to reproduce");
     expect(out).toContain("## What happened");
+  });
+
+  it("carries the career line when there is one", () => {
+    const out = composeReportText(filled, LABELS, "Boca Juniors · Primera 2026");
+
+    expect(out).toContain("## Your career");
+    expect(out).toContain("Boca Juniors · Primera 2026");
+  });
+
+  it("leaves the career heading out when no career is open", () => {
+    expect(composeReportText(filled, LABELS)).not.toContain("## Your career");
+  });
+});
+
+describe("describeCareer", () => {
+  const gameState = {
+    clock: { current_date: "2026-03-14", start_date: "2025-07-01" },
+    manager: { team_id: "t1" },
+    teams: [
+      { id: "t1", name: "Boca Juniors" },
+      { id: "t2", name: "River Plate" },
+    ],
+    league: { id: "l1", name: "Primera División", season: 2026 },
+    package_lockfile: [{ id: "argentina-1962", version: "1.2.0", hash: "abc" }],
+  } as unknown as GameStateData;
+
+  it("names where the player was when it broke", () => {
+    // What a triager needs to reproduce: the club, the competition, the in-game date, and above
+    // all the packages the world was built from.
+    expect(describeCareer(gameState)).toBe(
+      "Boca Juniors · Primera División 2026 · 2026-03-14 · packages: argentina-1962@1.2.0",
+    );
+  });
+
+  it("never names the manager", () => {
+    // The manager's name is usually the player's own, and this line goes to a public issue.
+    const named = {
+      ...gameState,
+      manager: { team_id: "t1", first_name: "Alice", last_name: "Sørensen" },
+    } as unknown as GameStateData;
+
+    expect(describeCareer(named)).not.toContain("Alice");
+  });
+
+  it("is empty with no career open", () => {
+    expect(describeCareer(null)).toBe("");
+  });
+
+  it("drops the parts a world does not have", () => {
+    const sparse = {
+      clock: { current_date: "2026-03-14" },
+      manager: { team_id: null },
+      teams: [],
+      league: null,
+    } as unknown as GameStateData;
+
+    expect(describeCareer(sparse)).toBe("2026-03-14");
   });
 });

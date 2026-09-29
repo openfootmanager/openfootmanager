@@ -4072,6 +4072,7 @@
     "required": "Povinné",
     "fillRequired": "Vyplň prosím, co se stalo a co jsi čekal.",
     "frequencyLabel": "Jak často se to stává",
+    "gameContext": "Tvoje kariéra",
     "frequency": {
       "everyTime": "Pokaždé",
       "sometimes": "Občas",

@@ -4072,6 +4072,7 @@
     "required": "Pflichtfeld",
     "fillRequired": "Bitte trage ein, was passiert ist und was du erwartet hast.",
     "frequencyLabel": "Wie oft passiert es",
+    "gameContext": "Deine Karriere",
     "frequency": {
       "everyTime": "Jedes Mal",
       "sometimes": "Manchmal",

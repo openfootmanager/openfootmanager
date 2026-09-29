@@ -16,6 +16,7 @@ import {
   redactReportFields,
   suggestedReportFileName,
 } from "../../services/reportService";
+import { useGameStore } from "../../store/gameStore";
 import { resolveBackendError } from "../../utils/backendI18n";
 import { Button, Checkbox } from "../ui";
 import {
@@ -24,6 +25,7 @@ import {
   type ReportDraft,
   composeReportText,
   describeBundle,
+  describeCareer,
   describeContext,
   describeMachine,
   describeResolution,
@@ -132,6 +134,12 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
     headingRef.current?.focus();
   }, [step]);
 
+  // Where the player was when it broke. The backend deliberately does not duplicate this — the
+  // career lives here, and a second copy across the IPC boundary is a second copy that can
+  // disagree — so composing it is this screen's job, and it was never being done.
+  const gameState = useGameStore((state) => state.gameState);
+  const careerLine = useMemo(() => describeCareer(gameState), [gameState]);
+
   const missing = useMemo(() => missingRequiredFields(draft), [draft]);
 
   // What the logs add up to, so the preview can put one number against the list. `null` while the
@@ -172,12 +180,17 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
 
       const written = await exportReportBundle(
         chosen,
-        composeReportText(draft, {
-          whatHappened: t("reportBug.whatHappened"),
-          expected: t("reportBug.expected"),
-          steps: t("reportBug.steps"),
-          frequency: t(`reportBug.frequency.${draft.frequency}`),
-        }),
+        composeReportText(
+          draft,
+          {
+            whatHappened: t("reportBug.whatHappened"),
+            expected: t("reportBug.expected"),
+            steps: t("reportBug.steps"),
+            frequency: t(`reportBug.frequency.${draft.frequency}`),
+            career: t("reportBug.gameContext"),
+          },
+          careerLine,
+        ),
         canAttachSave && includeSave,
       );
       setSummary(written);
@@ -196,7 +209,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
           draft.whatHappened,
           draft.expected,
           draft.steps,
-          describeContext(t(`reportBug.frequency.${draft.frequency}`), ""),
+          describeContext(t(`reportBug.frequency.${draft.frequency}`), careerLine),
         ]);
         const [whatHappened = "", expected = "", steps = "", gameContext = ""] = redacted;
 
@@ -378,7 +391,9 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             {previewRow(
               <Package className="w-4 h-4" />,
               t("reportBug.itemSetup"),
-              `${formatAppVersion()} · ${describeMachine(diagnostics)}`,
+              [formatAppVersion(), describeMachine(diagnostics), careerLine]
+                .filter((part) => part !== "")
+                .join(" · "),
             )}
             {previewRow(
               <FileText className="w-4 h-4" />,

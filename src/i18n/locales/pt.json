@@ -4072,6 +4072,7 @@
     "required": "Obrigatório",
     "fillRequired": "Preenche o que aconteceu e o que esperavas.",
     "frequencyLabel": "Com que frequência acontece",
+    "gameContext": "A tua carreira",
     "frequency": {
       "everyTime": "Sempre",
       "sometimes": "Às vezes",

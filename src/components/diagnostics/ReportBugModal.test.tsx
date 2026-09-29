@@ -32,6 +32,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
 }));
 
+import { useGameStore } from "../../store/gameStore";
 import { ReportBugModal } from "./ReportBugModal";
 
 const DIAGNOSTICS = {
@@ -84,6 +85,7 @@ describe("ReportBugModal", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    useGameStore.setState({ gameState: null });
   });
 
   it("opens on the describe step", () => {
@@ -299,6 +301,40 @@ describe("ReportBugModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("says where the player was when it broke", async () => {
+    // The backend deliberately does not duplicate the career, so composing it is this screen's
+    // job — and it was passing an empty string, which meant nothing described the world the bug
+    // happened in. The packages in particular are what make it reproducible.
+    useGameStore.setState({
+      gameState: {
+        clock: { current_date: "2026-03-14", start_date: "2025-07-01" },
+        manager: { team_id: "t1" },
+        teams: [{ id: "t1", name: "Boca Juniors" }],
+        league: { id: "l1", name: "Primera División", season: 2026 },
+        package_lockfile: [{ id: "argentina-1962", version: "1.2.0", hash: "abc" }],
+      } as never,
+    });
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    // On the preview first: the screen may not promise what it has not shown.
+    expect(screen.getByText(/Boca Juniors/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpen" }));
+    await waitFor(() => expect(openUrl).toHaveBeenCalled());
+
+    expect(exportReportBundle).toHaveBeenCalledWith(
+      "/home/x/ofm-report.zip",
+      expect.stringContaining("argentina-1962@1.2.0"),
+      false,
+    );
+    // `+` for a space is form encoding, which `decodeURIComponent` does not undo.
+    const url = String(openUrl.mock.calls[0]?.[0]).replace(/\+/g, " ");
+    expect(decodeURIComponent(url)).toContain("Primera División");
+  });
+
   it("moves focus to the title of every step, not just the first", async () => {
     // Each step replaces the body of the dialog, including the button just pressed. Without this
     // focus falls to <body>: the new title is never announced, and the next Tab starts at the top
@@ -313,9 +349,7 @@ describe("ReportBugModal", () => {
     review.focus();
     fireEvent.click(review);
 
-    expect(
-      await screen.findByRole("heading", { name: "reportBug.previewTitle" }),
-    ).toHaveFocus();
+    expect(await screen.findByRole("heading", { name: "reportBug.previewTitle" })).toHaveFocus();
 
     const submit = screen.getByRole("button", { name: "reportBug.saveAndOpen" });
     submit.focus();

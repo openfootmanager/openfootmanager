@@ -4072,6 +4072,7 @@
     "required": "必填",
     "fillRequired": "请填写发生了什么以及你期待的结果。",
     "frequencyLabel": "多久发生一次",
+    "gameContext": "你的生涯",
     "frequency": {
       "everyTime": "每次都是",
       "sometimes": "有时",
