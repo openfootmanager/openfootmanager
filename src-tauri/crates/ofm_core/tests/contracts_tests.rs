@@ -15,6 +15,7 @@ use ofm_core::contracts::{
     project_renewal_financial_impact, propose_renewal, set_contract_exit_intent,
     terminate_contract_now,
 };
+use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
 
 fn default_attrs() -> PlayerAttributes {
@@ -194,6 +195,31 @@ fn accepted_offer_updates_wage_and_term_correctly() {
     let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
     assert_eq!(player.wage, 15_000);
     assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+}
+
+/// `RenewalOffer.weekly_wage`, `player.wage` and the finance wage bill are one unit: weekly.
+/// The projection the renewal screen shows must be the bill finance then charges.
+#[test]
+fn accepted_renewal_wage_is_the_weekly_figure_finance_charges() {
+    let mut game = make_game();
+    let bill_before = calc_wages(&game, "team-1");
+    let projection = project_renewal_financial_impact(&game, "player-1", 15_000)
+        .expect("projection should succeed");
+
+    propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    )
+    .expect("renewal should succeed");
+
+    let bill_after = calc_wages(&game, "team-1");
+    assert_eq!(bill_after - bill_before, 15_000 - 12_000);
+    assert_eq!(projection.current_weekly_wage_spend, bill_before);
+    assert_eq!(projection.projected_weekly_wage_spend, bill_after);
 }
 
 #[test]
