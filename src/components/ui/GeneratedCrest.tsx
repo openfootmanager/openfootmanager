@@ -95,5 +95,3 @@ export function GeneratedCrest({ name, label, colors, className }: GeneratedCres
     </svg>
   );
 }
-
-export default GeneratedCrest;
