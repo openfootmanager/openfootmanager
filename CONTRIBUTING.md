@@ -127,9 +127,9 @@ has already watched two of those sit switched off for a year.
 `biome.json` is strict JSON and cannot carry comments, so the decisions live here:
 
 Five rules sit at **`info`** rather than `error`. That is not "off": Biome still reports them
-every time you lint, and `npm run quality:check` counts them from Biome's own output, so **the
-number can fall but never rise**. Fixing a few is always welcome; the count drops and you commit
-the regenerated baseline with the change that earned it.
+every time you lint, it just does not fail the build on them. Don't add new ones — each rule moves
+to `error` once its backlog is cleared, and every new finding is one more to clear first. Fixing a
+few is always welcome.
 
 | Rule | Outstanding | Why it is not a hard error yet |
 |---|---|---|
