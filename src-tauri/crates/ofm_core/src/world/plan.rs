@@ -71,6 +71,7 @@ pub fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
 pub fn build_foundation_competition_plan(
     game: &Game,
     game_start: DateTime<Utc>,
+    division_size: usize,
 ) -> Vec<(crate::generator::CompetitionDefinition, DateTime<Utc>)> {
     use crate::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
     use domain::league::{Berth, BerthRule};
@@ -137,7 +138,7 @@ pub fn build_foundation_competition_plan(
         );
 
         // One or two divisions depending on how many clubs the country has.
-        let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
+        let divisions = split_into_divisions(&team_ids, division_size);
         let division_count = divisions.len();
 
         if crate::nations::is_split_season_country(&country) {

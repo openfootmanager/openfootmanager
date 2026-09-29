@@ -24,9 +24,21 @@ pub fn finalize_brazil_state_competition(competition: &mut League) {
 }
 
 pub fn build_foundation_competitions(game: &Game) -> Vec<League> {
+    build_foundation_competitions_with(game, TOP_DIVISION_SIZE)
+}
+
+/// As [`build_foundation_competitions`], but with the size a country's clubs
+/// are chunked into divisions by.
+///
+/// Only the season harness passes anything but [`TOP_DIVISION_SIZE`]. It needs
+/// the *shapes* that break — a two-tier pyramid, a split-season country, a
+/// shared continental cup — without the club count that normally comes with
+/// them, because a simulated season costs about n^2.43 in the size of the
+/// world and the shipped one is 440 clubs.
+pub fn build_foundation_competitions_with(game: &Game, division_size: usize) -> Vec<League> {
     let game_start = game.clock.start_date;
     let season = preseason_league_year(&game.clock);
-    build_foundation_competition_plan(game, game_start)
+    build_foundation_competition_plan(game, game_start, division_size)
         .iter()
         .filter_map(|(def, start)| {
             let mut competition =
@@ -86,7 +98,7 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
         .collect();
     let season = preseason_league_year(&game.clock);
     let mut missing_states: Vec<(League, DateTime<Utc>)> =
-        build_foundation_competition_plan(game, management_date)
+        build_foundation_competition_plan(game, management_date, TOP_DIVISION_SIZE)
             .into_iter()
             .filter(|(definition, _)| {
                 definition.id.starts_with("br-state-") && !existing.contains(&definition.id)
@@ -108,11 +120,17 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
 }
 
 pub fn ensure_multi_competition_foundations(game: &mut Game) {
+    ensure_multi_competition_foundations_with(game, TOP_DIVISION_SIZE)
+}
+
+/// As [`ensure_multi_competition_foundations`], but with an explicit division
+/// size. See [`build_foundation_competitions_with`] for why that exists.
+pub fn ensure_multi_competition_foundations_with(game: &mut Game, division_size: usize) {
     if game.national_teams.is_empty() {
         game.national_teams = build_national_teams(game);
     }
     if game.competitions.is_empty() {
-        game.competitions = build_foundation_competitions(game);
+        game.competitions = build_foundation_competitions_with(game, division_size);
     }
     if game.active_region_ids.is_empty() {
         game.active_region_ids = game
@@ -853,5 +871,68 @@ mod tests {
 
         assert_eq!(active_regions, vec!["south-america".to_string()]);
         assert_eq!(active_competitions, vec![domestic.id.clone()]);
+    }
+
+    /// A test world needs the *shapes* that break — two-tier pyramids, a
+    /// split-season country, a shared continental cup — without paying for
+    /// 160 clubs to get them. `TOP_DIVISION_SIZE` is 20 and
+    /// `split_into_divisions` folds anything at or below it into one league,
+    /// so the smallest nation that yields a real ladder is 30 clubs. At
+    /// n^2.43, five such nations is minutes per simulated season; at a
+    /// division size of 6 it is seconds.
+    #[test]
+    fn a_smaller_division_size_builds_a_pyramid_from_fewer_clubs() {
+        let teams: Vec<_> = (0..12)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2032).expect("a valid start year"));
+        let mut game = Game::new(clock, manager_for("eng-00"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations_with(&mut game, 6);
+
+        let tiers: Vec<_> = game
+            .competitions
+            .iter()
+            .filter(|competition| {
+                competition.rules.format == CompetitionFormat::LeagueTable
+                    && competition.scope == CompetitionScope::Domestic
+            })
+            .collect();
+        assert_eq!(
+            tiers.len(),
+            2,
+            "twelve clubs at a division size of six is a two-tier pyramid, got {:?}",
+            tiers.iter().map(|t| &t.id).collect::<Vec<_>>()
+        );
+        for tier in &tiers {
+            assert_eq!(
+                tier.participant_ids.len(),
+                6,
+                "{} is the wrong size",
+                tier.id
+            );
+        }
+    }
+
+    /// The default is unchanged: the same twelve clubs are one league.
+    #[test]
+    fn the_default_division_size_still_keeps_a_small_nation_in_one_league() {
+        let teams: Vec<_> = (0..12)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2032).expect("a valid start year"));
+        let mut game = Game::new(clock, manager_for("eng-00"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations(&mut game);
+
+        let tiers = game
+            .competitions
+            .iter()
+            .filter(|competition| {
+                competition.rules.format == CompetitionFormat::LeagueTable
+                    && competition.scope == CompetitionScope::Domestic
+            })
+            .count();
+        assert_eq!(tiers, 1);
     }
 }
