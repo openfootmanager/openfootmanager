@@ -215,10 +215,19 @@ impl Game {
         // The legacy `league` field backs the home dashboard (next match, league
         // position, etc.), so it must mirror the competition the user's club
         // actually plays in — not just the first competition in the world.
-        self.league = self
+        //
+        // When there is nothing to sync from, leave the mirror alone rather than clearing it. A
+        // save written before `competitions` existed has the legacy field as its only copy, and
+        // `promote_legacy_league` fills `competitions` from it on load — so an empty vector here
+        // means "no competitions to mirror", never "the user has no league". Clearing it cost the
+        // delegate path its round summary, which reads the mirror.
+        if let Some(mirrored) = self
             .user_competition_index()
             .map(|index| self.competitions[index].clone())
-            .or_else(|| self.competitions.first().cloned());
+            .or_else(|| self.competitions.first().cloned())
+        {
+            self.league = Some(mirrored);
+        }
     }
 
     /// Whether the user's club has a scheduled fixture on `date` in ANY of its
@@ -265,7 +274,7 @@ impl Game {
     /// Distinct from [`Self::primary_competition`], which is just the first
     /// competition in the world — in a multi-competition save those are rarely
     /// the same thing.
-    pub(crate) fn user_competition(&self) -> Option<&League> {
+    pub fn user_competition(&self) -> Option<&League> {
         self.user_competition_index()
             .map(|index| &self.competitions[index])
     }
@@ -344,5 +353,73 @@ impl Game {
         self.competitions
             .iter_mut()
             .find(|competition| competition.id == competition_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::GameClock;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+
+    fn game_with_only_a_legacy_league() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        game.competitions.clear();
+        game.league = Some(League::new(
+            "league1".to_string(),
+            "Test League".to_string(),
+            1,
+            &["team1".to_string(), "team2".to_string()],
+        ));
+        game
+    }
+
+    #[test]
+    fn syncing_with_no_competitions_keeps_the_legacy_league() {
+        // The shape of a save written before `competitions` existed: the legacy field is the only
+        // copy of the user's league. `promote_legacy_league` fills the vector from it in the save
+        // reader, so an empty vector here means "nothing to mirror", never "the user has no
+        // league" — and this used to clear the field, destroying the only copy. It cost the
+        // delegate path its round summary, which reads the mirror.
+        let mut game = game_with_only_a_legacy_league();
+
+        game.sync_legacy_league();
+
+        assert_eq!(
+            game.league.as_ref().map(|league| league.id.as_str()),
+            Some("league1"),
+            "syncing from an empty competition list must not erase the league it was mirroring"
+        );
+    }
+
+    #[test]
+    fn syncing_still_mirrors_the_users_competition_when_there_is_one() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team3".to_string());
+        let mut other = League::new(
+            "league2".to_string(),
+            "Their League".to_string(),
+            1,
+            &["team3".to_string(), "team4".to_string()],
+        );
+        other.participant_ids = vec!["team3".to_string(), "team4".to_string()];
+        game.competitions = vec![other];
+
+        game.sync_legacy_league();
+
+        assert_eq!(
+            game.league.as_ref().map(|league| league.id.as_str()),
+            Some("league2"),
+            "with a competition to mirror, the stale legacy copy is replaced"
+        );
     }
 }
