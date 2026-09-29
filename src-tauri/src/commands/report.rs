@@ -47,13 +47,8 @@ fn collect(
     app_handle: &tauri::AppHandle,
     redactor: &Redactor,
     has_active_save: bool,
+    crash_on_previous_run: bool,
 ) -> DiagnosticsReport {
-    let crash_on_previous_run = app_handle
-        .path()
-        .app_data_dir()
-        .map(|dir| crash::crash_file_in(&dir).exists())
-        .unwrap_or(false);
-
     DiagnosticsReport {
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         os: std::env::consts::OS.to_owned(),
@@ -75,11 +70,13 @@ fn collect(
 pub fn collect_diagnostics(
     app_handle: tauri::AppHandle,
     state: State<'_, Arc<StateManager>>,
+    previous_crash: State<'_, crash::PreviousCrash>,
 ) -> DiagnosticsReport {
     collect(
         &app_handle,
         &Redactor::from_environment(),
         state.get_save_id().is_some(),
+        previous_crash.0.is_some(),
     )
 }
 
@@ -89,20 +86,21 @@ pub fn export_report_bundle(
     app_handle: tauri::AppHandle,
     state: State<'_, Arc<StateManager>>,
     save_manager: State<'_, Arc<SaveManagerState>>,
+    previous_crash: State<'_, crash::PreviousCrash>,
     output_path: String,
     include_save: bool,
 ) -> Result<BundleSummary, String> {
     let redactor = Redactor::from_environment();
     let has_active_save = state.get_save_id().is_some();
-    let diagnostics = collect(&app_handle, &redactor, has_active_save);
+    let crash_json = previous_crash.as_json();
+    let diagnostics = collect(
+        &app_handle,
+        &redactor,
+        has_active_save,
+        crash_json.is_some(),
+    );
     let diagnostics_json =
         serde_json::to_string_pretty(&diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;
-
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|_| SAVE_MANAGER_UNAVAILABLE.to_owned())?;
-    let crash_json = std::fs::read_to_string(crash::crash_file_in(&app_data_dir)).ok();
 
     // Only when the player ticked the box on the preview screen, and only if a career is open.
     let save_path = if include_save {

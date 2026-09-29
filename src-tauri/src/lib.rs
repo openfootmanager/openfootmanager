@@ -66,7 +66,11 @@ pub fn run() {
             // launch left. Done here rather than later in `setup` so that a panic in any of the
             // startup work below — save manager init, the legacy migration — is itself recorded.
             crash::set_crash_file(crash::crash_file_in(&app_data_dir));
-            crash::take_previous_crash(&app_data_dir);
+            // Held rather than dropped: the file has to be cleared here or the same crash is
+            // reported on every launch, but the bug report is filed later in this same session.
+            app.manage(crash::PreviousCrash(crash::take_previous_crash(
+                &app_data_dir,
+            )));
 
             let saves_dir = app_data_dir.join("saves");
             let mut save_manager = SaveManager::init(&saves_dir).map_err(std::io::Error::other)?;

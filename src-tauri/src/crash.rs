@@ -139,6 +139,24 @@ pub fn install_panic_hook() {
     }));
 }
 
+/// The crash the previous launch left, held for as long as this process runs.
+///
+/// `take_previous_crash` deletes the file it reads — it has to, or the same crash is reported on
+/// every launch forever. But the bug report is filed *later in the same session*, and it used to
+/// look for that file, so the row it shows for "a crash from your last session" could never appear
+/// for an actual crash. Keeping the record in managed state is what closes that gap: the file is
+/// still cleared exactly once, and the evidence still reaches the report.
+pub struct PreviousCrash(pub Option<CrashRecord>);
+
+impl PreviousCrash {
+    /// The record as the bundle stores it, or `None` when the last run ended cleanly.
+    pub fn as_json(&self) -> Option<String> {
+        self.0
+            .as_ref()
+            .and_then(|record| serde_json::to_string_pretty(record).ok())
+    }
+}
+
 /// Report and clear a crash left by the previous launch.
 ///
 /// Returns what was found, so a caller can do more than log it — which is what the crash-report
@@ -248,6 +266,42 @@ mod tests {
             !path.exists(),
             "a corrupt crash file must not be re-read forever"
         );
+    }
+
+    #[test]
+    fn a_held_crash_serialises_for_the_bundle() {
+        // One instance throughout: `sample()` stamps a fresh timestamp on every call, so
+        // comparing against a second one compares two different records.
+        let record = sample();
+        let held = PreviousCrash(Some(record.clone()));
+
+        let json = held.as_json().expect("a held crash should serialise");
+
+        assert!(json.contains("something exploded"), "{json}");
+        assert_eq!(
+            serde_json::from_str::<CrashRecord>(&json).expect("round trip"),
+            record
+        );
+    }
+
+    #[test]
+    fn a_clean_previous_run_holds_nothing() {
+        assert!(PreviousCrash(None).as_json().is_none());
+    }
+
+    #[test]
+    fn the_record_outlives_the_file_it_came_from() {
+        // The whole point: the file is gone after startup, and the record is not.
+        let dir = tempfile::tempdir().expect("temp dir");
+        write_record(&crash_file_in(dir.path()), &sample()).expect("write");
+
+        let held = PreviousCrash(take_previous_crash(dir.path()));
+
+        assert!(
+            !crash_file_in(dir.path()).exists(),
+            "the file should be cleared"
+        );
+        assert!(held.as_json().is_some(), "the record should survive it");
     }
 
     #[test]
