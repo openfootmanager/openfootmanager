@@ -123,6 +123,7 @@ fn should_retire(player: &Player, age: i32, current_date: NaiveDate, season: u32
 fn retire_player(player: &mut Player) {
     player.retired = true;
     player.team_id = None;
+    player.contract_start = None;
     player.contract_end = None;
     player.transfer_listed = false;
     player.loan_listed = false;
@@ -250,6 +251,7 @@ mod tests {
     #[test]
     fn apply_seasonal_aging_retires_veteran_and_reduces_pace() {
         let mut veteran = make_player("older-pro", "1988-01-01");
+        veteran.contract_start = Some("2023-07-01".to_string());
         veteran.contract_end = Some("2026-05-01".to_string());
         veteran.attributes.pace = 20;
         veteran.transfer_listed = true;
@@ -275,6 +277,11 @@ mod tests {
         let veteran = &game.players[0];
         assert!(veteran.retired);
         assert_eq!(veteran.team_id, None);
+        assert_eq!(
+            veteran.contract_start, None,
+            "a retired player has no agreement, so neither date survives"
+        );
+        assert_eq!(veteran.contract_end, None);
         assert!(!veteran.transfer_listed);
         assert!(veteran.attributes.pace < 20);
         assert!(game.teams[0].starting_xi_ids.is_empty());

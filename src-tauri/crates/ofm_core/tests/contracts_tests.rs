@@ -909,6 +909,12 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
         .find(|player| player.id == "player-1")
         .unwrap();
     assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+    assert_eq!(
+        player.contract_start.as_deref(),
+        Some("2026-08-01"),
+        "a delegated renewal is still an agreement signed today: this is its own \
+         write site, not the manual renewal path"
+    );
     assert!(player.wage >= 14_000);
 
     let report_message = game
@@ -1006,4 +1012,93 @@ fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
     .expect_err("large worsening should still be blocked");
 
     assert_eq!(err, "be.error.contracts.boardWagePolicy?budget=50000");
+}
+
+// ---------------------------------------------------------------------------
+// A contract is an interval: every writer of `contract_end` owns `contract_start`
+// too, and the two that clear one must clear both. A start left behind on a
+// released player reads as an agreement that never ended.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn an_accepted_renewal_dates_the_new_agreement_from_today() {
+    let mut game = make_game();
+
+    ofm_core::contracts::propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    )
+    .expect("renewal should succeed");
+
+    let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
+    assert_eq!(
+        player.contract_start.as_deref(),
+        Some("2026-08-01"),
+        "a renewal signed today starts today, not whenever the old deal began"
+    );
+    assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+}
+
+#[test]
+fn signing_a_free_agent_dates_the_agreement_from_today() {
+    let mut game = make_free_agent_game();
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 4_000,
+            contract_years: 3,
+        },
+    )
+    .expect("free agent signing should succeed");
+
+    // Asserted, not assumed: a counter-offer is also `Ok`, so without this the
+    // test passes while nothing was ever signed and the dates were never written.
+    assert!(
+        matches!(outcome.decision, RenewalDecision::Accepted),
+        "the offer must actually be accepted for there to be an agreement to date"
+    );
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.id == "free-agent-1")
+        .unwrap();
+    assert_eq!(
+        player.contract_start.as_deref(),
+        Some("2026-08-01"),
+        "a free agent's first day at the club is the day they signed"
+    );
+}
+
+#[test]
+fn releasing_a_player_at_expiry_clears_both_contract_dates() {
+    let mut game = make_game();
+    {
+        let player = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == "player-1")
+            .unwrap();
+        player.contract_start = Some("2023-07-01".to_string());
+        player.contract_end = Some("2026-06-30".to_string());
+    }
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
+    assert_eq!(
+        player.team_id, None,
+        "an expired contract releases the player"
+    );
+    assert_eq!(
+        player.contract_start, None,
+        "a released player has no agreement, so neither date survives"
+    );
+    assert_eq!(player.contract_end, None);
 }

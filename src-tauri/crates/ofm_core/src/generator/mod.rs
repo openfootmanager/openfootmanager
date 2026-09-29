@@ -319,6 +319,10 @@ pub fn generate_national_team_player(
         &mut rng,
     );
     player.team_id = None;
+    // Both dates, not just the end: this player is generated from a club
+    // template and then unattached, so leaving a start behind would describe an
+    // agreement with no employer and no expiry.
+    player.contract_start = None;
     player.contract_end = None;
     player.wage = 0;
     player.transfer_listed = false;
@@ -1908,6 +1912,11 @@ mod tests {
             "national-pool players belong to no club"
         );
         assert_eq!(player.contract_end, None);
+        assert_eq!(
+            player.contract_start, None,
+            "an unattached player must not carry half an agreement: this one is built \
+             from a club template, so the start has to be cleared with the end"
+        );
         assert_eq!(player.position, Position::Defender, "slot 5 is a defender");
         assert!(player.ovr > 0, "derived ratings must be computed");
         assert_eq!(player.squad_role, SquadRole::Senior);

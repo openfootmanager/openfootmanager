@@ -175,6 +175,7 @@ pub fn delegate_renewals(
                 .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
             let player = &mut game.players[player_index];
             player.wage = agreed_wage;
+            player.contract_start = Some(current_date.format("%Y-%m-%d").to_string());
             player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
             let state = player
                 .morale_core
