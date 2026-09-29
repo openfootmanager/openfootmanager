@@ -455,14 +455,18 @@ describe("SquadTab", () => {
     // filter state, which no lint rule sees.
     renderSquadTab(makeGameState());
 
-    const headerBefore = await screen.findByRole("columnheader", { name: "#" });
+    const headerBefore = await screen.findByRole("columnheader", {
+      name: "squad.jerseyNumberFull",
+    });
 
     fireEvent.change(screen.getByRole("textbox", { name: "common.search" }), {
       target: { value: "z" },
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("columnheader", { name: "#" })).toBe(headerBefore);
+      expect(screen.getByRole("columnheader", { name: "squad.jerseyNumberFull" })).toBe(
+        headerBefore,
+      );
     });
   });
 });

@@ -546,6 +546,7 @@ export default function SquadRosterView({
                 <SquadSortHeader
                   col="jersey"
                   label="#"
+                  ariaLabel={t("squad.jerseyNumberFull")}
                   sortKey={sortKey}
                   sortDir={sortDir}
                   onSort={toggleSort}
