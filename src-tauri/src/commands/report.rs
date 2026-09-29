@@ -4,7 +4,7 @@
 //! the location of; the upload is slice 4, and the GitHub form is the path that needs no server at
 //! all.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ofm_core::state::StateManager;
@@ -80,9 +80,76 @@ pub fn collect_diagnostics(
     )
 }
 
+/// A private copy of the save, removed when it goes out of scope.
+///
+/// Kept in its own directory so the copy can carry the save's real filename into the zip rather
+/// than a scratch name. `Drop` does the cleanup because the bundle write can fail, and a copy of
+/// the player's career must not be left behind either way.
+struct TempSaveCopy {
+    dir: PathBuf,
+    file: PathBuf,
+}
+
+impl Drop for TempSaveCopy {
+    fn drop(&mut self) {
+        if let Err(error) = std::fs::remove_dir_all(&self.dir) {
+            log::warn!("[report] could not remove the temporary save copy: {error}");
+        }
+    }
+}
+
+/// Copy the active save **while holding the save-manager lock**.
+///
+/// Reading the database in place can capture a half-written transaction: no `journal_mode` is set
+/// anywhere in `crates/db`, so SQLite's default rollback journal edits pages in place, and a raw
+/// read during a commit can yield a file that will not open. Every writer goes through this same
+/// mutex, so copying under it is what makes the attached save consistent.
+///
+/// It copies rather than holding the lock across the whole export, so a concurrent save waits for
+/// one file copy instead of the entire compression pass.
+fn copy_active_save(
+    state: &StateManager,
+    save_manager: &SaveManagerState,
+    scratch_root: &Path,
+) -> Result<Option<TempSaveCopy>, String> {
+    let Some(save_id) = state.get_save_id() else {
+        return Ok(None);
+    };
+    let manager = save_manager
+        .0
+        .lock()
+        .map_err(|_| SAVE_MANAGER_UNAVAILABLE.to_owned())?;
+    let Some(source) = manager.save_db_path(&save_id) else {
+        return Ok(None);
+    };
+    let file_name = source.file_name().map_or_else(
+        || std::ffi::OsString::from("save.db"),
+        |name| name.to_owned(),
+    );
+
+    let dir = scratch_root.join(format!("ofm-report-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).map_err(|error| {
+        log::error!("[report] could not prepare the save copy: {error}");
+        REPORT_BUNDLE_FAILED.to_owned()
+    })?;
+    let file = dir.join(file_name);
+    std::fs::copy(&source, &file).map_err(|error| {
+        log::error!("[report] could not copy the save: {error}");
+        // Best effort: the guard does not exist yet, so clean up by hand.
+        let _ = std::fs::remove_dir_all(&dir);
+        REPORT_BUNDLE_FAILED.to_owned()
+    })?;
+    Ok(Some(TempSaveCopy { dir, file }))
+}
+
 /// Write the report bundle to a path the player chose, and say what went into it.
+///
+/// `async` deliberately. A plain `#[tauri::command]` runs inline on the main thread, and this one
+/// reads a save that can be tens of megabytes, redacts several megabytes of logs and deflates all
+/// of it — which froze the window for the duration. `spawn_blocking` keeps that work off the UI
+/// thread and off the async workers both.
 #[tauri::command]
-pub fn export_report_bundle(
+pub async fn export_report_bundle(
     app_handle: tauri::AppHandle,
     state: State<'_, Arc<StateManager>>,
     save_manager: State<'_, Arc<SaveManagerState>>,
@@ -90,38 +157,67 @@ pub fn export_report_bundle(
     output_path: String,
     include_save: bool,
 ) -> Result<BundleSummary, String> {
-    let redactor = Redactor::from_environment();
-    let has_active_save = state.get_save_id().is_some();
+    // Read everything off `State` before crossing the thread boundary: the guards themselves are
+    // not `Send`, and nothing may be held across the await.
+    let state = state.inner().clone();
+    let save_manager = save_manager.inner().clone();
     let crash_json = previous_crash.as_json();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        write_report_bundle(
+            &app_handle,
+            &state,
+            &save_manager,
+            crash_json,
+            &output_path,
+            include_save,
+        )
+    })
+    .await
+    .map_err(|error| {
+        log::error!("[report] the export task did not run: {error}");
+        REPORT_BUNDLE_FAILED.to_owned()
+    })?
+}
+
+fn write_report_bundle(
+    app_handle: &tauri::AppHandle,
+    state: &StateManager,
+    save_manager: &SaveManagerState,
+    crash_json: Option<String>,
+    output_path: &str,
+    include_save: bool,
+) -> Result<BundleSummary, String> {
+    let redactor = Redactor::from_environment();
     let diagnostics = collect(
-        &app_handle,
+        app_handle,
         &redactor,
-        has_active_save,
+        state.get_save_id().is_some(),
         crash_json.is_some(),
     );
     let diagnostics_json =
         serde_json::to_string_pretty(&diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;
 
     // Only when the player ticked the box on the preview screen, and only if a career is open.
-    let save_path = if include_save {
-        let save_id = state.get_save_id();
-        let manager = save_manager
-            .0
-            .lock()
-            .map_err(|_| SAVE_MANAGER_UNAVAILABLE.to_owned())?;
-        save_id.and_then(|id| manager.save_db_path(&id))
+    // The copy lives until the bundle is written, then `Drop` removes it.
+    let save_copy = if include_save {
+        let scratch_root = app_handle
+            .path()
+            .app_cache_dir()
+            .unwrap_or_else(|_| std::env::temp_dir());
+        copy_active_save(state, save_manager, &scratch_root)?
     } else {
         None
     };
 
     let summary = bundle::write_bundle(
         &BundleInputs {
-            log_dir: &log_dir(&app_handle).unwrap_or_default(),
+            log_dir: &log_dir(app_handle).unwrap_or_default(),
             diagnostics_json: &diagnostics_json,
             crash_json: crash_json.as_deref(),
-            save_path: save_path.as_deref(),
+            save_path: save_copy.as_ref().map(|copy| copy.file.as_path()),
         },
-        std::path::Path::new(&output_path),
+        Path::new(output_path),
         &redactor,
     )
     .map_err(|error| {
@@ -137,6 +233,64 @@ pub fn export_report_bundle(
         summary.included_crash
     );
     Ok(summary)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use db::save_manager::SaveManager;
+    use std::sync::Mutex;
+
+    fn save_manager_in(dir: &Path) -> SaveManagerState {
+        SaveManagerState(Mutex::new(
+            SaveManager::init(&dir.join("saves")).expect("a save manager"),
+        ))
+    }
+
+    #[test]
+    fn copies_nothing_when_no_career_is_open() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let state = StateManager::new();
+
+        let copied =
+            copy_active_save(&state, &save_manager_in(dir.path()), dir.path()).expect("no error");
+
+        assert!(copied.is_none());
+    }
+
+    #[test]
+    fn copies_nothing_when_the_save_id_is_not_indexed() {
+        // A stale id must not attach some other player's file, or nothing at all is safer.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let state = StateManager::new();
+        state.set_save_id("no-such-save".to_owned());
+
+        let copied =
+            copy_active_save(&state, &save_manager_in(dir.path()), dir.path()).expect("no error");
+
+        assert!(copied.is_none());
+    }
+
+    #[test]
+    fn the_temporary_copy_is_removed_when_it_goes_out_of_scope() {
+        // It is a copy of the player's career; leaving it in a cache directory is not acceptable,
+        // and the bundle write above it can fail.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let scratch = dir.path().join("ofm-report-test");
+        std::fs::create_dir_all(&scratch).expect("scratch");
+        let file = scratch.join("career.db");
+        std::fs::write(&file, b"bytes").expect("write");
+
+        {
+            let _copy = TempSaveCopy {
+                dir: scratch.clone(),
+                file: file.clone(),
+            };
+            assert!(file.exists());
+        }
+
+        assert!(!scratch.exists(), "the copy should not outlive its guard");
+    }
 }
 
 /// A dated default for the save dialog, so a second report does not overwrite the first.
