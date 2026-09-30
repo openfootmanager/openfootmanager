@@ -137,18 +137,15 @@ pub(super) fn build_foundation_competition_plan(
             if country == "BR" { 28 } else { 1 },
         );
 
-        // One or two divisions depending on how many clubs the country has —
-        // and never more, because `division_tier_name` names a first and a
-        // second and nothing else. A third tier would share both its display
-        // name and its translation key with the second, so two real
-        // competitions would be indistinguishable in the UI.
-        //
-        // The shipped world cannot reach that (the largest nation has 40 clubs
-        // and the default size is 20, which is exactly two), but a
-        // caller-chosen size can, so widen the divisions instead of adding a
-        // tier nothing can name. Remove this clamp when the tier names go
-        // beyond two.
-        let division_size = division_size.max(team_ids.len().div_ceil(2));
+        // Caller-chosen sizes must stay within the two tiers that
+        // `division_tier_name` can name. Keep the default size's original
+        // chunking, including imported worlds with more than 40 clubs.
+        // Remove this clamp when the tier names go beyond two.
+        let division_size = if division_size == TOP_DIVISION_SIZE {
+            division_size
+        } else {
+            division_size.max(team_ids.len().div_ceil(2))
+        };
         let divisions = split_into_divisions(&team_ids, division_size);
         let division_count = divisions.len();
 
@@ -442,4 +439,54 @@ pub(super) fn build_foundation_competition_plan(
     }
 
     planned
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::GameClock;
+    use crate::world::test_fixtures::{manager_for, nation_team};
+    use crate::world::{TOP_DIVISION_SIZE, start_date_for_year};
+
+    fn league_sizes(club_count: usize, division_size: usize) -> Vec<usize> {
+        let teams = (0..club_count)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index as u32))
+            .collect();
+        let start = start_date_for_year(2032).expect("valid start year");
+        let game = Game::new(
+            GameClock::new(start),
+            manager_for("eng-00"),
+            teams,
+            vec![],
+            vec![],
+            vec![],
+        );
+        build_foundation_competition_plan(&game, start, division_size)
+            .into_iter()
+            .filter(|(def, _)| {
+                def.country_id.as_deref() == Some("ENG") && def.r#type == CompetitionType::League
+            })
+            .map(|(def, _)| {
+                def.participants
+                    .explicit
+                    .expect("generated league has participants")
+                    .len()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn three_clubs_at_size_two_stay_in_one_playable_league() {
+        assert_eq!(league_sizes(3, 2), vec![3]);
+    }
+
+    #[test]
+    fn default_size_keeps_the_original_forty_five_club_layout() {
+        assert_eq!(league_sizes(45, TOP_DIVISION_SIZE), vec![20, 25]);
+    }
+
+    #[test]
+    fn default_size_keeps_the_original_fifty_club_layout() {
+        assert_eq!(league_sizes(50, TOP_DIVISION_SIZE), vec![20, 20, 10]);
+    }
 }

@@ -162,7 +162,7 @@ const CONTINENTAL_QUALIFYING_POSITIONS: u32 = 4;
 
 /// Split a country's clubs (passed strongest-first) into divisions of
 /// `division_size`, strongest tier first. A trailing remainder smaller than
-/// half a division is folded up so no tier is left tiny.
+/// half a division (or a single club) is folded up so every tier can play.
 fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec<Vec<String>> {
     let division_size = division_size.max(2);
     if sorted_team_ids.len() <= division_size {
@@ -172,7 +172,11 @@ fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec
         .chunks(division_size)
         .map(<[String]>::to_vec)
         .collect();
-    if divisions.len() >= 2 && divisions.last().map(Vec::len).unwrap_or(0) < division_size / 2 {
+    if divisions.len() >= 2
+        && divisions
+            .last()
+            .is_some_and(|tail| tail.len() == 1 || tail.len() < division_size / 2)
+    {
         let tail = divisions.pop().expect("len >= 2");
         divisions.last_mut().expect("len >= 1").extend(tail);
     }
