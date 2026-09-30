@@ -442,11 +442,16 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
+/// A generated player for squad slot `index`. `age` fixes his age; `None`
+/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
+/// at the same point in the draw sequence either way, so a seeded world is
+/// unchanged by the parameter.
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,
     nationality: &str,
     opening_year: u32,
+    age: Option<u32>,
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
 ) -> Player {
@@ -462,11 +467,13 @@ pub(super) fn generate_random_player_from_def(
     // Reserve one slot per position group (GK + back line + midfield + attack) as
     // youth-aged so scouted youth recruits land at a consistent age across positions
     // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = if is_youth_reserved_slot(index) {
-        rng.random_range(17..22)
-    } else {
-        rng.random_range(17..36)
-    };
+    let age = age.unwrap_or_else(|| {
+        if is_youth_reserved_slot(index) {
+            rng.random_range(17..22)
+        } else {
+            rng.random_range(17..36)
+        }
+    });
     let birth_year = opening_year.saturating_sub(age);
     let birth_month = rng.random_range(1..13);
     let birth_day = rng.random_range(1..29);
