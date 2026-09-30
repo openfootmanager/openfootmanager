@@ -1830,11 +1830,13 @@ fn very_weak_team_still_finishes() {
 // Tests: The match clock
 // ===========================================================================
 
-/// Every period is played in full from the minute it actually kicks off: 45
-/// minutes a half and 15 an extra-time half, plus that period's own stoppage.
-/// The clock runs on through stoppage, so the second half kicks off at 46 or
-/// later; a first half's stoppage must not be taken out of the second half, and
-/// extra time must not start the clock again at a minute already played.
+/// Every period is played in full: 45 simulated minutes a half and 15 an
+/// extra-time half, plus that period's own stoppage — counted in minutes the
+/// engine actually simulated, not in the minute a kick-off event is labelled.
+/// The clock runs on through stoppage, so across the whole match the simulated
+/// minutes run 1, 2, 3 … to the final whistle with none skipped and none played
+/// twice: a second half after three minutes of first-half stoppage runs 49 to
+/// 93, and extra time picks up the minute after full time.
 #[test]
 fn every_period_lasts_its_full_length_whatever_stoppage_came_before() {
     let mut saw_first_half_stoppage = false;
@@ -1842,54 +1844,67 @@ fn every_period_lasts_its_full_length_whatever_stoppage_came_before() {
     for seed in 0..200 {
         let mut state = make_live_match(true);
         let mut rng = seeded_rng(seed);
-        let events: Vec<MatchEvent> = run_to_finish(&mut state, &mut rng)
-            .into_iter()
-            .flat_map(|result| result.events)
-            .collect();
-        let minutes_of = |kind: EventType| -> Vec<u8> {
-            events
-                .iter()
-                .filter(|event| event.event_type == kind)
-                .map(|event| event.minute)
-                .collect()
-        };
-        let kick_offs = minutes_of(EventType::KickOff);
-        let half_times = minutes_of(EventType::HalfTime);
-        let restarts = minutes_of(EventType::SecondHalfStart);
-        let full_times = minutes_of(EventType::FullTime);
+        let results = run_to_finish(&mut state, &mut rng);
 
-        assert!(
-            half_times[0] >= 45,
-            "seed {seed}: first half ended at {}",
-            half_times[0]
-        );
-        saw_first_half_stoppage |= half_times[0] > 45;
-        assert!(
-            full_times[0] >= restarts[0] + 44,
-            "seed {seed}: the second half kicked off at {} and ended at {}",
-            restarts[0],
-            full_times[0]
-        );
+        // Kick-offs start a period; every other step before the whistle is a
+        // simulated minute of the period in play.
+        let mut period: Option<usize> = None;
+        let mut played = [0u8; 4];
+        let mut minutes = Vec::new();
+        for result in &results {
+            let kicks_off = result.events.iter().any(|event| {
+                matches!(
+                    event.event_type,
+                    EventType::KickOff | EventType::SecondHalfStart
+                )
+            });
+            if kicks_off {
+                period = Some(match result.phase {
+                    MatchPhase::FirstHalf => 0,
+                    MatchPhase::SecondHalf => 1,
+                    MatchPhase::ExtraTimeFirstHalf => 2,
+                    MatchPhase::ExtraTimeSecondHalf => 3,
+                    other => panic!("seed {seed}: a kick-off in {other:?}"),
+                });
+                continue;
+            }
+            if matches!(
+                result.phase,
+                MatchPhase::Finished | MatchPhase::PenaltyShootout
+            ) {
+                continue;
+            }
+            played[period.expect("a minute before kick-off")] += 1;
+            minutes.push(result.minute);
+        }
 
-        if kick_offs.len() > 1 {
+        let expected: Vec<u8> = (1..=*minutes.last().unwrap()).collect();
+        assert_eq!(
+            minutes, expected,
+            "seed {seed}: minutes were skipped or played twice"
+        );
+        assert!(
+            played[0] >= 45,
+            "seed {seed}: first half played {}",
+            played[0]
+        );
+        saw_first_half_stoppage |= played[0] > 45;
+        assert!(
+            played[1] >= 45,
+            "seed {seed}: second half played {}",
+            played[1]
+        );
+        if played[2] > 0 {
             saw_extra_time = true;
             assert!(
-                kick_offs[1] >= full_times[0],
-                "seed {seed}: extra time kicked off at {} after full time at {}",
-                kick_offs[1],
-                full_times[0]
+                played[2] >= 15,
+                "seed {seed}: extra time's first half played {}",
+                played[2]
             );
             assert!(
-                half_times[1] >= kick_offs[1] + 14,
-                "seed {seed}: extra time's first half ran {} to {}",
-                kick_offs[1],
-                half_times[1]
-            );
-            assert!(
-                full_times[1] >= restarts[1] + 14,
-                "seed {seed}: extra time's second half ran {} to {}",
-                restarts[1],
-                full_times[1]
+                played[3] >= 15,
+                "seed {seed}: extra time's second half played {}",
+                played[3]
             );
         }
     }

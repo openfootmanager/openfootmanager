@@ -40,10 +40,9 @@ impl LiveMatchState {
 
     pub(super) fn start_second_half<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
         self.phase = MatchPhase::SecondHalf;
-        // Second half starts after halftime; use at least minute 46 but never before current_minute
-        let start_min = self.current_minute.max(46);
-        self.current_minute = start_min;
-        self.period_started_at = start_min;
+        // The second half's first minute is 46, or the minute after the first
+        // half's stoppage ended — the clock runs on and no minute is played twice.
+        let start_min = self.period_kicks_off_at(46);
         self.ball_zone = Zone::Midfield;
         self.possession = Side::Away;
         self.second_half_stoppage = rng.random_range(0..=self.config.stoppage_time_max);
@@ -70,9 +69,7 @@ impl LiveMatchState {
 
     pub(super) fn start_et_second_half<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
         self.phase = MatchPhase::ExtraTimeSecondHalf;
-        let start_min = self.current_minute.max(106);
-        self.current_minute = start_min;
-        self.period_started_at = start_min;
+        let start_min = self.period_kicks_off_at(106);
         self.ball_zone = Zone::Midfield;
         self.possession = Side::Home;
         self.et_second_half_stoppage = rng.random_range(0..=2); // short stoppage in ET
@@ -103,9 +100,7 @@ impl LiveMatchState {
             // it does into the second half: starting it again at 91 would replay
             // minutes the second half's stoppage has already used.
             self.phase = MatchPhase::ExtraTimeFirstHalf;
-            let start_min = self.current_minute.max(91);
-            self.current_minute = start_min;
-            self.period_started_at = start_min;
+            let start_min = self.period_kicks_off_at(91);
             self.ball_zone = Zone::Midfield;
             self.possession = Side::Home;
             self.et_first_half_stoppage = rng.random_range(0..=2);
@@ -241,14 +236,24 @@ impl LiveMatchState {
         }
     }
 
-    /// End the period once it has run its full length plus its own stoppage,
-    /// measured from the minute it kicked off. A second half kicking off at 46
-    /// ends at 90 plus stoppage, as before; one kicking off at 49 after a long
-    /// first-half stoppage now still gets its 45 minutes, where it used to lose
-    /// the first half's stoppage from them.
+    /// Set the clock for a period that kicks off at `earliest` or, after
+    /// stoppage, at the minute after the last one played, and return that
+    /// first minute. The clock is left on the minute before it, as the match
+    /// starts on minute 0, so the next minute simulated is the period's first
+    /// and `check_phase_end` counts every period the same way.
+    fn period_kicks_off_at(&mut self, earliest: u8) -> u8 {
+        let first_minute = (self.current_minute + 1).max(earliest);
+        self.current_minute = first_minute - 1;
+        self.period_started_at = first_minute - 1;
+        first_minute
+    }
+
+    /// End the period once it has run its full length plus its own stoppage:
+    /// 45 simulated minutes a half, 15 an extra-time half, counted from the
+    /// minute before it kicked off. A second half kicking off at 49 after a
+    /// long first-half stoppage still gets its 45 minutes, 49 to 93.
     fn check_phase_end<R: Rng>(&mut self, minute: u8, _rng: &mut R) -> Vec<MatchEvent> {
         let mut events = Vec::new();
-        // The kick-off minute is itself the first minute of the period.
         let played = minute.saturating_sub(self.period_started_at);
         match self.phase {
             MatchPhase::FirstHalf if played >= 45 + self.first_half_stoppage => {
@@ -257,19 +262,19 @@ impl LiveMatchState {
                 self.events.push(evt.clone());
                 events.push(evt);
             }
-            MatchPhase::SecondHalf if played >= 44 + self.second_half_stoppage => {
+            MatchPhase::SecondHalf if played >= 45 + self.second_half_stoppage => {
                 self.phase = MatchPhase::FullTime;
                 let evt = MatchEvent::new(minute, EventType::FullTime, Side::Home, Zone::Midfield);
                 self.events.push(evt.clone());
                 events.push(evt);
             }
-            MatchPhase::ExtraTimeFirstHalf if played >= 14 + self.et_first_half_stoppage => {
+            MatchPhase::ExtraTimeFirstHalf if played >= 15 + self.et_first_half_stoppage => {
                 self.phase = MatchPhase::ExtraTimeHalfTime;
                 let evt = MatchEvent::new(minute, EventType::HalfTime, Side::Home, Zone::Midfield);
                 self.events.push(evt.clone());
                 events.push(evt);
             }
-            MatchPhase::ExtraTimeSecondHalf if played >= 14 + self.et_second_half_stoppage => {
+            MatchPhase::ExtraTimeSecondHalf if played >= 15 + self.et_second_half_stoppage => {
                 self.phase = MatchPhase::ExtraTimeEnd;
                 let evt = MatchEvent::new(minute, EventType::FullTime, Side::Home, Zone::Midfield);
                 self.events.push(evt.clone());
