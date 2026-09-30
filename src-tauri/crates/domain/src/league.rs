@@ -502,3 +502,23 @@ impl Default for Fixture {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_competition_rules_default_to_four_clubs_per_group() {
+        let rules: CompetitionRules = serde_json::from_str(
+            r#"{"format":"GroupAndKnockout","group_qualifiers_per_group":2,"group_stage_legs":1}"#,
+        )
+        .unwrap();
+        let json = serde_json::to_value(&rules).unwrap();
+        assert_eq!(json["group_size"], 4);
+        assert_eq!(rules.group_stage_legs, 1);
+        assert_eq!(
+            serde_json::to_value(CompetitionRules::default()).unwrap()["group_size"],
+            4
+        );
+    }
+}

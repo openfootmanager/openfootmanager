@@ -875,4 +875,108 @@ mod tests {
             "unreadable source dir should surface an error"
         );
     }
+    fn group_world_json(entrants: usize, format: serde_json::Value, selector: bool) -> String {
+        let teams: Vec<domain::team::Team> = (0..entrants)
+            .map(|i| {
+                domain::team::Team::new(
+                    format!("club-{i}"),
+                    format!("Club {i}"),
+                    format!("C{i}"),
+                    "ENG".into(),
+                    "City".into(),
+                    "Ground".into(),
+                    1000,
+                )
+            })
+            .collect();
+        let participants = if selector {
+            serde_json::json!({"selector":{"kind":"topByReputation","country":"ENG","count":100}})
+        } else {
+            serde_json::json!({"explicit": teams.iter().map(|t| &t.id).collect::<Vec<_>>()})
+        };
+        serde_json::json!({"teams":teams, "competitionDefinitions":{"competitions":[{
+            "id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+            "format":format, "participants":participants
+        }]}})
+        .to_string()
+    }
+
+    #[test]
+    fn public_world_loader_honours_group_size_in_resolved_schedules() {
+        use chrono::TimeZone;
+        for (entrants, format, sizes, fixtures) in [
+            (
+                8,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                vec![2, 2, 2, 2],
+                8,
+            ),
+            (
+                8,
+                serde_json::json!({"kind":"GroupAndKnockout"}),
+                vec![4, 4],
+                24,
+            ),
+            (
+                7,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"bestThirdQualifiers":1}),
+                vec![2, 2, 3],
+                10,
+            ),
+        ] {
+            let world = load_world_from_json(&group_world_json(entrants, format, false)).unwrap();
+            let definitions = world.competition_definitions.as_ref().unwrap();
+            let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+            let cup = super::super::resolve_definitions(definitions, &world, 2031, start).remove(0);
+            let mut actual: Vec<usize> = cup.groups.iter().map(|g| g.team_ids.len()).collect();
+            actual.sort();
+            assert_eq!(actual, sizes);
+            assert_eq!(cup.fixtures.len(), fixtures);
+            let mut ids: Vec<&String> = cup.groups.iter().flat_map(|g| &g.team_ids).collect();
+            ids.sort();
+            let mut expected: Vec<&String> = world.teams.iter().map(|t| &t.id).collect();
+            expected.sort();
+            assert_eq!(ids, expected, "every entrant is assigned exactly once");
+            assert!(cup.fixtures.iter().all(|f| {
+                cup.groups.iter().any(|g| {
+                    g.team_ids.contains(&f.home_team_id) && g.team_ids.contains(&f.away_team_id)
+                })
+            }));
+        }
+    }
+
+    #[test]
+    fn public_world_loader_rejects_incompatible_group_qualification() {
+        for selector in [false, true] {
+            for (entrants, format) in [
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":0}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":3}),
+                ),
+                (
+                    7,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"qualifiersPerGroup":3}),
+                ),
+                (
+                    7,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"bestThirdQualifiers":2}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"bestThirdQualifiers":1}),
+                ),
+            ] {
+                let result = load_world_from_json(&group_world_json(entrants, format, selector));
+                assert!(
+                    matches!(result, Err(ref key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR),
+                    "selector={selector}, entrants={entrants}: {:?}",
+                    result.as_ref().map(|_| "accepted")
+                );
+            }
+        }
+    }
 }

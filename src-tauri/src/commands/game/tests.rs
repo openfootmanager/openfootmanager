@@ -560,3 +560,55 @@ fn bootstrap_and_upgrade_sets_granular_positions() {
         "outfield players on the selected team should have granular natural_position after upgrade"
     );
 }
+
+#[test]
+fn authored_group_size_reaches_the_game_built_from_a_loaded_world() {
+    for (size, expected_groups, expected_fixtures) in [(Some(2), 4, 8), (None, 2, 24)] {
+        let template = make_historical_snapshot_world().teams[0].clone();
+        let mut world = ofm_core::generator::WorldData::default();
+        world.teams = (0..8)
+            .map(|i| {
+                let mut team = template.clone();
+                team.id = format!("authored-club-{i}");
+                team
+            })
+            .collect();
+        world.players.clear();
+        world.staff.clear();
+        let mut json = serde_json::to_value(&world).unwrap();
+        let mut format = serde_json::json!({"kind":"GroupAndKnockout"});
+        if let Some(size) = size {
+            format["groupSize"] = size.into();
+        }
+        json["competitionDefinitions"] = serde_json::json!({"competitions":[{
+            "id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+            "format":format, "participants":{"explicit":world.teams.iter().map(|t| &t.id).collect::<Vec<_>>()}
+        }]});
+        let loaded = ofm_core::generator::load_world_from_json(&json.to_string()).unwrap();
+        let manager = domain::manager::Manager::new(
+            "mgr-user".into(),
+            "Alex".into(),
+            "Manager".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        let options = StartupOptions {
+            start_year: 2031,
+            start_phase: StartPhase::SeasonStart,
+            history_depth_years: 0,
+        };
+        let clock = game_clock_for_world(&options, &loaded.metadata).unwrap();
+        let (game, _) = build_game_from_world_data(clock, manager, &options, loaded);
+        let cup = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "authored-cup")
+            .unwrap();
+        assert_eq!(cup.groups.len(), expected_groups);
+        assert_eq!(cup.fixtures.len(), expected_fixtures);
+        assert!(cup
+            .groups
+            .iter()
+            .all(|g| g.team_ids.len() == size.unwrap_or(4)));
+    }
+}
