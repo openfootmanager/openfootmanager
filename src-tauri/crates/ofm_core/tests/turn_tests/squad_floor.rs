@@ -102,6 +102,55 @@ fn an_unfillable_ai_club_still_finishes_the_day() {
     assert_eq!(registered(&game, "team2"), 0);
 }
 
+/// Given an AI club of exactly fifteen seniors, one of them a defender on loan
+/// from the player's club until three weeks from now, and free agents on the
+/// market, when the days up to and past the loan's end are played, then the
+/// defender goes home and the club never needs an emergency top-up: its weekly
+/// planning saw it at the floor and brought players in before the loss.
+#[test]
+fn weekly_planning_covers_a_loss_in_the_middle_of_a_season() {
+    let mut game = make_game_without_match_today();
+    for (position, id) in [
+        (Position::Goalkeeper, "t2_extra_gk"),
+        (Position::Midfielder, "t2_extra_mid"),
+        (Position::Forward, "t2_extra_fwd"),
+    ] {
+        game.players.push(make_player(id, id, "team2", position));
+    }
+    let loan_end = (game.clock.current_date + chrono::Duration::days(20))
+        .format("%Y-%m-%d")
+        .to_string();
+    let loanee = game.players.iter_mut().find(|p| p.id == "t1_def0").unwrap();
+    loanee.team_id = Some("team2".to_string());
+    loanee.active_loan = Some(domain::player::ActiveLoan {
+        parent_team_id: "team1".to_string(),
+        loan_team_id: "team2".to_string(),
+        start_date: "2025-01-01".to_string(),
+        end_date: loan_end,
+        wage_contribution_pct: 100,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    assert_eq!(registered(&game, "team2"), 15);
+    add_free_agent_pool(&mut game, "a");
+
+    for _ in 0..30 {
+        turn::process_day(&mut game);
+    }
+
+    let loanee = game.players.iter().find(|p| p.id == "t1_def0").unwrap();
+    assert_eq!(loanee.team_id.as_deref(), Some("team1"), "the loan ended");
+    let emergencies: Vec<_> = game
+        .squad_floor_top_ups
+        .iter()
+        .filter(|top_up| top_up.team_id == "team2")
+        .collect();
+    assert!(emergencies.is_empty(), "emergency top-ups: {emergencies:?}");
+}
+
 /// Every contract at both clubs ends today. The AI club is back at the floor
 /// by the end of the day; the player's club is warned and left to choose.
 #[test]

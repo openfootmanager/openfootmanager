@@ -257,15 +257,17 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
         game.manager.team_id.as_ref().is_some_and(|team_id| {
             crate::training::teams_playing_on(game, &today).contains(team_id)
         });
-    let short_clubs = clubs_below_the_floor(game);
-    let changed = !short_clubs.is_empty();
-    for (team_id, shortfall) in short_clubs {
+    // Only what changed the game counts: a save whose one short club is the
+    // player's, already warned, must not be rewritten on every load.
+    let mut changed = false;
+    for (team_id, shortfall) in clubs_below_the_floor(game) {
         if Some(&team_id) == game.manager.team_id.as_ref() {
             if !user_club_plays_today {
-                warn_user_club_is_short(game, &team_id, &shortfall);
+                changed |= warn_user_club_is_short(game, &team_id, &shortfall);
             }
         } else {
             let top_up = restore_minimum_squad(game, &team_id);
+            changed |= !top_up.brought_in().is_empty();
             report_unfilled_ai_club(&team_id, &top_up);
         }
     }
@@ -408,8 +410,13 @@ fn have_for(game: &Game, team_id: &str, shortage: &Shortage) -> usize {
 
 /// One message per shortage. Keyed on the season, the shortage and how many are
 /// left, so the player hears once when the club goes short and again if it gets
-/// worse — not every day it stays that way.
-fn warn_user_club_is_short(game: &mut Game, team_id: &str, shortfall: &[(Shortage, usize)]) {
+/// worse — not every day it stays that way. Returns whether any was new.
+fn warn_user_club_is_short(
+    game: &mut Game,
+    team_id: &str,
+    shortfall: &[(Shortage, usize)],
+) -> bool {
+    let mut sent = false;
     let season = crate::inbox::recurrence_season(game);
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     let team_name = game.team_name_or_id(team_id);
@@ -419,8 +426,9 @@ fn warn_user_club_is_short(game: &mut Game, team_id: &str, shortfall: &[(Shortag
             shortage_message_parts("be.msg.squadBelowFloor", &team_name, shortage, have);
         let id = format!("squad_below_floor_{team_id}_{season}_{shortage:?}_{have}");
         let message = shortage_message(id, &date, &subject, &body, params);
-        crate::inbox::emit(game, message);
+        sent |= crate::inbox::emit(game, message);
     }
+    sent
 }
 
 /// One message per shortage nobody could fill, for the player's club. Keyed on
@@ -1236,9 +1244,30 @@ mod tests {
 
         let mut matchday = users_club_with([1, 5, 5, 4]);
         with_fixture_on(&mut matchday, "2026-08-01");
-        assert!(repair_squads_on_load(&mut matchday));
+        assert!(!repair_squads_on_load(&mut matchday), "nothing was changed");
         assert!(matchday.messages.is_empty());
         assert!(!squad_shortfall(&matchday, "club").is_empty());
+    }
+
+    /// Given a save whose only short club is the player's, already warned,
+    /// when it is loaded again, the repair reports no change — so the save is
+    /// not rewritten on every load.
+    #[test]
+    fn load_repair_does_not_rewrite_a_save_it_did_not_change() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        assert!(repair_squads_on_load(&mut game), "the first load warns");
+        assert!(
+            !repair_squads_on_load(&mut game),
+            "a second load changed nothing"
+        );
+    }
+
+    /// Given an AI club with no keeper and nobody anywhere to bring in, loading
+    /// changes nothing — so the save is not rewritten for a gap it cannot fill.
+    #[test]
+    fn load_repair_reports_no_change_when_nobody_could_be_brought_in() {
+        let mut game = club_with([0, 5, 5, 5]);
+        assert!(!repair_squads_on_load(&mut game));
     }
 
     #[test]

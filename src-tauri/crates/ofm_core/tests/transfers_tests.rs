@@ -4062,6 +4062,24 @@ fn squad_floor_a_loan_that_would_leave_the_parent_club_short_is_refused() {
     }));
 }
 
+/// Given the player's club at its forward minimum and an offer id nobody made,
+/// when the manager accepts it, the answer is that the offer is not pending —
+/// the floor is only asked about a departure that could actually happen.
+#[test]
+fn squad_floor_a_stale_loan_offer_is_refused_as_stale_even_at_the_floor() {
+    let mut player = make_user_player("player-stale-loan");
+    player.loan_listed = true;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    leave_club_at_the_forward_floor(&mut game, "team-1");
+
+    let result = respond_to_loan_offer(&mut game, "player-stale-loan", "no-such-offer", true);
+
+    assert_eq!(
+        result.err().as_deref(),
+        Some("be.error.transfers.offerNotPending")
+    );
+}
+
 /// Given an AI club of seventeen seniors and a buyer with money to burn, when
 /// the buyer bids big for every one of them, then two sales go through and
 /// every later one is refused: the club keeps fifteen, whoever it sells.

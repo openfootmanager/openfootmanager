@@ -951,10 +951,22 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
     assert_eq!(
         player.contract_start.as_deref(),
         Some("2026-08-01"),
-        "a delegated renewal is still an agreement signed today: this is its own \
-         write site, not the manual renewal path"
+        "a delegated renewal is still an agreement signed today"
     );
     assert!(player.wage >= 14_000);
+    // The one renewal writer, told the assistant agreed it: the session says so,
+    // and the manager's own talks are left as they were.
+    let session = player.morale_core.renewal_state.as_ref().unwrap();
+    assert_eq!(
+        session.last_outcome,
+        Some(domain::player::RenewalSessionOutcome::AcceptedByAssistant)
+    );
+    assert_eq!(
+        session.last_assistant_attempt_date.as_deref(),
+        Some("2026-08-01")
+    );
+    assert_eq!(session.last_attempt_date, None, "the manager never talked");
+    assert_eq!(session.conversation_round, 0);
 
     let report_message = game
         .messages

@@ -295,7 +295,7 @@ pub fn propose_renewal(
             offer.weekly_wage,
             offer.contract_years,
             current_date,
-            round,
+            RenewalAgreedBy::Manager { round },
         )?;
         let player = &game.players[player_index];
         return Ok(renewal_outcome(
@@ -566,19 +566,30 @@ pub(crate) fn has_active_manager_block(player: &Player, current_date: NaiveDate)
 /// player's own negotiation and an AI club renewing its players both come
 /// through here. Whether the terms are acceptable (`evaluate_renewal_offer`)
 /// and affordable (the wage policy) is the caller's question.
+/// Who shook hands on a renewal: the club's manager — the player's, or an AI
+/// club's — in the round the talks reached, or the player's assistant on the
+/// manager's behalf. The session records each in its own fields, so the
+/// assistant's deal does not count as the manager having talked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RenewalAgreedBy {
+    Manager { round: u8 },
+    Assistant,
+}
+
 pub(crate) fn apply_agreed_renewal(
     player: &mut Player,
     weekly_wage: u32,
     contract_years: u32,
     current_date: NaiveDate,
-    round: u8,
+    agreed_by: RenewalAgreedBy,
 ) -> Result<(), String> {
     let new_contract_end = current_date
         .checked_add_months(Months::new(contract_years * 12))
         .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
+    let today = current_date.format("%Y-%m-%d").to_string();
 
     player.wage = weekly_wage;
-    player.contract_start = Some(current_date.format("%Y-%m-%d").to_string());
+    player.contract_start = Some(today.clone());
     player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
     let state = player
         .morale_core
@@ -586,9 +597,18 @@ pub(crate) fn apply_agreed_renewal(
         .get_or_insert_with(ContractRenewalState::default);
     state.status = RenewalSessionStatus::Agreed;
     state.manager_blocked_until = None;
-    state.last_attempt_date = Some(current_date.format("%Y-%m-%d").to_string());
-    state.last_outcome = Some(RenewalSessionOutcome::AcceptedByManager);
-    state.conversation_round = round;
     state.exit_intent = None;
+    match agreed_by {
+        RenewalAgreedBy::Manager { round } => {
+            state.last_attempt_date = Some(today);
+            state.last_outcome = Some(RenewalSessionOutcome::AcceptedByManager);
+            state.conversation_round = round;
+        }
+        RenewalAgreedBy::Assistant => {
+            state.last_assistant_attempt_date = Some(today);
+            state.last_outcome = Some(RenewalSessionOutcome::AcceptedByAssistant);
+            state.conversation_round = 0;
+        }
+    }
     Ok(())
 }

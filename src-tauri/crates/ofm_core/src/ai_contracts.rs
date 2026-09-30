@@ -183,13 +183,14 @@ fn worth_keeping(game: &Game, team: &Team, player: &Player, current_date: NaiveD
         || (age <= PEAK_AGE_LIMIT && player.ovr >= squad_median_ovr(game, &team.id))
 }
 
-/// The median rating of the players registered to the club, as the floor
-/// counts them.
+/// The median rating of the club's seniors, counted as the floor counts them:
+/// an academy of low-rated youngsters is not the standard a senior is held to.
 fn squad_median_ovr(game: &Game, team_id: &str) -> u8 {
     let mut ratings: Vec<u8> = game
         .players
         .iter()
         .filter(|player| player.team_id.as_deref() == Some(team_id))
+        .filter(|player| player.squad_role == domain::player::SquadRole::Senior)
         .map(|player| player.ovr)
         .collect();
     if ratings.is_empty() {
@@ -220,7 +221,7 @@ fn renew(game: &mut Game, team: &Team, player_index: usize, current_date: NaiveD
         offer.weekly_wage,
         offer.contract_years,
         current_date,
-        round,
+        crate::contracts::RenewalAgreedBy::Manager { round },
     ) {
         log::error!(
             "[ai_contracts] {} could not renew {}: {error}",
@@ -430,6 +431,34 @@ mod tests {
         apply_ai_contract_decisions(&mut game, review_day());
 
         assert_eq!(contract_end(&game, "veteran"), before);
+    }
+
+    /// Given an AI club whose academy is full of low-rated youngsters, when a
+    /// senior a little below the seniors' standard runs down his contract, he
+    /// is judged against the seniors — and let go. Counting the academy would
+    /// drag the standard down to him.
+    #[test]
+    fn the_squad_median_is_the_seniors_median() {
+        let mut game = world();
+        for i in 0..30 {
+            let mut youngster = player(
+                &format!("academy{i}"),
+                "ai",
+                Position::Midfielder,
+                30,
+                17,
+                1_000,
+            );
+            youngster.squad_role = domain::player::SquadRole::Youth;
+            game.players.push(youngster);
+        }
+        game.players
+            .push(player("journeyman", "ai", Position::Midfielder, 55, 29, 90));
+        let before = contract_end(&game, "journeyman");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert_eq!(contract_end(&game, "journeyman"), before);
     }
 
     /// The same player, but the club's only other keepers are the floor itself:

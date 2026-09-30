@@ -521,10 +521,6 @@ The `TransfersTab` provides 4 views:
 - **Loans** — Loan-listed players
 - **Offers** — Incoming and outgoing transfer offers
 
-### Transfer Mechanics
-
-(Transfer resolution logic is planned for future development. The current system provides the UI framework and data structures.)
-
 ---
 
 ## The Squad Floor

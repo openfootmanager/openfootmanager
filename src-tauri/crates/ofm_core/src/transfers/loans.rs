@@ -604,15 +604,17 @@ pub fn respond_to_loan_offer(
     if accept && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
-    if accept {
-        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
-    }
 
     let offer = player
         .loan_offers
         .iter()
         .find(|offer| offer.id == offer_id && offer.status == LoanOfferStatus::Pending)
         .ok_or(ERR_OFFER_NOT_PENDING)?;
+    // After the offer is known to be real — a stale one is refused as stale —
+    // and before anything is recorded as agreed.
+    if accept {
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+    }
 
     let from_team_id = offer.from_team_id.clone();
     let wage_contribution_pct = offer.wage_contribution_pct;
