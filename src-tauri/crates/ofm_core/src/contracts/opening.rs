@@ -66,12 +66,9 @@ pub fn record_opening_contracts(game: &mut Game, club_anchors: &HashMap<String, 
                 .contract_end()
                 .and_then(parse_contract_date)
                 .and_then(|end| {
-                    // On loan, `team_id` is the borrower but the contract is the parent
-                    // club's, so the parent's season is the one it began in.
-                    let contract_club = player
-                        .active_loan
-                        .as_ref()
-                        .map_or(team_id, |loan| loan.parent_team_id.as_str());
+                    // The contract is his parent club's while he is on loan, so that is
+                    // the season it began in.
+                    let contract_club = player.contract_club_id().unwrap_or(team_id);
                     let anchor = club_anchors
                         .get(contract_club)
                         .map(|anchor| anchor.date_naive());

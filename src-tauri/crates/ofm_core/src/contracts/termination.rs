@@ -92,7 +92,8 @@ pub fn terminate_contract_now(
     }
 
     let player_index = owned_player_index(game, player_id)?;
-    let team_id = contract_owner_team_id(&game.players[player_index])
+    let team_id = game.players[player_index]
+        .contract_club_id()
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string())?
         .to_string();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();

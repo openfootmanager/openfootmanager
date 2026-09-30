@@ -174,7 +174,7 @@ pub fn propose_renewal(
         .position(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
-    if contract_owner_team_id(&game.players[player_index]) != Some(team.id.as_str()) {
+    if game.players[player_index].contract_club_id() != Some(team.id.as_str()) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 

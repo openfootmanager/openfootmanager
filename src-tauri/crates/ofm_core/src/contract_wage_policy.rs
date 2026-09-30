@@ -21,14 +21,6 @@ fn backend_error_with_param(key: &str, param_name: &str, param_value: i64) -> St
     message
 }
 
-fn contract_owner_team_id(player: &domain::player::Player) -> Option<&str> {
-    player
-        .active_loan
-        .as_ref()
-        .map(|loan| loan.parent_team_id.as_str())
-        .or(player.team_id.as_deref())
-}
-
 fn projected_wage_bills(
     game: &Game,
     team_id: &str,
@@ -118,8 +110,9 @@ pub fn project_renewal_financial_impact(
         .iter()
         .find(|player| player.id == player_id)
         .ok_or_else(|| "be.error.playerNotFound".to_string())?;
-    let team_id =
-        contract_owner_team_id(player).ok_or_else(|| ERR_PLAYER_HAS_NO_TEAM.to_string())?;
+    let team_id = player
+        .contract_club_id()
+        .ok_or_else(|| ERR_PLAYER_HAS_NO_TEAM.to_string())?;
     let team = game
         .teams
         .iter()

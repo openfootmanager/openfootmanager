@@ -69,10 +69,8 @@ pub(crate) fn release_player_contract(
     let player_id = game.players[player_index].id.clone();
     let player_name = game.players[player_index].match_name.clone();
     let team_id = game.players[player_index]
-        .active_loan
-        .as_ref()
-        .map(|loan| loan.parent_team_id.clone())
-        .or_else(|| game.players[player_index].team_id.clone());
+        .contract_club_id()
+        .map(str::to_string);
 
     let Some(team_id) = team_id.as_deref() else {
         return;

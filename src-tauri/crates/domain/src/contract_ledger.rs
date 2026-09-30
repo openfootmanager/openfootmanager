@@ -242,6 +242,16 @@ impl Player {
         self.movement_history.recorded()
     }
 
+    /// The club whose contract he is on: his parent club while he is out on loan, his
+    /// own club otherwise. `team_id` is where he plays, which on loan is the borrower.
+    /// The one place this rule is written.
+    pub fn contract_club_id(&self) -> Option<&str> {
+        self.active_loan
+            .as_ref()
+            .map(|loan| loan.parent_team_id.as_str())
+            .or(self.team_id.as_deref())
+    }
+
     pub fn contract_start(&self) -> Option<&str> {
         self.movement_history.start()
     }
@@ -333,13 +343,7 @@ impl Player {
             self.movement_history.staged = None;
             return Ok(());
         }
-        // A loaned player's contract is his parent's.
-        let Some(club) = self
-            .active_loan
-            .as_ref()
-            .map(|loan| loan.parent_team_id.clone())
-            .or_else(|| self.team_id.clone())
-        else {
+        let Some(club) = self.contract_club_id().map(str::to_string) else {
             return Ok(());
         };
         let record = ContractRecord {
@@ -1002,5 +1006,34 @@ mod tests {
             ContractSource::LegacyMigrated
         );
         assert_eq!(p.contract_start(), None);
+    }
+
+    #[test]
+    fn the_contract_club_is_his_club_unless_he_is_on_loan() {
+        use crate::player::ActiveLoan;
+        let mut p = player();
+        assert_eq!(p.contract_club_id(), None, "no club, no contract club");
+
+        p.team_id = Some("club-a".into());
+        assert_eq!(p.contract_club_id(), Some("club-a"));
+
+        p.team_id = Some("borrower".into());
+        p.active_loan = Some(ActiveLoan {
+            parent_team_id: "club-a".into(),
+            loan_team_id: "borrower".into(),
+            start_date: "2026-08-01".into(),
+            end_date: "2027-05-31".into(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        assert_eq!(
+            p.contract_club_id(),
+            Some("club-a"),
+            "the contract stays with the parent while he is out on loan"
+        );
     }
 }

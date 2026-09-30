@@ -1,4 +1,4 @@
-use crate::contracts::{contract_owner_team_id, iso, record_movement};
+use crate::contracts::{iso, record_movement};
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
 use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
@@ -126,7 +126,7 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
     record_movement(
         player,
         PlayerMovementEntry {
-            from_team_id: contract_owner_team_id(player).map(str::to_string),
+            from_team_id: player.contract_club_id().map(str::to_string),
             ..PlayerMovementEntry::new(iso(current_date), PlayerMovementKind::Retired)
         },
     );

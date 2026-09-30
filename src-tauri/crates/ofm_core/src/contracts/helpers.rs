@@ -16,7 +16,7 @@ pub(crate) fn owned_player<'a>(game: &'a Game, player_id: &str) -> Result<&'a Pl
         .find(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
-    if contract_owner_team_id(player) != Some(manager_team_id) {
+    if player.contract_club_id() != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
@@ -35,19 +35,11 @@ pub(crate) fn owned_player_index(game: &Game, player_id: &str) -> Result<usize, 
         .position(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
-    if contract_owner_team_id(&game.players[player_index]) != Some(manager_team_id) {
+    if game.players[player_index].contract_club_id() != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
     Ok(player_index)
-}
-
-pub(crate) fn contract_owner_team_id(player: &Player) -> Option<&str> {
-    player
-        .active_loan
-        .as_ref()
-        .map(|loan| loan.parent_team_id.as_str())
-        .or(player.team_id.as_deref())
 }
 
 pub(crate) fn backend_text_with_param(key: &str, param_name: &str, param_value: &str) -> String {
