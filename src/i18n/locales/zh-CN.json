@@ -2652,6 +2652,7 @@
         "unknownCountry": "未知国家“{{country}}”。",
         "groupConfigOnNonGroupFormat": "分组设置仅适用于小组赛加淘汰赛格式。",
         "groupSizeTooSmall": "小组规模 {{groupSize}} 太小（至少 2）。",
+        "invalidGroupQualification": "这些参赛球队无法满足小组晋级设置。",
         "zeroLegs": "赛事至少需要一回合。",
         "noParticipants": "没有参赛者：请提供明确列表或选择器。",
         "bothParticipantSources": "请提供明确列表或选择器，二者不可兼用。",

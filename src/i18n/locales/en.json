@@ -2677,6 +2677,7 @@
         "unknownCountry": "Unknown country \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Group settings only apply to a group-and-knockout format.",
         "groupSizeTooSmall": "Group size {{groupSize}} is too small (minimum 2).",
+        "invalidGroupQualification": "Group qualification settings cannot be satisfied by these entrants.",
         "zeroLegs": "A competition needs at least one leg.",
         "noParticipants": "No participants: provide an explicit list or a selector.",
         "bothParticipantSources": "Provide either an explicit list or a selector, not both.",

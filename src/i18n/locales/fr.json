@@ -2652,6 +2652,7 @@
         "unknownCountry": "Pays inconnu \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Les réglages de groupe ne s'appliquent qu'à un format groupes et phase finale.",
         "groupSizeTooSmall": "La taille de groupe {{groupSize}} est trop petite (minimum 2).",
+        "invalidGroupQualification": "Ces participants ne permettent pas de respecter les paramètres de qualification des groupes.",
         "zeroLegs": "Une compétition doit comporter au moins une manche.",
         "noParticipants": "Aucun participant : fournissez une liste explicite ou un sélecteur.",
         "bothParticipantSources": "Fournissez soit une liste explicite, soit un sélecteur, pas les deux.",

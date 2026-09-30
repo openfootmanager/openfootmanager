@@ -2677,6 +2677,7 @@
         "unknownCountry": "Neznámá země „{{country}}“.",
         "groupConfigOnNonGroupFormat": "Nastavení skupin se vztahuje pouze na formát se základními skupinami a vyřazovací fází.",
         "groupSizeTooSmall": "Velikost skupiny {{groupSize}} je příliš malá (minimum jsou 2).",
+        "invalidGroupQualification": "S těmito účastníky nelze splnit nastavení postupu ze skupin.",
         "zeroLegs": "Soutěž vyžaduje alespoň jeden zápas na kolo.",
         "noParticipants": "Žádní účastníci: zadejte explicitní seznam nebo selektor.",
         "bothParticipantSources": "Zadejte buď explicitní seznam, nebo selektor, nikoliv obojí.",

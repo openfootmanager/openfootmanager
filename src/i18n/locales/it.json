@@ -2652,6 +2652,7 @@
         "unknownCountry": "Paese sconosciuto \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Le impostazioni dei gironi valgono solo per un formato a gironi ed eliminazione.",
         "groupSizeTooSmall": "La dimensione del girone {{groupSize}} è troppo piccola (minimo 2).",
+        "invalidGroupQualification": "Questi partecipanti non consentono di rispettare le impostazioni di qualificazione dei gironi.",
         "zeroLegs": "Una competizione necessita di almeno una gara.",
         "noParticipants": "Nessun partecipante: fornisci un elenco esplicito o un selettore.",
         "bothParticipantSources": "Fornisci un elenco esplicito oppure un selettore, non entrambi.",

@@ -616,6 +616,7 @@ export interface LeagueData {
   rules?: {
     format: "LeagueTable" | "Knockout" | "GroupAndKnockout";
     counts_in_season_flow: boolean;
+    group_size?: number;
   };
   fixtures: FixtureData[];
   standings: StandingData[];

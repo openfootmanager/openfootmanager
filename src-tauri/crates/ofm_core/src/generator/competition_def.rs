@@ -97,6 +97,24 @@ pub struct FormatDef {
     pub best_third_qualifiers: Option<u32>,
 }
 
+impl FormatDef {
+    /// The effective authored shape, shared by validation and construction.
+    fn group_stage_config(&self) -> crate::group_stage::GroupStageConfig {
+        let defaults = crate::group_stage::GroupStageConfig::default();
+        crate::group_stage::GroupStageConfig {
+            group_size: self.group_size.unwrap_or(defaults.group_size),
+            legs: self.legs.unwrap_or(defaults.legs),
+            qualifiers_per_group: self
+                .qualifiers_per_group
+                .unwrap_or(defaults.qualifiers_per_group),
+            best_third_qualifiers: self
+                .best_third_qualifiers
+                .unwrap_or(defaults.best_third_qualifiers),
+            ..defaults
+        }
+    }
+}
+
 /// How a competition's participants are chosen. Exactly one variant must be
 /// supplied.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -567,6 +585,11 @@ fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<Definit
                 .with("groupSize", group_size.to_string()),
         );
     }
+    validate_group_qualification(
+        competition,
+        competition.participants.explicit.as_ref().map(Vec::len),
+        errors,
+    );
     if let Some(legs) = format.legs
         && legs == 0
     {
@@ -575,6 +598,73 @@ fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<Definit
             &competition.id,
         ));
     }
+}
+
+/// Qualification must be attainable in every balanced group. Extra qualifiers
+/// are next-placed finishers, so shorter groups may have none to supply.
+fn validate_group_qualification(
+    competition: &CompetitionDefinition,
+    entrants: Option<usize>,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if competition.format.kind != CompetitionFormat::GroupAndKnockout {
+        return;
+    }
+    let config = competition.format.group_stage_config();
+    let size = config.group_size as usize;
+    if size < 2 {
+        return; // Reported by validate_format; avoid division by zero.
+    }
+    let qualifiers = config.qualifiers_per_group as usize;
+    let extra = config.best_third_qualifiers as usize;
+    let incompatible = qualifiers == 0
+        || qualifiers > size
+        || entrants.is_some_and(|entrants| {
+            let groups = crate::group_stage::group_count(entrants, size);
+            let smallest = entrants / groups;
+            let available_extra = if smallest > qualifiers {
+                groups
+            } else if smallest == qualifiers {
+                entrants % groups
+            } else {
+                0
+            };
+            qualifiers > smallest || extra > available_extra || groups * qualifiers + extra < 2
+        });
+    if incompatible {
+        errors.push(DefinitionError::new(
+            "be.error.competitionDef.invalidGroupQualification",
+            &competition.id,
+        ));
+    }
+}
+
+/// Validate against the actual selector results, using the same resolver as
+/// construction. A selector's requested count is only an upper bound.
+pub fn validate_definitions_for_world(
+    file: &CompetitionDefinitionFile,
+    world: &super::WorldData,
+) -> Vec<DefinitionError> {
+    let mut errors = validate_definitions(file, &WorldValidationContext::from_world(world));
+    if !errors.is_empty() {
+        return errors;
+    }
+    let participants = resolve_definition_participants(file, world);
+    for (index, competition) in file.competitions.iter().enumerate() {
+        if competition.participants.selector.is_none() {
+            continue; // Explicit lists were checked by validate_format.
+        }
+        let raised_before = errors.len();
+        validate_group_qualification(
+            competition,
+            Some(participants[&competition.id].len()),
+            &mut errors,
+        );
+        for error in &mut errors[raised_before..] {
+            error.competition_index = Some(index);
+        }
+    }
+    errors
 }
 
 fn validate_participants(
@@ -962,13 +1052,7 @@ fn build_competition(
             cup
         }
         CompetitionFormat::GroupAndKnockout => {
-            let config = crate::group_stage::GroupStageConfig {
-                legs: def.format.legs.unwrap_or(2),
-                matchday_gap_days: 7,
-                qualifiers_per_group: def.format.qualifiers_per_group.unwrap_or(2),
-                best_third_qualifiers: def.format.best_third_qualifiers.unwrap_or(0),
-                ..Default::default()
-            };
+            let config = def.format.group_stage_config();
             let mut cup = crate::group_stage::generate_group_knockout_cup_with(
                 &def.name,
                 season,

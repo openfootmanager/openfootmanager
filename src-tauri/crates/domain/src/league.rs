@@ -28,11 +28,21 @@ pub enum CompetitionFormat {
     GroupAndKnockout,
 }
 
+/// Legacy and built-in group size when no authored override is supplied.
+pub const DEFAULT_GROUP_SIZE: u32 = 4;
+
+fn default_group_size() -> u32 {
+    DEFAULT_GROUP_SIZE
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct CompetitionRules {
     pub format: CompetitionFormat,
     pub counts_in_season_flow: bool,
+    /// Maximum clubs per snake-seeded group; uneven fields are balanced.
+    #[serde(default = "default_group_size")]
+    pub group_size: u32,
     /// Group-and-knockout only: clubs advancing from each group.
     pub group_qualifiers_per_group: u32,
     /// Group-and-knockout only: additional best next-placed finishers across
@@ -60,6 +70,7 @@ impl Default for CompetitionRules {
         Self {
             format: CompetitionFormat::LeagueTable,
             counts_in_season_flow: true,
+            group_size: DEFAULT_GROUP_SIZE,
             group_qualifiers_per_group: 2,
             group_best_third_qualifiers: 0,
             group_stage_legs: 2,

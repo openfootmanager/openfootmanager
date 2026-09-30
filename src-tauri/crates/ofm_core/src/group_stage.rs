@@ -8,13 +8,11 @@ use domain::league::{
 };
 use uuid::Uuid;
 
-/// Clubs per group; the last groups may run one short when the entrant count
-/// doesn't divide evenly.
-const GROUP_SIZE: usize = 4;
-
 /// Shape of a group stage at creation time.
 #[derive(Debug, Clone)]
 pub struct GroupStageConfig {
+    /// Maximum clubs per snake-seeded group.
+    pub group_size: u32,
     /// Round-robin legs within each group (2 = home and away).
     pub legs: u8,
     /// Days between group matchdays.
@@ -37,14 +35,16 @@ pub struct GroupStageConfig {
 
 impl Default for GroupStageConfig {
     fn default() -> Self {
+        let rules = CompetitionRules::default();
         Self {
-            legs: 2,
-            matchday_gap_days: 7,
-            qualifiers_per_group: 2,
-            best_third_qualifiers: 0,
-            knockout_round_gap_days: 14,
+            group_size: rules.group_size,
+            legs: rules.group_stage_legs,
+            matchday_gap_days: i64::from(rules.group_matchday_gap_days),
+            qualifiers_per_group: rules.group_qualifiers_per_group,
+            best_third_qualifiers: rules.group_best_third_qualifiers,
+            knockout_round_gap_days: rules.knockout_round_gap_days,
             max_concurrent_matches_per_day: None,
-            knockout_matches_per_day: 1,
+            knockout_matches_per_day: rules.knockout_matches_per_day,
         }
     }
 }
@@ -60,13 +60,26 @@ fn fixture_competition_for(kind: &CompetitionType) -> FixtureCompetition {
 }
 
 fn group_label(index: usize) -> String {
-    char::from(b'A' + (index % 26) as u8).to_string()
+    // Continue after Z so small authored groups keep distinct ids in large fields.
+    let mut number = index + 1;
+    let mut letters = Vec::new();
+    while number > 0 {
+        number -= 1;
+        letters.push(char::from(b'A' + (number % 26) as u8));
+        number /= 26;
+    }
+    letters.into_iter().rev().collect()
 }
 
-/// Snake-seed `team_ids` (strongest first) into groups of ~[`GROUP_SIZE`], so
+/// Number of balanced groups needed for a field with this maximum group size.
+pub(crate) fn group_count(entrants: usize, group_size: usize) -> usize {
+    entrants.div_ceil(group_size).max(1)
+}
+
+/// Snake-seed `team_ids` (strongest first) into balanced groups up to `group_size`, so
 /// each group gets a comparable spread of strength.
-fn seed_groups(competition_id: &str, team_ids: &[String]) -> Vec<GroupState> {
-    let group_count = team_ids.len().div_ceil(GROUP_SIZE).max(1);
+fn seed_groups(competition_id: &str, team_ids: &[String], group_size: u32) -> Vec<GroupState> {
+    let group_count = group_count(team_ids.len(), group_size as usize);
     let mut groups: Vec<GroupState> = (0..group_count)
         .map(|index| GroupState {
             id: format!("{competition_id}-group-{}", group_label(index)),
@@ -126,7 +139,7 @@ pub fn generate_group_knockout_cup_with(
     config: &GroupStageConfig,
 ) -> League {
     let competition_id = Uuid::new_v4().to_string();
-    let group_states = seed_groups(&competition_id, team_ids);
+    let group_states = seed_groups(&competition_id, team_ids, config.group_size);
     let groups: Vec<Vec<String>> = group_states
         .into_iter()
         .map(|group| group.team_ids)
@@ -189,6 +202,7 @@ fn build_group_cup(
     cup.rules = CompetitionRules {
         format: CompetitionFormat::GroupAndKnockout,
         counts_in_season_flow: true,
+        group_size: config.group_size,
         group_qualifiers_per_group: config.qualifiers_per_group,
         group_best_third_qualifiers: config.best_third_qualifiers,
         group_stage_legs: config.legs,
@@ -385,7 +399,7 @@ pub fn regenerate_for_season(league: &mut League, season: u32, start_date: DateT
     league.fixtures.clear();
     league.standings.clear();
     league.knockout_rounds.clear();
-    league.groups = seed_groups(&league.id, &league.participant_ids);
+    league.groups = seed_groups(&league.id, &league.participant_ids, league.rules.group_size);
 
     let fixture_competition = fixture_competition_for(&league.kind.clone());
     let competition_id = league.id.clone();

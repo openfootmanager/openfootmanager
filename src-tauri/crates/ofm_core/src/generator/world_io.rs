@@ -185,8 +185,7 @@ const COMPETITION_DEFINITIONS_INVALID_ERROR: &str = "be.error.competitionDef.inv
 /// broken definition file never loads half-applied.
 fn validate_embedded_definitions(world: &WorldData) -> Result<(), String> {
     if let Some(file) = &world.competition_definitions {
-        let ctx = super::competition_def::WorldValidationContext::from_world(world);
-        if !super::competition_def::validate_definitions(file, &ctx).is_empty() {
+        if !super::competition_def::validate_definitions_for_world(file, world).is_empty() {
             return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
         }
     }
@@ -923,6 +922,12 @@ mod tests {
                 vec![2, 2, 3],
                 10,
             ),
+            (
+                64,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                vec![2; 32],
+                64,
+            ),
         ] {
             let world = load_world_from_json(&group_world_json(entrants, format, false)).unwrap();
             let definitions = world.competition_definitions.as_ref().unwrap();
@@ -932,6 +937,25 @@ mod tests {
             actual.sort();
             assert_eq!(actual, sizes);
             assert_eq!(cup.fixtures.len(), fixtures);
+            let group_ids: std::collections::HashSet<&String> =
+                cup.groups.iter().map(|g| &g.id).collect();
+            let group_names: std::collections::HashSet<&String> =
+                cup.groups.iter().map(|g| &g.name).collect();
+            assert_eq!(
+                group_ids.len(),
+                cup.groups.len(),
+                "group ids must be unique"
+            );
+            assert_eq!(
+                group_names.len(),
+                cup.groups.len(),
+                "group labels must be unique"
+            );
+            if entrants == 64 {
+                assert_eq!(cup.groups[25].name, "Z");
+                assert_eq!(cup.groups[26].name, "AA");
+                assert_eq!(cup.groups[31].name, "AF");
+            }
             let mut ids: Vec<&String> = cup.groups.iter().flat_map(|g| &g.team_ids).collect();
             ids.sort();
             let mut expected: Vec<&String> = world.teams.iter().map(|t| &t.id).collect();
