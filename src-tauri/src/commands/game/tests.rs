@@ -8,11 +8,11 @@
 
 use super::testkit::*;
 use super::{
-    bootstrap_team_selection, build_game_from_world_data, game_clock_for_world, StartupOptions,
+    build_game_from_world_data, game_clock_for_world, StartupOptions,
     DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
 };
 use domain::news::NewsCategory;
-use ofm_core::career::StartPhase;
+use ofm_core::career::{bootstrap_team_selection, StartPhase};
 
 #[test]
 #[ignore = "perf harness; run: cargo test -p openfootmanager perf_baseline -- --ignored --nocapture"]

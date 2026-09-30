@@ -6,7 +6,7 @@
 use db::save_manager::SaveManager;
 use domain::stats::StatsState;
 #[cfg(feature = "mcp")]
-use ofm_core::career::{bootstrap_team_selection, date_opening_contracts, start_phase_for_game};
+use ofm_core::career::{begin_career, date_opening_contracts, CareerScope};
 use ofm_core::game::Game;
 
 // Only `bootstrap_game_for_mcp` needs these, and it is behind the feature.
@@ -108,9 +108,6 @@ pub fn bootstrap_game_for_mcp(
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let (mut game, current_stats_state) =
         build_game_from_world_data(clock, manager, &startup_options, world);
-    // This path does not align the clock to a club's season, so nothing moves the
-    // opening date; contracts are still dated against it.
-    date_opening_contracts(&mut game, None);
 
     info!(
         "[mcp-bootstrap] Built game: {} teams, {} players, manager.team_id={:?}",
@@ -120,9 +117,11 @@ pub fn bootstrap_game_for_mcp(
     );
 
     // Step 4: If the manager already has a team assigned (reused from world data),
-    // we don't need the takeover logic. Just refresh context and proceed.
-    // Otherwise, run the normal team selection bootstrap.
+    // this resumes a career rather than starting one: nobody is choosing a club, so
+    // the clock stays where the world put it and contracts are dated against that.
+    // Otherwise a club is being chosen, which is `begin_career`'s job.
     let stats_state = if game.manager.team_id.is_some() {
+        date_opening_contracts(&mut game, None);
         ofm_core::ai_hiring::seed_ai_managers(&mut game);
         ofm_core::season_context::refresh_game_context(&mut game);
         ofm_core::transfers::seed_opening_ai_loan_market(&mut game);
@@ -133,8 +132,10 @@ pub fn bootstrap_game_for_mcp(
             "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\""
                 .to_string(),
         )?;
-        let start_phase = start_phase_for_game(&game);
-        bootstrap_team_selection(&mut game, tid, start_phase, current_stats_state)?
+        // Not dated first: `begin_career` dates contracts itself, after deciding
+        // where the clock goes. Dating them here would stamp starts against a clock
+        // that then moves back past them.
+        begin_career(&mut game, tid, CareerScope::default(), current_stats_state)?
     };
 
     info!(
@@ -184,72 +185,5 @@ mod tests {
         assert_eq!(loaded_stats.team_matches[0].team_id, "team1");
 
         std::fs::remove_dir_all(&saves_dir).unwrap();
-    }
-
-    /// A Brazilian career opens on 15 December of the year *before* the clock's, so
-    /// aligning the clock to that club moves it back by half a year. Every contract
-    /// has to be dated against the date the career actually opens on, and each
-    /// club's anchor has to have been read before the move: Brazil's is worked out
-    /// from the clock's year, so reading it afterwards lands a year too early.
-    #[test]
-    fn opening_a_brazilian_career_dates_no_contract_after_the_opening_date() {
-        let mut game = make_bootstrap_test_game();
-        let mut brazilian = domain::team::Team::new(
-            "br-1".to_string(),
-            "Santos FC".to_string(),
-            "SAN".to_string(),
-            "BR".to_string(),
-            "Santos".to_string(),
-            "Vila".to_string(),
-            20_000,
-        );
-        brazilian.football_nation = "BR".to_string();
-        game.teams.push(brazilian);
-        for index in 0..3 {
-            let mut player = game.players[0].clone();
-            player.id = format!("br-player-{index}");
-            player.team_id = Some("br-1".to_string());
-            game.players.push(player);
-        }
-        for player in &mut game.players {
-            player.contract_end = Some("2033-06-30".to_string());
-        }
-        ofm_core::world::ensure_multi_competition_foundations(&mut game);
-
-        ofm_core::career::date_opening_contracts(&mut game, Some("br-1"));
-
-        let opening = game.clock.current_date.date_naive();
-        assert_eq!(
-            opening.to_string(),
-            "2031-12-15",
-            "the clock should have been aligned to the Brazilian club's season"
-        );
-        let brazilian_start = game
-            .players
-            .iter()
-            .find(|player| player.id == "br-player-0")
-            .and_then(|player| player.contract_start.clone());
-        assert_eq!(
-            brazilian_start.as_deref(),
-            Some("2031-12-15"),
-            "the anchor was read after the clock moved, a year too early"
-        );
-        // Only people under contract: foundations also mint national-team fillers,
-        // who belong to no club and rightly have neither a start nor an end.
-        for player in game
-            .players
-            .iter()
-            .filter(|player| player.team_id.is_some() && player.contract_end.is_some())
-        {
-            let start = player
-                .contract_start
-                .as_deref()
-                .unwrap_or_else(|| panic!("{} was given no contract start", player.id));
-            assert!(
-                start <= opening.to_string().as_str(),
-                "{} starts {start}, after the career opens on {opening}",
-                player.id
-            );
-        }
     }
 }

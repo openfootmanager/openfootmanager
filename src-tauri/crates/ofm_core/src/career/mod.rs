@@ -5,14 +5,17 @@
 //! once, and the callers are thin adapters over it.
 
 mod bootstrap;
+#[cfg(test)]
+mod tests;
 
 use domain::stats::StatsState;
 
 use crate::contracts::{club_season_anchors, stamp_opening_contract_starts};
 use crate::game::Game;
+use crate::player_identity::upgrade_game_player_identities;
 use crate::world::{
     ensure_multi_competition_foundations, rebuild_competitions_for_management_date,
-    team_season_anchor,
+    resolve_simulation_scope, team_season_anchor,
 };
 
 use bootstrap::{
@@ -84,6 +87,66 @@ pub fn date_opening_contracts(game: &mut Game, align_clock_to: Option<&str>) {
         align_clock_to_club_season(game, team_id);
     }
     stamp_opening_contract_starts(game, &club_anchors);
+}
+
+/// What the player asked to have simulated in full, on top of the chosen club's own
+/// region and competitions. `None` asks for nothing more.
+#[derive(Debug, Clone, Default)]
+pub struct CareerScope {
+    pub regions: Option<Vec<String>>,
+    pub competitions: Option<Vec<String>>,
+}
+
+/// Put the player's manager in charge of `team_id` and open the career.
+///
+/// This is the one way a club is chosen. The app and an agent playing over MCP
+/// both call it, so the world they arrive at cannot differ by the door they came
+/// through. In order:
+///
+/// 1. a club that does not exist is refused, before anything has moved, so an
+///    error leaves the game as it was;
+/// 2. the pyramid is built if the world has none;
+/// 3. the date the career opens on is settled, and every contract dated against it
+///    ([`date_opening_contracts`] — it reads each club's season anchor *before* the
+///    clock moves, which is the reason this ordering is written once);
+/// 4. the simulation scope is resolved for the club and what was asked for;
+/// 5. the manager takes the club ([`bootstrap_team_selection`]);
+/// 6. player positions are made granular, so they are right now rather than after
+///    the first save and reload.
+///
+/// `game` is changed in place; on an error after step 1 it may be partly changed,
+/// so callers pass a copy and keep the original until this returns `Ok`.
+pub fn begin_career(
+    game: &mut Game,
+    team_id: &str,
+    scope: CareerScope,
+    stats_state: StatsState,
+) -> Result<StatsState, String> {
+    if !game.teams.iter().any(|team| team.id == team_id) {
+        return Err("be.error.teamNotFound".to_string());
+    }
+
+    ensure_multi_competition_foundations(game);
+    date_opening_contracts(game, Some(team_id));
+    let opening = game.clock.current_date;
+
+    let (regions, competitions) =
+        resolve_simulation_scope(game, team_id, scope.regions, scope.competitions)?;
+    game.active_region_ids = regions;
+    game.active_competition_ids = competitions;
+
+    let stats_state =
+        bootstrap_team_selection(game, team_id, start_phase_for_game(game), stats_state)?;
+
+    // Contract starts were stamped against `opening`. The clock may move on from
+    // it, never back: a start stamped against a later date could land after it.
+    debug_assert!(
+        game.clock.current_date >= opening,
+        "the career start moved the clock back after contracts were dated"
+    );
+
+    upgrade_game_player_identities(game);
+    Ok(stats_state)
 }
 
 pub fn bootstrap_team_selection(
