@@ -184,10 +184,10 @@ const COMPETITION_DEFINITIONS_INVALID_ERROR: &str = "be.error.competitionDef.inv
 /// Reject a world whose embedded competition definitions don't validate, so a
 /// broken definition file never loads half-applied.
 fn validate_embedded_definitions(world: &WorldData) -> Result<(), String> {
-    if let Some(file) = &world.competition_definitions {
-        if !super::competition_def::validate_definitions_for_world(file, world).is_empty() {
-            return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
-        }
+    if let Some(file) = &world.competition_definitions
+        && !super::competition_def::validate_definitions_for_world(file, world).is_empty()
+    {
+        return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
     }
     Ok(())
 }
