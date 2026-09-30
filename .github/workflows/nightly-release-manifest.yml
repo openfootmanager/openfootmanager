@@ -125,9 +125,12 @@ jobs:
           # The last 30 builds with the commits between each, which the website's
           # download page lists as "Previous nightlies". Read from and written back
           # to the metadata branch; git log runs here, in the full-history checkout.
-          node .github/scripts/update-nightly-history.mjs "$worktree_dir/nightly-history.json" nightly-release-manifest.json
+          node .github/scripts/update-nightly-history.mjs "$worktree_dir/nightly-history.json" nightly-release-manifest.json || echo "::warning::nightly history not updated"
 
-          git -C "$worktree_dir" add nightly-release-manifest.json nightly-checksums.txt nightly-history.json
+          git -C "$worktree_dir" add nightly-release-manifest.json nightly-checksums.txt
+          if [ -f "$worktree_dir/nightly-history.json" ]; then
+            git -C "$worktree_dir" add nightly-history.json
+          fi
 
           if git -C "$worktree_dir" diff --cached --quiet; then
             echo "No nightly metadata changes to publish."

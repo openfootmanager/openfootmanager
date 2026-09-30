@@ -21,6 +21,7 @@ import { pathToFileURL } from "node:url";
 
 export const KEEP = 30;
 export const MAX_COMMITS = 100;
+const MAX_SUBJECT_LENGTH = 200;
 const NIGHTLY_TAG = /^nightly-\d{8}-[0-9a-f]{7,40}$/;
 
 /** The real repository, through the git CLI. Tests pass their own. */
@@ -57,7 +58,10 @@ function linked(build, previous, git) {
   if (previous && git.hasCommit(previous.commit) && git.hasCommit(build.commit)) {
     const all = git.commitsBetween(previous.commit, build.commit);
     commitCount = all.length;
-    commits = all.slice(0, MAX_COMMITS);
+    commits = all.slice(0, MAX_COMMITS).map((commit) => ({
+      ...commit,
+      subject: commit.subject.slice(0, MAX_SUBJECT_LENGTH),
+    }));
   }
 
   const repository = `https://github.com/${build.repository}`;
@@ -82,10 +86,21 @@ export function addBuild(builds, manifest, git = gitCli) {
 
   // The release notes are boilerplate the page never shows; leaving them out keeps the file small.
   const { notes: _notes, ...entry } = manifest;
+  const existing = builds.find((build) => build.tag === manifest.tag);
   const sorted = [entry, ...builds.filter((build) => build.tag !== manifest.tag)].sort(newestFirst);
   const at = sorted.findIndex((build) => build.tag === manifest.tag);
 
   sorted[at] = linked(sorted[at], sorted[at + 1] ?? null, git);
+  // The oldest retained build can still refer to a build just outside the retention window.
+  if (!sorted[at + 1] && existing) {
+    sorted[at] = {
+      ...sorted[at],
+      previousTag: existing.previousTag,
+      compareUrl: existing.compareUrl,
+      commitCount: existing.commitCount,
+      commits: existing.commits,
+    };
+  }
 
   // A build whose run arrives after a newer build's (cancelled, then re-run) lands between that
   // newer build and the one it was linked to. Relink the newer build to it, or the two would

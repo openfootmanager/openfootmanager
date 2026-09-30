@@ -129,6 +129,18 @@ describe("addBuild", () => {
     expect(entry.commits).toHaveLength(MAX_COMMITS);
   });
 
+  it("limits commit subjects to 200 characters", () => {
+    const longSubject = `<script>${"x".repeat(220)}</script>`;
+    const git = {
+      hasCommit: () => true,
+      commitsBetween: () => [{ sha: "ba81840", subject: longSubject }],
+    };
+    const [entry] = addBuild(addBuild([], first, git), second, git);
+
+    expect(entry.commitCount).toBe(1);
+    expect(entry.commits[0].subject).toBe(longSubject.slice(0, 200));
+  });
+
   it(`keeps the newest ${KEEP} builds`, () => {
     let builds = [];
     const tags = [];
@@ -174,6 +186,28 @@ describe("updateHistory", () => {
     const again = updateHistory(once, second, git, later);
 
     expect(JSON.stringify(again)).toBe(JSON.stringify(once));
+  });
+
+  it("keeps the oldest retained build's predecessor after 31 builds and a re-run", () => {
+    const git = fakeGit(1);
+    let history = { schemaVersion: 1, builds: [] };
+    for (let day = 0; day < KEEP + 1; day++) {
+      const publishedAt = new Date(Date.UTC(2026, 9, 1 + day)).toISOString();
+      const date = publishedAt.slice(0, 10).replaceAll("-", "");
+      history = updateHistory(
+        history,
+        manifest(date, `abc${String(day).padStart(4, "0")}`, publishedAt),
+        git,
+        earlier,
+      );
+    }
+
+    const oldest = history.builds.at(-1);
+    expect(oldest.previousTag).not.toBeNull();
+    const again = updateHistory(history, oldest, git, later);
+
+    expect(again.builds.at(-1)).toEqual(oldest);
+    expect(JSON.stringify(again)).toBe(JSON.stringify(history));
   });
 });
 
