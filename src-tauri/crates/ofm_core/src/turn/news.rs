@@ -745,20 +745,24 @@ pub fn generate_matchday_news(game: &mut Game, today: &str) {
     let matchday = todays_fixtures[0].matchday;
     let date_str = game.clock.current_date.to_rfc3339();
 
-    // Don't duplicate
-    let roundup_id = format!("roundup_md{}", matchday);
+    // Don't duplicate. The competition id is part of the key because the live-match day now
+    // sweeps every competition due today: without it, a foreign league reaching matchday 2 first
+    // would silently suppress the user's own matchday-2 roundup and standings article, and news
+    // is only cleared at rollover.
+    let roundup_id = format!("roundup_{}_md{}", league.id, matchday);
     if game.news.iter().any(|n| n.id == roundup_id) {
         return;
     }
 
     let results = matchday_results(game, &todays_fixtures);
 
-    let roundup = news::league_roundup_article(matchday, &results, &date_str);
+    let roundup = news::league_roundup_article(&league.id, matchday, &results, &date_str);
     game.news.push(roundup);
 
     let standings = standings_rows(game, league);
 
-    let standings_article = news::standings_update_article(matchday, &standings, &date_str);
+    let standings_article =
+        news::standings_update_article(&league.id, matchday, &standings, &date_str);
     game.news.push(standings_article);
 }
 
@@ -1048,7 +1052,7 @@ mod tests {
         let roundup = game
             .news
             .iter()
-            .find(|article| article.id == "roundup_md4")
+            .find(|article| article.id == "roundup_league1_md4")
             .unwrap();
         assert_eq!(roundup.category, NewsCategory::LeagueRoundup);
         assert_eq!(roundup.body, "");
@@ -1068,7 +1072,7 @@ mod tests {
         let standings = game
             .news
             .iter()
-            .find(|article| article.id == "standings_md4")
+            .find(|article| article.id == "standings_league1_md4")
             .unwrap();
         assert_eq!(standings.category, NewsCategory::StandingsUpdate);
         assert_eq!(standings.body, "");
@@ -1092,6 +1096,41 @@ mod tests {
     }
 
     #[test]
+    fn a_foreign_leagues_matchday_does_not_suppress_the_users_own() {
+        // The live-match day sweeps every competition due today, so `generate_matchday_news` is
+        // now called for leagues other than the user's. Keyed on the matchday alone, a foreign
+        // league reaching matchday 4 first would make the user's own matchday-4 roundup and
+        // standings article look like duplicates and silently drop them — and news is only
+        // cleared at rollover, so they would never arrive.
+        let mut game = make_game("2025-08-12", FixtureStatus::Completed);
+        let users_league = game.league.clone().expect("the helper builds a league");
+
+        let mut foreign = users_league.clone();
+        foreign.id = "league2".to_string();
+        foreign.name = "Somewhere Else".to_string();
+
+        // The sweep's order: some other competition's matchday 4, then the user's.
+        game.league = Some(foreign);
+        generate_matchday_news(&mut game, "2025-08-12");
+        game.league = Some(users_league);
+        generate_matchday_news(&mut game, "2025-08-12");
+
+        for id in [
+            "roundup_league2_md4",
+            "standings_league2_md4",
+            "roundup_league1_md4",
+            "standings_league1_md4",
+        ] {
+            assert_eq!(
+                game.news.iter().filter(|article| article.id == id).count(),
+                1,
+                "{id} should be written exactly once"
+            );
+        }
+        assert_eq!(game.news.len(), 4, "both competitions get both articles");
+    }
+
+    #[test]
     fn generate_matchday_news_does_not_duplicate_articles_on_repeat_calls() {
         let mut game = make_game("2025-08-12", FixtureStatus::Completed);
 
@@ -1102,14 +1141,14 @@ mod tests {
         assert_eq!(
             game.news
                 .iter()
-                .filter(|article| article.id == "roundup_md4")
+                .filter(|article| article.id == "roundup_league1_md4")
                 .count(),
             1
         );
         assert_eq!(
             game.news
                 .iter()
-                .filter(|article| article.id == "standings_md4")
+                .filter(|article| article.id == "standings_league1_md4")
                 .count(),
             1
         );

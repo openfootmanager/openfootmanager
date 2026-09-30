@@ -169,6 +169,7 @@ fn preseason_unbeaten_data(unbeaten_teams: &[String]) -> String {
 
 /// Generate a league roundup article summarising all matchday results.
 pub fn league_roundup_article(
+    competition_id: &str,
     matchday: u32,
     results: &[(String, u8, String, u8)], // (home_name, home_goals, away_name, away_goals)
     date: &str,
@@ -188,7 +189,7 @@ pub fn league_roundup_article(
     let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
-        format!("roundup_md{}", matchday),
+        format!("roundup_{}_md{}", competition_id, matchday),
         String::new(),
         String::new(),
         String::new(),
@@ -212,6 +213,7 @@ pub fn league_roundup_article(
 
 /// Generate a standings update article after a matchday.
 pub fn standings_update_article(
+    competition_id: &str,
     matchday: u32,
     top_teams: &[(String, u32, i16)], // (team_name, points, goal_diff)
     date: &str,
@@ -233,7 +235,7 @@ pub fn standings_update_article(
     let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
-        format!("standings_md{}", matchday),
+        format!("standings_{}_md{}", competition_id, matchday),
         String::new(),
         String::new(),
         String::new(),
@@ -841,9 +843,9 @@ mod tests {
             ("Gamma FC".to_string(), 1, "Delta FC".to_string(), 1),
         ];
 
-        let article = league_roundup_article(4, &results, "2025-08-12");
+        let article = league_roundup_article("league1", 4, &results, "2025-08-12");
 
-        assert_eq!(article.id, "roundup_md4");
+        assert_eq!(article.id, "roundup_league1_md4");
         assert_eq!(article.category, NewsCategory::LeagueRoundup);
         assert_eq!(article.headline, "");
         assert_eq!(article.body, "");
@@ -896,7 +898,7 @@ mod tests {
             ("Gamma FC".to_string(), 0, "Delta FC".to_string(), 0),
         ];
 
-        let article = league_roundup_article(5, &results, "2025-08-19");
+        let article = league_roundup_article("league1", 5, &results, "2025-08-19");
 
         assert_eq!(article.body, "");
         assert_eq!(
@@ -913,9 +915,9 @@ mod tests {
             ("Gamma FC".to_string(), 9, -3),
         ];
 
-        let article = standings_update_article(4, &standings, "2025-08-12");
+        let article = standings_update_article("league1", 4, &standings, "2025-08-12");
 
-        assert_eq!(article.id, "standings_md4");
+        assert_eq!(article.id, "standings_league1_md4");
         assert_eq!(article.category, NewsCategory::StandingsUpdate);
         assert_eq!(article.headline, "");
         assert_eq!(article.body, "");
@@ -954,7 +956,7 @@ mod tests {
 
     #[test]
     fn standings_update_article_handles_empty_table_with_unknown_leader() {
-        let article = standings_update_article(1, &[], "2025-08-01");
+        let article = standings_update_article("league1", 1, &[], "2025-08-01");
 
         assert_eq!(article.body, "");
         assert_eq!(
