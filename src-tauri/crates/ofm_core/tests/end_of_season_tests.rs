@@ -3721,6 +3721,30 @@ fn advancing_a_complete_season_rolls_it_over_and_returns_the_summary() {
     );
 }
 
+/// Given a finished season rolled over once, when advancing is asked for again,
+/// then it is refused and no second youth intake is taken. The intake keeps no
+/// marker of its own — like aging, it runs inside the one rollover, and the
+/// rollover's completeness check is what makes it once a season.
+#[test]
+fn a_season_takes_one_youth_intake_however_often_advancing_is_asked_for() {
+    let mut game = make_completed_season_game();
+    let before = game.players.len();
+
+    advance_to_next_season(&mut game).expect("a finished season advances");
+    let after_one = game.players.len();
+    assert!(
+        after_one > before,
+        "the rollover takes the season's youth intake"
+    );
+
+    assert!(advance_to_next_season(&mut game).is_err());
+    assert_eq!(
+        game.players.len(),
+        after_one,
+        "a second advance took a second intake"
+    );
+}
+
 /// The rollover itself is what sacks this manager: they are safe at satisfaction
 /// 20 going in, and the board's failed objective takes 15 off on the way out,
 /// leaving 5 on a standing warning. Checking *before* the rollover would keep
