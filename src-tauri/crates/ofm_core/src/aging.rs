@@ -324,7 +324,6 @@ mod tests {
             .expect("retirement is recorded");
         assert_eq!(entry.kind, PlayerMovementKind::Retired);
         assert_eq!(entry.from_team_id.as_deref(), Some("team1"));
-        assert_eq!(veteran.wage(), 0);
         assert_eq!(veteran.wage(), 0, "no wage left on a retired player");
     }
 }

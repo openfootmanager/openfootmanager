@@ -53,7 +53,9 @@ pub(crate) fn contract_entry(
 /// game; if it ever does, the contract is left as it was rather than corrupted, and
 /// a debug build says so.
 pub(crate) fn record_movement(player: &mut Player, entry: PlayerMovementEntry) {
+    let player_id = player.id.clone();
     if let Err(problem) = player.record_movement(entry) {
+        log::error!("a contract entry for {player_id} was refused: {problem:?}");
         debug_assert!(false, "a contract entry was refused: {problem:?}");
     }
 }

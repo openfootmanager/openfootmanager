@@ -42,16 +42,33 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 /// The non-test part of a file: a whole `tests.rs` is test code, and in any other
-/// file everything from its `#[cfg(test)]` module onwards is.
+/// file everything from its `#[cfg(test)] mod` onwards is.
 fn production_code(path: &Path) -> String {
     if path.file_name().is_some_and(|name| name == "tests.rs") {
         return String::new();
     }
     let text = fs::read_to_string(path).unwrap_or_default();
-    match text.find("#[cfg(test)]") {
-        Some(at) => text[..at].to_string(),
-        None => text,
+    // Only the test *module*: an earlier `#[cfg(test)]` item (a helper, an import)
+    // must not hide the production code that follows it.
+    let mut rest = text.as_str();
+    let mut offset = 0;
+    while let Some(at) = rest.find("#[cfg(test)]") {
+        let after = &rest[at + "#[cfg(test)]".len()..];
+        // Other attributes may sit between the gate and the `mod`.
+        let mut item = after.trim_start();
+        while item.starts_with("#[") {
+            item = item
+                .split_once('\n')
+                .map_or("", |(_, rest)| rest)
+                .trim_start();
+        }
+        if item.starts_with("mod ") {
+            return text[..offset + at].to_string();
+        }
+        offset += at + "#[cfg(test)]".len();
+        rest = after;
     }
+    text
 }
 
 fn relative(path: &Path, root: &Path) -> String {

@@ -4001,12 +4001,15 @@ fn a_refused_bid_appends_nothing() {
     let player = make_player("player-refused-bid");
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
 
-    let outcome = make_transfer_bid(&mut game, "player-refused-bid", 1);
+    let outcome = make_transfer_bid(&mut game, "player-refused-bid", 1)
+        .expect("a lowball bid still gets a decision");
 
-    assert!(
-        outcome.is_err() || game.players[0].team_id.as_deref() == Some("team-2"),
-        "a lowball bid must not move the player"
+    assert_ne!(
+        outcome.decision,
+        ofm_core::transfers::TransferNegotiationDecision::Accepted,
+        "a lowball bid must not be accepted"
     );
+    assert_eq!(game.players[0].team_id.as_deref(), Some("team-2"));
     assert!(game.players[0].movement_history.is_empty());
 }
 
