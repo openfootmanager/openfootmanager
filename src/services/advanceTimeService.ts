@@ -30,6 +30,8 @@ export interface AdvanceTimeWithModeResponse {
   game?: GameStateData;
   snapshot?: unknown;
   fixture_index?: number;
+  competition_id?: string;
+  fixture_id?: string;
   mode?: string;
   round_summary?: unknown;
   results?: AdvanceMatchResultData[];

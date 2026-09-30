@@ -374,6 +374,8 @@ describe("MatchSimulation", (): void => {
     try {
       locationState = {
         fixtureIndex: 4,
+        competitionId: "cup1",
+        fixtureId: "cup-fix4",
         mode: "live",
         snapshot: makeSnapshot({
           home_team: {
@@ -405,9 +407,9 @@ describe("MatchSimulation", (): void => {
         expect(mockedInvoke).toHaveBeenCalledWith("start_live_match", {
           allowsExtraTime: false,
           fixtureIndex: 4,
+          competitionId: "cup1",
+          fixtureId: "cup-fix4",
           mode: "live",
-          homeTeamId: "home1",
-          awayTeamId: "away1",
         });
       });
 

@@ -9,7 +9,8 @@ pub use crate::application::live_match::FinishLiveMatchResponse;
 use crate::application::live_match::{
     apply_match_command as apply_match_command_service,
     finish_live_match as finish_live_match_service,
-    get_match_snapshot as get_match_snapshot_service, start_live_match as start_live_match_service,
+    get_match_snapshot as get_match_snapshot_service,
+    start_live_match_with_identity as start_live_match_service,
     step_live_match as step_live_match_service,
 };
 use crate::application::press_conference::{
@@ -70,16 +71,19 @@ pub fn start_live_match(
     fixture_index: usize,
     mode: String,
     allows_extra_time: bool,
-    home_team_id: Option<String>,
-    away_team_id: Option<String>,
+    competition_id: Option<String>,
+    fixture_id: Option<String>,
 ) -> Result<engine::MatchSnapshot, String> {
+    if competition_id.is_none() || fixture_id.is_none() {
+        return Err("be.error.liveMatch.fixtureNotFound".to_string());
+    }
     start_live_match_service(
         &state,
         fixture_index,
         &mode,
         allows_extra_time,
-        home_team_id.as_deref(),
-        away_team_id.as_deref(),
+        competition_id.as_deref(),
+        fixture_id.as_deref(),
     )
 }
 
@@ -926,15 +930,14 @@ mod tests {
         game.competitions[0].fixtures[0].status = FixtureStatus::Completed;
         state.set_game(game);
 
-        // Command callers also supply the fixture's team IDs. With no Scheduled
-        // match to resolve, the service falls back to the raw index.
-        let error = crate::application::live_match::start_live_match(
+        // Command callers supply stable fixture identity on restore.
+        let error = crate::application::live_match::start_live_match_with_identity(
             &state,
             0,
             "live",
             false,
-            Some("team1"),
-            Some("team2"),
+            Some("league1"),
+            Some("fix1"),
         )
         .unwrap_err();
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
@@ -974,6 +977,79 @@ mod tests {
         )
         .expect_err("team-identified command must not start another fixture by raw index");
         assert_eq!(error, "be.error.liveMatch.fixtureNotFound");
+    }
+
+    #[test]
+    fn live_match_refuses_ambiguous_same_team_restore_without_fixture_identity() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.league.as_mut().unwrap().fixtures[0].status = FixtureStatus::Completed;
+        game.competitions[0].fixtures[0].status = FixtureStatus::Completed;
+        let mut cup = make_knockout_cup("2025-06-15");
+        cup.fixtures[0].away_team_id = "team2".to_string();
+        game.competitions.push(cup);
+        state.set_game(game);
+
+        // The requested domestic fixture is done, but a cup tie between the
+        // same clubs is still Scheduled. Team IDs alone cannot restore it.
+        let result = crate::application::live_match::start_live_match(
+            &state,
+            0,
+            "live",
+            false,
+            Some("team1"),
+            Some("team2"),
+        );
+        assert!(
+            matches!(result, Err(ref error) if error == "be.error.liveMatch.fixtureNotFound"),
+            "ambiguous restore must be rejected"
+        );
+    }
+
+    #[test]
+    fn live_match_restores_exact_cup_fixture_with_same_teams() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        let mut cup = make_knockout_cup("2025-06-15");
+        cup.fixtures[0].away_team_id = "team2".to_string();
+        game.competitions.push(cup);
+        state.set_game(game);
+
+        crate::application::live_match::start_live_match_with_identity(
+            &state,
+            0,
+            "live",
+            true,
+            Some("cup1"),
+            Some("cupfix1"),
+        )
+        .expect("cup fixture selected by stable identity");
+        let session = state.take_live_match().expect("active cup session");
+        assert_eq!(session.competition_id, "cup1");
+        assert_eq!(session.fixture_id, "cupfix1");
+    }
+
+    #[test]
+    fn live_match_refuses_finish_when_fixture_id_changes_under_session() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false)
+            .expect("scheduled fixture creates session");
+        game.competitions[0].fixtures[0].id = "replacement-fix1".to_string();
+        game.league.as_mut().unwrap().fixtures[0].id = "replacement-fix1".to_string();
+        state.set_game(game);
+        state.set_live_match(session);
+        let before = state.get_game(|game| game.clone()).unwrap();
+
+        let error = finish_live_match_internal(&state).unwrap_err();
+        assert_eq!(error, "be.error.liveMatch.fixtureNotFound");
+        let after = state.get_game(|game| game.clone()).unwrap();
+        assert_eq!(after.clock.current_date, before.clock.current_date);
+        assert_eq!(after.competitions[0].fixtures[0].id, "replacement-fix1");
+        assert_eq!(
+            after.competitions[0].fixtures[0].status,
+            FixtureStatus::Scheduled
+        );
     }
 
     #[test]

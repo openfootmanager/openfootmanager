@@ -123,6 +123,8 @@ pub struct LiveMatchSession {
     /// `competition_id` — NOT necessarily into `game.league`, which
     /// `sync_legacy_league` resets to the user's domestic league.
     pub fixture_index: usize,
+    /// Stable identity of the selected fixture, checked again before finish.
+    pub fixture_id: String,
     /// Id of the competition (league or cup) this fixture belongs to; the
     /// finish path uses it to apply the report to the right competition.
     pub competition_id: String,
@@ -372,6 +374,7 @@ pub fn create_live_match(
         rng: StdRng::from_rng(&mut rand::rng()),
         mode,
         fixture_index,
+        fixture_id: fixture.id.clone(),
         competition_id: league.id.clone(),
         round_matchday: fixture.matchday,
         round_previous_standings: league.standings.clone(),
