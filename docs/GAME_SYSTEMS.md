@@ -42,9 +42,13 @@ process_day(game)
 
 On match days, `simulate_matchday()`:
 
-1. Finds all scheduled fixtures for today
-2. For each fixture, converts domain `Player`/`Team` to engine `PlayerData`/`TeamData` via `build_engine_team()`
-3. Calls `engine::simulate()` to get a `MatchReport`
+1. Finds all scheduled fixtures for today in the active competitions
+2. For each fixture, plays it on the live engine the player watches, with nobody on the user's
+   touchline: `live_match_manager::play_unwatched_fixture` builds both sides with
+   `turn::squad::build_team_with_bench` (an eleven and a bench, fit players first), and an AI
+   manager on each side makes substitutions and tactical changes as the match goes. Knockout
+   ties play extra time and, if still level, a penalty shootout.
+3. Takes the finished match's `MatchReport`
 4. Updates fixture status to `Completed` with the `MatchResult`
 5. Updates `StandingEntry` for both teams (points: 3/1/0 for win/draw/loss)
 6. Calls `apply_player_stats()` to update individual `PlayerSeasonStats`
