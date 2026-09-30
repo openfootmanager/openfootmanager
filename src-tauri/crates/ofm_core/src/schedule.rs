@@ -439,11 +439,13 @@ pub fn generate_preseason_friendlies(
 
 /// Add three weekly friendlies to every South American domestic division.
 /// Shared regional-cup clubs are never booked twice on the same date.
+/// Only dates on or after the clock in an upcoming preseason are eligible.
 pub fn append_south_american_preseason_friendlies(
     competitions: &mut [League],
     international_dates: &[String],
+    current_date: DateTime<Utc>,
 ) {
-    append_regional_preseason_friendlies(competitions, international_dates, true);
+    append_regional_preseason_friendlies(competitions, international_dates, current_date, true);
 }
 
 /// Preserve the established four-match preseason for all other domestic
@@ -451,16 +453,19 @@ pub fn append_south_american_preseason_friendlies(
 pub fn append_other_preseason_friendlies(
     competitions: &mut [League],
     international_dates: &[String],
+    current_date: DateTime<Utc>,
 ) {
-    append_regional_preseason_friendlies(competitions, international_dates, false);
+    append_regional_preseason_friendlies(competitions, international_dates, current_date, false);
 }
 
 fn append_regional_preseason_friendlies(
     competitions: &mut [League],
     international_dates: &[String],
+    current_date: DateTime<Utc>,
     south_american: bool,
 ) {
     use std::collections::HashSet;
+    let today = current_date.date_naive();
     let reserved: HashSet<String> = international_dates.iter().cloned().collect();
     let mut occupied: HashSet<(String, String)> = competitions
         .iter()
@@ -516,12 +521,20 @@ fn append_regional_preseason_friendlies(
         else {
             continue;
         };
+        // Rollover retains foreign-hemisphere divisions that are mid-season.
+        // Their old opener is not a new preseason to schedule against.
+        if first_date.date_naive() <= today {
+            continue;
+        }
         let friendly_count = if south_american { 3 } else { 4 };
         let friendlies =
             generate_preseason_friendlies(&competition.participant_ids, first_date, friendly_count)
                 .into_iter()
                 .filter(|fixture| {
-                    !reserved.contains(&fixture.date)
+                    // A career may open partway through preseason. Keep today's
+                    // games (fixtures run by calendar day), but never create past ones.
+                    date_str_to_utc(&fixture.date).is_some_and(|date| date.date_naive() >= today)
+                        && !reserved.contains(&fixture.date)
                         && !occupied.contains(&(fixture.home_team_id.clone(), fixture.date.clone()))
                         && !occupied.contains(&(fixture.away_team_id.clone(), fixture.date.clone()))
                 })
@@ -573,6 +586,41 @@ pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn preseason_only_schedules_remaining_days_in_both_regions() {
+        let start = Utc.with_ymd_and_hms(2035, 2, 1, 0, 0, 0).unwrap();
+        let teams: Vec<String> = (0..4).map(|i| format!("team-{i}")).collect();
+        for region in ["south-america", "europe"] {
+            for (day, expected) in [(11, 6), (12, 4)] {
+                let now = Utc.with_ymd_and_hms(2035, 1, day, 12, 0, 0).unwrap();
+                let mut division = generate_league(region, 2035, &teams, start);
+                division.region_id = Some(region.into());
+                division.scope = CompetitionScope::Domestic;
+                let mut competitions = vec![division];
+
+                append_south_american_preseason_friendlies(&mut competitions, &[], now);
+                append_other_preseason_friendlies(&mut competitions, &[], now);
+
+                let friendlies: Vec<_> = competitions[0]
+                    .fixtures
+                    .iter()
+                    .filter(|f| f.competition == FixtureCompetition::Friendly)
+                    .collect();
+                assert!(
+                    friendlies.iter().all(|f| {
+                        date_str_to_utc(&f.date).unwrap().date_naive() >= now.date_naive()
+                    }),
+                    "{region} must not create friendlies before {now}"
+                );
+                assert_eq!(
+                    friendlies.len(),
+                    expected,
+                    "{region} keeps every available preseason date, including today"
+                );
+            }
+        }
+    }
 
     #[test]
     fn shift_fixtures_off_reserved_dates_moves_clashing_matches_forward() {
@@ -961,7 +1009,11 @@ mod tests {
         });
 
         let mut competitions = vec![league, cup];
-        append_south_american_preseason_friendlies(&mut competitions, &[]);
+        append_south_american_preseason_friendlies(
+            &mut competitions,
+            &[],
+            Utc.with_ymd_and_hms(2025, 12, 15, 0, 0, 0).unwrap(),
+        );
 
         let friendly_dates: std::collections::HashSet<&str> = competitions[0]
             .fixtures

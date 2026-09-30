@@ -637,8 +637,13 @@ fn manage_international_calendar(
     crate::schedule::append_south_american_preseason_friendlies(
         &mut game.competitions,
         &reserved_dates,
+        game.clock.current_date,
     );
-    crate::schedule::append_other_preseason_friendlies(&mut game.competitions, &reserved_dates);
+    crate::schedule::append_other_preseason_friendlies(
+        &mut game.competitions,
+        &reserved_dates,
+        game.clock.current_date,
+    );
 
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the
@@ -1350,4 +1355,83 @@ pub struct EndOfSeasonSummary {
     pub poty_rating: f64,
     pub total_teams: u32,
     pub season_awards: crate::season_awards::SeasonAwards,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::GameClock;
+    use chrono::TimeZone;
+    use domain::league::FixtureCompetition;
+
+    #[test]
+    fn preseason_rollover_calendar_leaves_midseason_divisions_unchanged() {
+        let now = Utc.with_ymd_and_hms(2035, 4, 18, 12, 0, 0).unwrap();
+        let next_start = Utc.with_ymd_and_hms(2035, 8, 1, 0, 0, 0).unwrap();
+        let manager = Manager::new(
+            "mgr".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "ENG".into(),
+        );
+        let mut game = Game::new(GameClock::new(now), manager, vec![], vec![], vec![], vec![]);
+        for (region, start) in [
+            (
+                "south-america",
+                Utc.with_ymd_and_hms(2035, 2, 1, 0, 0, 0).unwrap(),
+            ),
+            ("europe", next_start),
+        ] {
+            let teams: Vec<String> = (0..8).map(|i| format!("{region}-{i}")).collect();
+            let mut division = crate::schedule::generate_league(region, 2035, &teams, start);
+            division.region_id = Some(region.into());
+            division.scope = CompetitionScope::Domestic;
+            for fixture in &mut division.fixtures {
+                if fixture.date.as_str() < "2035-04-18" {
+                    fixture.status = FixtureStatus::Completed;
+                    fixture.result = Some(domain::league::MatchResult {
+                        home_goals: 1,
+                        away_goals: 0,
+                        ..Default::default()
+                    });
+                }
+            }
+            game.competitions.push(division);
+        }
+        assert!(season_has_started(&game.competitions[0]));
+        assert!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .any(|f| f.status == FixtureStatus::Scheduled)
+        );
+        let before = game.competitions[0].fixtures.clone();
+
+        manage_international_calendar(&mut game, next_start, next_start, false, None);
+
+        assert_eq!(
+            game.competitions[0].fixtures.len(),
+            before.len(),
+            "a retained Apertura gets no preseason fixtures at an English rollover"
+        );
+        assert!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .zip(&before)
+                .all(|(after, before)| {
+                    after.id == before.id
+                        && after.date == before.date
+                        && after.status == before.status
+                })
+        );
+        assert!(
+            game.competitions[1]
+                .fixtures
+                .iter()
+                .any(|f| { f.competition == FixtureCompetition::Friendly }),
+            "the regenerated future division still gets friendlies"
+        );
+    }
 }
