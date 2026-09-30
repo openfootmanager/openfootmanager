@@ -549,13 +549,24 @@ pub(crate) fn restore_minimum_squad(game: &mut Game, team_id: &str) -> TopUp {
 /// first — where an extra senior helps most. Ties keep [`MIN_PLAYERS_PER_GROUP`]
 /// order.
 pub(crate) fn groups_thinnest_first(game: &Game, team_id: &str) -> Vec<Position> {
-    let seniors = senior_counts(game, team_id);
-    let mut groups: Vec<(usize, Position)> = MIN_PLAYERS_PER_GROUP
+    thinnest_first(
+        senior_counts(game, team_id),
+        MIN_PLAYERS_PER_GROUP.map(|(_, floor)| floor),
+    )
+}
+
+/// The four position groups ordered by how far `have` stands above `target`,
+/// per group in [`MIN_PLAYERS_PER_GROUP`] order: the furthest below first,
+/// then the least to spare. Ties keep that order. The one statement of
+/// "thinnest first" — the floor asks it against its minimum, the youth intake
+/// against the academy it aims for.
+pub(crate) fn thinnest_first(have: [usize; 4], target: [usize; 4]) -> Vec<Position> {
+    let mut groups: Vec<(i64, Position)> = MIN_PLAYERS_PER_GROUP
         .iter()
         .enumerate()
-        .map(|(index, (group, floor))| (seniors[index].saturating_sub(*floor), group.clone()))
+        .map(|(index, (group, _))| (have[index] as i64 - target[index] as i64, group.clone()))
         .collect();
-    groups.sort_by_key(|(spare, _)| *spare);
+    groups.sort_by_key(|(margin, _)| *margin);
     groups.into_iter().map(|(_, group)| group).collect()
 }
 

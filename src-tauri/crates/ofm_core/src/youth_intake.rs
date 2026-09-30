@@ -13,7 +13,7 @@
 //! brings the planned youngsters in.
 
 use crate::game::Game;
-use crate::squad_floor::{MIN_PLAYERS_PER_GROUP, group_index};
+use crate::squad_floor::{group_index, thinnest_first};
 use chrono::{Datelike, NaiveDate};
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::player::{Player, Position, SquadRole};
@@ -70,18 +70,9 @@ pub fn plan_for<'a>(academy: impl IntoIterator<Item = &'a Player>) -> IntakePlan
         have[keeper] += 1;
     }
     while groups.len() < size {
-        // The group furthest below its target; the first in squad order on a
-        // tie, so a plan is one answer and not an iteration-order accident.
-        let thinnest = (0..4)
-            .max_by_key(|&index| {
-                (
-                    ACADEMY_TARGET_PER_GROUP[index] as i64 - have[index] as i64,
-                    std::cmp::Reverse(index),
-                )
-            })
-            .expect("four groups");
-        groups.push(MIN_PLAYERS_PER_GROUP[thinnest].0.clone());
-        have[thinnest] += 1;
+        let thinnest = thinnest_first(have, ACADEMY_TARGET_PER_GROUP).remove(0);
+        have[group_index(&thinnest)] += 1;
+        groups.push(thinnest);
     }
     IntakePlan { groups }
 }
@@ -194,6 +185,7 @@ fn tell_the_player(
 mod tests {
     use super::*;
     use crate::clock::GameClock;
+    use crate::squad_floor::MIN_PLAYERS_PER_GROUP;
     use crate::test_support::uniform_attributes;
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
