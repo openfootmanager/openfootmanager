@@ -100,6 +100,54 @@ pub fn renewal_wage_policy_allows(
     wage_policy_allows_projection(team, current_bill, projected_bill)
 }
 
+/// What the board says to paying a player a wage, to keep him or to sign him.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WagePolicyVerdict {
+    /// The wage bill stays within the board's policy.
+    WithinPolicy,
+    /// Over the policy, allowed because the club would be below the squad
+    /// floor in his group without him.
+    OverPolicyToKeepSquadFloor,
+    /// Over the policy, refused.
+    OverPolicy,
+}
+
+impl WagePolicyVerdict {
+    pub fn permits(self) -> bool {
+        self != Self::OverPolicy
+    }
+
+    /// The line a manager is shown when the board waived its policy, for a
+    /// deal they struck themselves.
+    pub(crate) fn waiver_feedback_detail_key(self) -> Option<&'static str> {
+        (self == Self::OverPolicyToKeepSquadFloor)
+            .then_some("playerProfile.renewalFeedbackAcceptedToKeepSquadFloorDetail")
+    }
+}
+
+/// Whether the board lets `team` pay `player` `offered_wage`.
+///
+/// The one rule for every contract a club offers to keep or sign a player —
+/// the manager's renewals and free-agent signings, the assistant's delegated
+/// renewals, an AI club's renewals and the squad floor's top-up. The wage
+/// policy holds, except when the club would be below the squad floor in the
+/// player's group without him (counted as the floor counts): a club that cannot
+/// put a side out has no wage bill worth protecting.
+pub fn wage_policy_verdict(
+    game: &Game,
+    team: &Team,
+    player: &domain::player::Player,
+    offered_wage: u32,
+) -> WagePolicyVerdict {
+    if renewal_wage_policy_allows(game, team, player, offered_wage) {
+        WagePolicyVerdict::WithinPolicy
+    } else if crate::squad_floor::club_needs_him_for_the_floor(game, &team.id, player) {
+        WagePolicyVerdict::OverPolicyToKeepSquadFloor
+    } else {
+        WagePolicyVerdict::OverPolicy
+    }
+}
+
 pub fn renewal_wage_policy_error_message(team: &Team) -> String {
     backend_error_with_param(
         "be.error.contracts.boardWagePolicy",

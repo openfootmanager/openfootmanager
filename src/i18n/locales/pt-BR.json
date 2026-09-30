@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Pouca confiança, moral baixa ou pressão contratual estão endurecendo a posição deles. Outra oferta fraca pode encerrar tudo.",
     "renewalFeedbackAcceptedHeadline": "O pacote convenceu rapidamente.",
     "renewalFeedbackAcceptedDetail": "A oferta ficou perto o bastante do que eles queriam, então a negociação permaneceu construtiva.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Eles aceitaram. O acordo leva a folha salarial além da política da diretoria, mas a diretoria autorizou: sem este jogador, o elenco ficaria abaixo do mínimo que um clube precisa manter.",
     "renewalFeedbackAcceptedLateHeadline": "Eles aceitaram, mas a paciência já estava no limite.",
     "renewalFeedbackAcceptedLateDetail": "Você fechou o acordo depois de uma conversa mais dura. O lado deles esteve perto de abandonar a negociação.",
     "renewalFeedbackBlockedHeadline": "Eles não vão reabrir a conversa por enquanto.",
@@ -3254,6 +3255,7 @@
         "notes": {
           "managerBlocked": "Você me disse para ainda não reabrir as conversas contratuais.",
           "completed": "Consegui fechar essa sem que você precisasse intervir.",
+          "completedToKeepSquadFloor": "Feito, acima da política salarial da diretoria. A diretoria autorizou porque, sem este jogador, ficaríamos abaixo do elenco mínimo.",
           "beyondLimits": "O estafe deles quer cerca de {{wage}}/semana por {{years}} anos, acima dos limites da delegação.",
           "boardWagePolicy": "A política salarial da diretoria bloqueia esta renovação. Mantenha os salários semanais perto de {{budget}} enquanto nos recuperamos.",
           "prefersManager": "Eles até ouviriam, mas ainda querem cerca de {{wage}}/semana por {{years}} anos e preferem falar diretamente com você.",

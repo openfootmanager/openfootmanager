@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Düşük güven, düşük moral veya sözleşme baskısı oyuncunun kampını sert davranmaya itiyor. Bir zayıf teklif daha kapıyı kapatabilir.",
     "renewalFeedbackAcceptedHeadline": "Paketi beğendiler ve hızla harekete geçtiler.",
     "renewalFeedbackAcceptedDetail": "Teklif beklentilerine yeterince yakındı, bu yüzden görüşmeler yapıcı kaldı.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Kabul ettiler. Anlaşma maaş bütçesini yönetimin politikasının üzerine çıkarıyor, ancak yönetim onay verdi: bu oyuncu olmadan kadro, bir kulübün koruması gereken asgari sayının altına düşerdi.",
     "renewalFeedbackAcceptedLateHeadline": "Kabul ettiler, ancak pek sabır kalmamıştı.",
     "renewalFeedbackAcceptedLateDetail": "Anlaşmayı çetin bir pazarlığın ardından tamamladınız. Karşı taraf masadan kalkmaya yakındı.",
     "renewalFeedbackBlockedHeadline": "Görüşmeyi henüz yeniden açmıyorlar.",
@@ -3254,6 +3255,7 @@
         "notes": {
           "managerBlocked": "Sözleşme görüşmelerini henüz yeniden açmamamı söylemiştiniz.",
           "completed": "Bu görüşmeyi siz devreye girmeden tamamlayabildim.",
+          "completedToKeepSquadFloor": "Tamamlandı, yönetimin maaş politikasının üzerinde. Yönetim onay verdi; çünkü bu oyuncu olmadan asgari kadronun altına düşerdik.",
           "beyondLimits": "Oyuncunun kampı {{years}} yıl için haftalık {{wage}} civarı istiyor; bu, devretme sınırlarının ötesinde.",
           "boardWagePolicy": "Yönetimin maaş politikası bu yenilemeyi engelliyor. Toparlanırken haftalık maaşları {{budget}} civarında tutun.",
           "prefersManager": "Dinlemeye açıklar, ancak hâlâ {{years}} yıl için haftalık {{wage}} civarı istiyorlar ve bunu doğrudan sizden duymayı tercih ediyorlar.",

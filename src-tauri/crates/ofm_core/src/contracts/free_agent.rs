@@ -148,7 +148,8 @@ pub fn offer_free_agent_contract(
 
     if offer.weekly_wage >= expected_wage && offer.contract_years >= expected_years {
         let player = game.players[player_index].clone();
-        if !renewal_wage_policy_allows(game, &team, &player, offer.weekly_wage) {
+        let verdict = wage_policy_verdict(game, &team, &player, offer.weekly_wage);
+        if !verdict.permits() {
             return Err(renewal_wage_policy_error_message(&team));
         }
 
@@ -177,14 +178,17 @@ pub fn offer_free_agent_contract(
             RenewalSessionStatus::Agreed,
             true,
             cooled_off,
-            Some(build_renewal_feedback(
-                player,
-                current_date,
-                RenewalDecision::Accepted,
-                RenewalSessionStatus::Agreed,
-                round,
-                expected_wage,
-                false,
+            Some(with_wage_policy_waiver(
+                build_renewal_feedback(
+                    player,
+                    current_date,
+                    RenewalDecision::Accepted,
+                    RenewalSessionStatus::Agreed,
+                    round,
+                    expected_wage,
+                    false,
+                ),
+                verdict,
             )),
         ));
     }

@@ -285,7 +285,8 @@ pub fn propose_renewal(
 
     if outcome.decision == RenewalDecision::Accepted {
         let player = game.players[player_index].clone();
-        if !renewal_wage_policy_allows(game, &team, &player, offer.weekly_wage) {
+        let verdict = wage_policy_verdict(game, &team, &player, offer.weekly_wage);
+        if !verdict.permits() {
             return Err(renewal_wage_policy_error_message(&team));
         }
 
@@ -304,14 +305,17 @@ pub fn propose_renewal(
             RenewalSessionStatus::Agreed,
             true,
             cooled_off,
-            Some(build_renewal_feedback(
-                player,
-                current_date,
-                RenewalDecision::Accepted,
-                RenewalSessionStatus::Agreed,
-                round,
-                expected_wage,
-                false,
+            Some(with_wage_policy_waiver(
+                build_renewal_feedback(
+                    player,
+                    current_date,
+                    RenewalDecision::Accepted,
+                    RenewalSessionStatus::Agreed,
+                    round,
+                    expected_wage,
+                    false,
+                ),
+                verdict,
             )),
         ));
     }
@@ -413,6 +417,18 @@ pub(crate) fn cool_stale_renewal_session(player: &mut Player, current_date: Naiv
     state.last_outcome = None;
     state.conversation_round = 0;
     true
+}
+
+/// `feedback`, telling the manager when the board let a deal through over its
+/// wage policy because the squad would otherwise be below the floor.
+pub(crate) fn with_wage_policy_waiver(
+    mut feedback: NegotiationFeedback,
+    verdict: WagePolicyVerdict,
+) -> NegotiationFeedback {
+    if let Some(detail_key) = verdict.waiver_feedback_detail_key() {
+        feedback.detail_key = Some(detail_key.to_string());
+    }
+    feedback
 }
 
 pub(crate) fn build_renewal_feedback(

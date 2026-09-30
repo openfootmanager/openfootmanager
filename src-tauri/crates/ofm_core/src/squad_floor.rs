@@ -7,7 +7,7 @@
 
 use crate::game::Game;
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
-use domain::player::Position;
+use domain::player::{Player, Position};
 use std::collections::HashMap;
 
 /// Players a club must keep registered in each position group, in
@@ -86,13 +86,28 @@ pub(crate) fn registered_by_club(game: &Game) -> HashMap<&str, [usize; 4]> {
 pub(crate) fn departure_would_leave_short(game: &Game, player_id: &str) -> Option<Position> {
     let player = game.players.iter().find(|player| player.id == player_id)?;
     let team_id = player.team_id.as_deref()?;
-    let mut registered = [0; 4];
-    for other in &game.players {
-        if other.team_id.as_deref() == Some(team_id) {
-            registered[group_index(&other.position)] += 1;
-        }
-    }
-    (!can_spare_one(registered, &player.position)).then(|| player.position.to_group_position())
+    club_needs_him_for_the_floor(game, team_id, player).then(|| player.position.to_group_position())
+}
+
+/// Players of this player's group registered to `team_id`, him excluded —
+/// the floor's own count, so a player out on loan counts for his borrower.
+pub(crate) fn others_in_his_group(game: &Game, team_id: &str, player: &Player) -> usize {
+    let group = player.position.to_group_position();
+    game.players
+        .iter()
+        .filter(|other| other.id != player.id && other.team_id.as_deref() == Some(team_id))
+        .filter(|other| other.position.to_group_position() == group)
+        .count()
+}
+
+/// Whether `team_id` would be below the floor in this player's group without
+/// him: he is one of its players now and might leave (a renewal, a sale), or
+/// he is not yet and the club is short (a signing).
+///
+/// This is also the one case in which the board's wage policy yields — see
+/// [`crate::contract_wage_policy::wage_policy_verdict`].
+pub(crate) fn club_needs_him_for_the_floor(game: &Game, team_id: &str, player: &Player) -> bool {
+    others_in_his_group(game, team_id, player) < group_floor(&player.position.to_group_position())
 }
 
 /// Whether a club with `registered` players per group (in
@@ -313,10 +328,11 @@ fn squad_topped_up_message(game: &Game, team_id: &str, signed: &[String]) -> Inb
 /// (highest rating, not retired, fit before injured) is signed on the terms
 /// the contracts module expects him to want. When nobody suitable is on the
 /// market a free agent is generated for the club's country and signed the same
-/// way, so the club is never left short. The club's wage policy is not
-/// consulted: this is the signing a club makes because it cannot otherwise put
-/// a side out, and "we cannot afford to field a team" is not an outcome the game
-/// allows.
+/// way, so the club is never left short. The wage policy always yields here,
+/// by the same rule every renewal and signing answers to
+/// ([`crate::contract_wage_policy::wage_policy_verdict`]): the club is short in
+/// that group, and "we cannot afford to field a team" is not an outcome the
+/// game allows.
 pub(crate) fn restore_minimum_squad(game: &mut Game, team_id: &str) -> Vec<String> {
     use chrono::Datelike;
 
@@ -344,6 +360,16 @@ pub(crate) fn restore_minimum_squad(game: &mut Game, team_id: &str) -> Vec<Strin
             let wage = crate::contracts::expected_wage(&game.players[index], &team, current_date);
             let years =
                 crate::contracts::expected_contract_years(&game.players[index], current_date);
+            debug_assert!(
+                crate::contract_wage_policy::wage_policy_verdict(
+                    game,
+                    &team,
+                    &game.players[index],
+                    wage
+                )
+                .permits(),
+                "a club short of the floor was refused a signing on wages"
+            );
             match crate::contracts::sign_free_agent(game, index, &team, wage, years, current_date) {
                 Ok(()) => signed.push(game.players[index].id.clone()),
                 Err(error) => log::error!(

@@ -1,4 +1,4 @@
-use crate::contract_wage_policy::renewal_wage_policy_allows;
+use crate::contract_wage_policy::{WagePolicyVerdict, wage_policy_verdict};
 use crate::contracts::{
     ContractWarningStage, DelegatedRenewalCase, DelegatedRenewalOptions, DelegatedRenewalReport,
     DelegatedRenewalResultStatus, contract_warning_stage, expected_contract_years, expected_wage,
@@ -150,7 +150,8 @@ pub fn delegate_renewals(
         if delegation_score >= 95 {
             let agreed_wage = expected_wage.min(max_wage);
             let player_for_policy = player.clone();
-            if !renewal_wage_policy_allows(game, &team, &player_for_policy, agreed_wage) {
+            let verdict = wage_policy_verdict(game, &team, &player_for_policy, agreed_wage);
+            if !verdict.permits() {
                 report.stalled_count += 1;
                 case.status = DelegatedRenewalResultStatus::Stalled;
                 case.note = String::new();
@@ -193,7 +194,14 @@ pub fn delegate_renewals(
             case.agreed_wage = Some(player.wage);
             case.agreed_years = Some(agreed_years);
             case.note = String::new();
-            case.note_key = Some("be.msg.delegatedRenewals.notes.completed".to_string());
+            case.note_key = Some(
+                if verdict == WagePolicyVerdict::OverPolicyToKeepSquadFloor {
+                    "be.msg.delegatedRenewals.notes.completedToKeepSquadFloor"
+                } else {
+                    "be.msg.delegatedRenewals.notes.completed"
+                }
+                .to_string(),
+            );
             report.cases.push(case);
             continue;
         }

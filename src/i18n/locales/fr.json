@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Une confiance faible, un moral fragile ou la pression du contrat rendent leur position plus dure. Une nouvelle petite offre pourrait tout fermer.",
     "renewalFeedbackAcceptedHeadline": "La proposition leur a convenu rapidement.",
     "renewalFeedbackAcceptedDetail": "L'offre s'est approchée assez près de leurs attentes pour garder une discussion constructive.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Ils ont accepté. L'accord fait dépasser à la masse salariale la politique du conseil, mais le conseil l'a autorisé : sans ce joueur, l'effectif passerait sous le minimum qu'un club doit conserver.",
     "renewalFeedbackAcceptedLateHeadline": "Ils ont accepté, mais la patience était presque épuisée.",
     "renewalFeedbackAcceptedLateDetail": "Vous avez conclu l'accord après un échange plus difficile. Leur camp était proche d'abandonner la discussion.",
     "renewalFeedbackBlockedHeadline": "Ils ne rouvrent pas la discussion pour le moment.",
@@ -3254,6 +3255,7 @@
         "notes": {
           "managerBlocked": "Tu m'as dit de ne pas rouvrir les discussions contractuelles pour l'instant.",
           "completed": "J'ai pu régler ce dossier sans que tu aies besoin d'intervenir.",
+          "completedToKeepSquadFloor": "C'est fait, au-delà de la politique salariale du conseil. Le conseil l'a autorisé, car sans ce joueur nous passerions sous l'effectif minimum.",
           "beyondLimits": "Le clan du joueur veut environ {{wage}}/semaine pour {{years}} ans, au-delà des limites de délégation.",
           "boardWagePolicy": "La politique salariale du conseil bloque ce renouvellement. Maintiens la masse salariale hebdomadaire près de {{budget}} pendant la phase de redressement.",
           "prefersManager": "Ils écouteraient, mais demandent encore environ {{wage}}/semaine pour {{years}} ans et préfèrent parler directement avec toi.",

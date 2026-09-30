@@ -10,20 +10,22 @@
 //! same day it reviews its tactics, and renews a player when it needs him or
 //! wants him and can pay him. The terms are the ones the contracts module says
 //! the player expects, judged by the same `evaluate_renewal_offer` and applied
-//! by the same `apply_agreed_renewal` as the player's own negotiations — there
-//! is no AI-only copy of the wage or contract-length rules.
+//! by the same `apply_agreed_renewal` as the player's own negotiations, and
+//! paid under the same `wage_policy_verdict` — there is no AI-only copy of the
+//! wage, contract-length or wage-policy rules.
 
 use chrono::NaiveDate;
 use domain::player::Player;
 use domain::team::Team;
 
+use crate::contract_wage_policy::wage_policy_verdict;
 use crate::contracts::{
     RenewalDecision, RenewalOffer, apply_agreed_renewal, contract_owner_team_id,
     evaluate_renewal_offer, expected_contract_years, expected_wage, next_renewal_round,
     player_age_on, remaining_contract_days,
 };
 use crate::game::Game;
-use crate::squad_floor::group_floor;
+use crate::squad_floor::{group_floor, others_in_his_group};
 
 /// A contract with this many days or fewer left is one the club decides on.
 /// Half a season: early enough to act on every review day until it is settled.
@@ -73,35 +75,30 @@ fn keeps(game: &Game, team: &Team, player: &Player, current_date: NaiveDate) -> 
     needed_for_depth(game, &team.id, player) || worth_keeping(game, team, player, current_date)
 }
 
-/// Letting him go would leave his group too close to the floor. A club keeps
-/// such a player even over its wage policy: the alternative is signing someone
-/// in an emergency on similar terms.
+/// Letting him go would leave his group at or too close to the floor, counted
+/// as the floor counts. Whether the club may go over its wage policy to keep
+/// him is not decided here: `renew` asks the one rule every club answers to.
 fn needed_for_depth(game: &Game, team_id: &str, player: &Player) -> bool {
-    let group = player.position.to_group_position();
-    let others = owned_players(game, team_id)
-        .filter(|other| other.id != player.id)
-        .filter(|other| other.position.to_group_position() == group)
-        .count();
-    others < group_floor(&group) + DEPTH_MARGIN
+    others_in_his_group(game, team_id, player)
+        < group_floor(&player.position.to_group_position()) + DEPTH_MARGIN
 }
 
-/// Good enough and young enough to want, and affordable.
+/// Good enough and young enough to want.
 fn worth_keeping(game: &Game, team: &Team, player: &Player, current_date: NaiveDate) -> bool {
     let age = player_age_on(current_date, &player.date_of_birth);
-    let wanted = age <= PROSPECT_AGE_LIMIT
-        || (age <= PEAK_AGE_LIMIT && player.ovr >= squad_median_ovr(game, &team.id));
-    let wage = expected_wage(player, team, current_date);
-    wanted && crate::contract_wage_policy::renewal_wage_policy_allows(game, team, player, wage)
+    age <= PROSPECT_AGE_LIMIT
+        || (age <= PEAK_AGE_LIMIT && player.ovr >= squad_median_ovr(game, &team.id))
 }
 
-fn owned_players<'a>(game: &'a Game, team_id: &'a str) -> impl Iterator<Item = &'a Player> {
-    game.players
-        .iter()
-        .filter(move |player| !player.retired && contract_owner_team_id(player) == Some(team_id))
-}
-
+/// The median rating of the players registered to the club, as the floor
+/// counts them.
 fn squad_median_ovr(game: &Game, team_id: &str) -> u8 {
-    let mut ratings: Vec<u8> = owned_players(game, team_id).map(|p| p.ovr).collect();
+    let mut ratings: Vec<u8> = game
+        .players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == Some(team_id))
+        .map(|player| player.ovr)
+        .collect();
     if ratings.is_empty() {
         return 0;
     }
@@ -109,13 +106,17 @@ fn squad_median_ovr(game: &Game, team_id: &str) -> u8 {
     ratings[ratings.len() / 2]
 }
 
-/// Offer what the player expects and, if he takes it, put it into effect.
+/// Offer what the player expects, if the board allows the wage, and if he
+/// takes it put it into effect.
 fn renew(game: &mut Game, team: &Team, player_index: usize, current_date: NaiveDate) {
     let player = &game.players[player_index];
     let offer = RenewalOffer {
         weekly_wage: expected_wage(player, team, current_date),
         contract_years: expected_contract_years(player, current_date),
     };
+    if !wage_policy_verdict(game, team, player, offer.weekly_wage).permits() {
+        return;
+    }
     let outcome = evaluate_renewal_offer(player, team, current_date, &offer);
     if outcome.decision != RenewalDecision::Accepted {
         return;
@@ -343,6 +344,106 @@ mod tests {
     fn a_player_the_club_cannot_do_without_is_renewed_whoever_he_is() {
         let mut game = world();
         game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        game.players
+            .push(player("old_keeper", "ai", Position::Goalkeeper, 50, 34, 90));
+        let before = contract_end(&game, "old_keeper");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert!(contract_end(&game, "old_keeper") > before);
+    }
+
+    /// An expensive forward running down his contract, at a club whose wage
+    /// budget is exactly its current bill — so renewing him on the terms he
+    /// expects is over the board's policy — keeping `forwards_besides_him`
+    /// other forwards.
+    fn over_policy_forward(forwards_besides_him: usize) -> Game {
+        let mut game = world();
+        game.players.retain(|p| {
+            !(p.team_id.as_deref() == Some("ai")
+                && p.position == Position::Forward
+                && p.id.as_str() >= format!("ai_Forward{forwards_besides_him}").as_str())
+        });
+        // Everyone else on no wage, so his raise alone decides the verdict.
+        for other in game.players.iter_mut() {
+            if other.team_id.as_deref() == Some("ai") {
+                other.wage = 0;
+            }
+        }
+        let mut star = player("costly_fwd", "ai", Position::Forward, 80, 27, 90);
+        star.market_value = 40_000_000;
+        game.players.push(star);
+        let bill = crate::finances::calc_wages(&game, "ai");
+        game.teams[1].wage_budget = bill;
+        game
+    }
+
+    fn verdict_for(game: &Game, id: &str) -> crate::contract_wage_policy::WagePolicyVerdict {
+        let team = &game.teams[1];
+        let player = game.players.iter().find(|p| p.id == id).unwrap();
+        wage_policy_verdict(game, team, player, expected_wage(player, team, today()))
+    }
+
+    /// One other forward: without him the club is below the floor, so the board
+    /// lets the wage policy go — the same rule the player's own renewals use.
+    #[test]
+    fn a_club_goes_over_its_wage_policy_to_keep_a_player_it_needs_for_the_floor() {
+        use crate::contract_wage_policy::WagePolicyVerdict;
+        let mut game = over_policy_forward(1);
+        assert_eq!(
+            verdict_for(&game, "costly_fwd"),
+            WagePolicyVerdict::OverPolicyToKeepSquadFloor
+        );
+        let before = contract_end(&game, "costly_fwd");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert!(contract_end(&game, "costly_fwd") > before);
+    }
+
+    /// Two other forwards: the club wants him for depth, but letting him go
+    /// leaves it at the floor, not below it. The wage policy holds.
+    #[test]
+    fn a_club_at_the_floor_without_him_keeps_to_its_wage_policy() {
+        use crate::contract_wage_policy::WagePolicyVerdict;
+        let mut game = over_policy_forward(2);
+        assert!(needed_for_depth(&game, "ai", game.players.last().unwrap()));
+        assert_eq!(
+            verdict_for(&game, "costly_fwd"),
+            WagePolicyVerdict::OverPolicy
+        );
+        let before = contract_end(&game, "costly_fwd");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert_eq!(contract_end(&game, "costly_fwd"), before);
+    }
+
+    /// Given an AI club with three keepers, one of them out on loan, when its
+    /// fading fourth keeper's contract runs down, then he is kept: the keeper
+    /// on loan plays for his borrower this week, so the club counts him as the
+    /// squad floor does — not at all.
+    #[test]
+    fn a_keeper_out_on_loan_does_not_count_toward_the_depth_a_club_needs() {
+        let mut game = world();
+        let loaned = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == "ai_Goalkeeper2")
+            .unwrap();
+        loaned.team_id = Some("user".to_string());
+        loaned.active_loan = Some(domain::player::ActiveLoan {
+            parent_team_id: "ai".to_string(),
+            loan_team_id: "user".to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 100,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
         game.players
             .push(player("old_keeper", "ai", Position::Goalkeeper, 50, 34, 90));
         let before = contract_end(&game, "old_keeper");

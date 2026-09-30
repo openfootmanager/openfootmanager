@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Kepercayaan rendah, moral rendah, atau tekanan kontrak membuat pihak mereka mendesak. Tawaran lemah lainnya bisa menutup pintu.",
     "renewalFeedbackAcceptedHeadline": "Mereka menyukai paket itu dan bergerak cepat.",
     "renewalFeedbackAcceptedDetail": "Tawaran cukup dekat dengan ekspektasi mereka, sehingga negosiasi tetap konstruktif.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Mereka setuju. Kesepakatan ini membuat tagihan gaji melampaui kebijakan manajemen, tetapi manajemen mengizinkannya: tanpa pemain ini, skuad akan turun di bawah batas minimum yang harus dipertahankan klub.",
     "renewalFeedbackAcceptedLateHeadline": "Mereka menerima, tetapi kesabaran tinggal sedikit.",
     "renewalFeedbackAcceptedLateDetail": "Kamu menyelesaikan kesepakatan setelah pertukaran yang lebih sulit. Pihak mereka hampir meninggalkan diskusi.",
     "renewalFeedbackBlockedHeadline": "Mereka belum membuka kembali percakapan.",
@@ -3254,6 +3255,7 @@
         "notes": {
           "managerBlocked": "Kamu meminta saya untuk belum membuka kembali pembicaraan kontrak.",
           "completed": "Saya berhasil menyelesaikan yang satu ini tanpa perlu kamu turun tangan.",
+          "completedToKeepSquadFloor": "Beres, melampaui kebijakan gaji manajemen. Manajemen mengizinkannya karena tanpa pemain ini kita akan turun di bawah skuad minimum.",
           "beyondLimits": "Mereka menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun, yang melebihi batas pendelegasian.",
           "boardWagePolicy": "Kebijakan gaji manajemen menghalangi perpanjangan ini. Jaga gaji mingguan di sekitar {{budget}} sambil kami pulih.",
           "prefersManager": "Mereka bersedia mendengarkan, tetapi masih menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun dan lebih suka mendengarnya langsung dari kamu.",

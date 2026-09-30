@@ -132,6 +132,15 @@ fn make_game() -> Game {
     )
 }
 
+/// Two more forwards on no wage, so the club can let player-1 go without
+/// falling below the squad floor — for tests about the wage policy itself,
+/// which the floor would otherwise overrule. No wage, so the bill is unchanged.
+fn give_forward_depth(game: &mut Game) {
+    for id in ["depth-fwd-1", "depth-fwd-2"] {
+        game.players.push(make_player_with(id, 0, "2030-06-30"));
+    }
+}
+
 fn make_squad_game() -> Game {
     let mut game = make_game();
     game.players = vec![
@@ -971,10 +980,65 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
     );
 }
 
+/// The same offer the test below has refused, but player-1 is the club's only
+/// forward: without him it would be below the squad floor, so the board lets
+/// the wage policy go — and the manager is told that is why.
+#[test]
+fn renewal_over_the_wage_policy_goes_through_when_the_squad_would_fall_below_the_floor() {
+    let mut game = make_game();
+    game.teams[0].wage_budget = 200_000;
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 250_000,
+            contract_years: 3,
+        },
+    )
+    .expect("the floor overrules the wage policy");
+
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_eq!(
+        outcome
+            .feedback
+            .as_ref()
+            .and_then(|feedback| feedback.detail_key.as_deref()),
+        Some("playerProfile.renewalFeedbackAcceptedToKeepSquadFloorDetail")
+    );
+    assert_eq!(game.players[0].wage, 250_000);
+}
+
+/// A renewal inside the policy is not described as a waiver.
+#[test]
+fn renewal_within_the_wage_policy_is_not_described_as_a_waiver() {
+    let mut game = make_game();
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    )
+    .expect("an ordinary renewal");
+
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_ne!(
+        outcome
+            .feedback
+            .as_ref()
+            .and_then(|feedback| feedback.detail_key.as_deref()),
+        Some("playerProfile.renewalFeedbackAcceptedToKeepSquadFloorDetail")
+    );
+}
+
 #[test]
 fn renewal_is_blocked_when_offer_pushes_healthy_club_far_over_soft_cap() {
     let mut game = make_game();
     game.teams[0].wage_budget = 200_000;
+    give_forward_depth(&mut game);
 
     let err = propose_renewal(
         &mut game,
@@ -1019,6 +1083,7 @@ fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
     game.players[0].wage = 48_000;
     game.players
         .push(make_player_with("player-2", 40_000, "2027-06-30"));
+    give_forward_depth(&mut game);
 
     let err = propose_renewal(
         &mut game,
