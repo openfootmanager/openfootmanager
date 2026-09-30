@@ -24,7 +24,9 @@
     "openDiscord": "Otevřít Discord",
     "openGithub": "Otevřít GitHub",
     "mainMenu": "Hlavní menu",
-    "worldEditor": "Editor světa"
+    "worldEditor": "Editor světa",
+    "startupOptionsRejected": "Tato nastavení kariéry nebylo možné použít. Vraťte se na obrazovku světa a zkontrolujte rok začátku, fázi začátku a kolik minulé historie se má vygenerovat.",
+    "reportBug": "Nahlásit chybu"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "Vstoupit",
     "exitFullscreen": "Ukončit",
     "switchToLightMode": "Přepnout do světlého motivu",
-    "switchToDarkMode": "Přepnout do tmavého motivu"
+    "switchToDarkMode": "Přepnout do tmavého motivu",
+    "help": "Nápověda",
+    "reportBug": "Nahlásit chybu",
+    "reportBugDesc": "Napište nám, co se pokazilo — vaše protokoly se připojí automaticky.",
+    "report": "Nahlásit"
   },
   "preMatch": {
     "formationFit": "Vhodnost rozestavení",
@@ -2550,6 +2556,10 @@
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
       "saveManagerUnavailable": "Uložená data jsou dočasně nedostupná.",
+      "report": {
+        "bundleFailed": "Soubor hlášení se nepodařilo zapsat. Zkontrolujte, jestli máte právo zápisu do zvolené složky.",
+        "saveMissing": "Váš uložený soubor se nepodařilo najít, takže se nic nezapsalo. Zrušte zaškrtnutí uložené hry a zkuste to znovu, nebo nejdřív načtěte kariéru."
+      },
       "saveDeleteFailed": "Nepodařilo se smazat soubor uložené pozice.",
       "settings": {
         "loadFailed": "Nepodařilo se načíst nastavení.",
@@ -4036,5 +4046,55 @@
   "generation": {
     "title": "Generování a dokončení",
     "coverage": "Vaše balíčky pokrývají"
+  },
+  "errorBoundary": {
+    "title": "Něco se pokazilo",
+    "description": "Na této obrazovce došlo k chybě, ze které se nepodařilo zotavit. Zkuste to nejdřív znovu — načtení restartuje hru a neuložený postup se ztratí.",
+    "retry": "Zkusit znovu",
+    "reload": "Načíst hru znovu"
+  },
+  "errors": {
+    "title": "Něco se pokazilo"
+  },
+  "reportBug": {
+    "describeTitle": "Nahlásit chybu",
+    "describeIntro": "Napište nám, co se pokazilo. Vaše protokoly a údaje o hře se připojí automaticky. Celý seznam uvidíte dřív, než se cokoli uloží.",
+    "previewTitle": "Co se odešle",
+    "previewIntro": "Všechno níže, a nic jiného. Nic neopustí tenhle počítač, dokud nevyberete, kam to uložit.",
+    "doneTitle": "Hlášení uloženo",
+    "doneIntro": "Formulář chyby je otevřený v prohlížeči a vaše odpovědi jsou už vyplněné.",
+    "whatHappened": "Co se stalo",
+    "whatHappenedPlaceholder": "Hra zamrzla po kliknutí na Na hřiště…",
+    "expected": "Co jste čekali",
+    "expectedPlaceholder": "Zápas měl normálně začít…",
+    "steps": "Postup pro zopakování",
+    "stepsPlaceholder": "1. Začít novou hru\n2. Postoupit na hrací den\n3. Kliknout na Na hřiště…",
+    "required": "Povinné",
+    "fillRequired": "Vyplňte prosím, co se stalo a co jste čekali.",
+    "frequencyLabel": "Jak často se to stává",
+    "gameContext": "Vaše kariéra",
+    "frequency": {
+      "everyTime": "Pokaždé",
+      "sometimes": "Občas",
+      "once": "Jen jednou"
+    },
+    "itemWhatYouWrote": "Co jste napsali",
+    "itemWhatYouWroteDesc": "Váš popis, očekávání, postup a jak často k tomu dochází.",
+    "itemSetup": "Váš systém",
+    "itemLogs": "Vaše poslední soubory protokolu",
+    "itemLogsDesc": "Vaše domovská složka a uživatelské jméno se před uložením odstraní, stejně jako název počítače, pokud ho systém uvádí.",
+    "itemCrash": "Pád z vaší poslední relace",
+    "itemCrashDesc": "Přiloženo, protože při vaší minulé hře něco spadlo.",
+    "optionalHeading": "Přidejte, pokud chcete — ve výchozím stavu vypnuto",
+    "includeSave": "Moje uložená hra",
+      "includeSaveDesc": "Umožní nám přehrát přesně tu situaci, ve které jste se ocitli.",
+    "includeSaveNoCareer": "Žádná kariéra není otevřená, není co přiložit.",
+    "nothingSentYet": "Nic se neuloží ani neotevře, dokud nestisknete tlačítko níže. Odeslání formuláře vyžaduje účet na GitHubu — soubor je váš tak jako tak.",
+    "savedTo": "Soubor s hlášením byl uložen sem:",
+    "dragItIn": "Přetáhněte ho do formuláře na GitHubu v prohlížeči a odešlete. A to je všechno.",
+      "browserDidNotOpen": "Prohlížeč se neotevřel. Soubor výše je uložený — přiložte ho k novému issue na GitHubu, až budete moci.",
+    "review": "Zkontrolovat, co se odešle",
+    "saveAndOpen": "Uložit soubor a otevřít GitHub",
+    "working": "Pracuji…"
   }
 }

@@ -11,7 +11,7 @@ import MainMenu from "./MainMenu";
 const navigateMock = vi.fn();
 const setGameActiveMock = vi.fn();
 const setGameStateMock = vi.fn();
-const alertMock = vi.fn();
+const showErrorMock = vi.fn();
 let latestDatePickerOnChange: ((date: string) => void) | null = null;
 const translationState = {
   language: "en",
@@ -19,6 +19,10 @@ const translationState = {
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+vi.mock("../lib/errorDialog", () => ({
+  showError: (title: string, detail: string) => showErrorMock(title, detail),
 }));
 
 const openUrlMock = vi.fn();
@@ -271,7 +275,7 @@ describe("MainMenu", () => {
     navigateMock.mockReset();
     setGameActiveMock.mockReset();
     setGameStateMock.mockReset();
-    alertMock.mockReset();
+    showErrorMock.mockReset();
     openUrlMock.mockReset();
     dialogOpenResult = null;
     localStorage.clear();
@@ -315,7 +319,6 @@ describe("MainMenu", () => {
       queueMicrotask(() => cb(0));
       return 0;
     });
-    vi.stubGlobal("alert", alertMock);
   });
 
   afterEach(() => {
@@ -769,7 +772,9 @@ describe("MainMenu", () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith("menu.loadGameFailed");
+      // Title and detail are separate arguments now; the fake `t` returns the key it is
+      // given, so these are the two keys the page passes.
+      expect(showErrorMock).toHaveBeenCalledWith("errors.title", "menu.loadGameFailed");
     });
     expect(navigateMock).not.toHaveBeenCalledWith("/dashboard");
   });

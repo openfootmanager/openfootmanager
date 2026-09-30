@@ -24,7 +24,9 @@
     "openDiscord": "Discord topluluğunu aç",
     "openGithub": "GitHub deposunu aç",
     "mainMenu": "Ana Menü",
-    "worldEditor": "Dünya Editörü"
+    "worldEditor": "Dünya Editörü",
+    "startupOptionsRejected": "Bu kariyer ayarları kullanılamadı. Dünya ekranına dönüp başlangıç yılını, başlangıç aşamasını ve ne kadar geçmiş oluşturulacağını kontrol et.",
+    "reportBug": "Hata bildir"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "Aç",
     "exitFullscreen": "Çık",
     "switchToLightMode": "Açık moda geç",
-    "switchToDarkMode": "Koyu moda geç"
+    "switchToDarkMode": "Koyu moda geç",
+    "help": "Yardım",
+    "reportBug": "Hata bildir",
+    "reportBugDesc": "Neyin ters gittiğini bize ilet; günlüklerin otomatik olarak eklenir.",
+    "report": "Bildir"
   },
   "preMatch": {
     "formationFit": "Diziliş Uyumu",
@@ -2550,6 +2556,10 @@
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",
+      "report": {
+        "bundleFailed": "Rapor dosyası yazılamadı. Seçtiğin klasöre yazma iznin olduğunu kontrol et.",
+        "saveMissing": "Kayıt dosyan bulunamadı, bu yüzden hiçbir şey yazılmadı. Kaydın işaretini kaldırıp tekrar dene ya da önce kariyerini yeniden yükle."
+      },
       "saveDeleteFailed": "Kayıt dosyası silinemedi.",
       "settings": {
         "loadFailed": "Ayarlar yüklenemedi.",
@@ -4036,5 +4046,55 @@
   "generation": {
     "title": "Oluşturma ve Tamamlama",
     "coverage": "Paketlerinizin kapsadıkları"
+  },
+  "errorBoundary": {
+    "title": "Bir şeyler ters gitti",
+    "description": "Bu ekran, kurtulamadığı bir hatayla karşılaştı. Önce yeniden denemeyi deneyin — yeniden yükleme oyunu baştan başlatır ve kaydedilmemiş ilerleme kaybolur.",
+    "retry": "Yeniden dene",
+    "reload": "Oyunu yeniden yükle"
+  },
+  "errors": {
+    "title": "Bir şeyler ters gitti"
+  },
+  "reportBug": {
+    "describeTitle": "Hata bildir",
+    "describeIntro": "Neyin ters gittiğini anlat. Günlüklerin ve oyun bilgilerin otomatik olarak eklenir. Hiçbir şey kaydedilmeden önce tam listeyi göreceksin.",
+    "previewTitle": "Neler gönderilecek",
+    "previewIntro": "Aşağıdakilerin hepsi, başka bir şey değil. Nereye kaydedeceğini seçene kadar hiçbir şey bu bilgisayardan çıkmaz.",
+    "doneTitle": "Rapor kaydedildi",
+    "doneIntro": "Hata formu tarayıcında açıldı ve cevapların çoktan dolduruldu.",
+    "whatHappened": "Ne oldu",
+    "whatHappenedPlaceholder": "Sahaya Çık'a tıkladığımda oyun dondu…",
+    "expected": "Ne olmasını bekliyordun",
+    "expectedPlaceholder": "Maçın normal şekilde başlamasını bekliyordum…",
+    "steps": "Yeniden oluşturma adımları",
+    "stepsPlaceholder": "1. Yeni oyun başlat\n2. Maç gününe ilerle\n3. Sahaya Çık'a tıkla…",
+    "required": "Zorunlu",
+    "fillRequired": "Lütfen ne olduğunu ve ne beklediğini doldur.",
+    "frequencyLabel": "Ne sıklıkla oluyor",
+    "gameContext": "Kariyerin",
+    "frequency": {
+      "everyTime": "Her seferinde",
+      "sometimes": "Bazı zamanlar",
+      "once": "Yalnızca bir kez"
+    },
+    "itemWhatYouWrote": "Yazdıkların",
+    "itemWhatYouWroteDesc": "Açıklaman, beklentin, adımlar ve ne sıklıkla olduğu.",
+    "itemSetup": "Sistemin",
+    "itemLogs": "Son günlük dosyaların",
+    "itemLogsDesc": "Kişisel klasörün ve kullanıcı adın kaydetmeden önce kaldırılır; sistem bildiriyorsa bilgisayar adın da kaldırılır.",
+    "itemCrash": "Son oturumundan bir çökme",
+    "itemCrashDesc": "Son oturumunda bir şey çöktüğü için eklendi.",
+    "optionalHeading": "İstersen ekle — varsayılan olarak kapalı",
+    "includeSave": "Kayıt dosyam",
+      "includeSaveDesc": "İçinde bulunduğun durumu birebir yeniden oynatmamızı sağlar.",
+    "includeSaveNoCareer": "Açık bir kariyer yok, eklenecek bir şey de yok.",
+    "nothingSentYet": "Aşağıdaki düğmeye basana kadar hiçbir şey kaydedilmez veya açılmaz. Formu göndermek için bir GitHub hesabı gerekir — dosya her durumda senin.",
+    "savedTo": "Rapor dosyan buraya kaydedildi:",
+    "dragItIn": "Tarayıcıdaki GitHub formuna sürükle ve gönder. Hepsi bu.",
+      "browserDidNotOpen": "Tarayıcın açılmadı. Yukarıdaki dosya kaydedildi — fırsatın olduğunda GitHub'da yeni bir issue'ya ekle.",
+    "review": "Ne gönderildiğini incele",
+    "saveAndOpen": "Dosyayı kaydet ve GitHub'ı aç",
+    "working": "Çalışıyor…"
   }
 }

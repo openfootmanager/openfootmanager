@@ -24,7 +24,9 @@
     "openDiscord": "Discord-Community öffnen",
     "openGithub": "GitHub-Repository öffnen",
     "mainMenu": "Hauptmenü",
-    "worldEditor": "Welt-Editor"
+    "worldEditor": "Welt-Editor",
+    "startupOptionsRejected": "Diese Karriereeinstellungen konnten nicht verwendet werden. Geh zurück zum Weltbildschirm und prüfe Startjahr, Startphase und wie viel Vorgeschichte erzeugt werden soll.",
+    "reportBug": "Fehler melden"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "Aktivieren",
     "exitFullscreen": "Beenden",
     "switchToLightMode": "Zum hellen Modus wechseln",
-    "switchToDarkMode": "Zum dunklen Modus wechseln"
+    "switchToDarkMode": "Zum dunklen Modus wechseln",
+    "help": "Hilfe",
+    "reportBug": "Fehler melden",
+    "reportBugDesc": "Schick uns, was schiefgelaufen ist — deine Protokolle kommen automatisch mit.",
+    "report": "Melden"
   },
   "preMatch": {
     "formationFit": "Formationsanpassung",
@@ -2691,6 +2697,10 @@
         "writeFailed": "Der Speicherstandsindex konnte nicht aktualisiert werden."
       },
       "saveManagerUnavailable": "Die Speicherdaten sind vorübergehend nicht verfügbar.",
+      "report": {
+        "bundleFailed": "Die Berichtsdatei konnte nicht geschrieben werden. Prüfe, ob du in den gewählten Ordner schreiben darfst.",
+        "saveMissing": "Dein Spielstand wurde nicht gefunden, also wurde nichts geschrieben. Nimm den Haken beim Spielstand weg und versuch es erneut, oder lade zuerst deine Karriere."
+      },
       "saveDeleteFailed": "Die Speicherstandsdatei konnte nicht gelöscht werden.",
       "settings": {
         "loadFailed": "Die Einstellungen konnten nicht geladen werden.",
@@ -4036,5 +4046,55 @@
   "generation": {
     "title": "Generierung & Vervollständigung",
     "coverage": "Deine Pakete umfassen"
+  },
+  "errorBoundary": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Auf diesem Bildschirm ist ein Fehler aufgetreten, von dem er sich nicht erholen konnte. Versuche es zuerst erneut — beim Neuladen startet das Spiel neu und nicht gespeicherter Fortschritt geht verloren.",
+    "retry": "Erneut versuchen",
+    "reload": "Spiel neu laden"
+  },
+  "errors": {
+    "title": "Etwas ist schiefgelaufen"
+  },
+  "reportBug": {
+    "describeTitle": "Fehler melden",
+    "describeIntro": "Erzähl uns, was schiefgelaufen ist. Deine Protokolle und die Spieldaten kommen automatisch mit. Du siehst die vollständige Liste, bevor irgendetwas gespeichert wird.",
+    "previewTitle": "Was gesendet wird",
+    "previewIntro": "Alles Folgende und sonst nichts. Nichts verlässt diesen Rechner, bevor du einen Speicherort wählst.",
+    "doneTitle": "Bericht gespeichert",
+    "doneIntro": "Das Fehlerformular ist in deinem Browser geöffnet, deine Antworten sind bereits eingetragen.",
+    "whatHappened": "Was ist passiert",
+    "whatHappenedPlaceholder": "Das Spiel fror ein, als ich auf Aufs Feld geklickt habe…",
+    "expected": "Was hast du erwartet",
+    "expectedPlaceholder": "Ich habe erwartet, dass das Spiel normal beginnt…",
+    "steps": "Schritte zum Nachstellen",
+    "stepsPlaceholder": "1. Neues Spiel starten\n2. Bis zum Spieltag vorspulen\n3. Auf Aufs Feld klicken…",
+    "required": "Pflichtfeld",
+    "fillRequired": "Bitte trage ein, was passiert ist und was du erwartet hast.",
+    "frequencyLabel": "Wie oft passiert es",
+    "gameContext": "Deine Karriere",
+    "frequency": {
+      "everyTime": "Jedes Mal",
+      "sometimes": "Manchmal",
+      "once": "Nur einmal"
+    },
+    "itemWhatYouWrote": "Was du geschrieben hast",
+    "itemWhatYouWroteDesc": "Deine Beschreibung, deine Erwartung, die Schritte und wie oft es auftritt.",
+    "itemSetup": "Dein System",
+    "itemLogs": "Deine letzten Protokolldateien",
+    "itemLogsDesc": "Dein Benutzerordner und dein Benutzername werden vor dem Speichern entfernt, ebenso der Computername, sofern das System ihn meldet.",
+    "itemCrash": "Ein Absturz aus deiner letzten Sitzung",
+    "itemCrashDesc": "Enthalten, weil in deiner letzten Sitzung etwas abgestürzt ist.",
+    "optionalHeading": "Nach Wunsch hinzufügen — standardmäßig aus",
+    "includeSave": "Mein Spielstand",
+      "includeSaveDesc": "Damit können wir genau die Situation nachstellen, in der du warst.",
+    "includeSaveNoCareer": "Keine Karriere geöffnet, also gibt es nichts anzuhängen.",
+    "nothingSentYet": "Es wird nichts gespeichert oder geöffnet, bis du unten drückst. Zum Absenden des Formulars brauchst du ein GitHub-Konto — die Datei gehört dir so oder so.",
+    "savedTo": "Deine Berichtsdatei wurde hier gespeichert:",
+    "dragItIn": "Zieh sie im Browser auf das GitHub-Formular und schick es ab. Das war's.",
+      "browserDidNotOpen": "Dein Browser hat sich nicht geöffnet. Die Datei oben ist gespeichert — hänge sie an, wenn du auf GitHub ein neues Issue anlegst.",
+    "review": "Prüfen, was gesendet wird",
+    "saveAndOpen": "Datei speichern und GitHub öffnen",
+    "working": "Arbeitet…"
   }
 }

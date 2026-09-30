@@ -24,7 +24,9 @@
     "openDiscord": "Abrir comunidad de Discord",
     "openGithub": "Abrir repositorio de GitHub",
     "mainMenu": "Menú principal",
-    "worldEditor": "Editor de Mundos"
+    "worldEditor": "Editor de Mundos",
+    "startupOptionsRejected": "No se han podido usar esos ajustes de carrera. Vuelve a la pantalla del mundo y revisa el año de inicio, la fase de inicio y cuánta historia previa generar.",
+    "reportBug": "Informar de un fallo"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "Entrar",
     "exitFullscreen": "Salir",
     "switchToLightMode": "Cambiar al modo claro",
-    "switchToDarkMode": "Cambiar al modo oscuro"
+    "switchToDarkMode": "Cambiar al modo oscuro",
+    "help": "Ayuda",
+    "reportBug": "Informar de un fallo",
+    "reportBugDesc": "Cuéntanos qué ha salido mal; tus registros se adjuntan automáticamente.",
+    "report": "Informar"
   },
   "preMatch": {
     "formationFit": "Ajuste de Formación",
@@ -2691,6 +2697,10 @@
         "writeFailed": "No se pudo actualizar el índice de partidas guardadas."
       },
       "saveManagerUnavailable": "Los datos guardados no están disponibles temporalmente.",
+      "report": {
+        "bundleFailed": "No se ha podido escribir el archivo del informe. Comprueba que puedes escribir en la carpeta que has elegido.",
+        "saveMissing": "No se ha encontrado tu partida guardada, así que no se ha escrito nada. Desmarca la partida e inténtalo de nuevo, o vuelve a cargar tu carrera primero."
+      },
       "saveDeleteFailed": "No se pudo eliminar el archivo de guardado.",
       "settings": {
         "loadFailed": "No se pudo cargar la configuración.",
@@ -4036,5 +4046,55 @@
   "generation": {
     "title": "Generación y Completado",
     "coverage": "Tus paquetes incluyen"
+  },
+  "errorBoundary": {
+    "title": "Algo ha salido mal",
+    "description": "Esta pantalla ha sufrido un error del que no ha podido recuperarse. Prueba primero a reintentar: recargar reinicia el juego y se pierde el progreso no guardado.",
+    "retry": "Reintentar",
+    "reload": "Recargar el juego"
+  },
+  "errors": {
+    "title": "Algo ha salido mal"
+  },
+  "reportBug": {
+    "describeTitle": "Informar de un fallo",
+    "describeIntro": "Cuéntanos qué ha salido mal. Tus registros y los datos de la partida se añaden automáticamente. Verás la lista completa antes de guardar nada.",
+    "previewTitle": "Qué se envía",
+    "previewIntro": "Todo lo de abajo, y nada más. Nada sale de este dispositivo hasta que elijas dónde guardarlo.",
+    "doneTitle": "Informe guardado",
+    "doneIntro": "El formulario de fallos está abierto en tu navegador con tus respuestas ya rellenadas.",
+    "whatHappened": "Qué ha pasado",
+    "whatHappenedPlaceholder": "El juego se quedó colgado al pulsar Salir al campo…",
+    "expected": "Qué esperabas",
+    "expectedPlaceholder": "Esperaba que el partido empezara con normalidad…",
+    "steps": "Pasos para reproducirlo",
+    "stepsPlaceholder": "1. Empezar una partida nueva\n2. Avanzar hasta la jornada\n3. Pulsar Salir al campo…",
+    "required": "Obligatorio",
+    "fillRequired": "Rellena qué ha pasado y qué esperabas.",
+    "frequencyLabel": "Con qué frecuencia ocurre",
+    "gameContext": "Tu carrera",
+    "frequency": {
+      "everyTime": "Siempre",
+      "sometimes": "A veces",
+      "once": "Solo una vez"
+    },
+    "itemWhatYouWrote": "Lo que has escrito",
+    "itemWhatYouWroteDesc": "Tu descripción, qué esperabas, los pasos y con qué frecuencia ocurre.",
+    "itemSetup": "Tu sistema",
+    "itemLogs": "Tus registros recientes",
+    "itemLogsDesc": "Tu carpeta personal y tu nombre de usuario se eliminan antes de guardar, junto con el nombre de tu dispositivo cuando el sistema lo indica.",
+    "itemCrash": "Un cierre inesperado de tu última sesión",
+    "itemCrashDesc": "Se incluye porque algo falló durante tu última sesión.",
+    "optionalHeading": "Añádelo si quieres: desactivado por defecto",
+    "includeSave": "Mi partida guardada",
+      "includeSaveDesc": "Nos permite reproducir la situación exacta en la que estabas.",
+    "includeSaveNoCareer": "No hay ninguna carrera abierta, así que no hay nada que adjuntar.",
+    "nothingSentYet": "No se guarda ni se abre nada hasta que pulses el botón de abajo. Enviar el formulario requiere una cuenta de GitHub; el archivo es tuyo en cualquier caso.",
+    "savedTo": "Tu archivo de informe se ha guardado aquí:",
+    "dragItIn": "Arrástralo al formulario de GitHub en tu navegador y envíalo. Eso es todo.",
+      "browserDidNotOpen": "Tu navegador no se ha abierto. El archivo de arriba está guardado: adjúntalo a una incidencia nueva en GitHub cuando puedas.",
+    "review": "Revisar qué se envía",
+    "saveAndOpen": "Guardar el archivo y abrir GitHub",
+    "working": "Trabajando…"
   }
 }

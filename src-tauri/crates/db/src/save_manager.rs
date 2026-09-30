@@ -139,6 +139,19 @@ impl SaveManager {
         self.save_index.list_saves()
     }
 
+    /// Where a save's database file lives, or `None` if no such save is indexed.
+    ///
+    /// Exists so the bug-report bundler can attach the active save without rebuilding
+    /// `saves_dir.join(entry.db_filename)` for itself. That join appears eight times in this file
+    /// and nowhere outside it, which is the property worth keeping.
+    pub fn save_db_path(&self, save_id: &str) -> Option<PathBuf> {
+        self.save_index
+            .list_saves()
+            .iter()
+            .find(|entry| entry.id == save_id)
+            .map(|entry| self.saves_dir.join(&entry.db_filename))
+    }
+
     pub fn load_saves(&mut self) -> Result<Vec<SaveEntry>, String> {
         self.ensure_save_index_ready()?;
         let mut saves = self.save_index.list_saves().to_vec();
@@ -808,6 +821,44 @@ mod tests {
             .filter_map(Result::ok)
             .filter(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("db"))
             .count()
+    }
+
+    #[test]
+    fn save_db_path_points_at_the_file_for_that_save() {
+        // The bug-report bundler attaches whatever this returns, so resolving to the wrong save
+        // would attach a career the player did not choose.
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(dir.path()).unwrap();
+        let save_id = sm.create_save(&sample_game(), "Career").unwrap();
+
+        let path = sm.save_db_path(&save_id).expect("a path for a known save");
+
+        assert_eq!(path.parent(), Some(dir.path()));
+        assert!(path.exists(), "{path:?}");
+        assert_eq!(path.extension().and_then(|e| e.to_str()), Some("db"));
+    }
+
+    #[test]
+    fn save_db_path_is_none_for_an_id_that_is_not_indexed() {
+        // A stale id must resolve to nothing rather than to some other save's file.
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(dir.path()).unwrap();
+        sm.create_save(&sample_game(), "Career").unwrap();
+
+        assert!(sm.save_db_path("not-a-real-save-id").is_none());
+    }
+
+    #[test]
+    fn save_db_path_distinguishes_two_saves() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(dir.path()).unwrap();
+        let first = sm.create_save(&sample_game(), "First").unwrap();
+        let second = sm.create_save(&sample_game(), "Second").unwrap();
+
+        assert_ne!(
+            sm.save_db_path(&first).unwrap(),
+            sm.save_db_path(&second).unwrap()
+        );
     }
 
     fn sample_game() -> Game {

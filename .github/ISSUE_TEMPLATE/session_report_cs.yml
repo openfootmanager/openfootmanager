@@ -1,0 +1,87 @@
+name: "\U0001F3AE Zpráva z hraní (Čeština)"
+description: "Podělte se o shrnutí svého hraní v češtině"
+labels: ["session-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Zpráva z hraní
+        Tyhle zprávy mají obrovskou cenu — díky nim vidíme hráčský zážitek jako celek.
+        V této šabloně pište prosím česky.
+
+  - type: input
+    id: play-time
+    attributes:
+      label: "Doba hraní"
+      description: "Jak dlouho jste hráli?"
+      placeholder: "Asi 2 hodiny"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-did
+    attributes:
+      label: "Co jste dělali"
+      description: "Stručné shrnutí vašeho hraní."
+      placeholder: "Nová hra, 10 odehraných zápasů, 12. hrací den..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-enjoyed
+    attributes:
+      label: "Co mě bavilo"
+      description: "Co bylo příjemné? Co vás u hry drželo?"
+      placeholder: "Simulace zápasů byla napínavá, hlavně když..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-frustrated-me
+    attributes:
+      label: "Co mě štvalo"
+      description: "Kvůli čemu jste málem přestali hrát? Co působilo rozbitě nebo zdlouhavě?"
+      placeholder: "Zmátla mě stránka tréninku a..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: top-improvements
+    attributes:
+      label: "3 věci, které bych zlepšil"
+      description: "Kdybyste mohli změnit tři věci, které by to byly?"
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: play-again
+    attributes:
+      label: "Zahráli byste si znovu?"
+      options:
+        - "Ano"
+        - "Možná"
+        - "Ne"
+    validations:
+      required: true
+
+  - type: textarea
+    id: play-again-why
+    attributes:
+      label: "Proč?"
+      description: "Napište nám, proč byste si znovu zahráli nebo nezahráli."
+      placeholder: "Protože..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Ještě něco?"
+      description: "Jakékoli další postřehy, snímky obrazovky nebo soubory protokolu."
+      placeholder: "Přetáhněte sem soubory nebo napište cokoli dalšího..."
+    validations:
+      required: false

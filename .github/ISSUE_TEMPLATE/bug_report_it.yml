@@ -63,6 +63,15 @@ body:
       required: false
 
   - type: input
+    id: version
+    attributes:
+      label: "Versione dell'app"
+      description: "Mostrata in fondo al menu principale e in Impostazioni → Informazioni."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
     id: os
     attributes:
       label: "Sistema operativo"

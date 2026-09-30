@@ -1,6 +1,8 @@
 mod application;
 mod commands;
+mod crash;
 mod platform;
+mod report;
 use commands::*;
 
 #[cfg(feature = "mcp")]
@@ -17,6 +19,12 @@ pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // First of all, so that everything below is covered — including plugin registration and the
+    // graphics configuration, where a panic would otherwise leave nothing at all behind. The hook
+    // has no file to write to yet; `setup` gives it one as soon as the app data directory
+    // resolves. See `crash`.
+    crash::install_panic_hook();
+
     // Must run before the webview is built: on Linux, WebKitGTK and the graphics driver read the
     // variables this sets when the web process starts. A no-op on Windows and macOS.
     // See `platform` and `docs/LINUX_GRAPHICS.md`.
@@ -34,7 +42,13 @@ pub fn run() {
                 .level_for("ofm_core", log::LevelFilter::Debug)
                 .level_for("engine", log::LevelFilter::Debug)
                 .level_for("db", log::LevelFilter::Debug)
-                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                // `KeepAll` meant the log folder grew for the life of the install and was never
+                // pruned — on a machine that had played a few hundred hours, the folder a bug
+                // reporter is asked to zip up is the largest thing in the report and almost all of
+                // it predates the bug. Five rotations of 5 MB bounds it at ~25 MB while still
+                // covering several sessions back. `KeepSome(5)` is five archived files plus
+                // the one currently being written, so the real ceiling is ~30 MB.
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(5))
                 .max_file_size(5_000_000) // 5 MB per log file
                 .build(),
         )
@@ -48,6 +62,16 @@ pub fn run() {
                 .map_err(|_| std::io::Error::other(SAVE_MANAGER_UNAVAILABLE_ERROR))?;
             std::fs::create_dir_all(&app_data_dir)
                 .map_err(|_| std::io::Error::other(SAVE_MANAGER_UNAVAILABLE_ERROR))?;
+
+            // Give the panic hook somewhere to write, then report and clear whatever the previous
+            // launch left. Done here rather than later in `setup` so that a panic in any of the
+            // startup work below — save manager init, the legacy migration — is itself recorded.
+            crash::set_crash_file(crash::crash_file_in(&app_data_dir));
+            // Held rather than dropped: the file has to be cleared here or the same crash is
+            // reported on every launch, but the bug report is filed later in this same session.
+            app.manage(crash::PreviousCrash(crash::take_previous_crash(
+                &app_data_dir,
+            )));
 
             let saves_dir = app_data_dir.join("saves");
             let mut save_manager = SaveManager::init(&saves_dir).map_err(std::io::Error::other)?;
@@ -312,11 +336,19 @@ pub fn run() {
             copy_package_asset,
             export_teams_csv,
             export_players_csv,
-            read_file_as_data_url
+            read_file_as_data_url,
+            commands::report::collect_diagnostics,
+            commands::report::export_report_bundle,
+            commands::report::redact_report_fields,
+            commands::report::suggested_report_file_name
         ])
         .run(tauri::generate_context!());
 
     if let Err(error) = result {
-        std::panic::panic_any(error);
+        // `panic_any(error)` used to be the whole of this. It carried a `tauri::Error`, which no
+        // panic handler can print — so the one failure that guarantees the player sees nothing at
+        // all was also the one that told us least. Panicking with the formatted message puts the
+        // reason in the log file, in `last-crash.json`, and on stderr.
+        panic!("Tauri failed to start: {error}");
     }
 }

@@ -1,0 +1,87 @@
+name: "\U0001F3AE Laporan Sesi (Bahasa Indonesia)"
+description: "Bagikan ringkasan sesi bermain Anda dalam Bahasa Indonesia"
+labels: ["session-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Laporan Sesi
+        Laporan sesi sangat berharga — laporan ini membantu kami memahami pengalaman bermain secara utuh.
+        Mohon tulis dalam Bahasa Indonesia pada templat ini.
+
+  - type: input
+    id: play-time
+    attributes:
+      label: "Lama bermain"
+      description: "Berapa lama Anda bermain?"
+      placeholder: "Sekitar 2 jam"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-did
+    attributes:
+      label: "Apa yang saya lakukan"
+      description: "Ringkasan singkat sesi Anda."
+      placeholder: "Memulai gim baru, memainkan 10 pertandingan, sampai pekan pertandingan ke-12..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-enjoyed
+    attributes:
+      label: "Yang saya nikmati"
+      description: "Apa yang terasa menyenangkan? Apa yang membuat Anda terus bermain?"
+      placeholder: "Simulasi pertandingannya seru, terutama ketika..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-frustrated-me
+    attributes:
+      label: "Yang membuat saya frustrasi"
+      description: "Apa yang hampir membuat Anda berhenti? Apa yang terasa rusak atau membosankan?"
+      placeholder: "Saya bingung dengan halaman latihan dan..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: top-improvements
+    attributes:
+      label: "3 hal utama yang ingin saya perbaiki"
+      description: "Jika Anda bisa mengubah tiga hal, apa saja itu?"
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: play-again
+    attributes:
+      label: "Akan bermain lagi?"
+      options:
+        - "Ya"
+        - "Mungkin"
+        - "Tidak"
+    validations:
+      required: true
+
+  - type: textarea
+    id: play-again-why
+    attributes:
+      label: "Mengapa?"
+      description: "Ceritakan mengapa Anda akan atau tidak akan bermain lagi."
+      placeholder: "Karena..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Ada hal lain?"
+      description: "Pemikiran lain, tangkapan layar, atau berkas log."
+      placeholder: "Seret berkas ke sini atau tulis hal lain..."
+    validations:
+      required: false

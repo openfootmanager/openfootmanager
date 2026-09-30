@@ -1,0 +1,111 @@
+name: "\U0001F41B Сообщение об ошибке (Русский)"
+description: "Сообщите об ошибке или сбое на русском языке"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Сообщение об ошибке
+        Спасибо, что сообщаете об ошибке! Пожалуйста, опишите всё как можно подробнее.
+        В этом шаблоне пишите по-русски.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Что произошло?"
+      description: "Опишите ошибку как можно понятнее."
+      placeholder: "Игра вылетела при попытке..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "Чего вы ожидали?"
+      description: "Что должно было произойти вместо этого?"
+      placeholder: "Матч должен был начаться как обычно..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Шаги для воспроизведения"
+      description: "Как нам воспроизвести эту ошибку?"
+      placeholder: |
+        1. Начать новую игру
+        2. Выбрать команду
+        3. Перейти к игровому дню
+        4. Нажать «Выйти на поле»
+        5. Игра вылетает
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: "Как часто это происходит?"
+      options:
+        - Каждый раз
+        - Иногда
+        - Произошло только один раз
+    validations:
+      required: true
+
+  - type: textarea
+    id: game-context
+    attributes:
+      label: "Игровая ситуация"
+      description: "На каком дне или игровом дне вы были? Что вы делали? Загрузили ли вы сохранение перед этим?"
+      placeholder: "Я был на 5-м игровом дне, сразу после матча..."
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: "Версия приложения"
+      description: "Показана внизу главного меню и в разделе «Настройки» → «О программе»."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: "Операционная система"
+      description: "Например: Windows 11, macOS 15, Ubuntu 24.04"
+      placeholder: "Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: resolution
+    attributes:
+      label: "Разрешение экрана"
+      description: "Например: 1920x1080"
+      placeholder: "1920x1080"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: logs
+    attributes:
+      label: "Файлы журналов"
+      description: |
+        Пожалуйста, приложите файлы журналов! С ними мы исправим ошибку намного быстрее.
+        **Windows:** `C:\Users\<Вы>\AppData\Roaming\com.sturdyrobot.openfootmanager\logs\`
+        **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
+        **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
+      options:
+        - label: "Я приложил файлы журналов (перетащите заархивированную папку logs ниже)"
+          required: false
+
+  - type: textarea
+    id: logs-and-screenshots
+    attributes:
+      label: "Журналы и скриншоты"
+      description: "Перетащите сюда заархивированную папку logs и любые скриншоты."
+      placeholder: "Перетащите файлы сюда..."
+    validations:
+      required: false

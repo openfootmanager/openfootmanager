@@ -1,0 +1,58 @@
+name: "\U0001F4AC Zpětná vazba / Návrh (Čeština)"
+description: "Podělte se o zpětnou vazbu nebo navrhněte vylepšení v češtině"
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Zpětná vazba / Návrh
+        Rádi si poslechneme, co si myslíte!
+        V této šabloně pište prosím česky.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Kategorie"
+      options:
+        - "Použitelnost"
+        - "Vyváženost"
+        - "Návrh"
+        - "Jiné"
+    validations:
+      required: true
+
+  - type: input
+    id: area
+    attributes:
+      label: "Které části hry se to týká?"
+      description: "Např. tréninku, simulace zápasů, přestupů, schránky, taktiky..."
+      placeholder: "Simulace zápasů"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Popis"
+      description: "Popište podrobně svůj zážitek, problém nebo návrh."
+      placeholder: "Myslím, že tréninkový systém by šlo vylepšit tím, že..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-it-matters
+    attributes:
+      label: "Proč na tom záleží"
+      description: "Jak to ovlivňuje váš požitek ze hry?"
+      placeholder: "Záleží na tom, protože..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Snímky obrazovky"
+      description: "Přetáhněte sem jakékoli související snímky obrazovky."
+      placeholder: "Přetáhněte sem soubory..."
+    validations:
+      required: false

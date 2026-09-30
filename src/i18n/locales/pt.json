@@ -24,7 +24,9 @@
     "openDiscord": "Abrir comunidade Discord",
     "openGithub": "Abrir repositório GitHub",
     "mainMenu": "Menu principal",
-    "worldEditor": "Editor de Mundo"
+    "worldEditor": "Editor de Mundo",
+    "startupOptionsRejected": "Não foi possível usar essas definições de carreira. Volta ao ecrã do mundo e verifica o ano de início, a fase de início e quanto histórico anterior gerar.",
+    "reportBug": "Reportar um erro"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "Entrar",
     "exitFullscreen": "Sair",
     "switchToLightMode": "Mudar para o modo claro",
-    "switchToDarkMode": "Mudar para o modo escuro"
+    "switchToDarkMode": "Mudar para o modo escuro",
+    "help": "Ajuda",
+    "reportBug": "Reportar um erro",
+    "reportBugDesc": "Conta-nos o que correu mal; os teus registos seguem automaticamente.",
+    "report": "Reportar"
   },
   "preMatch": {
     "formationFit": "Ajuste da Formação",
@@ -2691,6 +2697,10 @@
         "writeFailed": "Não foi possível atualizar o índice de gravações."
       },
       "saveManagerUnavailable": "Os dados de gravação estão temporariamente indisponíveis.",
+      "report": {
+        "bundleFailed": "Não foi possível escrever o ficheiro do relatório. Verifica se tens permissão para escrever na pasta escolhida.",
+        "saveMissing": "Não foi possível encontrar o teu jogo guardado, por isso nada foi escrito. Desmarca o jogo guardado e tenta de novo, ou carrega a tua carreira primeiro."
+      },
       "saveDeleteFailed": "Falha ao eliminar o ficheiro de gravação.",
       "settings": {
         "loadFailed": "Não foi possível carregar as definições.",
@@ -4036,5 +4046,55 @@
   "generation": {
     "title": "Geração e Conclusão",
     "coverage": "Os teus pacotes cobrem"
+  },
+  "errorBoundary": {
+    "title": "Algo correu mal",
+    "description": "Este ecrã encontrou um erro do qual não conseguiu recuperar. Tenta novamente primeiro — recarregar reinicia o jogo e perde-se o progresso não guardado.",
+    "retry": "Tentar novamente",
+    "reload": "Recarregar o jogo"
+  },
+  "errors": {
+    "title": "Algo correu mal"
+  },
+  "reportBug": {
+    "describeTitle": "Reportar um erro",
+    "describeIntro": "Conta-nos o que correu mal. Os teus registos e os dados do jogo seguem automaticamente. Verás a lista completa antes de guardar seja o que for.",
+    "previewTitle": "O que é enviado",
+    "previewIntro": "Tudo o que está abaixo, e mais nada. Nada sai deste computador até escolheres onde guardar.",
+    "doneTitle": "Relatório guardado",
+    "doneIntro": "O formulário de erros está aberto no teu navegador com as tuas respostas já preenchidas.",
+    "whatHappened": "O que aconteceu",
+    "whatHappenedPlaceholder": "O jogo bloqueou quando carreguei em Ir para o campo…",
+    "expected": "O que esperavas",
+    "expectedPlaceholder": "Esperava que o jogo começasse normalmente…",
+    "steps": "Passos para reproduzir",
+    "stepsPlaceholder": "1. Começar um jogo novo\n2. Avançar até à jornada\n3. Carregar em Ir para o campo…",
+    "required": "Obrigatório",
+    "fillRequired": "Preenche o que aconteceu e o que esperavas.",
+    "frequencyLabel": "Com que frequência acontece",
+    "gameContext": "A tua carreira",
+    "frequency": {
+      "everyTime": "Sempre",
+      "sometimes": "Às vezes",
+      "once": "Só uma vez"
+    },
+    "itemWhatYouWrote": "O que escreveste",
+    "itemWhatYouWroteDesc": "A tua descrição, o que esperavas, os passos e com que frequência acontece.",
+    "itemSetup": "O teu sistema",
+    "itemLogs": "Os teus registos recentes",
+    "itemLogsDesc": "A tua pasta pessoal e o teu nome de utilizador são removidos antes de guardar, tal como o nome do computador quando o sistema o indica.",
+    "itemCrash": "Um encerramento inesperado da tua última sessão",
+    "itemCrashDesc": "Incluído porque algo falhou durante a tua última sessão.",
+    "optionalHeading": "Acrescenta se quiseres — desligado por omissão",
+    "includeSave": "O meu jogo guardado",
+      "includeSaveDesc": "Permite-nos reproduzir a situação exata em que estavas.",
+    "includeSaveNoCareer": "Não há nenhuma carreira aberta, por isso não há nada para anexar.",
+    "nothingSentYet": "Nada é guardado nem aberto até carregares no botão abaixo. Submeter o formulário exige uma conta no GitHub — o ficheiro é teu de qualquer forma.",
+    "savedTo": "O teu ficheiro de relatório foi guardado aqui:",
+    "dragItIn": "Arrasta-o para o formulário do GitHub no teu navegador e submete. É tudo.",
+      "browserDidNotOpen": "O teu navegador não abriu. O ficheiro acima está guardado — anexa-o a um novo issue no GitHub quando puderes.",
+    "review": "Rever o que é enviado",
+    "saveAndOpen": "Guardar o ficheiro e abrir o GitHub",
+    "working": "A trabalhar…"
   }
 }

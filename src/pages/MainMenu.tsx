@@ -15,10 +15,10 @@ import { applyExtraTranslations } from "../lib/extraTranslations";
 import { formatAppVersion } from "../lib/appVersion";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
-import { FolderOpen, Settings, PlusCircle, ChevronRight, Power, Package } from "lucide-react";
-
-const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
-const GITHUB_REPO_URL = "https://github.com/openfootmanager/openfootmanager";
+import { FolderOpen, Settings, PlusCircle, ChevronRight, Power, Package, Bug } from "lucide-react";
+import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "../lib/communityLinks";
+import { ReportBugModal } from "../components/diagnostics/ReportBugModal";
+import { showError } from "../lib/errorDialog";
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -270,6 +270,7 @@ export default function MainMenu() {
   const [loadingSaveId, setLoadingSaveId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [reportingBug, setReportingBug] = useState(false);
 
   const [profiles, setProfiles] = useState<ManagerProfile[]>([]);
   const [loadedProfile, setLoadedProfile] = useState<ManagerProfile | null>(null);
@@ -463,7 +464,7 @@ export default function MainMenu() {
       await loadInstalledPackages();
     } catch (err) {
       console.error("Failed to install package:", err);
-      alert(resolveBackendError(err));
+      await showError(t("errors.title"), resolveBackendError(err));
     } finally {
       setIsInstallingPackage(false);
     }
@@ -477,7 +478,7 @@ export default function MainMenu() {
       setPackageStackErrors([]);
     } catch (err) {
       console.error("Failed to uninstall package:", err);
-      alert(resolveBackendError(err));
+      await showError(t("errors.title"), resolveBackendError(err));
     }
   };
 
@@ -492,6 +493,14 @@ export default function MainMenu() {
     const startupOptions = buildStartupOptions(formData, historyDepthYears);
     if (!startupOptions) {
       const validation = validateForm();
+      if (validation.ok) {
+        // The two disagreed: `buildStartupOptions` rejected something `validateForm` does not
+        // check. Today that is only the generated-history depth, which lives on the world screen
+        // and has no field on this form — so bouncing to the create step would put the player in
+        // front of a form with no errors on it and no way to tell what was wrong. Say so instead.
+        await showError(t("errors.title"), t("menu.startupOptionsRejected"));
+        return;
+      }
       setMenuState("create");
       deferFocusToNextPaint(() => focusFirstCreateManagerError(validation.errors));
       return;
@@ -512,10 +521,9 @@ export default function MainMenu() {
       navigate("/select-team");
     } catch (error) {
       console.error("Failed to start game:", error);
-      alert(
-        t("menu.failedStartGame", {
-          error: resolveBackendError(error),
-        }),
+      await showError(
+        t("errors.title"),
+        t("menu.failedStartGame", { error: resolveBackendError(error) }),
       );
     } finally {
       setIsStarting(false);
@@ -551,7 +559,10 @@ export default function MainMenu() {
     } catch (error) {
       console.error("Failed to load game:", error);
       setLoadingSaveId(null);
-      alert(t("menu.loadGameFailed", { error: resolveBackendError(error) }));
+      await showError(
+        t("errors.title"),
+        t("menu.loadGameFailed", { error: resolveBackendError(error) }),
+      );
     }
   };
 
@@ -881,12 +892,23 @@ export default function MainMenu() {
         >
           <GithubIcon className="w-5 h-5" />
         </button>
+        <button
+          type="button"
+          aria-label={t("menu.reportBug")}
+          title={t("menu.reportBug")}
+          onClick={() => setReportingBug(true)}
+          className="p-1.5 rounded-lg text-gray-400 dark:text-gray-600 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-900"
+        >
+          <Bug className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Version */}
       <div className="absolute bottom-4 right-4 text-gray-400 dark:text-gray-600 text-xs font-heading uppercase tracking-widest transition-colors">
         {formatAppVersion()}
       </div>
+
+      {reportingBug && <ReportBugModal onClose={() => setReportingBug(false)} />}
     </div>
   );
 }

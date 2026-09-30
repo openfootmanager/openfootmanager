@@ -1,0 +1,87 @@
+name: "\U0001F3AE Oturum Raporu (Türkçe)"
+description: "Oynadığınız oturumun özetini Türkçe olarak paylaşın"
+labels: ["session-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Oturum Raporu
+        Oturum raporları bizim için paha biçilmez — oyuncu deneyiminin tamamını görmemizi sağlıyor.
+        Bu şablonda lütfen Türkçe yazın.
+
+  - type: input
+    id: play-time
+    attributes:
+      label: "Oynama süresi"
+      description: "Ne kadar süre oynadınız?"
+      placeholder: "Yaklaşık 2 saat"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-did
+    attributes:
+      label: "Neler yaptım"
+      description: "Oturumunuzun kısa bir özeti."
+      placeholder: "Yeni bir oyun başlattım, 10 maç oynadım, 12. maç haftasına geldim..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-enjoyed
+    attributes:
+      label: "Nelerden keyif aldım"
+      description: "Ne iyi hissettirdi? Sizi oyunda tutan neydi?"
+      placeholder: "Maç simülasyonu heyecan vericiydi, özellikle de..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-frustrated-me
+    attributes:
+      label: "Beni ne sinirlendirdi"
+      description: "Az kalsın bırakmanıza ne sebep oldu? Ne bozuk ya da sıkıcı geldi?"
+      placeholder: "Antrenman sayfasında kafam karıştı ve..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: top-improvements
+    attributes:
+      label: "İyileştireceğim ilk 3 şey"
+      description: "Üç şeyi değiştirebilseydiniz, bunlar ne olurdu?"
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: play-again
+    attributes:
+      label: "Tekrar oynar mıydınız?"
+      options:
+        - "Evet"
+        - "Belki"
+        - "Hayır"
+    validations:
+      required: true
+
+  - type: textarea
+    id: play-again-why
+    attributes:
+      label: "Neden?"
+      description: "Neden tekrar oynayacağınızı ya da oynamayacağınızı anlatın."
+      placeholder: "Çünkü..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Başka bir şey var mı?"
+      description: "Aklınızdaki başka şeyler, ekran görüntüleri veya günlük dosyaları."
+      placeholder: "Dosyaları buraya sürükleyin ya da başka bir şey yazın..."
+    validations:
+      required: false

@@ -26,4 +26,19 @@ describe("main window capabilities", () => {
       expect(capabilities.permissions).toContain(permission);
     }
   });
+
+  it("lets the frontend show an error dialog", () => {
+    // src/lib/errorDialog.ts replaced window.alert, which needed no permission at all. Without
+    // this grant every error the app tries to report is swallowed by the plugin's rejection —
+    // and swallowed quietly, since showError deliberately absorbs that failure.
+    expect(capabilities.permissions).toContain("dialog:allow-message");
+  });
+
+  it("lets the frontend write to the log file", () => {
+    // src/lib/logger.ts forwards console.error and every uncaught error to the shared log file.
+    // Without this grant those calls reject, the logger falls back to the console, and a bug
+    // report's logs go back to describing only the Rust half — silently, since the fallback is
+    // exactly what makes the failure invisible.
+    expect(capabilities.permissions).toContain("log:default");
+  });
 });

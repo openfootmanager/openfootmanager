@@ -1,0 +1,58 @@
+name: "\U0001F4AC Отзыв / Предложение (Русский)"
+description: "Поделитесь отзывом или предложите улучшения на русском языке"
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Отзыв / Предложение
+        Нам очень интересно ваше мнение!
+        В этом шаблоне пишите по-русски.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Категория"
+      options:
+        - "Удобство использования"
+        - "Баланс"
+        - "Предложение"
+        - "Другое"
+    validations:
+      required: true
+
+  - type: input
+    id: area
+    attributes:
+      label: "Какая часть игры?"
+      description: "Например: тренировки, симуляция матчей, трансферы, почта, тактика..."
+      placeholder: "Симуляция матчей"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Описание"
+      description: "Подробно опишите свой опыт, проблему или предложение."
+      placeholder: "Мне кажется, систему тренировок можно улучшить, если..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-it-matters
+    attributes:
+      label: "Почему это важно"
+      description: "Как это влияет на удовольствие от игры?"
+      placeholder: "Это важно, потому что..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Скриншоты"
+      description: "Перетащите сюда подходящие скриншоты."
+      placeholder: "Перетащите файлы сюда..."
+    validations:
+      required: false
