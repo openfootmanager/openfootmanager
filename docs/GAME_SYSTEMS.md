@@ -530,21 +530,28 @@ The `TransfersTab` provides 4 views:
 ## The Squad Floor
 
 A club never runs out of players. `ofm_core::squad_floor` holds the one rule: every club keeps at
-least **2 goalkeepers, 4 defenders, 4 midfielders and 2 forwards** registered — an eleven and a
-spare keeper. Injured players count; players out on loan count for their borrower. The world
-generator builds clubs to the same numbers (`MIN_PLAYERS_PER_GROUP`).
+least **15 senior players** registered (`MIN_SENIOR_PLAYERS`), and within them at least **2
+goalkeepers, 4 defenders, 4 midfielders and 2 forwards** (`MIN_PLAYERS_PER_GROUP`). Injured players
+count; players out on loan count for their borrower; academy players do not — they are what a
+short club promotes.
 
-Every way a club can lose a player answers to it:
+**The game never creates a player, or money, for a club.** A club short of the floor is filled only
+from players who exist: its own academy first, then the free-agent market, on wages the club pays
+even if its balance goes negative. When neither has anyone, the gap is reported (logged for an AI
+club, an inbox message for the player's club) and the day still finishes.
+
+Every way a club can lose a player answers to the floor:
 
 | Source | What happens |
 |---|---|
-| Sale, loan, contract termination | Refused if it would take the club below the floor in that player's group (`be.error.squadFloor.wouldLeaveShort`). Checked before an offer is marked agreed, and again when a scheduled deal falls due — a deal struck with players to spare lapses if the club has since lost them. The AI market does not shortlist a player whose club cannot sell him. |
+| Sale, loan, contract termination | Refused if it would take the club below the floor, in the player's group or in all (`be.error.squadFloor.wouldLeaveShort`, `…wouldLeaveSeniorsShort`). Checked before an offer is marked agreed, and again when a scheduled deal falls due — a deal struck with players to spare lapses if the club has since lost them. The AI market does not shortlist a player whose club cannot sell him. An academy player can always leave. |
 | Contract expiry | AI clubs renew their own players first (`ai_contracts`, on each club's weekly review day, through the same offer and acceptance rules as the player's renewals). |
-| Expiry, retirement, loan returns — anything that cannot be refused | Once a day, after those steps, an AI club below the floor signs free agents back up to it. The player's club is **not** signed for: it gets an inbox warning per short group, once per season, group and count. |
-| Kick-off | `live_match_manager::prepare_kick_off` runs before every club fixture. An AI club still short is topped up. The player's club is topped up only if it cannot field a side at all (fewer than eleven registered, or no goalkeeper), and is told who was signed. |
+| Ordinary AI squad planning | On the same review day an AI club graduates academy players past the academy age (`roster::YOUTH_ACADEMY_MAX_AGE`), then keeps one senior above the minimum in each group and 18 seniors in all (`PLANNING_TARGET_SENIORS`) — promoting from its academy first, then signing free agents the board lets it pay. This is what keeps the emergency below from ever firing. |
+| Expiry, retirement, loan returns — anything that cannot be refused | Once a day, after those steps, an AI club still below the floor is topped up — the emergency, recorded in the runtime-only `Game::squad_floor_top_ups`. The player's club is **not** filled for: it gets an inbox warning per shortage, once per season, shortage and count. |
+| Kick-off | Every club fixture passes `live_match_manager::prepare_kick_off` (the player's own matches through `kick_off_live_match`). An AI club still short is topped up and logged. The player's club is topped up only if it cannot field a side at all (fewer than eleven seniors, or no senior goalkeeper), and is told who came in and what nobody could fill. |
 | Loading a save, building a world | The same repair: AI clubs topped up, the player's club warned — unless it plays today, when kick-off handles it. |
 
-A top-up (`restore_minimum_squad`) signs the best free agent of the group — fit before injured,
-then highest rating — on the wage and length the contracts module expects him to want, and
-generates a free agent when nobody suitable is on the market. It does not consult the wage policy:
-"we cannot afford to field a team" is not an outcome the game allows.
+The board's wage policy yields in exactly one case (`contract_wage_policy::wage_policy_verdict`):
+when the club would be below the floor without the player. That rule is shared by the manager's
+renewals and free-agent signings, the assistant's delegated renewals, AI renewals and planning, and
+the top-up; the manager is told when it applied.
