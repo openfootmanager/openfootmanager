@@ -114,6 +114,8 @@ fn write_game_to_connection(
             vacant_team_days_json,
             world_history_json,
             emitted_events_json,
+            // Same bits, read back the same way in `read_game`.
+            seed: game.seed as i64,
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -313,6 +315,7 @@ impl GamePersistenceReader {
             .collect::<Result<_, String>>()?;
 
         let mut game = Game {
+            seed: meta.seed as u64,
             clock,
             manager_id: meta.manager_id.clone(),
             managers,
@@ -479,6 +482,7 @@ mod tests {
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
+            seed: 0,
         }
     }
 
@@ -540,6 +544,22 @@ mod tests {
             .with_ymd_and_hms(start_year, 7, current_day, 0, 0, 0)
             .unwrap();
         game
+    }
+
+    /// Given a game with a seed — one past `i64::MAX`, so a column that cannot hold
+    ///       a `u64` is not hidden by a small one,
+    /// When it is saved and loaded,
+    /// Then it has the same seed, and so the same days to come.
+    #[test]
+    fn a_games_seed_survives_a_save_and_load() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2026, 1);
+        game.seed = 0xDEAD_BEEF_DEAD_BEEF;
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+        assert_eq!(loaded.seed, 0xDEAD_BEEF_DEAD_BEEF);
     }
 
     #[test]

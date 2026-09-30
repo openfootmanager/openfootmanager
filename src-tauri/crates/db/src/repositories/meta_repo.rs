@@ -40,6 +40,10 @@ pub struct GameMeta {
     pub package_lockfile_json: String,
     #[serde(default = "default_emitted_events_json")]
     pub emitted_events_json: String,
+    /// `Game::seed`, stored as the `i64` with the same bits: SQLite integers are
+    /// signed and a seed is a full `u64`. 0 is a save from before games had one.
+    #[serde(default)]
+    pub seed: i64,
 }
 
 fn default_vacant_team_days_json() -> String {
@@ -63,7 +67,9 @@ fn default_emitted_events_json() -> String {
 /// v5 = the inbox sent-ledger (`Game::emitted_events`); pre-v5 saves have theirs
 /// seeded from the inbox on load, which must not happen to a v5 save whose
 /// ledger is merely empty.
-pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 6;
+/// v7 = the game has a seed (`Game::seed`); a pre-v7 save is given one derived
+/// from its save id on load, which must not happen to a v7 save.
+pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 7;
 
 /// Baseline for a save that predates the version field entirely (reads as the
 /// pre-gate format, so it gets migrated and restamped to current on load).
@@ -90,8 +96,8 @@ fn default_package_lockfile_json() -> String {
 /// Insert or replace the singleton game_meta row.
 pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
     conn.execute(
-        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json)
-         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed)
+         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
         params![
             meta.save_id,
             meta.save_name,
@@ -113,6 +119,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
             meta.extra_translations_json,
             meta.package_lockfile_json,
             meta.emitted_events_json,
+            meta.seed,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -123,7 +130,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
 pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json
+            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed
              FROM game_meta WHERE id = 'singleton'",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -159,6 +166,7 @@ pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
                 emitted_events_json: row
                     .get(19)
                     .unwrap_or_else(|_| default_emitted_events_json()),
+                seed: row.get(20).unwrap_or_default(),
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -203,6 +211,7 @@ mod tests {
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
+            seed: 0,
         };
 
         upsert_meta(db.conn(), &meta).unwrap();
@@ -250,6 +259,7 @@ mod tests {
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
+            seed: 0,
         };
         upsert_meta(db.conn(), &meta1).unwrap();
 
@@ -274,6 +284,7 @@ mod tests {
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
+            seed: 0,
         };
         upsert_meta(db.conn(), &meta2).unwrap();
 
@@ -311,6 +322,7 @@ mod tests {
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
+            seed: 0,
         };
 
         let result = upsert_meta(&conn, &meta);

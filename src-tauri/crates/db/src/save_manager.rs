@@ -513,6 +513,12 @@ impl SaveManager {
                 // suppress every World Cup the *previous* career had seen.
                 ofm_core::inbox::seed_ledger_from_save(&mut game);
             }
+            if save_format_version < 7 {
+                // A save from before games had a seed. Derived from the save's own
+                // id rather than drawn, so the same old save is the same game
+                // every time it is opened; the resave below keeps it from then on.
+                game.seed = ofm_core::seed::seed_for_unseeded_save(save_id);
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -2058,6 +2064,51 @@ mod tests {
         let loaded = sm.load_game(&save_id).unwrap();
 
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
+    }
+
+    /// Given a save written before games had a seed,
+    /// When it is loaded, twice,
+    /// Then it has a seed — the same one both times, derived from the save, so
+    ///      an old career replays the same days however often it is opened.
+    #[test]
+    fn loading_a_pre_v7_save_gives_it_one_stable_seed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.seed = 0;
+        let save_id = sm.create_save(&game, "Pre Seed").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 6;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let first = sm.load_game(&save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(first.seed, ofm_core::seed::seed_for_unseeded_save(&save_id));
+        assert_ne!(first.seed, 0);
+        assert_eq!(second.seed, first.seed);
+    }
+
+    /// The fallback is for saves that have no seed, not a reseed: a current-format
+    /// save keeps the one it was given, or every load would change the game.
+    #[test]
+    fn loading_a_current_format_save_keeps_its_seed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.seed = 0xC0FF_EE00_1234_5678;
+        let save_id = sm.create_save(&game, "Seeded").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.seed, 0xC0FF_EE00_1234_5678);
     }
 
     #[test]
