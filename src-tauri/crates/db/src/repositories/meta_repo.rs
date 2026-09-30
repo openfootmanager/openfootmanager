@@ -166,7 +166,9 @@ pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
                 emitted_events_json: row
                     .get(19)
                     .unwrap_or_else(|_| default_emitted_events_json()),
-                seed: row.get(20).unwrap_or_default(),
+                // Always present once migrated, so an error here is a damaged save, not an
+                // old one: propagated, rather than read as "no seed" and silently reseeded.
+                seed: row.get(20)?,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
