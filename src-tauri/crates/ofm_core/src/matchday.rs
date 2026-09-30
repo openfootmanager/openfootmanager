@@ -71,6 +71,12 @@ pub fn fixture_allows_extra_time(game: &Game, fixture_index: usize) -> bool {
 /// It deliberately does **not** serve `Live`/`Spectator`. Those suspend between session creation and
 /// the match being played while the UI drives the minutes, so their sequence belongs to the session
 /// lifecycle and cannot be one call.
+///
+/// The fixture is played with [`MatchMode::Instant`] and no user side. That matters to anything
+/// calling this as its "live path": it exercises the day's apply-and-finish sequence on the live
+/// engine — benches, both managers, a full report — but not a steppable session, because nobody
+/// makes an in-match decision. A harness mode named for this should say so, or it claims coverage of
+/// the `Live` lifecycle it does not have.
 pub fn play_user_matchday_with_capture<F>(
     game: &mut Game,
     competition_index: usize,
