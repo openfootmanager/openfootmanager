@@ -55,6 +55,15 @@ impl Game {
     }
 }
 
+impl Game {
+    /// [`rng_for`](Self::rng_for) for today's date, which is what nearly every caller
+    /// on the day path wants.
+    pub fn rng_today(&self, tag: &str) -> ChaCha12Rng {
+        let today = self.clock.current_date.format("%Y-%m-%d").to_string();
+        self.rng_for(tag, &today)
+    }
+}
+
 /// The seed a save written before seeds existed is given when it is first loaded.
 ///
 /// Derived from the save's own id, so the same old save is given the same seed on
