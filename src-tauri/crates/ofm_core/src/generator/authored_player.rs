@@ -59,6 +59,38 @@ fn add_years(
         .ok_or(ContractError::InvalidDate(field))
 }
 
+/// Every problem with the contract fields that does not depend on another problem
+/// being fixed first: each unreadable date, both an end and a length, a length out
+/// of range. An interval that only goes wrong once the pieces are combined (an end
+/// on or before its start) is [`resolve_authored_contract`]'s to find, and is
+/// found only when these are clear, because until then there is no interval.
+///
+/// This is the one place those rules live: the resolver refuses on the first of
+/// them, and validation reports all of them.
+pub(super) fn independent_contract_problems(def: &PlayerDef) -> Vec<ContractError> {
+    let mut problems = Vec::new();
+    for (field, value) in [
+        ("contractStart", &def.contract_start),
+        ("contractEnd", &def.contract_end),
+    ] {
+        if let Some(value) = value
+            && let Err(problem) = parse_authored_date(field, value)
+        {
+            problems.push(problem);
+        }
+    }
+    if def.contract_end.is_some() && def.contract_length.is_some() {
+        problems.push(ContractError::EndAndLength);
+    }
+    if def
+        .contract_length
+        .is_some_and(|length| !(1..=MAX_CONTRACT_YEARS).contains(&length))
+    {
+        problems.push(ContractError::LengthOutOfRange);
+    }
+    problems
+}
+
 /// Resolve what an author wrote about a player's contract.
 ///
 /// - An end date is kept exactly. It is correct for the period it was written for
@@ -74,6 +106,9 @@ pub(super) fn resolve_authored_contract(
     opening_year: u32,
     rolled_years: u32,
 ) -> Result<AuthoredContract, ContractError> {
+    if let Some(problem) = independent_contract_problems(def).into_iter().next() {
+        return Err(problem);
+    }
     let start = def
         .contract_start
         .as_deref()
@@ -85,22 +120,13 @@ pub(super) fn resolve_authored_contract(
         .map(|value| parse_authored_date("contractEnd", value))
         .transpose()?;
 
-    if end.is_some() && def.contract_length.is_some() {
-        return Err(ContractError::EndAndLength);
-    }
-
     let end = match (end, def.contract_length, start) {
         (Some(end), _, _) => Some(end),
-        (None, Some(length), start) => {
-            if !(1..=MAX_CONTRACT_YEARS).contains(&length) {
-                return Err(ContractError::LengthOutOfRange);
-            }
-            Some(match start {
-                Some(start) => add_years(start, length, "contractStart")?,
-                None => NaiveDate::from_ymd_opt(opening_year.saturating_add(length) as i32, 6, 30)
-                    .ok_or(ContractError::InvalidDate("contractLength"))?,
-            })
-        }
+        (None, Some(length), start) => Some(match start {
+            Some(start) => add_years(start, length, "contractStart")?,
+            None => NaiveDate::from_ymd_opt(opening_year.saturating_add(length) as i32, 6, 30)
+                .ok_or(ContractError::InvalidDate("contractLength"))?,
+        }),
         (None, None, Some(start)) => Some(add_years(start, rolled_years, "contractStart")?),
         (None, None, None) => None,
     };
@@ -163,8 +189,14 @@ pub(super) fn authored_player_errors(
     // Whether an interval is valid depends on where an end would land, never on which
     // year a career opens in or what length generation rolls, so representative
     // values are enough to ask the question the generator answers for real.
-    if let Err(problem) = resolve_authored_contract(player, MIN_OPENING_YEAR, 1) {
-        let text = |value: &Option<String>| value.clone().unwrap_or_default();
+    let mut contract_problems = independent_contract_problems(player);
+    if contract_problems.is_empty()
+        && let Err(problem) = resolve_authored_contract(player, MIN_OPENING_YEAR, 1)
+    {
+        contract_problems.push(problem);
+    }
+    let text = |value: &Option<String>| value.clone().unwrap_or_default();
+    for problem in contract_problems {
         errors.push(match problem {
             ContractError::InvalidDate(field) => error(INVALID_DATE).with("field", field).with(
                 "value",
@@ -633,6 +665,35 @@ mod tests {
         }));
         assert_eq!(codes(&unknown), ["be.error.package.unknownTeam"]);
         assert_eq!(param(&unknown[0], "team"), Some("ghost-fc"));
+    }
+
+    /// `authored_player_errors` promises everything wrong, not the first thing, and the
+    /// contract is where that was quietly untrue: one resolve gives one error.
+    #[test]
+    fn independent_contract_problems_are_all_reported() {
+        let dates = validate(serde_json::json!({
+            "contractStart": "soon", "contractEnd": "later",
+        }));
+        assert_eq!(
+            codes(&dates),
+            [
+                "be.error.package.invalidDate",
+                "be.error.package.invalidDate"
+            ]
+        );
+        assert_eq!(param(&dates[0], "field"), Some("contractStart"));
+        assert_eq!(param(&dates[1], "field"), Some("contractEnd"));
+
+        let both = validate(serde_json::json!({
+            "contractEnd": "2030-06-30", "contractLength": 9,
+        }));
+        assert_eq!(
+            codes(&both),
+            [
+                "be.error.package.contractEndAndLength",
+                "be.error.package.contractLengthOutOfRange"
+            ]
+        );
     }
 
     /// The editor starts a new row at season 0 on purpose, so that it is reported here
