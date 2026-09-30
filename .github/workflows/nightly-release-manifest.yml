@@ -98,6 +98,9 @@ jobs:
 
       - name: Publish nightly metadata branch
         env:
+          # For update-nightly-history.mjs, which lists the existing releases the
+          # first time it runs, to seed the history.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_METADATA_BRANCH: ${{ vars.NIGHTLY_RELEASE_METADATA_BRANCH }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
@@ -118,6 +121,18 @@ jobs:
           fi
 
           cp nightly-release-manifest.json nightly-checksums.txt "$worktree_dir"/
+
+          # The last 30 builds with the commits between each, which the website's
+          # download page lists as "Previous nightlies". Read from and written back
+          # to the metadata branch; git log runs here, in the full-history checkout.
+          if node .github/scripts/update-nightly-history.mjs "$worktree_dir/nightly-history.json" nightly-release-manifest.json; then
+            if [ -f "$worktree_dir/nightly-history.json" ]; then
+              git -C "$worktree_dir" add nightly-history.json
+            fi
+          else
+            echo "::warning::nightly history not updated"
+          fi
+
           git -C "$worktree_dir" add nightly-release-manifest.json nightly-checksums.txt
 
           if git -C "$worktree_dir" diff --cached --quiet; then
