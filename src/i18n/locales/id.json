@@ -2607,7 +2607,7 @@
       "worldReadFileFailed": "Gagal membaca berkas basis data dunia.",
       "package": {
         "invalid": "Paket dunia ini tidak valid dan tidak dapat dimuat.",
-        "invalidPackageId": "ID paket \"{{id}}\" tidak dapat digunakan. Tidak boleh kosong atau bernama \"assets\", dan tidak boleh mengandung \"/\", \"\\\", \"..\" atau karakter kontrol.",
+        "invalidPackageId": "ID paket \"{{id}}\" tidak dapat digunakan. ID harus berupa nama berkas biasa: tidak kosong, bukan \"assets\", tidak diawali titik atau diakhiri titik atau spasi, paling panjang 251 bita, tanpa \"/\", \"\\\", \"..\", karakter kontrol, atau tanda baca yang dilarang Windows, dan bukan nama yang dicadangkan Windows seperti CON atau NUL.",
         "readFailed": "Berkas paket tidak dapat dibaca.",
         "missingSchema": "Berkas paket kekurangan bidang \"schema\".",
         "worldExportNotPackage": "Folder ini adalah dunia yang diekspor, bukan proyek paket. Dunia yang diekspor menggunakan format berbeda dan tidak dapat diedit di sini.",
