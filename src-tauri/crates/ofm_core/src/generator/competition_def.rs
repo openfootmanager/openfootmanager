@@ -1004,20 +1004,10 @@ fn build_competition(
     Some(competition)
 }
 
-/// Turn a validated definition file into runnable competitions. Selectors are
-/// resolved against the world (in dependency order), and competitions whose
-/// participant list comes out below two clubs are skipped. Call only after
-/// [`validate_definitions`] has returned no errors.
-///
-/// `game_start` is the game's anchor date (July 1 of the chosen start year).
-/// Each competition derives its own season-start date from its
-/// `season_start_month`/`season_start_day` fields.
-pub fn resolve_definitions(
+fn resolve_definition_participants(
     file: &CompetitionDefinitionFile,
     world: &super::WorldData,
-    season: u32,
-    game_start: DateTime<Utc>,
-) -> Vec<League> {
+) -> HashMap<String, Vec<String>> {
     let region_by_country = country_to_region(world);
 
     // Resolve participant lists in dependency order (selectors that read other
@@ -1050,6 +1040,25 @@ pub fn resolve_definitions(
         let ids = resolve_participants(def, world, &region_by_country, &resolved);
         resolved.insert(def.id.clone(), ids);
     }
+
+    resolved
+}
+
+/// Turn a validated definition file into runnable competitions. Selectors are
+/// resolved against the world (in dependency order), and competitions whose
+/// participant list comes out below two clubs are skipped. Call only after
+/// [`validate_definitions`] has returned no errors.
+///
+/// `game_start` is the game's anchor date (July 1 of the chosen start year).
+/// Each competition derives its own season-start date from its
+/// `season_start_month`/`season_start_day` fields.
+pub fn resolve_definitions(
+    file: &CompetitionDefinitionFile,
+    world: &super::WorldData,
+    season: u32,
+    game_start: DateTime<Utc>,
+) -> Vec<League> {
+    let resolved = resolve_definition_participants(file, world);
 
     // Build in authoring order so priorities line up predictably.
     file.competitions
