@@ -48,6 +48,8 @@ pub(crate) struct AiObservation<'a> {
     pub(crate) pressure_ticks: usize,
     /// The score changed this minute, either way round.
     pub(crate) goal_this_minute: bool,
+    /// A goal against this side this minute — one the opponent scored.
+    pub(crate) conceded_this_minute: bool,
     /// Somebody was sent off this minute, either side.
     pub(crate) dismissal_this_minute: bool,
     /// Whether this side still has a goalkeeper on the pitch — see
@@ -112,7 +114,13 @@ impl LiveMatchState {
         // Only this minute's entries, taken from the end. `play_minute`
         // increments the clock before it resolves anything, so everything it
         // pushes carries the minute `current_minute` is about to be read as.
+        //
+        // And only this period's: the clock runs on through stoppage, so a half
+        // kicks off in the minute the previous one ended in. The scan stops at
+        // the boundary, or the incident that ended the half would be seen again
+        // at the restart and a manager would react to it twice.
         let mut goal_this_minute = false;
+        let mut conceded_this_minute = false;
         let mut dismissal_this_minute = false;
         for event in self
             .events
@@ -121,7 +129,14 @@ impl LiveMatchState {
             .take_while(|event| event.minute == self.current_minute)
         {
             match event.event_type {
-                EventType::Goal | EventType::PenaltyGoal => goal_this_minute = true,
+                EventType::KickOff
+                | EventType::HalfTime
+                | EventType::SecondHalfStart
+                | EventType::FullTime => break,
+                EventType::Goal | EventType::PenaltyGoal => {
+                    goal_this_minute = true;
+                    conceded_this_minute |= event.side != side;
+                }
                 EventType::RedCard | EventType::SecondYellow => dismissal_this_minute = true,
                 _ => {}
             }
@@ -145,6 +160,7 @@ impl LiveMatchState {
                 .filter(|zone| own_half.contains(zone))
                 .count(),
             goal_this_minute,
+            conceded_this_minute,
             dismissal_this_minute,
             conditions: &self.player_conditions,
         }
@@ -325,6 +341,88 @@ mod tests {
         assert_eq!(
             built, 0,
             "a match's worth of AI decisions built {built} snapshot(s)"
+        );
+    }
+
+    /// The second half kicks off in the minute the first half's stoppage ended
+    /// in, so the goal that ended the half and the restart share a minute
+    /// number. They are not the same moment: the restart must not show the
+    /// manager that goal a second time.
+    #[test]
+    fn an_incident_at_the_end_of_a_half_is_not_seen_again_at_the_restart() {
+        use crate::event::{EventType, MatchEvent};
+        use crate::live_match::MatchPhase;
+        use crate::types::Zone;
+
+        let mut state = make_match();
+        let mut rng = StdRng::seed_from_u64(1);
+        state.phase = MatchPhase::HalfTime;
+        state.current_minute = 48;
+        state.home_score = 1;
+        state.events.push(MatchEvent::new(
+            48,
+            EventType::Goal,
+            Side::Home,
+            Zone::AwayBox,
+        ));
+        state.events.push(MatchEvent::new(
+            48,
+            EventType::RedCard,
+            Side::Away,
+            Zone::Midfield,
+        ));
+        state.events.push(MatchEvent::new(
+            48,
+            EventType::HalfTime,
+            Side::Home,
+            Zone::Midfield,
+        ));
+
+        state.start_second_half(&mut rng);
+
+        let at_the_restart = state.observe(Side::Away);
+        assert!(
+            !at_the_restart.goal_this_minute,
+            "the goal before half-time was seen again at the restart"
+        );
+        assert!(
+            !at_the_restart.dismissal_this_minute,
+            "the red card before half-time was seen again at the restart"
+        );
+    }
+
+    /// "He looks up when one has gone against him." A trailing side that scores
+    /// has had one go *for* it: pulling it back to 1-2 is not conceding.
+    #[test]
+    fn a_goal_for_a_trailing_side_is_not_one_against_it() {
+        use crate::event::{EventType, MatchEvent};
+        use crate::live_match::MatchPhase;
+        use crate::types::Zone;
+
+        let mut state = make_match();
+        state.phase = MatchPhase::FirstHalf;
+        state.current_minute = 20; // a checkpoint for no manager
+        state.home_score = 1;
+        state.away_score = 2;
+        state.events.push(MatchEvent::new(
+            20,
+            EventType::Goal,
+            Side::Home,
+            Zone::AwayBox,
+        ));
+        let visionary = AiProfile {
+            reputation: 500,
+            experience: 50,
+            personality: AiPersonality::Visionary,
+        };
+
+        assert!(
+            !crate::ai::takes_stock(&state.observe(Side::Home), &visionary),
+            "a Visionary who has just scored took it as a goal against him"
+        );
+        assert!(
+            crate::ai::takes_stock(&state.observe(Side::Away), &visionary),
+            "the side that conceded is the one a goal went against"
         );
     }
 }

@@ -100,7 +100,7 @@ fn checkpoints(experience: u8) -> &'static [u8] {
 const LAST_CHANCE: u8 = 113;
 
 /// Is this a moment the manager is paying attention?
-fn takes_stock(obs: &AiObservation<'_>, profile: &AiProfile) -> bool {
+pub(crate) fn takes_stock(obs: &AiObservation<'_>, profile: &AiProfile) -> bool {
     // The interval. Every manager gets one, whatever his experience: it is the
     // one moment in a football match when nobody is playing and everybody is
     // listening. The AI used to sit both of them out entirely, because
@@ -128,8 +128,10 @@ fn takes_stock(obs: &AiObservation<'_>, profile: &AiProfile) -> bool {
 fn reacts_to_the_score(profile: &AiProfile, obs: &AiObservation<'_>) -> bool {
     match profile.personality {
         AiPersonality::Reactive => true,
-        // Bold, not twitchy: he looks up when one has gone against him.
-        AiPersonality::Visionary => obs.goal_diff < 0,
+        // Bold, not twitchy: he looks up when one has gone against him — a
+        // goal his side conceded, not merely any goal while behind (pulling one
+        // back to 1-2 is not one going against him).
+        AiPersonality::Visionary => obs.conceded_this_minute,
         // Waits for the interval or the hour, and is usually right to.
         AiPersonality::Pragmatist => false,
     }
