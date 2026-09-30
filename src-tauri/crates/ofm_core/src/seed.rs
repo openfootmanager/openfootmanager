@@ -43,15 +43,7 @@ impl Game {
     /// streams.
     pub fn rng_for(&self, tag: &str, date: &str) -> ChaCha12Rng {
         let per_purpose = stable_hash(tag.as_bytes(), self.seed);
-        let mut key = [0u8; 32];
-        let mut word = stable_hash(date.as_bytes(), per_purpose);
-        for chunk in key.chunks_exact_mut(8) {
-            chunk.copy_from_slice(&word.to_le_bytes());
-            // Each word of the key is the hash of the one before it, so the four
-            // differ and the whole key depends on all three inputs.
-            word = stable_hash(&word.to_le_bytes(), per_purpose);
-        }
-        ChaCha12Rng::from_seed(key)
+        expand_to_rng(stable_hash(date.as_bytes(), per_purpose), per_purpose)
     }
 }
 
@@ -62,6 +54,33 @@ impl Game {
         let today = self.clock.current_date.format("%Y-%m-%d").to_string();
         self.rng_for(tag, &today)
     }
+}
+
+/// A generator for something described by `key` alone, for the builders of news and
+/// messages that are handed only what the story is about and have no game to ask.
+///
+/// The same key is the same stream on every replay, so a builder that draws from it
+/// writes the same story each time; different keys are different streams. Like
+/// [`variant_for`] it is wording, so it carries no game seed.
+pub fn rng_from_key(key: &str) -> ChaCha12Rng {
+    expand_to_rng(
+        stable_hash(key.as_bytes(), KEYED_STREAM_SALT),
+        KEYED_STREAM_SALT,
+    )
+}
+
+/// Keeps a keyed stream from being the same stream as a `rng_for` on the same text.
+const KEYED_STREAM_SALT: u64 = 0x7a51_0000_7a51_0002;
+
+/// Four hashes chained from `word`, each of the one before, make the 32-byte ChaCha key, so
+/// every byte of it depends on everything `word` was made from.
+fn expand_to_rng(mut word: u64, chain_salt: u64) -> ChaCha12Rng {
+    let mut key = [0u8; 32];
+    for chunk in key.chunks_exact_mut(8) {
+        chunk.copy_from_slice(&word.to_le_bytes());
+        word = stable_hash(&word.to_le_bytes(), chain_salt);
+    }
+    ChaCha12Rng::from_seed(key)
 }
 
 /// Which of `count` phrasings a message is written in, chosen from what the message is.
@@ -162,6 +181,21 @@ mod tests {
         assert_ne!(
             draws(game_with_seed(1).rng_for("training", "2032-07-01")),
             draws(game_with_seed(2).rng_for("training", "2032-07-01"))
+        );
+    }
+
+    /// Given a story described by a key,
+    /// When a generator is made for it, twice,
+    /// Then both give the same numbers, and another story's differ.
+    #[test]
+    fn a_keyed_stream_is_the_same_for_the_same_story_and_another_for_another() {
+        assert_eq!(
+            draws(rng_from_key("news/roundup/eng-d1/4/2032-09-01")),
+            draws(rng_from_key("news/roundup/eng-d1/4/2032-09-01"))
+        );
+        assert_ne!(
+            draws(rng_from_key("news/roundup/eng-d1/4/2032-09-01")),
+            draws(rng_from_key("news/roundup/eng-d1/5/2032-09-08"))
         );
     }
 
