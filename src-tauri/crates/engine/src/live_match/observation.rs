@@ -50,6 +50,9 @@ pub(crate) struct AiObservation<'a> {
     pub(crate) goal_this_minute: bool,
     /// Somebody was sent off this minute, either side.
     pub(crate) dismissal_this_minute: bool,
+    /// Whether this side still has a goalkeeper on the pitch — see
+    /// `LiveMatchState::keeper_on_the_pitch`, which is what answers it.
+    pub(crate) keeper_on_pitch: bool,
     /// Live per-minute condition, which is not what `TeamData` carries: the
     /// stored value is what the player started with.
     conditions: &'a std::collections::HashMap<String, f64>,
@@ -92,17 +95,14 @@ impl AiObservation<'_> {
 impl LiveMatchState {
     /// The view from one touchline.
     pub(crate) fn observe(&self, side: Side) -> AiObservation<'_> {
-        let (own_goals, opp_goals, team, subs_made, own_half) = match side {
+        let (own_goals, opp_goals) = self.score_for(side);
+        let (team, subs_made, own_half) = match side {
             Side::Home => (
-                self.home_score,
-                self.away_score,
                 &self.home,
                 self.home_subs_made,
                 [Zone::HomeBox, Zone::HomeDefense],
             ),
             Side::Away => (
-                self.away_score,
-                self.home_score,
                 &self.away,
                 self.away_subs_made,
                 [Zone::AwayBox, Zone::AwayDefense],
@@ -138,6 +138,7 @@ impl LiveMatchState {
             bench: self.bench(side),
             sent_off: &self.sent_off,
             substitutions: &self.substitutions,
+            keeper_on_pitch: self.keeper_on_the_pitch(side).is_some(),
             pressure_ticks: self
                 .recent_zones
                 .iter()

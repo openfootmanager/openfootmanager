@@ -256,12 +256,7 @@ fn put_someone_in_goal<R: Rng>(
     profile: &AiProfile,
     rng: &mut R,
 ) -> Option<MatchCommand> {
-    if obs
-        .team
-        .players
-        .iter()
-        .any(|p| p.position == Position::Goalkeeper && obs.available(p))
-    {
+    if obs.keeper_on_pitch {
         return None;
     }
 

@@ -8,14 +8,6 @@ use super::{LiveMatchState, SubstitutionRecord};
 // ---------------------------------------------------------------------------
 
 impl LiveMatchState {
-    /// Is there anyone on this side still entitled to handle the ball?
-    fn has_a_keeper_on_the_pitch(&self, side: Side) -> bool {
-        self.team_ref(side)
-            .players
-            .iter()
-            .any(|p| p.position == Position::Goalkeeper && !self.sent_off.contains(&p.id))
-    }
-
     pub(super) fn do_substitution(
         &mut self,
         side: Side,
@@ -55,7 +47,7 @@ impl LiveMatchState {
 
         // Asked before either list is disturbed, and before the bench is
         // borrowed to take the incoming player off it.
-        let nobody_in_goal = !self.has_a_keeper_on_the_pitch(side);
+        let nobody_in_goal = self.keeper_on_the_pitch(side).is_none();
 
         let bench = match side {
             Side::Home => &mut self.home_bench,
