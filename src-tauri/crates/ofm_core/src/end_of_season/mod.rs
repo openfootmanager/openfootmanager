@@ -634,12 +634,7 @@ fn manage_international_calendar(
         }
         crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
-    crate::schedule::append_south_american_preseason_friendlies(
-        &mut game.competitions,
-        &reserved_dates,
-        game.clock.current_date,
-    );
-    crate::schedule::append_other_preseason_friendlies(
+    crate::schedule::append_preseason_friendlies(
         &mut game.competitions,
         &reserved_dates,
         game.clock.current_date,
@@ -1364,10 +1359,11 @@ mod tests {
     use chrono::TimeZone;
     use domain::league::FixtureCompetition;
 
-    #[test]
-    fn preseason_rollover_calendar_leaves_midseason_divisions_unchanged() {
-        let now = Utc.with_ymd_and_hms(2035, 4, 18, 12, 0, 0).unwrap();
-        let next_start = Utc.with_ymd_and_hms(2035, 8, 1, 0, 0, 0).unwrap();
+    fn at(year: i32, month: u32, day: u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(year, month, day, 12, 0, 0).unwrap()
+    }
+
+    fn calendar_game(now: DateTime<Utc>) -> Game {
         let manager = Manager::new(
             "mgr".into(),
             "A".into(),
@@ -1375,30 +1371,61 @@ mod tests {
             "1980-01-01".into(),
             "ENG".into(),
         );
-        let mut game = Game::new(GameClock::new(now), manager, vec![], vec![], vec![], vec![]);
-        for (region, start) in [
-            (
-                "south-america",
-                Utc.with_ymd_and_hms(2035, 2, 1, 0, 0, 0).unwrap(),
-            ),
-            ("europe", next_start),
-        ] {
-            let teams: Vec<String> = (0..8).map(|i| format!("{region}-{i}")).collect();
-            let mut division = crate::schedule::generate_league(region, 2035, &teams, start);
-            division.region_id = Some(region.into());
-            division.scope = CompetitionScope::Domestic;
-            for fixture in &mut division.fixtures {
-                if fixture.date.as_str() < "2035-04-18" {
-                    fixture.status = FixtureStatus::Completed;
-                    fixture.result = Some(domain::league::MatchResult {
-                        home_goals: 1,
-                        away_goals: 0,
-                        ..Default::default()
-                    });
-                }
+        Game::new(GameClock::new(now), manager, vec![], vec![], vec![], vec![])
+    }
+
+    fn add_division(game: &mut Game, id: &str, region: &str, start: DateTime<Utc>) {
+        let teams: Vec<String> = (0..8).map(|i| format!("{id}-{i}")).collect();
+        let mut division = crate::schedule::generate_league(id, start.year() as u32, &teams, start);
+        division.id = id.into();
+        division.region_id = Some(region.into());
+        division.scope = CompetitionScope::Domestic;
+        division.season_start_month = start.month() as u8;
+        division.season_start_day = start.day() as u8;
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        for fixture in &mut division.fixtures {
+            fixture.competition_id = id.into();
+            if fixture.date < today {
+                fixture.status = FixtureStatus::Completed;
+                fixture.result = Some(domain::league::MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    ..Default::default()
+                });
             }
-            game.competitions.push(division);
         }
+        game.competitions.push(division);
+    }
+
+    fn initialize_rollover_calendar(game: &mut Game) {
+        let now = game.clock.current_date;
+        manage_international_calendar(
+            game,
+            now + Duration::days(28),
+            now + Duration::days(2),
+            false,
+            None,
+        );
+    }
+
+    fn assert_no_past_scheduled_fixtures(game: &Game) {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        assert!(
+            game.competitions
+                .iter()
+                .flat_map(|c| &c.fixtures)
+                .all(|f| { f.status != FixtureStatus::Scheduled || f.date >= today }),
+            "no Scheduled fixture may predate the clock"
+        );
+    }
+
+    fn retained_division_receives_no_friendlies(
+        id: &str,
+        now: DateTime<Utc>,
+        start: DateTime<Utc>,
+    ) {
+        let mut game = calendar_game(now);
+        add_division(&mut game, id, "south-america", start);
         assert!(season_has_started(&game.competitions[0]));
         assert!(
             game.competitions[0]
@@ -1406,32 +1433,101 @@ mod tests {
                 .iter()
                 .any(|f| f.status == FixtureStatus::Scheduled)
         );
-        let before = game.competitions[0].fixtures.clone();
+        let count = game.competitions[0].fixtures.len();
 
-        manage_international_calendar(&mut game, next_start, next_start, false, None);
+        initialize_rollover_calendar(&mut game);
 
+        assert_no_past_scheduled_fixtures(&game);
         assert_eq!(
             game.competitions[0].fixtures.len(),
-            before.len(),
-            "a retained Apertura gets no preseason fixtures at an English rollover"
+            count,
+            "{id} retains its schedule"
         );
         assert!(
             game.competitions[0]
                 .fixtures
                 .iter()
-                .zip(&before)
-                .all(|(after, before)| {
-                    after.id == before.id
-                        && after.date == before.date
-                        && after.status == before.status
-                })
+                .all(|f| { f.competition != FixtureCompetition::Friendly }),
+            "a retained {id} receives no preseason friendlies"
+        );
+    }
+
+    fn regenerated_division_receives_future_friendlies(
+        id: &str,
+        region: &str,
+        now: DateTime<Utc>,
+        next_start: DateTime<Utc>,
+        expected: usize,
+    ) {
+        let mut game = calendar_game(now);
+        add_division(
+            &mut game,
+            id,
+            region,
+            next_start.with_year(next_start.year() - 1).unwrap(),
         );
         assert!(
-            game.competitions[1]
+            game.competitions[0]
                 .fixtures
                 .iter()
-                .any(|f| { f.competition == FixtureCompetition::Friendly }),
-            "the regenerated future division still gets friendlies"
+                .all(|f| f.status == FixtureStatus::Completed)
+        );
+        crate::schedule::regenerate_league_for_season(
+            &mut game.competitions[0],
+            next_start.year() as u32,
+            next_start,
+        );
+        assert_eq!(game.competitions[0].season, next_start.year() as u32);
+        assert!(
+            game.competitions[0]
+                .standings
+                .iter()
+                .all(|row| row.played == 0)
+        );
+
+        initialize_rollover_calendar(&mut game);
+
+        assert_no_past_scheduled_fixtures(&game);
+        assert_eq!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .filter(|f| { f.competition == FixtureCompetition::Friendly })
+                .count(),
+            expected,
+            "{id} keeps all remaining preseason slots"
+        );
+    }
+
+    #[test]
+    fn preseason_rollover_retains_midseason_apertura() {
+        retained_division_receives_no_friendlies("ar-d1-apertura", at(2035, 4, 18), at(2035, 2, 1));
+    }
+
+    #[test]
+    fn preseason_rollover_regenerates_future_european_division() {
+        regenerated_division_receives_future_friendlies(
+            "eng-d1",
+            "europe",
+            at(2035, 4, 18),
+            at(2035, 8, 1),
+            16,
+        );
+    }
+
+    #[test]
+    fn preseason_rollover_retains_midseason_clausura() {
+        retained_division_receives_no_friendlies("ar-d1-clausura", at(2035, 9, 18), at(2035, 7, 1));
+    }
+
+    #[test]
+    fn preseason_rollover_regenerates_next_season_clausura() {
+        regenerated_division_receives_future_friendlies(
+            "ar-d1-clausura",
+            "south-america",
+            at(2035, 6, 18),
+            at(2035, 7, 1),
+            4,
         );
     }
 }
