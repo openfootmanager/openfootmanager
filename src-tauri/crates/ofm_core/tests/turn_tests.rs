@@ -26,6 +26,8 @@ mod live_match_day;
 mod training_ground;
 #[path = "turn_tests/unwatched.rs"]
 mod unwatched;
+#[path = "turn_tests/user_matchday.rs"]
+mod user_matchday;
 
 use fixtures::*;
 

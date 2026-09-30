@@ -35,7 +35,10 @@ fn phase_needs_manager(phase: MatchPhase) -> bool {
         MatchPhase::HalfTime | MatchPhase::ExtraTimeHalfTime | MatchPhase::PenaltyShootout
     )
 }
-const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
+/// Shared with [`crate::matchday`], which refuses a competition index that names no competition
+/// rather than quietly playing the fixture out of whatever the legacy mirror holds. One key, so
+/// the two refusals cannot drift into saying different things about the same failure.
+pub(crate) const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
 const LIVE_MATCH_FIXTURE_NOT_SCHEDULED_ERROR: &str = "be.error.liveMatch.fixtureNotScheduled";
 /// A side with nobody available cannot play. Refused here rather than handed to
 /// the engine, which has no way to resolve a pass, a shot or a goalkeeper.
@@ -240,23 +243,6 @@ impl LiveMatchSession {
 // Helper: build a LiveMatchSession from the Game state
 // ---------------------------------------------------------------------------
 
-/// The user's own league round as it stands right now: the matchday of its fixture due today, and
-/// its table before that round is played.
-///
-/// Deliberately the user's competition rather than the one being played: on a cup day the digest
-/// still describes the league round, and a knockout cup has no table to take a baseline from.
-fn user_league_round_context(game: &Game) -> Option<(u32, Vec<StandingEntry>)> {
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let league = game.user_competition()?;
-    let matchday = league
-        .fixtures
-        .iter()
-        .find(|fixture| fixture.date == today)
-        .map(|fixture| fixture.matchday)?;
-
-    Some((matchday, league.standings.clone()))
-}
-
 /// Create a live match session for a specific fixture.
 pub fn create_live_match(
     game: &Game,
@@ -378,7 +364,7 @@ pub fn create_live_match(
         competition_id: league.id.clone(),
         round_matchday: fixture.matchday,
         round_previous_standings: league.standings.clone(),
-        league_round_context: user_league_round_context(game),
+        league_round_context: crate::matchday::user_league_round_context(game),
         home_team_id,
         away_team_id,
         user_side,

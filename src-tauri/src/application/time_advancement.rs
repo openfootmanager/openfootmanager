@@ -24,30 +24,15 @@ pub struct AdvanceTimeWithModeResponse {
     pub results: Vec<AdvanceMatchResult>,
 }
 
-/// The matchday and pre-round standings of the competition the round digest will describe.
+/// Where the user's fixture due today is: which competition to swap into the legacy slot, and the
+/// fixture's index within it.
 ///
-/// This must be the same competition `build_round_summary` reads — the user's, which
-/// `sync_legacy_league` mirrors — or the summary computes one competition's deltas from
-/// another's table. It used to read `primary_competition()`, which is `competitions.first()`
-/// and so, for any career outside the first country, a foreign league on another calendar.
-pub(crate) fn round_context_for_today(
-    game: &Game,
-    today: &str,
-) -> Option<(u32, Vec<domain::league::StandingEntry>)> {
-    // Exactly what `build_round_summary` will read: the user's competition, which
-    // `sync_legacy_league` mirrors — falling back to the mirror itself for a save written before
-    // `competitions` existed, where it is the only copy there is.
-    let league = game.user_competition().or(game.league.as_ref())?;
-    let matchday = league
-        .fixtures
-        .iter()
-        .find(|fixture| fixture.date == today)
-        .map(|fixture| fixture.matchday)?;
-
-    Some((matchday, league.standings.clone()))
-}
-
-fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usize)> {
+/// The competition is an `Option` because for a save written before `competitions` existed there is
+/// no competition to name — the fixture is reachable only through the legacy `game.league` mirror,
+/// and the answer is "leave the mirror alone". That used to be encoded as an index one past the end
+/// of `competitions`, which read as an out-of-range bug at every call site and stopped anyone
+/// guarding against a genuinely bad index.
+fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(Option<usize>, usize)> {
     let user_team_id = game.manager.team_id.as_ref()?;
     for (competition_index, competition) in game.competitions.iter().enumerate() {
         if !game.active_competition_ids.is_empty()
@@ -72,22 +57,20 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usiz
                     }
                 })
         {
-            return Some((competition_index, fixture_index));
+            return Some((Some(competition_index), fixture_index));
         }
     }
     // Fall back to the legacy `game.league` mirror, for saves written before
-    // competitions existed. The index must name the mirror's own competition,
-    // not competition zero: the caller replaces `game.league` with whatever it
-    // finds there, so a hardcoded zero handed the user a stranger's fixture.
-    // When the mirror is not one of the competitions, an index past the end
-    // resolves to nothing, which leaves `game.league` as it is — the mirror
-    // already holds the fixture.
+    // competitions existed. When the mirror *is* one of the competitions, name
+    // it — not competition zero: the caller replaces `game.league` with whatever
+    // it finds there, so a hardcoded zero handed the user a stranger's fixture.
+    // When it is not, there is nothing to name, and `None` says so: the mirror
+    // already holds the fixture and must be left as it is.
     let league = game.league.as_ref()?;
     let mirror_index = game
         .competitions
         .iter()
-        .position(|competition| competition.id == league.id)
-        .unwrap_or(game.competitions.len());
+        .position(|competition| competition.id == league.id);
     league
         .fixtures
         .iter()
@@ -102,22 +85,6 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usiz
                 None
             }
         })
-}
-
-/// Knockout ties get extra time (and, if still level, a shootout) in the live
-/// engine; league fixtures end after regulation. `index` is a fixture index
-/// into `game.league`, which at the call sites holds the competition being
-/// played today.
-fn fixture_allows_extra_time(game: &Game, index: usize) -> bool {
-    game.league
-        .as_ref()
-        .and_then(|league| {
-            league
-                .fixtures
-                .get(index)
-                .map(|fixture| league.is_knockout_fixture(&fixture.id))
-        })
-        .unwrap_or(false)
 }
 
 pub fn advance_time_with_mode(
@@ -136,7 +103,7 @@ pub fn advance_time_with_mode(
     let response = state
         .update_game(|game| -> Result<AdvanceTimeWithModeResponse, String> {
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            let round_context = round_context_for_today(game, &today);
+            let round_context = ofm_core::matchday::user_league_round_context(game);
             let user_fixture = scheduled_user_fixture_index(game, &today);
 
             info!(
@@ -146,7 +113,16 @@ pub fn advance_time_with_mode(
 
             match (mode, user_fixture) {
                 ("live" | "spectator", Some((competition_index, index))) => {
-                    if let Some(competition) = game.competitions.get(competition_index).cloned() {
+                    // Same hazard as the delegate path: the mirror is swapped before the session is
+                    // built, and `create_live_match` can refuse — an empty squad is a handled `Err`.
+                    // This closure runs inside `update_game`, which mutates the live game in place,
+                    // so returning without putting the mirror back leaves the player looking at
+                    // another competition with no match to explain it.
+                    let mirror_before_the_swap = game.league.clone();
+                    if let Some(index) = competition_index {
+                        let Some(competition) = game.competitions.get(index).cloned() else {
+                            return Err("be.error.liveMatch.fixtureNotFound".to_string());
+                        };
                         game.league = Some(competition);
                     }
                     let match_mode = if mode == "live" {
@@ -154,13 +130,19 @@ pub fn advance_time_with_mode(
                     } else {
                         MatchMode::Spectator
                     };
-                    let allows_extra_time = fixture_allows_extra_time(game, index);
-                    let session = live_match_manager::create_live_match(
+                    let allows_extra_time = ofm_core::matchday::fixture_allows_extra_time(game, index);
+                    let session = match live_match_manager::create_live_match(
                         game,
                         index,
                         match_mode,
                         allows_extra_time,
-                    )?;
+                    ) {
+                        Ok(session) => session,
+                        Err(error) => {
+                            game.league = mirror_before_the_swap;
+                            return Err(error);
+                        }
+                    };
                     let snapshot = session.snapshot();
                     let competition_id = session.competition_id.clone();
                     let fixture_id = session.fixture_id.clone();
@@ -179,7 +161,7 @@ pub fn advance_time_with_mode(
                         Some(index),
                         &mut |capture| captures.push(capture),
                     );
-                    if competition_index < game.competitions.len() {
+                    if let Some(competition_index) = competition_index {
                         if let Some(updated_competition) = game.league.take() {
                             game.competitions[competition_index] = updated_competition;
                             game.sync_legacy_league();
@@ -205,61 +187,27 @@ pub fn advance_time_with_mode(
                     })
                 }
                 ("delegate", Some((competition_index, index))) => {
-                    if let Some(competition) = game.competitions.get(competition_index).cloned() {
-                        game.league = Some(competition);
-                    }
                     info!(
                         "[cmd] advance_time_with_mode: delegate fixture_idx={}, date={}",
                         index, today
                     );
-                    let allows_extra_time = fixture_allows_extra_time(game, index);
-                    let mut session = live_match_manager::create_live_match(
+                    // The whole day, in one call, so the harness and this branch cannot drift.
+                    let outcome = ofm_core::matchday::play_user_matchday_with_capture(
                         game,
+                        competition_index,
                         index,
-                        MatchMode::Instant,
-                        allows_extra_time,
+                        &mut |capture| captures.push(capture),
                     )?;
-                    session.user_side = None;
-                    session.run_to_completion();
 
-                    let home_team_id = session.home_team_id.clone();
-                    let away_team_id = session.away_team_id.clone();
-                    let report = session.match_state.into_report();
-
-                    ofm_core::turn::simulate_other_matches_with_capture(
-                        game,
-                        &today,
-                        Some(index),
-                        &mut |capture| captures.push(capture),
-                    );
-
-                    ofm_core::turn::apply_match_report_with_capture(
-                        game,
-                        index,
-                        &home_team_id,
-                        &away_team_id,
-                        &report,
-                        &mut |capture| captures.push(capture),
-                    );
-                    if competition_index < game.competitions.len() {
-                        if let Some(updated_competition) = game.league.take() {
-                            game.competitions[competition_index] = updated_competition;
-                            game.sync_legacy_league();
-                        }
-                    }
-
-                    ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
-                        captures.push(capture)
-                    });
-
-                    // After the sweep: see the note in `application/live_match.rs`. Built before
-                    // it, the summary describes a round the response has since played.
-                    let round_summary =
-                        round_context
-                            .as_ref()
-                            .and_then(|(matchday, previous_standings)| {
-                                build_round_summary_dto(game, *matchday, previous_standings)
-                            });
+                    // The baseline comes from the session, captured before the round was played;
+                    // reading the table now would report every delta as zero. Built after the day
+                    // so it describes the round the response is carrying.
+                    let round_summary = outcome
+                        .league_round_context
+                        .or(round_context)
+                        .and_then(|(matchday, previous_standings)| {
+                            build_round_summary_dto(game, matchday, &previous_standings)
+                        });
                     let results = collect_advance_results(game, &today);
 
                     Ok(AdvanceTimeWithModeResponse {
@@ -318,12 +266,13 @@ pub fn advance_time_with_mode(
 
 #[cfg(test)]
 mod tests {
-    use super::scheduled_user_fixture_index;
+    use super::{advance_time_with_mode, scheduled_user_fixture_index};
     use chrono::{TimeZone, Utc};
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
     use domain::manager::Manager;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::StateManager;
 
     fn scheduled(id: &str, date: &str, home: &str, away: &str) -> Fixture {
         Fixture {
@@ -385,17 +334,18 @@ mod tests {
             scheduled_user_fixture_index(&game, "2036-05-01").expect("the user plays today");
 
         assert_eq!(fixture_index, 0);
+        let competition_index = competition_index.expect("the mirror is one of the competitions");
         assert_eq!(
             game.competitions[competition_index].id, "eng-d2",
             "the index must name the mirror's competition, not competitions[0]"
         );
     }
 
-    /// A save written before competitions existed has only the mirror. An index
-    /// past the end resolves to nothing, which leaves `game.league` alone —
-    /// correct, because the mirror already holds the fixture.
+    /// A save written before competitions existed has only the mirror, so there is no competition
+    /// to name and the answer is `None` — which leaves `game.league` alone, correct, because the
+    /// mirror already holds the fixture.
     #[test]
-    fn a_mirror_that_is_not_a_competition_resolves_to_nothing() {
+    fn a_mirror_that_is_not_a_competition_names_no_competition() {
         let ours = league(
             "legacy-league",
             vec![scheduled("f1", "2036-05-01", "eng-00", "eng-01")],
@@ -405,9 +355,53 @@ mod tests {
         let (competition_index, _) =
             scheduled_user_fixture_index(&game, "2036-05-01").expect("the user plays today");
 
-        assert!(
-            game.competitions.get(competition_index).is_none(),
+        assert_eq!(
+            competition_index, None,
             "nothing to replace the mirror with, so the mirror stands"
+        );
+    }
+
+    /// **Given** the user's fixture sits in a competition whose clubs have nobody available,
+    /// **when** a live match is started for it,
+    /// **then** the call fails and `game.league` still holds what it held before.
+    ///
+    /// This branch swaps the competition into the legacy slot before building the session, because
+    /// that is where `create_live_match` reads the fixture from — and it can refuse, a side with
+    /// nobody available being a handled `Err` rather than a panic. The closure runs inside
+    /// `update_game`, which hands out `&mut Game` and keeps every mutation whether the closure
+    /// returns `Ok` or `Err`. So an early return without restoring leaves the player's own game
+    /// pointing at another competition, with no match played to explain why.
+    ///
+    /// The delegate path has the same shape and its own test in `ofm_core`; this pins the one the
+    /// reviewer's probe did not reach. Dropping the restore here left all twenty-five app-crate
+    /// tests green.
+    #[test]
+    fn a_live_match_that_cannot_start_leaves_the_mirror_as_it_found_it() {
+        let ours = league(
+            "eng-d1",
+            vec![scheduled("f1", "2036-05-01", "eng-00", "eng-01")],
+        );
+        // What the day-start code happened to leave staged in the legacy slot.
+        let staged = league("staged-elsewhere", Vec::new());
+        // No players anywhere in the world, so `create_live_match` refuses.
+        let game = game_with(vec![ours], Some(staged));
+
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let outcome = advance_time_with_mode(&state, "live");
+
+        assert!(
+            outcome.is_err(),
+            "a side with nobody available cannot play, and that is an Err rather than a panic"
+        );
+        let mirror = state
+            .get_game(|game| game.league.as_ref().map(|league| league.id.clone()))
+            .flatten();
+        assert_eq!(
+            mirror.as_deref(),
+            Some("staged-elsewhere"),
+            "the mirror is restored, so the game the player returns to is the one they left"
         );
     }
 }
