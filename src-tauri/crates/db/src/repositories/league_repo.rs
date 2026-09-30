@@ -1,8 +1,9 @@
 use domain::league::{
-    CompletedTransfer, Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry,
-    TransferRumour,
+    CompletedTransfer, Fixture, FixtureStatus, League, StandingEntry, TransferRumour,
 };
 use rusqlite::{Connection, params};
+
+use super::fixture_competition::{fixture_competition_to_string, parse_fixture_competition};
 
 const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
 const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
@@ -31,7 +32,7 @@ pub fn upsert_league(conn: &Connection, league: &League) -> Result<(), String> {
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
         for f in &league.fixtures {
-            let competition_str = format!("{:?}", f.competition);
+            let competition_str = fixture_competition_to_string(&f.competition);
             let status_str = format!("{:?}", f.status);
             let result_json = f
                 .result
@@ -133,14 +134,6 @@ fn parse_fixture_status(s: &str) -> FixtureStatus {
         "InProgress" => FixtureStatus::InProgress,
         "Completed" => FixtureStatus::Completed,
         _ => FixtureStatus::Scheduled,
-    }
-}
-
-fn parse_fixture_competition(s: &str) -> FixtureCompetition {
-    match s {
-        "Friendly" => FixtureCompetition::Friendly,
-        "PreseasonTournament" => FixtureCompetition::PreseasonTournament,
-        _ => FixtureCompetition::League,
     }
 }
 
@@ -352,8 +345,26 @@ pub fn needs_cleanup(conn: &Connection, active_league_id: Option<&str>) -> Resul
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
-    use domain::league::{GoalEvent, MatchResult};
+    use domain::league::{FixtureCompetition, GoalEvent, MatchResult};
     use rusqlite::Connection;
+
+    /// Pins the stored name of every fixture status.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn fixture_statuses_are_stored_by_name() {
+        use FixtureStatus as S;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                S::Scheduled; [
+                    ("Scheduled", S::Scheduled),
+                    ("InProgress", S::InProgress),
+                    ("Completed", S::Completed),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            parse_fixture_status,
+        );
+    }
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
@@ -478,6 +489,35 @@ mod tests {
         let result = loaded.fixtures[1].result.as_ref().unwrap();
         assert_eq!(result.home_goals, 2);
         assert_eq!(result.away_goals, 1);
+    }
+
+    #[test]
+    fn every_kind_of_fixture_survives_a_save() {
+        let db = test_db();
+        let mut league = sample_league();
+        let template = league.fixtures[0].clone();
+        league.fixtures = super::super::fixture_competition::every_fixture_competition()
+            .into_iter()
+            .map(|(name, competition)| Fixture {
+                id: format!("fix-{name}"),
+                competition,
+                ..template.clone()
+            })
+            .collect();
+
+        upsert_league(db.conn(), &league).unwrap();
+        let loaded = load_league(db.conn()).unwrap().unwrap();
+
+        // Loading orders by matchday then id, so compare as a set rather than in saved order.
+        let kinds = |fixtures: &[Fixture]| -> Vec<(String, FixtureCompetition)> {
+            let mut kinds: Vec<_> = fixtures
+                .iter()
+                .map(|f| (f.id.clone(), f.competition.clone()))
+                .collect();
+            kinds.sort_by(|a, b| a.0.cmp(&b.0));
+            kinds
+        };
+        assert_eq!(kinds(&loaded.fixtures), kinds(&league.fixtures));
     }
 
     #[test]

@@ -17,6 +17,9 @@ export const SUPPORTED_LANGUAGES = [
   { code: "id", labelKey: "settings.languages.id" },
 ] as const;
 
+/** A language code the game ships, as named in `SUPPORTED_LANGUAGES`. */
+export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];
+
 const SUPPORTED_CODES = new Map(
   SUPPORTED_LANGUAGES.map((language) => [language.code.toLowerCase(), language.code]),
 );

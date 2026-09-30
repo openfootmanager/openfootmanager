@@ -477,8 +477,14 @@ fn check_random_events_international_callup_with_upcoming_match() {
         ..Default::default()
     });
 
-    // Run many times to trigger the 5% chance
+    // Run many times to trigger the 2% chance
     for _ in 0..2000 {
+        // Only uninjured players can be called up, and nothing here ever heals the training
+        // injuries the same call hands out. Left alone, the 11-man squad is sometimes all
+        // injured before the first call-up, and the test fails for a reason it isn't testing.
+        for player in &mut game.players {
+            player.injury = None;
+        }
         check_random_events(&mut game);
         game.clock.advance_days(1);
         // Reset league fixture to always be upcoming
