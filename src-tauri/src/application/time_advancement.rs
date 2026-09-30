@@ -271,6 +271,7 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
     use domain::manager::Manager;
+    use domain::player::Player;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
     use ofm_core::state::StateManager;
@@ -359,6 +360,115 @@ mod tests {
         assert_eq!(
             competition_index, None,
             "nothing to replace the mirror with, so the mirror stands"
+        );
+    }
+
+    fn senior(id: &str, team_id: Option<&str>, position: domain::player::Position) -> Player {
+        let attributes = domain::player::PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 60,
+            reflexes: 60,
+            aerial: 60,
+        };
+        let mut player = Player::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            "1998-01-01".to_string(),
+            "England".to_string(),
+            position,
+            attributes,
+        );
+        player.team_id = team_id.map(str::to_string);
+        player
+    }
+
+    /// Both clubs of the user's fixture: a sound 2/5/5/3 squad each, except that
+    /// the user's club has no keeper at all.
+    fn clubs_for_a_keeperless_user(game: &mut Game) {
+        use domain::player::Position;
+        for (team_id, keepers) in [("eng-00", 0), ("eng-01", 2)] {
+            game.teams.push(domain::team::Team::new(
+                team_id.to_string(),
+                team_id.to_string(),
+                team_id.to_uppercase(),
+                "England".to_string(),
+                "London".to_string(),
+                "Ground".to_string(),
+                20_000,
+            ));
+            for (position, count) in [
+                (Position::Goalkeeper, keepers),
+                (Position::Defender, 5),
+                (Position::Midfielder, 5),
+                (Position::Forward, 3),
+            ] {
+                for index in 0..count {
+                    game.players.push(senior(
+                        &format!("{team_id}-{position:?}-{index}"),
+                        Some(team_id),
+                        position.clone(),
+                    ));
+                }
+            }
+        }
+    }
+
+    /// **Given** the user's club has no keeper on the day of its match and a keeper is on the
+    /// free-agent market,
+    /// **when** the manager starts the match live,
+    /// **then** the match kicks off through the squad floor's gate: the keeper is signed first, and
+    /// the manager is told.
+    ///
+    /// This branch builds its session itself rather than through `ofm_core::matchday`, so it needs
+    /// its own pin: building it with `create_live_match` directly would skip the gate and leave the
+    /// user's side without a keeper.
+    #[test]
+    fn a_live_match_kicks_off_through_the_squad_floor_gate() {
+        let ours = league(
+            "eng-d1",
+            vec![scheduled("f1", "2036-05-01", "eng-00", "eng-01")],
+        );
+        let mut game = game_with(vec![ours], None);
+        clubs_for_a_keeperless_user(&mut game);
+        game.players.push(senior(
+            "free-keeper",
+            None,
+            domain::player::Position::Goalkeeper,
+        ));
+
+        let state = StateManager::new();
+        state.set_game(game);
+
+        advance_time_with_mode(&state, "live").expect("the live match starts");
+
+        let signed = state
+            .get_game(|game| {
+                game.players
+                    .iter()
+                    .find(|player| player.id == "free-keeper")
+                    .and_then(|player| player.team_id.clone())
+            })
+            .flatten();
+        assert_eq!(
+            signed.as_deref(),
+            Some("eng-00"),
+            "the keeper was not signed"
         );
     }
 

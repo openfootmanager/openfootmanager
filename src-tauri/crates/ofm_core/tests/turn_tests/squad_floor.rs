@@ -151,6 +151,36 @@ fn weekly_planning_covers_a_loss_in_the_middle_of_a_season() {
     assert!(emergencies.is_empty(), "emergency top-ups: {emergencies:?}");
 }
 
+/// Given the player's club without a keeper on the day of its match, and a
+/// free-agent keeper on the market, when the manager delegates the match, then
+/// the one call that plays the user's matchday kicks off through the squad
+/// floor's gate: the keeper is signed before the side is picked, and the
+/// manager is told.
+#[test]
+fn the_users_delegated_match_kicks_off_with_a_keeper_signed() {
+    use ofm_core::matchday;
+
+    let mut game = make_game_with_match();
+    game.players.retain(|player| player.id != "t1_gk");
+    add_free_agent_pool(&mut game, "a");
+
+    matchday::play_user_matchday_with_capture(&mut game, None, 0, &mut |_| {})
+        .expect("the delegated match is played");
+
+    assert!(
+        game.players.iter().any(|player| {
+            player.team_id.as_deref() == Some("team1")
+                && player.position.to_group_position() == Position::Goalkeeper
+        }),
+        "the player's club played its match with no keeper signed"
+    );
+    assert!(
+        game.messages
+            .iter()
+            .any(|message| { message.body_key.as_deref() == Some("be.msg.squadToppedUp.body") })
+    );
+}
+
 /// Every contract at both clubs ends today. The AI club is back at the floor
 /// by the end of the day; the player's club is warned and left to choose.
 #[test]
