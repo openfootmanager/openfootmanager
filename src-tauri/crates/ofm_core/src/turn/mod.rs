@@ -509,6 +509,13 @@ where
             // gets here. Were it ever missing there would be no fixture to
             // settle either, so the day goes on without it rather than
             // panicking on the one path that exists so a day always finishes.
+            let clubs = game
+                .league
+                .as_ref()
+                .and_then(|league| league.fixtures.get(idx))
+                .map(|fixture| format!("{}/{}", fixture.home_team_id, fixture.away_team_id))
+                .unwrap_or_default();
+            let mut fallback_rng = game.rng_today(&format!("match/{clubs}"));
             let Some(league) = game.league.as_mut() else {
                 log::error!(
                     "[turn] fixture {idx} has no competition in the legacy slot to settle it in"
@@ -519,7 +526,7 @@ where
                 &game.players,
                 league,
                 idx,
-                &mut rand::rng(),
+                &mut fallback_rng,
             );
         }
     }
