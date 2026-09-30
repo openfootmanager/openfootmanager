@@ -2883,7 +2883,7 @@
       },
       "boardObjectives": {
         "subject": "{{season}}赛季——董事会目标",
-        "body": "董事会为本赛季设定了以下目标:\n\n1. 联赛排名进入前{{expectedPos}}\n2. 至少取得{{winTarget}}场胜利\n3. 至少打进{{goalsTarget}}粒进球\n\n达成这些指标将提升董事会对您执教的信心。若未能达到期望,可能导致预算削减或其他后果。"
+        "body": "董事会为本赛季设定了以下目标:\n\n1. 联赛排名进入前{{expectedPos}}\n2. 至少取得{{winTarget}}场胜利\n3. 至少打进{{goalsTarget}}粒进球\n4. 将工资支出控制在预算的{{financeTarget}}%以内\n\n达成这些指标将提升董事会对您执教的信心。若未能达到期望,可能导致预算削减或其他后果。"
       },
       "financeCritical": {
         "subject": "紧急:俱乐部负债",

@@ -2883,7 +2883,7 @@
       },
       "boardObjectives": {
         "subject": "Saison {{season}} — Vorstandsziele",
-        "body": "Der Vorstand hat für diese Saison folgende Ziele festgelegt:\n\n1. Unter den Top {{expectedPos}} abschließen\n2. Mindestens {{winTarget}} Spiele gewinnen\n3. Mindestens {{goalsTarget}} Tore erzielen\n\nDas Erreichen dieser Ziele stärkt das Vertrauen des Vorstands in deine Arbeit. Das Verfehlen der Erwartungen kann zu geringeren Budgets oder weiteren Konsequenzen führen."
+        "body": "Der Vorstand hat für diese Saison folgende Ziele festgelegt:\n\n1. Unter den Top {{expectedPos}} abschließen\n2. Mindestens {{winTarget}} Spiele gewinnen\n3. Mindestens {{goalsTarget}} Tore erzielen\n4. Die Gehaltsausgaben auf höchstens {{financeTarget}} % des Budgets begrenzen\n\nDas Erreichen dieser Ziele stärkt das Vertrauen des Vorstands in deine Arbeit. Das Verfehlen der Erwartungen kann zu geringeren Budgets oder weiteren Konsequenzen führen."
       },
       "financeCritical": {
         "subject": "DRINGEND: Verein verschuldet",
