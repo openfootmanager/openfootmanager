@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GameStateData } from "../store/gameStore";
 import type { LeagueData, SeasonContextData } from "../store/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import Dashboard from "./Dashboard";
 
-const { listenMock, registeredEventHandlers } = vi.hoisted(() => {
+const { listenMock, registeredEventHandlers, matchConfirmState } = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
 
   return {
@@ -14,6 +14,7 @@ const { listenMock, registeredEventHandlers } = vi.hoisted(() => {
       return Promise.resolve(vi.fn());
     }),
     registeredEventHandlers: handlers,
+    matchConfirmState: { visible: false },
   };
 });
 
@@ -173,7 +174,26 @@ function createGameState(): GameStateData {
   };
 }
 
-const gameState = createGameState();
+let gameState = createGameState();
+function createBackendFinanceSnapshot() {
+  return {
+    annual_wage_bill: 12000,
+    weekly_wage_spend: 12000,
+    weekly_wage_budget: 50000,
+    weekly_recurring_income: 12000,
+    weekly_sponsor_income: 12000,
+    projected_weekly_net: 0,
+    cash_runway_weeks: null as number | null,
+    wage_budget_usage_percent: 24,
+    currently_in_debt: false,
+    currently_over_budget: false,
+    wage_budget_status: "stable",
+    runway_status: "stable",
+    overall_status: "stable",
+    marketing_campaign_cooldown_days_remaining: 0,
+  };
+}
+let backendFinanceSnapshot = createBackendFinanceSnapshot();
 
 vi.mock("../lib/extraTranslations", () => ({
   applyExtraTranslations: vi.fn(),
@@ -213,6 +233,7 @@ vi.mock("react-i18next", () => ({
         "continueMenu.watchSpectatorDesc": "desc",
         "continueMenu.delegateAssistant": "Delegate",
         "continueMenu.delegateAssistantDesc": "desc",
+        "tournaments.competitions.nationalCup": "Copa Nacional",
       };
 
       return labels[key] ?? key;
@@ -236,23 +257,29 @@ vi.mock("../store/gameStore", () => ({
   }),
 }));
 
-vi.mock("../store/settingsStore", () => ({
-  useSettingsStore: () => ({
+vi.mock("../store/settingsStore", () => {
+  const getState = () => ({
     settings: {
       language: "en",
       default_match_mode: "live",
     },
+    currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
+    supportedCurrencies: { EUR: { code: "EUR", symbol: "€", exchange_rate: 1 } },
     loaded: true,
-    loadSettings: loadSettingsMock,
-  }),
-}));
+  });
+  const useSettingsStore = Object.assign(
+    () => ({ ...getState(), loadSettings: loadSettingsMock }),
+    { getState },
+  );
+  return { useSettingsStore };
+});
 
 vi.mock("../hooks/useAdvanceTime", () => ({
   useAdvanceTime: () => ({
     isAdvancing: false,
     showContinueMenu: false,
     setShowContinueMenu: vi.fn(),
-    showMatchConfirm: false,
+    showMatchConfirm: matchConfirmState.visible,
     setShowMatchConfirm: vi.fn(),
     matchMode: "live",
     setMatchMode: vi.fn(),
@@ -352,7 +379,14 @@ vi.mock("../components/teamProfile", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardAlerts", () => ({
-  default: () => <div>Alerts Mock</div>,
+  default: ({ alerts }: { alerts: { id: string }[] }) => (
+    <div>
+      Alerts Mock
+      {alerts.map((alert) => (
+        <span key={alert.id}>{alert.id}</span>
+      ))}
+    </div>
+  ),
 }));
 
 vi.mock("../components/dashboard/DashboardTabContent", () => ({
@@ -380,12 +414,11 @@ vi.mock("../components/dashboard/DashboardExitSavingModal", () => ({
   default: () => null,
 }));
 
-vi.mock("../components/dashboard/DashboardMatchConfirmModal", () => ({
-  default: () => null,
-}));
-
 describe("Dashboard", () => {
   beforeEach(() => {
+    gameState = createGameState();
+    backendFinanceSnapshot = createBackendFinanceSnapshot();
+    matchConfirmState.visible = false;
     registeredEventHandlers.clear();
     listenMock.mockClear();
     invokeMock.mockReset();
@@ -403,8 +436,133 @@ describe("Dashboard", () => {
         return gameState;
       }
 
+      if (command === "get_finance_snapshot") {
+        return { snapshot: backendFinanceSnapshot };
+      }
+
       return null;
     });
+  });
+
+  it("uses the backend cash verdict instead of a false local crisis", async () => {
+    const team = gameState.teams[0];
+    const player = gameState.players[0];
+    if (!team || !player) throw new Error("expected managed team and player");
+    team.finance = 20000;
+    team.wage_budget = 20000;
+    player.wage = 10000;
+    backendFinanceSnapshot = {
+      ...backendFinanceSnapshot,
+      weekly_recurring_income: 15200,
+      projected_weekly_net: 5200,
+      wage_budget_status: "warning",
+      wage_budget_usage_percent: 105,
+      overall_status: "warning",
+    };
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("wage_pressure")).toBeInTheDocument();
+    expect(invokeMock).toHaveBeenCalledWith("get_finance_snapshot", { teamId: "team-1" });
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
+  });
+
+  it("shows a finance crisis when the backend verdict is critical", async () => {
+    backendFinanceSnapshot = {
+      ...backendFinanceSnapshot,
+      runway_status: "critical",
+      cash_runway_weeks: 2,
+      overall_status: "critical",
+    };
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("finance_crisis")).toBeInTheDocument();
+  });
+
+  it("keeps the last verdict during a same-club refetch but drops it for a different club", async () => {
+    backendFinanceSnapshot = {
+      ...backendFinanceSnapshot,
+      runway_status: "critical",
+      cash_runway_weeks: 2,
+      overall_status: "critical",
+    };
+    const pendingFinanceResponses: Array<
+      (response: { snapshot: ReturnType<typeof createBackendFinanceSnapshot> }) => void
+    > = [];
+    let financeRequestCount = 0;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_active_game") return Promise.resolve(gameState);
+      if (command === "get_finance_snapshot") {
+        financeRequestCount += 1;
+        if (financeRequestCount === 1) {
+          return Promise.resolve({ snapshot: backendFinanceSnapshot });
+        }
+        return new Promise<{ snapshot: ReturnType<typeof createBackendFinanceSnapshot> }>(
+          (resolve) => pendingFinanceResponses.push(resolve),
+        );
+      }
+      return Promise.resolve(null);
+    });
+
+    const { rerender } = render(<Dashboard />);
+    expect(await screen.findByText("finance_crisis")).toBeInTheDocument();
+
+    gameState = createGameState();
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(1));
+    expect(screen.getByText("finance_crisis")).toBeInTheDocument();
+
+    gameState = createGameState();
+    gameState.manager.team_id = "team-2";
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(2));
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
+  });
+
+  it("ignores stale finance responses after the game state changes", async () => {
+    const firstGameState = gameState;
+    const pendingFinanceResponses: Array<
+      (response: { snapshot: ReturnType<typeof createBackendFinanceSnapshot> }) => void
+    > = [];
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_active_game") return Promise.resolve(gameState);
+      if (command === "get_finance_snapshot") {
+        return new Promise<{ snapshot: ReturnType<typeof createBackendFinanceSnapshot> }>(
+          (resolve) => pendingFinanceResponses.push(resolve),
+        );
+      }
+      return Promise.resolve(null);
+    });
+
+    const criticalResponse = {
+      snapshot: {
+        ...createBackendFinanceSnapshot(),
+        runway_status: "critical",
+        cash_runway_weeks: 2,
+        overall_status: "critical",
+      },
+    };
+    const { rerender } = render(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(1));
+
+    gameState = createGameState();
+    gameState.manager.team_id = "team-2";
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(2));
+    await act(async () => pendingFinanceResponses[1]?.(criticalResponse));
+    expect(screen.getByText("finance_crisis")).toBeInTheDocument();
+
+    // A verdict for the other club must disappear while this club refetches.
+    gameState = firstGameState;
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(3));
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
+
+    // Returning to the original state also checks that its cancelled request
+    // cannot overwrite the current verdict while the new request is pending.
+    await act(async () => pendingFinanceResponses[0]?.(criticalResponse));
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
   });
 
   // A finished league that is not the player's own, sorting first in the array.
@@ -499,6 +657,37 @@ describe("Dashboard", () => {
     expect(screen.queryByText("season over")).not.toBeInTheDocument();
   });
 
+  it("shows the localized named cup in the match confirmation modal", async () => {
+    matchConfirmState.visible = true;
+    gameState.competitions = [
+      {
+        id: "cup-1",
+        name: "National Cup",
+        name_key: "tournaments.competitions.nationalCup",
+        season: 2026,
+        fixtures: [
+          {
+            id: "cup-match",
+            competition_id: "cup-1",
+            competition: "Cup",
+            matchday: 1,
+            date: "2026-07-10",
+            home_team_id: "team-1",
+            away_team_id: "team-2",
+            status: "Scheduled",
+            result: null,
+          },
+        ],
+        standings: [],
+      },
+    ];
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("Copa Nacional")).toBeInTheDocument();
+    expect(screen.queryByText("National Cup")).not.toBeInTheDocument();
+  });
+
   it("supports search selection, profile switching, back-navigation, and tab switching", async () => {
     render(<Dashboard />);
 
@@ -531,6 +720,10 @@ describe("Dashboard", () => {
         return gameState;
       }
 
+      if (command === "get_finance_snapshot") {
+        return { snapshot: backendFinanceSnapshot };
+      }
+
       if (command === "get_active_save_id") {
         throw new Error("save id unavailable");
       }
@@ -557,6 +750,10 @@ describe("Dashboard", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_active_game") {
         return gameState;
+      }
+
+      if (command === "get_finance_snapshot") {
+        return { snapshot: backendFinanceSnapshot };
       }
 
       if (command === "get_active_save_id") {

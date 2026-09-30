@@ -58,7 +58,7 @@ vi.mock("react-i18next", () => ({
       if (key === "home.noLeagueDigest") return "No league digest yet.";
       if (key === "dashboard.news") return "News";
       if (key === "dashboard.schedule") return "Schedule";
-      if (key === "home.matchdayN") return `Matchday ${params?.n}`;
+      if (key === "common.matchday") return `Matchday ${params?.n}`;
       if (key === "season.friendly") return "Friendly";
       if (key === "home.home") return "Home";
       if (key === "home.away") return "Away";

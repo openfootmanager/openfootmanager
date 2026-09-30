@@ -295,6 +295,7 @@ pub fn propose_renewal(
 
         let player = &mut game.players[player_index];
         player.wage = offer.weekly_wage;
+        player.contract_start = Some(current_date.format("%Y-%m-%d").to_string());
         player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
         let state = player
             .morale_core

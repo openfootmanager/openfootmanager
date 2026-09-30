@@ -135,4 +135,37 @@ describe("trainingGroupsModel", () => {
       "fwd",
     ]);
   });
+
+  it("sorts a roster whose positions are granular, not legacy buckets", () => {
+    // The sort above passes only because its fixture uses the four legacy
+    // bucket names. A generated squad is granular, and a table keyed on the
+    // buckets ranks every granular player the same — leaving the name as the
+    // only order. These names are picked so that a name-only sort is wrong.
+    const roster = [
+      createPlayer({
+        id: "striker",
+        match_name: "Adams",
+        position: "Striker",
+        natural_position: "Striker",
+      }),
+      createPlayer({
+        id: "keeper",
+        match_name: "Zola",
+        position: "Goalkeeper",
+        natural_position: "Goalkeeper",
+      }),
+      createPlayer({
+        id: "centre-back",
+        match_name: "Moore",
+        position: "CenterBack",
+        natural_position: "CenterBack",
+      }),
+    ];
+
+    expect(sortTrainingRoster(roster).map((player) => player.id)).toEqual([
+      "keeper",
+      "centre-back",
+      "striker",
+    ]);
+  });
 });

@@ -5,7 +5,7 @@ import NextMatchDisplay from "./NextMatchDisplay";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string) => (key === "tournaments.competitions.nationalCup" ? "Copa Nacional" : key),
   }),
 }));
 
@@ -124,5 +124,34 @@ describe("NextMatchDisplay", () => {
     expect(screen.getByText("Munich Bayern")).toBeInTheDocument();
     expect(screen.getAllByText("Munich Bayern")).toHaveLength(1);
     expect(screen.getByText("home.away")).toBeInTheDocument();
+  });
+
+  it("shows the translated name of a cup fixture", () => {
+    const state = createGameState();
+    const leagueFixture = state.league?.fixtures[0];
+    if (!leagueFixture) throw new Error("expected the existing fixture");
+    const cupFixture = {
+      ...leagueFixture,
+      id: "cup-fixture",
+      competition_id: "cup-2026",
+      competition: "Cup" as const,
+    };
+    state.competitions = [
+      {
+        id: "cup-2026",
+        name: "National Cup",
+        name_key: "tournaments.competitions.nationalCup",
+        season: 2026,
+        participant_ids: ["barcelona", "bayern"],
+        fixtures: [cupFixture],
+        standings: [],
+      },
+    ];
+    state.active_competition_ids = ["cup-2026"];
+
+    render(<NextMatchDisplay gameState={state} />);
+
+    expect(screen.getByText("Copa Nacional")).toBeInTheDocument();
+    expect(screen.queryByText("National Cup")).not.toBeInTheDocument();
   });
 });

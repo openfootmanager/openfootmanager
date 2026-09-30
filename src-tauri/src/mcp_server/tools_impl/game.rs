@@ -127,6 +127,10 @@ pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<String,
         .get_stats_state(|s| s.clone())
         .unwrap_or_default();
 
+    // Same dating as the Tauri command. This tool has never aligned the clock to the
+    // club's season, which is a divergence from `select_team` left as it was.
+    crate::commands::game::date_opening_contracts(&mut game, None);
+
     let start_phase = crate::commands::game::start_phase_for_game(&game);
     let stats_state = crate::commands::game::bootstrap_team_selection(
         &mut game,

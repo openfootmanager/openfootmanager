@@ -36,11 +36,11 @@ use rand::RngExt;
 use uuid::Uuid;
 
 use crate::finances::MIN_OPENING_RUNWAY_WEEKS;
+use crate::stable_hash::stable_hash;
 use chrono::Datelike;
 use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
-const OPENING_SHORT_CONTRACT_END: &str = "2027-06-30";
 const OPENING_YOUTH_ACADEMY_SIZE: usize = 3;
 const OPENING_YOUTH_MAX_AGE: i32 = 21;
 const AVAILABLE_STAFF_MARKET_ROTATION_DAYS: i64 = 30;
@@ -78,11 +78,21 @@ fn normalized_wage_budget(weekly_wage_bill: i64, reputation: u32) -> i64 {
     ((weekly_wage_bill * 100) + usage_target - 1) / usage_target
 }
 
-fn normalize_opening_contracts(players: &mut [Player]) {
+/// Keep a newly generated squad from opening with a wave of contracts that all
+/// run out the first summer.
+///
+/// "The first summer" is the one after `opening_year`, derived rather than written
+/// down. This compared against a literal `2027-06-30`, which is right for exactly
+/// one opening year: for a 1962 or a 2031 world nothing matched, so the cap did
+/// nothing and however many short deals generation rolled were kept.
+fn normalize_opening_contracts(players: &mut [Player], opening_year: i32) {
+    let first_summer = format!("{}-06-30", opening_year + 1);
+    let second_summer = format!("{}-06-30", opening_year + 2);
+
     let mut expiring_indices: Vec<usize> = players
         .iter()
         .enumerate()
-        .filter(|(_, player)| player.contract_end.as_deref() == Some(OPENING_SHORT_CONTRACT_END))
+        .filter(|(_, player)| player.contract_end.as_deref() == Some(first_summer.as_str()))
         .map(|(index, _)| index)
         .collect();
 
@@ -92,11 +102,7 @@ fn normalize_opening_contracts(players: &mut [Player]) {
         .into_iter()
         .skip(MAX_OPENING_EXPIRING_CONTRACTS)
     {
-        if let Some(contract_end) = players[index].contract_end.as_deref()
-            && let Ok(year) = contract_end[0..4].parse::<i32>()
-        {
-            players[index].contract_end = Some(format!("{}-06-30", year + 1));
-        }
+        players[index].contract_end = Some(second_summer.clone());
     }
 }
 
@@ -142,7 +148,9 @@ pub fn default_opening_year() -> u32 {
         .clamp(MIN_OPENING_YEAR as i32, MAX_OPENING_YEAR as i32) as u32
 }
 
-fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
+/// Age on 1 July of `opening_year`, by month and day (not day-of-year, which is off by one
+/// for birthdays after 28 February across a leap boundary). `None` for an unparseable date.
+pub(crate) fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
     use chrono::{Datelike, NaiveDate};
 
     let opening_date = NaiveDate::from_ymd_opt(opening_year, 7, 1)?;
@@ -316,6 +324,10 @@ pub fn generate_national_team_player(
         &mut rng,
     );
     player.team_id = None;
+    // Both dates, not just the end: this player is generated from a club
+    // template and then unattached, so leaving a start behind would describe an
+    // agreement with no employer and no expiry.
+    player.contract_start = None;
     player.contract_end = None;
     player.wage = 0;
     player.transfer_listed = false;
@@ -325,7 +337,11 @@ pub fn generate_national_team_player(
 
 fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_year: i32) {
     seed_opening_youth_academy(players, opening_year);
-    normalize_opening_contracts(players);
+    normalize_opening_contracts(players, opening_year);
+    // Last, and here rather than in `build_club`: the package path calls this
+    // again after swapping generated players for authored ones, and a role
+    // belongs to the squad that finished rather than the one that was built.
+    crate::ai_roles::assign_squad_roles(team, players.iter());
 
     let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
 
@@ -430,25 +446,11 @@ pub(crate) fn generated_manager_for(
     // would silently change the world's history. Keying on the appointment also
     // makes the same world produce the same managers twice running.
     use rand::SeedableRng;
-    let mut rng = rand::rngs::StdRng::seed_from_u64(stable_seed(manager_id));
+    let mut rng = rand::rngs::StdRng::seed_from_u64(stable_hash(manager_id.as_bytes(), 0));
 
     let nationality =
         pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng);
     generate_random_unemployed_manager(&nationality, names_def, opening_year, &mut rng)
-}
-
-/// FNV-1a over the bytes, for turning an id into an RNG seed.
-///
-/// Hand-rolled rather than `DefaultHasher`, whose output std does not promise to
-/// keep stable between releases — a world would then generate different managers
-/// purely because it was built with a different compiler.
-fn stable_seed(text: &str) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for byte in text.as_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash
 }
 
 fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32) -> Vec<Staff> {
@@ -730,6 +732,10 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         secondary: tdef.colors.secondary.clone(),
     };
     team.play_style = play_style_from_str(&tdef.play_style);
+    // A club's tactics are its style expressed in the nine dials the engine
+    // actually reads. Set here rather than left at the neutral default, which is
+    // where every club in every save had been sitting: see `ai_tactics`.
+    team.tactics_phase = crate::ai_tactics::blueprint_for(&team.play_style);
     team.media.logo = tdef.logo.clone();
     if let Some(ref pattern_str) = tdef.kit_pattern
         && let Ok(pattern) = pattern_str.parse()
@@ -1401,6 +1407,7 @@ fn generate_world_with_rng(
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod identity;
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
@@ -1900,6 +1907,45 @@ mod tests {
         }
     }
 
+    /// The cap on squad members opening on an expiring contract compared against a
+    /// literal `2027-06-30`, so it did nothing for any era but 2026: a 1962 world and
+    /// a 2031 world both opened with however many short contracts generation rolled.
+    ///
+    /// Built from a real club and then overwritten with a controlled squad, because
+    /// generation rolls contract lengths at random and a test that merely hoped for
+    /// more than two short deals would pass or fail by seed. 2026 is included as the
+    /// control: it held before and must hold after.
+    #[test]
+    fn opening_contract_cap_follows_the_opening_year() {
+        for opening_year in [HISTORICAL_OPENING_YEAR, TEST_OPENING_YEAR, 2031] {
+            let tdef = test_team_def();
+            let names_def = default_names_definition();
+            let country_codes = generation::nationality_distribution();
+            let mut rng = StdRng::seed_from_u64(7);
+            let (mut team, mut players, _staff) =
+                build_club(&tdef, country_codes, opening_year, &names_def, &mut rng);
+
+            let expiring_next_summer = format!("{}-06-30", opening_year + 1);
+            for player in players.iter_mut().take(6) {
+                player.contract_end = Some(expiring_next_summer.clone());
+            }
+
+            normalize_generated_team(&mut team, &mut players, opening_year as i32);
+
+            let still_expiring = players
+                .iter()
+                .filter(|player| {
+                    player.contract_end.as_deref() == Some(expiring_next_summer.as_str())
+                })
+                .count();
+            assert!(
+                still_expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
+                "a {opening_year} world opened with {still_expiring} players on contracts \
+                 ending {expiring_next_summer}; the cap is {MAX_OPENING_EXPIRING_CONTRACTS}"
+            );
+        }
+    }
+
     #[test]
     fn generate_national_team_player_is_a_senior_free_agent() {
         let player = generate_national_team_player("JP", 5, TEST_OPENING_YEAR);
@@ -1910,6 +1956,11 @@ mod tests {
             "national-pool players belong to no club"
         );
         assert_eq!(player.contract_end, None);
+        assert_eq!(
+            player.contract_start, None,
+            "an unattached player must not carry half an agreement: this one is built \
+             from a club template, so the start has to be cleared with the end"
+        );
         assert_eq!(player.position, Position::Defender, "slot 5 is a defender");
         assert!(player.ovr > 0, "derived ratings must be computed");
         assert_eq!(player.squad_role, SquadRole::Senior);
@@ -2103,13 +2154,16 @@ mod tests {
                 &WorldGenConfig::compact(),
                 &definitions::DefinitionSources::embedded_only(),
             );
+            // The summer after the year this world opened in, worked out here rather
+            // than read from a constant: `generate_world_with` opens in the real
+            // calendar year, so a literal date passes today and from 1 January 2027
+            // matches nothing, asserting about no one.
+            let first_summer = format!("{}-06-30", default_opening_year() + 1);
             for team in &teams {
                 let expiring_contracts = players
                     .iter()
                     .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                    .filter(|player| {
-                        player.contract_end.as_deref() == Some(OPENING_SHORT_CONTRACT_END)
-                    })
+                    .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
                     .count();
 
                 assert!(

@@ -24,7 +24,9 @@
     "openDiscord": "打开 Discord 社区",
     "openGithub": "打开 GitHub 仓库",
     "mainMenu": "主菜单",
-    "worldEditor": "世界编辑器"
+    "worldEditor": "世界编辑器",
+    "startupOptionsRejected": "无法使用这些生涯设置。请返回世界界面，检查起始年份、起始阶段以及要生成的历史年限。",
+    "reportBug": "报告错误"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "进入",
     "exitFullscreen": "退出",
     "switchToLightMode": "切换到浅色模式",
-    "switchToDarkMode": "切换到深色模式"
+    "switchToDarkMode": "切换到深色模式",
+    "help": "帮助",
+    "reportBug": "报告错误",
+    "reportBugDesc": "告诉我们出了什么问题，日志会自动附上。",
+    "report": "报告"
   },
   "preMatch": {
     "formationFit": "阵型契合度",
@@ -2577,6 +2583,7 @@
       "liveMatch": {
         "noLeague": "该比赛暂无联赛数据。",
         "fixtureNotFound": "未找到所选比赛。",
+        "fixtureNotScheduled": "这场比赛已不在赛程中，无法进行。",
         "emptySquad": "其中一支球队没有可用球员，因此无法进行比赛。",
         "maxSubstitutionsReached": "已达到最大换人次数",
         "preMatchSwapTooLate": "赛前对调只能在开球前进行",
@@ -2594,7 +2601,7 @@
       "worldReadFileFailed": "读取世界数据库文件失败。",
       "package": {
         "invalid": "此世界包无效，无法加载。",
-        "invalidPackageId": "无法使用软件包 ID“{{id}}”。它不能为空，不能命名为“assets”，也不能包含“/”、“\\”、“..”或控制字符。",
+        "invalidPackageId": "无法使用软件包 ID“{{id}}”。它必须是一个普通文件名：不能为空，不能是“assets”，不能以点开头，也不能以点或空格结尾，长度不超过 251 字节，不能包含“/”、“\\”、“..”、控制字符或 Windows 保留的标点符号，也不能是 CON、NUL 等 Windows 保留名称。",
         "readFailed": "无法读取某个包文件。",
         "missingSchema": "某个包文件缺少 \"schema\" 字段。",
         "worldExportNotPackage": "此文件夹是导出的世界存档，而不是软件包项目。导出的世界使用不同的格式，无法在此处编辑。",
@@ -2691,6 +2698,10 @@
         "writeFailed": "更新存档索引失败。"
       },
       "saveManagerUnavailable": "存档数据暂时不可用。",
+      "report": {
+        "bundleFailed": "无法写入报告文件。请检查你是否有权写入所选文件夹。",
+        "saveMissing": "找不到你的存档文件，因此什么都没有写入。请取消勾选存档后重试，或先重新加载你的生涯。"
+      },
       "saveDeleteFailed": "无法删除存档文件。",
       "settings": {
         "loadFailed": "加载设置失败。",
@@ -2883,7 +2894,7 @@
       },
       "boardObjectives": {
         "subject": "{{season}}赛季——董事会目标",
-        "body": "董事会为本赛季设定了以下目标:\n\n1. 联赛排名进入前{{expectedPos}}\n2. 至少取得{{winTarget}}场胜利\n3. 至少打进{{goalsTarget}}粒进球\n\n达成这些指标将提升董事会对您执教的信心。若未能达到期望,可能导致预算削减或其他后果。"
+        "body": "董事会为本赛季设定了以下目标:\n\n1. 联赛排名进入前{{expectedPos}}\n2. 至少取得{{winTarget}}场胜利\n3. 至少打进{{goalsTarget}}粒进球\n4. 将工资支出控制在预算的{{financeTarget}}%以内\n\n达成这些指标将提升董事会对您执教的信心。若未能达到期望,可能导致预算削减或其他后果。"
       },
       "financeCritical": {
         "subject": "紧急:俱乐部负债",
@@ -4036,5 +4047,55 @@
   "generation": {
     "title": "生成与完善",
     "coverage": "您的包涵盖"
+  },
+  "errorBoundary": {
+    "title": "出了点问题",
+    "description": "此界面遇到了无法恢复的错误。请先尝试重试——重新加载会重启游戏，未保存的进度将会丢失。",
+    "retry": "重试",
+    "reload": "重新加载游戏"
+  },
+  "errors": {
+    "title": "出了点问题"
+  },
+  "reportBug": {
+    "describeTitle": "报告错误",
+    "describeIntro": "告诉我们出了什么问题。你的日志和游戏信息会自动随行。在保存任何内容之前，你会看到完整清单。",
+    "previewTitle": "将会发送的内容",
+    "previewIntro": "以下全部，仅此而已。在你选择保存位置之前，任何内容都不会离开这台电脑。",
+    "doneTitle": "报告已保存",
+    "doneIntro": "错误表单已在浏览器中打开，你的回答已经填好。",
+    "whatHappened": "发生了什么",
+    "whatHappenedPlaceholder": "我点击“进入球场”时游戏卡死了……",
+    "expected": "你期待的结果",
+    "expectedPlaceholder": "我以为比赛会正常开始……",
+    "steps": "复现步骤",
+    "stepsPlaceholder": "1. 开始新游戏\n2. 推进到比赛日\n3. 点击“进入球场”……",
+    "required": "必填",
+    "fillRequired": "请填写发生了什么以及你期待的结果。",
+    "frequencyLabel": "多久发生一次",
+    "gameContext": "你的生涯",
+    "frequency": {
+      "everyTime": "每次都是",
+      "sometimes": "有时",
+      "once": "仅发生过一次"
+    },
+    "itemWhatYouWrote": "你写的内容",
+    "itemWhatYouWroteDesc": "你的描述、期待结果、复现步骤和发生频率。",
+    "itemSetup": "你的设备信息",
+    "itemLogs": "你最近的日志文件",
+    "itemLogsDesc": "保存前会移除你的主目录和用户名；若系统提供计算机名，也会一并移除。",
+    "itemCrash": "上次会话的崩溃记录",
+    "itemCrashDesc": "包含在内，因为你上次游戏时有程序崩溃。",
+    "optionalHeading": "可选添加 — 默认关闭",
+    "includeSave": "我的存档",
+      "includeSaveDesc": "让我们能重现你当时的确切情况。",
+    "includeSaveNoCareer": "当前没有进行中的生涯，没有可附加的内容。",
+    "nothingSentYet": "在你点击下方按钮之前，不会保存或打开任何内容。提交表单需要 GitHub 账号 —— 无论如何，文件都是你的。",
+    "savedTo": "你的报告文件已保存在：",
+    "dragItIn": "把它拖到浏览器中的 GitHub 表单里，然后提交。就这么简单。",
+      "browserDidNotOpen": "浏览器没有打开。上方的文件已保存 —— 方便时把它附加到 GitHub 上的新 issue 里。",
+    "review": "查看将发送的内容",
+    "saveAndOpen": "保存文件并打开 GitHub",
+    "working": "处理中……"
   }
 }

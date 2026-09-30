@@ -13,6 +13,10 @@ pub struct AdvanceTimeWithModeResponse {
     pub game: Option<Game>,
     pub snapshot: Option<engine::MatchSnapshot>,
     pub fixture_index: Option<usize>,
+    #[serde(default)]
+    pub competition_id: Option<String>,
+    #[serde(default)]
+    pub fixture_id: Option<String>,
     pub mode: Option<String>,
     pub round_summary: Option<RoundSummaryDto>,
     /// Matches finished during this advance (user's competitions + nationals).
@@ -131,6 +135,8 @@ pub fn advance_time_with_mode(
                         }
                     };
                     let snapshot = session.snapshot();
+                    let competition_id = session.competition_id.clone();
+                    let fixture_id = session.fixture_id.clone();
                     info!(
                         "[cmd] advance_time_with_mode: live_match fixture_idx={}, phase={:?}, home_team={}, away_team={}",
                         index,
@@ -164,6 +170,8 @@ pub fn advance_time_with_mode(
                         game: None,
                         snapshot: Some(snapshot),
                         fixture_index: Some(index),
+                        competition_id: Some(competition_id),
+                        fixture_id: Some(fixture_id),
                         mode: Some(mode.to_string()),
                         round_summary,
                         results: Vec::new(),
@@ -198,6 +206,8 @@ pub fn advance_time_with_mode(
                         game: Some(game.clone()),
                         snapshot: None,
                         fixture_index: None,
+                        competition_id: None,
+                        fixture_id: None,
                         mode: None,
                         round_summary,
                         results,
@@ -224,6 +234,8 @@ pub fn advance_time_with_mode(
                         game: Some(game.clone()),
                         snapshot: None,
                         fixture_index: None,
+                        competition_id: None,
+                        fixture_id: None,
                         mode: None,
                         round_summary,
                         results,

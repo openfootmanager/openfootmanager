@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { FixtureCompetition } from "../store/types";
 
 export interface ScheduleQuery {
   competition_id: string;
@@ -17,8 +18,7 @@ export interface FixtureSummary {
   home_team_name: string;
   away_team_id: string;
   away_team_name: string;
-  /** "League" | "Cup" | "PreseasonTournament" | "ContinentalClub" | etc. */
-  competition: string;
+  competition: FixtureCompetition;
   competition_id: string;
   /** "Scheduled" | "InProgress" | "Completed" */
   status: string;
@@ -29,7 +29,7 @@ export interface MatchdayGroup {
   key: string;
   date: string;
   matchday: number;
-  competition: string;
+  competition: FixtureCompetition;
   is_next_user_match: boolean;
   fixtures: FixtureSummary[];
 }

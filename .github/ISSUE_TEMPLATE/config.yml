@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: "\U0001F4AC Discord"
+    url: https://discord.gg/2CXaesaukT
+    about: "Chat with the team and other players. Best place for questions that aren't a bug report."
   - name: "\U0001F4D6 Beta Testing Guide (English)"
     url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE.md
     about: "Read the full beta testing guide before submitting feedback."

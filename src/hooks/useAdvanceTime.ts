@@ -139,6 +139,8 @@ export function useAdvanceTime(
         navigate("/match", {
           state: {
             fixtureIndex: result.fixture_index,
+            competitionId: result.competition_id,
+            fixtureId: result.fixture_id,
             mode: result.mode || effectiveMode,
             snapshot: result.snapshot,
           },

@@ -3092,6 +3092,7 @@ dependencies = [
  "time",
  "tokio",
  "webp",
+ "zip",
 ]
 
 [[package]]

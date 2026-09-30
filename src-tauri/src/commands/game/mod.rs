@@ -13,7 +13,6 @@ use crate::commands::util::persist_active_game;
 use crate::SaveManagerState;
 
 mod bootstrap;
-mod foundation;
 mod helpers;
 mod startup;
 mod validation;
@@ -28,10 +27,10 @@ mod world_load;
 // through, so it needs a real path anyway.
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::bootstrap_game_for_mcp;
-pub(crate) use bootstrap::{bootstrap_team_selection, create_new_save};
-use foundation::*;
+pub(crate) use bootstrap::{bootstrap_team_selection, create_new_save, date_opening_contracts};
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+use ofm_core::world::*;
 use startup::*;
 pub(crate) use startup::{start_phase_for_game, StartPhase};
 use world_build::*;
@@ -58,6 +57,21 @@ pub async fn start_new_game(
     competition_definitions_json: Option<String>,
     package_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
+    // Before any validation can return — see `StartRequestSummary` for why, and for what it omits.
+    log::info!(
+        "[cmd] start_new_game {}",
+        startup::StartRequestSummary {
+            first_name: &first_name,
+            last_name: &last_name,
+            dob: &dob,
+            nationality: &nationality,
+            startup_options: startup_options.as_ref(),
+            world_source: world_source.as_deref(),
+            package_ids: package_ids.as_deref(),
+        }
+        .describe()
+    );
+
     // Validate inputs
     let first_name = first_name.trim().to_string();
     let last_name = last_name.trim().to_string();
@@ -185,21 +199,8 @@ pub async fn select_team(
         .unwrap_or_default();
     ensure_multi_competition_foundations(&mut game);
 
-    // Hemisphere fix: when the player picks SeasonStart for a southern-
-    // hemisphere (or other non-August-start) club, align the game clock to
-    // that club's actual season-start date and rebuild competitions from that
-    // anchor so the player arrives at the beginning of their season, not July.
-    if start_phase_for_game(&game) == StartPhase::SeasonStart {
-        if let Some(actual_start) = team_season_anchor(&game, &team_id) {
-            if actual_start < game.clock.current_date {
-                game.clock.current_date = actual_start;
-                game.clock.start_date = actual_start;
-                rebuild_competitions_for_management_date(&mut game, actual_start);
-                game.national_teams.clear();
-                ensure_multi_competition_foundations(&mut game);
-            }
-        }
-    }
+    // Hemisphere fix, and contract starts measured against the date it settles on.
+    date_opening_contracts(&mut game, Some(&team_id));
 
     let (resolved_region_ids, resolved_competition_ids) =
         resolve_simulation_scope(&game, &team_id, active_region_ids, active_competition_ids)?;

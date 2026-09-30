@@ -5,10 +5,10 @@
 //! the validated shape everything after this point may rely on, and
 //! `normalize_startup_options` is the only bridge between them.
 
-use chrono::{Datelike, Duration, TimeZone, Utc};
+use chrono::{Datelike, Duration, Utc};
 
-use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
+use ofm_core::world::{start_date_for_year, MIN_START_YEAR};
 
 pub(super) const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
 pub(super) const MAX_GENERATED_HISTORY_DEPTH_YEARS: u32 = 24;
@@ -54,31 +54,12 @@ pub(super) struct StartupOptions {
     pub(super) history_depth_years: u32,
 }
 
-/// Earliest year a career may start. Historical world packages recreate eras
-/// decades before the modern game — a 1962 Santos world is the motivating case —
-/// so the floor only needs to keep the clock inside a sane calendar range.
-/// Must match `MIN_CAREER_START_YEAR` in `src/pages/MainMenu.tsx`.
-pub(super) const MIN_START_YEAR: i32 = 1900;
-
 fn default_start_year() -> i32 {
     chrono::Utc::now().year().max(MIN_START_YEAR)
 }
 
 fn default_history_depth_years() -> u32 {
     DEFAULT_GENERATED_HISTORY_DEPTH_YEARS
-}
-
-pub(super) fn start_date_for_year(start_year: i32) -> Result<chrono::DateTime<Utc>, String> {
-    // Use June 1 in World Cup years so a fresh career opens just before the
-    // tournament, keeping the WC in June rather than scheduling it in July.
-    let month = if ofm_core::world_cup::is_world_cup_summer(start_year) {
-        6
-    } else {
-        7
-    };
-    Utc.with_ymd_and_hms(start_year, month, 1, 0, 0, 0)
-        .single()
-        .ok_or_else(|| "be.error.createManager.invalidStartYear".to_string())
 }
 
 pub(super) fn current_date_for_phase(
@@ -108,16 +89,6 @@ pub(crate) fn start_phase_for_game(game: &Game) -> StartPhase {
     } else {
         StartPhase::SeasonStart
     }
-}
-
-pub(super) fn preseason_season_start(clock: &GameClock) -> chrono::DateTime<Utc> {
-    clock.start_date + Duration::days(30)
-}
-
-pub(super) fn preseason_league_year(clock: &GameClock) -> u32 {
-    let year = clock.start_date.year() + i32::from(clock.start_date.month() == 12);
-    // Only reachable for a negative year, which the start-year floor rules out.
-    u32::try_from(year).unwrap_or(MIN_START_YEAR as u32)
 }
 
 pub(super) fn normalize_startup_options(
@@ -156,12 +127,167 @@ pub(super) fn apply_generated_past_history(game: &mut Game, startup_options: &St
     );
 }
 
+/// What a career-start request asked for, rendered for the log.
+///
+/// `start_new_game` had no log line at all, so every early `Err` it returned — an empty name, a
+/// DOB that will not parse, a package that will not load — produced no output whatsoever. Combined
+/// with a frontend that reported the failure through `window.alert` and wrote nothing down, a
+/// failed career start was indistinguishable from a click that did nothing. See #558.
+///
+/// **The manager's name is deliberately absent.** It is free text the player typed, it is very
+/// often their own name, and this line is written on every start — so it would end up in the log
+/// folder that slice 3 packages into a bug report. Lengths are what the validation actually turns
+/// on (empty, or over 30), and lengths are enough to explain the rejection without carrying the
+/// name off the machine. The same reasoning keeps the date of birth out: its *shape* decides
+/// whether parsing fails, and the shape is all a diagnosis needs.
+pub(super) struct StartRequestSummary<'a> {
+    pub(super) first_name: &'a str,
+    pub(super) last_name: &'a str,
+    pub(super) dob: &'a str,
+    pub(super) nationality: &'a str,
+    pub(super) startup_options: Option<&'a RawStartupOptions>,
+    pub(super) world_source: Option<&'a str>,
+    pub(super) package_ids: Option<&'a [String]>,
+}
+
+/// `YYYY-MM-DD`, or a description of what arrived instead.
+fn dob_shape(dob: &str) -> &'static str {
+    if dob.is_empty() {
+        return "empty";
+    }
+    let mut parts = dob.split('-');
+    let ok = matches!(
+        (parts.next(), parts.next(), parts.next(), parts.next()),
+        (Some(y), Some(m), Some(d), None)
+            if y.len() == 4
+                && m.len() == 2
+                && d.len() == 2
+                && [y, m, d].iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()))
+    );
+    if ok {
+        "yyyy-mm-dd"
+    } else {
+        "malformed"
+    }
+}
+
+impl StartRequestSummary<'_> {
+    pub(super) fn describe(&self) -> String {
+        let (start_year, start_phase, history_depth) = match self.startup_options {
+            Some(options) => (
+                options.start_year,
+                options.start_phase.as_deref(),
+                options.history_depth_years,
+            ),
+            None => (None, None, None),
+        };
+        format!(
+            "name_len={}/{} nationality={:?} dob={} start_year={:?} phase={:?} history_depth={:?} \
+world_source={:?} packages={}",
+            self.first_name.trim().chars().count(),
+            self.last_name.trim().chars().count(),
+            self.nationality,
+            dob_shape(self.dob),
+            start_year,
+            start_phase,
+            history_depth,
+            self.world_source,
+            self.package_ids.map_or(0, <[String]>::len),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn summary_for<'a>(
+        first: &'a str,
+        last: &'a str,
+        dob: &'a str,
+        options: Option<&'a RawStartupOptions>,
+    ) -> StartRequestSummary<'a> {
+        StartRequestSummary {
+            first_name: first,
+            last_name: last,
+            dob,
+            nationality: "Brazil",
+            startup_options: options,
+            world_source: None,
+            package_ids: None,
+        }
+    }
+
+    #[test]
+    fn start_summary_never_carries_the_manager_name() {
+        // This line is written on every start, and slice 3 packages the log folder into a bug
+        // report. A name the player typed must not ride along.
+        let described = summary_for("Sturdy", "Robot", "1990-05-02", None).describe();
+
+        assert!(!described.contains("Sturdy"), "{described}");
+        assert!(!described.contains("Robot"), "{described}");
+        assert!(described.contains("name_len=6/5"), "{described}");
+    }
+
+    #[test]
+    fn start_summary_reports_the_dob_shape_not_the_date() {
+        let described = summary_for("A", "B", "1990-05-02", None).describe();
+
+        assert!(described.contains("dob=yyyy-mm-dd"), "{described}");
+        assert!(!described.contains("1990"), "{described}");
+    }
+
+    #[test]
+    fn start_summary_distinguishes_the_three_dob_failures() {
+        assert!(summary_for("A", "B", "", None)
+            .describe()
+            .contains("dob=empty"));
+        assert!(summary_for("A", "B", "02/05/1990", None)
+            .describe()
+            .contains("dob=malformed"));
+        assert!(summary_for("A", "B", "1990-5-2", None)
+            .describe()
+            .contains("dob=malformed"));
+    }
+
+    #[test]
+    fn start_summary_reports_blank_names_as_zero_length() {
+        // The validation rejects an empty name after trimming, so whitespace has to read as empty
+        // here too — otherwise the log says a name was supplied and the error says it was not.
+        let described = summary_for("   ", "", "1990-05-02", None).describe();
+
+        assert!(described.contains("name_len=0/0"), "{described}");
+    }
+
+    #[test]
+    fn start_summary_includes_the_startup_options_that_were_asked_for() {
+        let options = RawStartupOptions {
+            start_year: Some(1962),
+            start_phase: Some("midSeason".to_owned()),
+            history_depth_years: Some(8),
+        };
+        let described = summary_for("A", "B", "1990-05-02", Some(&options)).describe();
+
+        assert!(described.contains("start_year=Some(1962)"), "{described}");
+        assert!(
+            described.contains("phase=Some(\"midSeason\")"),
+            "{described}"
+        );
+        assert!(described.contains("history_depth=Some(8)"), "{described}");
+    }
+
+    #[test]
+    fn start_summary_survives_absent_startup_options() {
+        let described = summary_for("A", "B", "1990-05-02", None).describe();
+
+        assert!(described.contains("start_year=None"), "{described}");
+        assert!(described.contains("packages=0"), "{described}");
+    }
     use crate::commands::game::game_clock_for_world;
     use crate::commands::game::testkit::make_historical_snapshot_world;
+    use ofm_core::clock::GameClock;
     use ofm_core::season_context::refresh_game_context;
+    use ofm_core::world::{preseason_league_year, preseason_season_start};
 
     #[test]
     fn normalize_startup_options_defaults_to_current_year_and_season_start() {

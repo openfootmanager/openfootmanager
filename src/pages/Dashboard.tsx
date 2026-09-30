@@ -47,6 +47,7 @@ import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import {
   formatDateFull,
+  getFixtureCompetitionName,
   getUserCompetition,
   isSeasonComplete as isLeagueSeasonComplete,
 } from "../lib/helpers";
@@ -56,6 +57,7 @@ import {
   getBackgroundPortraitPrewarmKey,
   queueBackgroundPortraitPrewarm,
 } from "../services/portraitService";
+import { getFinanceSnapshot, type TeamFinanceSnapshotData } from "../services/financeService";
 
 const CLUB_TABS = new Set([
   "Squad",
@@ -128,6 +130,36 @@ export default function Dashboard(): JSX.Element {
   const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
+  const [financeVerdict, setFinanceVerdict] = useState<{
+    teamId: string;
+    snapshot: TeamFinanceSnapshotData;
+  } | null>(null);
+
+  useEffect(() => {
+    const teamId = gameState?.manager.team_id;
+    if (!gameState || !teamId) {
+      setFinanceVerdict(null);
+      return;
+    }
+
+    let cancelled = false;
+    void getFinanceSnapshot(teamId)
+      .then(({ snapshot }) => {
+        if (!cancelled) {
+          setFinanceVerdict({ teamId, snapshot });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load dashboard finance snapshot:", error);
+        if (!cancelled) {
+          setFinanceVerdict(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameState]);
   const loadActiveGameState = useCallback(async () => {
     const [stateResult, saveIdResult] = await Promise.allSettled([
       invoke<GameStateData>("get_active_game"),
@@ -185,6 +217,10 @@ export default function Dashboard(): JSX.Element {
 
   const isUnemployed = gameState?.manager.team_id === null;
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;
+  const todayMatchCompetitionName =
+    gameState && todayMatchFixture
+      ? getFixtureCompetitionName(gameState, todayMatchFixture, t)
+      : undefined;
   const hasMatchToday = todayMatchFixture !== null;
   const backgroundPortraitPrewarmKey = gameState
     ? getBackgroundPortraitPrewarmKey(gameState)
@@ -465,7 +501,9 @@ export default function Dashboard(): JSX.Element {
     sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
-  const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t);
+  const currentFinanceVerdict =
+    financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
+  const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t, currentFinanceVerdict);
   const hasProfileHistory = hasDashboardProfileHistory(profileNavigation);
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])
@@ -527,6 +565,7 @@ export default function Dashboard(): JSX.Element {
         showMatchConfirm={showMatchConfirm}
         teams={gameState.teams}
         todayMatchFixture={todayMatchFixture}
+        todayMatchCompetitionName={todayMatchCompetitionName}
         digestEntries={digestEntries}
         digestStopReason={digestStopReason}
         isDigestVisible={isDigestVisible}

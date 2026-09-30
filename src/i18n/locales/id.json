@@ -24,7 +24,9 @@
     "openDiscord": "Buka komunitas Discord",
     "openGithub": "Buka repositori GitHub",
     "mainMenu": "Menu Utama",
-    "worldEditor": "Editor Dunia"
+    "worldEditor": "Editor Dunia",
+    "startupOptionsRejected": "Pengaturan karier itu tidak bisa digunakan. Kembali ke layar dunia dan periksa tahun mulai, fase mulai, dan berapa banyak riwayat masa lalu yang dibuat.",
+    "reportBug": "Laporkan bug"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "Masuk",
     "exitFullscreen": "Keluar",
     "switchToLightMode": "Beralih ke mode terang",
-    "switchToDarkMode": "Beralih ke mode gelap"
+    "switchToDarkMode": "Beralih ke mode gelap",
+    "help": "Bantuan",
+    "reportBug": "Laporkan bug",
+    "reportBugDesc": "Kirimkan apa yang salah; log kamu dilampirkan otomatis.",
+    "report": "Laporkan"
   },
   "preMatch": {
     "formationFit": "Kecocokan Formasi",
@@ -2550,6 +2556,10 @@
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
       "saveManagerUnavailable": "Data penyimpanan untuk sementara tidak tersedia.",
+      "report": {
+        "bundleFailed": "Berkas laporan tidak bisa ditulis. Periksa apakah kamu bisa menulis ke folder yang dipilih.",
+        "saveMissing": "Berkas simpananmu tidak ditemukan, jadi tidak ada yang ditulis. Hapus centang pada simpanan lalu coba lagi, atau muat ulang kariermu dulu."
+      },
       "saveDeleteFailed": "Gagal menghapus berkas penyimpanan.",
       "settings": {
         "loadFailed": "Gagal memuat pengaturan.",
@@ -2590,6 +2600,7 @@
       "liveMatch": {
         "noLeague": "Tidak ada data liga yang tersedia untuk pertandingan ini.",
         "fixtureNotFound": "Jadwal yang dipilih tidak dapat ditemukan.",
+        "fixtureNotScheduled": "Pertandingan ini tidak lagi dijadwalkan dan tidak dapat dimainkan.",
         "emptySquad": "Salah satu tim tidak memiliki pemain yang tersedia, sehingga pertandingan tidak dapat dimainkan.",
         "maxSubstitutionsReached": "Pergantian pemain maksimum tercapai",
         "preMatchSwapTooLate": "Pergantian pra-pertandingan hanya diizinkan sebelum kick-off",
@@ -2607,7 +2618,7 @@
       "worldReadFileFailed": "Gagal membaca berkas basis data dunia.",
       "package": {
         "invalid": "Paket dunia ini tidak valid dan tidak dapat dimuat.",
-        "invalidPackageId": "ID paket \"{{id}}\" tidak dapat digunakan. Tidak boleh kosong atau bernama \"assets\", dan tidak boleh mengandung \"/\", \"\\\", \"..\" atau karakter kontrol.",
+        "invalidPackageId": "ID paket \"{{id}}\" tidak dapat digunakan. ID harus berupa nama berkas biasa: tidak kosong, bukan \"assets\", tidak diawali titik atau diakhiri titik atau spasi, paling panjang 251 bita, tanpa \"/\", \"\\\", \"..\", karakter kontrol, atau tanda baca yang dilarang Windows, dan bukan nama yang dicadangkan Windows seperti CON atau NUL.",
         "readFailed": "Berkas paket tidak dapat dibaca.",
         "missingSchema": "Berkas paket kekurangan bidang \"schema\".",
         "worldExportNotPackage": "Folder ini adalah dunia yang diekspor, bukan proyek paket. Dunia yang diekspor menggunakan format berbeda dan tidak dapat diedit di sini.",
@@ -4036,5 +4047,55 @@
   "generation": {
     "title": "Pembuatan & Penyelesaian",
     "coverage": "Paket kamu mencakup"
+  },
+  "errorBoundary": {
+    "title": "Ada yang tidak beres",
+    "description": "Layar ini mengalami kesalahan yang tidak bisa dipulihkan. Coba lagi dulu — memuat ulang akan memulai ulang gim dan progres yang belum disimpan akan hilang.",
+    "retry": "Coba lagi",
+    "reload": "Muat ulang gim"
+  },
+  "errors": {
+    "title": "Ada yang tidak beres"
+  },
+  "reportBug": {
+    "describeTitle": "Laporkan bug",
+    "describeIntro": "Ceritakan apa yang salah. Log dan detail gim kamu ikut secara otomatis. Kamu akan melihat daftar lengkapnya sebelum apa pun disimpan.",
+    "previewTitle": "Yang akan dikirim",
+    "previewIntro": "Semua yang ada di bawah, dan tidak ada yang lain. Tidak ada yang meninggalkan komputer ini sampai kamu memilih tempat menyimpannya.",
+    "doneTitle": "Laporan tersimpan",
+    "doneIntro": "Formulir bug sudah terbuka di peramban dengan jawabanmu terisi.",
+    "whatHappened": "Apa yang terjadi",
+    "whatHappenedPlaceholder": "Gim membeku saat saya klik Turun ke Lapangan…",
+    "expected": "Apa yang kamu harapkan",
+    "expectedPlaceholder": "Saya mengharapkan pertandingan dimulai seperti biasa…",
+    "steps": "Langkah untuk mengulangi",
+    "stepsPlaceholder": "1. Mulai gim baru\n2. Lanjut ke hari pertandingan\n3. Klik Turun ke Lapangan…",
+    "required": "Wajib",
+    "fillRequired": "Mohon isi apa yang terjadi dan apa yang kamu harapkan.",
+    "frequencyLabel": "Seberapa sering terjadi",
+    "gameContext": "Kariermu",
+    "frequency": {
+      "everyTime": "Setiap kali",
+      "sometimes": "Kadang-kadang",
+      "once": "Hanya sekali"
+    },
+    "itemWhatYouWrote": "Yang kamu tulis",
+    "itemWhatYouWroteDesc": "Deskripsimu, harapanmu, langkah-langkahnya, dan seberapa sering terjadi.",
+    "itemSetup": "Perangkatmu",
+    "itemLogs": "Berkas log terbarumu",
+    "itemLogsDesc": "Folder pribadi dan nama penggunamu dihapus sebelum disimpan, begitu juga nama komputermu bila sistem melaporkannya.",
+    "itemCrash": "Crash dari sesi terakhirmu",
+    "itemCrashDesc": "Disertakan karena ada yang macet pada sesi terakhirmu.",
+    "optionalHeading": "Tambahkan kalau mau — mati secara bawaan",
+    "includeSave": "Berkas simpananku",
+      "includeSaveDesc": "Memungkinkan kami memutar ulang situasi persis yang kamu alami.",
+    "includeSaveNoCareer": "Tidak ada karier yang terbuka, jadi tidak ada yang bisa dilampirkan.",
+    "nothingSentYet": "Tidak ada yang disimpan atau dibuka sampai kamu menekan tombol di bawah. Mengirim formulir butuh akun GitHub — berkasnya tetap milikmu.",
+    "savedTo": "Berkas laporanmu disimpan di sini:",
+    "dragItIn": "Seret ke formulir GitHub di peramban, lalu kirim. Selesai.",
+      "browserDidNotOpen": "Peramban tidak terbuka. Berkas di atas sudah tersimpan — lampirkan ke issue baru di GitHub saat sempat.",
+    "review": "Tinjau yang akan dikirim",
+    "saveAndOpen": "Simpan berkas dan buka GitHub",
+    "working": "Sedang bekerja…"
   }
 }

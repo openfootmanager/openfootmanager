@@ -792,6 +792,11 @@ pub fn validate_format_version(package: &WorldPackage) -> Vec<PackageError> {
 /// ordinary id again.
 pub const RESERVED_PACKAGE_ID: &str = "assets";
 
+/// The longest id, in UTF-8 bytes, whose `<id>.ofm` fits ext4's 255-byte
+/// filename limit. This byte cap is also conservative on filesystems that
+/// measure filename length differently. `süper-lig` is ten UTF-8 bytes.
+const MAX_PACKAGE_ID_BYTES: usize = 255 - ".ofm".len();
+
 /// Whether `id` can be used as a package identifier.
 ///
 /// The id is not just a label. It becomes a filename under the packages
@@ -804,13 +809,59 @@ pub const RESERVED_PACKAGE_ID: &str = "assets";
 /// still fix it. Before they shared this function a manifest could declare an
 /// id that the editor and the CLI both called valid and the installer then
 /// refused with a generic "invalid package" — issue #414, `trendyol-super-lig-25/26`.
+///
+/// The rule is an allow-shape, not a blocklist of known-bad substrings, because
+/// the blocklist missed `"."` — which joins onto the assets root itself, so
+/// uninstalling it deleted every other package's artwork (#470). An id must be:
+///
+/// - non-empty and at most `MAX_PACKAGE_ID_BYTES` (251) bytes;
+/// - free of `/`, `\`, `..`, Windows-reserved punctuation and control
+///   characters (NUL, newlines, escapes — the id is printed to terminals
+///   and shown in dialogs);
+/// - not start with a dot (`.` itself, and hidden files like `.ofm`);
+/// - not end with a dot or a space, which Windows strips from filenames;
+/// - not a Windows device name (`CON`, `NUL`, `COM1`…), in any case and with
+///   any extension, because `<id>.ofm` cannot be created there;
+/// - not [`RESERVED_PACKAGE_ID`].
 pub fn is_valid_package_id(id: &str) -> bool {
     !(id.is_empty()
+        || id.len() > MAX_PACKAGE_ID_BYTES
         || id.contains('/')
         || id.contains('\\')
         || id.contains("..")
-        || id.contains('\0')
+        || id.chars().any(char::is_control)
+        || id
+            .chars()
+            .any(|ch| matches!(ch, '<' | '>' | ':' | '"' | '|' | '?' | '*'))
+        || id.starts_with('.')
+        || id.ends_with('.')
+        || id.ends_with(' ')
+        || is_windows_device_name(id)
         || id == RESERVED_PACKAGE_ID)
+}
+
+/// Whether Windows reserves `id` as a device name. It reserves the stem, so
+/// `aux.league` is as unusable as `AUX`. Windows also reserves the superscript
+/// digits `¹`, `²` and `³` after `COM` or `LPT`.
+fn is_windows_device_name(id: &str) -> bool {
+    const DEVICES: [&str; 4] = ["CON", "PRN", "AUX", "NUL"];
+    const NUMBERED: [&str; 2] = ["COM", "LPT"];
+
+    let stem = id.split('.').next().unwrap_or(id);
+    if DEVICES.iter().any(|d| stem.eq_ignore_ascii_case(d)) {
+        return true;
+    }
+    NUMBERED.iter().any(|prefix| {
+        let Some(head) = stem.get(..prefix.len()) else {
+            return false;
+        };
+        let Some(suffix) = stem.get(prefix.len()..) else {
+            return false;
+        };
+        head.eq_ignore_ascii_case(prefix)
+            && ((suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
+                || matches!(suffix, "¹" | "²" | "³"))
+    })
 }
 
 /// Check the manifest declares the metadata a package cannot work without, and
@@ -1433,9 +1484,10 @@ pub fn validate_package_stack(packages: &[&WorldPackage]) -> Vec<StackConflict> 
 /// unioned across all metas. `baseYear` takes the maximum value. `name` and
 /// other scalar fields come from the last non-empty value across all metas.
 ///
-/// After merging, full id + reference validation runs on the combined result.
-/// Cross-package references resolve correctly because all entities are present
-/// before validation runs.
+/// After merging, entity ids, references, and format are validated on the
+/// combined result. Manifest metadata errors are authoring issues; installed
+/// packages with missing metadata remain usable at runtime. Cross-package
+/// references resolve correctly because all entities are present first.
 pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<PackageError>) {
     use std::collections::BTreeMap;
 
@@ -1625,17 +1677,22 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         .sources
         .insert("competition".to_string(), competitions_files);
 
-    // `validate_ids` *and* `validate_package`, not either alone.
+    // `validate_ids` *and* the non-metadata parts of `validate_package`.
     //
     // The merge used to run `validate_ids` + `validate_references`, which
-    // skipped the manifest and format-version checks — so the same package
-    // could pass one entry point and fail the other. But `validate_package`
+    // skipped the format-version check. But `validate_package`
     // does not itself cover ids: the loader runs `validate_ids` as it reads,
     // because that is where an entity's source file is known, and the archive
     // read path depends on it staying there. Merging produces a package no
-    // loader has seen, so it has to ask for both.
+    // loader has seen, so it has to ask for both. Runtime archive loading
+    // permits missing manifest metadata, so the merge must not turn those
+    // authoring errors into career startup failures.
     let mut errors = validate_ids(&merged);
-    errors.extend(validate_package(&merged));
+    errors.extend(
+        validate_package(&merged)
+            .into_iter()
+            .filter(|error| !is_manifest_metadata_error(error)),
+    );
     (merged, errors)
 }
 
@@ -2265,10 +2322,10 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    /// A merged stack has no manifest of its own, so an error about one must
-    /// still name the file it came from rather than the conventional default.
+    /// An installed stack may contain incomplete manifest metadata. The merge
+    /// path must not turn those authoring issues into career startup failures.
     #[test]
-    fn a_merged_stack_reports_manifest_errors_against_the_surviving_manifest() {
+    fn a_merged_stack_allows_missing_manifest_metadata() {
         let dir = temp_package();
         write(
             &dir,
@@ -2279,16 +2336,35 @@ mod tests {
 
         let (_merged, errors) = merge_world_packages(vec![pkg]);
 
-        let missing: Vec<_> = errors
-            .iter()
-            .filter(|e| e.code == MISSING_METADATA)
-            .collect();
-        assert!(!missing.is_empty(), "version and license are missing");
-        for error in missing {
-            assert_eq!(error.file, "world.yaml", "{error:?}");
-        }
+        assert!(
+            !errors.iter().any(is_manifest_metadata_error),
+            "missing version and license must not block the merge: {errors:?}"
+        );
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_installed_archive_without_a_license_can_merge() {
+        let archive = build_zip(&[(
+            "package.json",
+            br#"{"schema":"world","id":"legacy","name":"Legacy","version":"1.0.0"}"#,
+        )]);
+        let (pkg, load_errors) = load_world_package_from_ofm(&archive);
+        assert!(load_errors.is_empty(), "archive read: {load_errors:?}");
+        assert!(
+            validate_package(&pkg)
+                .iter()
+                .any(|e| e.code == MISSING_METADATA),
+            "authoring validation must still report the missing license"
+        );
+
+        let (_merged, merge_errors) = merge_world_packages(vec![pkg]);
+        assert!(
+            merge_errors.is_empty(),
+            "the installed archive should be usable at runtime: {merge_errors:?}"
+        );
+        std::fs::remove_file(&archive).ok();
     }
 
     #[test]
@@ -2329,20 +2405,27 @@ mod tests {
         );
     }
 
-    /// `merge_world_packages` ran `validate_ids` + `validate_references`
-    /// directly, so a merged stack skipped the manifest and format-version
-    /// checks entirely — the two entry points disagreed about the same package.
+    /// The merge accepts legacy metadata but still rejects content and format
+    /// problems that make the combined world unusable.
     #[test]
-    fn merging_a_stack_still_checks_the_manifest() {
+    fn merging_a_stack_ignores_metadata_but_checks_format() {
         let dir = temp_package();
-        write(&dir, "package.json", r#"{"schema":"world"}"#);
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","formatVersion":99}"#,
+        );
         let (pkg, _errors) = load_world_package(&dir);
 
         let (_merged, errors) = merge_world_packages(vec![pkg]);
 
         assert!(
-            errors.iter().any(|e| e.code == MISSING_ID),
-            "the merge path must run the manifest checks too: {errors:?}"
+            !errors.iter().any(is_manifest_metadata_error),
+            "missing manifest fields must not block the merge: {errors:?}"
+        );
+        assert!(
+            errors.iter().any(|e| e.code == UNSUPPORTED_FORMAT_VERSION),
+            "unsupported format must still fail the merge: {errors:?}"
         );
 
         std::fs::remove_dir_all(&dir).ok();
@@ -2424,6 +2507,57 @@ mod tests {
             assert!(!is_valid_package_id(bad), "expected {bad:?} to be refused");
         }
         for good in ["eng-premier-league", "brasileirao_2026", "süper-lig-25-26"] {
+            assert!(is_valid_package_id(good), "expected {good:?} to pass");
+        }
+    }
+
+    #[test]
+    fn a_package_id_must_be_a_plain_filename() {
+        // Issue #470: "." passed every clause, and `assets_root.join(".")` is
+        // the assets root itself — uninstalling it deleted every other
+        // package's artwork. The rest are the same class: ids that are not an
+        // ordinary, visible, portable filename component.
+        let too_long = "a".repeat(MAX_PACKAGE_ID_BYTES + 1);
+        for bad in [
+            ".",
+            ".hidden",
+            " ",
+            "trailing-dot.",
+            "trailing-space ",
+            "evil\r\n\x1b[2J",
+            "tab\there",
+            "league:2026",
+            "league*2026",
+            "league?2026",
+            "league\"2026",
+            "league<2026",
+            "league>2026",
+            "league|2026",
+            "CON",
+            "con",
+            "Nul",
+            "com1",
+            "COM¹",
+            "com².league",
+            "COM³",
+            "LPT9",
+            "LPT¹",
+            "lpt².league",
+            "LPT³",
+            "aux.league",
+            too_long.as_str(),
+        ] {
+            assert!(!is_valid_package_id(bad), "expected {bad:?} to be refused");
+        }
+        let longest = "a".repeat(MAX_PACKAGE_ID_BYTES);
+        for good in [
+            "la-liga-2012",
+            "v1.2",
+            "console",
+            "com10",
+            "nullable",
+            longest.as_str(),
+        ] {
             assert!(is_valid_package_id(good), "expected {good:?} to pass");
         }
     }
