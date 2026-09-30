@@ -971,6 +971,22 @@ fn rollover_stages_a_world_cup_in_cup_years_and_retires_it_afterwards() {
 
     // The next rollover (summer 2027 — not a cup year) retires the tournament
     // instead of regenerating it, and stages no new one.
+    // Finish the intervening club season: an unfinished division is retained,
+    // and its old opener must not receive a second, now-past preseason.
+    for competition in game
+        .competitions
+        .iter_mut()
+        .filter(|c| c.kind == CompetitionType::League && c.scope == CompetitionScope::Domestic)
+    {
+        for fixture in &mut competition.fixtures {
+            fixture.status = FixtureStatus::Completed;
+            fixture.result = Some(MatchResult {
+                home_goals: 1,
+                away_goals: 0,
+                ..Default::default()
+            });
+        }
+    }
     game.clock = GameClock::new(Utc.with_ymd_and_hms(2027, 5, 20, 12, 0, 0).unwrap());
     process_end_of_season(&mut game);
     assert!(
