@@ -703,4 +703,33 @@ mod tests {
         }
         assert_eq!(p.wage(), 0, "he retired");
     }
+
+    #[test]
+    fn the_first_event_on_an_old_save_starts_a_history_after_the_legacy_entry() {
+        let mut p = player();
+        p.team_id = Some("club-a".into());
+        p.stored_contract_end = Some("2027-06-30".into());
+        p.stored_wage = 5_000;
+        p.adopt_legacy_contract();
+
+        p.record_movement(entry(
+            "2026-09-01",
+            PlayerMovementKind::Renewal,
+            Some(contract(
+                Some("2026-09-01"),
+                "2030-06-30",
+                8_000,
+                ContractSource::Renewal,
+            )),
+        ))
+        .unwrap();
+
+        assert_eq!(p.movement_history.len(), 2, "the legacy entry is kept");
+        assert_eq!(
+            p.movement_history[0].contract.as_ref().unwrap().source,
+            ContractSource::LegacyMigrated
+        );
+        assert_eq!(p.wage(), 8_000);
+        assert_eq!(p.contract_end(), Some("2030-06-30"));
+    }
 }

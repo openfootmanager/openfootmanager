@@ -1329,3 +1329,94 @@ fn manager_termination_appends_released_with_the_reason_terminated() {
     assert_eq!(entry.release_reason, Some(ReleaseReason::Terminated));
     assert_eq!(player.wage(), 0);
 }
+
+#[test]
+fn a_renewal_of_a_loaned_out_player_by_the_parent_belongs_to_the_parent() {
+    // The user's club (team-1) has him out on loan at team-2: still its contract.
+    let mut game = make_game();
+    game.players[0].team_id = Some("team-2".to_string());
+    game.players[0].active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    )
+    .expect("the parent club may renew a player it has loaned out");
+
+    let player = &game.players[0];
+    let entry = last_entry(player);
+    assert_eq!(entry.kind, PlayerMovementKind::Renewal);
+    assert_eq!(
+        entry.to_team_id.as_deref(),
+        Some("team-1"),
+        "the parent's contract"
+    );
+    assert_eq!(
+        player.team_id.as_deref(),
+        Some("team-2"),
+        "he is still out on loan"
+    );
+}
+
+#[test]
+fn a_contract_that_runs_out_during_a_loan_releases_him_from_the_parent() {
+    let mut game = make_game();
+    game.players[0].team_id = Some("team-2".to_string());
+    game.players[0].stored_contract_end = Some("2026-06-30".to_string());
+    game.players[0].active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-01-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    let entry = last_entry(&game.players[0]);
+    assert_eq!(entry.kind, PlayerMovementKind::Released);
+    assert_eq!(
+        entry.from_team_id.as_deref(),
+        Some("team-1"),
+        "named for the parent club"
+    );
+    assert!(game.players[0].active_loan.is_none());
+}
+
+#[test]
+fn a_retired_player_cannot_be_signed_and_nothing_is_written() {
+    let mut game = make_free_agent_game();
+    game.players[0].retired = true;
+
+    let refused = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 4_000,
+            contract_years: 3,
+        },
+    );
+
+    assert!(refused.is_err());
+    assert!(game.players[0].movement_history.is_empty());
+}
