@@ -215,7 +215,7 @@ const SCHEMA_PLAYER: &str = r##"// Player entity — place inside players/*.json
   "contractLength": null,     // optional: whole years, 1-5. Counted from contractStart if given,
                               //   otherwise from the year the career opens, so it works in any era
   "wage": null,               // optional: weekly wage (omit and it is sized from the value)
-  "value": null,              // optional: market value (omit and it is sized from ability and age)
+  "value": null,              // optional: market value, 0-9007199254740991 (omit and it is sized from ability and age)
   "weakFoot": null,           // optional: 1-5. Only kept for a specific position, not for
                               //   Goalkeeper/Defender/Midfielder/Forward, which are re-inferred
   "alternatePositions": [],   // optional: other positions the player covers (same restriction)

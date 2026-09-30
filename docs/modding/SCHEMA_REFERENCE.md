@@ -196,7 +196,7 @@ Defines a specific player. Reference teams and countries by their `id`.
 | `contractEnd` | string or null | no | `null` | ISO date the contract ends. Give this **or** `contractLength`, not both. |
 | `contractLength` | integer (1–5) or null | no | `null` | Contract length in whole years, as an alternative to `contractEnd`. |
 | `wage` | integer or null | no | `null` | **Weekly** wage in the game's money. Omit it and it is sized from the player's value. |
-| `value` | integer or null | no | `null` | Market value in the game's money. Omit it and it is sized from ability and age. |
+| `value` | integer (0–9007199254740991) or null | no | `null` | Market value in the game's money. Omit it and it is sized from ability and age. |
 | `weakFoot` | integer (1–5) or null | no | `null` | Weak-foot skill. Only kept for a specific `position`; see [Identity fields](#identity-fields). |
 | `alternatePositions` | array of positions | no | `[]` | Other positions the player can cover. Same restriction as `weakFoot`. |
 | `condition` | integer (0–100) or null | no | `null` | Match sharpness. Omit it and it is rolled in a realistic band. |
