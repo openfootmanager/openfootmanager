@@ -1102,3 +1102,226 @@ fn releasing_a_player_at_expiry_clears_both_contract_dates() {
     );
     assert_eq!(player.contract_end, None);
 }
+
+// ---------------------------------------------------------------------------
+// The contract ledger: every route that changes a contract leaves a record.
+//
+// Each of these fails on a tree where the route still edits the wage and dates
+// without writing history, which is how a renewal used to disappear.
+// ---------------------------------------------------------------------------
+
+use domain::contract_ledger::{ContractRecord, ContractSource, ReleaseReason};
+use domain::player::{PlayerMovementEntry, PlayerMovementKind};
+
+fn last_entry(player: &Player) -> &PlayerMovementEntry {
+    player
+        .movement_history
+        .last()
+        .expect("the route should have written a ledger entry")
+}
+
+fn recorded(entry: &PlayerMovementEntry) -> &ContractRecord {
+    entry
+        .contract
+        .as_ref()
+        .expect("the entry should carry the contract it made")
+}
+
+#[test]
+fn a_renewal_by_the_user_appends_a_renewal_entry() {
+    let mut game = make_game();
+    let before = game.players[0].movement_history.len();
+
+    propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    )
+    .expect("renewal should succeed");
+
+    let player = &game.players[0];
+    assert_eq!(player.movement_history.len(), before + 1);
+    let entry = last_entry(player);
+    assert_eq!(entry.kind, PlayerMovementKind::Renewal);
+    assert_eq!(entry.to_team_id.as_deref(), Some("team-1"));
+    let record = recorded(entry);
+    assert_eq!(record.source, ContractSource::Renewal);
+    assert_eq!(record.start.as_deref(), Some("2026-08-01"));
+    assert_eq!(record.end.as_deref(), Some("2029-08-01"));
+    assert_eq!(record.weekly_wage, 15_000);
+    assert_eq!(player.wage(), 15_000, "the current contract is the new one");
+}
+
+#[test]
+fn a_rejected_renewal_appends_nothing() {
+    let mut game = make_game();
+    let before = game.players[0].movement_history.len();
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 9_500,
+            contract_years: 1,
+        },
+    )
+    .expect("renewal should return a decision");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Rejected));
+    assert_eq!(game.players[0].movement_history.len(), before);
+}
+
+#[test]
+fn a_delegated_renewal_appends_one_renewal_entry() {
+    let mut game = make_game();
+    game.staff.push(make_assistant_manager());
+    game.players[0].morale_core.manager_trust = 24;
+    game.players[0].morale = 74;
+    let before = game.players[0].movement_history.len();
+
+    delegate_renewals(
+        &mut game,
+        DelegatedRenewalOptions {
+            player_ids: Some(vec!["player-1".to_string()]),
+            max_wage_increase_pct: 35,
+            max_contract_years: 3,
+        },
+    )
+    .expect("assistant delegation should return a report");
+
+    let player = &game.players[0];
+    assert_eq!(player.movement_history.len(), before + 1);
+    let entry = last_entry(player);
+    assert_eq!(entry.kind, PlayerMovementKind::Renewal);
+    let record = recorded(entry);
+    assert_eq!(record.source, ContractSource::Renewal);
+    assert_eq!(record.start.as_deref(), Some("2026-08-01"));
+    assert_eq!(record.end.as_deref(), Some("2029-08-01"));
+    assert_eq!(record.weekly_wage, player.wage());
+}
+
+#[test]
+fn a_free_agent_signing_appends_a_free_agent_contract() {
+    let mut game = make_free_agent_game();
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 4_000,
+            contract_years: 3,
+        },
+    )
+    .expect("free agent signing should succeed");
+    assert!(matches!(outcome.decision, RenewalDecision::Accepted));
+
+    let player = &game.players[0];
+    let entry = last_entry(player);
+    assert_eq!(entry.kind, PlayerMovementKind::FreeAgentSigning);
+    assert_eq!(entry.to_team_id.as_deref(), Some("team-1"));
+    let record = recorded(entry);
+    assert_eq!(record.source, ContractSource::FreeAgent);
+    assert_eq!(record.start.as_deref(), Some("2026-08-01"));
+    assert_eq!(record.end.as_deref(), Some("2029-08-01"));
+    assert_eq!(record.weekly_wage, 4_000);
+}
+
+#[test]
+fn a_rejected_free_agent_offer_appends_nothing() {
+    let mut game = make_free_agent_game();
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 1_000,
+            contract_years: 3,
+        },
+    )
+    .expect("a lowball offer still returns a decision");
+
+    assert!(!matches!(outcome.decision, RenewalDecision::Accepted));
+    assert!(game.players[0].movement_history.is_empty());
+}
+
+#[test]
+fn a_renewal_of_a_loaned_player_by_the_borrower_is_refused_and_writes_nothing() {
+    let mut game = make_game();
+    game.players[0].active_loan = Some(ActiveLoan {
+        parent_team_id: "team-2".to_string(),
+        loan_team_id: "team-1".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    let before = game.players[0].movement_history.len();
+
+    let refused = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    );
+
+    assert!(refused.is_err());
+    assert_eq!(game.players[0].movement_history.len(), before);
+}
+
+#[test]
+fn expiry_appends_released_with_the_reason_expired() {
+    let mut game = make_game();
+    game.players[0].contract_end = Some("2026-06-30".to_string());
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    let player = &game.players[0];
+    let entry = last_entry(player);
+    assert_eq!(entry.kind, PlayerMovementKind::Released);
+    assert_eq!(entry.release_reason, Some(ReleaseReason::Expired));
+    assert_eq!(entry.from_team_id.as_deref(), Some("team-1"));
+    assert_eq!(player.wage(), 0);
+    assert_eq!(player.contract_end(), None);
+}
+
+#[test]
+fn expiry_is_idempotent_on_the_same_day() {
+    let mut game = make_game();
+    game.players[0].contract_end = Some("2026-06-30".to_string());
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+    let after_first = game.players[0].movement_history.len();
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    assert_eq!(game.players[0].movement_history.len(), after_first);
+    assert_eq!(
+        game.players[0]
+            .movement_history
+            .iter()
+            .filter(|entry| entry.kind == PlayerMovementKind::Released)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn manager_termination_appends_released_with_the_reason_terminated() {
+    let mut game = make_squad_game();
+
+    terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
+
+    let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
+    let entry = last_entry(player);
+    assert_eq!(entry.kind, PlayerMovementKind::Released);
+    assert_eq!(entry.release_reason, Some(ReleaseReason::Terminated));
+    assert_eq!(player.wage(), 0);
+}

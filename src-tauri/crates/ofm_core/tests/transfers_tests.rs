@@ -3888,3 +3888,211 @@ fn a_transfer_between_clubs_outside_every_competition_is_still_kept() {
          not in the mirror the next sync overwrites"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Contract history: a move creates a real new contract with the buyer's terms.
+// ---------------------------------------------------------------------------
+
+use domain::contract_ledger::ContractSource;
+
+fn entry_of_kind(
+    player: &Player,
+    kind: PlayerMovementKind,
+) -> &domain::player::PlayerMovementEntry {
+    player
+        .movement_history
+        .iter()
+        .rev()
+        .find(|entry| entry.kind == kind)
+        .unwrap_or_else(|| panic!("no {kind:?} entry in the ledger"))
+}
+
+#[test]
+fn a_permanent_transfer_creates_a_new_contract_with_the_buyers_terms() {
+    let mut player = make_player("player-buyer-terms");
+    // The seller's deal: a wage that is not a round thousand and an end date a
+    // standard contract would never produce, so carrying either across shows.
+    player.wage = 7_777;
+    player.contract_start = Some("2019-07-01".to_string());
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    make_transfer_bid(&mut game, "player-buyer-terms", 2_000_000)
+        .expect("an accepted bid executes the transfer");
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-buyer-terms")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    let entry = entry_of_kind(player, PlayerMovementKind::PermanentTransfer);
+    assert_eq!(entry.fee, Some(2_000_000));
+    let record = entry
+        .contract
+        .as_ref()
+        .expect("a transfer makes a contract with the buying club");
+    assert_eq!(record.source, ContractSource::Transfer);
+    assert_eq!(record.start.as_deref(), Some("2026-08-01"));
+    assert_eq!(
+        record.end.as_deref(),
+        Some("2029-08-01"),
+        "a 26-year-old's standard contract is three years from the day of the move"
+    );
+    assert!(
+        record.weekly_wage > 7_777 && record.weekly_wage.is_multiple_of(1_000),
+        "the wage is the buyer's standard wage, not the seller's 7,777: {}",
+        record.weekly_wage
+    );
+    assert_eq!(player.contract_end(), Some("2029-08-01"));
+    assert_eq!(player.wage(), record.weekly_wage);
+}
+
+#[test]
+fn a_transfer_never_leaves_the_player_unpaid() {
+    // Every bid today carries a wage_offered of 0; that must not become his wage.
+    let mut player = make_player("player-zero-offer");
+    player.wage = 0;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    make_transfer_bid(&mut game, "player-zero-offer", 2_000_000).expect("the bid executes");
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-zero-offer")
+        .unwrap();
+    assert!(
+        player.wage() > 0,
+        "a zero offered wage means 'use the standard'"
+    );
+}
+
+#[test]
+fn a_transfer_registered_after_the_window_dates_its_contract_from_registration() {
+    let player = make_player("player-late-contract");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+    make_transfer_bid(&mut game, "player-late-contract", 2_000_000)
+        .expect("an accepted closed-window bid schedules registration");
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-late-contract")
+        .unwrap();
+    let entry = entry_of_kind(player, PlayerMovementKind::PermanentTransfer);
+    let record = entry
+        .contract
+        .as_ref()
+        .expect("the registered move made a contract");
+    assert_eq!(entry.date, "2027-01-01");
+    assert_eq!(record.start.as_deref(), Some("2027-01-01"));
+    assert_eq!(record.end.as_deref(), Some("2030-01-01"));
+}
+
+#[test]
+fn a_refused_bid_appends_nothing() {
+    let player = make_player("player-refused-bid");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let outcome = make_transfer_bid(&mut game, "player-refused-bid", 1);
+
+    assert!(
+        outcome.is_err() || game.players[0].team_id.as_deref() == Some("team-2"),
+        "a lowball bid must not move the player"
+    );
+    assert!(game.players[0].movement_history.is_empty());
+}
+
+#[test]
+fn a_loan_out_and_back_writes_movements_but_no_contract() {
+    let mut player = make_player("player-loan-no-contract");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.wage = 520_000;
+    player.contract_start = Some("2019-07-01".to_string());
+    let mut game = make_game_with_player(
+        player,
+        vec!["player-loan-no-contract".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+
+    make_loan_offer(
+        &mut game,
+        "player-loan-no-contract",
+        "2027-01-01",
+        100,
+        None,
+    )
+    .expect("a strong loan offer is agreed");
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 2, 12, 0, 0).unwrap();
+    process_loan_returns(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-no-contract")
+        .unwrap();
+    let start = entry_of_kind(player, PlayerMovementKind::LoanStart);
+    let back = entry_of_kind(player, PlayerMovementKind::LoanReturn);
+    assert!(start.contract.is_none(), "a loan is not a contract");
+    assert!(back.contract.is_none(), "neither is the return");
+    assert_eq!(player.wage, 520_000, "the parent's terms are untouched");
+    assert_eq!(player.contract_start.as_deref(), Some("2019-07-01"));
+}
+
+#[test]
+fn a_loan_to_buy_creates_a_new_contract_with_the_buyers_terms() {
+    let mut player = make_player("player-buy-terms");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
+    player.wage = 520_000;
+    player.contract_start = Some("2019-07-01".to_string());
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    attach_transfer_log_league(&mut game);
+    make_loan_offer(
+        &mut game,
+        "player-buy-terms",
+        "2027-01-01",
+        40,
+        Some(1_250_000),
+    )
+    .expect("serious loan-to-buy terms should be accepted");
+
+    exercise_loan_buy_option(&mut game, "player-buy-terms").expect("the buy option is exercisable");
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-buy-terms")
+        .unwrap();
+    let entry = entry_of_kind(player, PlayerMovementKind::LoanToBuy);
+    let record = entry
+        .contract
+        .as_ref()
+        .expect("buying the player makes a contract with the buyer");
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    assert_eq!(record.source, ContractSource::Transfer);
+    assert_eq!(record.start.as_deref(), Some(today.as_str()));
+    assert_eq!(
+        record.end.as_deref(),
+        Some("2029-08-01"),
+        "three years from the purchase, not the seller's 2028-06-30"
+    );
+    assert!(
+        record.weekly_wage > 520_000,
+        "the buyer's standard wage, not the parent's 520,000 carried across: {}",
+        record.weekly_wage
+    );
+    assert_eq!(player.contract_end(), Some("2029-08-01"));
+}

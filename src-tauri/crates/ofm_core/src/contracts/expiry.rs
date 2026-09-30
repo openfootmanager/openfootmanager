@@ -94,26 +94,24 @@ pub(crate) fn release_player_contract(
     let player = &mut game.players[player_index];
     player.team_id = None;
     player.active_loan = None;
-    player.contract_start = None;
-    player.contract_end = None;
-    player.wage = 0;
     player.transfer_listed = false;
     player.loan_listed = false;
     player.transfer_offers.clear();
     player.loan_offers.clear();
     player.morale_core.renewal_state = None;
-    player.movement_history.push(PlayerMovementEntry {
-        date: today.clone(),
-        kind: PlayerMovementKind::Released,
-        from_team_id: Some(team_id.to_string()),
-        from_team_name: Some(team_name.clone()),
-        to_team_id: None,
-        to_team_name: None,
-        fee: None,
-        loan_end_date: None,
-        contract: None,
-        release_reason: None,
-    });
+    // Recording the release is what ends the contract: the dates and the wage follow it.
+    record_movement(
+        player,
+        PlayerMovementEntry {
+            from_team_id: Some(team_id.to_string()),
+            from_team_name: Some(team_name.clone()),
+            release_reason: Some(match reason {
+                ContractReleaseReason::Expired => ReleaseReason::Expired,
+                ContractReleaseReason::ManagerTermination { .. } => ReleaseReason::Terminated,
+            }),
+            ..PlayerMovementEntry::new(today.clone(), PlayerMovementKind::Released)
+        },
+    );
 
     let message = match reason {
         ContractReleaseReason::Expired => {

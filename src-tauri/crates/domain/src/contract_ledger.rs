@@ -133,15 +133,47 @@ impl Player {
     /// a contract, when he has no club, or when there is no contract to describe, so
     /// it is safe to call on every load.
     pub fn adopt_legacy_contract(&mut self) {
+        // Dated by the start the old columns knew, and empty when they did not: an
+        // unknown, not a made-up day.
+        let start = self.contract_start.clone();
+        let _ = self.adopt_staged_contract(
+            ContractSource::LegacyMigrated,
+            start.clone().unwrap_or_default(),
+            start,
+        );
+    }
+
+    /// Record the contract a player opens a career on: the one world generation gave
+    /// him (or his package authored), made into its first ledger entry on
+    /// `opening_date`, with the `start` the opening rule settled on (`None` when it
+    /// could not, an honest unknown). Does nothing for a player with no club or no
+    /// contract, and nothing if the ledger already holds one.
+    pub fn open_initial_contract(
+        &mut self,
+        opening_date: &str,
+        start: Option<String>,
+    ) -> Result<(), LedgerError> {
+        self.adopt_staged_contract(ContractSource::Initial, opening_date.to_string(), start)
+    }
+
+    /// Turn the contract held in the flat fields into a ledger entry. The flat fields
+    /// are where a contract waits before it has a history: world generation writes
+    /// them, and so does a save from before the ledger.
+    fn adopt_staged_contract(
+        &mut self,
+        source: ContractSource,
+        date: String,
+        start: Option<String>,
+    ) -> Result<(), LedgerError> {
         if self
             .movement_history
             .iter()
             .any(|entry| entry.contract.is_some())
         {
-            return;
+            return Ok(());
         }
         if self.contract_end.is_none() && self.wage == 0 {
-            return;
+            return Ok(());
         }
         // A loaned player's contract is his parent's.
         let Some(club) = self
@@ -150,24 +182,20 @@ impl Player {
             .map(|loan| loan.parent_team_id.clone())
             .or_else(|| self.team_id.clone())
         else {
-            return;
+            return Ok(());
         };
         let record = ContractRecord {
-            start: self.contract_start.clone(),
+            start,
             end: self.contract_end.clone(),
             weekly_wage: self.wage,
-            source: ContractSource::LegacyMigrated,
+            source,
         };
-        // Appended last so it is the latest contract. Its date is the start the old
-        // columns knew, and empty when they did not: an unknown, not a made-up day.
-        self.movement_history.push(PlayerMovementEntry {
+        // Appended last so it is the latest contract.
+        self.record_movement(PlayerMovementEntry {
             to_team_id: Some(club),
             contract: Some(record),
-            ..PlayerMovementEntry::new(
-                self.contract_start.clone().unwrap_or_default(),
-                PlayerMovementKind::InitialContract,
-            )
-        });
+            ..PlayerMovementEntry::new(date, PlayerMovementKind::InitialContract)
+        })
     }
 }
 

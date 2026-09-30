@@ -8,7 +8,7 @@
 
 use db::save_manager::SaveManager;
 use domain::stats::StatsState;
-use ofm_core::contracts::{club_season_anchors, stamp_opening_contract_starts};
+use ofm_core::contracts::{club_season_anchors, record_opening_contracts};
 use ofm_core::game::Game;
 use ofm_core::world::{
     ensure_multi_competition_foundations, rebuild_competitions_for_management_date,
@@ -65,7 +65,7 @@ pub(crate) fn date_opening_contracts(game: &mut Game, align_clock_to: Option<&st
     if let Some(team_id) = align_clock_to {
         align_clock_to_club_season(game, team_id);
     }
-    stamp_opening_contract_starts(game, &club_anchors);
+    record_opening_contracts(game, &club_anchors);
 }
 
 pub(super) fn has_existing_world_context(game: &Game, stats_state: &StatsState) -> bool {
@@ -500,6 +500,27 @@ mod tests {
             brazilian_start.as_deref(),
             Some("2031-12-15"),
             "the anchor was read after the clock moved, a year too early"
+        );
+        // The ledger says the same thing the flat start does: each contracted player
+        // has one initial contract, dated the opening day, starting on his club's anchor.
+        let brazilian = game
+            .players
+            .iter()
+            .find(|player| player.id == "br-player-0")
+            .expect("the Brazilian player exists");
+        let initial: Vec<_> = brazilian
+            .movement_history
+            .iter()
+            .filter(|entry| entry.kind == domain::player::PlayerMovementKind::InitialContract)
+            .collect();
+        assert_eq!(initial.len(), 1);
+        assert_eq!(initial[0].date, "2031-12-15");
+        assert_eq!(
+            initial[0]
+                .contract
+                .as_ref()
+                .and_then(|c| c.start.as_deref()),
+            Some("2031-12-15")
         );
         // Only people under contract: foundations also mint national-team fillers,
         // who belong to no club and rightly have neither a start nor an end.

@@ -1,16 +1,20 @@
 use crate::contract_wage_policy::renewal_wage_policy_allows;
 use crate::contracts::{
     ContractWarningStage, DelegatedRenewalCase, DelegatedRenewalOptions, DelegatedRenewalReport,
-    DelegatedRenewalResultStatus, contract_warning_stage, expected_contract_years, expected_wage,
-    has_active_manager_block, has_let_expire_intent, round_up_to_nearest_thousand,
+    DelegatedRenewalResultStatus, contract_entry, contract_record, contract_warning_stage,
+    expected_contract_years, expected_wage, has_active_manager_block, has_let_expire_intent,
+    record_movement, round_up_to_nearest_thousand,
 };
 use crate::game::Game;
 use chrono::{Months, NaiveDate};
+use domain::contract_ledger::ContractSource;
 use domain::message::{
     DelegatedRenewalCaseData as DelegatedRenewalCaseMessageData, DelegatedRenewalReportData,
     InboxMessage, MessageCategory, MessageContext, MessagePriority,
 };
-use domain::player::{ContractRenewalState, Player, RenewalSessionOutcome, RenewalSessionStatus};
+use domain::player::{
+    ContractRenewalState, Player, PlayerMovementKind, RenewalSessionOutcome, RenewalSessionStatus,
+};
 use domain::staff::StaffRole;
 use std::collections::{HashMap, HashSet};
 
@@ -174,9 +178,20 @@ pub fn delegate_renewals(
                 .checked_add_months(Months::new(agreed_years * 12))
                 .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
             let player = &mut game.players[player_index];
-            player.wage = agreed_wage;
-            player.contract_start = Some(current_date.format("%Y-%m-%d").to_string());
-            player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
+            record_movement(
+                player,
+                contract_entry(
+                    PlayerMovementKind::Renewal,
+                    current_date,
+                    &team,
+                    contract_record(
+                        current_date,
+                        new_contract_end,
+                        agreed_wage,
+                        ContractSource::Renewal,
+                    ),
+                ),
+            );
             let state = player
                 .morale_core
                 .renewal_state

@@ -33,7 +33,7 @@ pub fn unauthored_contract_start(
 ///
 /// **Read this before the clock is moved.** Brazil's anchor is worked out from the
 /// clock's year, so reading it after the hemisphere fix has pulled the clock back
-/// lands a year too early. Pass the result to [`stamp_opening_contract_starts`]
+/// lands a year too early. Pass the result to [`record_opening_contracts`]
 /// afterwards.
 pub fn club_season_anchors(game: &Game) -> HashMap<String, DateTime<Utc>> {
     game.teams
@@ -44,44 +44,53 @@ pub fn club_season_anchors(game: &Game) -> HashMap<String, DateTime<Utc>> {
         .collect()
 }
 
-/// Give every signed player whose contract has an end but no start a start.
+/// Record the contract every signed player opens the career on.
 ///
-/// Run once, after the opening clock is final. A start that is already there is
-/// left exactly as it is: an author may have written one, and may have written it
-/// after the opening date for a deal that has not begun, which is theirs to say.
-/// Players with no club, or no end date, are not under contract and are skipped.
-pub fn stamp_opening_contract_starts(
-    game: &mut Game,
-    club_anchors: &HashMap<String, DateTime<Utc>>,
-) {
+/// Run once, after the opening clock is final. Each contracted player gets one
+/// `InitialContract` entry dated the opening day, carrying the contract generation
+/// (or his package) gave him. A start that is already there is left exactly as it
+/// is: an author may have written one, and may have written it after the opening
+/// date for a deal that has not begun, which is theirs to say. A start nobody wrote
+/// is given by [`unauthored_contract_start`], or left unknown when that cannot be
+/// done honestly. Players with no club or no contract are skipped.
+pub fn record_opening_contracts(game: &mut Game, club_anchors: &HashMap<String, DateTime<Utc>>) {
     let opening = game.clock.current_date.date_naive();
+    let opening_date = opening.format("%Y-%m-%d").to_string();
     for player in &mut game.players {
-        if player.contract_start.is_some() {
-            continue;
-        }
         let Some(team_id) = player.team_id.as_deref() else {
             continue;
         };
-        let Some(end) = player.contract_end.as_deref().and_then(parse_contract_date) else {
-            continue;
+        let start = match player.contract_start.clone() {
+            Some(authored) => Some(authored),
+            None => player
+                .contract_end
+                .as_deref()
+                .and_then(parse_contract_date)
+                .and_then(|end| {
+                    // On loan, `team_id` is the borrower but the contract is the parent
+                    // club's, so the parent's season is the one it began in.
+                    let contract_club = player
+                        .active_loan
+                        .as_ref()
+                        .map_or(team_id, |loan| loan.parent_team_id.as_str());
+                    let anchor = club_anchors
+                        .get(contract_club)
+                        .map(|anchor| anchor.date_naive());
+                    unauthored_contract_start(anchor, opening, end)
+                })
+                .map(|start| start.format("%Y-%m-%d").to_string()),
         };
-        // On loan, `team_id` is the borrower but the contract is the parent club's,
-        // so the parent's season is the one it began in.
-        let contract_club = player
-            .active_loan
-            .as_ref()
-            .map_or(team_id, |loan| loan.parent_team_id.as_str());
-        let anchor = club_anchors
-            .get(contract_club)
-            .map(|anchor| anchor.date_naive());
-        player.contract_start = unauthored_contract_start(anchor, opening, end)
-            .map(|start| start.format("%Y-%m-%d").to_string());
+        if let Err(problem) = player.open_initial_contract(&opening_date, start) {
+            // An authored contract that ends before it starts is refused by the
+            // package check; if one gets here anyway it is left as generation wrote it.
+            debug_assert!(false, "an opening contract was refused: {problem:?}");
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{club_season_anchors, stamp_opening_contract_starts, unauthored_contract_start};
+    use super::{club_season_anchors, record_opening_contracts, unauthored_contract_start};
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{NaiveDate, TimeZone, Utc};
@@ -246,7 +255,7 @@ mod tests {
         let mut game = three_club_game(vec![player_at("br-p", Some("br-1"), Some("2027-06-30"))]);
 
         let anchors = club_season_anchors(&game);
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         // Brazil's season opens on 15 December of the year before the clock's.
         assert_eq!(start_of(&game, "br-p").as_deref(), Some("2025-12-15"));
@@ -273,7 +282,7 @@ mod tests {
         let mut game = three_club_game(vec![loaned]);
 
         let anchors = club_season_anchors(&game);
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         assert_eq!(
             start_of(&game, "loanee").as_deref(),
@@ -287,7 +296,7 @@ mod tests {
         let mut game = three_club_game(vec![player_at("en-p", Some("en-1"), Some("2027-06-30"))]);
 
         let anchors = club_season_anchors(&game);
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         // First fixture 15 Aug, less the 30-day pre-season, is 16 Jul: after the
         // 1 Jul clock, so the contract starts when the career does.
@@ -299,7 +308,7 @@ mod tests {
         let mut game = three_club_game(vec![player_at("jp-p", Some("jp-1"), Some("2027-06-30"))]);
 
         let anchors = club_season_anchors(&game);
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         // 7 Feb first fixture less 30 days.
         assert_eq!(start_of(&game, "jp-p").as_deref(), Some("2026-01-08"));
@@ -314,7 +323,7 @@ mod tests {
         let mut game = three_club_game(vec![signed]);
 
         let anchors = club_season_anchors(&game);
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         assert_eq!(start_of(&game, "authored").as_deref(), Some("2030-07-01"));
     }
@@ -330,7 +339,7 @@ mod tests {
         ]);
 
         let anchors = club_season_anchors(&game);
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         assert_eq!(start_of(&game, "free-agent"), None);
         assert_eq!(start_of(&game, "no-end"), None);
@@ -342,7 +351,7 @@ mod tests {
         let mut game = three_club_game(vec![player_at("lapsed", Some("br-1"), Some("2025-06-30"))]);
 
         let anchors = club_season_anchors(&game);
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         assert_eq!(start_of(&game, "lapsed"), None);
     }
@@ -363,7 +372,7 @@ mod tests {
         let chosen = Utc.with_ymd_and_hms(2025, 12, 15, 0, 0, 0).unwrap();
         game.clock.current_date = chosen;
         game.clock.start_date = chosen;
-        stamp_opening_contract_starts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
 
         let opening = game.clock.current_date.date_naive().to_string();
         for id in ["br-p", "en-p", "jp-p"] {
@@ -374,5 +383,138 @@ mod tests {
             );
         }
         assert_eq!(start_of(&game, "br-p").as_deref(), Some("2025-12-15"));
+    }
+
+    // -- the ledger ---------------------------------------------------------
+
+    fn initial_entries_of(game: &Game, id: &str) -> Vec<domain::player::PlayerMovementEntry> {
+        game.players
+            .iter()
+            .find(|player| player.id == id)
+            .unwrap()
+            .movement_history
+            .iter()
+            .filter(|entry| entry.kind == domain::player::PlayerMovementKind::InitialContract)
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn opening_a_career_records_one_initial_contract_per_contracted_player() {
+        let mut signed = player_at("en-p", Some("en-1"), Some("2027-06-30"));
+        signed.wage = 8_000;
+        let mut game = three_club_game(vec![signed]);
+
+        let anchors = club_season_anchors(&game);
+        record_opening_contracts(&mut game, &anchors);
+
+        let entries = initial_entries_of(&game, "en-p");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].to_team_id.as_deref(), Some("en-1"));
+        assert_eq!(
+            entries[0].date, "2026-07-01",
+            "recorded on the day the career opens"
+        );
+        let record = entries[0]
+            .contract
+            .as_ref()
+            .expect("the entry carries the contract");
+        assert_eq!(
+            record.source,
+            domain::contract_ledger::ContractSource::Initial
+        );
+        assert_eq!(record.start.as_deref(), Some("2026-07-01"));
+        assert_eq!(record.end.as_deref(), Some("2027-06-30"));
+        assert_eq!(record.weekly_wage, 8_000);
+    }
+
+    #[test]
+    fn an_opening_start_that_is_unknown_stays_unknown_in_the_entry() {
+        // Already over before the Brazilian club's season began, so no start is derived.
+        let mut lapsed = player_at("lapsed", Some("br-1"), Some("2025-06-30"));
+        lapsed.wage = 5_000;
+        let mut game = three_club_game(vec![lapsed]);
+
+        let anchors = club_season_anchors(&game);
+        record_opening_contracts(&mut game, &anchors);
+
+        let entries = initial_entries_of(&game, "lapsed");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].contract.as_ref().unwrap().start, None);
+    }
+
+    #[test]
+    fn an_authored_contract_is_recorded_exactly_as_authored() {
+        let mut signed = player_at("authored", Some("en-1"), Some("2031-06-30"));
+        signed.contract_start = Some("2030-07-01".to_string());
+        signed.wage = 12_345;
+        let mut game = three_club_game(vec![signed]);
+
+        let anchors = club_season_anchors(&game);
+        record_opening_contracts(&mut game, &anchors);
+
+        let record = initial_entries_of(&game, "authored")[0]
+            .contract
+            .clone()
+            .unwrap();
+        assert_eq!(record.start.as_deref(), Some("2030-07-01"));
+        assert_eq!(record.end.as_deref(), Some("2031-06-30"));
+        assert_eq!(record.weekly_wage, 12_345);
+    }
+
+    #[test]
+    fn a_loaned_player_is_recorded_against_the_club_that_holds_his_contract() {
+        let mut loaned = player_at("loanee", Some("en-1"), Some("2027-06-30"));
+        loaned.wage = 9_000;
+        loaned.active_loan = Some(domain::player::ActiveLoan {
+            parent_team_id: "br-1".to_string(),
+            loan_team_id: "en-1".to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        let mut game = three_club_game(vec![loaned]);
+
+        let anchors = club_season_anchors(&game);
+        record_opening_contracts(&mut game, &anchors);
+
+        assert_eq!(
+            initial_entries_of(&game, "loanee")[0].to_team_id.as_deref(),
+            Some("br-1")
+        );
+    }
+
+    #[test]
+    fn players_with_no_club_or_no_contract_get_no_initial_entry() {
+        let mut free_agent = player_at("free-agent", None, Some("2027-06-30"));
+        free_agent.wage = 4_000;
+        let mut game = three_club_game(vec![
+            free_agent,
+            player_at("no-contract", Some("en-1"), None),
+        ]);
+
+        let anchors = club_season_anchors(&game);
+        record_opening_contracts(&mut game, &anchors);
+
+        assert!(initial_entries_of(&game, "free-agent").is_empty());
+        assert!(initial_entries_of(&game, "no-contract").is_empty());
+    }
+
+    #[test]
+    fn opening_twice_does_not_record_a_second_initial_contract() {
+        let mut signed = player_at("en-p", Some("en-1"), Some("2027-06-30"));
+        signed.wage = 8_000;
+        let mut game = three_club_game(vec![signed]);
+        let anchors = club_season_anchors(&game);
+
+        record_opening_contracts(&mut game, &anchors);
+        record_opening_contracts(&mut game, &anchors);
+
+        assert_eq!(initial_entries_of(&game, "en-p").len(), 1);
     }
 }

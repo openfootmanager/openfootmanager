@@ -294,9 +294,20 @@ pub fn propose_renewal(
             .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
 
         let player = &mut game.players[player_index];
-        player.wage = offer.weekly_wage;
-        player.contract_start = Some(current_date.format("%Y-%m-%d").to_string());
-        player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
+        record_movement(
+            player,
+            contract_entry(
+                PlayerMovementKind::Renewal,
+                current_date,
+                &team,
+                contract_record(
+                    current_date,
+                    new_contract_end,
+                    offer.weekly_wage,
+                    ContractSource::Renewal,
+                ),
+            ),
+        );
         let state = player
             .morale_core
             .renewal_state

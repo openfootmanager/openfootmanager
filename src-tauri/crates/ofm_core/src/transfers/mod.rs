@@ -1,9 +1,14 @@
 use crate::contract_wage_policy::{
     renewal_wage_policy_error_message, wage_policy_allows_projection,
 };
+use crate::contracts::{
+    ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE, contract_entry, contract_record, record_movement,
+    standard_contract_terms,
+};
 use crate::finances::calc_wages;
 use crate::game::Game;
 use chrono::{Datelike, Duration, NaiveDate};
+use domain::contract_ledger::ContractSource;
 use domain::league::CompletedTransfer;
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};
 use domain::player::{

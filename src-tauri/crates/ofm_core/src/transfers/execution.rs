@@ -106,18 +106,18 @@ pub(super) fn execute_loan(
         development_reported_minutes: player.stats.minutes_played,
         development_reported_appearances: player.stats.appearances,
     });
-    player.movement_history.push(PlayerMovementEntry {
-        date: start_date.to_string(),
-        kind: PlayerMovementKind::LoanStart,
-        from_team_id: Some(parent_team_id.to_string()),
-        from_team_name: Some(parent_team_name.clone()),
-        to_team_id: Some(loan_team_id.to_string()),
-        to_team_name: Some(loan_team_name.clone()),
-        fee: None,
-        loan_end_date: Some(end_date.to_string()),
-        contract: None,
-        release_reason: None,
-    });
+    // A loan is a movement, not a contract: he stays on his parent club's agreement.
+    record_movement(
+        player,
+        PlayerMovementEntry {
+            from_team_id: Some(parent_team_id.to_string()),
+            from_team_name: Some(parent_team_name.clone()),
+            to_team_id: Some(loan_team_id.to_string()),
+            to_team_name: Some(loan_team_name.clone()),
+            loan_end_date: Some(end_date.to_string()),
+            ..PlayerMovementEntry::new(start_date, PlayerMovementKind::LoanStart)
+        },
+    );
 
     withdraw_pending_transfer_offers(player, &closed_on);
 
@@ -287,6 +287,23 @@ pub(super) fn execute_transfer(
         .find(|team| team.id == to_team_id)
         .and_then(|team| crate::roster::resolve_jersey_for(game, &player_snapshot, team));
 
+    // The buyer's standard terms, worked out before any money moves so that a failure
+    // here cannot leave a half-done transfer. No bid carries a wage yet (every
+    // `wage_offered` is 0), so none is passed; when one does, it is passed here.
+    let buying_team = game
+        .teams
+        .iter()
+        .find(|team| team.id == to_team_id)
+        .cloned()
+        .ok_or("be.error.teamNotFound")?;
+    let (new_wage, new_contract_end) = standard_contract_terms(
+        &player_snapshot,
+        &buying_team,
+        game.clock.current_date.date_naive(),
+        0,
+    )
+    .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
+
     let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
     let date = game.clock.current_date.date_naive();
     crate::finances::post_all(
@@ -310,24 +327,25 @@ pub(super) fn execute_transfer(
     // Move player
     if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
         p.team_id = Some(to_team_id.to_string());
-        // Joining a club is signing with it: a new agreement from the day the move
-        // happens. `contract_end` is left as the transfer has always left it.
-        p.contract_start = Some(today.clone());
         p.jersey_number = resolved_jersey_number;
         p.transfer_listed = false;
         p.loan_listed = false;
-        p.movement_history.push(PlayerMovementEntry {
-            date: today.clone(),
-            kind: PlayerMovementKind::PermanentTransfer,
-            from_team_id: Some(from_team_id.to_string()),
-            from_team_name: Some(from_team_name.clone()),
-            to_team_id: Some(to_team_id.to_string()),
-            to_team_name: Some(to_team_name.clone()),
-            fee: Some(fee),
-            loan_end_date: None,
-            contract: None,
-            release_reason: None,
-        });
+        // Joining a club is signing with it: a new contract on the buyer's terms from
+        // the day the move happens. Nothing of the seller's contract is carried over.
+        record_movement(
+            p,
+            PlayerMovementEntry {
+                from_team_id: Some(from_team_id.to_string()),
+                from_team_name: Some(from_team_name.clone()),
+                fee: Some(fee),
+                ..contract_entry(
+                    PlayerMovementKind::PermanentTransfer,
+                    date,
+                    &buying_team,
+                    contract_record(date, new_contract_end, new_wage, ContractSource::Transfer),
+                )
+            },
+        );
         // Remove from any starting XI
     }
 

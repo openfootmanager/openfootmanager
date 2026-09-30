@@ -162,24 +162,23 @@ pub fn offer_free_agent_contract(
         let player = &mut game.players[player_index];
         player.team_id = Some(team.id.clone());
         player.jersey_number = resolved_jersey_number;
-        player.wage = offer.weekly_wage;
-        player.contract_start = Some(current_date.format("%Y-%m-%d").to_string());
-        player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
         player.transfer_listed = false;
         player.loan_listed = false;
         player.transfer_offers.clear();
-        player.movement_history.push(PlayerMovementEntry {
-            date: today.clone(),
-            kind: PlayerMovementKind::FreeAgentSigning,
-            from_team_id: None,
-            from_team_name: None,
-            to_team_id: Some(team.id.clone()),
-            to_team_name: Some(team.name.clone()),
-            fee: None,
-            loan_end_date: None,
-            contract: None,
-            release_reason: None,
-        });
+        record_movement(
+            player,
+            contract_entry(
+                PlayerMovementKind::FreeAgentSigning,
+                current_date,
+                &team,
+                contract_record(
+                    current_date,
+                    new_contract_end,
+                    offer.weekly_wage,
+                    ContractSource::FreeAgent,
+                ),
+            ),
+        );
         if matches!(
             player
                 .morale_core

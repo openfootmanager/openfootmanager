@@ -953,6 +953,17 @@ pub(crate) fn complete_loan_buy_option_transfer(
         .unwrap_or_else(|| buying_team_id.to_string());
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let date = game.clock.current_date.date_naive();
+    // The buyer's standard terms, worked out before any money moves. The option names
+    // a fee and nothing else, so no wage is passed.
+    let buying_club = game
+        .teams
+        .iter()
+        .find(|team| team.id == buying_team_id)
+        .cloned()
+        .ok_or("be.error.teamNotFound")?;
+    let (new_wage, new_contract_end) =
+        standard_contract_terms(&player_snapshot, &buying_club, date, 0)
+            .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
     crate::finances::post_all(
         game,
         &[
@@ -992,24 +1003,26 @@ pub(crate) fn complete_loan_buy_option_transfer(
         .find(|player| player.id == player_id)
     {
         player.team_id = Some(buying_team_id.to_string());
-        // Buying the player is a new agreement with the buying club from today. While
-        // on loan the contract stayed the parent club's, so this is the moment it changes.
-        player.contract_start = Some(today.clone());
         player.transfer_listed = false;
         player.loan_listed = false;
         player.active_loan = None;
-        player.movement_history.push(PlayerMovementEntry {
-            date: today.clone(),
-            kind: PlayerMovementKind::LoanToBuy,
-            from_team_id: Some(parent_team_id.to_string()),
-            from_team_name: Some(from_team_name.clone()),
-            to_team_id: Some(buying_team_id.to_string()),
-            to_team_name: Some(to_team_name.clone()),
-            fee: Some(fee),
-            loan_end_date: Some(loan.end_date),
-            contract: None,
-            release_reason: None,
-        });
+        // Buying the player is a new contract on the buyer's terms from today. While on
+        // loan the contract stayed the parent club's, so this is the moment it changes.
+        record_movement(
+            player,
+            PlayerMovementEntry {
+                from_team_id: Some(parent_team_id.to_string()),
+                from_team_name: Some(from_team_name.clone()),
+                fee: Some(fee),
+                loan_end_date: Some(loan.end_date),
+                ..contract_entry(
+                    PlayerMovementKind::LoanToBuy,
+                    date,
+                    &buying_club,
+                    contract_record(date, new_contract_end, new_wage, ContractSource::Transfer),
+                )
+            },
+        );
     }
 
     if should_generate_major_transfer_news(&player_snapshot, fee) {
@@ -1432,18 +1445,20 @@ pub fn process_loan_returns(game: &mut Game) {
                 loan_end_date,
             )) = movement_context
             {
-                player.movement_history.push(PlayerMovementEntry {
-                    date: game.clock.current_date.format("%Y-%m-%d").to_string(),
-                    kind: PlayerMovementKind::LoanReturn,
-                    from_team_id: Some(loan_team_id),
-                    from_team_name: Some(loan_team_name),
-                    to_team_id: Some(parent_team_id),
-                    to_team_name: Some(parent_team_name),
-                    fee: None,
-                    loan_end_date: Some(loan_end_date),
-                    contract: None,
-                    release_reason: None,
-                });
+                record_movement(
+                    player,
+                    PlayerMovementEntry {
+                        from_team_id: Some(loan_team_id),
+                        from_team_name: Some(loan_team_name),
+                        to_team_id: Some(parent_team_id),
+                        to_team_name: Some(parent_team_name),
+                        loan_end_date: Some(loan_end_date),
+                        ..PlayerMovementEntry::new(
+                            game.clock.current_date.format("%Y-%m-%d").to_string(),
+                            PlayerMovementKind::LoanReturn,
+                        )
+                    },
+                );
             }
         }
     }
