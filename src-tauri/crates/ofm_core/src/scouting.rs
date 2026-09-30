@@ -1,8 +1,9 @@
 use crate::game::{
     Game, ScoutingAssignment, YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
 };
+use domain::contract_ledger::ContractSource;
 use domain::message::*;
-use domain::player::{Player, Position, SquadRole};
+use domain::player::{Player, PlayerMovementKind, Position, SquadRole};
 use domain::staff::StaffRole;
 use rand::RngExt;
 use std::collections::HashMap;
@@ -601,6 +602,40 @@ pub fn apply_youth_recruitment_response(
             {
                 signed_player.jersey_number =
                     crate::roster::resolve_jersey_for(game, &signed_player, team);
+            }
+            // Signing him is a contract made mid-career, so it goes in his history. He
+            // signs on the terms he was generated with when those are still in the
+            // future, and on the club's standard terms when they are not.
+            let today = game.clock.current_date.date_naive();
+            if let Some(team) = game
+                .teams
+                .iter()
+                .find(|team| Some(&team.id) == game.manager.team_id.as_ref())
+            {
+                let own_terms = signed_player
+                    .contract_end()
+                    .and_then(crate::contracts::parse_contract_date)
+                    .filter(|end| *end > today)
+                    .map(|end| (signed_player.wage(), end))
+                    .filter(|(wage, _)| *wage > 0);
+                if let Some((wage, end)) = own_terms.or_else(|| {
+                    crate::contracts::standard_contract_terms(&signed_player, team, today, 0)
+                }) {
+                    crate::contracts::record_movement(
+                        &mut signed_player,
+                        crate::contracts::contract_entry(
+                            PlayerMovementKind::FreeAgentSigning,
+                            today,
+                            team,
+                            crate::contracts::contract_record(
+                                today,
+                                end,
+                                wage,
+                                ContractSource::FreeAgent,
+                            ),
+                        ),
+                    );
+                }
             }
             let player_id = signed_player.id.clone();
             let player_name = signed_player.full_name.clone();

@@ -871,3 +871,69 @@ fn completed_assignment_is_removed() {
         "Completed assignments should be removed"
     );
 }
+
+/// Signing a scouted youth is a contract made in the middle of a career. It has to
+/// be in his history like any other signing, or he carries a wage and an end date
+/// that nothing in his ledger explains.
+#[test]
+fn signing_a_scouted_youth_records_a_free_agent_contract() {
+    let mut game = make_game();
+    start_youth_scouting(
+        &mut game,
+        "scout1",
+        YouthScoutingRegion::Domestic,
+        YouthScoutingObjective::Balanced,
+        Some(Position::Defender),
+    )
+    .unwrap();
+    complete_scouting(&mut game);
+    let message = game
+        .messages
+        .iter()
+        .find(|candidate| {
+            candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
+        .expect("expected youth recruitment report")
+        .clone();
+    let action_id = message.actions[0].id.clone();
+    let prospect_id = action_id.trim_start_matches("prospect:").to_string();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    apply_youth_recruitment_response(&mut game, &message.id, &action_id, "sign")
+        .expect("expected sign effect");
+
+    let signed = game
+        .players
+        .iter()
+        .find(|player| player.id == prospect_id)
+        .expect("expected signed player in game state");
+    let entry = signed
+        .movement_history
+        .last()
+        .expect("the signing is in his history");
+    assert_eq!(
+        entry.kind,
+        domain::player::PlayerMovementKind::FreeAgentSigning
+    );
+    assert_eq!(entry.to_team_id.as_deref(), Some("team1"));
+    let record = entry
+        .contract
+        .as_ref()
+        .expect("the entry carries the contract");
+    assert_eq!(
+        record.source,
+        domain::contract_ledger::ContractSource::FreeAgent
+    );
+    assert_eq!(record.start.as_deref(), Some(today.as_str()));
+    assert!(
+        record
+            .end
+            .as_deref()
+            .is_some_and(|end| end > today.as_str()),
+        "a youth contract ends after it starts: {:?}",
+        record.end
+    );
+    assert!(record.weekly_wage > 0);
+    assert_eq!(signed.wage(), record.weekly_wage);
+    assert_eq!(signed.contract_start(), Some(today.as_str()));
+}
