@@ -357,10 +357,14 @@ pub(crate) fn validate_package_id(id: &str) -> Result<(), String> {
     if ofm_core::generator::is_valid_package_id(id) {
         return Ok(());
     }
-    Err(format!(
+    Err(invalid_package_id_error(id))
+}
+
+fn invalid_package_id_error(id: &str) -> String {
+    format!(
         "be.error.package.invalidPackageId?id={}",
         encode_param_value(id)
-    ))
+    )
 }
 
 /// Percent-encode the characters that would otherwise be read as query-string
@@ -383,16 +387,48 @@ fn encode_param_value(value: &str) -> String {
 #[tauri::command]
 pub fn uninstall_package(app_handle: tauri::AppHandle, id: String) -> Result<(), String> {
     info!("[cmd] uninstall_package: id={}", id);
-    validate_package_id(&id)?;
-    let dest = packages_dir(&app_handle)?.join(format!("{id}.ofm"));
-    if dest.exists() {
-        std::fs::remove_file(&dest).map_err(|_| "be.error.package.installFailed".to_string())?;
+    let packages_dir = packages_dir(&app_handle)?;
+    let assets_root = package_assets_dir(&app_handle).ok();
+    uninstall_package_from_dirs(&packages_dir, assets_root.as_deref(), &id)
+}
+
+fn uninstall_package_from_dirs(
+    packages_dir: &std::path::Path,
+    assets_root: Option<&std::path::Path>,
+    id: &str,
+) -> Result<(), String> {
+    // Installation rejects unsafe ids now, but older builds could install one.
+    // Match the literal archive filename in the directory listing rather than
+    // joining the id into a path: `"."` must still find `..ofm`, while an id
+    // containing path separators can never select a file outside this folder.
+    let archive_name = format!("{id}.ofm");
+    if single_child_path(packages_dir, &archive_name).is_none() {
+        return Err(invalid_package_id_error(id));
+    }
+    match std::fs::read_dir(packages_dir) {
+        Ok(entries) => {
+            for entry in entries {
+                let entry = entry.map_err(|_| "be.error.package.installFailed".to_string())?;
+                if entry.file_name() == std::ffi::OsStr::new(&archive_name) {
+                    std::fs::remove_file(entry.path())
+                        .map_err(|_| "be.error.package.installFailed".to_string())?;
+                    break;
+                }
+            }
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return Err("be.error.package.installFailed".to_string()),
     }
     // The archive is not the only thing on disk: its artwork was extracted
     // alongside it at world load. Leaving that behind would accumulate an
     // orphaned directory per package the user ever installed.
-    if let Ok(assets_root) = package_assets_dir(&app_handle) {
-        remove_package_assets(&assets_root, &id);
+    // A legacy-invalid id may alias another directory on Windows (trailing
+    // dots/spaces), or the shared root itself (`.`). Leave its old artwork
+    // alone rather than risk deleting another package's assets.
+    if ofm_core::generator::is_valid_package_id(id) {
+        if let Some(assets_root) = assets_root {
+            remove_package_assets(assets_root, id);
+        }
     }
     Ok(())
 }
@@ -401,7 +437,10 @@ pub fn uninstall_package(app_handle: tauri::AppHandle, id: String) -> Result<(),
 /// package with no artwork produces no directory, and a failure here must not
 /// block the install — the world plays, its clubs just keep generated crests.
 fn extract_assets_for_package(ofm_path: &std::path::Path, assets_root: &std::path::Path, id: &str) {
-    let package_assets = assets_root.join(id);
+    let Some(package_assets) = single_child_path(assets_root, id) else {
+        warn!("[assets] refusing to extract assets for package id {id:?}");
+        return;
+    };
     // Replace, don't merge. Installing over an existing version is the normal
     // upgrade path, and a version that renamed or dropped a badge would
     // otherwise leave the old file in place — where a save's already-qualified
@@ -418,10 +457,32 @@ fn extract_assets_for_package(ofm_path: &std::path::Path, assets_root: &std::pat
     }
 }
 
+/// `<root>/<name>`, but only when `name` is exactly one ordinary path
+/// component — so the result is strictly inside the root. Used for both
+/// archive filenames and extracted asset directories.
+///
+/// Installation validates asset ids first. Uninstall also uses this guard on
+/// archive filenames so old ids like `.` can be removed without accepting
+/// traversal. For assets, `assets_root.join(".")` is the root itself, and a
+/// recursive delete of it wiped every installed package's artwork (#470).
+fn single_child_path(root: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+    use std::path::Component;
+    let mut components = std::path::Path::new(name).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(component)), None) if component == name => {
+            Some(root.join(component))
+        }
+        _ => None,
+    }
+}
+
 /// Delete a package's extracted artwork. Best effort: a package with no assets
 /// has no directory, and a failure here must not block the uninstall itself.
 fn remove_package_assets(assets_root: &std::path::Path, id: &str) {
-    let dir = assets_root.join(id);
+    let Some(dir) = single_child_path(assets_root, id) else {
+        warn!("[assets] refusing to remove assets for package id {id:?}");
+        return;
+    };
     if dir.exists() {
         if let Err(err) = std::fs::remove_dir_all(&dir) {
             warn!("[assets] could not remove {}: {err}", dir.display());
@@ -883,6 +944,130 @@ mod tests {
     }
 
     #[test]
+    fn removing_assets_for_a_non_component_id_touches_no_other_package() {
+        // Issue #470: `root.join(".")` is the root itself, and remove_dir_all
+        // emptied it before failing on the final rmdir — every installed
+        // package's artwork gone, the error swallowed as a warning. The
+        // validator refuses these ids now; this guard means a future gap in it
+        // still cannot reach a recursive delete.
+        let temp_dir = TempCommandDir::new();
+        let root = temp_dir.path().join("package-assets");
+        for id in ["pkg-a", "pkg-b"] {
+            let dir = root.join(id).join("assets/images");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("badge.png"), b"PNG").unwrap();
+        }
+
+        for id in [".", "", "..", "./", "pkg-a/.."] {
+            super::remove_package_assets(&root, id);
+        }
+
+        for id in ["pkg-a", "pkg-b"] {
+            assert!(
+                root.join(id).join("assets/images/badge.png").exists(),
+                "{id}'s assets must survive",
+            );
+        }
+    }
+
+    #[test]
+    fn uninstalling_a_legacy_dot_package_preserves_other_archives_and_assets() {
+        let temp_dir = TempCommandDir::new();
+        let packages_dir = temp_dir.path().join("packages");
+        fs::create_dir_all(&packages_dir).unwrap();
+        let legacy_archive = packages_dir.join("..ofm");
+        fs::write(&legacy_archive, b"legacy archive").unwrap();
+        let other_archive = packages_dir.join("other.ofm");
+        fs::write(&other_archive, b"other archive").unwrap();
+
+        let assets_root = temp_dir.path().join("package-assets");
+        let other_badge = assets_root.join("other/assets/images/badge.png");
+        fs::create_dir_all(other_badge.parent().unwrap()).unwrap();
+        fs::write(&other_badge, b"PNG").unwrap();
+
+        super::uninstall_package_from_dirs(&packages_dir, Some(&assets_root), ".").unwrap();
+
+        assert!(
+            !legacy_archive.exists(),
+            "the legacy archive must be removed"
+        );
+        assert!(other_archive.exists(), "another archive must survive");
+        assert!(
+            other_badge.exists(),
+            "another package's artwork must survive"
+        );
+    }
+
+    #[test]
+    fn uninstalling_a_valid_package_removes_its_archive_and_assets() {
+        let temp_dir = TempCommandDir::new();
+        let packages_dir = temp_dir.path().join("packages");
+        fs::create_dir_all(&packages_dir).unwrap();
+        let archive = packages_dir.join("going.ofm");
+        fs::write(&archive, b"archive").unwrap();
+
+        let assets_root = temp_dir.path().join("package-assets");
+        let badge = assets_root.join("going/assets/images/badge.png");
+        fs::create_dir_all(badge.parent().unwrap()).unwrap();
+        fs::write(&badge, b"PNG").unwrap();
+
+        super::uninstall_package_from_dirs(&packages_dir, Some(&assets_root), "going").unwrap();
+
+        assert!(!archive.exists());
+        assert!(!badge.exists());
+    }
+
+    #[test]
+    fn uninstalling_legacy_ids_with_trailing_dot_or_space_keeps_other_assets() {
+        let temp_dir = TempCommandDir::new();
+        let packages_dir = temp_dir.path().join("packages");
+        fs::create_dir_all(&packages_dir).unwrap();
+        let assets_root = temp_dir.path().join("package-assets");
+        let other_badge = assets_root.join("legacy/assets/images/badge.png");
+        fs::create_dir_all(other_badge.parent().unwrap()).unwrap();
+        fs::write(&other_badge, b"PNG").unwrap();
+
+        for id in ["legacy.", "legacy "] {
+            let archive = packages_dir.join(format!("{id}.ofm"));
+            fs::write(&archive, b"legacy archive").unwrap();
+            super::uninstall_package_from_dirs(&packages_dir, Some(&assets_root), id).unwrap();
+            assert!(!archive.exists(), "{id:?} archive must be removed");
+            assert!(other_badge.exists(), "{id:?} must not remove another badge");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn uninstalling_a_legacy_control_character_id_removes_its_archive() {
+        let temp_dir = TempCommandDir::new();
+        let packages_dir = temp_dir.path().join("packages");
+        fs::create_dir_all(&packages_dir).unwrap();
+        let archive = packages_dir.join("bad\tid.ofm");
+        fs::write(&archive, b"legacy archive").unwrap();
+
+        super::uninstall_package_from_dirs(&packages_dir, None, "bad\tid").unwrap();
+
+        assert!(!archive.exists());
+    }
+
+    #[test]
+    fn uninstalling_cannot_resolve_an_archive_outside_the_packages_dir() {
+        let temp_dir = TempCommandDir::new();
+        let packages_dir = temp_dir.path().join("packages");
+        fs::create_dir_all(&packages_dir).unwrap();
+        let outside_archive = temp_dir.path().join("outside.ofm");
+        fs::write(&outside_archive, b"another archive").unwrap();
+
+        let result = super::uninstall_package_from_dirs(&packages_dir, None, "../outside");
+
+        assert!(result.is_err(), "path-like ids must still be rejected");
+        assert!(
+            outside_archive.exists(),
+            "an archive outside packages must survive"
+        );
+    }
+
+    #[test]
     fn removing_package_assets_tolerates_a_package_with_none() {
         let temp_dir = TempCommandDir::new();
         let root = temp_dir.path().join("package-assets");
@@ -905,6 +1090,8 @@ mod tests {
             "a/b",
             "a\\b",
             "with\0null",
+            // "." joins onto the assets root itself (#470).
+            ".",
             // Qualified asset paths are `<package_id>/assets/...`, so a package
             // called "assets" produces `assets/assets/images/x.png`, which the
             // frontend classifier reads as an app-bundled path and serves from
