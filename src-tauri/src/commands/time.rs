@@ -1308,6 +1308,8 @@ mod tests {
             advance_time_with_mode_internal(&state, "live").expect("live advance response");
 
         assert_eq!(response.action, "live_match");
+        assert_eq!(response.competition_id.as_deref(), Some("league1"));
+        assert_eq!(response.fixture_id.as_deref(), Some("fix1"));
         let round_summary = response.round_summary.expect("round summary");
         assert!(!round_summary.is_complete);
         assert_eq!(round_summary.pending_fixture_count, 1);
