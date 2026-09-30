@@ -433,12 +433,11 @@ mod tests {
         assert_eq!(contract_end(&game, "veteran"), before);
     }
 
-    /// Given an AI club whose academy is full of low-rated youngsters, when a
-    /// senior a little below the seniors' standard runs down his contract, he
-    /// is judged against the seniors — and let go. Counting the academy would
-    /// drag the standard down to him.
-    #[test]
-    fn the_squad_median_is_the_seniors_median() {
+    /// An AI club of nineteen seniors rated 60, an academy of thirty youngsters
+    /// rated 30, and a 29-year-old midfielder rated `rating` whose contract ends
+    /// in 90 days. The academy is big enough to pull a median over everyone
+    /// down to 55, while the seniors' median stays at 60.
+    fn club_with_a_weak_academy_and_a_journeyman(rating: u8) -> Game {
         let mut game = world();
         for i in 0..30 {
             let mut youngster = player(
@@ -452,13 +451,56 @@ mod tests {
             youngster.squad_role = domain::player::SquadRole::Youth;
             game.players.push(youngster);
         }
-        game.players
-            .push(player("journeyman", "ai", Position::Midfielder, 55, 29, 90));
+        game.players.push(player(
+            "journeyman",
+            "ai",
+            Position::Midfielder,
+            rating,
+            29,
+            90,
+        ));
+        game
+    }
+
+    /// Given an AI club whose academy is full of low-rated youngsters, when a
+    /// senior below the seniors' standard runs down his contract, he is judged
+    /// against the seniors and let go. Counting the academy would have dragged
+    /// the standard down to him and kept him.
+    #[test]
+    fn the_squad_median_is_the_seniors_median() {
+        let mut game = club_with_a_weak_academy_and_a_journeyman(55);
+        // The fixture splits the two medians around him — worked out here from
+        // the fixture, not by the function under test.
+        let median = |seniors_only: bool| {
+            let mut ratings: Vec<u8> = game
+                .players
+                .iter()
+                .filter(|p| p.team_id.as_deref() == Some("ai"))
+                .filter(|p| !seniors_only || p.squad_role == domain::player::SquadRole::Senior)
+                .map(|p| p.ovr)
+                .collect();
+            ratings.sort_unstable();
+            ratings[ratings.len() / 2]
+        };
+        assert!(55 >= median(false), "a median over everyone would keep him");
+        assert!(55 < median(true), "the seniors' median lets him go");
         let before = contract_end(&game, "journeyman");
 
         apply_ai_contract_decisions(&mut game, review_day());
 
         assert_eq!(contract_end(&game, "journeyman"), before);
+    }
+
+    /// The same club, the same player at the seniors' standard: he is renewed,
+    /// so nothing but the standard he is measured against lets him go above.
+    #[test]
+    fn a_player_at_the_seniors_standard_is_renewed_at_a_club_with_a_weak_academy() {
+        let mut game = club_with_a_weak_academy_and_a_journeyman(60);
+        let before = contract_end(&game, "journeyman");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert!(contract_end(&game, "journeyman") > before);
     }
 
     /// The same player, but the club's only other keepers are the floor itself:
