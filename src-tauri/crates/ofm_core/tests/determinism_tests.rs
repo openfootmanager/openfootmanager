@@ -179,3 +179,58 @@ fn a_managed_club_replays_the_same_days() {
 
     assert!(first == second, "{}", first_difference(&first, &second));
 }
+
+/// Play until the season is over and roll it over.
+fn play_to_the_rollover(mut game: Game) -> Game {
+    let mut days = 0;
+    while !ofm_core::end_of_season::is_season_complete(&game) {
+        turn::process_day(&mut game);
+        days += 1;
+        assert!(days < 450, "the season never finished");
+    }
+    ofm_core::end_of_season::advance_to_next_season(&mut game).expect("the season rolls over");
+    game
+}
+
+/// The national teams' fixtures, which name nations and dates and so do not depend on the
+/// ids of any player.
+fn international_fixtures(game: &Game) -> Vec<String> {
+    let mut lines: Vec<String> = game
+        .national_teams
+        .iter()
+        .flat_map(|team| team.fixtures.iter())
+        .map(|fixture| {
+            format!(
+                "{} {}-{}",
+                fixture.date, fixture.home_team_id, fixture.away_team_id
+            )
+        })
+        .collect();
+    lines.sort();
+    lines
+}
+
+/// Given a world and a seed,
+/// When a whole season is played and rolled over, twice,
+/// Then the rollover schedules the same international windows — which nations meet, and when.
+///
+/// Only the fixtures, not the whole world: a rollover also brings in new players, whose ids
+/// are `Uuid::new_v4` and whose creation still draws from the operating system. That is the
+/// next slice of seeding, and this is the part of the rollover that is already settled.
+#[test]
+fn a_rollover_schedules_the_same_international_windows() {
+    let save = managed_world(1, 7);
+
+    // Two rollovers: the first of a generated world goes into a World Cup summer, and a
+    // neutral season is where the friendlies are drawn.
+    let twice =
+        |game: Game| international_fixtures(&play_to_the_rollover(play_to_the_rollover(game)));
+    let first = twice(save.clone());
+    let second = twice(save);
+
+    assert!(
+        !first.is_empty(),
+        "the rollover scheduled no international fixtures"
+    );
+    assert_eq!(first, second);
+}

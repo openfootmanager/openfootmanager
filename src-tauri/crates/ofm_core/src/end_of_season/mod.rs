@@ -688,10 +688,14 @@ fn manage_international_calendar(
         return;
     }
 
+    // Which nations meet in which window. Keyed by the year the windows belong to, so a
+    // replay of this rollover draws the same fixtures.
+    let mut friendlies_rng =
+        game.rng_for("national-team-friendlies", &next_start.year().to_string());
     crate::national_team::schedule_national_team_friendlies(
         &mut game.national_teams,
         &window_dates,
-        &mut rand::rng(),
+        &mut friendlies_rng,
     );
 }
 
