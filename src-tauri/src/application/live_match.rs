@@ -153,6 +153,7 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     })
 }
 
+#[cfg(any(feature = "mcp", test))]
 pub fn start_live_match(
     state: &StateManager,
     fixture_index: usize,
