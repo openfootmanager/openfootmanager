@@ -224,6 +224,101 @@ fn the_users_fixture_is_stored_from_the_session_and_the_sweep_plays_the_rest() {
     );
 }
 
+/// **Given** the user's fixture sits in a competition whose clubs have no players,
+/// **when** the day is played, **then** the call fails *and* the legacy mirror still holds the
+/// competition it held before.
+///
+/// The mirror has to be swapped in before the session is built, because that is where
+/// `create_live_match` reads the fixture from. An empty squad is a handled `Err` by design — the
+/// floor that keeps it from happening lives elsewhere, and this path must never panic — but the
+/// early return used to leave the swap in place. This runs inside `update_game`, which mutates the
+/// live game, so the player was left looking at another competition with no match to explain it.
+#[test]
+fn a_session_that_cannot_be_built_leaves_the_mirror_as_it_found_it() {
+    let mut game = game_before_the_users_match();
+    // League 2's clubs exist but have nobody on the books, so its fixture cannot field a side.
+    game.players
+        .retain(|player| player.team_id.as_deref() != Some("team3"));
+    game.players
+        .retain(|player| player.team_id.as_deref() != Some("team4"));
+    let mirror_before = game
+        .league
+        .as_ref()
+        .map(|league| league.id.clone())
+        .expect("the user's league is in the mirror");
+
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, 1, 0, &mut |_| {});
+
+    assert!(
+        outcome.is_err(),
+        "a side with nobody available cannot play, and that is an Err rather than a panic"
+    );
+    assert_eq!(
+        game.league.as_ref().map(|league| league.id.as_str()),
+        Some(mirror_before.as_str()),
+        "the mirror is restored, so the game the player returns to is the one they left"
+    );
+}
+
+/// **Given** a game with two competitions, **when** the day is played for competition 99,
+/// **then** it is refused.
+///
+/// `if let Some(...)` used to swallow this: no swap happened, and the day was played out of
+/// whichever competition the mirror held, at `fixture_index`. Someone else's match, reported `Ok`.
+#[test]
+fn a_competition_index_that_names_no_competition_is_refused() {
+    let mut game = game_before_the_users_match();
+
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, 99, 0, &mut |_| {});
+
+    assert_eq!(
+        outcome.err().as_deref(),
+        Some("be.error.liveMatch.fixtureNotFound"),
+        "an index naming no competition is refused, not quietly reinterpreted"
+    );
+    assert!(
+        game.competitions
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .all(|fixture| fixture.status == FixtureStatus::Scheduled),
+        "and nothing was played on the way to finding out"
+    );
+}
+
+/// **Given** a save written before `competitions` existed — the user's league is in the legacy
+/// mirror only — **when** the day is played with the index `scheduled_user_fixture_index` answers
+/// for it, **then** the match is played from the mirror.
+///
+/// That index is `competitions.len()`: deliberately past the end, meaning "leave the mirror alone,
+/// it already holds the fixture". So the guard above must refuse indices *beyond* the sentinel
+/// without refusing the sentinel itself, or every pre-competitions save stops being playable.
+#[test]
+fn the_legacy_mirror_sentinel_still_plays_the_users_match() {
+    let mut game = game_before_the_users_match();
+    let mirror = game.competitions[0].clone();
+    game.competitions = Vec::new();
+    game.league = Some(mirror);
+
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, 0, 0, &mut |_| {})
+        .expect("the sentinel index plays the fixture the mirror holds");
+
+    assert!(
+        outcome.report.total_minutes >= 90,
+        "a real match was played"
+    );
+    let played = game
+        .league
+        .as_ref()
+        .expect("the mirror is still there")
+        .fixtures[0]
+        .clone();
+    assert_eq!(
+        played.status,
+        FixtureStatus::Completed,
+        "and the result stayed in the mirror, which is the only copy this save has"
+    );
+}
+
 #[test]
 fn playing_the_users_matchday_hands_back_the_report_and_the_stats() {
     let mut game = game_before_the_users_match();
@@ -246,5 +341,28 @@ fn playing_the_users_matchday_hands_back_the_report_and_the_stats() {
     assert!(
         !captures.is_empty(),
         "the matches played handed their stats back rather than dropping them"
+    );
+
+    // Not merely "some capture arrived": the other fixtures on the day produce captures of their
+    // own, so passing a no-op capture for the *user's* match still left this green. It has to name
+    // the user's own fixture.
+    let has_user_fixture_stats = captures.iter().any(|capture| {
+        capture
+            .team_matches
+            .iter()
+            .any(|record| record.fixture_id == "fix1")
+            || capture
+                .player_matches
+                .iter()
+                .any(|record| record.fixture_id == "fix1")
+    });
+    assert!(
+        has_user_fixture_stats,
+        "the user's own match is in the stats, not only the ones played around it: {:?}",
+        captures
+            .iter()
+            .flat_map(|capture| capture.team_matches.iter())
+            .map(|record| record.fixture_id.as_str())
+            .collect::<Vec<_>>()
     );
 }

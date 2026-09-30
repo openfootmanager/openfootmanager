@@ -88,17 +88,39 @@ where
 {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
+    // An index one past the end is the documented "the mirror already holds it" sentinel:
+    // `scheduled_user_fixture_index` answers `competitions.len()` for a save written before
+    // `competitions` existed, where the user's league lives only in the legacy slot. Anything
+    // beyond that is a caller error, and the old code swallowed it — `if let Some` simply did not
+    // swap, and the day was then played out of whichever competition the mirror happened to hold.
+    // Playing a stranger's fixture and reporting `Ok` is worse than refusing.
+    if competition_index > game.competitions.len() {
+        return Err(live_match_manager::LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR.to_string());
+    }
+
+    // The mirror is swapped in before the session is built, because `create_live_match` reads the
+    // fixture out of it. So a failure to build the session has to put it back: an empty squad is a
+    // handled `Err`, `update_game` mutates the live game in place, and an early return would leave
+    // the player's game pointing at another competition entirely — with no match played to explain
+    // why their fixture list changed.
+    let mirror_before_the_swap = game.league.clone();
     if let Some(competition) = game.competitions.get(competition_index).cloned() {
         game.league = Some(competition);
     }
 
     let allows_extra_time = fixture_allows_extra_time(game, fixture_index);
-    let mut session = live_match_manager::create_live_match(
+    let mut session = match live_match_manager::create_live_match(
         game,
         fixture_index,
         MatchMode::Instant,
         allows_extra_time,
-    )?;
+    ) {
+        Ok(session) => session,
+        Err(error) => {
+            game.league = mirror_before_the_swap;
+            return Err(error);
+        }
+    };
     session.user_side = None;
     let league_round_context = session.league_round_context.clone();
     session.run_to_completion();

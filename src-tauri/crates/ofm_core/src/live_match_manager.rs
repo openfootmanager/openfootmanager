@@ -35,7 +35,10 @@ fn phase_needs_manager(phase: MatchPhase) -> bool {
         MatchPhase::HalfTime | MatchPhase::ExtraTimeHalfTime | MatchPhase::PenaltyShootout
     )
 }
-const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
+/// Shared with [`crate::matchday`], which refuses a competition index that names no competition
+/// rather than quietly playing the fixture out of whatever the legacy mirror holds. One key, so
+/// the two refusals cannot drift into saying different things about the same failure.
+pub(crate) const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
 /// A side with nobody available cannot play. Refused here rather than handed to
 /// the engine, which has no way to resolve a pass, a shot or a goalkeeper.
 const LIVE_MATCH_EMPTY_SQUAD_ERROR: &str = "be.error.liveMatch.emptySquad";
