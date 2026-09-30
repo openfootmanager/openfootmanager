@@ -434,6 +434,7 @@ impl LiveMatchState {
 
     /// Simulate a red card for a player (adds to sent_off set).
     /// Primarily used for testing substitution guards.
+    #[doc(hidden)]
     pub fn test_send_off(&mut self, player_id: &str) {
         self.sent_off.insert(player_id.to_string());
     }
@@ -443,6 +444,7 @@ impl LiveMatchState {
     /// For tests about what a manager does when he is two down with twenty
     /// minutes left. Reaching that position by simulation would make the test
     /// about the seed rather than about the decision.
+    #[doc(hidden)]
     pub fn test_set_score(&mut self, home: u8, away: u8) {
         self.home_score = home;
         self.away_score = away;
