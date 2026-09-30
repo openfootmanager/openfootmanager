@@ -131,7 +131,35 @@ pub fn wage_policy_verdict(
     player: &domain::player::Player,
     offered_wage: u32,
 ) -> WagePolicyVerdict {
-    if renewal_wage_policy_allows(game, team, player, offered_wage) {
+    let (current_bill, projected_bill) = projected_wage_bills(game, &team.id, player, offered_wage);
+    verdict_for_bills(game, team, player, current_bill, projected_bill)
+}
+
+/// The same verdict for a club *buying* the player, who will then be on its books at
+/// the full `offered_wage`. A player already on loan at the buyer is counted at his
+/// loan share today and at the whole wage after the purchase, which
+/// [`wage_policy_verdict`] would not do (it keeps the loan split).
+pub fn purchase_wage_policy_verdict(
+    game: &Game,
+    team: &Team,
+    player: &domain::player::Player,
+    offered_wage: u32,
+) -> WagePolicyVerdict {
+    let current_bill = calc_wages(game, &team.id);
+    let current_contribution = player_weekly_wage_for_team(player, &team.id);
+    let projected_bill = current_bill - current_contribution + i64::from(offered_wage);
+    verdict_for_bills(game, team, player, current_bill, projected_bill)
+}
+
+/// The rule itself, once: the policy on the two bills, then the squad-floor waiver.
+fn verdict_for_bills(
+    game: &Game,
+    team: &Team,
+    player: &domain::player::Player,
+    current_bill: i64,
+    projected_bill: i64,
+) -> WagePolicyVerdict {
+    if wage_policy_allows_projection(team, current_bill, projected_bill) {
         WagePolicyVerdict::WithinPolicy
     } else if crate::squad_floor::club_needs_him_for_the_floor(game, &team.id, player) {
         WagePolicyVerdict::OverPolicyToKeepSquadFloor

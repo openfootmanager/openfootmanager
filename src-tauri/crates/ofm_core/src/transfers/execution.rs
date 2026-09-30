@@ -238,6 +238,48 @@ pub(super) fn ensure_transfer_cash_postable(
     )
 }
 
+/// The contract a club would give a player it buys, if the board lets it pay it: the
+/// buying club, his wage and the day it ends. Its standard terms (the ones a renewal
+/// is judged by), through the one wage rule. `Err` is the board's refusal, in the same
+/// words a renewal gets.
+pub(super) fn buyers_contract_terms(
+    game: &Game,
+    player: &Player,
+    buyer_team_id: &str,
+) -> Result<(Team, u32, NaiveDate), String> {
+    let buyer = game
+        .teams
+        .iter()
+        .find(|team| team.id == buyer_team_id)
+        .cloned()
+        .ok_or("be.error.teamNotFound")?;
+    // No bid carries a wage yet (every `wage_offered` is 0), so none is passed; when one
+    // does, it is passed here.
+    let (wage, end) =
+        standard_contract_terms(player, &buyer, game.clock.current_date.date_naive(), 0)
+            .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
+    if !purchase_wage_policy_verdict(game, &buyer, player, wage).permits() {
+        return Err(renewal_wage_policy_error_message(&buyer));
+    }
+    Ok((buyer, wage, end))
+}
+
+/// Whether `buyer_team_id` could be given the contract it would need to buy this
+/// player. For the checks made before a deal is agreed, so that refusing afterwards
+/// cannot leave one agreed with the player still at his club.
+pub(super) fn ensure_buyer_can_pay_standard_wage(
+    game: &Game,
+    player_id: &str,
+    buyer_team_id: &str,
+) -> Result<(), String> {
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+    buyers_contract_terms(game, player, buyer_team_id).map(|_| ())
+}
+
 /// Transfer a player between teams, adjusting finances.
 pub(super) fn execute_transfer(
     game: &mut Game,
@@ -283,22 +325,10 @@ pub(super) fn execute_transfer(
         .find(|team| team.id == to_team_id)
         .and_then(|team| crate::roster::resolve_jersey_for(game, &player_snapshot, team));
 
-    // The buyer's standard terms, worked out before any money moves so that a failure
-    // here cannot leave a half-done transfer. No bid carries a wage yet (every
-    // `wage_offered` is 0), so none is passed; when one does, it is passed here.
-    let buying_team = game
-        .teams
-        .iter()
-        .find(|team| team.id == to_team_id)
-        .cloned()
-        .ok_or("be.error.teamNotFound")?;
-    let (new_wage, new_contract_end) = standard_contract_terms(
-        &player_snapshot,
-        &buying_team,
-        game.clock.current_date.date_naive(),
-        0,
-    )
-    .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
+    // The buyer's terms, and the board's say on them, settled before any money moves so
+    // that a refusal here cannot leave a half-done transfer.
+    let (buying_team, new_wage, new_contract_end) =
+        buyers_contract_terms(game, &player_snapshot, to_team_id)?;
 
     let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
     let date = game.clock.current_date.date_naive();

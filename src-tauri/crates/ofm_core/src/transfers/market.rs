@@ -351,6 +351,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             }
             buyer_team.transfer_budget >= target.fee as i64
                 && buyer_team.finance >= target.fee as i64
+                && ensure_buyer_can_pay_standard_wage(game, &target.player_id, &buyer_id).is_ok()
         });
 
         let Some(target) = chosen else {

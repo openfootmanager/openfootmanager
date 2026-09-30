@@ -407,6 +407,7 @@ pub fn make_transfer_bid(
         // Before the offer is marked agreed: refusing after would leave it agreed
         // with the player still at his club.
         crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+        ensure_buyer_can_pay_standard_wage(game, player_id, &user_team_id)?;
         if register_immediately {
             ensure_transfer_cash_postable(game, &user_team_id, &owner_team_id, fee)?;
         }
@@ -610,6 +611,7 @@ pub fn respond_to_offer(
         // Before the offer is marked agreed: refusing after would leave it agreed
         // with the player still at his club.
         crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+        ensure_buyer_can_pay_standard_wage(game, player_id, &from_team_id)?;
     }
     if accept && register_immediately {
         ensure_transfer_cash_postable(game, &from_team_id, &user_team_id, fee)?;
@@ -728,6 +730,7 @@ pub fn counter_offer(
         // Before the offer is marked agreed: refusing after would leave it agreed
         // with the player still at his club.
         crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+        ensure_buyer_can_pay_standard_wage(game, player_id, &buyer_team_id)?;
     }
     if accepted && register_immediately {
         ensure_transfer_cash_postable(game, &buyer_team_id, &user_team_id, requested_fee)?;

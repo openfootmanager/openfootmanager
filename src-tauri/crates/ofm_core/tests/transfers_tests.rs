@@ -4369,3 +4369,143 @@ fn a_loan_to_buy_creates_a_new_contract_with_the_buyers_terms() {
     );
     assert_eq!(player.contract_end(), Some("2029-08-01"));
 }
+
+// ---------------------------------------------------------------------------
+// The buyer's standard wage goes through the one wage rule.
+// ---------------------------------------------------------------------------
+
+/// Enough players in every group that the squad floor is met without the target, so the
+/// floor's waiver of the wage policy cannot apply to the club being tested.
+fn give_depth(game: &mut Game, team_id: &str) {
+    for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+        .into_iter()
+        .zip([3, 6, 6, 4])
+    {
+        for index in 0..count {
+            let mut depth = make_player(&format!("depth-{team_id}-{group:?}-{index}"));
+            depth.team_id = Some(team_id.to_string());
+            depth.position = group.clone();
+            depth.natural_position = group.clone();
+            game.players.push(depth);
+        }
+    }
+}
+
+#[test]
+fn a_bid_the_board_would_not_let_its_buyer_pay_for_is_refused_before_anything_is_agreed() {
+    let player = make_player("player-over-policy");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    give_depth(&mut game, "team-1");
+    game.teams[0].wage_budget = 1;
+
+    let refused = make_transfer_bid(&mut game, "player-over-policy", 2_000_000)
+        .expect_err("the board refuses the wage the buyer would have to pay");
+
+    assert!(
+        refused.starts_with("be.error.contracts.boardWagePolicy"),
+        "{refused}"
+    );
+    let target = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-over-policy")
+        .unwrap();
+    assert_eq!(target.team_id.as_deref(), Some("team-2"), "he did not move");
+    assert!(target.transfer_offers.is_empty(), "nothing was left agreed");
+    assert!(target.movement_history.is_empty());
+}
+
+#[test]
+fn a_club_below_the_squad_floor_may_be_given_the_contract_the_policy_would_refuse() {
+    // The same tight budget, but the buyer has nobody: a club that cannot put a side out
+    // has no wage bill worth protecting (the rule renewals and signings follow too).
+    let player = make_player("player-floor-waiver");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.players
+        .retain(|p| p.team_id.as_deref() != Some("team-1"));
+    game.teams[0].wage_budget = 1;
+
+    make_transfer_bid(&mut game, "player-floor-waiver", 2_000_000)
+        .expect("the floor waives the policy for a club with no squad");
+
+    let target = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-floor-waiver")
+        .unwrap();
+    assert_eq!(target.team_id.as_deref(), Some("team-1"));
+}
+
+#[test]
+fn a_loan_to_buy_is_judged_at_the_whole_wage_not_the_loan_share() {
+    let mut player = make_player("player-buy-over-policy");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
+    player.stage_wage(520_000);
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    attach_transfer_log_league(&mut game);
+    give_depth(&mut game, "team-1");
+    make_loan_offer(
+        &mut game,
+        "player-buy-over-policy",
+        "2027-01-01",
+        40,
+        Some(1_250_000),
+    )
+    .expect("the loan fits the budget it was agreed under");
+    // On loan he costs the borrower 40% of his wage (about 208,000 a week). A budget of
+    // 300,000 lets the board pay a share of the wage he would be bought on (40% of about
+    // 570,000) but not the whole of it, so only a verdict that counts the whole wage
+    // refuses.
+    assert!(calc_wages(&game, "team-1") < 300_000);
+    game.teams[0].wage_budget = 300_000;
+
+    let refused = exercise_loan_buy_option(&mut game, "player-buy-over-policy")
+        .expect_err("the whole wage is over the board's policy");
+
+    assert!(
+        refused.starts_with("be.error.contracts.boardWagePolicy"),
+        "{refused}"
+    );
+    let target = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-buy-over-policy")
+        .unwrap();
+    assert!(target.active_loan.is_some(), "he is still on loan");
+    assert_eq!(game.teams[0].finance, 5_000_000, "no fee was paid");
+}
+
+#[test]
+fn a_scheduled_transfer_whose_buyer_can_no_longer_pay_his_wage_does_not_register() {
+    let player = make_player("player-late-refusal");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+    make_transfer_bid(&mut game, "player-late-refusal", 2_000_000)
+        .expect("agreed while the buyer could pay");
+    // Before the window opens the board tightens the budget, with a full squad.
+    give_depth(&mut game, "team-1");
+    game.teams[0].wage_budget = 1;
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let target = game
+        .players
+        .iter()
+        .find(|p| p.id == "player-late-refusal")
+        .unwrap();
+    assert_eq!(target.team_id.as_deref(), Some("team-2"), "he did not move");
+    assert!(
+        !target
+            .movement_history
+            .iter()
+            .any(|e| e.kind == PlayerMovementKind::PermanentTransfer),
+        "no transfer was recorded"
+    );
+}

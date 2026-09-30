@@ -962,17 +962,10 @@ pub(crate) fn complete_loan_buy_option_transfer(
         .unwrap_or_else(|| buying_team_id.to_string());
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let date = game.clock.current_date.date_naive();
-    // The buyer's standard terms, worked out before any money moves. The option names
-    // a fee and nothing else, so no wage is passed.
-    let buying_club = game
-        .teams
-        .iter()
-        .find(|team| team.id == buying_team_id)
-        .cloned()
-        .ok_or("be.error.teamNotFound")?;
-    let (new_wage, new_contract_end) =
-        standard_contract_terms(&player_snapshot, &buying_club, date, 0)
-            .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
+    // The buyer's terms, and the board's say on them, settled before any money moves.
+    // The option names a fee and nothing else.
+    let (buying_club, new_wage, new_contract_end) =
+        buyers_contract_terms(game, &player_snapshot, buying_team_id)?;
     crate::finances::post_all(
         game,
         &[
