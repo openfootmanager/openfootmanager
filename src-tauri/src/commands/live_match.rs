@@ -1053,6 +1053,31 @@ mod tests {
     }
 
     #[test]
+    fn live_match_refuses_finish_when_fixture_teams_change_under_session() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false)
+            .expect("scheduled fixture creates a session");
+        // Keep the same fixture ID and Scheduled status so only the team
+        // identity check can reject this swapped authoritative fixture.
+        game.competitions[0].fixtures[0].home_team_id = "team3".to_string();
+        state.set_game(game);
+        state.set_live_match(session);
+        let before = state.get_game(|game| game.clone()).unwrap();
+
+        let error = finish_live_match_internal(&state).unwrap_err();
+        assert_eq!(error, "be.error.liveMatch.fixtureNotFound");
+        let after = state.get_game(|game| game.clone()).unwrap();
+        assert_eq!(after.clock.current_date, before.clock.current_date);
+        assert_eq!(after.competitions[0].fixtures[0].home_team_id, "team3");
+        assert_eq!(
+            after.competitions[0].fixtures[0].status,
+            FixtureStatus::Scheduled
+        );
+        assert!(after.competitions[0].fixtures[0].result.is_none());
+    }
+
+    #[test]
     fn live_match_refuses_finish_when_fixture_was_completed_elsewhere() {
         let state = StateManager::new();
         let mut game = make_game_with_round();

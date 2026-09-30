@@ -425,3 +425,42 @@ fn derive_personality(rep: u32, manager: Option<&Manager>) -> AiPersonality {
 
     AiPersonality::Pragmatist
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{MatchMode, create_live_match};
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{Fixture, FixtureStatus, League};
+    use domain::manager::Manager;
+
+    #[test]
+    fn create_live_match_refuses_completed_fixture_directly() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "manager".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        game.league = Some(League {
+            id: "league".to_string(),
+            fixtures: vec![Fixture {
+                id: "already-played".to_string(),
+                home_team_id: "home".to_string(),
+                away_team_id: "away".to_string(),
+                status: FixtureStatus::Completed,
+                ..Fixture::default()
+            }],
+            ..League::default()
+        });
+
+        let error = create_live_match(&game, 0, MatchMode::Instant, false)
+            .err()
+            .expect("the core entry point must reject a completed fixture");
+        assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
+    }
+}
