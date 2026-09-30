@@ -43,11 +43,13 @@ process_day(game)
 On match days, `simulate_matchday()`:
 
 1. Finds all scheduled fixtures for today in the active competitions
-2. For each fixture, plays it on the live engine the player watches, with nobody on the user's
-   touchline: `live_match_manager::play_unwatched_fixture` builds both sides with
-   `turn::squad::build_team_with_bench` (an eleven and a bench, fit players first), and an AI
-   manager on each side makes substitutions and tactical changes as the match goes. Knockout
-   ties play extra time and, if still level, a penalty shootout.
+2. For each fixture, plays it as an unwatched live-engine session, with an AI manager on both
+   touchlines: `live_match_manager::play_unwatched_fixture` kicks off through the squad floor's
+   gate, builds both sides with `turn::squad::build_team_with_bench` (an eleven and a bench, fit
+   players first), and each manager makes substitutions and tactical changes as the match goes.
+   Knockout ties play extra time and, if still level, a penalty shootout. A side nobody can field
+   at all is settled by scoreline instead, and logged. The player's own fixture, when delegated,
+   goes through the same function.
 3. Takes the finished match's `MatchReport`
 4. Updates fixture status to `Completed` with the `MatchResult`
 5. Updates `StandingEntry` for both teams (points: 3/1/0 for win/draw/loss)
