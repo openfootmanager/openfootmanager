@@ -98,7 +98,7 @@ mod tests {
             default_attrs(),
         );
         player.team_id = Some(team_id.to_string());
-        player.wage = wage;
+        player.stored_wage = wage;
         player
     }
 

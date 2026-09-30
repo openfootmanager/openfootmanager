@@ -92,8 +92,8 @@ pub(crate) fn expected_wage(player: &Player, team: &Team, current_date: NaiveDat
 }
 
 pub(crate) fn reference_player_wage(player: &Player) -> u32 {
-    if player.wage > 0 {
-        return player.wage;
+    if player.wage() > 0 {
+        return player.wage();
     }
 
     let derived_wage = (player.market_value / MARKET_VALUE_TO_WAGE_RATIO).max(MINIMUM_DEFAULT_WAGE);
@@ -159,7 +159,7 @@ pub(crate) fn player_age_on(current_date: NaiveDate, date_of_birth: &str) -> i32
 }
 
 pub(crate) fn remaining_contract_days(player: &Player, current_date: NaiveDate) -> i64 {
-    contract_days_remaining(player.contract_end.as_deref(), current_date)
+    contract_days_remaining(player.contract_end(), current_date)
         .unwrap_or(0)
         .max(0)
 }

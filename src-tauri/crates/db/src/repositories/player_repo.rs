@@ -105,8 +105,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             p.team_id,
             p.retired as i32,
             traits_json,
-            p.contract_end,
-            p.wage,
+            p.contract_end(),
+            p.wage(),
             p.market_value as i64,
             stats_json,
             career_json,
@@ -128,7 +128,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             loan_offers_json,
             active_loan_json,
             movement_history_json,
-            p.contract_start,
+            p.contract_start(),
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -343,9 +343,9 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         traits: serde_json::from_str(&traits_json).unwrap_or_default(),
         ovr,
         potential,
-        contract_start: row.get(38)?,
-        contract_end: row.get(15)?,
-        wage: row.get(16)?,
+        stored_contract_start: row.get(38)?,
+        stored_contract_end: row.get(15)?,
+        stored_wage: row.get(16)?,
         market_value: market_value_i64 as u64,
         stats: serde_json::from_str(&stats_json).unwrap_or_default(),
         career: serde_json::from_str(&career_json).unwrap_or_default(),
@@ -495,7 +495,7 @@ mod tests {
             },
         );
         p.team_id = team_id.map(|s| s.to_string());
-        p.wage = 5000;
+        p.stored_wage = 5000;
         p.market_value = 500_000;
         p
     }
@@ -512,7 +512,7 @@ mod tests {
         assert_eq!(all[0].full_name, "John Smith");
         assert_eq!(all[0].position, Position::Midfielder);
         assert_eq!(all[0].team_id, Some("team-001".to_string()));
-        assert_eq!(all[0].wage, 5000);
+        assert_eq!(all[0].wage(), 5000);
         assert_eq!(all[0].market_value, 500_000);
         assert_eq!(all[0].football_nation, "GB");
         assert_eq!(all[0].birth_country, None);
@@ -537,7 +537,7 @@ mod tests {
         player.jersey_number = Some(7);
         player.condition = 50;
         player.morale = 40;
-        player.wage = 12_000;
+        player.stored_wage = 12_000;
         player.market_value = 1_200_000;
         player.transfer_listed = true;
         player.loan_listed = true;
@@ -545,7 +545,7 @@ mod tests {
         player.natural_position = Position::Forward;
         player.ovr = 88;
         player.potential = 95;
-        player.contract_end = Some("2030-06-30".to_string());
+        player.stored_contract_end = Some("2030-06-30".to_string());
         upsert_player(db.conn(), &player).unwrap();
 
         let all = load_all_players(db.conn()).unwrap();
@@ -555,7 +555,7 @@ mod tests {
         assert_eq!(stored.jersey_number, Some(7));
         assert_eq!(stored.condition, 50);
         assert_eq!(stored.morale, 40);
-        assert_eq!(stored.wage, 12_000);
+        assert_eq!(stored.wage(), 12_000);
         assert_eq!(stored.market_value, 1_200_000);
         assert!(stored.transfer_listed);
         assert!(stored.loan_listed);
@@ -563,7 +563,7 @@ mod tests {
         assert_eq!(stored.natural_position, Position::Forward);
         assert_eq!(stored.ovr, 88);
         assert_eq!(stored.potential, 95);
-        assert_eq!(stored.contract_end.as_deref(), Some("2030-06-30"));
+        assert_eq!(stored.contract_end(), Some("2030-06-30"));
     }
 
     /// A contract has a start as well as an end, and the start must survive a save.
@@ -632,8 +632,8 @@ mod tests {
     fn test_legacy_row_gets_one_legacy_contract_entry_on_load() {
         let db = test_db();
         let mut player = sample_player("p-legacy", Some("team-1"));
-        player.contract_end = Some("2029-06-30".to_string());
-        player.wage = 6_500;
+        player.stored_contract_end = Some("2029-06-30".to_string());
+        player.stored_wage = 6_500;
         assert!(player.movement_history.is_empty());
         upsert_player(db.conn(), &player).unwrap();
 
@@ -662,8 +662,8 @@ mod tests {
     fn test_legacy_contract_entry_is_not_duplicated_by_a_second_load() {
         let db = test_db();
         let mut player = sample_player("p-legacy2", Some("team-1"));
-        player.contract_end = Some("2029-06-30".to_string());
-        player.wage = 6_500;
+        player.stored_contract_end = Some("2029-06-30".to_string());
+        player.stored_wage = 6_500;
         upsert_player(db.conn(), &player).unwrap();
 
         let first = load_all_players(db.conn()).unwrap().remove(0);
@@ -677,8 +677,8 @@ mod tests {
     fn test_a_player_with_no_contract_gets_no_legacy_entry() {
         let db = test_db();
         let mut free_agent = sample_player("p-free", None);
-        free_agent.wage = 0;
-        free_agent.contract_end = None;
+        free_agent.stored_wage = 0;
+        free_agent.stored_contract_end = None;
         upsert_player(db.conn(), &free_agent).unwrap();
 
         let stored = load_all_players(db.conn()).unwrap().remove(0);
@@ -738,6 +738,39 @@ mod tests {
         let stored = load_all_players(db.conn()).unwrap().remove(0);
         assert_eq!(stored.wage(), 9_000);
         assert_eq!(stored.movement_history.len(), 2);
+    }
+
+    /// The columns are a copy for anything that reads the .db directly, and they are
+    /// written from the contract the ledger says is current.
+    #[test]
+    fn test_contract_columns_hold_the_latest_ledger_contract() {
+        use domain::contract_ledger::{ContractRecord, ContractSource};
+        let db = test_db();
+        let mut player = sample_player("p-cols", Some("team-1"));
+        player
+            .record_movement(PlayerMovementEntry {
+                contract: Some(ContractRecord {
+                    start: Some("2026-01-10".to_string()),
+                    end: Some("2029-06-30".to_string()),
+                    weekly_wage: 9_000,
+                    source: ContractSource::Renewal,
+                }),
+                ..PlayerMovementEntry::new("2026-01-10", PlayerMovementKind::Renewal)
+            })
+            .unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+
+        let (start, end, wage): (Option<String>, Option<String>, i64) = db
+            .conn()
+            .query_row(
+                "SELECT contract_start, contract_end, wage FROM players WHERE id = ?1",
+                ["p-cols"],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(start.as_deref(), Some("2026-01-10"));
+        assert_eq!(end.as_deref(), Some("2029-06-30"));
+        assert_eq!(wage, 9_000);
     }
 
     /// A save written before contracts had a start keeps `None`, and `None` is not

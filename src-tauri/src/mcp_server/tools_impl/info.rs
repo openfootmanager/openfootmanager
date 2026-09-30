@@ -456,8 +456,8 @@ pub fn info_player_profile(ctx: Arc<McpContext>, player_id: String) -> Result<St
             player.condition,
             player.morale,
             player.fitness,
-            player.wage,
-            player.contract_end.as_deref().unwrap_or("-"),
+            player.wage(),
+            player.contract_end().unwrap_or("-"),
         ));
 
         if player.injury.is_some() {

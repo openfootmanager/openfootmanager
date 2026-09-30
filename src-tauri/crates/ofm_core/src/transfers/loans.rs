@@ -7,7 +7,7 @@
 use super::*;
 
 pub(crate) fn loan_wage_share(player: &domain::player::Player, wage_contribution_pct: u8) -> i64 {
-    (i64::from(player.wage) * i64::from(wage_contribution_pct)) / 100
+    (i64::from(player.wage()) * i64::from(wage_contribution_pct)) / 100
 }
 pub(crate) fn validate_loan_borrower_affordability(
     game: &Game,
@@ -78,7 +78,7 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
                     && !player.loan_listed
                     && !player_has_pending_registration(player)
                     && !starting_xi_ids.contains(&player.id)
-                    && player.contract_end.as_deref().is_some_and(|contract_end| {
+                    && player.contract_end().is_some_and(|contract_end| {
                         NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").is_ok_and(|date| {
                             date >= current_date
                                 + Duration::days(MIN_OPENING_LOAN_CONTRACT_RUNWAY_DAYS)
@@ -137,7 +137,7 @@ pub(crate) fn suggested_loan_wage_contribution_pct(
     score: i32,
     player: &domain::player::Player,
 ) -> u8 {
-    if score >= 70 || player.wage <= 150_000 {
+    if score >= 70 || player.wage() <= 150_000 {
         100
     } else if score >= 60 {
         75
@@ -165,7 +165,7 @@ pub(crate) fn default_loan_end_date(
 ) -> Option<String> {
     let minimum_end_date = current_date + Duration::days(30);
     let default_end_date = current_date + Duration::days(180);
-    let end_date = match player.contract_end.as_deref() {
+    let end_date = match player.contract_end() {
         Some(contract_end) => {
             let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").ok()?;
             let latest_loan_end_date = contract_end_date - Duration::days(1);
@@ -334,7 +334,7 @@ pub(crate) fn validate_loan_end_before_contract(
     player: &domain::player::Player,
     loan_end_date: NaiveDate,
 ) -> Result<(), String> {
-    let Some(contract_end) = player.contract_end.as_deref() else {
+    let Some(contract_end) = player.contract_end() else {
         return Ok(());
     };
     let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d")
@@ -414,7 +414,7 @@ pub(crate) fn loan_borrower_wage_ceiling(
         ceiling += 8;
     }
 
-    if player.wage <= 750_000 {
+    if player.wage() <= 750_000 {
         ceiling += 6;
     }
 

@@ -14,7 +14,7 @@ pub fn set_contract_exit_intent(
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let player = &mut game.players[player_index];
 
-    if player.contract_end.is_none() {
+    if player.contract_end().is_none() {
         return Err(ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT.to_string());
     }
 
@@ -64,7 +64,7 @@ pub fn preview_contract_termination(
 ) -> Result<ContractTerminationPreview, String> {
     let player = owned_player(game, player_id)?;
 
-    if player.contract_end.is_none() {
+    if player.contract_end().is_none() {
         return Err(ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT.to_string());
     }
 
@@ -147,12 +147,12 @@ pub fn has_let_expire_intent(player: &Player) -> bool {
 }
 
 pub(crate) fn termination_severance_cost(player: &Player, current_date: NaiveDate) -> i64 {
-    let remaining_days = contract_days_remaining(player.contract_end.as_deref(), current_date)
+    let remaining_days = contract_days_remaining(player.contract_end(), current_date)
         .unwrap_or(0)
         .max(0);
     let remaining_weeks = (remaining_days + 6) / 7;
 
-    remaining_weeks * i64::from(player.wage)
+    remaining_weeks * i64::from(player.wage())
 }
 
 pub(crate) fn contract_terminated_message(

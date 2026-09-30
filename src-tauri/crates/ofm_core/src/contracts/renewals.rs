@@ -43,7 +43,7 @@ pub fn evaluate_renewal_offer(
     let round = next_renewal_round(player, None);
     let expected_wage = expected_wage(player, team, current_date);
     let expected_years = expected_contract_years(player, current_date);
-    let minimum_wage = minimum_acceptable_wage(player.wage);
+    let minimum_wage = minimum_acceptable_wage(player.wage());
 
     if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
         let feedback = build_renewal_feedback(
@@ -66,7 +66,7 @@ pub fn evaluate_renewal_offer(
         );
     }
 
-    if is_insulting_wage_offer(player.wage, expected_wage, offer.weekly_wage) {
+    if is_insulting_wage_offer(player.wage(), expected_wage, offer.weekly_wage) {
         let feedback = build_renewal_feedback(
             player,
             current_date,
@@ -246,7 +246,7 @@ pub fn propose_renewal(
                 RenewalDecision::Accepted,
                 RenewalSessionStatus::Agreed,
                 round,
-                game.players[player_index].wage,
+                game.players[player_index].wage(),
                 false,
             )),
         ));
@@ -506,7 +506,7 @@ pub(crate) fn build_renewal_feedback(
             "playerProfile.renewalFeedbackTenseHeadline",
             Some("playerProfile.renewalFeedbackTenseDetail"),
         )
-    } else if expected_wage > player.wage || round >= 2 {
+    } else if expected_wage > player.wage() || round >= 2 {
         (
             NegotiationMood::Firm,
             "playerProfile.renewalFeedbackFirmHeadline",

@@ -218,7 +218,7 @@ fn upgrading_a_save_does_not_re_warn_about_a_contract_or_re_apply_the_morale_hit
         .format("%Y-%m-%d")
         .to_string();
     let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
-    player.contract_end = Some(six_month_end);
+    player.stored_contract_end = Some(six_month_end);
     let morale_before = player.morale;
 
     // The legacy message, exactly as a pre-ledger save would hold it: the old
@@ -260,7 +260,7 @@ fn upgrading_a_save_still_warns_about_a_contract_renewed_since_the_old_warning()
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(renewed_end.clone());
+        .stored_contract_end = Some(renewed_end.clone());
 
     // Written when the player was in his final weeks, before he re-signed.
     game.messages
@@ -288,7 +288,7 @@ fn upgrading_a_save_still_warns_when_the_renewal_lands_on_the_same_stage() {
         .format("%Y-%m-%d")
         .to_string();
     let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
-    player.contract_end = Some(renewed_end.clone());
+    player.stored_contract_end = Some(renewed_end.clone());
     let morale_before = player.morale;
 
     // The old deal ended 120 days out — also the six-month stage.
@@ -673,7 +673,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(twelve_month_end);
+        .stored_contract_end = Some(twelve_month_end);
 
     player_events::check_player_events(&mut twelve_month_game);
 
@@ -694,7 +694,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(six_month_end);
+        .stored_contract_end = Some(six_month_end);
 
     player_events::check_player_events(&mut six_month_game);
 
@@ -715,7 +715,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(three_month_end);
+        .stored_contract_end = Some(three_month_end);
 
     player_events::check_player_events(&mut three_month_game);
 
@@ -736,7 +736,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(final_weeks_end);
+        .stored_contract_end = Some(final_weeks_end);
 
     player_events::check_player_events(&mut final_weeks_game);
 
@@ -760,7 +760,7 @@ fn contract_pressure_intensifies_as_expiry_approaches() {
         .find(|p| p.id == "p_fwd0")
         .unwrap();
     twelve_month_player.morale = 80;
-    twelve_month_player.contract_end = Some(
+    twelve_month_player.stored_contract_end = Some(
         (twelve_month_game.clock.current_date + chrono::Duration::days(330))
             .format("%Y-%m-%d")
             .to_string(),
@@ -772,7 +772,7 @@ fn contract_pressure_intensifies_as_expiry_approaches() {
         .find(|p| p.id == "p_fwd0")
         .unwrap();
     final_weeks_player.morale = 80;
-    final_weeks_player.contract_end = Some(
+    final_weeks_player.stored_contract_end = Some(
         (final_weeks_game.clock.current_date + chrono::Duration::days(20))
             .format("%Y-%m-%d")
             .to_string(),
@@ -811,7 +811,7 @@ fn takeover_contract_review_replaces_first_day_contract_spam() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(
+        .stored_contract_end = Some(
         (game.clock.current_date + chrono::Duration::days(20))
             .format("%Y-%m-%d")
             .to_string(),
@@ -820,7 +820,7 @@ fn takeover_contract_review_replaces_first_day_contract_spam() {
         .iter_mut()
         .find(|p| p.id == "p_fwd1")
         .unwrap()
-        .contract_end = Some(
+        .stored_contract_end = Some(
         (game.clock.current_date + chrono::Duration::days(150))
             .format("%Y-%m-%d")
             .to_string(),
@@ -854,7 +854,7 @@ fn no_contract_concern_beyond_twelve_months() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(end_date);
+        .stored_contract_end = Some(end_date);
 
     player_events::check_player_events(&mut game);
 
@@ -879,7 +879,7 @@ fn no_contract_concern_if_expired() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(end_date);
+        .stored_contract_end = Some(end_date);
 
     player_events::check_player_events(&mut game);
 

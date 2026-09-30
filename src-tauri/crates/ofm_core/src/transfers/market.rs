@@ -71,9 +71,7 @@ pub(crate) fn minimum_acceptable_fee(
 ) -> u64 {
     let mut multiplier: f64 = if player.transfer_listed { 0.8 } else { 1.2 };
 
-    if let Some(days_remaining) =
-        contract_days_remaining(current_date, player.contract_end.as_deref())
-    {
+    if let Some(days_remaining) = contract_days_remaining(current_date, player.contract_end()) {
         if days_remaining <= 60 {
             multiplier -= 0.25;
         } else if days_remaining <= 180 {
@@ -123,9 +121,7 @@ pub(crate) fn player_move_openness_score(
         score += 8;
     }
 
-    if let Some(days_remaining) =
-        contract_days_remaining(current_date, player.contract_end.as_deref())
-    {
+    if let Some(days_remaining) = contract_days_remaining(current_date, player.contract_end()) {
         if days_remaining <= 180 {
             score += 20;
         } else if days_remaining <= 365 {

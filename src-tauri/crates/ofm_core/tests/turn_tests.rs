@@ -312,16 +312,16 @@ fn process_day_releases_players_with_expired_contracts() {
     game.league.as_mut().unwrap().fixtures[0].date = "2025-06-20".to_string();
 
     let player = game.players.iter_mut().find(|p| p.id == "t1_fwd0").unwrap();
-    player.contract_end = Some("2025-06-15".to_string());
-    player.wage = 12_000;
+    player.stored_contract_end = Some("2025-06-15".to_string());
+    player.stored_wage = 12_000;
     player.morale = 70;
 
     turn::process_day(&mut game);
 
     let released_player = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
     assert_eq!(released_player.team_id, None);
-    assert_eq!(released_player.contract_end, None);
-    assert_eq!(released_player.wage, 0);
+    assert_eq!(released_player.contract_end(), None);
+    assert_eq!(released_player.wage(), 0);
     let message = game
         .messages
         .iter()

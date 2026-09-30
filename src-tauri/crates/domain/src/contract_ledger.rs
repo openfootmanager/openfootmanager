@@ -104,18 +104,25 @@ impl Player {
     }
 
     pub fn contract_start(&self) -> Option<&str> {
-        self.current_contract()
-            .and_then(|record| record.start.as_deref())
+        self.stored_contract_start.as_deref()
     }
 
     pub fn contract_end(&self) -> Option<&str> {
-        self.current_contract()
-            .and_then(|record| record.end.as_deref())
+        self.stored_contract_end.as_deref()
     }
 
     pub fn wage(&self) -> u32 {
-        self.current_contract()
-            .map_or(0, |record| record.weekly_wage)
+        self.stored_wage
+    }
+
+    /// Stage the contract world generation gave a player, before he has a history.
+    /// It is the contract he opens a career on: `Player::open_initial_contract`
+    /// turns it into his first ledger entry. Nothing else should call this once a
+    /// player has a ledger; record a movement instead.
+    pub fn stage_contract(&mut self, start: Option<String>, end: Option<String>, wage: u32) {
+        self.stored_contract_start = start;
+        self.stored_contract_end = end;
+        self.stored_wage = wage;
     }
 
     fn sync_contract_fields(&mut self) {
@@ -123,9 +130,9 @@ impl Player {
             Some(record) => (record.start.clone(), record.end.clone(), record.weekly_wage),
             None => (None, None, 0),
         };
-        self.contract_start = start;
-        self.contract_end = end;
-        self.wage = wage;
+        self.stored_contract_start = start;
+        self.stored_contract_end = end;
+        self.stored_wage = wage;
     }
 
     /// Give a player loaded from a save that predates the ledger one entry for the
@@ -135,7 +142,7 @@ impl Player {
     pub fn adopt_legacy_contract(&mut self) {
         // Dated by the start the old columns knew, and empty when they did not: an
         // unknown, not a made-up day.
-        let start = self.contract_start.clone();
+        let start = self.stored_contract_start.clone();
         let _ = self.adopt_staged_contract(
             ContractSource::LegacyMigrated,
             start.clone().unwrap_or_default(),
@@ -172,7 +179,7 @@ impl Player {
         {
             return Ok(());
         }
-        if self.contract_end.is_none() && self.wage == 0 {
+        if self.stored_contract_end.is_none() && self.stored_wage == 0 {
             return Ok(());
         }
         // A loaned player's contract is his parent's.
@@ -186,8 +193,8 @@ impl Player {
         };
         let record = ContractRecord {
             start,
-            end: self.contract_end.clone(),
-            weekly_wage: self.wage,
+            end: self.stored_contract_end.clone(),
+            weekly_wage: self.stored_wage,
             source,
         };
         // Appended last so it is the latest contract.
@@ -277,9 +284,9 @@ mod tests {
         .expect("a valid contract is recorded");
 
         assert_eq!(p.movement_history.len(), 1);
-        assert_eq!(p.contract_start.as_deref(), Some("2026-07-01"));
-        assert_eq!(p.contract_end.as_deref(), Some("2029-06-30"));
-        assert_eq!(p.wage, 4_000);
+        assert_eq!(p.stored_contract_start.as_deref(), Some("2026-07-01"));
+        assert_eq!(p.stored_contract_end.as_deref(), Some("2029-06-30"));
+        assert_eq!(p.stored_wage, 4_000);
     }
 
     #[test]
@@ -350,7 +357,7 @@ mod tests {
         assert_eq!(p.contract_start(), None);
         assert_eq!(p.contract_end(), None);
         assert_eq!(p.wage(), 0);
-        assert_eq!((p.wage, p.contract_end.as_deref()), (0, None));
+        assert_eq!((p.stored_wage, p.stored_contract_end.as_deref()), (0, None));
     }
 
     #[test]
@@ -374,7 +381,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(p.wage(), 0);
-        assert_eq!(p.wage, 0);
+        assert_eq!(p.stored_wage, 0);
         assert_eq!(p.contract_end(), None);
     }
 
@@ -401,7 +408,7 @@ mod tests {
         assert_eq!(p.wage(), 5_000);
         assert_eq!(p.contract_end(), Some("2027-06-30"));
         assert_eq!(
-            p.wage, 5_000,
+            p.stored_wage, 5_000,
             "a loan entry must not disturb the flat fields"
         );
     }
@@ -467,7 +474,7 @@ mod tests {
             assert_eq!(refused, Err(LedgerError::EndNotAfterStart), "end {end}");
         }
         assert!(p.movement_history.is_empty());
-        assert_eq!(p.wage, 0);
+        assert_eq!(p.stored_wage, 0);
     }
 
     #[test]
@@ -481,7 +488,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(p.contract_start(), None);
-        assert_eq!(p.contract_start, None);
+        assert_eq!(p.stored_contract_start, None);
         assert_eq!(p.contract_end(), Some("2028-06-30"));
     }
 
@@ -489,9 +496,9 @@ mod tests {
     fn a_legacy_player_gets_one_entry_and_a_known_start_is_kept() {
         let mut p = player();
         p.team_id = Some("club-a".into());
-        p.contract_start = Some("2025-07-01".into());
-        p.contract_end = Some("2028-06-30".into());
-        p.wage = 7_000;
+        p.stored_contract_start = Some("2025-07-01".into());
+        p.stored_contract_end = Some("2028-06-30".into());
+        p.stored_wage = 7_000;
 
         p.adopt_legacy_contract();
 
@@ -514,8 +521,8 @@ mod tests {
     fn a_legacy_start_that_was_never_known_stays_unknown() {
         let mut p = player();
         p.team_id = Some("club-a".into());
-        p.contract_end = Some("2028-06-30".into());
-        p.wage = 7_000;
+        p.stored_contract_end = Some("2028-06-30".into());
+        p.stored_wage = 7_000;
 
         p.adopt_legacy_contract();
 
@@ -527,8 +534,8 @@ mod tests {
     fn a_legacy_contract_is_adopted_once() {
         let mut p = player();
         p.team_id = Some("club-a".into());
-        p.contract_end = Some("2028-06-30".into());
-        p.wage = 7_000;
+        p.stored_contract_end = Some("2028-06-30".into());
+        p.stored_wage = 7_000;
 
         p.adopt_legacy_contract();
         p.adopt_legacy_contract();
@@ -539,8 +546,8 @@ mod tests {
     #[test]
     fn a_player_with_no_contract_or_no_club_gets_no_legacy_entry() {
         let mut clubless = player();
-        clubless.contract_end = Some("2028-06-30".into());
-        clubless.wage = 7_000;
+        clubless.stored_contract_end = Some("2028-06-30".into());
+        clubless.stored_wage = 7_000;
         clubless.adopt_legacy_contract();
         assert!(
             clubless.movement_history.is_empty(),
@@ -558,8 +565,8 @@ mod tests {
         use crate::player::ActiveLoan;
         let mut p = player();
         p.team_id = Some("borrower".into());
-        p.contract_end = Some("2028-06-30".into());
-        p.wage = 7_000;
+        p.stored_contract_end = Some("2028-06-30".into());
+        p.stored_wage = 7_000;
         p.active_loan = Some(ActiveLoan {
             parent_team_id: "parent".into(),
             loan_team_id: "borrower".into(),
@@ -590,5 +597,110 @@ mod tests {
         let parsed: PlayerMovementEntry = serde_json::from_value(old).unwrap();
         assert_eq!(parsed.contract, None);
         assert_eq!(parsed.release_reason, None);
+    }
+
+    /// The frontend and every saved game read the contract under its old names. The
+    /// fields behind them are called `stored_*` in Rust; that must never reach the
+    /// wire.
+    #[test]
+    fn the_wire_shape_of_a_players_contract_is_unchanged() {
+        let mut p = player();
+        p.record_movement(entry(
+            "2026-07-01",
+            PlayerMovementKind::FreeAgentSigning,
+            Some(contract(
+                Some("2026-07-01"),
+                "2029-06-30",
+                4_000,
+                ContractSource::FreeAgent,
+            )),
+        ))
+        .unwrap();
+
+        let wire = serde_json::to_value(&p).unwrap();
+
+        assert_eq!(wire["wage"], serde_json::json!(4_000));
+        assert_eq!(wire["contract_start"], serde_json::json!("2026-07-01"));
+        assert_eq!(wire["contract_end"], serde_json::json!("2029-06-30"));
+        for key in [
+            "stored_wage",
+            "stored_contract_start",
+            "stored_contract_end",
+        ] {
+            assert!(wire.get(key).is_none(), "{key} leaked onto the wire");
+        }
+        let back: Player = serde_json::from_value(wire).unwrap();
+        assert_eq!(back.wage(), 4_000);
+        assert_eq!(back.contract_end(), Some("2029-06-30"));
+    }
+
+    /// The contract a player carries is always the latest one in his history, however
+    /// he got there. Every route is run here in turn and the two are compared after
+    /// each step.
+    #[test]
+    fn the_contract_is_always_the_latest_ledger_entry_after_every_route() {
+        let mut p = player();
+        let steps: Vec<PlayerMovementEntry> = vec![
+            entry(
+                "2024-07-01",
+                PlayerMovementKind::InitialContract,
+                Some(contract(
+                    Some("2024-07-01"),
+                    "2026-06-30",
+                    1_000,
+                    ContractSource::Initial,
+                )),
+            ),
+            PlayerMovementEntry::new("2025-08-01", PlayerMovementKind::LoanStart),
+            PlayerMovementEntry::new("2026-01-01", PlayerMovementKind::LoanReturn),
+            entry(
+                "2026-01-10",
+                PlayerMovementKind::Renewal,
+                Some(contract(
+                    Some("2026-01-10"),
+                    "2028-06-30",
+                    2_000,
+                    ContractSource::Renewal,
+                )),
+            ),
+            entry(
+                "2027-01-10",
+                PlayerMovementKind::PermanentTransfer,
+                Some(contract(
+                    Some("2027-01-10"),
+                    "2030-06-30",
+                    3_000,
+                    ContractSource::Transfer,
+                )),
+            ),
+            PlayerMovementEntry::new("2028-06-30", PlayerMovementKind::Released),
+            entry(
+                "2028-07-15",
+                PlayerMovementKind::FreeAgentSigning,
+                Some(contract(
+                    Some("2028-07-15"),
+                    "2030-06-30",
+                    1_500,
+                    ContractSource::FreeAgent,
+                )),
+            ),
+            PlayerMovementEntry::new("2030-06-30", PlayerMovementKind::Retired),
+        ];
+
+        for step in steps {
+            let kind = step.kind.clone();
+            p.record_movement(step).unwrap();
+            let latest = p.current_contract().cloned();
+            assert_eq!(
+                (p.wage(), p.contract_start(), p.contract_end()),
+                (
+                    latest.as_ref().map_or(0, |c| c.weekly_wage),
+                    latest.as_ref().and_then(|c| c.start.as_deref()),
+                    latest.as_ref().and_then(|c| c.end.as_deref()),
+                ),
+                "after {kind:?} the contract drifted from the ledger"
+            );
+        }
+        assert_eq!(p.wage(), 0, "he retired");
     }
 }

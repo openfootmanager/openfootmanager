@@ -57,7 +57,8 @@ pub fn delegate_renewals(
         .iter()
         .enumerate()
         .filter_map(|(index, player)| {
-            if player.team_id.as_deref() != Some(team.id.as_str()) || player.contract_end.is_none()
+            if player.team_id.as_deref() != Some(team.id.as_str())
+                || player.contract_end().is_none()
             {
                 return None;
             }
@@ -74,7 +75,7 @@ pub fn delegate_renewals(
                 return None;
             }
 
-            if contract_warning_stage(player.contract_end.as_deref(), current_date).is_some() {
+            if contract_warning_stage(player.contract_end(), current_date).is_some() {
                 return Some(index);
             }
 
@@ -95,7 +96,7 @@ pub fn delegate_renewals(
         let agreed_years = expected_years.min(max_years);
         let max_wage = round_up_to_nearest_thousand(
             player
-                .wage
+                .wage()
                 .saturating_mul(100 + options.max_wage_increase_pct)
                 / 100,
         );
@@ -205,7 +206,7 @@ pub fn delegate_renewals(
 
             report.success_count += 1;
             case.status = DelegatedRenewalResultStatus::Successful;
-            case.agreed_wage = Some(player.wage);
+            case.agreed_wage = Some(player.wage());
             case.agreed_years = Some(agreed_years);
             case.note = String::new();
             case.note_key = Some("be.msg.delegatedRenewals.notes.completed".to_string());
@@ -282,7 +283,7 @@ fn assistant_delegation_score(
         / 10;
     let trust_bonus = i32::from(player.morale_core.manager_trust) / 3;
     let morale_bonus = i32::from(player.morale) / 2;
-    let urgency_bonus = match contract_warning_stage(player.contract_end.as_deref(), current_date) {
+    let urgency_bonus = match contract_warning_stage(player.contract_end(), current_date) {
         Some(ContractWarningStage::FinalWeeks) => 18,
         Some(ContractWarningStage::ThreeMonths) => 14,
         Some(ContractWarningStage::SixMonths) => 10,

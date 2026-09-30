@@ -583,7 +583,7 @@ mod tests {
             default_attrs(),
         );
         player.team_id = Some("team-1".to_string());
-        player.contract_end = Some("2028-06-30".to_string());
+        player.stored_contract_end = Some("2028-06-30".to_string());
         player.market_value = 1_000_000;
         player.transfer_offers.push(TransferOffer {
             id: "offer-1".to_string(),
@@ -635,9 +635,9 @@ mod tests {
             default_attrs(),
         );
         player.team_id = Some("team-2".to_string());
-        player.contract_end = Some("2028-06-30".to_string());
+        player.stored_contract_end = Some("2028-06-30".to_string());
         player.market_value = 1_000_000;
-        player.wage = 1_000;
+        player.stored_wage = 1_000;
         player.morale = 35;
         player.stats.appearances = 1;
         player
@@ -933,7 +933,7 @@ mod tests {
         let state = StateManager::new();
         let mut game = make_game();
         game.players[0].loan_listed = true;
-        game.players[0].wage = 520_000;
+        game.players[0].stored_wage = 520_000;
         game.players[0].ovr = 68;
         game.players[0].potential = 78;
         game.teams[1].finance = 6_000_000;

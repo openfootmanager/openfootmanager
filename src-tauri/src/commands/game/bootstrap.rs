@@ -479,7 +479,7 @@ mod tests {
             game.players.push(player);
         }
         for player in &mut game.players {
-            player.contract_end = Some("2033-06-30".to_string());
+            player.stored_contract_end = Some("2033-06-30".to_string());
         }
         ofm_core::world::ensure_multi_competition_foundations(&mut game);
 
@@ -495,7 +495,7 @@ mod tests {
             .players
             .iter()
             .find(|player| player.id == "br-player-0")
-            .and_then(|player| player.contract_start.clone());
+            .and_then(|player| player.contract_start().map(str::to_string));
         assert_eq!(
             brazilian_start.as_deref(),
             Some("2031-12-15"),
@@ -527,11 +527,10 @@ mod tests {
         for player in game
             .players
             .iter()
-            .filter(|player| player.team_id.is_some() && player.contract_end.is_some())
+            .filter(|player| player.team_id.is_some() && player.contract_end().is_some())
         {
             let start = player
-                .contract_start
-                .as_deref()
+                .contract_start()
                 .unwrap_or_else(|| panic!("{} was given no contract start", player.id));
             assert!(
                 start <= opening.to_string().as_str(),

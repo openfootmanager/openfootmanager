@@ -61,15 +61,23 @@ pub struct Player {
     pub potential: u8,
 
     // Contract & value
-    /// Start of the current agreement ("YYYY-MM-DD").
-    ///
-    /// Defaulted rather than required because saves written before contracts had
-    /// a start know only when the deal ends. `None` is an honest unknown there
-    /// and is shown as one; it must not be read as "expired".
-    #[serde(default)]
-    pub contract_start: Option<String>,
-    pub contract_end: Option<String>,
-    pub wage: u32, // weekly wage
+    //
+    // The three `stored_*` fields are the current contract as it is saved and sent to
+    // the frontend (under their old names, so neither shape changes). They are a
+    // projection of the ledger, brought into line by `record_movement`, and nothing
+    // outside `domain` and `db` names them: read the contract through `wage()`,
+    // `contract_start()`, `contract_end()` or `current_contract()`, and change it by
+    // recording a movement. World generation, which has no history yet, stages a
+    // contract with `stage_contract`, and opening a career turns it into an entry.
+    /// Start of the current agreement ("YYYY-MM-DD"). `None` is an honest unknown
+    /// (a save from before starts were recorded) and must not be read as "expired".
+    #[serde(rename = "contract_start", default)]
+    pub stored_contract_start: Option<String>,
+    #[serde(rename = "contract_end")]
+    pub stored_contract_end: Option<String>,
+    /// Weekly wage.
+    #[serde(rename = "wage")]
+    pub stored_wage: u32,
     pub market_value: u64,
 
     // Season stats
@@ -826,9 +834,9 @@ impl Player {
             traits,
             ovr: 0,
             potential: 0,
-            contract_start: None,
-            contract_end: None,
-            wage: 0,
+            stored_contract_start: None,
+            stored_contract_end: None,
+            stored_wage: 0,
             market_value: 0,
             stats: PlayerSeasonStats::default(),
             career: Vec::new(),

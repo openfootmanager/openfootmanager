@@ -42,8 +42,7 @@ pub fn process_contract_expiries(game: &mut Game) {
         .iter()
         .enumerate()
         .filter_map(|(index, player)| {
-            let days_remaining =
-                contract_days_remaining(player.contract_end.as_deref(), current_date)?;
+            let days_remaining = contract_days_remaining(player.contract_end(), current_date)?;
             if player.team_id.is_some() && days_remaining <= 0 {
                 Some(index)
             } else {

@@ -53,8 +53,8 @@ fn make_player() -> Player {
         default_attrs(),
     );
     player.team_id = Some("team-1".to_string());
-    player.contract_end = Some("2026-10-15".to_string());
-    player.wage = 12_000;
+    player.stored_contract_end = Some("2026-10-15".to_string());
+    player.stored_wage = 12_000;
     player.morale = 75;
     player.market_value = 350_000;
     player
@@ -65,8 +65,8 @@ fn make_player_with(id: &str, wage: u32, contract_end: &str) -> Player {
     player.id = id.to_string();
     player.match_name = id.to_string();
     player.full_name = format!("Player {}", id);
-    player.wage = wage;
-    player.contract_end = Some(contract_end.to_string());
+    player.stored_wage = wage;
+    player.stored_contract_end = Some(contract_end.to_string());
     player
 }
 
@@ -163,8 +163,8 @@ fn make_free_agent() -> Player {
     player.match_name = "F. Agent".to_string();
     player.full_name = "Free Agent".to_string();
     player.team_id = None;
-    player.contract_end = None;
-    player.wage = 0;
+    player.stored_contract_end = None;
+    player.stored_wage = 0;
     player.market_value = 600_000;
     player
 }
@@ -193,8 +193,8 @@ fn accepted_offer_updates_wage_and_term_correctly() {
     assert!(matches!(outcome.decision, RenewalDecision::Accepted));
     assert!(outcome.feedback.is_some());
     let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
-    assert_eq!(player.wage, 15_000);
-    assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+    assert_eq!(player.wage(), 15_000);
+    assert_eq!(player.contract_end(), Some("2029-08-01"));
 }
 
 /// `RenewalOffer.weekly_wage`, `player.wage` and the finance wage bill are one unit: weekly.
@@ -341,8 +341,8 @@ fn terminate_contract_now_releases_player_and_charges_severance() {
     assert_eq!(result.severance_cost, 132_000);
     let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
     assert_eq!(player.team_id, None);
-    assert_eq!(player.contract_end, None);
-    assert_eq!(player.wage, 0);
+    assert_eq!(player.contract_end(), None);
+    assert_eq!(player.wage(), 0);
     assert!(
         !game.teams[0]
             .starting_xi_ids
@@ -416,8 +416,8 @@ fn terminate_contract_now_blocks_when_goalkeeper_would_be_lost() {
 #[test]
 fn rejected_offer_leaves_state_unchanged() {
     let mut game = make_game();
-    let original_wage = game.players[0].wage;
-    let original_end = game.players[0].contract_end.clone();
+    let original_wage = game.players[0].wage();
+    let original_end = game.players[0].contract_end().map(str::to_string);
 
     let outcome = propose_renewal(
         &mut game,
@@ -430,8 +430,11 @@ fn rejected_offer_leaves_state_unchanged() {
     .expect("renewal should return a decision");
 
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
-    assert_eq!(game.players[0].wage, original_wage);
-    assert_eq!(game.players[0].contract_end, original_end);
+    assert_eq!(game.players[0].wage(), original_wage);
+    assert_eq!(
+        game.players[0].contract_end().map(str::to_string),
+        original_end
+    );
 }
 
 #[test]
@@ -507,7 +510,7 @@ fn renewal_offer_rejects_contracts_longer_than_five_years() {
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
     assert_eq!(outcome.session_status, RenewalSessionStatus::Stalled);
     assert!(!outcome.is_terminal);
-    assert_eq!(game.players[0].contract_end.as_deref(), Some("2026-10-15"));
+    assert_eq!(game.players[0].contract_end(), Some("2026-10-15"));
 }
 
 #[test]
@@ -519,14 +522,14 @@ fn high_value_star_expects_more_than_fringe_player() {
     let team = make_team();
 
     let mut star = make_player();
-    star.contract_end = Some("2028-08-01".to_string());
+    star.stored_contract_end = Some("2028-08-01".to_string());
     star.market_value = 2_500_000;
     star.attributes.pace = 88;
     star.attributes.shooting = 90;
     star.attributes.dribbling = 87;
 
     let mut fringe = make_player();
-    fringe.contract_end = Some("2028-08-01".to_string());
+    fringe.stored_contract_end = Some("2028-08-01".to_string());
     fringe.market_value = 80_000;
     fringe.attributes.pace = 50;
     fringe.attributes.shooting = 48;
@@ -569,8 +572,8 @@ fn free_agent_offer_accepts_and_assigns_player_to_manager_team() {
         .find(|player| player.id == "free-agent-1")
         .unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-1"));
-    assert_eq!(player.wage, 4_000);
-    assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+    assert_eq!(player.wage(), 4_000);
+    assert_eq!(player.contract_end(), Some("2029-08-01"));
     let message = game
         .messages
         .iter()
@@ -645,7 +648,7 @@ fn free_agent_offer_rejects_lowball_terms() {
     assert_eq!(outcome.session_status, RenewalSessionStatus::Blocked);
     assert!(outcome.is_terminal);
     assert_eq!(game.players[0].team_id, None);
-    assert_eq!(game.players[0].wage, 0);
+    assert_eq!(game.players[0].wage(), 0);
     let renewal_state = game.players[0]
         .morale_core
         .renewal_state
@@ -712,7 +715,7 @@ fn free_agent_offer_rejects_contracts_longer_than_five_years() {
 
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
     assert_eq!(game.players[0].team_id, None);
-    assert_eq!(game.players[0].contract_end, None);
+    assert_eq!(game.players[0].contract_end(), None);
 }
 
 #[test]
@@ -736,11 +739,11 @@ fn low_morale_player_becomes_harder_to_renew_than_content_player() {
     let team = make_team();
 
     let mut content_player = make_player();
-    content_player.contract_end = Some("2028-08-01".to_string());
+    content_player.stored_contract_end = Some("2028-08-01".to_string());
     content_player.morale = 85;
 
     let mut unhappy_player = make_player();
-    unhappy_player.contract_end = Some("2028-08-01".to_string());
+    unhappy_player.stored_contract_end = Some("2028-08-01".to_string());
     unhappy_player.morale = 35;
 
     let offer = RenewalOffer {
@@ -770,10 +773,10 @@ fn shorter_remaining_term_increases_renewal_demands() {
     let team = make_team();
 
     let mut secure_player = make_player();
-    secure_player.contract_end = Some("2028-08-01".to_string());
+    secure_player.stored_contract_end = Some("2028-08-01".to_string());
 
     let mut expiring_player = make_player();
-    expiring_player.contract_end = Some("2026-10-01".to_string());
+    expiring_player.stored_contract_end = Some("2026-10-01".to_string());
 
     let offer = RenewalOffer {
         weekly_wage: 13_000,
@@ -908,14 +911,14 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
         .iter()
         .find(|player| player.id == "player-1")
         .unwrap();
-    assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+    assert_eq!(player.contract_end(), Some("2029-08-01"));
     assert_eq!(
-        player.contract_start.as_deref(),
+        player.contract_start(),
         Some("2026-08-01"),
         "a delegated renewal is still an agreement signed today: this is its own \
          write site, not the manual renewal path"
     );
-    assert!(player.wage >= 14_000);
+    assert!(player.wage() >= 14_000);
 
     let report_message = game
         .messages
@@ -974,7 +977,7 @@ fn renewal_is_blocked_when_offer_pushes_healthy_club_far_over_soft_cap() {
 fn renewal_allows_small_increase_for_legacy_over_budget_saves() {
     let mut game = make_game();
     game.teams[0].wage_budget = 50_000;
-    game.players[0].wage = 48_000;
+    game.players[0].stored_wage = 48_000;
     game.players
         .push(make_player_with("player-2", 40_000, "2027-06-30"));
 
@@ -997,7 +1000,7 @@ fn renewal_allows_small_increase_for_legacy_over_budget_saves() {
 fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
     let mut game = make_game();
     game.teams[0].wage_budget = 50_000;
-    game.players[0].wage = 48_000;
+    game.players[0].stored_wage = 48_000;
     game.players
         .push(make_player_with("player-2", 40_000, "2027-06-30"));
 
@@ -1036,11 +1039,11 @@ fn an_accepted_renewal_dates_the_new_agreement_from_today() {
 
     let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
     assert_eq!(
-        player.contract_start.as_deref(),
+        player.contract_start(),
         Some("2026-08-01"),
         "a renewal signed today starts today, not whenever the old deal began"
     );
-    assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+    assert_eq!(player.contract_end(), Some("2029-08-01"));
 }
 
 #[test]
@@ -1070,7 +1073,7 @@ fn signing_a_free_agent_dates_the_agreement_from_today() {
         .find(|p| p.id == "free-agent-1")
         .unwrap();
     assert_eq!(
-        player.contract_start.as_deref(),
+        player.contract_start(),
         Some("2026-08-01"),
         "a free agent's first day at the club is the day they signed"
     );
@@ -1085,8 +1088,8 @@ fn releasing_a_player_at_expiry_clears_both_contract_dates() {
             .iter_mut()
             .find(|p| p.id == "player-1")
             .unwrap();
-        player.contract_start = Some("2023-07-01".to_string());
-        player.contract_end = Some("2026-06-30".to_string());
+        player.stored_contract_start = Some("2023-07-01".to_string());
+        player.stored_contract_end = Some("2026-06-30".to_string());
     }
 
     ofm_core::contracts::process_contract_expiries(&mut game);
@@ -1097,10 +1100,11 @@ fn releasing_a_player_at_expiry_clears_both_contract_dates() {
         "an expired contract releases the player"
     );
     assert_eq!(
-        player.contract_start, None,
+        player.contract_start(),
+        None,
         "a released player has no agreement, so neither date survives"
     );
-    assert_eq!(player.contract_end, None);
+    assert_eq!(player.contract_end(), None);
 }
 
 // ---------------------------------------------------------------------------
@@ -1280,7 +1284,7 @@ fn a_renewal_of_a_loaned_player_by_the_borrower_is_refused_and_writes_nothing() 
 #[test]
 fn expiry_appends_released_with_the_reason_expired() {
     let mut game = make_game();
-    game.players[0].contract_end = Some("2026-06-30".to_string());
+    game.players[0].stored_contract_end = Some("2026-06-30".to_string());
 
     ofm_core::contracts::process_contract_expiries(&mut game);
 
@@ -1296,7 +1300,7 @@ fn expiry_appends_released_with_the_reason_expired() {
 #[test]
 fn expiry_is_idempotent_on_the_same_day() {
     let mut game = make_game();
-    game.players[0].contract_end = Some("2026-06-30".to_string());
+    game.players[0].stored_contract_end = Some("2026-06-30".to_string());
 
     ofm_core::contracts::process_contract_expiries(&mut game);
     let after_first = game.players[0].movement_history.len();
