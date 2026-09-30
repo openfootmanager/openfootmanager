@@ -191,11 +191,19 @@ const REVIEW_SEED: u64 = 0x7461_6374_6963_7300; // "tactics\0"
 /// to look at themselves today" — the tactical review and the contract review
 /// both ask it, so a club reviews its tactics and its contracts together.
 pub(crate) fn ai_clubs_reviewing_on(game: &Game, weekday_num: u32) -> Vec<String> {
+    ai_clubs(game)
+        .into_iter()
+        .filter(|team_id| review_weekday(team_id) == weekday_num)
+        .collect()
+}
+
+/// Every club the AI manages: all but the player's, in the order clubs are
+/// stored.
+pub(crate) fn ai_clubs(game: &Game) -> Vec<String> {
     let user_team_id = game.manager.team_id.as_deref();
     game.teams
         .iter()
         .filter(|team| Some(team.id.as_str()) != user_team_id)
-        .filter(|team| review_weekday(&team.id) == weekday_num)
         .map(|team| team.id.clone())
         .collect()
 }

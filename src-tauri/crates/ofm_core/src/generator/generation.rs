@@ -425,6 +425,13 @@ pub(super) fn position_for_slot(index: usize) -> Position {
     }
 }
 
+/// The first squad slot that generates a senior player of this group.
+pub(super) fn senior_slot_for(group: &Position) -> usize {
+    (0..SQUAD_SLOTS)
+        .find(|slot| position_for_slot(*slot) == *group && !is_youth_reserved_slot(*slot))
+        .unwrap_or(0)
+}
+
 /// Remap a youth-reserved slot to the adjacent senior slot (same position group)
 /// so the player generates at a senior age; non-reserved slots pass through.
 pub(super) fn senior_slot(slot: usize) -> usize {

@@ -66,12 +66,25 @@ pub(crate) fn apply_ai_contract_decisions(game: &mut Game, weekday_num: u32) {
 /// ([`crate::squad_floor::bring_in_one`], the same source the emergency uses).
 /// Runs after the day's departures so it sees the squad the club actually has.
 pub(crate) fn apply_ai_squad_planning(game: &mut Game, weekday_num: u32) {
+    let clubs = crate::ai_tactics::ai_clubs_reviewing_on(game, weekday_num);
+    plan_squads(game, &clubs);
+}
+
+/// Every AI club plans its squad at once, whatever its review day: what clubs
+/// do at a season's end, when retirements can take several players from one
+/// club overnight and a week is too long to wait.
+pub(crate) fn plan_every_ai_squad(game: &mut Game) {
+    let clubs = crate::ai_tactics::ai_clubs(game);
+    plan_squads(game, &clubs);
+}
+
+fn plan_squads(game: &mut Game, clubs: &[String]) {
     let current_date = game.clock.current_date.date_naive();
-    for team_id in crate::ai_tactics::ai_clubs_reviewing_on(game, weekday_num) {
-        let Some(team) = game.teams.iter().find(|team| team.id == team_id).cloned() else {
+    for team_id in clubs {
+        let Some(team) = game.teams.iter().find(|team| &team.id == team_id).cloned() else {
             continue;
         };
-        graduate_overage_academy_players(game, &team_id, current_date);
+        graduate_overage_academy_players(game, team_id, current_date);
         plan_squad_depth(game, &team);
     }
 }
@@ -91,6 +104,12 @@ fn graduate_overage_academy_players(game: &mut Game, team_id: &str, current_date
 
 /// Fill each group to one above its minimum, then the squad to the planning
 /// target, thinnest group first, for as long as a source has someone.
+///
+/// A senior whose contract runs out within the renewal horizon is not counted:
+/// the club has had its chance to renew him, and if he is still on the old
+/// contract he may walk. Generated contracts share an end date, so several can
+/// leave a group on the same day — planning replaces them before they go, not
+/// after.
 fn plan_squad_depth(game: &mut Game, team: &Team) {
     use crate::squad_floor::{MIN_PLAYERS_PER_GROUP, bring_in_one, groups_thinnest_first};
 
@@ -112,12 +131,19 @@ fn plan_squad_depth(game: &mut Game, team: &Team) {
     }
 }
 
-/// Seniors registered to the club, in one group or in all.
+/// Seniors registered to the club who will still be under contract past the
+/// renewal horizon, in one group or in all.
 fn seniors_in(game: &Game, team_id: &str, group: Option<&domain::player::Position>) -> usize {
+    let current_date = game.clock.current_date.date_naive();
     game.players
         .iter()
         .filter(|player| player.team_id.as_deref() == Some(team_id))
         .filter(|player| player.squad_role == domain::player::SquadRole::Senior)
+        // No end date is a contract the expiry sweep never ends: he stays.
+        .filter(|player| {
+            crate::contracts::contract_days_remaining(player.contract_end.as_deref(), current_date)
+                .is_none_or(|days| days > RENEWAL_HORIZON_DAYS)
+        })
         .filter(|player| group.is_none_or(|group| player.position.to_group_position() == *group))
         .count()
 }

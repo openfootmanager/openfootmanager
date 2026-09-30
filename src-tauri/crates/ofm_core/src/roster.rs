@@ -31,13 +31,24 @@ pub const YOUTH_ACADEMY_MAX_AGE: i32 = 21;
 /// set by id, so the function is safe to call even when the player happens
 /// to already be at `team` (e.g. an idempotent reassignment).
 pub fn resolve_jersey_for(game: &Game, player: &Player, team: &Team) -> Option<u8> {
-    let occupied: std::collections::HashSet<u8> = game
+    let occupied = game
         .players
         .iter()
         .filter(|other| other.id != player.id && other.team_id.as_deref() == Some(team.id.as_str()))
-        .filter_map(|other| other.jersey_number)
-        .collect();
-    match player.jersey_number {
+        .filter_map(|other| other.jersey_number);
+    jersey_among(occupied, player.jersey_number)
+}
+
+/// The shirt number a player takes among `occupied` numbers: his own when it
+/// is free, else the lowest free one in `1..=99`, or `None` when all are taken.
+/// The rule [`resolve_jersey_for`] applies to a game, for callers — the world
+/// generator — that have the squad in hand before there is one.
+pub(crate) fn jersey_among(
+    occupied: impl IntoIterator<Item = u8>,
+    current: Option<u8>,
+) -> Option<u8> {
+    let occupied: std::collections::HashSet<u8> = occupied.into_iter().collect();
+    match current {
         Some(current) if !occupied.contains(&current) => Some(current),
         _ => (1u8..=99).find(|number| !occupied.contains(number)),
     }

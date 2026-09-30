@@ -1,27 +1,35 @@
 //! A club never runs out of players — proven over seasons, not asserted.
 //!
-//! These play whole seasons of a seeded generated world through the real day
-//! (`turn::process_day`), with the season end's aging and retirements between
-//! them, and check that ordinary squad management — AI renewals, academy
-//! graduation and promotion, free-agent signings — keeps every AI club at the
-//! squad floor without the emergency top-up ever firing.
+//! These play whole seasons of seeded generated worlds through the real day
+//! (`turn::process_day`), with the season end's squad turnover between them —
+//! aging, retirements, and every AI club rebuilding — and check that ordinary
+//! squad management keeps every AI club at the squad floor without the
+//! emergency top-up ever firing.
+//!
+//! The world is seeded; the day is not yet (random events, injuries and the
+//! match engine draw from ambient randomness), so the proof is a property: it
+//! must hold on every seed, on every run of it. A seeded day is its own change.
 
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
-use domain::player::{PlayerMovementKind, SquadRole};
+use domain::player::{Position, SquadRole};
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::generator::{
     DefinitionSources, WorldGenConfig, generate_world_data_seeded_with,
     repair_opening_youth_academies,
 };
-use ofm_core::squad_floor::MIN_SENIOR_PLAYERS;
+use ofm_core::squad_floor::squad_shortfall;
 use ofm_core::turn;
-use std::collections::BTreeMap;
+
+const SEEDS: [u64; 3] = [7, 19, 42];
+/// Seasons the proof plays. Bounded: until clubs' academies take in new
+/// players every season, a world's population only shrinks.
+const SEASONS: u32 = 3;
 
 /// A seeded compact world, the player managing its first club, starting at the
-/// season's opening. With `league`, the clubs play a league season too.
-fn seeded_world(seed: u64, league: bool) -> Game {
+/// season's opening, its clubs playing a league.
+fn seeded_world(seed: u64) -> Game {
     let world = generate_world_data_seeded_with(
         seed,
         &WorldGenConfig::compact(),
@@ -47,14 +55,12 @@ fn seeded_world(seed: u64, league: bool) -> Game {
     );
     game.available_staff_market_last_activity_date = Some(start.format("%Y-%m-%d").to_string());
     repair_opening_youth_academies(&mut game);
-    if league {
-        game.league = Some(ofm_core::schedule::generate_league(
-            "Floor League",
-            2026,
-            &team_ids,
-            start,
-        ));
-    }
+    game.league = Some(ofm_core::schedule::generate_league(
+        "Floor League",
+        2026,
+        &team_ids,
+        start,
+    ));
     ofm_core::season_context::refresh_game_context(&mut game);
     game
 }
@@ -67,116 +73,186 @@ fn ai_clubs(game: &Game) -> Vec<String> {
         .collect()
 }
 
-fn seniors(game: &Game, team_id: &str) -> usize {
-    game.players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.squad_role == SquadRole::Senior)
-        .count()
-}
-
-/// Senior squads by club, sorted — two runs that agree on this agree on who
-/// every club kept, lost and brought in.
-fn fingerprint(game: &Game) -> BTreeMap<String, Vec<String>> {
-    let mut squads: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for player in &game.players {
-        if let Some(team_id) = player.team_id.as_deref()
-            && player.squad_role == SquadRole::Senior
-        {
-            squads
-                .entry(team_id.to_string())
-                .or_default()
-                .push(player.id.clone());
-        }
-    }
-    for squad in squads.values_mut() {
-        squad.sort();
-    }
-    squads
-}
-
-/// Play `years` seasons: every day, then the season end's aging. Returns the
-/// lowest senior count any AI club reached at a season's end.
-fn play_seasons(game: &mut Game, years: u32) -> usize {
-    let mut lowest = usize::MAX;
+/// Play `years` seasons — every day, then the season end's squad turnover —
+/// and fail on the first AI club found below the floor at a season's end.
+fn play_seasons(game: &mut Game, years: u32, label: &str) {
     for year in 0..years {
         for _ in 0..365 {
             turn::process_day(game);
         }
         let today = game.clock.current_date.date_naive();
-        ofm_core::aging::apply_seasonal_aging(game, today, 2026 + year);
+        ofm_core::end_of_season::apply_season_end_squad_turnover(game, today, 2026 + year);
         for club in ai_clubs(game) {
-            lowest = lowest.min(seniors(game, &club));
+            assert!(
+                squad_shortfall(game, &club).is_empty(),
+                "{label}: {club} below the floor after season {year}: {:?}",
+                squad_shortfall(game, &club)
+            );
         }
     }
-    lowest
 }
 
+fn ai_emergencies(game: &Game) -> Vec<&ofm_core::squad_floor::SquadFloorTopUp> {
+    let ai = ai_clubs(game);
+    game.squad_floor_top_ups
+        .iter()
+        .filter(|top_up| ai.contains(&top_up.team_id))
+        .collect()
+}
+
+fn academy_players(game: &Game, team_id: &str, group: Position) -> usize {
+    game.players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id))
+        .filter(|p| p.squad_role == SquadRole::Youth)
+        .filter(|p| p.position.to_group_position() == group)
+        .count()
+}
+
+// --- World supply ------------------------------------------------------------
+
+/// Given a generated world, every club has two senior keepers and an academy
+/// keeper, and no two of a club's players share a shirt number.
 #[test]
-#[ignore = "measurement probe: run with --ignored --nocapture"]
-fn probe_world_supply() {
-    let game = seeded_world(7, false);
-    let mut free = [0usize; 4];
-    let mut academy = [0usize; 4];
-    let mut retired = 0;
-    for player in &game.players {
-        let group = ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+fn a_generated_club_opens_with_an_academy_keeper() {
+    let game = seeded_world(SEEDS[0]);
+    for team in &game.teams {
+        let senior_keepers = game
+            .players
             .iter()
-            .position(|(g, _)| *g == player.position.to_group_position())
-            .unwrap();
-        if player.retired {
-            retired += 1;
-        } else if player.team_id.is_none() {
-            free[group] += 1;
-        } else if player.squad_role == SquadRole::Youth {
-            academy[group] += 1;
-        }
-    }
-    println!(
-        "players={} free_agents={free:?} academy={academy:?} retired={retired}",
-        game.players.len()
-    );
-    for club in ai_clubs(&game).iter().take(4) {
-        println!("  club seniors={}", seniors(&game, club));
+            .filter(|p| p.team_id.as_deref() == Some(team.id.as_str()))
+            .filter(|p| p.squad_role == SquadRole::Senior)
+            .filter(|p| p.position.to_group_position() == Position::Goalkeeper)
+            .count();
+        assert!(
+            senior_keepers >= 2,
+            "{} has {senior_keepers} senior keepers",
+            team.id
+        );
+        assert!(
+            academy_players(&game, &team.id, Position::Goalkeeper) >= 1,
+            "{} has no academy keeper",
+            team.id
+        );
+        let mut numbers: Vec<u8> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some(team.id.as_str()))
+            .filter_map(|p| p.jersey_number)
+            .collect();
+        let count = numbers.len();
+        numbers.sort_unstable();
+        numbers.dedup();
+        assert_eq!(numbers.len(), count, "{} has a shirt number twice", team.id);
     }
 }
 
+/// Given a generated world of N clubs, it opens with free agents in every
+/// position group, keepers included, in proportion to N: no club, no
+/// contract, no wage, not retired.
 #[test]
-#[ignore = "measurement probe: run with --ignored --nocapture"]
-fn probe_squad_floor_seasons() {
-    for league in [false, true] {
-        let started = std::time::Instant::now();
-        let mut first = seeded_world(7, league);
-        let lowest = play_seasons(&mut first, 3);
-        let elapsed = started.elapsed();
-        let mut second = seeded_world(7, league);
-        play_seasons(&mut second, 3);
-        let ai: Vec<String> = ai_clubs(&first);
-        let emergencies = first
+fn a_generated_world_opens_with_a_free_agent_pool_keepers_included() {
+    let game = seeded_world(SEEDS[0]);
+    let clubs = game.teams.len();
+    for group in [
+        Position::Goalkeeper,
+        Position::Defender,
+        Position::Midfielder,
+        Position::Forward,
+    ] {
+        let pool: Vec<_> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.is_none() && p.position.to_group_position() == group)
+            .collect();
+        assert_eq!(pool.len(), clubs, "{group:?} free agents");
+        for agent in pool {
+            assert!(!agent.retired);
+            assert_eq!(agent.contract_end, None);
+            assert_eq!(agent.wage, 0);
+        }
+    }
+}
+
+/// Given the same seed twice, the free-agent pools match in position, age and
+/// rating.
+#[test]
+fn a_seeded_world_opens_with_the_same_pool() {
+    let pool = |game: &Game| {
+        let mut agents: Vec<(String, String, u8)> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.is_none())
+            .map(|p| (format!("{:?}", p.position), p.date_of_birth.clone(), p.ovr))
+            .collect();
+        agents.sort();
+        agents
+    };
+    assert_eq!(pool(&seeded_world(SEEDS[1])), pool(&seeded_world(SEEDS[1])));
+}
+
+// --- Seasons -----------------------------------------------------------------
+
+/// Given seeded generated worlds, when three seasons are played — every day,
+/// then the season end's retirements and rebuild — then no AI club is ever
+/// found below the floor at a season's end, and the emergency top-up never
+/// fires: on every seed, on both runs of it.
+#[test]
+fn ai_clubs_stay_at_the_floor_for_seasons_without_an_emergency_top_up() {
+    for seed in SEEDS {
+        for run in 0..2 {
+            let label = format!("seed {seed}, run {run}");
+            let mut game = seeded_world(seed);
+            play_seasons(&mut game, SEASONS, &label);
+            assert!(
+                ai_emergencies(&game).is_empty(),
+                "{label}: emergency top-ups fired: {:?}",
+                ai_emergencies(&game)
+            );
+        }
+    }
+}
+
+/// Given a world where one AI club has no academy at all, when three seasons
+/// are played, it keeps to the floor from the free-agent market alone, without
+/// an emergency.
+#[test]
+fn a_club_with_an_empty_academy_keeps_its_floor_through_the_market() {
+    let mut game = seeded_world(SEEDS[2]);
+    let club = ai_clubs(&game)[0].clone();
+    game.players.retain(|p| {
+        !(p.team_id.as_deref() == Some(club.as_str()) && p.squad_role == SquadRole::Youth)
+    });
+
+    play_seasons(&mut game, SEASONS, "empty academy");
+
+    assert!(
+        !game
             .squad_floor_top_ups
             .iter()
-            .filter(|top_up| ai.contains(&top_up.team_id))
-            .count();
-        let transfers = first
-            .players
-            .iter()
-            .flat_map(|p| p.movement_history.iter())
-            .filter(|e| e.kind == PlayerMovementKind::PermanentTransfer)
-            .count();
-        let signings = first
-            .players
-            .iter()
-            .flat_map(|p| p.movement_history.iter())
-            .filter(|e| e.kind == PlayerMovementKind::FreeAgentSigning)
-            .count();
-        println!(
-            "league={league} clubs={} time={elapsed:?} lowest={lowest} floor={MIN_SENIOR_PLAYERS} \
-             emergencies={emergencies} transfers={transfers} free_agent_signings={signings} \
-             deterministic={}",
-            first.teams.len(),
-            fingerprint(&first) == fingerprint(&second)
-        );
-        for top_up in first.squad_floor_top_ups.iter().take(5) {
-            println!("  {top_up:?}");
-        }
+            .any(|top_up| top_up.team_id == club),
+        "the club with no academy needed an emergency top-up"
+    );
+}
+
+/// Given a world with no free agents and no academies anywhere, when a season
+/// is played, every day still finishes: clubs that cannot be filled play with
+/// who they have, and nobody is created for them.
+#[test]
+fn a_world_with_no_free_agents_and_no_academies_still_finishes_every_day() {
+    let mut game = seeded_world(SEEDS[0]);
+    game.players
+        .retain(|p| p.team_id.is_some() && p.squad_role == SquadRole::Senior);
+    let players_before = game.players.len();
+
+    for _ in 0..365 {
+        turn::process_day(&mut game);
     }
+    let today = game.clock.current_date.date_naive();
+    ofm_core::end_of_season::apply_season_end_squad_turnover(&mut game, today, 2026);
+    for _ in 0..30 {
+        turn::process_day(&mut game);
+    }
+
+    assert_eq!(game.players.len(), players_before, "a player was created");
 }
