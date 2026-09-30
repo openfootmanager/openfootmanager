@@ -90,16 +90,11 @@ export function addBuild(builds, manifest, git = gitCli) {
   const sorted = [entry, ...builds.filter((build) => build.tag !== manifest.tag)].sort(newestFirst);
   const at = sorted.findIndex((build) => build.tag === manifest.tag);
 
-  sorted[at] = linked(sorted[at], sorted[at + 1] ?? null, git);
   // The oldest retained build can still refer to a build just outside the retention window.
   if (!sorted[at + 1] && existing) {
-    sorted[at] = {
-      ...sorted[at],
-      previousTag: existing.previousTag,
-      compareUrl: existing.compareUrl,
-      commitCount: existing.commitCount,
-      commits: existing.commits,
-    };
+    sorted[at] = { ...existing, ...entry };
+  } else {
+    sorted[at] = linked(sorted[at], sorted[at + 1] ?? null, git);
   }
 
   // A build whose run arrives after a newer build's (cancelled, then re-run) lands between that

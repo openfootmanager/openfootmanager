@@ -191,20 +191,18 @@ describe("updateHistory", () => {
   it("keeps the oldest retained build's predecessor after 31 builds and a re-run", () => {
     const git = fakeGit(1);
     let history = { schemaVersion: 1, builds: [] };
+    const manifests = [];
     for (let day = 0; day < KEEP + 1; day++) {
       const publishedAt = new Date(Date.UTC(2026, 9, 1 + day)).toISOString();
       const date = publishedAt.slice(0, 10).replaceAll("-", "");
-      history = updateHistory(
-        history,
-        manifest(date, `abc${String(day).padStart(4, "0")}`, publishedAt),
-        git,
-        earlier,
-      );
+      const build = manifest(date, `abc${String(day).padStart(4, "0")}`, publishedAt);
+      manifests.push(build);
+      history = updateHistory(history, build, git, earlier);
     }
 
     const oldest = history.builds.at(-1);
     expect(oldest.previousTag).not.toBeNull();
-    const again = updateHistory(history, oldest, git, later);
+    const again = updateHistory(history, manifests[1], git, later);
 
     expect(again.builds.at(-1)).toEqual(oldest);
     expect(JSON.stringify(again)).toBe(JSON.stringify(history));
