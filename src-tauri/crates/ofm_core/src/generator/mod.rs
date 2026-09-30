@@ -823,15 +823,6 @@ fn build_club(
     (team, team_players, team_staff)
 }
 
-/// Position-group floor for a finished squad, or 0 for a group with no floor.
-fn group_floor(group: &Position) -> usize {
-    MIN_PLAYERS_PER_GROUP
-        .iter()
-        .find(|(position, _)| position == group)
-        .map(|(_, floor)| *floor)
-        .unwrap_or(0)
-}
-
 /// Index of a position group within [`MIN_PLAYERS_PER_GROUP`].
 fn group_index(group: &Position) -> Option<usize> {
     MIN_PLAYERS_PER_GROUP
@@ -897,7 +888,7 @@ fn trim_backfill_players(
             .filter_map(|index| {
                 let group = players[index].position.to_group_position();
                 let surviving = group_index(&group).map(|slot| counts[slot]).unwrap_or(0);
-                let surplus = surviving.checked_sub(group_floor(&group))?;
+                let surplus = surviving.checked_sub(crate::squad_floor::group_floor(&group))?;
                 (surplus > 0).then_some((index, surplus))
             })
             .max_by_key(|(index, surplus)| {
@@ -1830,7 +1821,7 @@ mod tests {
         assert_eq!(count_authored(&players), 28, "every authored player kept");
         assert_eq!(
             count_group(&players, Position::Goalkeeper),
-            group_floor(&Position::Goalkeeper),
+            crate::squad_floor::group_floor(&Position::Goalkeeper),
             "generated keepers backfill the missing group"
         );
         assert_eq!(players.len(), 30);

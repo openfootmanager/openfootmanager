@@ -382,15 +382,10 @@ pub(super) fn play_style_from_str(s: &str) -> PlayStyle {
 /// should use it rather than repeating the literal.
 pub(super) const SQUAD_SLOTS: usize = 22;
 
-/// Minimum number of players per position group a finished squad must keep, in
-/// `[GK, DEF, MID, FWD]` order. Trimming generated players off an authored squad
-/// must never take a group below these — a club with no goalkeeper is unplayable.
-pub(super) const MIN_PLAYERS_PER_GROUP: [(Position, usize); 4] = [
-    (Position::Goalkeeper, 2),
-    (Position::Defender, 4),
-    (Position::Midfielder, 4),
-    (Position::Forward, 2),
-];
+/// The squad floor lives in `squad_floor`; trimming generated players off an
+/// authored squad must never take a group below it — a club with no goalkeeper
+/// is unplayable.
+pub(super) use crate::squad_floor::MIN_PLAYERS_PER_GROUP;
 
 /// Squad slots reserved as youth-aged, one per position group in
 /// `[GK, DEF, MID, FWD]` order. Scouted youth recruits target these slots so they
