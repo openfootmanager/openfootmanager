@@ -192,8 +192,71 @@ Defines a specific player. Reference teams and countries by their `id`.
 | `overall` | integer (1–99) or null | no | `null` | Overall ability rating. The engine generates a realistic attribute spread from this value. |
 | `potential` | integer (1–99) or null | no | `null` | Career ceiling. Omit it and the engine rolls one from the player's ability and age. See below. |
 | `attributes` | object or null | no | `null` | Explicit attribute block. Replaces `overall`-based generation entirely — this is not a partial override, so any of the 19 attributes you omit takes its serde default (8 are optional; the other 11 are required). |
+| `contractStart` | string or null | no | `null` | ISO date (`"YYYY-MM-DD"`) the current contract began. Omit it and the start is given when a career opens. See [Contracts](#contracts). |
+| `contractEnd` | string or null | no | `null` | ISO date the contract ends. Give this **or** `contractLength`, not both. |
+| `contractLength` | integer (1–5) or null | no | `null` | Contract length in whole years, as an alternative to `contractEnd`. |
+| `wage` | integer or null | no | `null` | **Weekly** wage in the game's money. Omit it and it is sized from the player's value. |
+| `value` | integer or null | no | `null` | Market value in the game's money. Omit it and it is sized from ability and age. |
+| `weakFoot` | integer (1–5) or null | no | `null` | Weak-foot skill. Only kept for a specific `position`; see [Identity fields](#identity-fields). |
+| `alternatePositions` | array of positions | no | `[]` | Other positions the player can cover. Same restriction as `weakFoot`. |
+| `condition` | integer (0–100) or null | no | `null` | Match sharpness. Omit it and it is rolled in a realistic band. |
+| `morale` | integer (0–100) or null | no | `null` | Morale. Omit it and it is rolled in a realistic band. |
+| `careerHistory` | array of career entries | no | `[]` | Earlier clubs. See [Career history](#career-history). |
 
 > **Tip**: You only need to specify `overall` *or* `attributes` — not both. For most authored players, `overall` is sufficient. Use `attributes` for precise control.
+
+### Contracts
+
+A contract runs from a start to an end, and you can write either or both ends of it.
+
+- **`contractEnd`** is an absolute date. It is exactly right for the period you wrote the package
+  for, and nonsense outside it: a squad built for 2010 and played in 2026 has every contract long
+  expired. Use it when you want that.
+- **`contractLength`** is a number of whole years, 1 to 5 (the same ceiling negotiation uses). It is
+  counted from `contractStart` when you give one, and otherwise from the year the career opens in,
+  ending on 30 June like every generated contract. So the same package works whichever year a player
+  starts in. Use this for a package meant to be played in any era.
+- Give **one or the other**. Writing both is an error, because they say the same thing two ways.
+- **`contractStart` alone** is half an interval. The engine rolls a length as it always has and
+  counts it from your start, so you get a whole contract and the start is yours.
+- **Leave all three out** and the engine rolls a contract exactly as it did before these fields
+  existed, so every older package generates the same players.
+
+**When the start is not written.** It is given when a career opens, from the club's own season
+rather than a fixed date, because a club's season does not begin on the same day everywhere: a
+Brazilian club's opens in December of the year before. It is never later than the day the career
+begins, and it is left unknown rather than invented if it would not come before the end. A start
+you *do* write is kept exactly as you wrote it, even one after the career begins, for a deal that
+has not started yet.
+
+`wage` is **weekly**, matching how the game stores and pays it. `value` and `wage` are whole numbers
+and may be `0`; a `0` is used as written and is not treated as "omitted".
+
+### Identity fields
+
+`weakFoot` and `alternatePositions` are only kept for a player with a **specific** `position`.
+`Goalkeeper`, `Defender`, `Midfielder` and `Forward` are general groups, and the game re-works a
+general-group player's weak foot and alternate positions from their attributes when a career opens
+(and for a goalkeeper, who has no more specific form, on every load), which would overwrite what you
+wrote. Package validation reports this rather than letting the values be silently discarded; choose
+a specific position such as `CentralMidfielder` or `Striker`. `alternatePositions` must also be specific, must not repeat the player's own position,
+and must not list a position twice.
+
+### Career history
+
+`careerHistory` records the clubs a player has already played for. Each entry is:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `season` | integer | The calendar year the season began in. |
+| `teamName` | string | The club's name as the profile should read. **Required**, free text. |
+| `teamId` | string or null | A team defined in this package, if the club is one. Omit it for a club the package does not define. |
+| `appearances`, `goals`, `assists` | integer | Counts for that spell. Default `0`. |
+
+A club does not have to be in your package: give its `teamName` and leave `teamId` out. A package
+that contains only Real Madrid can still record Zidane's years at Juventus. If you do give a
+`teamId`, it must match a team in the package, and validation says so if it does not. Two entries may
+share a season, for a player who moved clubs mid-year.
 
 ### `potential` — the career ceiling
 
