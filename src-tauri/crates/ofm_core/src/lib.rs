@@ -1,6 +1,9 @@
 pub mod advance_results;
 pub mod aging;
 pub mod ai_hiring;
+mod ai_math;
+mod ai_roles;
+pub mod ai_tactics;
 pub mod ai_training;
 pub mod board_objectives;
 pub mod catchup;
@@ -39,6 +42,7 @@ pub mod season_awards;
 pub mod season_context;
 pub mod slices;
 pub mod squad_safety;
+pub(crate) mod stable_hash;
 pub mod state;
 pub mod training;
 pub mod transfers;

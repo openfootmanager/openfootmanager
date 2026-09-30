@@ -678,3 +678,83 @@ fn a_shootout_is_rated_on_the_side_that_played_not_the_injured() {
         shootout_strength(&fielded)
     );
 }
+
+/// A role reaches the engine only where the position a player is actually
+/// playing admits it — the rule the player's own role command already
+/// enforces. Generated squads are coarse, and the coarse `Forward` bucket
+/// admits `WideForward`; deployed at centre-forward in a 4-4-2 he would still
+/// have played with the wide forward's attribute weighting.
+#[test]
+fn a_role_the_deployed_slot_does_not_admit_is_not_played() {
+    use crate::clock::GameClock;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::team::{PlayerRole, Team};
+    use engine::PlayerRole as EngineRole;
+
+    let mut players = vec![mk_pos("keeper", DomainPos::Goalkeeper, 70, 100)];
+    for (position, count) in [
+        (DomainPos::CenterBack, 4),
+        (DomainPos::CentralMidfielder, 4),
+        (DomainPos::Forward, 2),
+    ] {
+        for i in 0..count {
+            players.push(mk_pos(
+                &format!("{position:?}{i}"),
+                position.clone(),
+                70,
+                100,
+            ));
+        }
+    }
+    for player in players.iter_mut() {
+        player.team_id = Some("club".to_string());
+    }
+
+    let mut team = Team::new(
+        "club".to_string(),
+        "Club".to_string(),
+        "CLB".to_string(),
+        "England".to_string(),
+        "London".to_string(),
+        "Ground".to_string(),
+        25_000,
+    );
+    team.formation = "4-4-2".to_string();
+    team.player_roles
+        .insert("Forward0".to_string(), PlayerRole::WideForward);
+    team.player_roles
+        .insert("Forward1".to_string(), PlayerRole::Poacher);
+
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("elsewhere".to_string());
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+    let game = Game::new(clock, manager, vec![team], players, vec![], vec![]);
+
+    let (team_data, _bench) = build_team_with_bench(&game, "club");
+    let role_of = |id: &str| {
+        team_data
+            .players
+            .iter()
+            .find(|p| p.id == id)
+            .unwrap_or_else(|| panic!("{id} should start"))
+            .role
+    };
+
+    assert_eq!(
+        role_of("Forward0"),
+        EngineRole::Standard,
+        "a wide forward's role was played at centre-forward"
+    );
+    assert_eq!(
+        role_of("Forward1"),
+        EngineRole::Poacher,
+        "a role the striker's slot admits must still reach the engine"
+    );
+}

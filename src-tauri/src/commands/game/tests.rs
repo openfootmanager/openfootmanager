@@ -206,6 +206,36 @@ fn imported_roster_baseline_bootstrap_allows_ai_manager_seeding_without_imported
 }
 
 #[test]
+fn a_new_career_starts_with_own_choices_clear_and_rivals_identity_intact() {
+    use domain::team::{PlayStyle, PlayerRole, TacticsPhaseSettings};
+
+    let mut game = make_bootstrap_test_game();
+    let identity = ofm_core::ai_tactics::blueprint_for(&PlayStyle::HighPress);
+    assert_ne!(identity, TacticsPhaseSettings::default());
+    for team in &mut game.teams {
+        team.play_style = PlayStyle::HighPress;
+        team.tactics_phase = identity.clone();
+        team.player_roles
+            .insert(format!("{}-player-0", team.id), PlayerRole::BallWinner);
+    }
+
+    bootstrap_team_selection(
+        &mut game,
+        "team1",
+        StartPhase::SeasonStart,
+        domain::stats::StatsState::default(),
+    )
+    .unwrap();
+
+    let own = game.teams.iter().find(|team| team.id == "team1").unwrap();
+    let rival = game.teams.iter().find(|team| team.id == "team2").unwrap();
+    assert_eq!(own.tactics_phase, TacticsPhaseSettings::default());
+    assert!(own.player_roles.is_empty());
+    assert_eq!(rival.tactics_phase, identity);
+    assert_eq!(rival.player_roles.len(), 1);
+}
+
+#[test]
 fn bootstrap_team_selection_seeds_ai_loan_market() {
     let mut game = make_bootstrap_test_game();
     game.teams

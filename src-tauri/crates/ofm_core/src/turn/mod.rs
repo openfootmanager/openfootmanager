@@ -149,6 +149,12 @@ fn run_training_ground(game: &mut Game) {
     crate::ai_training::apply_ai_training_policies(game, weekday_num);
     training::process_training(game, weekday_num);
     training::check_squad_fitness_warnings(game);
+    // Not a session, and deliberately not skipped for the clubs playing today:
+    // a league plays whole rounds on one date, so a club whose review day landed
+    // on its matchday would never review at all. It runs after active matches,
+    // so those results are part of the form it reads. Dormant scoreline-only
+    // competitions resolve later in `process_day` and enter the next review.
+    crate::ai_tactics::apply_ai_tactical_reviews(game, weekday_num);
 }
 
 /// Everything both endings of a day do, in the order they both did it.

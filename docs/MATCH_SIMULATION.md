@@ -172,6 +172,12 @@ per-minute possession contest.
 | counter_press | possession flip: losing side may re-win the ball | Long regains possession more |
 | break_speed | possession flip: winner may counter into the final third | Fast turns turnovers into chances |
 
+The weekly AI tactical review in `ofm_core::ai_tactics` treats at least 3.2
+goals conceded per game as leaky and at most 1.4 scored as blunt. Those cutoffs
+were calibrated when the generated-world probe measured about **2.29 goals per
+club per game** after #605 changed the selected eleven. A scoring change needs
+a fresh run of `tactical_adaptation_probe` before those cutoffs can be trusted.
+
 Both the instant engine (`engine/`) and the live engine (`live_match/`) consume
 the dials identically; the stamina cost of pressing applies only to the live
 engine, which tracks per-minute condition. Magnitudes live in `engine::shared`
