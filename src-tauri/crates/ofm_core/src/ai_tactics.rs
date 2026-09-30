@@ -154,7 +154,7 @@ pub fn blueprint_for(play_style: &PlayStyle) -> TacticsPhaseSettings {
 /// a match. The review asks it rather than keeping a copy. Adaptation has to
 /// obey the ration at run time as well as the blueprints, because "we keep
 /// conceding" pushes a club straight at the deep line and the compact block.
-fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
+pub fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
     engine::ai::under_priced_dials(&crate::turn::squad::domain_to_engine_tactics(settings))
 }
 
