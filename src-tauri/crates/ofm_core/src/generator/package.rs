@@ -1225,43 +1225,26 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     errors
 }
 
-/// Run the existing competition validator over a package's competitions, with a
-/// world context built from the package's teams/countries/regions plus the
-/// built-in catalog. Definition errors are surfaced as package errors.
+/// Validate the package's constructed world with the same competition rules as
+/// the game loader. Preserve source locations when surfacing definition errors.
 fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
     if package.competitions.is_empty() {
         return Vec::new();
     }
 
-    let team_ids: HashSet<&str> = package.teams.iter().map(|t| t.id.as_str()).collect();
-
-    let mut country_codes: HashSet<&str> =
-        package.countries.iter().map(|c| c.id.as_str()).collect();
-    let mut region_ids: HashSet<&str> = package
-        .confederations
-        .iter()
-        .map(|c| c.id.as_str())
-        .collect();
-    // Every selectable nation, not just the World Cup pool: a country that is
-    // valid as a team's country and a player's nationality must be valid as a
-    // competition's country too. Whether a nation enters the World Cup has
-    // nothing to do with whether it can host a domestic league (#458).
-    for nation in crate::nations::all_nations() {
-        country_codes.insert(nation.code);
-        region_ids.insert(nation.region_id);
-    }
-
-    let ctx = super::WorldValidationContext {
-        team_ids,
-        country_codes,
-        region_ids,
-    };
+    // Reuse production construction so selector inputs (including reputation,
+    // exclusions and regional membership) match the game loader's inputs.
+    let world = super::build_world_data_from_package(
+        package,
+        None,
+        &super::DefinitionSources::embedded_only(),
+    );
     let file = super::CompetitionDefinitionFile {
         format_version: super::SUPPORTED_DEFINITION_FORMAT_VERSION,
         competitions: package.competitions.clone(),
     };
 
-    super::validate_definitions(&file, &ctx)
+    super::validate_definitions_for_world(&file, &world)
         .into_iter()
         .map(|error| {
             let mut params = error.params;
