@@ -1,4 +1,6 @@
-use domain::player::{Footedness, Player, PlayerAttributes, PlayerTrait, Position};
+use domain::player::{
+    Footedness, Player, PlayerAttributes, PlayerTrait, Position, WEAK_FOOT_MAX, WEAK_FOOT_MIN,
+};
 use rand::RngExt;
 
 const WONDERKID_MAX_AGE: u32 = 20;
@@ -297,7 +299,8 @@ fn footedness_penalty(player: &Player, slot_position: &Position) -> f64 {
     match (player.footedness, required_side) {
         (Footedness::Both, _) => 0.0,
         (Footedness::Left, Side::Left) | (Footedness::Right, Side::Right) => 0.0,
-        _ => (10_i32 - (player.weak_foot.clamp(1, 5) as i32 * 2)).max(0) as f64,
+        _ => (10_i32 - (player.weak_foot.clamp(WEAK_FOOT_MIN, WEAK_FOOT_MAX) as i32 * 2)).max(0)
+            as f64,
     }
 }
 

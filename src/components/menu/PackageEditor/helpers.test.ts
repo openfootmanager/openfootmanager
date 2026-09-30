@@ -12,6 +12,8 @@ import {
   emptyNamesDefinition,
   emptyPlayer,
   parseRating,
+  parseOptionalWhole,
+  WIRE_MAX,
   emptyTeam,
   entityRowKey,
   makeRange,
@@ -249,6 +251,50 @@ describe("parseRating", () => {
 
   it("rounds a fractional entry rather than truncating toward zero", () => {
     expect(parseRating("70.6")).toBe(71);
+  });
+});
+
+// A number typed into a player field that has no game range of its own here. The
+// backend validator owns every game range (a weak foot of 1-5, a condition of
+// 0-100), so this only keeps what is typed loadable: a package file is rejected
+// whole when a number does not fit the type it is stored in.
+describe("parseOptionalWhole", () => {
+  it("reads a whole number as written, past any game range", () => {
+    expect(parseOptionalWhole("64", WIRE_MAX.u8)).toBe(64);
+    // 150 is not a legal condition, but saying so is the validator's job, and
+    // clamping it here would hide the mistake it reports.
+    expect(parseOptionalWhole("150", WIRE_MAX.u8)).toBe(150);
+  });
+
+  it("treats blank and unparseable entries as absent, not as zero", () => {
+    expect(parseOptionalWhole("", WIRE_MAX.u8)).toBeNull();
+    expect(parseOptionalWhole("   ", WIRE_MAX.u8)).toBeNull();
+    expect(parseOptionalWhole("abc", WIRE_MAX.u8)).toBeNull();
+    expect(parseOptionalWhole("Infinity", WIRE_MAX.u8)).toBeNull();
+  });
+
+  it("keeps a real zero, which is a value and not an absence", () => {
+    expect(parseOptionalWhole("0", WIRE_MAX.u32)).toBe(0);
+  });
+
+  it("never produces a negative, which an unsigned field cannot load", () => {
+    expect(parseOptionalWhole("-5", WIRE_MAX.u32)).toBe(0);
+    expect(parseOptionalWhole("-1e3", WIRE_MAX.u8)).toBe(0);
+  });
+
+  it("caps at what the field's type holds, so a typo cannot make the file unloadable", () => {
+    expect(parseOptionalWhole("300", WIRE_MAX.u8)).toBe(255);
+    expect(parseOptionalWhole("99999999999", WIRE_MAX.u32)).toBe(4_294_967_295);
+    expect(parseOptionalWhole("1e30", WIRE_MAX.safe)).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it("rounds a fraction, because a whole-number field rejects 4.6", () => {
+    expect(parseOptionalWhole("4.6", WIRE_MAX.u8)).toBe(5);
+    expect(parseOptionalWhole("4.4", WIRE_MAX.u8)).toBe(4);
+  });
+
+  it("reads scientific notation as the number it is", () => {
+    expect(parseOptionalWhole("1e2", WIRE_MAX.u8)).toBe(100);
   });
 });
 

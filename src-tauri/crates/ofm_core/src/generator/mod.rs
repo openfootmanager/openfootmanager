@@ -1,3 +1,4 @@
+mod authored_player;
 pub mod clubs;
 pub mod competition_def;
 pub mod definitions;
@@ -13,12 +14,12 @@ pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
     ConfederationDef, ConflictSeverity, CountryDef, MAX_ARCHIVE_BYTES, PackageError, PackageInfo,
-    PackageLock, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef, WorldMetaDef,
-    WorldPackage, extract_package_assets, hash_package_file, is_manifest_metadata_error,
-    is_unreadable, is_valid_package_id, load_world_package, load_world_package_files,
-    load_world_package_from_ofm, merge_world_packages, qualify_package_asset_paths,
-    read_logo_from_ofm, read_package_manifest_from_ofm, validate_manifest, validate_package,
-    validate_package_stack, validate_references,
+    PackageLock, PlayerCareerEntryDef, PlayerDef, RESERVED_PACKAGE_ID, StackConflict, StaffDef,
+    WorldMetaDef, WorldPackage, extract_package_assets, hash_package_file,
+    is_manifest_metadata_error, is_unreadable, is_valid_package_id, load_world_package,
+    load_world_package_files, load_world_package_from_ofm, merge_world_packages,
+    qualify_package_asset_paths, read_logo_from_ofm, read_package_manifest_from_ofm,
+    validate_manifest, validate_package, validate_package_stack, validate_references,
 };
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
@@ -33,6 +34,7 @@ use domain::team::Team;
 use domain::team::TeamColors;
 use log::info;
 use rand::RngExt;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::finances::MIN_OPENING_RUNWAY_WEEKS;
@@ -85,13 +87,24 @@ fn normalized_wage_budget(weekly_wage_bill: i64, reputation: u32) -> i64 {
 /// down. This compared against a literal `2027-06-30`, which is right for exactly
 /// one opening year: for a 1962 or a 2031 world nothing matched, so the cap did
 /// nothing and however many short deals generation rolled were kept.
-fn normalize_opening_contracts(players: &mut [Player], opening_year: i32) {
+///
+/// `authored_ids` are exempt: neither moved nor counted. The cap is there to tame a
+/// *generated* squad, and a package author who writes four contracts ending the
+/// first summer has said so. Only a player whose contract the author wrote belongs
+/// here; one written with no contract fields is given one by generation and is capped. It has to be told who they are, because
+/// `build_package_club` runs this again after swapping authored players in.
+fn normalize_opening_contracts(
+    players: &mut [Player],
+    opening_year: i32,
+    authored_ids: &HashSet<String>,
+) {
     let first_summer = format!("{}-06-30", opening_year + 1);
     let second_summer = format!("{}-06-30", opening_year + 2);
 
     let mut expiring_indices: Vec<usize> = players
         .iter()
         .enumerate()
+        .filter(|(_, player)| !authored_ids.contains(&player.id))
         .filter(|(_, player)| player.contract_end.as_deref() == Some(first_summer.as_str()))
         .map(|(index, _)| index)
         .collect();
@@ -335,9 +348,14 @@ pub fn generate_national_team_player(
     player
 }
 
-fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_year: i32) {
+fn normalize_generated_team(
+    team: &mut Team,
+    players: &mut [Player],
+    opening_year: i32,
+    authored_ids: &HashSet<String>,
+) {
     seed_opening_youth_academy(players, opening_year);
-    normalize_opening_contracts(players, opening_year);
+    normalize_opening_contracts(players, opening_year, authored_ids);
     // Last, and here rather than in `build_club`: the package path calls this
     // again after swapping generated players for authored ones, and a role
     // belongs to the squad that finished rather than the one that was built.
@@ -795,7 +813,13 @@ fn build_club(
         ));
     }
 
-    normalize_generated_team(&mut team, &mut team_players, opening_year as i32);
+    // A generated club has no authored players; `build_package_club` names them.
+    normalize_generated_team(
+        &mut team,
+        &mut team_players,
+        opening_year as i32,
+        &HashSet::new(),
+    );
     (team, team_players, team_staff)
 }
 
@@ -917,8 +941,12 @@ fn build_package_club(
     }
 
     let mut placed = vec![false; players.len()];
+    let mut authored_ids = HashSet::new();
     for def in authored {
         let authored_player = generate_player_from_def(def, &team.id, opening_year, names_def, rng);
+        if authored_player::authors_a_contract(def) {
+            authored_ids.insert(authored_player.id.clone());
+        }
         let group = authored_player.position.to_group_position();
         let slot = players
             .iter()
@@ -940,8 +968,9 @@ fn build_package_club(
     trim_backfill_players(&mut players, &placed, authored.len(), opening_year as i32);
 
     // Authored wages may differ from the players they replaced, so re-normalise
-    // the opening wage budget to the final squad.
-    normalize_generated_team(&mut team, &mut players, opening_year as i32);
+    // the opening wage budget to the final squad. The authored players are named so
+    // the contract cap, which runs again here, leaves their deals alone.
+    normalize_generated_team(&mut team, &mut players, opening_year as i32, &authored_ids);
     (team, players, staff)
 }
 
@@ -1930,7 +1959,12 @@ mod tests {
                 player.contract_end = Some(expiring_next_summer.clone());
             }
 
-            normalize_generated_team(&mut team, &mut players, opening_year as i32);
+            normalize_generated_team(
+                &mut team,
+                &mut players,
+                opening_year as i32,
+                &HashSet::new(),
+            );
 
             let still_expiring = players
                 .iter()
@@ -1942,6 +1976,85 @@ mod tests {
                 still_expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
                 "a {opening_year} world opened with {still_expiring} players on contracts \
                  ending {expiring_next_summer}; the cap is {MAX_OPENING_EXPIRING_CONTRACTS}"
+            );
+        }
+    }
+
+    /// The cap exists so a generated squad does not open with a wave of renewals. An
+    /// author who writes four contracts ending the first summer has said so, and the
+    /// cap, which runs again after authored players are swapped in, must not move them.
+    #[test]
+    fn authored_contracts_are_not_moved_by_the_opening_cap() {
+        for opening_year in [HISTORICAL_OPENING_YEAR, TEST_OPENING_YEAR] {
+            let first_summer = format!("{}-06-30", opening_year + 1);
+            let authored: Vec<package::PlayerDef> = (0..4)
+                .map(|index| {
+                    serde_json::from_value(serde_json::json!({
+                        "id": format!("authored-{index}"),
+                        "firstName": "Authored",
+                        "lastName": format!("Authored{index}"),
+                        "club": "fc-test",
+                        "nationality": "ENG",
+                        "position": "Striker",
+                        "dateOfBirth": "1990-05-01",
+                        "overall": 70,
+                        "contractEnd": first_summer,
+                    }))
+                    .expect("the fixture deserializes")
+                })
+                .collect();
+
+            let players = build_test_package_club_in_year(&authored, opening_year);
+
+            let kept = players
+                .iter()
+                .filter(|player| player.match_name.starts_with("Authored"))
+                .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                .count();
+            assert_eq!(
+                kept,
+                4,
+                "a {opening_year} package lost {} of four authored contracts ending \
+                 {first_summer} to the opening cap",
+                4 - kept
+            );
+        }
+    }
+
+    /// An author who wrote no contract has not said anything about it, so those
+    /// players are as subject to the cap as generated ones. Exempting every authored
+    /// player would let a package of real people, with no contract fields, open a
+    /// club with most of its squad expiring in the first summer.
+    #[test]
+    fn authored_players_who_wrote_no_contract_are_still_capped() {
+        for opening_year in [HISTORICAL_OPENING_YEAR, TEST_OPENING_YEAR] {
+            let first_summer = format!("{}-06-30", opening_year + 1);
+            let authored: Vec<package::PlayerDef> = (0..40)
+                .map(|index| {
+                    serde_json::from_value(serde_json::json!({
+                        "id": format!("authored-{index}"),
+                        "firstName": "Authored",
+                        "lastName": format!("Authored{index}"),
+                        "club": "fc-test",
+                        "nationality": "ENG",
+                        "position": "Striker",
+                        "dateOfBirth": "1990-05-01",
+                        "overall": 70,
+                    }))
+                    .expect("the fixture deserializes")
+                })
+                .collect();
+
+            let players = build_test_package_club_in_year(&authored, opening_year);
+
+            let expiring = players
+                .iter()
+                .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                .count();
+            assert!(
+                expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
+                "a {opening_year} club opened with {expiring} contracts ending {first_summer}; \
+                 the cap is {MAX_OPENING_EXPIRING_CONTRACTS}"
             );
         }
     }

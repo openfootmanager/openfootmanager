@@ -252,7 +252,8 @@ mod tests {
     use domain::staff::{StaffAttributes, StaffRole};
     use ofm_core::generator::{
         ConfederationDef, CountryDef, FormatDef, NamePool, NamesDefinition, ParticipantSpec,
-        PlayerDef, SelectorKind, SelectorSpec, StaffDef, TeamColorsDef, TeamDef, WorldMetaDef,
+        PlayerCareerEntryDef, PlayerDef, SelectorKind, SelectorSpec, StaffDef, TeamColorsDef,
+        TeamDef, WorldMetaDef,
     };
     use std::collections::HashMap;
 
@@ -935,6 +936,36 @@ mod tests {
             photo: None,
             footedness: None,
             youth: false,
+            // A start and a length, which are valid together. An end date beside a
+            // length is refused, so this stays one or the other.
+            contract_start: Some("2020-07-01".to_string()),
+            contract_end: None,
+            contract_length: Some(4),
+            wage: Some(250_000),
+            value: Some(60_000_000),
+            weak_foot: Some(4),
+            alternate_positions: vec![Position::AttackingMidfielder],
+            condition: Some(92),
+            morale: Some(80),
+            career_history: vec![
+                // A club the package does not define: name only.
+                PlayerCareerEntryDef {
+                    season: 2002,
+                    team_id: None,
+                    team_name: "Everton".to_string(),
+                    appearances: 77,
+                    goals: 17,
+                    assists: 6,
+                },
+                PlayerCareerEntryDef {
+                    season: 2004,
+                    team_id: Some("man-utd".to_string()),
+                    team_name: "Manchester United".to_string(),
+                    appearances: 29,
+                    goals: 11,
+                    assists: 7,
+                },
+            ],
         }];
 
         let mut pools = HashMap::new();
@@ -1047,6 +1078,22 @@ mod tests {
         assert_eq!(attrs.pace, 75);
         // An authored ceiling has to come back out of the project the editor wrote.
         assert_eq!(p.potential, Some(93), "potential must survive round-trip");
+
+        // The contract, status and career fields the editor can now author.
+        assert_eq!(p.contract_start.as_deref(), Some("2020-07-01"));
+        assert_eq!(p.contract_end, None);
+        assert_eq!(p.contract_length, Some(4));
+        assert_eq!(p.wage, Some(250_000));
+        assert_eq!(p.value, Some(60_000_000));
+        assert_eq!(p.weak_foot, Some(4));
+        assert_eq!(p.alternate_positions, vec![Position::AttackingMidfielder]);
+        assert_eq!(p.condition, Some(92));
+        assert_eq!(p.morale, Some(80));
+        assert_eq!(p.career_history.len(), 2);
+        assert_eq!(p.career_history[0].team_id, None);
+        assert_eq!(p.career_history[0].team_name, "Everton");
+        assert_eq!(p.career_history[1].team_id.as_deref(), Some("man-utd"));
+        assert_eq!(p.career_history[1].goals, 11);
 
         let names_rt = loaded.names.expect("names must survive round-trip");
         let eng = names_rt
