@@ -1,0 +1,111 @@
+name: "\U0001F41B Laporan Bug (Bahasa Indonesia)"
+description: "Laporkan bug atau crash dalam Bahasa Indonesia"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Laporan Bug
+        Terima kasih sudah melaporkan bug! Mohon isi sedetail mungkin.
+        Mohon tulis dalam Bahasa Indonesia pada templat ini.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Apa yang terjadi?"
+      description: "Jelaskan bug-nya sejelas mungkin."
+      placeholder: "Gim crash saat saya mencoba..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "Apa yang Anda harapkan?"
+      description: "Apa yang seharusnya terjadi?"
+      placeholder: "Saya mengharapkan pertandingan dimulai seperti biasa..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Langkah untuk mengulangi"
+      description: "Bagaimana kami bisa memunculkan bug ini?"
+      placeholder: |
+        1. Mulai gim baru
+        2. Pilih tim
+        3. Lanjut ke hari pertandingan
+        4. Klik "Turun ke Lapangan"
+        5. Gim crash
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: "Seberapa sering ini terjadi?"
+      options:
+        - Setiap kali
+        - Kadang-kadang
+        - Baru terjadi sekali
+    validations:
+      required: true
+
+  - type: textarea
+    id: game-context
+    attributes:
+      label: "Kondisi dalam gim"
+      description: "Anda sedang di hari atau pekan pertandingan ke berapa? Sedang melakukan apa? Apakah Anda baru saja memuat simpanan?"
+      placeholder: "Saya di pekan pertandingan ke-5, tepat setelah pertandingan..."
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: "Versi aplikasi"
+      description: "Tertera di bagian bawah menu utama dan di Pengaturan → Tentang."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: "Sistem operasi"
+      description: "Mis. Windows 11, macOS 15, Ubuntu 24.04"
+      placeholder: "Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: resolution
+    attributes:
+      label: "Resolusi layar"
+      description: "Mis. 1920x1080"
+      placeholder: "1920x1080"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: logs
+    attributes:
+      label: "Berkas log"
+      description: |
+        Mohon lampirkan berkas log Anda! Log sangat mempercepat perbaikan bug.
+        **Windows:** `C:\Users\<Anda>\AppData\Roaming\com.sturdyrobot.openfootmanager\logs\`
+        **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
+        **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
+      options:
+        - label: "Saya sudah melampirkan berkas log (seret folder logs yang sudah di-zip ke bawah ini)"
+          required: false
+
+  - type: textarea
+    id: logs-and-screenshots
+    attributes:
+      label: "Log dan tangkapan layar"
+      description: "Seret folder logs yang sudah di-zip dan tangkapan layar apa pun ke sini."
+      placeholder: "Seret berkas ke sini..."
+    validations:
+      required: false

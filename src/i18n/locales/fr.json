@@ -24,7 +24,9 @@
     "openDiscord": "Ouvrir la communauté Discord",
     "openGithub": "Ouvrir le dépôt GitHub",
     "mainMenu": "Menu principal",
-    "worldEditor": "Éditeur de Monde"
+    "worldEditor": "Éditeur de Monde",
+    "startupOptionsRejected": "Ces paramètres de carrière n'ont pas pu être utilisés. Retournez à l'écran du monde et vérifiez l'année de début, la phase de début et la quantité d'historique à générer.",
+    "reportBug": "Signaler un bug"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1102,7 +1104,7 @@
     "marketingCampaignDescription": "Lancez une campagne ponctuelle de merchandising et de promotion pour obtenir du cash immédiat quand le club est sous pression.",
     "marketingCampaignUnavailable": "Les campagnes marketing sont réservées aux clubs sous pression salariale ou de trésorerie.",
     "marketingCampaignCoolingDown": "La campagne marketing sera à nouveau disponible dans {{days}} jours.",
-    "marketingCampaignSummary": "La campagne a généré {{netIncome}} nets après {{campaignCost}} de dépenses ({{grossRevenue}} bruts). Recharge: {{days}} jours.",
+    "marketingCampaignSummary": "La campagne a généré {{netIncome}} nets après {{cost}} de dépenses ({{grossRevenue}} bruts). Recharge: {{days}} jours.",
     "sponsorPitchUnavailable": "Cette recherche de sponsor est réservée aux clubs sous pression salariale ou de trésorerie.",
     "sponsorPitchActiveSponsor": "Un contrat de sponsoring est déjà en cours.",
     "sponsorPitchPendingOffer": "Traitez d'abord l'offre de sponsoring en attente.",
@@ -1790,7 +1792,11 @@
     "enterFullscreen": "Entrer",
     "exitFullscreen": "Quitter",
     "switchToLightMode": "Passer au mode clair",
-    "switchToDarkMode": "Passer au mode sombre"
+    "switchToDarkMode": "Passer au mode sombre",
+    "help": "Aide",
+    "reportBug": "Signaler un bug",
+    "reportBugDesc": "Dites-nous ce qui a mal tourné ; vos journaux sont joints automatiquement.",
+    "report": "Signaler"
   },
   "preMatch": {
     "formationFit": "Ajustement Formation",
@@ -2691,6 +2697,10 @@
         "writeFailed": "Impossible de mettre à jour l'index des sauvegardes."
       },
       "saveManagerUnavailable": "Les données de sauvegarde sont temporairement indisponibles.",
+      "report": {
+        "bundleFailed": "Le fichier de rapport n'a pas pu être écrit. Vérifiez que vous pouvez écrire dans le dossier choisi.",
+        "saveMissing": "Votre sauvegarde est introuvable, donc rien n'a été écrit. Décochez la sauvegarde et réessayez, ou rechargez votre carrière d'abord."
+      },
       "saveDeleteFailed": "Impossible de supprimer le fichier de sauvegarde.",
       "settings": {
         "loadFailed": "Impossible de charger les paramètres.",
@@ -4036,5 +4046,55 @@
   "generation": {
     "title": "Génération et Complétion",
     "coverage": "Vos paquets couvrent"
+  },
+  "errorBoundary": {
+    "title": "Une erreur est survenue",
+    "description": "Cet écran a rencontré une erreur dont il n'a pas pu se remettre. Essayez d'abord de réessayer — recharger redémarre le jeu et la progression non sauvegardée est perdue.",
+    "retry": "Réessayer",
+    "reload": "Recharger le jeu"
+  },
+  "errors": {
+    "title": "Une erreur est survenue"
+  },
+  "reportBug": {
+    "describeTitle": "Signaler un bug",
+    "describeIntro": "Dites-nous ce qui a mal tourné. Vos journaux et les détails de la partie suivent automatiquement. Vous verrez la liste complète avant que quoi que ce soit ne soit enregistré.",
+    "previewTitle": "Ce qui est envoyé",
+    "previewIntro": "Tout ce qui suit, et rien d'autre. Rien ne quitte cette machine tant que vous n'avez pas choisi où l'enregistrer.",
+    "doneTitle": "Rapport enregistré",
+    "doneIntro": "Le formulaire de bug est ouvert dans votre navigateur, vos réponses déjà remplies.",
+    "whatHappened": "Ce qui s'est passé",
+    "whatHappenedPlaceholder": "Le jeu s'est figé quand j'ai cliqué sur Entrer sur le terrain…",
+    "expected": "Ce que vous attendiez",
+    "expectedPlaceholder": "Je m'attendais à ce que le match commence normalement…",
+    "steps": "Étapes pour reproduire",
+    "stepsPlaceholder": "1. Lancer une nouvelle partie\n2. Avancer jusqu'à la journée\n3. Cliquer sur Entrer sur le terrain…",
+    "required": "Obligatoire",
+    "fillRequired": "Remplissez ce qui s'est passé et ce que vous attendiez.",
+    "frequencyLabel": "À quelle fréquence ça arrive",
+    "gameContext": "Votre carrière",
+    "frequency": {
+      "everyTime": "À chaque fois",
+      "sometimes": "Parfois",
+      "once": "Une seule fois"
+    },
+    "itemWhatYouWrote": "Ce que vous avez écrit",
+    "itemWhatYouWroteDesc": "Votre description, ce que vous attendiez, les étapes et la fréquence.",
+    "itemSetup": "Votre configuration",
+    "itemLogs": "Vos journaux récents",
+    "itemLogsDesc": "Votre dossier personnel et votre nom d'utilisateur sont retirés avant l'enregistrement, ainsi que le nom de votre ordinateur lorsque le système le fournit.",
+    "itemCrash": "Un plantage lors de votre dernière session",
+    "itemCrashDesc": "Inclus parce que quelque chose a planté pendant votre dernière session.",
+    "optionalHeading": "À ajouter si vous voulez — désactivé par défaut",
+    "includeSave": "Ma sauvegarde",
+      "includeSaveDesc": "Nous permet de rejouer exactement la situation dans laquelle vous étiez.",
+    "includeSaveNoCareer": "Aucune carrière ouverte, il n'y a donc rien à joindre.",
+    "nothingSentYet": "Rien n'est enregistré ni ouvert avant que vous n'appuyiez sur le bouton ci-dessous. Envoyer le formulaire demande un compte GitHub — le fichier est à vous dans tous les cas.",
+    "savedTo": "Votre fichier de rapport a été enregistré ici :",
+    "dragItIn": "Glissez-le sur le formulaire GitHub dans votre navigateur, puis envoyez. C'est tout.",
+      "browserDidNotOpen": "Votre navigateur ne s'est pas ouvert. Le fichier ci-dessus est enregistré — joignez-le à un nouveau ticket sur GitHub quand vous pouvez.",
+    "review": "Vérifier ce qui est envoyé",
+    "saveAndOpen": "Enregistrer le fichier et ouvrir GitHub",
+    "working": "En cours…"
   }
 }

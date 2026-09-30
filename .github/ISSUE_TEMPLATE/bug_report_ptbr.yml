@@ -63,6 +63,15 @@ body:
       required: false
 
   - type: input
+    id: version
+    attributes:
+      label: "Versão do aplicativo"
+      description: "Aparece na parte inferior do menu principal e em Configurações → Sobre."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
     id: os
     attributes:
       label: "Sistema operacional"

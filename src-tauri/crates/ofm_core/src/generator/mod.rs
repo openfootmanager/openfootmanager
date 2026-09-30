@@ -36,6 +36,7 @@ use rand::RngExt;
 use uuid::Uuid;
 
 use crate::finances::MIN_OPENING_RUNWAY_WEEKS;
+use crate::stable_hash::stable_hash;
 use chrono::Datelike;
 use generation::*;
 
@@ -142,7 +143,9 @@ pub fn default_opening_year() -> u32 {
         .clamp(MIN_OPENING_YEAR as i32, MAX_OPENING_YEAR as i32) as u32
 }
 
-fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
+/// Age on 1 July of `opening_year`, by month and day (not day-of-year, which is off by one
+/// for birthdays after 28 February across a leap boundary). `None` for an unparseable date.
+pub(crate) fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
     use chrono::{Datelike, NaiveDate};
 
     let opening_date = NaiveDate::from_ymd_opt(opening_year, 7, 1)?;
@@ -326,6 +329,10 @@ pub fn generate_national_team_player(
 fn normalize_generated_team(team: &mut Team, players: &mut [Player], opening_year: i32) {
     seed_opening_youth_academy(players, opening_year);
     normalize_opening_contracts(players);
+    // Last, and here rather than in `build_club`: the package path calls this
+    // again after swapping generated players for authored ones, and a role
+    // belongs to the squad that finished rather than the one that was built.
+    crate::ai_roles::assign_squad_roles(team, players.iter());
 
     let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
 
@@ -430,25 +437,11 @@ pub(crate) fn generated_manager_for(
     // would silently change the world's history. Keying on the appointment also
     // makes the same world produce the same managers twice running.
     use rand::SeedableRng;
-    let mut rng = rand::rngs::StdRng::seed_from_u64(stable_seed(manager_id));
+    let mut rng = rand::rngs::StdRng::seed_from_u64(stable_hash(manager_id.as_bytes(), 0));
 
     let nationality =
         pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng);
     generate_random_unemployed_manager(&nationality, names_def, opening_year, &mut rng)
-}
-
-/// FNV-1a over the bytes, for turning an id into an RNG seed.
-///
-/// Hand-rolled rather than `DefaultHasher`, whose output std does not promise to
-/// keep stable between releases — a world would then generate different managers
-/// purely because it was built with a different compiler.
-fn stable_seed(text: &str) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for byte in text.as_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash
 }
 
 fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32) -> Vec<Staff> {
@@ -730,6 +723,10 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         secondary: tdef.colors.secondary.clone(),
     };
     team.play_style = play_style_from_str(&tdef.play_style);
+    // A club's tactics are its style expressed in the nine dials the engine
+    // actually reads. Set here rather than left at the neutral default, which is
+    // where every club in every save had been sitting: see `ai_tactics`.
+    team.tactics_phase = crate::ai_tactics::blueprint_for(&team.play_style);
     team.media.logo = tdef.logo.clone();
     if let Some(ref pattern_str) = tdef.kit_pattern
         && let Ok(pattern) = pattern_str.parse()
@@ -1401,6 +1398,7 @@ fn generate_world_with_rng(
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod identity;
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};

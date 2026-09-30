@@ -1,7 +1,8 @@
 import type { PlayerRole } from "../store/types";
 
-// IMPORTANT: this table is the front-end mirror of the backend role validator
-// `role_valid_for_position` (src-tauri/src/commands/squad.rs). The backend is the
+// IMPORTANT: this table is the front-end mirror of the backend role table
+// `domain::Position::valid_roles()` (src-tauri/crates/domain/src/player.rs).
+// The backend command validates against that table and is the
 // authority — it rejects an out-of-position role with `be.error.roleNotValidForPosition`
 // — so every role offered here MUST be one the backend accepts for that position,
 // or the dropdown selection silently reverts. The cross-language parity is pinned

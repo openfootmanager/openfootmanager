@@ -480,114 +480,16 @@ fn reconcile_player_roles(game: &mut Game, team_id: &str) {
     }
 }
 
+/// Whether a role may be given to a player in this position.
+///
+/// The table itself lives on `domain::player::Position::valid_roles` — it used
+/// to live here, which put it out of reach of `ofm_core` and made a second
+/// backend copy the only way to assign a role below the command layer.
 fn role_valid_for_position(
     role: &domain::team::PlayerRole,
     pos: &domain::player::Position,
 ) -> bool {
-    use domain::player::Position as P;
-    use domain::team::PlayerRole as R;
-    match pos {
-        P::Goalkeeper => matches!(role, R::Standard | R::BallPlayingKeeper | R::SweeperKeeper),
-        P::CenterBack => matches!(
-            role,
-            R::Standard | R::Stopper | R::CoverCB | R::BallPlayingCB
-        ),
-        P::RightBack | P::LeftBack | P::RightWingBack | P::LeftWingBack => {
-            matches!(
-                role,
-                R::Standard | R::AttackingFB | R::DefensiveFB | R::InvertedFB | R::WingBack
-            )
-        }
-        P::DefensiveMidfielder => {
-            matches!(
-                role,
-                R::Standard | R::AnchorMan | R::BallWinner | R::DeepLyingPlaymaker
-            )
-        }
-        P::CentralMidfielder => {
-            matches!(role, R::Standard | R::BoxToBox | R::Carrilero | R::Mezzala)
-        }
-        P::AttackingMidfielder => {
-            matches!(role, R::Standard | R::AdvancedPlaymaker | R::ShadowStriker)
-        }
-        P::RightMidfielder | P::LeftMidfielder | P::RightWinger | P::LeftWinger => {
-            matches!(
-                role,
-                R::Standard | R::WideForward | R::InsideForward | R::InvertedWinger
-            )
-        }
-        P::Striker => matches!(
-            role,
-            R::Standard
-                | R::Poacher
-                | R::TargetMan
-                | R::DeepLyingForward
-                | R::False9
-                | R::PressingForward
-                | R::CompleteForward
-        ),
-        // Legacy coarse-bucket positions: allow all roles in the broad group
-        P::Defender => !matches!(
-            role,
-            R::BallPlayingKeeper
-                | R::SweeperKeeper
-                | R::AnchorMan
-                | R::BallWinner
-                | R::DeepLyingPlaymaker
-                | R::BoxToBox
-                | R::Carrilero
-                | R::Mezzala
-                | R::AdvancedPlaymaker
-                | R::ShadowStriker
-                | R::WideForward
-                | R::InsideForward
-                | R::InvertedWinger
-                | R::Poacher
-                | R::TargetMan
-                | R::DeepLyingForward
-                | R::False9
-                | R::PressingForward
-                | R::CompleteForward
-        ),
-        P::Midfielder => !matches!(
-            role,
-            R::BallPlayingKeeper
-                | R::SweeperKeeper
-                | R::Stopper
-                | R::CoverCB
-                | R::BallPlayingCB
-                | R::AttackingFB
-                | R::DefensiveFB
-                | R::InvertedFB
-                | R::WingBack
-                | R::Poacher
-                | R::TargetMan
-                | R::DeepLyingForward
-                | R::False9
-                | R::PressingForward
-                | R::CompleteForward
-        ),
-        P::Forward => !matches!(
-            role,
-            R::BallPlayingKeeper
-                | R::SweeperKeeper
-                | R::Stopper
-                | R::CoverCB
-                | R::BallPlayingCB
-                | R::AttackingFB
-                | R::DefensiveFB
-                | R::InvertedFB
-                | R::WingBack
-                | R::AnchorMan
-                | R::BallWinner
-                | R::DeepLyingPlaymaker
-                | R::BoxToBox
-                | R::Carrilero
-                | R::Mezzala
-                | R::AdvancedPlaymaker
-                | R::ShadowStriker
-        ),
-    }
+    pos.admits_role(role)
 }
 
 #[tauri::command]

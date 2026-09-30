@@ -8,6 +8,7 @@ import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
+import { showError } from "../lib/errorDialog";
 import {
   buildFallbackRegions,
   competitionRequiredRegions,
@@ -411,10 +412,9 @@ export function useTeamSelection({
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to select team:", error);
-      alert(
-        t("teamSelect.failedToSelectTeam", {
-          error: resolveBackendError(error),
-        }),
+      await showError(
+        t("errors.title"),
+        t("teamSelect.failedToSelectTeam", { error: resolveBackendError(error) }),
       );
     } finally {
       setIsConfirming(false);

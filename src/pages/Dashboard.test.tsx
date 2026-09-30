@@ -5,7 +5,7 @@ import type { LeagueData, SeasonContextData } from "../store/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import Dashboard from "./Dashboard";
 
-const { listenMock, registeredEventHandlers } = vi.hoisted(() => {
+const { listenMock, registeredEventHandlers, matchConfirmState } = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
 
   return {
@@ -14,6 +14,7 @@ const { listenMock, registeredEventHandlers } = vi.hoisted(() => {
       return Promise.resolve(vi.fn());
     }),
     registeredEventHandlers: handlers,
+    matchConfirmState: { visible: false },
   };
 });
 
@@ -232,6 +233,7 @@ vi.mock("react-i18next", () => ({
         "continueMenu.watchSpectatorDesc": "desc",
         "continueMenu.delegateAssistant": "Delegate",
         "continueMenu.delegateAssistantDesc": "desc",
+        "tournaments.competitions.nationalCup": "Copa Nacional",
       };
 
       return labels[key] ?? key;
@@ -277,7 +279,7 @@ vi.mock("../hooks/useAdvanceTime", () => ({
     isAdvancing: false,
     showContinueMenu: false,
     setShowContinueMenu: vi.fn(),
-    showMatchConfirm: false,
+    showMatchConfirm: matchConfirmState.visible,
     setShowMatchConfirm: vi.fn(),
     matchMode: "live",
     setMatchMode: vi.fn(),
@@ -412,14 +414,11 @@ vi.mock("../components/dashboard/DashboardExitSavingModal", () => ({
   default: () => null,
 }));
 
-vi.mock("../components/dashboard/DashboardMatchConfirmModal", () => ({
-  default: () => null,
-}));
-
 describe("Dashboard", () => {
   beforeEach(() => {
     gameState = createGameState();
     backendFinanceSnapshot = createBackendFinanceSnapshot();
+    matchConfirmState.visible = false;
     registeredEventHandlers.clear();
     listenMock.mockClear();
     invokeMock.mockReset();
@@ -615,6 +614,37 @@ describe("Dashboard", () => {
       expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
     });
     expect(screen.queryByText("season over")).not.toBeInTheDocument();
+  });
+
+  it("shows the localized named cup in the match confirmation modal", async () => {
+    matchConfirmState.visible = true;
+    gameState.competitions = [
+      {
+        id: "cup-1",
+        name: "National Cup",
+        name_key: "tournaments.competitions.nationalCup",
+        season: 2026,
+        fixtures: [
+          {
+            id: "cup-match",
+            competition_id: "cup-1",
+            competition: "Cup",
+            matchday: 1,
+            date: "2026-07-10",
+            home_team_id: "team-1",
+            away_team_id: "team-2",
+            status: "Scheduled",
+            result: null,
+          },
+        ],
+        standings: [],
+      },
+    ];
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("Copa Nacional")).toBeInTheDocument();
+    expect(screen.queryByText("National Cup")).not.toBeInTheDocument();
   });
 
   it("supports search selection, profile switching, back-navigation, and tab switching", async () => {

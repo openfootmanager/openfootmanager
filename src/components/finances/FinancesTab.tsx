@@ -231,7 +231,6 @@ function FinancesTabContent({
         netIncome: formatExactMoney(recoveryPreviews.marketingCampaign.netIncome),
         grossRevenue: formatExactMoney(recoveryPreviews.marketingCampaign.grossRevenue),
         cost: formatExactMoney(recoveryPreviews.marketingCampaign.campaignCost),
-        campaignCost: formatExactMoney(recoveryPreviews.marketingCampaign.campaignCost),
         days: recoveryPreviews.marketingCampaign.cooldownDays,
       })
     : null;

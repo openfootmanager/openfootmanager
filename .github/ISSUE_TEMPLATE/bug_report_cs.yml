@@ -1,0 +1,111 @@
+name: "\U0001F41B Hlášení chyby (Čeština)"
+description: "Nahlaste chybu nebo pád hry v češtině"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Hlášení chyby
+        Děkujeme, že nahlašujete chybu! Vyplňte prosím co nejvíce podrobností.
+        V této šabloně pište prosím česky.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Co se stalo?"
+      description: "Popište chybu co nejsrozumitelněji."
+      placeholder: "Hra spadla při pokusu o..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "Co jste očekávali?"
+      description: "Co se mělo stát místo toho?"
+      placeholder: "Zápas měl normálně začít..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Postup pro zopakování"
+      description: "Jak můžeme chybu vyvolat my?"
+      placeholder: |
+        1. Začít novou hru
+        2. Vybrat tým
+        3. Postoupit na hrací den
+        4. Kliknout na „Na hřiště“
+        5. Hra spadne
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: "Jak často se to stává?"
+      options:
+        - Pokaždé
+        - Občas
+        - Stalo se to jen jednou
+    validations:
+      required: true
+
+  - type: textarea
+    id: game-context
+    attributes:
+      label: "Situace ve hře"
+      description: "V jakém dni nebo hracím dni jste byli? Co jste dělali? Načetli jste těsně předtím uloženou hru?"
+      placeholder: "5. hrací den, hned po zápase..."
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: "Verze aplikace"
+      description: "Najdete ji dole v hlavní nabídce a v Nastavení → O aplikaci."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: "Operační systém"
+      description: "Např. Windows 11, macOS 15, Ubuntu 24.04"
+      placeholder: "Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: resolution
+    attributes:
+      label: "Rozlišení obrazovky"
+      description: "Např. 1920x1080"
+      placeholder: "1920x1080"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: logs
+    attributes:
+      label: "Soubory protokolu"
+      description: |
+        Přiložte prosím soubory protokolu! Díky nim chybu opravíme mnohem rychleji.
+        **Windows:** `C:\Users\<Vy>\AppData\Roaming\com.sturdyrobot.openfootmanager\logs\`
+        **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
+        **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
+      options:
+        - label: "Soubory protokolu jsou přiložené (přetáhněte níže zazipovanou složku logs)"
+          required: false
+
+  - type: textarea
+    id: logs-and-screenshots
+    attributes:
+      label: "Protokoly a snímky obrazovky"
+      description: "Přetáhněte sem zazipovanou složku logs a případné snímky obrazovky."
+      placeholder: "Přetáhněte sem soubory..."
+    validations:
+      required: false

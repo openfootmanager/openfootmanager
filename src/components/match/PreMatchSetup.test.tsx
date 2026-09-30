@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PreMatchSetup from "./PreMatchSetup";
-import type { GameStateData } from "../../store/gameStore";
+import type { FixtureData, GameStateData, LeagueData } from "../../store/gameStore";
 import type { MatchSnapshot } from "./types";
 
 // Mock the few external dependencies PreMatchSetup pulls in at render time so we
@@ -11,6 +11,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: unknown) => {
+      if (key === "tournaments.competitions.nationalCup") return "Copa Nacional";
       if (typeof opts === "string") return opts;
       if (opts && typeof opts === "object" && "defaultValue" in opts) {
         return (opts as { defaultValue: string }).defaultValue;
@@ -117,7 +118,9 @@ function gameState(): Record<string, unknown> {
   };
 }
 
-function renderSetup() {
+function renderSetup(currentFixture?: FixtureData, competitions?: LeagueData[]) {
+  const state = gameState();
+  if (competitions) state.competitions = competitions;
   return render(
     <PreMatchSetup
       // The two fixtures build partial objects deliberately — this test exercises the setup
@@ -125,7 +128,8 @@ function renderSetup() {
       // for". It goes through `unknown` because the shapes genuinely do not overlap, and the
       // two `eslint-disable` lines it used to carry were decorative: there is no ESLint here.
       snapshot={snapshot() as unknown as MatchSnapshot}
-      gameState={gameState() as unknown as GameStateData}
+      gameState={state as unknown as GameStateData}
+      currentFixture={currentFixture}
       userSide="Home"
       onStart={vi.fn()}
       onUpdateSnapshot={vi.fn()}
@@ -145,5 +149,31 @@ describe("PreMatchSetup opponent scout panel", () => {
     // The opponent scout panel lists the opponent's players by name.
     expect(screen.getByText("Away GK")).toBeTruthy();
     expect(screen.getByText("Away Fwd")).toBeTruthy();
+  });
+
+  it("shows the translated competition name for the current named cup fixture", () => {
+    const fixture: FixtureData = {
+      id: "cup-match",
+      competition_id: "cup-2026",
+      competition: "Cup",
+      matchday: 1,
+      date: "2026-08-01",
+      home_team_id: "home1",
+      away_team_id: "away1",
+      status: "Scheduled",
+      result: null,
+    };
+    renderSetup(fixture, [
+      {
+        id: "cup-2026",
+        name: "National Cup",
+        name_key: "tournaments.competitions.nationalCup",
+        season: 2026,
+        fixtures: [fixture],
+        standings: [],
+      },
+    ]);
+
+    expect(screen.getByText("Copa Nacional")).toBeInTheDocument();
   });
 });

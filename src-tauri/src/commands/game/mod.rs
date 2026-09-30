@@ -13,7 +13,6 @@ use crate::commands::util::persist_active_game;
 use crate::SaveManagerState;
 
 mod bootstrap;
-mod foundation;
 mod helpers;
 mod startup;
 mod validation;
@@ -29,9 +28,9 @@ mod world_load;
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::bootstrap_game_for_mcp;
 pub(crate) use bootstrap::{bootstrap_team_selection, create_new_save};
-use foundation::*;
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+use ofm_core::world::*;
 use startup::*;
 pub(crate) use startup::{start_phase_for_game, StartPhase};
 use world_build::*;
@@ -58,6 +57,21 @@ pub async fn start_new_game(
     competition_definitions_json: Option<String>,
     package_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
+    // Before any validation can return — see `StartRequestSummary` for why, and for what it omits.
+    log::info!(
+        "[cmd] start_new_game {}",
+        startup::StartRequestSummary {
+            first_name: &first_name,
+            last_name: &last_name,
+            dob: &dob,
+            nationality: &nationality,
+            startup_options: startup_options.as_ref(),
+            world_source: world_source.as_deref(),
+            package_ids: package_ids.as_deref(),
+        }
+        .describe()
+    );
+
     // Validate inputs
     let first_name = first_name.trim().to_string();
     let last_name = last_name.trim().to_string();

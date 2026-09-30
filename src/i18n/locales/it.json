@@ -24,7 +24,9 @@
     "openDiscord": "Apri la comunità Discord",
     "openGithub": "Apri il repository GitHub",
     "mainMenu": "Menu principale",
-    "worldEditor": "Editor Mondo"
+    "worldEditor": "Editor Mondo",
+    "startupOptionsRejected": "Non è stato possibile usare quelle impostazioni di carriera. Torna alla schermata del mondo e controlla l'anno di inizio, la fase di inizio e quanta storia passata generare.",
+    "reportBug": "Segnala un bug"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -1809,7 +1811,11 @@
     "enterFullscreen": "Entra",
     "exitFullscreen": "Esci",
     "switchToLightMode": "Passa alla modalità chiara",
-    "switchToDarkMode": "Passa alla modalità scura"
+    "switchToDarkMode": "Passa alla modalità scura",
+    "help": "Aiuto",
+    "reportBug": "Segnala un bug",
+    "reportBugDesc": "Raccontaci cosa è andato storto; i tuoi log vengono allegati in automatico.",
+    "report": "Segnala"
   },
   "preMatch": {
     "formationFit": "Adattamento alla formazione",
@@ -2691,6 +2697,10 @@
         "writeFailed": "Impossibile aggiornare l'indice dei salvataggi."
       },
       "saveManagerUnavailable": "I dati di salvataggio non sono temporaneamente disponibili.",
+      "report": {
+        "bundleFailed": "Non è stato possibile scrivere il file del report. Verifica di poter scrivere nella cartella scelta.",
+        "saveMissing": "Non è stato possibile trovare il tuo salvataggio, quindi non è stato scritto nulla. Togli la spunta al salvataggio e riprova, oppure ricarica prima la carriera."
+      },
       "saveDeleteFailed": "Impossibile eliminare il file di salvataggio.",
       "settings": {
         "loadFailed": "Impossibile caricare le impostazioni.",
@@ -2866,7 +2876,7 @@
       },
       "boardObjectives": {
         "subject": "Stagione {{season}} — Obiettivi della dirigenza",
-        "body": "La dirigenza ha fissato i seguenti obiettivi per questa stagione:\n\n1. Chiudere tra le prime {{expectedPos}}\n2. Vincere almeno {{winTarget}} partite\n3. Segnare almeno {{goalsTarget}} gol\n\nRaggiungere questi traguardi aumenterà la fiducia della dirigenza nel tuo operato. Il mancato rispetto delle aspettative potrebbe comportare budget ridotti o ulteriori conseguenze."
+        "body": "La dirigenza ha fissato i seguenti obiettivi per questa stagione:\n\n1. Chiudere tra le prime {{expectedPos}}\n2. Vincere almeno {{winTarget}} partite\n3. Segnare almeno {{goalsTarget}} gol\n4. Mantenere la spesa salariale entro il {{financeTarget}}% del budget\n\nRaggiungere questi traguardi aumenterà la fiducia della dirigenza nel tuo operato. Il mancato rispetto delle aspettative potrebbe comportare budget ridotti o ulteriori conseguenze."
       },
       "trainingInjury": {
         "subject": "Infortunio — {{player}} ({{injury}})",
@@ -4036,5 +4046,55 @@
   "generation": {
     "title": "Generazione e Completamento",
     "coverage": "I tuoi pacchetti coprono"
+  },
+  "errorBoundary": {
+    "title": "Qualcosa è andato storto",
+    "description": "Questa schermata ha riscontrato un errore da cui non è riuscita a riprendersi. Prova prima a riprovare: ricaricare riavvia il gioco e i progressi non salvati vanno persi.",
+    "retry": "Riprova",
+    "reload": "Ricarica il gioco"
+  },
+  "errors": {
+    "title": "Qualcosa è andato storto"
+  },
+  "reportBug": {
+    "describeTitle": "Segnala un bug",
+    "describeIntro": "Raccontaci cosa è andato storto. I tuoi log e i dati della partita seguono in automatico. Vedrai l'elenco completo prima che venga salvato qualsiasi cosa.",
+    "previewTitle": "Cosa viene inviato",
+    "previewIntro": "Tutto quello che segue, e nient'altro. Niente lascia questo computer finché non scegli dove salvarlo.",
+    "doneTitle": "Segnalazione salvata",
+    "doneIntro": "Il modulo dei bug è aperto nel browser con le tue risposte già compilate.",
+    "whatHappened": "Cosa è successo",
+    "whatHappenedPlaceholder": "Il gioco si è bloccato quando ho premuto Scendi in campo…",
+    "expected": "Cosa ti aspettavi",
+    "expectedPlaceholder": "Mi aspettavo che la partita iniziasse normalmente…",
+    "steps": "Passi per riprodurlo",
+    "stepsPlaceholder": "1. Iniziare una nuova partita\n2. Avanzare fino alla giornata\n3. Premere Scendi in campo…",
+    "required": "Obbligatorio",
+    "fillRequired": "Compila cosa è successo e cosa ti aspettavi.",
+    "frequencyLabel": "Quanto spesso succede",
+    "gameContext": "La tua carriera",
+    "frequency": {
+      "everyTime": "Ogni volta",
+      "sometimes": "A volte",
+      "once": "Solo una volta"
+    },
+    "itemWhatYouWrote": "Quello che hai scritto",
+    "itemWhatYouWroteDesc": "La tua descrizione, cosa ti aspettavi, i passi e con che frequenza accade.",
+    "itemSetup": "La tua configurazione",
+    "itemLogs": "I tuoi log recenti",
+    "itemLogsDesc": "La tua cartella personale e il tuo nome utente vengono rimossi prima del salvataggio, insieme al nome del computer quando il sistema lo comunica.",
+    "itemCrash": "Un crash della tua ultima sessione",
+    "itemCrashDesc": "Incluso perché qualcosa si è bloccato durante la tua ultima sessione.",
+    "optionalHeading": "Aggiungi se vuoi — disattivato di default",
+    "includeSave": "Il mio salvataggio",
+      "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",
+    "includeSaveNoCareer": "Nessuna carriera aperta, quindi non c'è nulla da allegare.",
+    "nothingSentYet": "Nulla viene salvato o aperto finché non premi il pulsante qui sotto. Inviare il modulo richiede un account GitHub: il file è tuo in ogni caso.",
+    "savedTo": "Il file della segnalazione è stato salvato qui:",
+    "dragItIn": "Trascinalo sul modulo GitHub nel browser e invialo. Tutto qui.",
+      "browserDidNotOpen": "Il browser non si è aperto. Il file qui sopra è salvato: allegalo a una nuova issue su GitHub quando puoi.",
+    "review": "Controlla cosa viene inviato",
+    "saveAndOpen": "Salva il file e apri GitHub",
+    "working": "In corso…"
   }
 }

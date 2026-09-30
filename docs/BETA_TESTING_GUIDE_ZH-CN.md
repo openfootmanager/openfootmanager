@@ -141,7 +141,9 @@ Openfoot Manager 是一款**开源足球经理模拟游戏**。你可以把它�
 - **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
 - **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
 
-请把整个 `logs` 文件夹打包成 zip 后附加到反馈中。日志不包含个人隐私信息，只会记录游戏事件、命令和错误堆栈。
+请把整个 `logs` 文件夹打包成 zip 后附加到反馈中。
+
+在那之前有一点需要知道：日志会记录游戏的存档文件夹，而在所有平台上该路径都会经过你的个人文件夹，因此通常包含你的用户名。除此之外没有其他个人信息，只有游戏事件、命令和错误堆栈。如果你不想发送这些，请改用游戏内的 **报告错误**：它会带上同样的日志，并移除你的用户名和个人文件夹；若系统提供计算机名，也会一并移除。
 
 ---
 

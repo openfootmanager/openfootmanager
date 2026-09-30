@@ -47,6 +47,7 @@ import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import {
   formatDateFull,
+  getFixtureCompetitionName,
   getUserCompetition,
   isSeasonComplete as isLeagueSeasonComplete,
 } from "../lib/helpers";
@@ -217,6 +218,10 @@ export default function Dashboard(): JSX.Element {
 
   const isUnemployed = gameState?.manager.team_id === null;
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;
+  const todayMatchCompetitionName =
+    gameState && todayMatchFixture
+      ? getFixtureCompetitionName(gameState, todayMatchFixture, t)
+      : undefined;
   const hasMatchToday = todayMatchFixture !== null;
   const backgroundPortraitPrewarmKey = gameState
     ? getBackgroundPortraitPrewarmKey(gameState)
@@ -563,6 +568,7 @@ export default function Dashboard(): JSX.Element {
         showMatchConfirm={showMatchConfirm}
         teams={gameState.teams}
         todayMatchFixture={todayMatchFixture}
+        todayMatchCompetitionName={todayMatchCompetitionName}
         digestEntries={digestEntries}
         digestStopReason={digestStopReason}
         isDigestVisible={isDigestVisible}

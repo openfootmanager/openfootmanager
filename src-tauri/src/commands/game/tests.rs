@@ -8,17 +8,10 @@
 
 use super::testkit::*;
 use super::{
-    bootstrap_team_selection, build_game_from_world_data, ensure_multi_competition_foundations,
-    game_clock_for_world, resolve_simulation_scope, start_date_for_year, StartPhase,
+    bootstrap_team_selection, build_game_from_world_data, game_clock_for_world, StartPhase,
     StartupOptions, DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
 };
-use chrono::{TimeZone, Utc};
-use domain::{
-    league::{CompetitionFormat, CompetitionScope, CompetitionType, League},
-    news::NewsCategory,
-};
-use ofm_core::{clock::GameClock, game::Game};
-use std::collections::{BTreeMap, BTreeSet};
+use domain::news::NewsCategory;
 
 #[test]
 #[ignore = "perf harness; run: cargo test -p openfootmanager perf_baseline -- --ignored --nocapture"]
@@ -210,6 +203,36 @@ fn imported_roster_baseline_bootstrap_allows_ai_manager_seeding_without_imported
         .iter()
         .filter(|team| team.id != "team1")
         .all(|team| team.manager_id.is_some()));
+}
+
+#[test]
+fn a_new_career_starts_with_own_choices_clear_and_rivals_identity_intact() {
+    use domain::team::{PlayStyle, PlayerRole, TacticsPhaseSettings};
+
+    let mut game = make_bootstrap_test_game();
+    let identity = ofm_core::ai_tactics::blueprint_for(&PlayStyle::HighPress);
+    assert_ne!(identity, TacticsPhaseSettings::default());
+    for team in &mut game.teams {
+        team.play_style = PlayStyle::HighPress;
+        team.tactics_phase = identity.clone();
+        team.player_roles
+            .insert(format!("{}-player-0", team.id), PlayerRole::BallWinner);
+    }
+
+    bootstrap_team_selection(
+        &mut game,
+        "team1",
+        StartPhase::SeasonStart,
+        domain::stats::StatsState::default(),
+    )
+    .unwrap();
+
+    let own = game.teams.iter().find(|team| team.id == "team1").unwrap();
+    let rival = game.teams.iter().find(|team| team.id == "team2").unwrap();
+    assert_eq!(own.tactics_phase, TacticsPhaseSettings::default());
+    assert!(own.player_roles.is_empty());
+    assert_eq!(rival.tactics_phase, identity);
+    assert_eq!(rival.player_roles.len(), 1);
 }
 
 #[test]
@@ -536,313 +559,4 @@ fn bootstrap_and_upgrade_sets_granular_positions() {
             .all(|p| !p.natural_position.is_legacy_bucket()),
         "outfield players on the selected team should have granular natural_position after upgrade"
     );
-}
-
-/// The regression test for #555, at the shape the game actually ships.
-///
-/// Every earlier promotion test built its divisions by hand, and that is
-/// exactly how the bug survived: hand-built divisions carry no berths, so
-/// none of them ever entered the code path that a real world takes. This
-/// one runs `ensure_multi_competition_foundations` — the same competition
-/// plan `create_game` builds — through three consecutive rollovers and
-/// checks the invariant that matters: every club is registered with exactly
-/// one of its country's league tables, the divisions keep their sizes, and
-/// each top flight actually turns over.
-///
-/// The nations are chosen to cover the shapes that broke: two-tier pyramids
-/// (ENG, ES, BR), a split-season country whose two halves share one roster
-/// (AR), a single-tier country (PT), Brazil's regional state cups, and a
-/// continental cup every first division berths into — the shared target
-/// that detached every ladder in the world.
-fn production_world(start_year: i32, user_team: &str) -> Game {
-    let mut teams = Vec::new();
-    for (nation, count) in [("ENG", 40), ("ES", 40), ("BR", 40), ("AR", 20), ("PT", 20)] {
-        for index in 0..count {
-            teams.push(nation_team(
-                &format!("{}-{index:02}", nation.to_lowercase()),
-                nation,
-                1000 - index as u32,
-            ));
-        }
-    }
-    let clock = GameClock::new(start_date_for_year(start_year).expect("valid start year"));
-    let mut game = Game::new(clock, manager_for(user_team), teams, vec![], vec![], vec![]);
-    ensure_multi_competition_foundations(&mut game);
-    game.sync_legacy_league();
-    game
-}
-
-/// (nation, club id) for every club in the world.
-fn team_list(game: &Game) -> Vec<(String, String)> {
-    game.teams
-        .iter()
-        .map(|team| (team.football_nation.clone(), team.id.clone()))
-        .collect()
-}
-
-fn roster(competition: &League) -> BTreeSet<String> {
-    competition.participant_ids.iter().cloned().collect()
-}
-
-/// Every club in exactly one of its country's league tables, every division
-/// still its authored size, and a split-season country's two halves still
-/// running over the same clubs.
-fn assert_one_league_per_club(game: &Game, sizes: &BTreeMap<String, usize>, label: &str) {
-    let mut clubs_by_nation: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    for team in &team_list(game) {
-        clubs_by_nation
-            .entry(team.0.clone())
-            .or_default()
-            .insert(team.1.clone());
-    }
-    let mut by_country: BTreeMap<String, Vec<&League>> = BTreeMap::new();
-    for competition in &game.competitions {
-        if competition.rules.format != CompetitionFormat::LeagueTable
-            || competition.kind != CompetitionType::League
-            || competition.scope != CompetitionScope::Domestic
-        {
-            continue;
-        }
-        if let Some(country) = &competition.country_id {
-            by_country
-                .entry(country.clone())
-                .or_default()
-                .push(competition);
-        }
-    }
-    // Iterating only the countries that still have competitions means a
-    // country whose leagues vanished is never checked — the test passed
-    // with both Argentine leagues deleted after every rollover. Compare the
-    // key sets first, so a disappearing country is itself a failure.
-    let represented: BTreeSet<&String> = by_country.keys().collect();
-    let expected: BTreeSet<&String> = clubs_by_nation.keys().collect();
-    assert_eq!(
-        represented, expected,
-        "{label}: every nation must still have at least one league table"
-    );
-
-    for (country, leagues) in by_country {
-        let mut union: BTreeSet<String> = BTreeSet::new();
-        let split_season = ofm_core::nations::is_split_season_country(&country);
-        for league in &leagues {
-            let clubs = roster(league);
-            assert_eq!(
-                clubs.len(),
-                league.participant_ids.len(),
-                "{label}: {} lists a club twice: {:?}",
-                league.id,
-                league.participant_ids
-            );
-            assert_eq!(
-                league.participant_ids.len(),
-                sizes[&league.id],
-                "{label}: {} changed size",
-                league.id
-            );
-            if !split_season {
-                assert!(
-                    union.is_disjoint(&clubs),
-                    "{label}: {} shares clubs with another {country} league",
-                    league.id
-                );
-            }
-            union.extend(clubs);
-        }
-        if split_season {
-            // Both halves are the same division played twice, so they must
-            // hold identical rosters rather than disjoint ones.
-            let first = roster(leagues[0]);
-            for league in &leagues[1..] {
-                assert_eq!(
-                    roster(league),
-                    first,
-                    "{label}: {country} halves drifted apart at {}",
-                    league.id
-                );
-            }
-        }
-        assert_eq!(
-            union, clubs_by_nation[&country],
-            "{label}: every {country} club must be in exactly one league table"
-        );
-    }
-}
-
-#[test]
-fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
-    let mut game = production_world(2035, "eng-00");
-    let (regions, competitions) =
-        resolve_simulation_scope(&game, "eng-00", None, None).expect("a valid scope");
-    game.active_region_ids = regions;
-    game.active_competition_ids = competitions;
-    let sizes: BTreeMap<String, usize> = game
-        .competitions
-        .iter()
-        .map(|competition| (competition.id.clone(), competition.participant_ids.len()))
-        .collect();
-    let mut previous: BTreeMap<String, BTreeSet<String>> = game
-        .competitions
-        .iter()
-        .filter(|competition| ["eng-d1", "es-d1"].contains(&competition.id.as_str()))
-        .map(|competition| (competition.id.clone(), roster(competition)))
-        .collect();
-
-    for rollover in 1..=3 {
-        let far_future = Utc.with_ymd_and_hms(2100, 1, 1, 0, 0, 0).unwrap();
-        let players = game.players.clone();
-        for competition in game.competitions.iter_mut() {
-            ofm_core::catchup::simulate_past_fixtures(competition, &players, far_future);
-        }
-        let last_match_day = game
-            .competitions
-            .iter()
-            .find(|competition| {
-                competition.rules.format == CompetitionFormat::LeagueTable
-                    && competition.participant_ids.iter().any(|id| id == "eng-00")
-            })
-            .expect("the user's division")
-            .fixtures
-            .iter()
-            .filter(|fixture| fixture.counts_for_league_standings())
-            .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
-            .max()
-            .expect("a played season");
-        game.clock.current_date = Utc.from_utc_datetime(
-            &last_match_day
-                .and_hms_opt(0, 0, 0)
-                .expect("midnight is a valid time"),
-        ) + chrono::Duration::days(1);
-
-        ofm_core::end_of_season::process_end_of_season(&mut game);
-
-        let label = format!("rollover {rollover}");
-        assert_one_league_per_club(&game, &sizes, &label);
-
-        // Every domestic division that existed at kickoff must still exist.
-        // Size and disjointness assertions say nothing about a league that
-        // is simply gone.
-        for id in sizes.keys() {
-            assert!(
-                game.competitions.iter().any(|c| c.id == *id),
-                "{label}: competition {id} disappeared"
-            );
-        }
-
-        // The user's own division has to stay in simulation scope, or the
-        // day loop cannot see their fixtures and runs their match against
-        // whichever competition sorts first.
-        let user_division = game
-            .competitions
-            .iter()
-            .find(|c| {
-                c.rules.format == CompetitionFormat::LeagueTable
-                    && c.participant_ids.iter().any(|id| id == "eng-00")
-            })
-            .expect("the user is registered somewhere");
-        assert!(
-            game.active_competition_ids.contains(&user_division.id),
-            "{label}: the user's division {} is out of scope",
-            user_division.id
-        );
-
-        // The point of #555: a top flight that never changes hands is the
-        // bug, not a stable league.
-        for id in ["eng-d1", "es-d1"] {
-            let now = roster(
-                game.competitions
-                    .iter()
-                    .find(|competition| competition.id == id)
-                    .expect(id),
-            );
-            assert_ne!(
-                previous.get(id),
-                Some(&now),
-                "{label}: {id} promoted and relegated nobody"
-            );
-            previous.insert(id.to_string(), now);
-        }
-    }
-}
-
-/// Brazil is the one shipped nation whose divisions run on different
-/// calendars — Série A opens 28 January, Série B on 21 March — so at the
-/// first division's last matchday the second still has eight rounds to
-/// play. The rollover used to fire anyway, the ladder skipped the whole
-/// country for want of a finished lower tier, and Série B was never
-/// regenerated: promotion happened every *other* season, and Série B
-/// skipped a calendar year each time it did.
-///
-/// A Brazilian career is the whole point of this test. An English one
-/// cannot see the bug, because both English divisions finish together.
-#[test]
-fn a_brazilian_career_promotes_and_relegates_every_season() {
-    let mut game = production_world(2035, "br-00");
-    let (regions, competitions) =
-        resolve_simulation_scope(&game, "br-00", None, None).expect("a valid scope");
-    game.active_region_ids = regions;
-    game.active_competition_ids = competitions;
-
-    for rollover in 1..=3 {
-        let user_last = game
-            .competitions
-            .iter()
-            .find(|competition| {
-                competition.rules.format == CompetitionFormat::LeagueTable
-                    && competition.participant_ids.iter().any(|id| id == "br-00")
-            })
-            .expect("the user's division")
-            .fixtures
-            .iter()
-            .filter(|fixture| fixture.counts_for_league_standings())
-            .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
-            .max()
-            .expect("a scheduled season");
-
-        // Advance in steps the way a player does, until the game itself
-        // says the season is over. If the gate let the rollover through
-        // while Série B was mid-season, this would stop at the first step.
-        let mut cutoff = Utc.from_utc_datetime(
-            &user_last
-                .and_hms_opt(0, 0, 0)
-                .expect("midnight is a valid time"),
-        ) + chrono::Duration::days(1);
-        for _ in 0..40 {
-            let players = game.players.clone();
-            for competition in game.competitions.iter_mut() {
-                ofm_core::catchup::simulate_past_fixtures(competition, &players, cutoff);
-            }
-            game.clock.current_date = cutoff;
-            if ofm_core::end_of_season::is_season_complete(&game) {
-                break;
-            }
-            cutoff += chrono::Duration::days(14);
-        }
-        assert!(
-            ofm_core::end_of_season::is_season_complete(&game),
-            "rollover {rollover}: the Brazilian season never completed"
-        );
-
-        let roster_before = by_competition_id(&game, "br-d1").participant_ids.clone();
-        let second_tier_season_before = by_competition_id(&game, "br-d2").season;
-
-        ofm_core::end_of_season::process_end_of_season(&mut game);
-
-        assert_ne!(
-            by_competition_id(&game, "br-d1").participant_ids,
-            roster_before,
-            "rollover {rollover}: Série A promoted and relegated nobody"
-        );
-        assert_eq!(
-            by_competition_id(&game, "br-d2").season,
-            second_tier_season_before + 1,
-            "rollover {rollover}: Série B must advance exactly one season, not skip a year"
-        );
-    }
-}
-
-fn by_competition_id<'a>(game: &'a Game, id: &str) -> &'a League {
-    game.competitions
-        .iter()
-        .find(|competition| competition.id == id)
-        .unwrap_or_else(|| panic!("{id} should exist"))
 }

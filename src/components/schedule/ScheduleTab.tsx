@@ -9,6 +9,7 @@ import {
   getPromotionRelegationZones,
   getTeamName,
   formatMatchDate,
+  getFixtureDisplayLabel,
   getUserCalledUpPlayers,
   nationalTeamDisplayName,
 } from "../../lib/helpers";
@@ -72,6 +73,10 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
     userCompetitions[0] ??
     activeCompetitions[0] ??
     null;
+  const sliceCompetition = activeCompetitions.find((c) => c.id === slice?.competition_id);
+  const sliceCompetitionName = sliceCompetition
+    ? competitionDisplayName(sliceCompetition, t)
+    : (slice?.competition_name ?? "");
 
   // Initialise the competition selection.
   useEffect(() => {
@@ -212,6 +217,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
       {view === "calendar" && (
         <CalendarView
           slice={slice}
+          competitionName={sliceCompetitionName}
           userTeamId={userTeamId ?? null}
           groupRefs={groupRefs}
           visiblePastCount={visiblePastCount}
@@ -226,6 +232,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
       {view === "fixtures" && (
         <FixturesListView
           slice={slice}
+          competitionName={sliceCompetitionName}
           userTeamId={userTeamId ?? null}
           groupRefs={groupRefs}
           onSelectTeam={onSelectTeam}
@@ -287,6 +294,7 @@ function ViewButton({
 
 function CalendarView({
   slice,
+  competitionName,
   userTeamId,
   groupRefs,
   visiblePastCount,
@@ -297,6 +305,7 @@ function CalendarView({
   t,
 }: {
   slice: ScheduleSlice | null;
+  competitionName: string;
   userTeamId: string | null;
   groupRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
   visiblePastCount: number;
@@ -330,7 +339,7 @@ function CalendarView({
               group={group}
               userTeamId={userTeamId}
               groupRefs={groupRefs}
-              competitionName={slice.competition_name}
+              competitionName={competitionName}
               onSelectTeam={onSelectTeam}
               buildTeamMenuItem={buildTeamMenuItem}
               t={t}
@@ -360,7 +369,7 @@ function CalendarView({
                 group={group}
                 userTeamId={userTeamId}
                 groupRefs={groupRefs}
-                competitionName={slice.competition_name}
+                competitionName={competitionName}
                 dimmed
                 onSelectTeam={onSelectTeam}
                 buildTeamMenuItem={buildTeamMenuItem}
@@ -385,6 +394,7 @@ function CalendarView({
 
 function FixturesListView({
   slice,
+  competitionName,
   userTeamId,
   groupRefs,
   onSelectTeam,
@@ -392,6 +402,7 @@ function FixturesListView({
   t,
 }: {
   slice: ScheduleSlice | null;
+  competitionName: string;
   userTeamId: string | null;
   groupRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
   onSelectTeam: (id: string) => void;
@@ -416,7 +427,7 @@ function FixturesListView({
           group={group}
           userTeamId={userTeamId}
           groupRefs={groupRefs}
-          competitionName={slice.competition_name}
+          competitionName={competitionName}
           onSelectTeam={onSelectTeam}
           buildTeamMenuItem={buildTeamMenuItem}
           t={t}
@@ -431,16 +442,16 @@ function groupLabel(
   competitionName: string,
   t: ReturnType<typeof useTranslation>["t"],
 ): string {
-  if (group.competition === "League" && group.matchday > 0) {
-    return `${competitionName} – ${t("schedule.matchday", { number: group.matchday })} – ${formatMatchDate(group.date)}`;
+  const date = formatMatchDate(group.date);
+  if (group.competition === "League" && group.matchday <= 0) {
+    return `${competitionName} – ${date}`;
   }
-  if (group.competition === "PreseasonTournament") {
-    return `${competitionName} – ${t("season.preseasonTournament", "Pre-season")} – ${formatMatchDate(group.date)}`;
+  const label = getFixtureDisplayLabel(t, group, competitionName);
+  // A friendly belongs to no competition, and a cup's label already is its name.
+  if (group.competition === "Friendly" || label === competitionName) {
+    return `${label} – ${date}`;
   }
-  if (group.competition === "Friendly") {
-    return `${t("season.friendly", "Friendly")} – ${formatMatchDate(group.date)}`;
-  }
-  return `${competitionName} – ${formatMatchDate(group.date)}`;
+  return `${competitionName} – ${label} – ${date}`;
 }
 
 function MatchdayGroupCard({

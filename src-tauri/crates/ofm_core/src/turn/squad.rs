@@ -2,6 +2,7 @@ use crate::game::Game;
 use crate::player_rating::{
     effective_rating_for_assignment, formation_slots, natural_ovr, positional_fit_for_assignment,
 };
+use crate::stable_hash::stable_hash;
 use domain::player::Position as DomainPosition;
 use engine::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, PlayStyle,
@@ -51,9 +52,16 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     // where the player's own position is used instead. The engine's coarse
     // position is derived from this so a player fielded out of position (e.g. a
     // striker at centre-back) is simulated in the position they actually play.
+    // A role counts only where the position a player is playing admits it: his
+    // slot if he starts, his natural position on the bench — the same rule the
+    // player's own role command enforces. Stored roles can outlive it: AI roles
+    // are chosen against a coarse bucket (`Forward` admits `WideForward`, a
+    // striker's slot does not), and anyone's can go stale when the side changes.
     let convert_player = |p: &domain::player::Player, deployed: Option<&DomainPosition>| {
+        let playing_at = deployed.unwrap_or(&p.natural_position);
         let role = player_roles
             .and_then(|roles| roles.get(&p.id))
+            .filter(|role| playing_at.admits_role(role))
             .map(domain_to_engine_role)
             .unwrap_or(EnginePlayerRole::Standard);
         to_engine_player(p, role, deployed)
@@ -353,19 +361,6 @@ fn team_management_quality(game: &Game, team: Option<&domain::team::Team>) -> f6
     }
 
     management_quality(team.reputation)
-}
-
-/// FNV-1a, hand-rolled rather than reached for from the standard library.
-/// `DefaultHasher`'s output is explicitly not promised to stay the same across
-/// Rust releases, and an AI team sheet that changed when the toolchain moved
-/// would make a saved season impossible to reproduce.
-fn stable_hash(bytes: &[u8], seed: u64) -> u64 {
-    let mut hash = 0xcbf2_9ce4_8422_2325 ^ seed;
-    for byte in bytes {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash
 }
 
 /// Whether this club plays again soon after the match it is picking a side for.

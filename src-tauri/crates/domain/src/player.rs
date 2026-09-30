@@ -125,6 +125,114 @@ pub enum Position {
 }
 
 impl Position {
+    /// Every role a player in this position may be given, `Standard` first.
+    ///
+    /// This is the canonical backend table. It lived in the Tauri command layer,
+    /// which put it out of reach of anything below the commands — so a second
+    /// backend copy was the only way for `ofm_core` to assign a role, and there
+    /// were already two more (the engine's own mirror, which the crate-boundary
+    /// rule requires, and `src/lib/playerRoles.ts` on the front end). Which
+    /// roles a position admits is a property of the two types, in the same way
+    /// `TrainingSchedule::is_training_day` is a property of a schedule, so it
+    /// belongs here where every layer can reach it.
+    ///
+    /// **The front-end mirror must stay in lock-step, and nothing checks that
+    /// mechanically.** `role_valid_for_position_matches_canonical_table` in
+    /// `commands/squad.rs` pins this table to a literal copy of it, and
+    /// `src/lib/playerRoles.test.ts` pins the TypeScript mirror to its own; no
+    /// test compares the two. Change one side, change the other.
+    ///
+    /// The four coarse buckets are the legacy position groups, and they admit
+    /// every role of every granular position beneath them — a squad generated
+    /// today is entirely coarse (`generation.rs` hands out `Goalkeeper`,
+    /// `Defender`, `Midfielder`, `Forward` and nothing finer), so these are the
+    /// arms that get the most use, not the least.
+    pub fn valid_roles(&self) -> &'static [crate::team::PlayerRole] {
+        use crate::team::PlayerRole as R;
+        match self {
+            Position::Goalkeeper => &[R::Standard, R::BallPlayingKeeper, R::SweeperKeeper],
+            Position::CenterBack => &[R::Standard, R::Stopper, R::CoverCB, R::BallPlayingCB],
+            Position::RightBack
+            | Position::LeftBack
+            | Position::RightWingBack
+            | Position::LeftWingBack => &[
+                R::Standard,
+                R::AttackingFB,
+                R::DefensiveFB,
+                R::InvertedFB,
+                R::WingBack,
+            ],
+            Position::DefensiveMidfielder => &[
+                R::Standard,
+                R::AnchorMan,
+                R::BallWinner,
+                R::DeepLyingPlaymaker,
+            ],
+            Position::CentralMidfielder => &[R::Standard, R::BoxToBox, R::Carrilero, R::Mezzala],
+            Position::AttackingMidfielder => &[R::Standard, R::AdvancedPlaymaker, R::ShadowStriker],
+            Position::RightMidfielder
+            | Position::LeftMidfielder
+            | Position::RightWinger
+            | Position::LeftWinger => &[
+                R::Standard,
+                R::WideForward,
+                R::InsideForward,
+                R::InvertedWinger,
+            ],
+            Position::Striker => &[
+                R::Standard,
+                R::Poacher,
+                R::TargetMan,
+                R::DeepLyingForward,
+                R::False9,
+                R::PressingForward,
+                R::CompleteForward,
+            ],
+            // Coarse buckets: the union of the granular positions they cover.
+            Position::Defender => &[
+                R::Standard,
+                R::Stopper,
+                R::CoverCB,
+                R::BallPlayingCB,
+                R::AttackingFB,
+                R::DefensiveFB,
+                R::InvertedFB,
+                R::WingBack,
+            ],
+            Position::Midfielder => &[
+                R::Standard,
+                R::AnchorMan,
+                R::BallWinner,
+                R::DeepLyingPlaymaker,
+                R::BoxToBox,
+                R::Carrilero,
+                R::Mezzala,
+                R::AdvancedPlaymaker,
+                R::ShadowStriker,
+                R::WideForward,
+                R::InsideForward,
+                R::InvertedWinger,
+            ],
+            Position::Forward => &[
+                R::Standard,
+                R::WideForward,
+                R::InsideForward,
+                R::InvertedWinger,
+                R::Poacher,
+                R::TargetMan,
+                R::DeepLyingForward,
+                R::False9,
+                R::PressingForward,
+                R::CompleteForward,
+            ],
+        }
+    }
+
+    /// Whether this position admits that role. See [`Position::valid_roles`].
+    pub fn admits_role(&self, role: &crate::team::PlayerRole) -> bool {
+        self.valid_roles().contains(role)
+    }
+
     pub fn is_legacy_bucket(&self) -> bool {
         matches!(
             self,

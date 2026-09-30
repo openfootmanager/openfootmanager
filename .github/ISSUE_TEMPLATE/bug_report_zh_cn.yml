@@ -63,6 +63,15 @@ body:
       required: false
 
   - type: input
+    id: version
+    attributes:
+      label: "应用版本"
+      description: "显示在主菜单底部，以及设置 → 关于中。"
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
     id: os
     attributes:
       label: "操作系统"

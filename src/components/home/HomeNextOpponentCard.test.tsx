@@ -9,7 +9,8 @@ vi.mock("react-i18next", () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "dashboard.schedule") return "Schedule";
       if (key === "home.nextOpponent") return "Next Opponent";
-      if (key === "home.matchdayN") return `Matchday ${params?.n}`;
+      if (key === "common.matchday") return `Matchday ${params?.n}`;
+      if (key === "season.friendly") return "Friendly";
       if (key === "home.home") return "Home";
       if (key === "home.away") return "Away";
       if (key === "common.pts") return "pts";
@@ -61,6 +62,7 @@ function createNextOpponent(): NextOpponentWidgetData {
     recentForm: ["W", "D", "W"],
     standingPoints: 9,
     standingPosition: 2,
+    competitionName: "Premier Division",
   };
 }
 
@@ -73,6 +75,17 @@ describe("HomeNextOpponentCard", () => {
     expect(screen.getByText(/Matchday 2/i)).toBeInTheDocument();
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("9 pts")).toBeInTheDocument();
+  });
+
+  it("labels a cup tie with its competition name, not as a friendly", () => {
+    const nextOpponent = createNextOpponent();
+    nextOpponent.fixture = { ...nextOpponent.fixture, competition: "Cup" };
+    nextOpponent.competitionName = "National Cup";
+
+    render(<HomeNextOpponentCard nextOpponent={nextOpponent} lang="en" />);
+
+    expect(screen.getByText(/National Cup/)).toBeInTheDocument();
+    expect(screen.queryByText(/Friendly/)).not.toBeInTheDocument();
   });
 
   it("renders the empty state when no next opponent exists", () => {

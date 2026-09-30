@@ -1,9 +1,11 @@
 import {
+  getFixtureCompetitionName,
   getPlayerOvr,
   getUserCompetition,
   getUserCompetitions,
   getUserNextFixture,
 } from "../../lib/helpers";
+import type { TFunction } from "i18next";
 import { hasCompetitiveStandings } from "../../lib/seasonContext";
 import type {
   FixtureData,
@@ -40,6 +42,7 @@ export interface NextOpponentWidgetData {
   recentForm: string[];
   standingPoints: number | null;
   standingPosition: number | null;
+  competitionName?: string;
 }
 
 export interface HomeRosterOverview {
@@ -83,7 +86,10 @@ function getStandingPosition(league: LeagueData, teamId: string): number | null 
   return standingIndex + 1;
 }
 
-export function getNextOpponentWidgetData(gameState: GameStateData): NextOpponentWidgetData | null {
+export function getNextOpponentWidgetData(
+  gameState: GameStateData,
+  t: TFunction,
+): NextOpponentWidgetData | null {
   const userTeamId = gameState.manager.team_id;
 
   if (!userTeamId) {
@@ -119,6 +125,7 @@ export function getNextOpponentWidgetData(gameState: GameStateData): NextOpponen
     recentForm: opponent.form.slice(-5),
     standingPoints: standingEntry?.points ?? null,
     standingPosition: canShowStandings && league ? getStandingPosition(league, opponentId) : null,
+    competitionName: getFixtureCompetitionName(gameState, nextFixture, t),
   };
 }
 

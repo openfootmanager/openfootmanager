@@ -1,0 +1,58 @@
+name: "\U0001F4AC Geri Bildirim / Öneri (Türkçe)"
+description: "Geri bildiriminizi paylaşın veya Türkçe olarak iyileştirme önerin"
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Geri Bildirim / Öneri
+        Ne düşündüğünüzü çok merak ediyoruz!
+        Bu şablonda lütfen Türkçe yazın.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Kategori"
+      options:
+        - "Kullanılabilirlik"
+        - "Denge"
+        - "Öneri"
+        - "Diğer"
+    validations:
+      required: true
+
+  - type: input
+    id: area
+    attributes:
+      label: "Oyunun hangi bölümü?"
+      description: "Örn. antrenman, maç simülasyonu, transferler, gelen kutusu, taktikler..."
+      placeholder: "Maç simülasyonu"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Açıklama"
+      description: "Yaşadığınız deneyimi, sorunu veya önerinizi ayrıntılı olarak anlatın."
+      placeholder: "Bence antrenman sistemi şu şekilde geliştirilebilir..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-it-matters
+    attributes:
+      label: "Neden önemli"
+      description: "Bu, oyundan aldığınız keyfi nasıl etkiliyor?"
+      placeholder: "Bu önemli çünkü..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Ekran görüntüleri"
+      description: "İlgili ekran görüntülerini buraya sürükleyin."
+      placeholder: "Dosyaları buraya sürükleyin..."
+    validations:
+      required: false
