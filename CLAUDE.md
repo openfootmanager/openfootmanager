@@ -82,10 +82,28 @@ Six rules. Each one has something that enforces it — if you break one, somethi
    module in the same file; frontend tests are co-located as `*.test.ts(x)`. A PR that adds
    behaviour without a test that would have caught its absence is incomplete.
 
-2. **Every user-facing string is translated into every locale the game ships in.** Not just
+2. **Every string a *player* reads is translated into every locale the game ships in.** Not just
    `en.json`. The list is `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`; it grows.
    → use [`/add-ui-string`](.claude/skills/add-ui-string/SKILL.md).
    → enforced by `src/i18n/localeCoverage.test.ts` and `src/i18n/frontendKeyCoverage.test.ts`.
+
+   **"A player reads it" is the test, and it is not the same as "a human reads it".** In scope: the
+   whole UI, and any backend string that reaches it — a Tauri command's error is a translation key
+   (`be.error.*`), never English prose, because the player sees it.
+
+   Out of scope, deliberately, and English is correct there:
+
+   | Surface | Why |
+   |---|---|
+   | MCP tool output (`src-tauri/src/mcp_server/tools_impl/`) | The reader is an AI agent, not a player. Note the split already in that code: *errors* use `be.error.*` keys because they surface in the UI, while the markdown reports do not. |
+   | `ofm-cli` output and its scaffold templates | A modder at a terminal, not a player in the game. |
+   | `docs/`, including `docs/modding/` | Developer and modder documentation. |
+   | Code comments, log lines, panic messages | Nobody ships these to a player. |
+
+   This is here because reviewers kept raising it as a defect on all three out-of-scope surfaces —
+   see the closed threads on #479 (MCP markdown) and #437 (CLI scaffold comments). Both are working
+   as intended. If a surface is genuinely ambiguous, ask rather than translating on spec: a key that
+   no player will ever see still costs twelve translations and a row in every locale file.
 
 3. **`engine` never imports `domain`.** The match engine defines its own mirror types on purpose
    so it can be tested and evolved independently; `ofm_core/turn/` is the only bridge. This is

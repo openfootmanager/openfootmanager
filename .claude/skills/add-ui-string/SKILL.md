@@ -12,6 +12,21 @@ OpenFoot Manager ships in **12 locales**. A string that exists only in English i
 build, not a TODO. This is the project's most frequently violated rule, so follow the steps in
 order and finish with the tests.
 
+## First: will a player read it?
+
+That is the test, and it is narrower than "a human will read it". If the answer is yes — anywhere in
+the UI, or a backend error the UI surfaces — this skill applies and the string needs all 12 locales.
+
+If the only reader is an **AI agent** (the MCP server's tool output) or a **modder at a terminal**
+(`ofm-cli` output and its scaffold templates, `docs/`), it stays **English** and this skill does not
+apply. `src-tauri/src/mcp_server/tools_impl/live_match.rs` is the worked example of the split: its
+`Err` arms return `be.error.liveMatch.*` keys because those reach the UI, while the markdown report
+body an agent reads is plain English.
+
+Getting this wrong in the cautious direction is not free — a key no player will ever see still costs
+twelve translations and a row in every locale file, forever. Root `CLAUDE.md` rule 2 has the table;
+if a surface is genuinely ambiguous, ask.
+
 ## The 12 locales
 
 Source of truth: `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`.
