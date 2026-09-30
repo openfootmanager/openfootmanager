@@ -1401,9 +1401,9 @@ pub fn process_loan_returns(game: &mut Game) {
         let movement_context = loan_snapshot.as_ref().map(|loan| {
             (
                 loan.loan_team_id.clone(),
-                team_name_or_id(game, &loan.loan_team_id),
+                game.team_name_or_id(&loan.loan_team_id),
                 loan.parent_team_id.clone(),
-                team_name_or_id(game, &loan.parent_team_id),
+                game.team_name_or_id(&loan.parent_team_id),
                 loan.end_date.clone(),
             )
         });

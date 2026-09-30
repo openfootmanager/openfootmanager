@@ -330,6 +330,17 @@ impl Game {
             .unwrap_or_else(|| crate::nations::region_for_code(country_code).to_string())
     }
 
+    /// A club's display name, or its id when no club has it — the fallback
+    /// every inbox message, news item and result row wants, so a dangling id
+    /// still says something rather than nothing.
+    pub fn team_name_or_id(&self, team_id: &str) -> String {
+        self.teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .map(|team| team.name.clone())
+            .unwrap_or_else(|| team_id.to_string())
+    }
+
     /// Whether a competition falls within the player's active simulation scope.
     /// Empty scope sets mean "everything is active" (the legacy, unscoped game),
     /// so this stays backward compatible with worlds that never set a scope.
