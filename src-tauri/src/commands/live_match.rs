@@ -890,6 +890,114 @@ mod tests {
         assert_eq!(restored_result.away_goals, first_result.away_goals);
     }
 
+    #[test]
+    fn live_match_refuses_mcp_style_replay_after_finish() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_round());
+
+        // MCP supplies only the raw fixture index, without team IDs.
+        crate::application::live_match::start_live_match(&state, 0, "instant", false, None, None)
+            .expect("first start");
+        finish_live_match_internal(&state).expect("first finish");
+        let before = state.get_game(|game| game.clone()).unwrap();
+
+        let error = crate::application::live_match::start_live_match(
+            &state, 0, "instant", false, None, None,
+        )
+        .unwrap_err();
+        assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
+        let after = state.get_game(|game| game.clone()).unwrap();
+        assert_eq!(after.clock.current_date, before.clock.current_date);
+        assert_eq!(
+            serde_json::to_value(&after.competitions[0].standings).unwrap(),
+            serde_json::to_value(&before.competitions[0].standings).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(&after.competitions[0].fixtures[0].result).unwrap(),
+            serde_json::to_value(&before.competitions[0].fixtures[0].result).unwrap()
+        );
+    }
+
+    #[test]
+    fn live_match_refuses_command_start_for_completed_fixture() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.league.as_mut().unwrap().fixtures[0].status = FixtureStatus::Completed;
+        game.competitions[0].fixtures[0].status = FixtureStatus::Completed;
+        state.set_game(game);
+
+        // Command callers also supply the fixture's team IDs. With no Scheduled
+        // match to resolve, the service falls back to the raw index.
+        let error = crate::application::live_match::start_live_match(
+            &state,
+            0,
+            "live",
+            false,
+            Some("team1"),
+            Some("team2"),
+        )
+        .unwrap_err();
+        assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
+    }
+
+    #[test]
+    fn live_match_refuses_start_when_legacy_mirror_is_stale() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.competitions[0].fixtures[0].status = FixtureStatus::Completed;
+        // The legacy mirror still says Scheduled. MCP passes no team IDs and
+        // must not be allowed to replay a fixture completed in the source of truth.
+        state.set_game(game);
+
+        let error = crate::application::live_match::start_live_match(
+            &state, 0, "instant", false, None, None,
+        )
+        .expect_err("completed authoritative fixture must be rejected");
+        assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
+    }
+
+    #[test]
+    fn live_match_refuses_fallback_to_another_scheduled_fixture() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.league.as_mut().unwrap().fixtures[0].status = FixtureStatus::Completed;
+        game.competitions[0].fixtures[0].status = FixtureStatus::Completed;
+        state.set_game(game);
+
+        let error = crate::application::live_match::start_live_match(
+            &state,
+            1,
+            "live",
+            false,
+            Some("team1"),
+            Some("team2"),
+        )
+        .expect_err("team-identified command must not start another fixture by raw index");
+        assert_eq!(error, "be.error.liveMatch.fixtureNotFound");
+    }
+
+    #[test]
+    fn live_match_refuses_finish_when_fixture_was_completed_elsewhere() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false)
+            .expect("scheduled fixture creates a session");
+        game.league.as_mut().unwrap().fixtures[0].status = FixtureStatus::Completed;
+        game.competitions[0].fixtures[0].status = FixtureStatus::Completed;
+        state.set_game(game);
+        state.set_live_match(session);
+        let before = state.get_game(|game| game.clone()).unwrap();
+
+        let error = finish_live_match_internal(&state).unwrap_err();
+        assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
+        let after = state.get_game(|game| game.clone()).unwrap();
+        assert_eq!(after.clock.current_date, before.clock.current_date);
+        assert_eq!(
+            serde_json::to_value(&after.competitions[0].standings).unwrap(),
+            serde_json::to_value(&before.competitions[0].standings).unwrap()
+        );
+    }
+
     fn make_knockout_cup(fixture_date: &str) -> League {
         League {
             id: "cup1".to_string(),

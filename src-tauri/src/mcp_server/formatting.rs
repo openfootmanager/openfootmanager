@@ -114,6 +114,9 @@ pub fn translate_error(key: &str) -> String {
         "be.error.liveMatch.noCompletedMatch" => {
             "No completed match found for your team.".to_string()
         }
+        "be.error.liveMatch.fixtureNotScheduled" => {
+            "This fixture is no longer scheduled and cannot be played.".to_string()
+        }
         _ => format!("Error: {}", key),
     }
 }
@@ -121,6 +124,14 @@ pub fn translate_error(key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::translate_error;
+
+    #[test]
+    fn completed_fixture_error_is_rendered_for_mcp() {
+        assert_eq!(
+            translate_error("be.error.liveMatch.fixtureNotScheduled"),
+            "This fixture is no longer scheduled and cannot be played."
+        );
+    }
 
     /// The wrapper renders a key exactly once.
     ///

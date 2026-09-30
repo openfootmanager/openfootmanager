@@ -13,7 +13,7 @@ use std::collections::HashSet;
 
 use crate::game::Game;
 
-use domain::league::StandingEntry;
+use domain::league::{FixtureStatus, StandingEntry};
 use domain::manager::Manager;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
@@ -36,6 +36,7 @@ fn phase_needs_manager(phase: MatchPhase) -> bool {
     )
 }
 const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
+const LIVE_MATCH_FIXTURE_NOT_SCHEDULED_ERROR: &str = "be.error.liveMatch.fixtureNotScheduled";
 /// A side with nobody available cannot play. Refused here rather than handed to
 /// the engine, which has no way to resolve a pass, a shot or a goalkeeper.
 const LIVE_MATCH_EMPTY_SQUAD_ERROR: &str = "be.error.liveMatch.emptySquad";
@@ -266,6 +267,9 @@ pub fn create_live_match(
         .fixtures
         .get(fixture_index)
         .ok_or(LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR)?;
+    if fixture.status != FixtureStatus::Scheduled {
+        return Err(LIVE_MATCH_FIXTURE_NOT_SCHEDULED_ERROR.to_string());
+    }
 
     let home_team_id = fixture.home_team_id.clone();
     let away_team_id = fixture.away_team_id.clone();
