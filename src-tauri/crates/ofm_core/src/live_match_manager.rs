@@ -125,8 +125,22 @@ pub struct LiveMatchSession {
     /// Id of the competition (league or cup) this fixture belongs to; the
     /// finish path uses it to apply the report to the right competition.
     pub competition_id: String,
+    /// The matchday and table of the competition *being played* — a cup, if the user is in a cup
+    /// tie. Kept for callers that describe the tie itself.
     pub round_matchday: u32,
     pub round_previous_standings: Vec<StandingEntry>,
+    /// The matchday and table of the user's own league, as they stood before any of today's
+    /// fixtures were played, for the round digest.
+    ///
+    /// Two separate things, because they are two separate competitions on a cup day. The digest
+    /// describes the user's league round, so it needs that league's baseline — and it has to be
+    /// captured here, at session creation, because the GUI simulates the rest of the round
+    /// immediately afterwards. Reading the table at finish time instead reports every delta as
+    /// zero, since by then the round has been played.
+    ///
+    /// `None` when the user has no competition, in which case the finish path falls back to
+    /// today's context.
+    pub league_round_context: Option<(u32, Vec<StandingEntry>)>,
     pub home_team_id: String,
     pub away_team_id: String,
     pub user_side: Option<Side>,
@@ -222,6 +236,23 @@ impl LiveMatchSession {
 // ---------------------------------------------------------------------------
 // Helper: build a LiveMatchSession from the Game state
 // ---------------------------------------------------------------------------
+
+/// The user's own league round as it stands right now: the matchday of its fixture due today, and
+/// its table before that round is played.
+///
+/// Deliberately the user's competition rather than the one being played: on a cup day the digest
+/// still describes the league round, and a knockout cup has no table to take a baseline from.
+fn user_league_round_context(game: &Game) -> Option<(u32, Vec<StandingEntry>)> {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let league = game.user_competition()?;
+    let matchday = league
+        .fixtures
+        .iter()
+        .find(|fixture| fixture.date == today)
+        .map(|fixture| fixture.matchday)?;
+
+    Some((matchday, league.standings.clone()))
+}
 
 /// Create a live match session for a specific fixture.
 pub fn create_live_match(
@@ -340,6 +371,7 @@ pub fn create_live_match(
         competition_id: league.id.clone(),
         round_matchday: fixture.matchday,
         round_previous_standings: league.standings.clone(),
+        league_round_context: user_league_round_context(game),
         home_team_id,
         away_team_id,
         user_side,

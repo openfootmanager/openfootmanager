@@ -1,35 +1,10 @@
-use domain::league::FixtureCompetition;
 use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
 use rusqlite::{Connection, params};
 
+use super::fixture_competition::{fixture_competition_to_string, parse_fixture_competition};
+
 const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
 const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
-
-fn competition_to_string(competition: &FixtureCompetition) -> String {
-    match competition {
-        FixtureCompetition::League => "League".to_string(),
-        FixtureCompetition::Cup => "Cup".to_string(),
-        FixtureCompetition::ContinentalClub => "ContinentalClub".to_string(),
-        FixtureCompetition::InternationalClub => "InternationalClub".to_string(),
-        FixtureCompetition::InternationalNation => "InternationalNation".to_string(),
-        FixtureCompetition::Friendly => "Friendly".to_string(),
-        FixtureCompetition::FriendlyCup => "FriendlyCup".to_string(),
-        FixtureCompetition::PreseasonTournament => "PreseasonTournament".to_string(),
-    }
-}
-
-fn parse_competition(value: &str) -> FixtureCompetition {
-    match value {
-        "Cup" => FixtureCompetition::Cup,
-        "ContinentalClub" => FixtureCompetition::ContinentalClub,
-        "InternationalClub" => FixtureCompetition::InternationalClub,
-        "InternationalNation" => FixtureCompetition::InternationalNation,
-        "Friendly" => FixtureCompetition::Friendly,
-        "FriendlyCup" => FixtureCompetition::FriendlyCup,
-        "PreseasonTournament" => FixtureCompetition::PreseasonTournament,
-        _ => FixtureCompetition::League,
-    }
-}
 
 pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), String> {
     conn.execute("DELETE FROM player_match_stats", [])
@@ -51,7 +26,7 @@ pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
                 record.season,
                 record.matchday,
                 record.date,
-                competition_to_string(&record.competition),
+                fixture_competition_to_string(&record.competition),
                 record.player_id,
                 record.team_id,
                 record.opponent_team_id,
@@ -90,7 +65,7 @@ pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
                 record.season,
                 record.matchday,
                 record.date,
-                competition_to_string(&record.competition),
+                fixture_competition_to_string(&record.competition),
                 record.team_id,
                 record.opponent_team_id,
                 record.home_team_id,
@@ -134,7 +109,7 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
                 season: row.get(1)?,
                 matchday: row.get(2)?,
                 date: row.get(3)?,
-                competition: parse_competition(&row.get::<_, String>(4)?),
+                competition: parse_fixture_competition(&row.get::<_, String>(4)?),
                 player_id: row.get(5)?,
                 team_id: row.get(6)?,
                 opponent_team_id: row.get(7)?,
@@ -181,7 +156,7 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
                 season: row.get(1)?,
                 matchday: row.get(2)?,
                 date: row.get(3)?,
-                competition: parse_competition(&row.get::<_, String>(4)?),
+                competition: parse_fixture_competition(&row.get::<_, String>(4)?),
                 team_id: row.get(5)?,
                 opponent_team_id: row.get(6)?,
                 home_team_id: row.get(7)?,
@@ -217,6 +192,7 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
+    use domain::league::FixtureCompetition;
     use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {

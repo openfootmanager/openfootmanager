@@ -259,17 +259,6 @@ export interface PackageProjectData {
   issues: PackageIssue[];
 }
 
-export type EditorView =
-  | "home"
-  | "edit"
-  | "team"
-  | "confederation"
-  | "country"
-  | "player"
-  | "names-pool"
-  | "competition"
-  | "staff";
-
 export type EditTab =
   | "metadata"
   | "confederations"
