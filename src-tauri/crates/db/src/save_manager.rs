@@ -549,6 +549,7 @@ impl SaveManager {
         if ofm_core::finances::backfill_opening_balances(&mut game) {
             needs_resave = true;
         }
+
         if save_format_version < 6 && ofm_core::finances::apply_weekly_unit_runway_floor(&mut game)
         {
             needs_resave = true;
@@ -581,6 +582,24 @@ impl SaveManager {
             info!(
                 "[save_manager] backfilled opening youth academy players for save {}",
                 save_id
+            );
+            needs_resave = true;
+        }
+
+        // LAST of the data backfills, and that ordering is load-bearing. The repair resolves a
+        // stranded fixture from club strength, which is the average stored `ovr` of the best XI — so
+        // running it before the OVR backfill above scores a pre-OVR save's clubs at zero, and the
+        // resave makes those results permanent. Every rating the scoreline reads must already be
+        // there, the youth academies included.
+        //
+        // Unconditional, not gated on the save format: "no fixture stays Scheduled in the past" is
+        // an invariant, not a one-time migration, so this also heals a future regression of the
+        // class #608 was. Idempotent, so a load that finds nothing does not resave.
+        let repaired_fixtures = ofm_core::catchup::repair_stranded_fixtures(&mut game);
+        if repaired_fixtures > 0 {
+            info!(
+                "[save_manager] repaired {} fixture(s) left scheduled in the past for save {}",
+                repaired_fixtures, save_id
             );
             needs_resave = true;
         }
@@ -803,6 +822,7 @@ fn is_mirrored_side_pair(left_position: &Position, right_position: &Position) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repositories::competition_repo;
     use chrono::TimeZone;
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
     use domain::player::{Footedness, Player, PlayerAttributes, Position, SquadRole};
@@ -1382,6 +1402,343 @@ mod tests {
         assert_eq!(saves.len(), 1);
         assert_eq!(saves[0].manager_name, "Jane Doe");
         assert_eq!(saves[0].team_name, "");
+    }
+
+    #[test]
+    fn loading_a_save_repairs_fixtures_stranded_in_the_past_and_persists_them() {
+        // The aftermath of #608: on any day the player watched their own match, every other
+        // competition's fixtures due that day were skipped. Nothing picks them up again, because
+        // every "due today" check matches on `date == today`. Existing saves therefore carry
+        // fixtures that can never be played, so the repair runs on load.
+        //
+        // Asserted at the persistence boundary and then re-read from the file, because a repair
+        // that fixes the in-memory `Game` and never reaches the database would pass a test that
+        // only inspects what `load_game` returned, and would re-run on every load for ever.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game_with_league();
+        let stranded_date = {
+            let day_before = game.clock.current_date - chrono::Duration::days(7);
+            day_before.format("%Y-%m-%d").to_string()
+        };
+        // `sample_game_with_league` builds the legacy shape (mirror only), so promote it to the
+        // modern one first — this test is about a save written *after* competitions existed.
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let competition = game
+            .competitions
+            .first_mut()
+            .expect("the league is now a competition");
+        competition.fixtures.push(Fixture {
+            id: "stranded-1".to_string(),
+            competition_id: competition.id.clone(),
+            matchday: 1,
+            date: stranded_date,
+            home_team_id: "team-001".to_string(),
+            away_team_id: "team-002".to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        });
+        let save_id = sm.create_save(&game, "Stranded Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        let fixture = loaded
+            .competitions
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .find(|fixture| fixture.id == "stranded-1")
+            .expect("the stranded fixture survives the load");
+        assert_eq!(
+            fixture.status,
+            FixtureStatus::Completed,
+            "a fixture whose date has passed cannot become due again, so the load resolves it"
+        );
+        assert!(fixture.result.is_some(), "and it gets a scoreline");
+
+        // Read the database directly rather than calling `load_game` again. A second load would
+        // run the repair a second time and report the same answer whether or not the first one was
+        // ever written back — proving idempotence, not persistence.
+        //
+        // This test does not pin `needs_resave` on its own — other backfills in `load_game` set the
+        // flag for a freshly created save, so the resave happens with or without the repair's
+        // branch. That is isolated in
+        // `only_the_repairs_own_resave_flag_writes_a_late_stranded_fixture_back` below.
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let from_disk = GamePersistenceReader::read_game(&db).unwrap();
+        let persisted = from_disk
+            .competitions
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .find(|fixture| fixture.id == "stranded-1")
+            .expect("the fixture is in the saved file");
+        assert_eq!(
+            persisted.status,
+            FixtureStatus::Completed,
+            "the repair was written back to the save, not recomputed on every load"
+        );
+        assert!(
+            persisted.result.is_some(),
+            "and the scoreline it chose is the one on disk"
+        );
+    }
+
+    /// Every attribute at `value`. `ofm_core` has the same helper for its own unit tests, but a
+    /// `#[cfg(test)]` module is not visible across a crate boundary, so it cannot be shared from
+    /// there. Reported under #589 with the thirteen in-crate copies (refactor slice 23.1); the fix
+    /// is a real constructor on `PlayerAttributes`, not a fourteenth private copy.
+    fn uniform_player_attributes(value: u8) -> PlayerAttributes {
+        PlayerAttributes {
+            pace: value,
+            stamina: value,
+            strength: value,
+            agility: value,
+            passing: value,
+            shooting: value,
+            tackling: value,
+            dribbling: value,
+            defending: value,
+            positioning: value,
+            vision: value,
+            decisions: value,
+            composure: value,
+            aggression: value,
+            teamwork: value,
+            leadership: value,
+            handling: value,
+            reflexes: value,
+            aerial: value,
+        }
+    }
+
+    /// **Given** a save written before OVR was stored — every player's `ovr` is 0, and the two clubs
+    /// are far apart on attributes — with fixtures stranded in the past,
+    /// **when** the save is loaded,
+    /// **then** those fixtures are resolved from the *backfilled* ratings, so the strong club
+    /// outscores the weak one decisively.
+    ///
+    /// The repair scores a fixture from club strength, which is the average stored `ovr` of the best
+    /// XI. Run it before the OVR backfill and every club in such a save is worth 0.0, the results are
+    /// rolled from that, and the resave makes them permanent.
+    ///
+    /// Why the assertion is a goal ratio over many fixtures rather than one scoreline:
+    /// `simulate_scoreline` reads only the *difference* between the two strengths, so all-zero is
+    /// indistinguishable from all-equal — the bug is invisible unless the clubs are genuinely
+    /// mismatched. With the ratings in place the gap clamps the weak side's expected goals to the 0.2
+    /// floor against roughly 2.5 for the strong side; at zero ratings both sit near 1.3 and 1.1. Over
+    /// twenty fixtures those two worlds are dozens of goals apart, so a 3x ratio separates them by
+    /// far more than the sampling noise.
+    #[test]
+    fn stranded_fixtures_are_scored_from_backfilled_ratings_not_from_zero() {
+        const FIXTURES: usize = 20;
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+
+        // Squads whose *attributes* differ sharply, with `ovr` left at 0 exactly as a pre-OVR save
+        // stored it. `Player::new` leaves it at 0, so this is the real shape, not an imitation.
+        game.players.clear();
+        for (team_id, prefix, attribute) in [("team-001", "str", 95u8), ("team-002", "wk", 25u8)] {
+            for index in 0..11 {
+                let position = if index == 0 {
+                    Position::Goalkeeper
+                } else if index < 5 {
+                    Position::Defender
+                } else if index < 9 {
+                    Position::Midfielder
+                } else {
+                    Position::Forward
+                };
+                let mut player = Player::new(
+                    format!("{prefix}-{index}"),
+                    format!("{prefix}{index}"),
+                    format!("Player {prefix}{index}"),
+                    "1998-01-01".to_string(),
+                    "GB".to_string(),
+                    position,
+                    uniform_player_attributes(attribute),
+                );
+                player.team_id = Some(team_id.to_string());
+                assert_eq!(
+                    player.ovr, 0,
+                    "the premise: a pre-OVR save stores no rating"
+                );
+                game.players.push(player);
+            }
+        }
+
+        let competition = game.competitions.first_mut().unwrap();
+        competition.participant_ids = vec!["team-001".to_string(), "team-002".to_string()];
+        competition.fixtures.clear();
+        competition.standings = vec![
+            StandingEntry::new("team-001".to_string()),
+            StandingEntry::new("team-002".to_string()),
+        ];
+        for index in 0..FIXTURES {
+            let date = game.clock.current_date - chrono::Duration::days(60 - index as i64);
+            competition.fixtures.push(Fixture {
+                id: format!("stranded-{index}"),
+                competition_id: competition.id.clone(),
+                matchday: index as u32 + 1,
+                date: date.format("%Y-%m-%d").to_string(),
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            });
+        }
+
+        let save_id = sm.create_save(&game, "Pre-OVR Career").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        // The premise as an assertion: the backfill really did open a gap between the two clubs. If
+        // it did not, the goal comparison below would prove nothing either way.
+        let rating_of = |team: &str| -> f64 {
+            let ratings: Vec<u32> = loaded
+                .players
+                .iter()
+                .filter(|player| player.team_id.as_deref() == Some(team))
+                .map(|player| u32::from(player.ovr))
+                .collect();
+            f64::from(ratings.iter().sum::<u32>()) / ratings.len() as f64
+        };
+        let strong = rating_of("team-001");
+        let weak = rating_of("team-002");
+        assert!(
+            strong > weak + 20.0,
+            "the backfill should leave the clubs far apart, else this test proves nothing: \
+             strong={strong}, weak={weak}"
+        );
+
+        let played: Vec<&Fixture> = loaded
+            .competitions
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|fixture| fixture.id.starts_with("stranded-"))
+            .collect();
+        assert_eq!(
+            played.len(),
+            FIXTURES,
+            "every stranded fixture is still there"
+        );
+        assert!(
+            played
+                .iter()
+                .all(|fixture| fixture.status == FixtureStatus::Completed),
+            "and every one was repaired"
+        );
+
+        let (home_goals, away_goals) = played.iter().fold((0u32, 0u32), |(home, away), fixture| {
+            let result = fixture
+                .result
+                .as_ref()
+                .expect("a repaired fixture has a result");
+            (
+                home + u32::from(result.home_goals),
+                away + u32::from(result.away_goals),
+            )
+        });
+        assert!(
+            home_goals >= 3 * away_goals,
+            "the strong club should dominate; level scoring means both were rated 0 when the \
+             repair ran, i.e. it ran before the OVR backfill. home={home_goals}, away={away_goals}"
+        );
+    }
+
+    #[test]
+    fn only_the_repairs_own_resave_flag_writes_a_late_stranded_fixture_back() {
+        // The test above proves the repair reaches disk, but not that the repair is what put it
+        // there: a freshly created save trips several other backfills, any one of which sets
+        // `needs_resave`, so the write happens regardless.
+        //
+        // So let the save settle first. One load runs every backfill and resaves; a second load has
+        // nothing left to do. Only *then* write a stranded fixture straight into the database,
+        // behind `load_game`'s back. Now the repair's own flag is the only thing that can persist
+        // it, which is what dropping that flag has to break.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let save_id = sm.create_save(&game, "Settled Career").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        // Settle it: whatever the other backfills want to do, they do now.
+        sm.load_game(&save_id).unwrap();
+
+        // Injected after settling, so no other backfill has a reason to fire on the next load.
+        let stranded_date = (game.clock.current_date - chrono::Duration::days(7))
+            .format("%Y-%m-%d")
+            .to_string();
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let mut competitions = competition_repo::load_competitions(db.conn()).unwrap();
+            let competition = competitions
+                .first_mut()
+                .expect("the settled save has a competition");
+            competition.fixtures.push(Fixture {
+                id: "late-stranded".to_string(),
+                competition_id: competition.id.clone(),
+                matchday: 2,
+                date: stranded_date,
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            });
+            competition_repo::replace_competitions(db.conn(), &competitions).unwrap();
+        }
+
+        // Confirm the premise: the fixture really is stranded on disk before the load.
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let before = competition_repo::load_competitions(db.conn()).unwrap();
+            let injected = before
+                .iter()
+                .flat_map(|competition| competition.fixtures.iter())
+                .find(|fixture| fixture.id == "late-stranded")
+                .expect("the injected fixture is in the file");
+            assert_eq!(
+                injected.status,
+                FixtureStatus::Scheduled,
+                "the premise: nothing has played it yet"
+            );
+        }
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let from_disk = competition_repo::load_competitions(db.conn()).unwrap();
+        let persisted = from_disk
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .find(|fixture| fixture.id == "late-stranded")
+            .expect("the fixture is still in the saved file");
+        assert_eq!(
+            persisted.status,
+            FixtureStatus::Completed,
+            "the repair's own resave flag is what writes it back — nothing else had a reason to"
+        );
+        assert!(
+            persisted.result.is_some(),
+            "and the scoreline reached the file with it"
+        );
     }
 
     #[test]
