@@ -120,7 +120,7 @@ fn take_in(
     // same youngsters whatever order the clubs come in (their ids are still
     // fresh). The seed knows nothing of the save: two careers from one package,
     // whose club ids are authored, draw the same intake. It moves onto the
-    // game's own seed (`Game::rng_for`) once that exists.
+    // game's own seed (`Game::rng_for`, #665) once that exists.
     let seed = crate::stable_hash::stable_hash(
         game.teams[team_index].id.as_bytes(),
         u64::from(season) ^ INTAKE_STREAM,
