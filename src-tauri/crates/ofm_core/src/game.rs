@@ -141,6 +141,13 @@ pub struct Game {
     /// `persist_active_game`.
     #[serde(skip)]
     pub cash_journal_dirty_ids: Vec<String>,
+    /// Every emergency squad top-up this session made
+    /// ([`crate::squad_floor::restore_minimum_squad`]). A diagnostic, not game
+    /// state: never saved or sent over IPC, so a loaded game starts it empty.
+    /// Ordinary squad planning should leave it empty for AI clubs; tests and
+    /// the season harness read it to check that it does.
+    #[serde(skip)]
+    pub squad_floor_top_ups: Vec<crate::squad_floor::SquadFloorTopUp>,
 }
 
 impl Game {
@@ -182,6 +189,7 @@ impl Game {
             package_lockfile: vec![],
             cash_journal: CashJournal::default(),
             cash_journal_dirty_ids: Vec::new(),
+            squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);
@@ -328,6 +336,17 @@ impl Game {
             .filter(|competition| competition.country_id.as_deref() == Some(country_code))
             .find_map(|competition| competition.region_id.clone())
             .unwrap_or_else(|| crate::nations::region_for_code(country_code).to_string())
+    }
+
+    /// A club's display name, or its id when no club has it — the fallback
+    /// every inbox message, news item and result row wants, so a dangling id
+    /// still says something rather than nothing.
+    pub fn team_name_or_id(&self, team_id: &str) -> String {
+        self.teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .map(|team| team.name.clone())
+            .unwrap_or_else(|| team_id.to_string())
     }
 
     /// Whether a competition falls within the player's active simulation scope.

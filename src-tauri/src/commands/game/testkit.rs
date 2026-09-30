@@ -280,6 +280,27 @@ pub(super) fn make_imported_baseline_world_without_staff() -> WorldData {
                 "1997-01-01",
             ));
         }
+        // Enough seniors in every group for a sound club, so a career built
+        // from this world starts above the squad floor and nobody has to be
+        // promoted out of the academy the backfill is about to seed.
+        for (index, position) in [
+            domain::player::Position::Goalkeeper,
+            domain::player::Position::Midfielder,
+            domain::player::Position::Midfielder,
+            domain::player::Position::Midfielder,
+            domain::player::Position::Midfielder,
+            domain::player::Position::Forward,
+            domain::player::Position::Forward,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            players.push(make_player(
+                format!("{}-depth-{index}", team.id),
+                position,
+                "1996-01-01",
+            ));
+        }
     }
 
     WorldData {

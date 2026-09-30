@@ -1,11 +1,11 @@
-use crate::contract_wage_policy::renewal_wage_policy_allows;
+use crate::contract_wage_policy::{WagePolicyVerdict, wage_policy_verdict};
 use crate::contracts::{
     ContractWarningStage, DelegatedRenewalCase, DelegatedRenewalOptions, DelegatedRenewalReport,
     DelegatedRenewalResultStatus, contract_warning_stage, expected_contract_years, expected_wage,
     has_active_manager_block, has_let_expire_intent, round_up_to_nearest_thousand,
 };
 use crate::game::Game;
-use chrono::{Months, NaiveDate};
+use chrono::NaiveDate;
 use domain::message::{
     DelegatedRenewalCaseData as DelegatedRenewalCaseMessageData, DelegatedRenewalReportData,
     InboxMessage, MessageCategory, MessageContext, MessagePriority,
@@ -15,8 +15,6 @@ use domain::staff::StaffRole;
 use std::collections::{HashMap, HashSet};
 
 const ERR_NO_ASSISTANT_MANAGER_ASSIGNED: &str = "be.error.contracts.noAssistantManagerAssigned";
-const ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE: &str =
-    "be.error.contracts.unableToCalculateContractEndDate";
 
 pub fn delegate_renewals(
     game: &mut Game,
@@ -150,7 +148,8 @@ pub fn delegate_renewals(
         if delegation_score >= 95 {
             let agreed_wage = expected_wage.min(max_wage);
             let player_for_policy = player.clone();
-            if !renewal_wage_policy_allows(game, &team, &player_for_policy, agreed_wage) {
+            let verdict = wage_policy_verdict(game, &team, &player_for_policy, agreed_wage);
+            if !verdict.permits() {
                 report.stalled_count += 1;
                 case.status = DelegatedRenewalResultStatus::Stalled;
                 case.note = String::new();
@@ -170,30 +169,28 @@ pub fn delegate_renewals(
                 continue;
             }
 
-            let new_contract_end = current_date
-                .checked_add_months(Months::new(agreed_years * 12))
-                .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
-            let player = &mut game.players[player_index];
-            player.wage = agreed_wage;
-            player.contract_start = Some(current_date.format("%Y-%m-%d").to_string());
-            player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
-            let state = player
-                .morale_core
-                .renewal_state
-                .get_or_insert_with(ContractRenewalState::default);
-            state.status = RenewalSessionStatus::Agreed;
-            state.manager_blocked_until = None;
-            state.last_assistant_attempt_date = Some(today.clone());
-            state.last_outcome = Some(RenewalSessionOutcome::AcceptedByAssistant);
-            state.conversation_round = 0;
-            state.exit_intent = None;
+            crate::contracts::apply_agreed_renewal(
+                &mut game.players[player_index],
+                agreed_wage,
+                agreed_years,
+                current_date,
+                crate::contracts::RenewalAgreedBy::Assistant,
+            )?;
+            let player = &game.players[player_index];
 
             report.success_count += 1;
             case.status = DelegatedRenewalResultStatus::Successful;
             case.agreed_wage = Some(player.wage);
             case.agreed_years = Some(agreed_years);
             case.note = String::new();
-            case.note_key = Some("be.msg.delegatedRenewals.notes.completed".to_string());
+            case.note_key = Some(
+                if verdict == WagePolicyVerdict::OverPolicyToKeepSquadFloor {
+                    "be.msg.delegatedRenewals.notes.completedToKeepSquadFloor"
+                } else {
+                    "be.msg.delegatedRenewals.notes.completed"
+                }
+                .to_string(),
+            );
             report.cases.push(case);
             continue;
         }

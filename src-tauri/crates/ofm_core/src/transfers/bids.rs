@@ -408,6 +408,9 @@ pub fn make_transfer_bid(
     let (tension, patience) = transfer_negotiation_metrics(round, stalled, respected_signal);
 
     if fee >= adjusted_threshold {
+        // Before the offer is marked agreed: refusing after would leave it agreed
+        // with the player still at his club.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
         if register_immediately {
             ensure_transfer_cash_postable(game, &user_team_id, &owner_team_id, fee)?;
         }
@@ -607,6 +610,11 @@ pub fn respond_to_offer(
         .ok_or("be.error.teamNotFound")?;
     let openness_score = player_move_openness_score(current_date, player, owner_team, buyer_team);
 
+    if accept {
+        // Before the offer is marked agreed: refusing after would leave it agreed
+        // with the player still at his club.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+    }
     if accept && register_immediately {
         ensure_transfer_cash_postable(game, &from_team_id, &user_team_id, fee)?;
     }
@@ -720,6 +728,11 @@ pub fn counter_offer(
         ((counter_ceiling as f64) * if round >= 3 && stalled { 1.03 } else { 1.08 }).round() as u64;
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
 
+    if accepted {
+        // Before the offer is marked agreed: refusing after would leave it agreed
+        // with the player still at his club.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+    }
     if accepted && register_immediately {
         ensure_transfer_cash_postable(game, &buyer_team_id, &user_team_id, requested_fee)?;
     }

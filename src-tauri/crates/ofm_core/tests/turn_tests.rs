@@ -22,6 +22,8 @@ use std::collections::HashMap;
 mod fixtures;
 #[path = "turn_tests/live_match_day.rs"]
 mod live_match_day;
+#[path = "turn_tests/squad_floor.rs"]
+mod squad_floor;
 #[path = "turn_tests/training_ground.rs"]
 mod training_ground;
 #[path = "turn_tests/unwatched.rs"]
@@ -312,6 +314,9 @@ fn process_day_generates_news() {
 fn process_day_releases_players_with_expired_contracts() {
     let mut game = make_game_with_match();
     game.league.as_mut().unwrap().fixtures[0].date = "2025-06-20".to_string();
+    // The AI rival is sound and at its planning target, so it has no reason to
+    // sign the player this release puts on the market.
+    deepen_squad(&mut game, "team2", "t2");
 
     let player = game.players.iter_mut().find(|p| p.id == "t1_fwd0").unwrap();
     player.contract_end = Some("2025-06-15".to_string());

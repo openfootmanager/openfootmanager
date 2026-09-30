@@ -165,6 +165,10 @@ fn run_training_ground(game: &mut Game) {
 /// exact date match, everything it skipped was skipped permanently. Sharing the tail means a step
 /// can no longer be in one ending and not the other.
 fn process_day_common(game: &mut Game, today: &str) {
+    // AI clubs decide on their running-down contracts first, so a renewal made
+    // on the day a contract ends lands before the expiry that would release him.
+    let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
+    crate::ai_contracts::apply_ai_contract_decisions(game, weekday_num);
     crate::contracts::process_contract_expiries(game);
 
     // Weekly financial processing (wages, matchday income, warnings)
@@ -182,6 +186,10 @@ fn process_day_common(game: &mut Game, today: &str) {
     transfers::process_pending_transfer_registrations(game);
     transfers::process_pending_loan_registrations(game);
     transfers::generate_incoming_transfer_offers(game);
+    // After every step above that can take a player away from a club — expiry,
+    // registrations and the AI market — and the loan returns that opened the day.
+    crate::ai_contracts::apply_ai_squad_planning(game, weekday_num);
+    crate::squad_floor::keep_squads_at_the_floor(game);
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
 
@@ -467,6 +475,7 @@ where
     // no substitutions in an instant match, which is a real gap and a later
     // slice's job; what matters here is that reserves are no longer credited
     // with minutes, appearances and match wear for a game they never played.
+    crate::live_match_manager::prepare_kick_off(game, idx);
     let (home_data, _home_bench) = squad::build_team_with_bench(game, &home_team_id);
     let (away_data, _away_bench) = squad::build_team_with_bench(game, &away_team_id);
     let config = engine::MatchConfig::default();

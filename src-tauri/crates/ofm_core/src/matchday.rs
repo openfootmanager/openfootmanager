@@ -106,11 +106,12 @@ where
 {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    // The mirror is swapped in before the session is built, because `create_live_match` reads the
-    // fixture out of it. So a failure to build the session has to put it back: an empty squad is a
-    // handled `Err`, `update_game` mutates the live game in place, and an early return would leave
-    // the player's game pointing at another competition entirely — with no match played to explain
-    // why their fixture list changed.
+    // The mirror is swapped in before the session is built, because the kick-off gate and
+    // `create_live_match` both read the fixture out of it. So a failure to kick off has to put it
+    // back: an empty squad nobody can fill is a handled `Err`, `update_game` mutates the live game
+    // in place, and an early return would leave the player's game pointing at another competition
+    // entirely — with no match played to explain why their fixture list changed. Players the gate
+    // brought in before the refusal stay: the club needed them either way.
     let mirror_before_the_swap = game.league.clone();
     if let Some(competition_index) = competition_index {
         // `None` means "the mirror already holds the fixture" — a save written before `competitions`
@@ -125,7 +126,7 @@ where
     }
 
     let allows_extra_time = fixture_allows_extra_time(game, fixture_index);
-    let mut session = match live_match_manager::create_live_match(
+    let mut session = match live_match_manager::kick_off_live_match(
         game,
         fixture_index,
         MatchMode::Instant,

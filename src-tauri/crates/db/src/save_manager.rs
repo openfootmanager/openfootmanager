@@ -586,6 +586,14 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // A save written before the squad floor was enforced can open with
+        // clubs already short of it. Before the stranded-fixture repair below:
+        // that one scores fixtures from the squads, so it reads them repaired.
+        if ofm_core::squad_floor::repair_squads_on_load(&mut game) {
+            info!("[save_manager] brought short squads up to the floor in save {save_id}");
+            needs_resave = true;
+        }
+
         // LAST of the data backfills, and that ordering is load-bearing. The repair resolves a
         // stranded fixture from club strength, which is the average stored `ovr` of the best XI — so
         // running it before the OVR backfill above scores a pre-OVR save's clubs at zero, and the
@@ -2130,9 +2138,11 @@ mod tests {
 
         let loaded = sm.load_game(&save_id).unwrap();
 
+        // Only the seed is under test: the sample club is below the squad floor,
+        // so loading it rightly warns about that, and that warning is ledgered.
         assert!(
-            loaded.emitted_events.is_empty(),
-            "a current-format save must keep its empty ledger, got {:?}",
+            !loaded.emitted_events.contains("world_cup_champion_2030"),
+            "a current-format save must not be seeded from its world history, got {:?}",
             loaded.emitted_events
         );
     }
@@ -2487,6 +2497,83 @@ mod tests {
         let starting_xi_ids: Vec<String> = serde_json::from_str(&starting_xi_json).unwrap();
 
         assert_eq!(starting_xi_ids, team.starting_xi_ids);
+    }
+
+    /// Given a save whose every other repair has already been written back,
+    /// and an AI club that has since lost both its keepers to free agency,
+    /// when the save is loaded, then the club signs two keepers back and the
+    /// signings are in the `.db` — read from the file, because a reload would
+    /// simply repair the world again. The first load settles every other
+    /// load-time repair, so nothing but the squad floor can be what rewrote the
+    /// file the second time.
+    #[test]
+    fn test_load_game_brings_a_short_ai_club_up_to_the_squad_floor_and_saves_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_opening_save_without_youth_academy();
+        game.teams.push(Team::new(
+            "team-002".to_string(),
+            "Keeperless Town".to_string(),
+            "KPT".to_string(),
+            "GB".to_string(),
+            "Leeds".to_string(),
+            "Town Ground".to_string(),
+            10_000,
+        ));
+        // Both clubs sound: 2/5/5/3, fifteen seniors.
+        for team_id in ["team-001", "team-002"] {
+            for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+                .into_iter()
+                .zip([2, 5, 5, 3])
+            {
+                for index in 0..count {
+                    let mut player = make_opening_repair_player(
+                        &format!("{team_id}-{group:?}-{index}"),
+                        group.clone(),
+                        "1998-01-01",
+                    );
+                    player.team_id = Some(team_id.to_string());
+                    player.contract_end = Some("2030-06-30".to_string());
+                    game.players.push(player);
+                }
+            }
+        }
+        // Seeded and normalised up front: AI managers seeded during a load are
+        // re-normalised by the identity upgrade on every later load, which
+        // would rewrite the file for a reason of its own and hide whether the
+        // floor repair asked for the write.
+        ofm_core::ai_hiring::seed_ai_managers(&mut game);
+        ofm_core::football_identity::upgrade_game_football_identities(&mut game);
+        let save_id = sm.create_save(&game, "Floor Career").unwrap();
+        let mut settled = sm.load_game(&save_id).unwrap();
+
+        for player in settled.players.iter_mut() {
+            if player.id.starts_with("team-002-Goalkeeper") {
+                player.team_id = None;
+                player.contract_end = None;
+                player.wage = 0;
+            }
+        }
+        sm.save_game(&settled, &save_id).unwrap();
+        let db_path = saves_dir.join(format!("{}.db", save_id));
+        let db = GameDatabase::open(&db_path).unwrap();
+        let before = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(
+            !ofm_core::squad_floor::squad_shortfall(&before, "team-002").is_empty(),
+            "the fixture must reach the file short of keepers"
+        );
+        drop(db);
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open(&db_path).unwrap();
+        let persisted = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(
+            ofm_core::squad_floor::squad_shortfall(&persisted, "team-002").is_empty(),
+            "the repaired squad was not written back"
+        );
     }
 
     #[test]
