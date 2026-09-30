@@ -1215,6 +1215,27 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     summary
 }
 
+/// Roll a finished season over: the one sequence behind the player's "advance
+/// to next season" button and behind the season harness.
+///
+/// Refuses, touching nothing, unless [`is_season_complete`]. Then the rollover
+/// proper, then the firing check. The order matters:
+/// [`process_end_of_season`] re-evaluates the board's objectives and can drop
+/// the manager's satisfaction, so a sacking it causes has to be decided here
+/// rather than left for the next day's turn.
+///
+/// Whether the manager lost the job is readable from `game.manager.team_id`
+/// afterwards; the summary describes the season that just ended either way.
+pub fn advance_to_next_season(game: &mut Game) -> Result<EndOfSeasonSummary, String> {
+    if !is_season_complete(game) {
+        return Err("be.error.seasonNotComplete".to_string());
+    }
+
+    let summary = process_end_of_season(game);
+    crate::firing::check_manager_firing(game);
+    Ok(summary)
+}
+
 // ---------------------------------------------------------------------------
 // Retiree conversion
 // ---------------------------------------------------------------------------
