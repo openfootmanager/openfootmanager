@@ -18,10 +18,7 @@ use crate::world::{
     resolve_simulation_scope, team_season_anchor,
 };
 
-use bootstrap::{
-    bootstrap_existing_world_takeover, bootstrap_midseason_takeover, bootstrap_season_start,
-    has_existing_world_context,
-};
+use bootstrap::takeover_club;
 
 /// Where in its season a career opens.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -110,7 +107,7 @@ pub struct CareerScope {
 ///    ([`date_opening_contracts`] — it reads each club's season anchor *before* the
 ///    clock moves, which is the reason this ordering is written once);
 /// 4. the simulation scope is resolved for the club and what was asked for;
-/// 5. the manager takes the club ([`bootstrap_team_selection`]);
+/// 5. the manager takes the club ([`take_charge_of_club`]);
 /// 6. player positions are made granular, so they are right now rather than after
 ///    the first save and reload.
 ///
@@ -135,8 +132,7 @@ pub fn begin_career(
     game.active_region_ids = regions;
     game.active_competition_ids = competitions;
 
-    let stats_state =
-        bootstrap_team_selection(game, team_id, start_phase_for_game(game), stats_state)?;
+    let stats_state = take_charge_of_club(game, team_id, stats_state)?;
 
     // Contract starts were stamped against `opening`. The clock may move on from
     // it, never back: a start stamped against a later date could land after it.
@@ -149,20 +145,13 @@ pub fn begin_career(
     Ok(stats_state)
 }
 
-pub fn bootstrap_team_selection(
+/// The manager takes the club, and the club becomes the player's blank slate.
+fn take_charge_of_club(
     game: &mut Game,
     team_id: &str,
-    start_phase: StartPhase,
     stats_state: StatsState,
 ) -> Result<StatsState, String> {
-    let stats_state = if has_existing_world_context(game, &stats_state) {
-        bootstrap_existing_world_takeover(game, team_id, stats_state)?
-    } else {
-        match start_phase {
-            StartPhase::SeasonStart => bootstrap_season_start(game, team_id)?,
-            StartPhase::MidSeason => bootstrap_midseason_takeover(game, team_id)?,
-        }
-    };
+    let stats_state = takeover_club(game, team_id, stats_state)?;
 
     // World generation has already equipped every club for AI management.
     // At career selection the chosen club becomes the player's blank slate;
