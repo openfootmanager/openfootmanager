@@ -4509,3 +4509,66 @@ fn a_scheduled_transfer_whose_buyer_can_no_longer_pay_his_wage_does_not_register
         "no transfer was recorded"
     );
 }
+
+/// The preview and the deal are the same rule: what the modal says the incoming player
+/// will cost is the wage the transfer then gives him, not the wage he was on.
+#[test]
+fn a_bid_preview_reports_the_wage_the_buyer_would_actually_pay() {
+    let mut player = make_player("player-preview");
+    player.stage_wage(7_777);
+    let game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let projection = ofm_core::transfers::project_transfer_bid_financial_impact(
+        &game,
+        "player-preview",
+        2_000_000,
+    )
+    .expect("the preview is informational");
+
+    let mut played_out = game.clone();
+    make_transfer_bid(&mut played_out, "player-preview", 2_000_000).expect("the bid goes through");
+    let paid = i64::from(
+        played_out
+            .players
+            .iter()
+            .find(|p| p.id == "player-preview")
+            .unwrap()
+            .wage(),
+    );
+    assert_ne!(paid, 7_777, "he is not paid the seller's wage");
+    assert_eq!(projection.incoming_player_weekly_wage, paid);
+    assert_eq!(
+        projection.annual_wage_bill_after,
+        projection.annual_wage_bill_before + paid
+    );
+}
+
+/// Given an AI club that wants a player and can pay the fee,
+/// When its board would not let it pay the contract it would have to give him,
+/// Then it does not chase him: no offer reaches his club.
+///
+/// The same setup as `generates_pending_incoming_offer_for_contract_risk_player`, which
+/// is the control: with a board that allows the wage, the offer arrives.
+#[test]
+fn an_ai_club_whose_board_would_refuse_the_wage_does_not_chase_the_player() {
+    let mut player = make_user_player("player-unaffordable");
+    player.stage_contract_end(Some("2026-09-01".to_string()));
+    player.market_value = 1_200_000;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    give_depth(&mut game, "team-2");
+    game.teams[1].wage_budget = 1;
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-unaffordable")
+        .unwrap();
+    assert!(
+        player.transfer_offers.is_empty(),
+        "an offer it could not complete reached the player's club"
+    );
+}
