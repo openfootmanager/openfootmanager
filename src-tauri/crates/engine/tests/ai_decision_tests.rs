@@ -5,7 +5,9 @@
 //! supporter would recognise — "two down with twenty minutes left and five subs
 //! unused" — and asserts the bench gets used.
 
-use ::engine::ai::{AiPersonality, AiProfile, ai_decide};
+use ::engine::ai::{
+    AiPersonality, AiProfile, MAX_UNDER_PRICED_DIALS, ai_decide, under_priced_dials,
+};
 use ::engine::*;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -434,22 +436,47 @@ fn a_side_chasing_the_game_uses_more_than_three_substitutions() {
 // The nine dials underneath the play style
 // ---------------------------------------------------------------------------
 
-/// How many of the four dials the engine still prices one-sidedly this plan
-/// holds. Written out here rather than borrowed from the engine on purpose: the
-/// rule is what is being tested, so the test has to state it itself.
-fn under_priced_dials(tactics: &TacticsConfig) -> usize {
-    [
-        matches!(
-            tactics.defensive_line,
-            DefensiveLine::VeryLow | DefensiveLine::Low
-        ),
-        tactics.defensive_shape == DefensiveShape::Compact,
-        tactics.width == TacticsPitchWidth::Narrow,
-        tactics.counter_press_duration == CounterPressDuration::Long,
-    ]
-    .iter()
-    .filter(|held| **held)
-    .count()
+/// The rule the ration counts by is the engine's own, `ai::under_priced_dials`:
+/// one copy, which the between-match review in `ofm_core` asks as well. This
+/// pins what it counts, setting by setting, so the tests below can use it
+/// rather than keep a second copy of the rule to check it against.
+#[test]
+fn the_ration_counts_exactly_the_four_under_priced_dials() {
+    let plan = |change: fn(&mut TacticsConfig)| {
+        let mut tactics = TacticsConfig::default();
+        change(&mut tactics);
+        under_priced_dials(&tactics)
+    };
+    assert_eq!(plan(|_| {}), 0, "the default plan holds none");
+
+    // Each of the four, alone.
+    assert_eq!(plan(|t| t.defensive_line = DefensiveLine::VeryLow), 1);
+    assert_eq!(plan(|t| t.defensive_line = DefensiveLine::Low), 1);
+    assert_eq!(plan(|t| t.defensive_shape = DefensiveShape::Compact), 1);
+    assert_eq!(plan(|t| t.width = TacticsPitchWidth::Narrow), 1);
+    assert_eq!(
+        plan(|t| t.counter_press_duration = CounterPressDuration::Long),
+        1
+    );
+
+    // Their opposites and neighbours are not under-priced.
+    assert_eq!(plan(|t| t.defensive_line = DefensiveLine::High), 0);
+    assert_eq!(plan(|t| t.defensive_shape = DefensiveShape::Stretched), 0);
+    assert_eq!(plan(|t| t.width = TacticsPitchWidth::Wide), 0);
+    assert_eq!(
+        plan(|t| t.counter_press_duration = CounterPressDuration::Short),
+        0
+    );
+
+    assert_eq!(
+        plan(|t| {
+            t.defensive_line = DefensiveLine::Low;
+            t.defensive_shape = DefensiveShape::Compact;
+            t.width = TacticsPitchWidth::Narrow;
+            t.counter_press_duration = CounterPressDuration::Long;
+        }),
+        4
+    );
 }
 
 /// Play out a stuck scoreline and hand back every dial the home manager turned,
@@ -535,7 +562,7 @@ fn no_instruction_from_the_touchline_breaks_the_ration() {
     );
     for (dial, plan) in &turned {
         assert!(
-            under_priced_dials(plan) <= 2,
+            under_priced_dials(plan) <= MAX_UNDER_PRICED_DIALS,
             "{dial:?} left the side holding {} of the four dials the engine \
              under-prices: {plan:?}",
             under_priced_dials(plan)
