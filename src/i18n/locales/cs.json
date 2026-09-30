@@ -3247,6 +3247,10 @@
         "subject": "Nouzové posily: {{team}}",
         "body": "Šéfe, neměli jsme dost hráčů, abychom postavili tým, a tak jsem před výkopem přesunul do A-týmu tyto hráče, nejprve z akademie a pak z volných hráčů: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Nový ročník akademie: {{team}}",
+        "body": "Šéfe, do akademie přišli tito hráči z nového ročníku: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "Nikdo k dispozici: {{group}}",
         "body": "Šéfe, nepodařilo se nám doplnit kádr a nebylo koho přivést. {{group}}: {{have}} z {{floor}}, které musí klub udržet, a ani naše akademie, ani trh volných hráčů nemá nikoho, kdo by mezeru zaplnil.",

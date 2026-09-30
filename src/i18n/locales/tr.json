@@ -3247,6 +3247,10 @@
         "subject": "Acil Transferler: {{team}}",
         "body": "Hocam, sahaya bir takım çıkaracak kadar oyuncumuz yoktu, bu yüzden başlama vuruşundan önce şu oyuncuları A takıma aldım, önce altyapıdan, sonra serbest oyunculardan: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Altyapıya Yeni Katılanlar: {{team}}",
+        "body": "Hocam, bu sezon altyapımıza şu genç oyuncular katıldı: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "Uygun Oyuncu Yok: {{group}}",
         "body": "Hocam, kadroyu tamamlayamadık ve alabileceğimiz kimse yoktu. {{group}}: bir kulübün koruması gereken {{floor}} oyuncudan {{have}} tanesi var; ne altyapımızda ne de serbest oyuncu piyasasında bu açığı kapatacak kimse var.",

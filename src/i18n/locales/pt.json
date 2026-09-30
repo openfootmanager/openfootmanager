@@ -3247,6 +3247,10 @@
         "subject": "Contratações de emergência: {{team}}",
         "body": "Mister, não tínhamos jogadores suficientes para apresentar uma equipa, por isso, antes do pontapé de saída, integrei no plantel principal estes jogadores, primeiro da formação e depois jogadores livres: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Novos jovens na formação: {{team}}",
+        "body": "Mister, estes jovens da nova fornada juntaram-se à formação: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "Ninguém disponível: {{group}}",
         "body": "Mister, não conseguimos completar o plantel e não havia ninguém para trazer. {{group}}: {{have}} dos {{floor}} que um clube tem de manter, e nem a nossa formação nem o mercado de jogadores livres têm alguém para preencher a lacuna.",

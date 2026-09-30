@@ -3247,6 +3247,10 @@
         "subject": "Notverpflichtungen: {{team}}",
         "body": "Boss, wir hatten nicht genug Spieler, um eine Mannschaft aufzustellen, also habe ich vor dem Anpfiff diese Spieler in den Profikader geholt, zuerst aus der Jugend, dann vereinslose Spieler: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Neuer Jugendjahrgang: {{team}}",
+        "body": "Boss, diese Spieler des neuen Jahrgangs sind in unsere Jugend aufgenommen worden: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "Niemand verfügbar: {{group}}",
         "body": "Boss, wir konnten keinen vollständigen Kader stellen, und es war niemand zu holen. {{group}}: {{have}} von den {{floor}}, die ein Verein halten muss, und weder unsere Jugend noch der Markt der vereinslosen Spieler hat jemanden, der die Lücke füllt.",

@@ -3247,6 +3247,10 @@
         "subject": "Rekrutan Darurat: {{team}}",
         "body": "Bos, kita tidak punya cukup pemain untuk menurunkan tim, jadi sebelum sepak mula saya memasukkan pemain berikut ke tim utama, dari akademi dulu lalu dari agen bebas: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Pemain Muda Baru: {{team}}",
+        "body": "Bos, pemain muda angkatan baru berikut telah bergabung dengan akademi: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "Tidak Ada yang Tersedia: {{group}}",
         "body": "Bos, kita tidak bisa melengkapi skuad dan tidak ada yang bisa didatangkan. {{group}}: {{have}} dari {{floor}} yang harus dipertahankan klub, dan baik akademi kita maupun pasar agen bebas tidak punya siapa pun untuk menutup kekurangan itu.",

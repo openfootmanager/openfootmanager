@@ -3247,6 +3247,10 @@
         "subject": "Emergency Signings: {{team}}",
         "body": "Boss, we did not have enough players to field a side, so before kick-off I brought these players into the first-team squad, from the academy first and then the free-agent market: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Youth Intake: {{team}}",
+        "body": "Boss, this season's youth intake has joined the academy: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "No One Available: {{group}}",
         "body": "Boss, we could not field a full squad and there was nobody to bring in. {{group}}: {{have}} of the {{floor}} a club must keep, and neither our academy nor the free-agent market has anyone to fill the gap.",
