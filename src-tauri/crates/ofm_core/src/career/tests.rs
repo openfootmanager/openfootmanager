@@ -187,6 +187,12 @@ fn the_player_takes_charge_of_the_chosen_club_and_of_no_other() {
             "{rival} must keep its own manager"
         );
     }
+    assert!(
+        game.messages
+            .iter()
+            .any(|message| message.id == "job_welcome_eng-a_2032-07-01"),
+        "the board greets the new manager in the inbox"
+    );
 }
 
 // ── Scenario: the simulation follows the club ───────────────────────────────
