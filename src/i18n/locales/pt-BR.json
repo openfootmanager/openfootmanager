@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Novos garotos na base: {{team}}",
-        "body": "Chefe, estes garotos da nova safra chegaram às categorias de base: {{players}}."
+        "body": "Chefe, a nova safra chegou às categorias de base: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Ninguém disponível: {{group}}",

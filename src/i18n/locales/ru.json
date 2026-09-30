@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Новый набор в академию: {{team}}",
-        "body": "В академию пришли игроки нового набора: {{players}}."
+        "body": "В академию пришёл новый набор: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Некого заявить: {{group}}",

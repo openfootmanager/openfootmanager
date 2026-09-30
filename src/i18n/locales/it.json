@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Nuovi ragazzi nel vivaio: {{team}}",
-        "body": "Mister, questi giovani della nuova leva sono entrati nel settore giovanile: {{players}}."
+        "body": "Mister, la nuova leva è entrata nel settore giovanile: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Nessuno disponibile: {{group}}",

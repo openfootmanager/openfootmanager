@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Altyapıya Yeni Katılanlar: {{team}}",
-        "body": "Hocam, bu sezon altyapımıza şu genç oyuncular katıldı: {{players}}."
+        "body": "Hocam, bu sezonun altyapı alımı tamamlandı: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Uygun Oyuncu Yok: {{group}}",

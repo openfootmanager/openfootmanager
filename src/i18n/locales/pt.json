@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Novos jovens na formação: {{team}}",
-        "body": "Mister, estes jovens da nova fornada juntaram-se à formação: {{players}}."
+        "body": "Mister, a nova fornada juntou-se à formação: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Ninguém disponível: {{group}}",

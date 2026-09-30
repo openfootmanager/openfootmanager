@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Nový ročník akademie: {{team}}",
-        "body": "Šéfe, do akademie přišli tito hráči z nového ročníku: {{players}}."
+        "body": "Šéfe, do akademie přišel nový ročník: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Nikdo k dispozici: {{group}}",

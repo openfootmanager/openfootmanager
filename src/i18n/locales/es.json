@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Nuevos canteranos: {{team}}",
-        "body": "Míster, estos jugadores de la nueva hornada se han incorporado a la cantera: {{players}}."
+        "body": "Míster, la nueva hornada se ha incorporado a la cantera: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Nadie disponible: {{group}}",

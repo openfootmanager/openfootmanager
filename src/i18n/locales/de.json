@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Neuer Jugendjahrgang: {{team}}",
-        "body": "Boss, diese Spieler des neuen Jahrgangs sind in unsere Jugend aufgenommen worden: {{players}}."
+        "body": "Boss, der neue Jugendjahrgang ist in unsere Jugend aufgenommen worden: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Niemand verfügbar: {{group}}",

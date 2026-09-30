@@ -3249,7 +3249,7 @@
       },
       "youthIntake": {
         "subject": "Nouvelle promotion au centre de formation : {{team}}",
-        "body": "Coach, voici les jeunes de la nouvelle promotion qui ont rejoint le centre de formation : {{players}}."
+        "body": "Coach, la nouvelle promotion a rejoint le centre de formation : {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Personne de disponible : {{group}}",
