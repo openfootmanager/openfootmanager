@@ -1,5 +1,6 @@
 use log::info;
 
+use crate::application::time_advancement::round_context_for_today;
 use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
@@ -29,8 +30,7 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
 
     let fixture_index = session.fixture_index;
     let competition_id = session.competition_id.clone();
-    let round_matchday = session.round_matchday;
-    let round_previous_standings = session.round_previous_standings.clone();
+    let league_round_context = session.league_round_context.clone();
     let home_team_id = session.home_team_id.clone();
     let away_team_id = session.away_team_id.clone();
 
@@ -102,10 +102,34 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
                 game.sync_legacy_league();
             }
 
-            let round_summary =
-                build_round_summary_dto(game, round_matchday, &round_previous_standings);
+            // The digest describes the user's league round, and `build_round_summary` reads the
+            // competition `sync_legacy_league` has just mirrored — so its context has to come
+            // from that same competition. The session's `round_matchday` and
+            // `round_previous_standings` describe whatever the user *played*, which on a cup day
+            // is the cup: a knockout cup has no table at all, so its standings would be an empty
+            // baseline for the league's deltas, and its matchday would select the wrong round.
+            //
+            // It also has to be the table as it stood *before* the round. The GUI simulates the
+            // rest of the round right after creating the session, so reading it here instead
+            // reports every club's delta as zero — the round has already happened. So the
+            // session carries the league baseline from creation time, and today's context is only
+            // the fallback for a session that has none.
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            let summary_context =
+                league_round_context.or_else(|| round_context_for_today(game, &today));
 
-            ofm_core::turn::finish_live_match_day(game);
+            ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
+                captures.push(capture)
+            });
+
+            // After the sweep, not before: on a cup day with domestic fixtures also due, the
+            // summary built beforehand described a round that had not been played yet and came
+            // back `None`, so the digest read "unavailable" for a round the response was
+            // carrying. The matchday and standings are captured above, so the advanced clock
+            // does not affect it.
+            let round_summary = summary_context.and_then(|(matchday, previous)| {
+                build_round_summary_dto(game, matchday, &previous)
+            });
 
             Ok((game.clone(), round_summary))
         })

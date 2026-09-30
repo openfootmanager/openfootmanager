@@ -207,15 +207,6 @@ pub fn calc_wages(game: &Game, team_id: &str) -> i64 {
     player_wages + staff_wages
 }
 
-/// Same committed weekly total as [`calc_wages`].
-///
-/// Named from when stored wages were treated as annual. Call [`calc_wages`].
-/// A yearly figure is `calc_wages(...) * 52`.
-#[deprecated(note = "stored wages are weekly; use calc_wages")]
-pub fn calc_annual_wages(game: &Game, team_id: &str) -> i64 {
-    calc_wages(game, team_id)
-}
-
 /// This club's share of `player.wage` this week (loan split, otherwise the
 /// employing club).
 pub fn player_weekly_wage_for_team(player: &domain::player::Player, team_id: &str) -> i64 {
