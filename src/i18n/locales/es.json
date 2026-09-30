@@ -2848,22 +2848,6 @@
         "exportedName": "Mundo Exportado",
         "exportedDescription": "Mundo con {{teamCount}} equipos exportado desde una partida guardada"
       },
-      "welcome": {
-        "subject0": "Bienvenido a {{team}}",
-        "subject1": "Nueva Era en {{team}}",
-        "subject2": "{{team}} Espera Tu Liderazgo",
-        "body0": "La junta directiva de {{team}} está encantada de darle la bienvenida como nuevo entrenador.\n\nTenemos grandes esperanzas en su gestión y creemos que puede llevar a este club a la gloria. Su primera tarea será revisar la plantilla y preparar un plan táctico para la próxima temporada.\n\nLe deseamos la mejor de las suertes.",
-        "body1": "En nombre de toda la familia {{team}}, estamos encantados de anunciar su nombramiento como entrenador.\n\nLos aficionados están ansiosos por ver su visión para el equipo. Tómese su tiempo para evaluar la plantilla, revisar nuestra posición financiera y definir su enfoque táctico.\n\nLa junta le respalda.",
-        "body2": "¡Bienvenido a {{team}}! Los aficionados y el personal están emocionados por el futuro bajo su dirección.\n\nLe recomendamos que comience revisando las fortalezas y debilidades de su plantilla, y luego configure su formación y régimen de entrenamiento preferidos.\n\nLa próxima temporada será una verdadera prueba — háganos sentir orgullosos.",
-        "actionReview": "Revisar Plantilla",
-        "actionThank": "Agradecer a la Junta"
-      },
-      "schedule": {
-        "subject": "Calendario de Temporada Publicado",
-        "body0": "El calendario de la {{league}} ha sido publicado. La temporada comienza el {{start}}.\n\nRevise la lista de partidos y asegúrese de que su plantilla esté lista para los desafíos que se avecinan. La preparación pretemporada será crucial.",
-        "body1": "¡Lista de partidos confirmada! La temporada de la {{league}} comienza el {{start}}.\n\nEstudie cuidadosamente los primeros partidos — un buen comienzo puede marcar el tono de toda la campaña. Asegúrese de que sus jugadores clave estén en forma.",
-        "actionView": "Ver Calendario"
-      },
       "preMatch": {
         "subject": "Próximo: vs {{opponent}} ({{venue}})",
         "body0": "Su partido de {{venue}} contra {{opponent}} se acerca el {{matchDate}}.\n\nJornada {{matchday}} de la Primera División. Asegúrese de que su once titular esté en buena forma y sus tácticas estén definidas.\n\nAproveche al máximo jugar de {{venue}}.",

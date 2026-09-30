@@ -2848,22 +2848,6 @@
         "exportedName": "Mundo Exportado",
         "exportedDescription": "Mundo com {{teamCount}} equipas exportado de um jogo guardado"
       },
-      "welcome": {
-        "subject0": "Bem-vindo ao {{team}}",
-        "subject1": "Nova Era no {{team}}",
-        "subject2": "{{team}} Aguarda a Sua Liderança",
-        "body0": "O conselho de administração do {{team}} tem o prazer de o receber como novo treinador.\n\nTemos grandes expectativas para o seu mandato e acreditamos que pode levar este clube à glória. A sua primeira tarefa será rever o plantel e preparar um plano táctico para a próxima época.\n\nDesejamos-lhe a melhor sorte.",
-        "body1": "Em nome de toda a família {{team}}, estamos entusiasmados por anunciar a sua nomeação como treinador.\n\nOs adeptos estão ansiosos por ver a sua visão para a equipa. Reserve tempo para avaliar o plantel, rever a nossa posição financeira e definir a sua abordagem táctica.\n\nO conselho está consigo.",
-        "body2": "Bem-vindo ao {{team}}! Os adeptos e o staff estão entusiasmados com o futuro sob a sua orientação.\n\nRecomendamos que comece por rever os pontos fortes e fracos do seu plantel, e depois configure a sua formação e regime de treino preferidos.\n\nA próxima época será um verdadeiro teste — dê-nos orgulho.",
-        "actionReview": "Rever Plantel",
-        "actionThank": "Agradecer ao Conselho"
-      },
-      "schedule": {
-        "subject": "Calendário da Época Publicado",
-        "body0": "O calendário da {{league}} foi divulgado. A época começa a {{start}}.\n\nReveja a lista de jogos e certifique-se de que o seu plantel está pronto para os desafios que se aproximam. A preparação de pré-época será crucial.",
-        "body1": "Lista de jogos confirmada! A época da {{league}} começa a {{start}}.\n\nEstude cuidadosamente os primeiros jogos — um bom início pode definir o tom de toda a campanha. Garanta que os seus jogadores-chave estejam em forma.",
-        "actionView": "Ver Calendário"
-      },
       "preMatch": {
         "subject": "Próximo: vs {{opponent}} ({{venue}})",
         "body0": "O seu jogo de {{venue}} contra o {{opponent}} aproxima-se a {{matchDate}}.\n\nJornada {{matchday}} da Primeira Divisão. Certifique-se de que o seu onze titular está em boa forma e as suas tácticas estão definidas.\n\nTire o máximo partido de jogar em {{venue}}.",

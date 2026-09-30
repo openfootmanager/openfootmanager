@@ -2848,22 +2848,6 @@
         "exportedName": "Exportierte Welt",
         "exportedDescription": "Welt mit {{teamCount}} Teams, aus einem gespeicherten Spiel exportiert"
       },
-      "welcome": {
-        "subject0": "Willkommen bei {{team}}",
-        "subject1": "Neue Ära bei {{team}}",
-        "subject2": "{{team}} Erwartet Ihre Führung",
-        "body0": "Der Vorstand von {{team}} freut sich, Sie als neuen Trainer begrüßen zu dürfen.\n\nWir haben große Hoffnungen in Ihre Amtszeit und glauben, dass Sie diesen Verein zum Ruhm führen können. Ihre erste Aufgabe wird es sein, den Kader zu überprüfen und einen taktischen Plan für die kommende Saison vorzubereiten.\n\nWir wünschen Ihnen viel Erfolg.",
-        "body1": "Im Namen der gesamten {{team}}-Familie freuen wir uns, Ihre Ernennung zum Trainer bekannt zu geben.\n\nDie Fans sind gespannt auf Ihre Vision für das Team. Nehmen Sie sich Zeit, den Kader zu bewerten, unsere finanzielle Lage zu prüfen und Ihren taktischen Ansatz festzulegen.\n\nDer Vorstand steht hinter Ihnen.",
-        "body2": "Willkommen bei {{team}}! Die Fans und das Personal freuen sich auf die Zukunft unter Ihrer Führung.\n\nWir empfehlen Ihnen, zunächst die Stärken und Schwächen Ihres Kaders zu überprüfen und dann Ihre bevorzugte Formation und Trainingsplanung einzurichten.\n\nDie kommende Saison wird ein echter Test — machen Sie uns stolz.",
-        "actionReview": "Kader überprüfen",
-        "actionThank": "Dem Vorstand danken"
-      },
-      "schedule": {
-        "subject": "Saisonspielplan veröffentlicht",
-        "body0": "Der Spielplan der {{league}} wurde veröffentlicht. Die Saison beginnt am {{start}}.\n\nÜberprüfen Sie die Spielliste und stellen Sie sicher, dass Ihr Kader für die kommenden Herausforderungen bereit ist. Die Vorbereitung wird entscheidend sein.",
-        "body1": "Spielplan bestätigt! Die {{league}}-Saison beginnt am {{start}}.\n\nStudieren Sie die ersten Spiele sorgfältig — ein guter Start kann den Ton für die gesamte Kampagne setzen. Stellen Sie sicher, dass Ihre Schlüsselspieler fit sind.",
-        "actionView": "Spielplan ansehen"
-      },
       "preMatch": {
         "subject": "Anstehend: vs {{opponent}} ({{venue}})",
         "body0": "Ihr {{venue}}-Spiel gegen {{opponent}} steht am {{matchDate}} an.\n\nSpieltag {{matchday}} der Ersten Division. Stellen Sie sicher, dass Ihre Startelf in guter Verfassung ist und Ihre Taktik steht.\n\nNutzen Sie den {{venue}}-Vorteil.",

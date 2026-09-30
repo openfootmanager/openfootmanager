@@ -2848,22 +2848,6 @@
         "exportedName": "Dışa Aktarılmış Dünya",
         "exportedDescription": "Kayıtlı oyundan dışa aktarılan {{teamCount}} takımlı dünya"
       },
-      "welcome": {
-        "subject0": "{{team}} kulübüne hoş geldiniz",
-        "subject1": "{{team}} kulübünde yeni bir dönem",
-        "subject2": "{{team}} liderliğinizi bekliyor",
-        "body0": "{{team}} yönetim kurulu sizi yeni menajer olarak aramızda görmekten mutluluk duyuyor.\n\nGörev süreniz için büyük umutlarımız var ve bu kulübü zafere taşıyabileceğinize inanıyoruz. İlk göreviniz kadroyu gözden geçirmek ve önümüzdeki sezon için bir taktik plan hazırlamak olacak.\n\nSize bol şans dileriz.",
-        "body1": "Tüm {{team}} ailesi adına, menajerliğe atanmanızı duyurmaktan heyecan duyuyoruz.\n\nTaraftarlar takıma dair vizyonunuzu görmek için sabırsızlanıyor. Lütfen kadroyu değerlendirmek, mali durumumuzu incelemek ve taktik yaklaşımınızı belirlemek için zaman ayırın.\n\nYönetim arkanızda.",
-        "body2": "{{team}} kulübüne hoş geldiniz! Taraftarlar ve personel, sizin rehberliğinizdeki gelecek için heyecanlı.\n\nİşe kadronuzun güçlü ve zayıf yönlerini inceleyerek başlamanızı, ardından tercih ettiğiniz dizilişi ve antrenman düzenini kurmanızı öneririz.\n\nÖnümüzdeki sezon gerçek bir sınav olacak — bizi gururlandırın.",
-        "actionReview": "Kadroyu İncele",
-        "actionThank": "Yönetime Teşekkür Et"
-      },
-      "schedule": {
-        "subject": "Sezon Fikstürü Açıklandı",
-        "body0": "{{league}} fikstürü açıklandı. Sezon {{start}} tarihinde başlıyor.\n\nFikstür listesini inceleyin ve kadronuzun sizi bekleyen zorluklara hazır olduğundan emin olun. Sezon öncesi hazırlık çok önemli olacak.",
-        "body1": "Fikstür listesi onaylandı! {{league}} sezonu {{start}} tarihinde başlıyor.\n\nAçılış maçlarını dikkatle inceleyin — güçlü bir başlangıç tüm sezonun tonunu belirleyebilir. Kilit oyuncularınızın maç formunda olduğundan emin olun.",
-        "actionView": "Fikstürü Görüntüle"
-      },
       "preMatch": {
         "subject": "Yaklaşan Maç: {{opponent}} ({{venue}})",
         "body0": "{{opponent}} ile {{venue}} maçınız {{matchDate}} tarihinde oynanacak.\n\nPremier Lig'in {{matchday}}. haftası. İlk 11'inizin iyi durumda ve taktiklerinizin hazır olduğundan emin olun.\n\n{{venue}} avantajını en iyi şekilde değerlendirin.",
