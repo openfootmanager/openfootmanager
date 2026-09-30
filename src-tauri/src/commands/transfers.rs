@@ -606,10 +606,22 @@ mod tests {
     /// floor. Inert: no wage and no market value, so no budget moves for it.
     fn give_both_clubs_squad_depth(game: &mut Game) {
         for team_id in ["team-1", "team-2"] {
-            for (group, floor) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP {
-                for _ in 0..floor {
-                    let mut player =
-                        ofm_core::generator::generate_free_agent(&group, "England", 2026);
+            // One more than the minimum in every group, sixteen in all.
+            let depth = [3, 5, 5, 3];
+            for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+                .into_iter()
+                .zip(depth)
+            {
+                for index in 0..count {
+                    let mut player = Player::new(
+                        format!("depth-{team_id}-{group:?}-{index}"),
+                        format!("Depth {index}"),
+                        format!("Depth {group:?} {index}"),
+                        "1996-01-01".to_string(),
+                        "England".to_string(),
+                        group.clone(),
+                        default_attrs(),
+                    );
                     player.team_id = Some(team_id.to_string());
                     player.contract_end = Some("2031-06-30".to_string());
                     player.market_value = 0;

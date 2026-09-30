@@ -252,6 +252,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         // player's own club is left to decide for itself.
         let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
         if !is_user_owned
+            && player.squad_role == domain::player::SquadRole::Senior
             && position_depths
                 .get(owner_team_id)
                 .is_some_and(|depths| !crate::squad_floor::can_spare_one(*depths, &player.position))

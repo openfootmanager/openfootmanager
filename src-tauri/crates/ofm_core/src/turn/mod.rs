@@ -188,6 +188,7 @@ fn process_day_common(game: &mut Game, today: &str) {
     transfers::generate_incoming_transfer_offers(game);
     // After every step above that can take a player away from a club — expiry,
     // registrations and the AI market — and the loan returns that opened the day.
+    crate::ai_contracts::apply_ai_squad_planning(game, weekday_num);
     crate::squad_floor::keep_squads_at_the_floor(game);
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);

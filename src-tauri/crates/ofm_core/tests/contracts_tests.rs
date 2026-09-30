@@ -132,12 +132,22 @@ fn make_game() -> Game {
     )
 }
 
-/// Two more forwards on no wage, so the club can let player-1 go without
-/// falling below the squad floor — for tests about the wage policy itself,
-/// which the floor would otherwise overrule. No wage, so the bill is unchanged.
-fn give_forward_depth(game: &mut Game) {
-    for id in ["depth-fwd-1", "depth-fwd-2"] {
-        game.players.push(make_player_with(id, 0, "2030-06-30"));
+/// A sound squad of fifteen seniors on no wage around player-1, so the club
+/// can let any one of its players go without falling below the squad floor —
+/// for tests about the wage policy or a termination itself, which the floor
+/// would otherwise overrule. No wage, so the bill is unchanged.
+fn give_squad_depth(game: &mut Game) {
+    for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+        .into_iter()
+        .zip([2, 5, 5, 3])
+    {
+        for index in 0..count {
+            let id = format!("depth-{group:?}-{index}");
+            let mut player = make_player_with(&id, 0, "2030-06-30");
+            player.position = group.clone();
+            player.natural_position = group.clone();
+            game.players.push(player);
+        }
     }
 }
 
@@ -343,6 +353,7 @@ fn termination_preview_reports_severance_and_squad_safety() {
 #[test]
 fn terminate_contract_now_releases_player_and_charges_severance() {
     let mut game = make_squad_game();
+    give_squad_depth(&mut game);
     let original_finance = game.teams[0].finance;
 
     let result = terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
@@ -1038,7 +1049,7 @@ fn renewal_within_the_wage_policy_is_not_described_as_a_waiver() {
 fn renewal_is_blocked_when_offer_pushes_healthy_club_far_over_soft_cap() {
     let mut game = make_game();
     game.teams[0].wage_budget = 200_000;
-    give_forward_depth(&mut game);
+    give_squad_depth(&mut game);
 
     let err = propose_renewal(
         &mut game,
@@ -1083,7 +1094,7 @@ fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
     game.players[0].wage = 48_000;
     game.players
         .push(make_player_with("player-2", 40_000, "2027-06-30"));
-    give_forward_depth(&mut game);
+    give_squad_depth(&mut game);
 
     let err = propose_renewal(
         &mut game,

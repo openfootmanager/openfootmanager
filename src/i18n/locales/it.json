@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}."
+        "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}.",
+        "wouldLeaveSeniorsShort": "Questo giocatore non può partire: il club resterebbe con meno di {{floor}} giocatori in prima squadra, il minimo che un club deve mantenere."
       },
       "noActiveGameSession": "Nessuna partita attiva",
       "noActiveSaveSession": "Nessuna sessione di salvataggio attiva",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Rosa sotto il minimo: {{group}}",
-        "body": "Mister, ci mancano giocatori. {{group}}: {{have}} tesserati, ma un club deve averne almeno {{floor}}. Ingaggiane altri prima della prossima partita: se al calcio d'inizio saremo ancora corti, dovrò ingaggiare degli svincolati perché la partita si possa giocare."
+        "body": "Mister, ci mancano giocatori. {{group}}: {{have}} tesserati, ma un club deve averne almeno {{floor}}. Portane altri prima della prossima partita: se al calcio d'inizio non potremo schierare una squadra, dovrò promuovere giocatori dal settore giovanile o ingaggiare degli svincolati perché la partita si possa giocare.",
+        "totalSubject": "Rosa sotto la dimensione minima",
+        "totalBody": "Mister, in prima squadra ci restano solo {{have}} giocatori, ma un club deve averne almeno {{floor}} per reggersi. Portane altri prima della prossima partita: se al calcio d'inizio non potremo schierare una squadra, dovrò promuovere giocatori dal settore giovanile o ingaggiare degli svincolati perché la partita si possa giocare."
       },
       "squadToppedUp": {
         "subject": "Ingaggi d'emergenza: {{team}}",
-        "body": "Mister, non avevamo abbastanza giocatori per schierare una squadra, quindi prima del calcio d'inizio ho ingaggiato questi svincolati: {{players}}."
+        "body": "Mister, non avevamo abbastanza giocatori per schierare una squadra, quindi prima del calcio d'inizio ho portato in prima squadra questi giocatori, prima dal settore giovanile e poi tra gli svincolati: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Nessuno disponibile: {{group}}",
+        "body": "Mister, non siamo riusciti a completare la rosa e non c'era nessuno da portare in squadra. {{group}}: {{have}} dei {{floor}} che un club deve mantenere, e né il nostro settore giovanile né il mercato degli svincolati hanno qualcuno per colmare il vuoto.",
+        "totalSubject": "Nessuno disponibile per completare la rosa",
+        "totalBody": "Mister, in prima squadra ci restano solo {{have}} giocatori, meno dei {{floor}} che un club deve mantenere, e né il nostro settore giovanile né il mercato degli svincolati hanno qualcuno per colmare il vuoto."
       },
       "delegatedRenewals": {
         "subject": "Rapporto dell'assistente — Rinnovi contrattuali",

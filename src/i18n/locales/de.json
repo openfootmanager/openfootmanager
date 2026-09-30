@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}."
+        "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",
+        "wouldLeaveSeniorsShort": "Dieser Spieler kann nicht gehen: Der Verein hätte dann weniger als {{floor}} Spieler im Profikader, das Minimum, das ein Verein halten muss."
       },
       "noActiveGameSession": "Keine aktive Spielsitzung",
       "noActiveSaveSession": "Keine aktive Speicherstandsitzung",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Kader unter dem Minimum: {{group}}",
-        "body": "Boss, uns fehlen Spieler. {{group}}: {{have}} gemeldet, ein Verein muss aber mindestens {{floor}} haben. Bitte verpflichte vor unserem nächsten Spiel weitere Spieler – fehlen uns beim Anpfiff immer noch Leute, muss ich vereinslose Spieler verpflichten, damit das Spiel stattfinden kann."
+        "body": "Boss, uns fehlen Spieler. {{group}}: {{have}} gemeldet, ein Verein muss aber mindestens {{floor}} haben. Bitte hol vor unserem nächsten Spiel weitere Spieler – können wir beim Anpfiff keine Mannschaft aufstellen, muss ich Spieler aus der Jugend hochziehen oder vereinslose Spieler verpflichten, damit das Spiel stattfinden kann.",
+        "totalSubject": "Kader unter der Mindestgröße",
+        "totalBody": "Boss, wir haben nur noch {{have}} Spieler im Profikader, ein Verein braucht aber mindestens {{floor}}, um handlungsfähig zu bleiben. Bitte hol vor unserem nächsten Spiel weitere Spieler – können wir beim Anpfiff keine Mannschaft aufstellen, muss ich Spieler aus der Jugend hochziehen oder vereinslose Spieler verpflichten, damit das Spiel stattfinden kann."
       },
       "squadToppedUp": {
         "subject": "Notverpflichtungen: {{team}}",
-        "body": "Boss, wir hatten nicht genug Spieler, um eine Mannschaft aufzustellen, also habe ich vor dem Anpfiff diese vereinslosen Spieler verpflichtet: {{players}}."
+        "body": "Boss, wir hatten nicht genug Spieler, um eine Mannschaft aufzustellen, also habe ich vor dem Anpfiff diese Spieler in den Profikader geholt, zuerst aus der Jugend, dann vereinslose Spieler: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Niemand verfügbar: {{group}}",
+        "body": "Boss, wir konnten keinen vollständigen Kader stellen, und es war niemand zu holen. {{group}}: {{have}} von den {{floor}}, die ein Verein halten muss, und weder unsere Jugend noch der Markt der vereinslosen Spieler hat jemanden, der die Lücke füllt.",
+        "totalSubject": "Niemand verfügbar, um den Kader aufzufüllen",
+        "totalBody": "Boss, wir haben nur noch {{have}} Spieler im Profikader, weniger als die {{floor}}, die ein Verein halten muss, und weder unsere Jugend noch der Markt der vereinslosen Spieler hat jemanden, der die Lücke füllt."
       },
       "delegatedRenewals": {
         "subject": "Assistentenbericht — Vertragsverlängerungen",

@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}."
+        "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}.",
+        "wouldLeaveSeniorsShort": "Bu oyuncu ayrılamaz: kulübün A takımında {{floor}} oyuncudan az kalır, bu da bir kulübün koruması gereken asgari sayıdır."
       },
       "noActiveGameSession": "Aktif oyun oturumu yok",
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Kadro Asgari Sayının Altında: {{group}}",
-        "body": "Hocam, oyuncumuz eksik. {{group}}: {{have}} kayıtlı, oysa bir kulübün en az {{floor}} oyuncusu olmalı. Lütfen bir sonraki maçımızdan önce takviye yapın; başlama vuruşunda hâlâ eksik olursak, maçın oynanabilmesi için serbest oyuncularla sözleşme imzalamak zorunda kalacağım."
+        "body": "Hocam, oyuncumuz eksik. {{group}}: {{have}} kayıtlı, oysa bir kulübün en az {{floor}} oyuncusu olmalı. Lütfen bir sonraki maçımızdan önce takviye yapın; başlama vuruşunda sahaya bir takım çıkaramazsak, maçın oynanabilmesi için altyapıdan oyuncu yükseltmek ya da serbest oyuncularla sözleşme imzalamak zorunda kalacağım.",
+        "totalSubject": "Kadro Asgari Büyüklüğün Altında",
+        "totalBody": "Hocam, A takımda yalnızca {{have}} oyuncumuz kaldı, oysa bir kulübün ayakta kalması için en az {{floor}} oyuncusu olmalı. Lütfen bir sonraki maçımızdan önce takviye yapın; başlama vuruşunda sahaya bir takım çıkaramazsak, maçın oynanabilmesi için altyapıdan oyuncu yükseltmek ya da serbest oyuncularla sözleşme imzalamak zorunda kalacağım."
       },
       "squadToppedUp": {
         "subject": "Acil Transferler: {{team}}",
-        "body": "Hocam, sahaya bir takım çıkaracak kadar oyuncumuz yoktu, bu yüzden başlama vuruşundan önce şu serbest oyuncularla sözleşme imzaladım: {{players}}."
+        "body": "Hocam, sahaya bir takım çıkaracak kadar oyuncumuz yoktu, bu yüzden başlama vuruşundan önce şu oyuncuları A takıma aldım, önce altyapıdan, sonra serbest oyunculardan: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Uygun Oyuncu Yok: {{group}}",
+        "body": "Hocam, kadroyu tamamlayamadık ve alabileceğimiz kimse yoktu. {{group}}: bir kulübün koruması gereken {{floor}} oyuncudan {{have}} tanesi var; ne altyapımızda ne de serbest oyuncu piyasasında bu açığı kapatacak kimse var.",
+        "totalSubject": "Kadroyu Tamamlayacak Oyuncu Yok",
+        "totalBody": "Hocam, A takımda yalnızca {{have}} oyuncumuz kaldı, bu da bir kulübün koruması gereken {{floor}} oyuncunun altında; ne altyapımızda ne de serbest oyuncu piyasasında bu açığı kapatacak kimse var."
       },
       "delegatedRenewals": {
         "subject": "Yardımcı Raporu — Sözleşme Yenilemeleri",

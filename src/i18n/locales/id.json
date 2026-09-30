@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}."
+        "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",
+        "wouldLeaveSeniorsShort": "Pemain ini tidak bisa pergi: klub akan tinggal memiliki kurang dari {{floor}} pemain di tim utama, batas minimum yang harus dipertahankan klub."
       },
       "noActiveGameSession": "Tidak ada sesi permainan yang aktif",
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Skuad di Bawah Minimum: {{group}}",
-        "body": "Bos, kita kekurangan pemain. {{group}}: {{have}} terdaftar, padahal klub harus punya setidaknya {{floor}}. Rekrut pemain lagi sebelum pertandingan berikutnya — kalau saat sepak mula kita masih kekurangan, saya terpaksa mengontrak agen bebas agar pertandingan tetap bisa berjalan."
+        "body": "Bos, kita kekurangan pemain. {{group}}: {{have}} terdaftar, padahal klub harus punya setidaknya {{floor}}. Datangkan pemain lagi sebelum pertandingan berikutnya — kalau saat sepak mula kita tidak bisa menurunkan tim, saya terpaksa menaikkan pemain dari akademi atau mengontrak agen bebas agar pertandingan tetap bisa berjalan.",
+        "totalSubject": "Skuad di Bawah Ukuran Minimum",
+        "totalBody": "Bos, di tim utama kita tinggal {{have}} pemain, padahal klub harus punya setidaknya {{floor}} agar tetap kokoh. Datangkan pemain lagi sebelum pertandingan berikutnya — kalau saat sepak mula kita tidak bisa menurunkan tim, saya terpaksa menaikkan pemain dari akademi atau mengontrak agen bebas agar pertandingan tetap bisa berjalan."
       },
       "squadToppedUp": {
         "subject": "Rekrutan Darurat: {{team}}",
-        "body": "Bos, kita tidak punya cukup pemain untuk menurunkan tim, jadi saya mengontrak agen bebas berikut sebelum sepak mula: {{players}}."
+        "body": "Bos, kita tidak punya cukup pemain untuk menurunkan tim, jadi sebelum sepak mula saya memasukkan pemain berikut ke tim utama, dari akademi dulu lalu dari agen bebas: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Tidak Ada yang Tersedia: {{group}}",
+        "body": "Bos, kita tidak bisa melengkapi skuad dan tidak ada yang bisa didatangkan. {{group}}: {{have}} dari {{floor}} yang harus dipertahankan klub, dan baik akademi kita maupun pasar agen bebas tidak punya siapa pun untuk menutup kekurangan itu.",
+        "totalSubject": "Tidak Ada yang Tersedia untuk Melengkapi Skuad",
+        "totalBody": "Bos, di tim utama kita tinggal {{have}} pemain, kurang dari {{floor}} yang harus dipertahankan klub, dan baik akademi kita maupun pasar agen bebas tidak punya siapa pun untuk menutup kekurangan itu."
       },
       "delegatedRenewals": {
         "subject": "Laporan Asisten — Perpanjangan Kontrak",

@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}."
+        "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",
+        "wouldLeaveSeniorsShort": "Este jugador no puede salir: el club se quedaría con menos de {{floor}} jugadores en la primera plantilla, el mínimo que un club debe mantener."
       },
       "noActiveGameSession": "No hay una sesión de juego activa",
       "noActiveSaveSession": "No hay una sesión de guardado activa",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Plantilla por debajo del mínimo: {{group}}",
-        "body": "Míster, nos faltan jugadores. {{group}}: {{have}} inscritos, y un club debe tener al menos {{floor}}. Ficha a más antes de nuestro próximo partido; si seguimos cortos en el saque inicial, tendré que fichar agentes libres para que el partido pueda jugarse."
+        "body": "Míster, nos faltan jugadores. {{group}}: {{have}} inscritos, y un club debe tener al menos {{floor}}. Trae a más antes de nuestro próximo partido; si no podemos presentar un equipo en el saque inicial, tendré que subir jugadores de la cantera o fichar agentes libres para que el partido pueda jugarse.",
+        "totalSubject": "Plantilla por debajo del tamaño mínimo",
+        "totalBody": "Míster, nos quedan solo {{have}} jugadores en la primera plantilla, y un club debe tener al menos {{floor}} para sostenerse. Trae a más antes de nuestro próximo partido; si no podemos presentar un equipo en el saque inicial, tendré que subir jugadores de la cantera o fichar agentes libres para que el partido pueda jugarse."
       },
       "squadToppedUp": {
         "subject": "Fichajes de urgencia: {{team}}",
-        "body": "Míster, no teníamos jugadores suficientes para presentar un equipo, así que fiché a estos agentes libres antes del saque inicial: {{players}}."
+        "body": "Míster, no teníamos jugadores suficientes para presentar un equipo, así que antes del saque inicial incorporé a la primera plantilla a estos jugadores, primero de la cantera y después agentes libres: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Nadie disponible: {{group}}",
+        "body": "Míster, no pudimos completar la plantilla y no había nadie a quien incorporar. {{group}}: {{have}} de los {{floor}} que un club debe mantener, y ni nuestra cantera ni el mercado de agentes libres tienen a nadie para cubrir el hueco.",
+        "totalSubject": "Nadie disponible para completar la plantilla",
+        "totalBody": "Míster, nos quedan solo {{have}} jugadores en la primera plantilla, menos de los {{floor}} que un club debe mantener, y ni nuestra cantera ni el mercado de agentes libres tienen a nadie para cubrir el hueco."
       },
       "delegatedRenewals": {
         "subject": "Informe del asistente — Renovaciones",

@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}."
+        "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",
+        "wouldLeaveSeniorsShort": "Tento hráč nemůže odejít: klubu by v A-týmu zůstalo méně než {{floor}} hráčů, což je minimum, které musí klub udržet."
       },
       "noActiveGameSession": "Žádná aktivní herní relace",
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Kádr pod minimem: {{group}}",
-        "body": "Šéfe, chybí nám hráči. {{group}}: registrováno {{have}}, přitom klub jich musí mít alespoň {{floor}}. Před dalším zápasem prosím doplňte kádr — pokud nám budou hráči chybět i při výkopu, budu muset podepsat volné hráče, aby se zápas mohl odehrát."
+        "body": "Šéfe, chybí nám hráči. {{group}}: registrováno {{have}}, přitom klub jich musí mít alespoň {{floor}}. Před dalším zápasem prosím doplňte kádr — pokud při výkopu nebudeme moci postavit tým, budu muset povýšit hráče z akademie nebo podepsat volné hráče, aby se zápas mohl odehrát.",
+        "totalSubject": "Kádr pod minimální velikostí",
+        "totalBody": "Šéfe, v A-týmu nám zbývá jen {{have}} hráčů, přitom klub jich musí mít alespoň {{floor}}, aby obstál. Před dalším zápasem prosím doplňte kádr — pokud při výkopu nebudeme moci postavit tým, budu muset povýšit hráče z akademie nebo podepsat volné hráče, aby se zápas mohl odehrát."
       },
       "squadToppedUp": {
         "subject": "Nouzové posily: {{team}}",
-        "body": "Šéfe, neměli jsme dost hráčů, abychom postavili tým, a tak jsem před výkopem podepsal tyto volné hráče: {{players}}."
+        "body": "Šéfe, neměli jsme dost hráčů, abychom postavili tým, a tak jsem před výkopem přesunul do A-týmu tyto hráče, nejprve z akademie a pak z volných hráčů: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Nikdo k dispozici: {{group}}",
+        "body": "Šéfe, nepodařilo se nám doplnit kádr a nebylo koho přivést. {{group}}: {{have}} z {{floor}}, které musí klub udržet, a ani naše akademie, ani trh volných hráčů nemá nikoho, kdo by mezeru zaplnil.",
+        "totalSubject": "Nikdo k dispozici pro doplnění kádru",
+        "totalBody": "Šéfe, v A-týmu nám zbývá jen {{have}} hráčů, méně než {{floor}}, které musí klub udržet, a ani naše akademie, ani trh volných hráčů nemá nikoho, kdo by mezeru zaplnil."
       },
       "delegatedRenewals": {
         "subject": "Zpráva asistenta — Prodloužení smluv",

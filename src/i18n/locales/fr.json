@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}."
+        "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}.",
+        "wouldLeaveSeniorsShort": "Ce joueur ne peut pas partir : le club aurait moins de {{floor}} joueurs dans son effectif professionnel, le minimum qu'un club doit conserver."
       },
       "noActiveGameSession": "Aucune partie active",
       "noActiveSaveSession": "Aucune session de sauvegarde active",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Effectif sous le minimum : {{group}}",
-        "body": "Coach, il nous manque des joueurs. {{group}} : {{have}} inscrits, alors qu'un club doit en compter au moins {{floor}}. Veuillez recruter avant notre prochain match — s'il nous manque encore des joueurs au coup d'envoi, je devrai engager des joueurs libres pour que le match puisse avoir lieu."
+        "body": "Coach, il nous manque des joueurs. {{group}} : {{have}} inscrits, alors qu'un club doit en compter au moins {{floor}}. Veuillez recruter avant notre prochain match — si nous ne pouvons pas aligner une équipe au coup d'envoi, je devrai faire monter des joueurs du centre de formation ou engager des joueurs libres pour que le match puisse avoir lieu.",
+        "totalSubject": "Effectif sous la taille minimale",
+        "totalBody": "Coach, il ne nous reste que {{have}} joueurs dans l'effectif professionnel, alors qu'un club doit en garder au moins {{floor}} pour tenir. Veuillez recruter avant notre prochain match — si nous ne pouvons pas aligner une équipe au coup d'envoi, je devrai faire monter des joueurs du centre de formation ou engager des joueurs libres pour que le match puisse avoir lieu."
       },
       "squadToppedUp": {
         "subject": "Recrutements d'urgence : {{team}}",
-        "body": "Coach, nous n'avions pas assez de joueurs pour aligner une équipe, j'ai donc engagé ces joueurs libres avant le coup d'envoi : {{players}}."
+        "body": "Coach, nous n'avions pas assez de joueurs pour aligner une équipe, j'ai donc intégré ces joueurs à l'effectif professionnel avant le coup d'envoi, d'abord depuis le centre de formation, puis parmi les joueurs libres : {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Personne de disponible : {{group}}",
+        "body": "Coach, nous n'avons pas pu compléter l'effectif et il n'y avait personne à faire venir. {{group}} : {{have}} sur les {{floor}} qu'un club doit conserver, et ni notre centre de formation ni le marché des joueurs libres n'ont de quoi combler le manque.",
+        "totalSubject": "Personne de disponible pour compléter l'effectif",
+        "totalBody": "Coach, il ne nous reste que {{have}} joueurs dans l'effectif professionnel, moins que les {{floor}} qu'un club doit conserver, et ni notre centre de formation ni le marché des joueurs libres n'ont de quoi combler le manque."
       },
       "delegatedRenewals": {
         "subject": "Rapport de l'adjoint — Renouvellements",

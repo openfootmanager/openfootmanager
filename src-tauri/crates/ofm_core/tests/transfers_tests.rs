@@ -198,8 +198,14 @@ fn make_game_with_player(
 fn give_every_club_squad_depth(game: &mut Game) {
     let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
     for team_id in team_ids {
-        for (group, floor) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP {
-            for index in 0..floor {
+        // A senior more than the minimum in every group, sixteen in all: one
+        // player leaving never takes the club below the fifteen-senior floor.
+        let depth = [3, 5, 5, 3];
+        for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+            .into_iter()
+            .zip(depth)
+        {
+            for index in 0..count {
                 let id = format!("depth-{team_id}-{group:?}-{index}");
                 if game.players.iter().any(|player| player.id == id) {
                     continue;
@@ -3932,11 +3938,14 @@ fn a_transfer_between_clubs_outside_every_competition_is_still_kept() {
     );
 }
 
-/// Take `team_id` down to exactly the floor in forwards: the fixture's own
+/// Take `team_id` down to exactly the minimum in forwards: the fixture's own
 /// forward plus one depth forward. Any forward leaving now leaves it short.
 fn leave_club_at_the_forward_floor(game: &mut Game, team_id: &str) {
-    let spare = format!("depth-{team_id}-Forward-1");
-    game.players.retain(|player| player.id != spare);
+    let spares = [
+        format!("depth-{team_id}-Forward-1"),
+        format!("depth-{team_id}-Forward-2"),
+    ];
+    game.players.retain(|player| !spares.contains(&player.id));
 }
 
 const WOULD_LEAVE_SHORT_OF_FORWARDS: &str =
@@ -4051,6 +4060,43 @@ fn squad_floor_a_loan_that_would_leave_the_parent_club_short_is_refused() {
         offer.status != LoanOfferStatus::Accepted
             && offer.status != LoanOfferStatus::PendingRegistration
     }));
+}
+
+/// Given an AI club of seventeen seniors and a buyer with money to burn, when
+/// the buyer bids big for every one of them, then two sales go through and
+/// every later one is refused: the club keeps fifteen, whoever it sells.
+#[test]
+fn squad_floor_a_club_that_sells_aggressively_never_goes_below_fifteen() {
+    let player = make_player("player-sell-all");
+    let mut game = make_game_with_player(player, vec![], 1_000_000_000, 1_000_000_000);
+    let seller_seniors = |game: &Game| {
+        game.players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team-2"))
+            .count()
+    };
+    assert_eq!(seller_seniors(&game), 17);
+    let targets: Vec<String> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team-2"))
+        .map(|p| p.id.clone())
+        .collect();
+
+    let mut sold = 0;
+    let mut refused = 0;
+    for target in targets {
+        match make_transfer_bid(&mut game, &target, 50_000_000) {
+            Ok(outcome) if outcome.decision == TransferNegotiationDecision::Accepted => sold += 1,
+            Ok(_) => {}
+            Err(error) if error.starts_with("be.error.squadFloor.") => refused += 1,
+            Err(error) => panic!("unexpected refusal: {error}"),
+        }
+    }
+
+    assert_eq!(sold, 2);
+    assert_eq!(refused, 15);
+    assert_eq!(seller_seniors(&game), 15);
 }
 
 /// The best target on the market belongs to a club at the floor in his group,

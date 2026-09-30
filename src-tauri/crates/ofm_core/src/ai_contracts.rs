@@ -25,15 +25,14 @@ use crate::contracts::{
     player_age_on, remaining_contract_days,
 };
 use crate::game::Game;
-use crate::squad_floor::{group_floor, others_in_his_group};
+use crate::squad_floor::{
+    PLANNING_MARGIN_PER_GROUP, PLANNING_TARGET_SENIORS, group_floor, other_seniors,
+    others_in_his_group,
+};
 
 /// A contract with this many days or fewer left is one the club decides on.
 /// Half a season: early enough to act on every review day until it is settled.
 const RENEWAL_HORIZON_DAYS: i64 = 183;
-
-/// Letting a player go must leave his position group this far above the squad
-/// floor, or the club keeps him whatever else is true.
-const DEPTH_MARGIN: usize = 1;
 
 /// A player at least as good as the squad's median, and no older than this, is
 /// one the club wants to keep.
@@ -57,6 +56,72 @@ pub(crate) fn apply_ai_contract_decisions(game: &mut Game, weekday_num: u32) {
     }
 }
 
+/// Run every AI club's squad planning that falls on this weekday.
+///
+/// Ordinary management, so the squad floor's emergency top-up has nothing to
+/// do: a club graduates academy players who have outgrown the academy, then
+/// keeps one senior above the minimum in each position group and
+/// [`PLANNING_TARGET_SENIORS`] in all — promoting from its academy first, then
+/// signing free agents the board lets it pay
+/// ([`crate::squad_floor::bring_in_one`], the same source the emergency uses).
+/// Runs after the day's departures so it sees the squad the club actually has.
+pub(crate) fn apply_ai_squad_planning(game: &mut Game, weekday_num: u32) {
+    let current_date = game.clock.current_date.date_naive();
+    for team_id in crate::ai_tactics::ai_clubs_reviewing_on(game, weekday_num) {
+        let Some(team) = game.teams.iter().find(|team| team.id == team_id).cloned() else {
+            continue;
+        };
+        graduate_overage_academy_players(game, &team_id, current_date);
+        plan_squad_depth(game, &team);
+    }
+}
+
+/// An academy player past the academy's age limit joins the senior squad.
+fn graduate_overage_academy_players(game: &mut Game, team_id: &str, current_date: NaiveDate) {
+    for player in game.players.iter_mut() {
+        if player.team_id.as_deref() == Some(team_id)
+            && player.squad_role == domain::player::SquadRole::Youth
+            && player_age_on(current_date, &player.date_of_birth)
+                > crate::roster::YOUTH_ACADEMY_MAX_AGE
+        {
+            player.squad_role = domain::player::SquadRole::Senior;
+        }
+    }
+}
+
+/// Fill each group to one above its minimum, then the squad to the planning
+/// target, thinnest group first, for as long as a source has someone.
+fn plan_squad_depth(game: &mut Game, team: &Team) {
+    use crate::squad_floor::{MIN_PLAYERS_PER_GROUP, bring_in_one, groups_thinnest_first};
+
+    for (group, floor) in MIN_PLAYERS_PER_GROUP {
+        while seniors_in(game, &team.id, Some(&group)) < floor + PLANNING_MARGIN_PER_GROUP {
+            if bring_in_one(game, team, &group).is_none() {
+                break;
+            }
+        }
+    }
+    while seniors_in(game, &team.id, None) < PLANNING_TARGET_SENIORS {
+        let groups = groups_thinnest_first(game, &team.id);
+        if !groups
+            .iter()
+            .any(|group| bring_in_one(game, team, group).is_some())
+        {
+            break;
+        }
+    }
+}
+
+/// Seniors registered to the club, in one group or in all.
+fn seniors_in(game: &Game, team_id: &str, group: Option<&domain::player::Position>) -> usize {
+    game.players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == Some(team_id))
+        .filter(|player| player.squad_role == domain::player::SquadRole::Senior)
+        .filter(|player| group.is_none_or(|group| player.position.to_group_position() == *group))
+        .count()
+}
+
 /// The club's own players (its loaned-out ones included) whose contracts end
 /// within the horizon.
 fn contracts_running_down(game: &Game, team_id: &str, current_date: NaiveDate) -> Vec<usize> {
@@ -75,12 +140,14 @@ fn keeps(game: &Game, team: &Team, player: &Player, current_date: NaiveDate) -> 
     needed_for_depth(game, &team.id, player) || worth_keeping(game, team, player, current_date)
 }
 
-/// Letting him go would leave his group at or too close to the floor, counted
-/// as the floor counts. Whether the club may go over its wage policy to keep
-/// him is not decided here: `renew` asks the one rule every club answers to.
+/// Letting him go would leave the club under what its squad planning aims for
+/// — in his group, or in all — counted as the floor counts. Whether the club
+/// may go over its wage policy to keep him is not decided here: `renew` asks
+/// the one rule every club answers to.
 fn needed_for_depth(game: &Game, team_id: &str, player: &Player) -> bool {
     others_in_his_group(game, team_id, player)
-        < group_floor(&player.position.to_group_position()) + DEPTH_MARGIN
+        < group_floor(&player.position.to_group_position()) + PLANNING_MARGIN_PER_GROUP
+        || other_seniors(game, team_id, player) < PLANNING_TARGET_SENIORS
 }
 
 /// Good enough and young enough to want.
@@ -218,8 +285,9 @@ mod tests {
         team
     }
 
-    /// Two clubs of sixteen — three or more per group, so nobody is needed for
-    /// depth unless a test says so — every contract long, rated 60, aged 26.
+    /// Two clubs of nineteen — one over the planning target, and a senior over
+    /// the planning margin in every group, so nobody is needed for depth unless
+    /// a test says so — every contract long, rated 60, aged 26.
     fn world() -> Game {
         let clock = GameClock::new(
             Utc.with_ymd_and_hms(TODAY.0, TODAY.1, TODAY.2, 12, 0, 0)
@@ -237,9 +305,9 @@ mod tests {
         for club in ["user", "ai"] {
             for (group, count) in [
                 (Position::Goalkeeper, 3),
-                (Position::Defender, 5),
-                (Position::Midfielder, 5),
-                (Position::Forward, 3),
+                (Position::Defender, 6),
+                (Position::Midfielder, 6),
+                (Position::Forward, 4),
             ] {
                 for i in 0..count {
                     players.push(player(
@@ -476,6 +544,127 @@ mod tests {
         assert!(
             star.contract_end.as_deref() > Some(day.format("%Y-%m-%d").to_string().as_str()),
             "his contract was not renewed"
+        );
+    }
+
+    // --- Ordinary squad planning ------------------------------------------------
+
+    fn academy(id: &str, team_id: &str, position: Position, age: i32) -> Player {
+        let mut youngster = player(id, team_id, position, 55, age, 1_000);
+        youngster.squad_role = domain::player::SquadRole::Youth;
+        youngster
+    }
+
+    fn free_agent(id: &str, position: Position, ovr: u8) -> Player {
+        let mut agent = player(id, "ai", position, ovr, 27, 1_000);
+        agent.team_id = None;
+        agent.contract_end = None;
+        agent.wage = 0;
+        agent
+    }
+
+    fn role(game: &Game, id: &str) -> domain::player::SquadRole {
+        game.players.iter().find(|p| p.id == id).unwrap().squad_role
+    }
+
+    fn club_of<'a>(game: &'a Game, id: &str) -> Option<&'a str> {
+        game.players
+            .iter()
+            .find(|p| p.id == id)
+            .and_then(|p| p.team_id.as_deref())
+    }
+
+    /// Given an AI club with a 22-year-old academy player, on its review day he
+    /// graduates to the senior squad — the same age limit that stops a manager
+    /// putting a player over 21 into the academy.
+    #[test]
+    fn an_ai_club_graduates_academy_players_past_the_academy_age() {
+        let mut game = world();
+        game.players
+            .push(academy("graduate", "ai", Position::Midfielder, 22));
+        game.players
+            .push(academy("prospect", "ai", Position::Midfielder, 19));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(role(&game, "graduate"), domain::player::SquadRole::Senior);
+        assert_eq!(role(&game, "prospect"), domain::player::SquadRole::Youth);
+    }
+
+    /// Given an AI club with exactly two senior keepers and an academy keeper,
+    /// on its review day the academy keeper is promoted: one above the floor.
+    #[test]
+    fn an_ai_club_at_the_floor_promotes_youth_to_keep_a_margin() {
+        let mut game = world();
+        game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        game.players
+            .push(academy("young_keeper", "ai", Position::Goalkeeper, 18));
+        game.players
+            .push(free_agent("free_keeper", Position::Goalkeeper, 80));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(
+            role(&game, "young_keeper"),
+            domain::player::SquadRole::Senior
+        );
+        assert_eq!(club_of(&game, "free_keeper"), None, "youth comes first");
+    }
+
+    /// Given an AI club with exactly two senior keepers, no academy keeper, and
+    /// a free-agent keeper within its wage policy, he is signed.
+    #[test]
+    fn an_ai_club_at_the_floor_signs_a_free_agent_it_can_afford() {
+        let mut game = world();
+        game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        game.players
+            .push(free_agent("free_keeper", Position::Goalkeeper, 70));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(club_of(&game, "free_keeper"), Some("ai"));
+    }
+
+    /// The same, but paying him would break the wage policy: he is not signed,
+    /// because the club is at its keeper minimum, not below it.
+    #[test]
+    fn an_ai_club_does_not_break_its_wage_policy_for_a_margin() {
+        let mut game = world();
+        game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        for other in game.players.iter_mut() {
+            if other.team_id.as_deref() == Some("ai") {
+                other.wage = 0;
+            }
+        }
+        let mut costly = free_agent("costly_keeper", Position::Goalkeeper, 85);
+        costly.market_value = 40_000_000;
+        game.players.push(costly);
+        game.teams[1].wage_budget = crate::finances::calc_wages(&game, "ai");
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(club_of(&game, "costly_keeper"), None);
+    }
+
+    /// Given the player's club at its keeper minimum with an academy keeper,
+    /// its review day brings nobody in: the manager decides.
+    #[test]
+    fn the_players_club_is_never_planned_for() {
+        let mut game = world();
+        game.players.retain(|p| p.id != "user_Goalkeeper2");
+        game.players.push(academy(
+            "user_young_keeper",
+            "user",
+            Position::Goalkeeper,
+            18,
+        ));
+        let user_day = crate::ai_tactics::review_weekday("user");
+
+        apply_ai_squad_planning(&mut game, user_day);
+
+        assert_eq!(
+            role(&game, "user_young_keeper"),
+            domain::player::SquadRole::Youth
         );
     }
 

@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "Este jogador não pode sair: o plantel ficaria abaixo do mínimo que um clube tem de manter. Setor afetado: {{group}}."
+        "wouldLeaveShort": "Este jogador não pode sair: o plantel ficaria abaixo do mínimo que um clube tem de manter. Setor afetado: {{group}}.",
+        "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no plantel principal, o mínimo que um clube tem de manter."
       },
       "noActiveGameSession": "Sem sessão de jogo ativa",
       "noActiveSaveSession": "Sem sessão de gravação ativa",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Plantel abaixo do mínimo: {{group}}",
-        "body": "Mister, faltam-nos jogadores. {{group}}: {{have}} inscritos, e um clube tem de ter pelo menos {{floor}}. Contrata mais antes do nosso próximo jogo — se ainda nos faltarem jogadores no pontapé de saída, terei de contratar jogadores livres para que o jogo se possa realizar."
+        "body": "Mister, faltam-nos jogadores. {{group}}: {{have}} inscritos, e um clube tem de ter pelo menos {{floor}}. Traz mais antes do nosso próximo jogo — se não conseguirmos apresentar uma equipa no pontapé de saída, terei de promover jogadores da formação ou contratar jogadores livres para que o jogo se possa realizar.",
+        "totalSubject": "Plantel abaixo do tamanho mínimo",
+        "totalBody": "Mister, restam-nos apenas {{have}} jogadores no plantel principal, e um clube tem de ter pelo menos {{floor}} para se aguentar. Traz mais antes do nosso próximo jogo — se não conseguirmos apresentar uma equipa no pontapé de saída, terei de promover jogadores da formação ou contratar jogadores livres para que o jogo se possa realizar."
       },
       "squadToppedUp": {
         "subject": "Contratações de emergência: {{team}}",
-        "body": "Mister, não tínhamos jogadores suficientes para apresentar uma equipa, por isso contratei estes jogadores livres antes do pontapé de saída: {{players}}."
+        "body": "Mister, não tínhamos jogadores suficientes para apresentar uma equipa, por isso, antes do pontapé de saída, integrei no plantel principal estes jogadores, primeiro da formação e depois jogadores livres: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Ninguém disponível: {{group}}",
+        "body": "Mister, não conseguimos completar o plantel e não havia ninguém para trazer. {{group}}: {{have}} dos {{floor}} que um clube tem de manter, e nem a nossa formação nem o mercado de jogadores livres têm alguém para preencher a lacuna.",
+        "totalSubject": "Ninguém disponível para completar o plantel",
+        "totalBody": "Mister, restam-nos apenas {{have}} jogadores no plantel principal, menos do que os {{floor}} que um clube tem de manter, e nem a nossa formação nem o mercado de jogadores livres têm alguém para preencher a lacuna."
       },
       "delegatedRenewals": {
         "subject": "Relatório do adjunto — Renovações contratuais",

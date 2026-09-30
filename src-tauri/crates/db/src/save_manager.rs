@@ -2522,9 +2522,13 @@ mod tests {
             "Town Ground".to_string(),
             10_000,
         ));
+        // Both clubs sound: 2/5/5/3, fifteen seniors.
         for team_id in ["team-001", "team-002"] {
-            for (group, floor) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP {
-                for index in 0..floor {
+            for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+                .into_iter()
+                .zip([2, 5, 5, 3])
+            {
+                for index in 0..count {
                     let mut player = make_opening_repair_player(
                         &format!("{team_id}-{group:?}-{index}"),
                         group.clone(),

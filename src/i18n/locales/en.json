@@ -2554,7 +2554,8 @@
   "be": {
     "error": {
       "squadFloor": {
-        "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}."
+        "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
+        "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
       },
       "noActiveGameSession": "No active game session",
       "noActiveSaveSession": "No active save session",
@@ -3238,11 +3239,19 @@
       },
       "squadBelowFloor": {
         "subject": "Squad Below the Minimum: {{group}}",
-        "body": "Boss, we are short of players. {{group}}: {{have}} registered, and a club must keep at least {{floor}}. Please sign more before our next match — if we are still short at kick-off, I will have to sign free agents so the match can go ahead."
+        "body": "Boss, we are short of players. {{group}}: {{have}} registered, and a club must keep at least {{floor}}. Please bring more in before our next match — if we cannot field a side at kick-off, I will have to bring players up from the academy or sign free agents so the match can go ahead.",
+        "totalSubject": "Squad Below the Minimum Size",
+        "totalBody": "Boss, we are down to {{have}} senior players, and a club must keep at least {{floor}} to stay sound. Please bring more in before our next match — if we cannot field a side at kick-off, I will have to bring players up from the academy or sign free agents so the match can go ahead."
       },
       "squadToppedUp": {
         "subject": "Emergency Signings: {{team}}",
-        "body": "Boss, we did not have enough players to field a side, so I signed these free agents before kick-off: {{players}}."
+        "body": "Boss, we did not have enough players to field a side, so before kick-off I brought these players into the first-team squad, from the academy first and then the free-agent market: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "No One Available: {{group}}",
+        "body": "Boss, we could not field a full squad and there was nobody to bring in. {{group}}: {{have}} of the {{floor}} a club must keep, and neither our academy nor the free-agent market has anyone to fill the gap.",
+        "totalSubject": "No One Available to Complete the Squad",
+        "totalBody": "Boss, we are down to {{have}} senior players, below the {{floor}} a club must keep, and neither our academy nor the free-agent market has anyone to fill the gap."
       },
       "delegatedRenewals": {
         "subject": "Assistant Report — Contract Renewals",

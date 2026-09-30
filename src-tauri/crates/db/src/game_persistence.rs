@@ -364,6 +364,7 @@ impl GamePersistenceReader {
                 conn,
             )?),
             cash_journal_dirty_ids: Vec::new(),
+            squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
         // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done

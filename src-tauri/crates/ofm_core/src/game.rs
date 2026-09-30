@@ -141,6 +141,13 @@ pub struct Game {
     /// `persist_active_game`.
     #[serde(skip)]
     pub cash_journal_dirty_ids: Vec<String>,
+    /// Every emergency squad top-up this session made
+    /// ([`crate::squad_floor::restore_minimum_squad`]). A diagnostic, not game
+    /// state: never saved or sent over IPC, so a loaded game starts it empty.
+    /// Ordinary squad planning should leave it empty for AI clubs; tests and
+    /// the season harness read it to check that it does.
+    #[serde(skip)]
+    pub squad_floor_top_ups: Vec<crate::squad_floor::SquadFloorTopUp>,
 }
 
 impl Game {
@@ -182,6 +189,7 @@ impl Game {
             package_lockfile: vec![],
             cash_journal: CashJournal::default(),
             cash_journal_dirty_ids: Vec::new(),
+            squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);

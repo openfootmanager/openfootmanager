@@ -44,7 +44,7 @@ use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
 const OPENING_YOUTH_ACADEMY_SIZE: usize = 3;
-const OPENING_YOUTH_MAX_AGE: i32 = 21;
+use crate::roster::YOUTH_ACADEMY_MAX_AGE as OPENING_YOUTH_MAX_AGE;
 const AVAILABLE_STAFF_MARKET_ROTATION_DAYS: i64 = 30;
 
 fn standard_available_staff_roles() -> [StaffRole; 12] {
@@ -333,23 +333,6 @@ pub fn generate_national_team_player(
         slot,
         &nationality,
         opening_year,
-        &names_def,
-        &mut rng,
-    );
-    as_free_agent(player)
-}
-
-/// A senior free agent of the given position group — for a club that has to
-/// sign one and finds nobody suitable on the market. See `squad_floor`.
-pub fn generate_free_agent(group: &Position, nationality: &str, year: u32) -> Player {
-    let mut rng = rand::rng();
-    let names_def = default_names_definition();
-    let nationality = generation::canonicalize_generated_nationality(nationality);
-    let player = generate_random_player_from_def(
-        "free-agent",
-        senior_slot_for(group),
-        &nationality,
-        year,
         &names_def,
         &mut rng,
     );

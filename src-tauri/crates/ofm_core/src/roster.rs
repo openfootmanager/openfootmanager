@@ -9,6 +9,12 @@ use crate::game::Game;
 use domain::player::Player;
 use domain::team::Team;
 
+/// The oldest a player may be and still play in a club's youth academy. A
+/// manager cannot put an older player there; an AI club promotes its academy
+/// players out of it once they pass it; the generator seeds opening academies
+/// from players no older.
+pub const YOUTH_ACADEMY_MAX_AGE: i32 = 21;
+
 /// Decide which jersey number `player` should wear at `team`.
 ///
 /// * If the player's current jersey is free at `team`, returns it (no churn).
