@@ -328,7 +328,7 @@ export function parseRating(v: string): number | null {
 export const WIRE_MAX = {
   /** `u8`: condition, morale and weak foot. */
   u8: 255,
-  /** `u32`: wage, contract length, and a career entry's season and counts. */
+  /** `u32`: age, wage, contract length, and a career entry's season and counts. */
   u32: 4_294_967_295,
   /** `u64` held to what a JavaScript number represents exactly: market value. */
   safe: Number.MAX_SAFE_INTEGER,

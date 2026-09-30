@@ -122,6 +122,18 @@ describe("PlayerForm age", () => {
     expect(updateField).toHaveBeenLastCalledWith("age", null);
   });
 
+  it("holds an age to what its field stores, which is wider than a byte", () => {
+    // Age is a u32 in the package, so 300 is a value that loads; capping it at 255
+    // would change what the author typed without telling them.
+    const { updateField } = renderForm({ age: 25 });
+
+    fireEvent.change(numberField("worldEditor.playerAge"), { target: { value: "300" } });
+    expect(updateField).toHaveBeenLastCalledWith("age", 300);
+
+    fireEvent.change(numberField("worldEditor.playerAge"), { target: { value: "99999999999" } });
+    expect(updateField).toHaveBeenLastCalledWith("age", WIRE_MAX.u32);
+  });
+
   it("does not touch the date of birth when an age is typed", () => {
     // Which of the two wins is generation's rule. Clearing one here when the other
     // is typed would be a second copy of it, so the form just writes what it is given.

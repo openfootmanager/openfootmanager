@@ -252,7 +252,7 @@ export function PlayerForm({
             help={t("worldEditor.playerAgeHelp")}
             value={editing.age?.toString() ?? ""}
             type="number"
-            onChange={(v) => updateField("age", parseOptionalWhole(v, WIRE_MAX.u8))}
+            onChange={(v) => updateField("age", parseOptionalWhole(v, WIRE_MAX.u32))}
           />
 
           <div className="flex items-center gap-2 py-1">
