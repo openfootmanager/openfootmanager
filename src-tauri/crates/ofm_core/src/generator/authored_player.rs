@@ -131,6 +131,13 @@ const CAREER_ENTRY_NEEDS_CLUB: &str = "be.error.package.careerEntryNeedsClub";
 /// and it sits comfortably inside the signed 64-bit column the game stores it in.
 const MAX_AUTHORED_VALUE: u64 = 9_007_199_254_740_991;
 
+/// Whether the author said anything about this player's contract. Only then is the
+/// contract theirs to keep: a player written with no contract fields is given one by
+/// generation, and is as subject to the opening cap as any generated player.
+pub(super) fn authors_a_contract(def: &PlayerDef) -> bool {
+    def.contract_start.is_some() || def.contract_end.is_some() || def.contract_length.is_some()
+}
+
 /// The years a career entry's season may name. Four digits, because the season is
 /// shown and compared as a calendar year; 0 is what a blank row in the editor holds,
 /// and is refused so that it reads as unfinished rather than as a real year.

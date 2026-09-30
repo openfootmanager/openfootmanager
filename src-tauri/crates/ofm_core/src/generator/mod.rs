@@ -90,7 +90,8 @@ fn normalized_wage_budget(weekly_wage_bill: i64, reputation: u32) -> i64 {
 ///
 /// `authored_ids` are exempt: neither moved nor counted. The cap is there to tame a
 /// *generated* squad, and a package author who writes four contracts ending the
-/// first summer has said so. It has to be told who they are, because
+/// first summer has said so. Only a player whose contract the author wrote belongs
+/// here; one written with no contract fields is given one by generation and is capped. It has to be told who they are, because
 /// `build_package_club` runs this again after swapping authored players in.
 fn normalize_opening_contracts(
     players: &mut [Player],
@@ -943,7 +944,9 @@ fn build_package_club(
     let mut authored_ids = HashSet::new();
     for def in authored {
         let authored_player = generate_player_from_def(def, &team.id, opening_year, names_def, rng);
-        authored_ids.insert(authored_player.id.clone());
+        if authored_player::authors_a_contract(def) {
+            authored_ids.insert(authored_player.id.clone());
+        }
         let group = authored_player.position.to_group_position();
         let slot = players
             .iter()
@@ -2014,6 +2017,44 @@ mod tests {
                 "a {opening_year} package lost {} of four authored contracts ending \
                  {first_summer} to the opening cap",
                 4 - kept
+            );
+        }
+    }
+
+    /// An author who wrote no contract has not said anything about it, so those
+    /// players are as subject to the cap as generated ones. Exempting every authored
+    /// player would let a package of real people, with no contract fields, open a
+    /// club with most of its squad expiring in the first summer.
+    #[test]
+    fn authored_players_who_wrote_no_contract_are_still_capped() {
+        for opening_year in [HISTORICAL_OPENING_YEAR, TEST_OPENING_YEAR] {
+            let first_summer = format!("{}-06-30", opening_year + 1);
+            let authored: Vec<package::PlayerDef> = (0..40)
+                .map(|index| {
+                    serde_json::from_value(serde_json::json!({
+                        "id": format!("authored-{index}"),
+                        "firstName": "Authored",
+                        "lastName": format!("Authored{index}"),
+                        "club": "fc-test",
+                        "nationality": "ENG",
+                        "position": "Striker",
+                        "dateOfBirth": "1990-05-01",
+                        "overall": 70,
+                    }))
+                    .expect("the fixture deserializes")
+                })
+                .collect();
+
+            let players = build_test_package_club_in_year(&authored, opening_year);
+
+            let expiring = players
+                .iter()
+                .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                .count();
+            assert!(
+                expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
+                "a {opening_year} club opened with {expiring} contracts ending {first_summer}; \
+                 the cap is {MAX_OPENING_EXPIRING_CONTRACTS}"
             );
         }
     }
