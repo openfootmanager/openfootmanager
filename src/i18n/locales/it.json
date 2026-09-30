@@ -2840,16 +2840,6 @@
         "exportedName": "Mondo esportato",
         "exportedDescription": "Mondo con {{teamCount}} squadre esportato da una partita salvata"
       },
-      "welcome": {
-        "subject0": "Benvenuto al {{team}}",
-        "subject1": "Nuova era al {{team}}",
-        "subject2": "{{team}} attende la tua leadership",
-        "body0": "Il consiglio di amministrazione del {{team}} è lieto di darti il benvenuto come nuovo allenatore.\n\nRiponiamo grandi speranze nel tuo incarico e crediamo che tu possa portare questo club alla gloria. Il tuo primo compito sarà valutare la rosa e preparare un piano tattico per la prossima stagione.\n\nTi auguriamo il meglio.",
-        "body1": "A nome di tutta la famiglia del {{team}}, siamo entusiasti di annunciare la tua nomina come allenatore.\n\nI tifosi non vedono l'ora di vedere la tua visione per la squadra. Prenditi il tempo per valutare la rosa, rivedere la nostra situazione finanziaria e definire il tuo approccio tattico.\n\nLa dirigenza è con te.",
-        "body2": "Benvenuto al {{team}}! Tifosi e staff sono entusiasti del futuro sotto la tua guida.\n\nTi consigliamo di iniziare valutando punti di forza e debolezza della rosa, poi impostare la tua formazione preferita e il tuo regime di allenamento.\n\nLa prossima stagione sarà una vera prova: rendici orgogliosi.",
-        "actionReview": "Rivedi rosa",
-        "actionThank": "Ringrazia la dirigenza"
-      },
       "matchResult": {
         "subject": {
           "victory": "Vittoria: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
@@ -2895,12 +2885,6 @@
       "intlCallup": {
         "subject": "Convocazione in nazionale — {{player}}",
         "body": "{{player}} è stato convocato dalla nazionale di {{nationality}} per la prossima finestra internazionale.\n\nÈ un grande onore per il giocatore e riflette positivamente anche sul club. Tornerà di buon umore, ma conviene tenere d'occhio il suo livello di fatica."
-      },
-      "schedule": {
-        "subject": "Calendario stagionale pubblicato",
-        "body0": "Il calendario della {{league}} è stato pubblicato. La stagione inizierà il {{start}}.\n\nControlla l'elenco delle partite e assicurati che la tua rosa sia pronta per le sfide che ti aspettano. La preparazione precampionato sarà cruciale.",
-        "body1": "Calendario confermato! La stagione della {{league}} inizia il {{start}}.\n\nStudia attentamente le prime partite: un buon avvio può dare il tono all'intera annata. Assicurati che i tuoi giocatori chiave siano in condizione.",
-        "actionView": "Vedi calendario"
       },
       "preMatch": {
         "subject": "Prossima: vs {{opponent}} ({{venue}})",

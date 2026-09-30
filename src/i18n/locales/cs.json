@@ -2840,22 +2840,6 @@
         "exportedName": "Exportovaný svět",
         "exportedDescription": "Svět s {{teamCount}} týmy exportovaný z uložené hry"
       },
-      "welcome": {
-        "subject0": "Vítejte v týmu {{team}}",
-        "subject1": "Nová éra v týmu {{team}}",
-        "subject2": "{{team}} čeká na vaše vedení",
-        "body0": "Představenstvo klubu {{team}} vás s potěšením vítá jako nového manažera.\n\nDo vašeho působení vkládáme velké naděje a věříme, že dokážete tento klub dovést ke slávě. Vaším prvním úkolem bude zhodnotit kádr a připravit taktický plán na nadcházející sezónu.\n\nPřejeme vám hodně štěstí.",
-        "body1": "Jménem celé rodiny {{team}} s nadšením oznamujeme vaše jmenování do funkce manažera.\n\nFanoušci se už nemohou dočkat, až uvidí vaši vizi. Věnujte prosím čas posouzení kádru, kontrole naší finanční situace a nastavení taktického přístupu.\n\nPředstavenstvo stojí za vámi.",
-        "body2": "Vítejte v týmu {{team}}! Fanoušci i zaměstnanci jsou nadšeni z budoucnosti pod vaším vedením.\n\nDoporučujeme začít analýzou silných a slabých stránek vašeho kádru, a poté nastavit preferované rozestavení a tréninkový režim.\n\nNadcházející sezónu prověří skutečná zkouška — buďme na vás hrdí.",
-        "actionReview": "Zkontrolovat kádr",
-        "actionThank": "Poděkovat představenstvu"
-      },
-      "schedule": {
-        "subject": "Rozpis sezóny byl zveřejněn",
-        "body0": "Rozpis soutěže {{league}} byl zveřejněn. Sezóna odstartuje {{start}}.\n\nProhlédněte si seznam zápasů a ujistěte se, že je váš kádr připraven na nadcházející výzvy. Předsezónní příprava bude klíčová.",
-        "body1": "Seznam zápasů potvrzen! Sezóna soutěže {{league}} začíná {{start}}.\n\nPečlivě si prostudujte úvodní utkání — silný start může udávat tón celé kampani. Ujistěte se, že jsou vaši klíčoví hráči v zápasové kondici.",
-        "actionView": "Zobrazit zápasy"
-      },
       "preMatch": {
         "subject": "Nadcházející zápas: vs {{opponent}} ({{venue}})",
         "body0": "Váš zápas na stadionu {{venue}} proti týmu {{opponent}} se blíží, hraje se {{matchDate}}.\n\nJde o {{matchday}}. zápasový den v Premier Division. Ujistěte se, že je vaše základní XI v dobré kondici a taktika je nastavena.\n\nVyužijte herní prostředí na stadionu {{venue}} na maximum.",

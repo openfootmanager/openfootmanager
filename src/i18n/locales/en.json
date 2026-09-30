@@ -2840,22 +2840,6 @@
         "exportedName": "Exported World",
         "exportedDescription": "World with {{teamCount}} teams exported from saved game"
       },
-      "welcome": {
-        "subject0": "Welcome to {{team}}",
-        "subject1": "New Era at {{team}}",
-        "subject2": "{{team}} Awaits Your Leadership",
-        "body0": "The board of directors at {{team}} is delighted to welcome you as the new manager.\n\nWe have high hopes for your tenure and believe you can lead this club to glory. Your first task will be to review the squad and prepare a tactical plan for the upcoming season.\n\nWe wish you the best of luck.",
-        "body1": "On behalf of the entire {{team}} family, we are thrilled to announce your appointment as manager.\n\nThe fans are eager to see your vision for the team. Please take time to assess the squad, review our financial position, and set your tactical approach.\n\nThe board stands behind you.",
-        "body2": "Welcome to {{team}}! The supporters and staff are excited about the future under your guidance.\n\nWe recommend you start by reviewing your squad's strengths and weaknesses, then set up your preferred formation and training regime.\n\nThe upcoming season will be a true test — make us proud.",
-        "actionReview": "Review Squad",
-        "actionThank": "Thank the Board"
-      },
-      "schedule": {
-        "subject": "Season Schedule Released",
-        "body0": "The {{league}} schedule has been released. The season kicks off on {{start}}.\n\nReview the fixture list and ensure your squad is ready for the challenges ahead. Pre-season preparation will be crucial.",
-        "body1": "Fixture list confirmed! The {{league}} season begins on {{start}}.\n\nStudy the opening fixtures carefully — a strong start can set the tone for the whole campaign. Make sure your key players are match-fit.",
-        "actionView": "View Fixtures"
-      },
       "preMatch": {
         "subject": "Upcoming: vs {{opponent}} ({{venue}})",
         "body0": "Your {{venue}} match against {{opponent}} is coming up on {{matchDate}}.\n\nMatchday {{matchday}} of the Premier Division. Make sure your starting XI is in good shape and your tactics are set.\n\nMake the most of playing at {{venue}}.",

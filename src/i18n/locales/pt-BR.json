@@ -2840,22 +2840,6 @@
         "exportedName": "Mundo Exportado",
         "exportedDescription": "Mundo com {{teamCount}} times exportado de um jogo salvo"
       },
-      "welcome": {
-        "subject0": "Bem-vindo ao {{team}}",
-        "subject1": "Nova Era no {{team}}",
-        "subject2": "{{team}} Aguarda Sua Liderança",
-        "body0": "A diretoria do {{team}} tem o prazer de recebê-lo como novo treinador.\n\nTemos grandes expectativas para sua gestão e acreditamos que você pode levar este clube à glória. Sua primeira tarefa será revisar o elenco e preparar um plano tático para a próxima temporada.\n\nDesejamos a você a melhor sorte.",
-        "body1": "Em nome de toda a família {{team}}, estamos entusiasmados em anunciar sua nomeação como treinador.\n\nOs torcedores estão ansiosos para ver sua visão para o time. Reserve um tempo para avaliar o elenco, revisar nossa posição financeira e definir sua abordagem tática.\n\nA diretoria está com você.",
-        "body2": "Bem-vindo ao {{team}}! Os torcedores e a equipe estão empolgados com o futuro sob sua orientação.\n\nRecomendamos que comece revisando os pontos fortes e fracos do seu elenco, e depois configure sua formação e regime de treino preferidos.\n\nA próxima temporada será um verdadeiro teste — nos faça orgulhosos.",
-        "actionReview": "Revisar Elenco",
-        "actionThank": "Agradecer à Diretoria"
-      },
-      "schedule": {
-        "subject": "Calendário da Temporada Divulgado",
-        "body0": "O calendário da {{league}} foi divulgado. A temporada começa em {{start}}.\n\nRevise a lista de jogos e certifique-se de que seu elenco está pronto para os desafios que vêm pela frente. A preparação de pré-temporada será crucial.",
-        "body1": "Tabela de jogos confirmada! A temporada da {{league}} começa em {{start}}.\n\nEstude cuidadosamente os primeiros jogos — um bom começo pode definir o tom de toda a campanha. Garanta que seus jogadores-chave estejam em forma.",
-        "actionView": "Ver Calendário"
-      },
       "preMatch": {
         "subject": "Próximo: vs {{opponent}} ({{venue}})",
         "body0": "Seu jogo de {{venue}} contra o {{opponent}} se aproxima em {{matchDate}}.\n\nRodada {{matchday}} da Primeira Divisão. Certifique-se de que seu time titular está em boa forma e suas táticas estão definidas.\n\nAproveite ao máximo jogar em {{venue}}.",

@@ -2840,22 +2840,6 @@
         "exportedName": "Dunia yang Diekspor",
         "exportedDescription": "Dunia dengan {{teamCount}} tim yang diekspor dari permainan tersimpan"
       },
-      "welcome": {
-        "subject0": "Selamat Datang di {{team}}",
-        "subject1": "Era Baru di {{team}}",
-        "subject2": "{{team}} Menanti Kepemimpinan Kamu",
-        "body0": "Dewan direksi di {{team}} dengan senang hati menyambut kamu sebagai manajer baru.\n\nKami memiliki harapan tinggi terhadap masa jabatan kamu dan yakin kamu dapat membawa klub ini meraih kejayaan. Tugas pertama kamu adalah meninjau skuad dan menyiapkan rencana taktis untuk musim mendatang.\n\nKami mendoakan yang terbaik untuk kamu.",
-        "body1": "Atas nama seluruh keluarga {{team}}, kami dengan bangga mengumumkan penunjukan kamu sebagai manajer.\n\nPara pendukung tidak sabar untuk melihat visi kamu bagi tim. Luangkan waktu untuk menilai skuad, meninjau posisi keuangan, dan menentukan pendekatan taktis kamu.\n\nManajemen berdiri di belakang kamu.",
-        "body2": "Selamat datang di {{team}}! Para pendukung dan staf sangat antusias dengan masa depan di bawah arahan kamu.\n\nKami menyarankan kamu untuk mulai dengan meninjau kekuatan dan kelemahan skuad, lalu menyiapkan formasi dan program latihan yang kamu inginkan.\n\nMusim mendatang akan menjadi ujian sesungguhnya — buat kami bangga.",
-        "actionReview": "Tinjau Skuad",
-        "actionThank": "Berterima Kasih kepada Manajemen"
-      },
-      "schedule": {
-        "subject": "Jadwal Musim Dirilis",
-        "body0": "Jadwal {{league}} telah dirilis. Musim akan dimulai pada {{start}}.\n\nTinjau daftar pertandingan dan pastikan skuad kamu siap menghadapi tantangan ke depan. Persiapan pramusim akan sangat penting.",
-        "body1": "Daftar pertandingan terkonfirmasi! Musim {{league}} dimulai pada {{start}}.\n\nPelajari jadwal awal dengan saksama — awal yang kuat dapat menentukan arah seluruh musim. Pastikan pemain kunci kamu dalam kondisi prima.",
-        "actionView": "Lihat Jadwal"
-      },
       "preMatch": {
         "subject": "Segera: vs {{opponent}} ({{venue}})",
         "body0": "Pertandingan {{venue}} kamu melawan {{opponent}} akan berlangsung pada {{matchDate}}.\n\nPekan {{matchday}} Divisi Premier. Pastikan Starting XI kamu dalam kondisi prima dan taktik sudah disiapkan.\n\nManfaatkan sebaik mungkin bermain di {{venue}}.",

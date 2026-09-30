@@ -2,7 +2,6 @@ mod match_messages;
 pub use match_messages::{match_result_message, pre_match_message};
 
 use domain::message::*;
-use rand::RngExt;
 use std::collections::HashMap;
 
 /// Helper to build a HashMap<String, String> from key-value pairs.
@@ -22,77 +21,6 @@ fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> Me
         resolved: false,
         label_key: Some(label_key.to_string()),
     }
-}
-
-/// Message template system — generates rich messages with variations.
-pub fn welcome_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
-    let mut rng = rand::rng();
-    let idx = rng.random_range(0..3);
-
-    InboxMessage::new(
-        "welcome_1".to_string(),
-        String::new(),
-        String::new(),
-        String::new(),
-        date.to_string(),
-    )
-    .with_category(MessageCategory::Welcome)
-    .with_priority(MessagePriority::High)
-    .with_sender_role("")
-    .with_action(action(
-        "review_squad",
-        "",
-        "be.msg.welcome.actionReview",
-        ActionType::NavigateTo {
-            route: "/dashboard?tab=Squad".to_string(),
-        },
-    ))
-    .with_action(action(
-        "ack_welcome",
-        "",
-        "be.msg.welcome.actionThank",
-        ActionType::Acknowledge,
-    ))
-    .with_context(MessageContext {
-        team_id: Some(team_id.to_string()),
-        ..Default::default()
-    })
-    .with_i18n(
-        &format!("be.msg.welcome.subject{}", idx),
-        &format!("be.msg.welcome.body{}", idx),
-        params(&[("team", team_name)]),
-    )
-    .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman")
-}
-
-pub fn season_schedule_message(league_name: &str, season_start: &str, date: &str) -> InboxMessage {
-    let mut rng = rand::rng();
-    let idx = rng.random_range(0..2);
-
-    InboxMessage::new(
-        "season_1".to_string(),
-        String::new(),
-        String::new(),
-        String::new(),
-        date.to_string(),
-    )
-    .with_category(MessageCategory::LeagueInfo)
-    .with_priority(MessagePriority::Normal)
-    .with_sender_role("")
-    .with_action(action(
-        "view_schedule",
-        "",
-        "be.msg.schedule.actionView",
-        ActionType::NavigateTo {
-            route: "/dashboard?tab=Schedule".to_string(),
-        },
-    ))
-    .with_i18n(
-        "be.msg.schedule.subject",
-        &format!("be.msg.schedule.body{}", idx),
-        params(&[("league", league_name), ("start", season_start)]),
-    )
-    .with_sender_i18n("be.sender.leagueOffice", "be.role.competitionSecretary")
 }
 
 pub fn staff_advice_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
