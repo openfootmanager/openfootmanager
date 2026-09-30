@@ -404,6 +404,7 @@ fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry
         if crate::generator::opening_player_age(&player.date_of_birth, season as i32)
             .is_some_and(|age| age < MIN_SENIOR_CAREER_AGE)
         {
+            player.stats = PlayerSeasonStats::default();
             continue;
         }
 
@@ -854,6 +855,42 @@ mod tests {
         generate_past_world_history(&mut game, 2032, 12);
 
         assert_eq!(career_seasons(&game, "player-1"), vec![2029, 2030, 2031]);
+    }
+
+    #[test]
+    fn underage_imported_stats_cannot_win_first_backfilled_season_awards() {
+        let mut game = make_game();
+        let player = &mut game.players[0];
+        player.date_of_birth = "2015-03-15".to_string(); // 16 at the 2031 season start.
+        player.stats.appearances = 38;
+        player.stats.goals = 999;
+        player.career.push(CareerEntry {
+            season: 2031,
+            team_id: player.team_id.clone().expect("club"),
+            team_name: "Club 1".to_string(),
+            appearances: 38,
+            goals: 999,
+            assists: 0,
+        });
+
+        generate_past_world_history(&mut game, 2032, 1);
+
+        let first_season_awards = game
+            .world_history
+            .season_awards
+            .iter()
+            .find(|awards| awards.season == 2031)
+            .expect("first backfilled season awards");
+        assert_ne!(
+            first_season_awards
+                .golden_boot
+                .as_ref()
+                .expect("winner")
+                .player_id,
+            "player-1"
+        );
+        assert_eq!(career_seasons(&game, "player-1"), vec![2031]);
+        assert_eq!(game.players[0].career[0].goals, 999);
     }
 
     #[test]
