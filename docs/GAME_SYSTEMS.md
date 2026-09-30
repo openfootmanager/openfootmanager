@@ -571,9 +571,9 @@ cost can be attached to it later. No money moves today.
 `apply_youth_intake` then brings the planned youngsters in, drawn at 15–17 (a birth late in the
 year makes some 14 by the 1 July count), on a youth contract that starts that day, with a free
 shirt number. The draw is seeded from the club and the season, so a
-replayed season end takes in the same youngsters. It runs in the season end's squad turnover, after
-aging and retirements and before every AI club rebuilds its squad, so a club plans with the
-academy it will start the new season with. The player's club is told who joined
+replayed season end takes in the same youngsters. It runs last in the season end's squad turnover,
+after aging, retirements and every AI club's rebuild, so the rebuild cannot promote a youngster on
+the day he joins. The player's club is told who joined
 (`be.msg.youthIntake`).
 
 Measured on a seeded compact world with a league: the world opens below the intake's equilibrium,
