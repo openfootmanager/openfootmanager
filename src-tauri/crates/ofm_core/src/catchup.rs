@@ -319,6 +319,18 @@ pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
         repaired += resolved;
     }
 
+    if repaired > 0 {
+        // The repair rewrote `competitions`, and `game.league` is a *mirror* of the user's — the one
+        // the home dashboard reads for the next match and the league table. Left un-synced it shows
+        // the player a fixture that has just been played as still to come, above a table that
+        // predates it. `read_game` syncs the mirror before this runs, which is exactly why it has to
+        // be synced again after.
+        //
+        // Guarded on `repaired > 0` because syncing is not free (it clones a competition) and a load
+        // that found nothing stranded has not moved anything for the mirror to fall behind.
+        game.sync_legacy_league();
+    }
+
     repaired
 }
 
@@ -458,6 +470,46 @@ mod tests {
                 .iter()
                 .all(|entry| entry.played == 1),
             "the table records the match that was missing from it"
+        );
+    }
+
+    /// **Given** a save whose user league has a fixture stranded in the past, and whose legacy
+    /// mirror holds the pre-repair copy of it, **when** the fixtures are repaired, **then** the
+    /// mirror shows the repaired fixture too.
+    ///
+    /// `game.league` is a mirror of the user's competition and the home dashboard reads it for the
+    /// next match and the league position. The repair rewrites `competitions`; `read_game` syncs the
+    /// mirror *before* that happens, so without a sync afterwards the dashboard shows a fixture that
+    /// has just been played as still to come, above a table that predates it.
+    #[test]
+    fn repairing_competitions_keeps_the_legacy_mirror_in_step() {
+        let mut game = game_on("2030-09-01");
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("home".to_string());
+        game.manager = manager;
+
+        let stranded = league_with_fixture_on("2030-08-10");
+        game.competitions = vec![stranded.clone()];
+        // As `read_game` leaves it: a mirror of the competition, synced before the repair runs.
+        game.league = Some(stranded);
+
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 1);
+
+        let mirror = game.league.as_ref().expect("the mirror is still there");
+        assert_eq!(
+            mirror.fixtures[0].status,
+            FixtureStatus::Completed,
+            "the dashboard reads the mirror, so it must show the repaired fixture"
+        );
+        assert!(
+            mirror.standings.iter().all(|entry| entry.played == 1),
+            "and the table behind it, not the one from before the repair"
         );
     }
 
