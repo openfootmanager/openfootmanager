@@ -2551,9 +2551,14 @@ mod tests {
 
         for player in settled.players.iter_mut() {
             if player.id.starts_with("team-002-Goalkeeper") {
+                // Released: his contract ends, which is a movement, not an edit.
+                player
+                    .record_movement(domain::player::PlayerMovementEntry::new(
+                        "2026-07-01",
+                        domain::player::PlayerMovementKind::Released,
+                    ))
+                    .unwrap();
                 player.team_id = None;
-                player.stage_contract_end(None);
-                player.stage_wage(0);
             }
         }
         sm.save_game(&settled, &save_id).unwrap();

@@ -4355,11 +4355,19 @@ fn a_loan_to_buy_creates_a_new_contract_with_the_buyers_terms() {
         .as_ref()
         .expect("buying the player makes a contract with the buyer");
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let three_years_on = game
+        .clock
+        .current_date
+        .date_naive()
+        .checked_add_months(chrono::Months::new(36))
+        .expect("three years on exists")
+        .format("%Y-%m-%d")
+        .to_string();
     assert_eq!(record.source, ContractSource::Transfer);
     assert_eq!(record.start.as_deref(), Some(today.as_str()));
     assert_eq!(
         record.end.as_deref(),
-        Some("2029-08-01"),
+        Some(three_years_on.as_str()),
         "three years from the purchase, not the seller's 2028-06-30"
     );
     assert!(
@@ -4367,7 +4375,7 @@ fn a_loan_to_buy_creates_a_new_contract_with_the_buyers_terms() {
         "the buyer's standard wage, not the parent's 520,000 carried across: {}",
         record.weekly_wage
     );
-    assert_eq!(player.contract_end(), Some("2029-08-01"));
+    assert_eq!(player.contract_end(), Some(three_years_on.as_str()));
 }
 
 // ---------------------------------------------------------------------------
