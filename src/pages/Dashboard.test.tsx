@@ -480,6 +480,46 @@ describe("Dashboard", () => {
     expect(await screen.findByText("finance_crisis")).toBeInTheDocument();
   });
 
+  it("keeps the last verdict during a same-club refetch but drops it for a different club", async () => {
+    backendFinanceSnapshot = {
+      ...backendFinanceSnapshot,
+      runway_status: "critical",
+      cash_runway_weeks: 2,
+      overall_status: "critical",
+    };
+    const pendingFinanceResponses: Array<
+      (response: { snapshot: ReturnType<typeof createBackendFinanceSnapshot> }) => void
+    > = [];
+    let financeRequestCount = 0;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_active_game") return Promise.resolve(gameState);
+      if (command === "get_finance_snapshot") {
+        financeRequestCount += 1;
+        if (financeRequestCount === 1) {
+          return Promise.resolve({ snapshot: backendFinanceSnapshot });
+        }
+        return new Promise<{ snapshot: ReturnType<typeof createBackendFinanceSnapshot> }>(
+          (resolve) => pendingFinanceResponses.push(resolve),
+        );
+      }
+      return Promise.resolve(null);
+    });
+
+    const { rerender } = render(<Dashboard />);
+    expect(await screen.findByText("finance_crisis")).toBeInTheDocument();
+
+    gameState = createGameState();
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(1));
+    expect(screen.getByText("finance_crisis")).toBeInTheDocument();
+
+    gameState = createGameState();
+    gameState.manager.team_id = "team-2";
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(2));
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
+  });
+
   it("ignores stale finance responses after the game state changes", async () => {
     const firstGameState = gameState;
     const pendingFinanceResponses: Array<
@@ -507,12 +547,13 @@ describe("Dashboard", () => {
     await waitFor(() => expect(pendingFinanceResponses).toHaveLength(1));
 
     gameState = createGameState();
+    gameState.manager.team_id = "team-2";
     rerender(<Dashboard />);
     await waitFor(() => expect(pendingFinanceResponses).toHaveLength(2));
     await act(async () => pendingFinanceResponses[1]?.(criticalResponse));
     expect(screen.getByText("finance_crisis")).toBeInTheDocument();
 
-    // A resolved verdict must not remain visible while the next state loads.
+    // A verdict for the other club must disappear while this club refetches.
     gameState = firstGameState;
     rerender(<Dashboard />);
     await waitFor(() => expect(pendingFinanceResponses).toHaveLength(3));

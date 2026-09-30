@@ -131,7 +131,6 @@ export default function Dashboard(): JSX.Element {
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
   const [financeVerdict, setFinanceVerdict] = useState<{
-    gameState: GameStateData;
     teamId: string;
     snapshot: TeamFinanceSnapshotData;
   } | null>(null);
@@ -147,7 +146,7 @@ export default function Dashboard(): JSX.Element {
     void getFinanceSnapshot(teamId)
       .then(({ snapshot }) => {
         if (!cancelled) {
-          setFinanceVerdict({ gameState, teamId, snapshot });
+          setFinanceVerdict({ teamId, snapshot });
         }
       })
       .catch((error) => {
@@ -503,9 +502,7 @@ export default function Dashboard(): JSX.Element {
   const myTeamName = getManagerTeamName(gameState);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const currentFinanceVerdict =
-    financeVerdict?.gameState === gameState && financeVerdict.teamId === gameState.manager.team_id
-      ? financeVerdict.snapshot
-      : null;
+    financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
   const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t, currentFinanceVerdict);
   const hasProfileHistory = hasDashboardProfileHistory(profileNavigation);
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
