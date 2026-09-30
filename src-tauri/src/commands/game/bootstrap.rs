@@ -1,24 +1,13 @@
-//! Putting a manager into a world that already exists.
+//! Persisting a new career, and the MCP auto-start that builds one from a file.
 //!
-//! Three ways in, and the difference between them is what the world already
-//! contains. A generated world gets a league and an opening-day inbox; a world
-//! with competitions, news and stats of its own gets a takeover instead; and a
-//! mid-season start simulates forward until the club is half a season in.
-//! `bootstrap_team_selection` picks between them.
+//! The game rules for putting a manager in charge of a club live in
+//! `ofm_core::career`; this is the part that touches saves and MCP.
 
 use db::save_manager::SaveManager;
 use domain::stats::StatsState;
-use ofm_core::contracts::{club_season_anchors, stamp_opening_contract_starts};
+#[cfg(feature = "mcp")]
+use ofm_core::career::{bootstrap_team_selection, date_opening_contracts, start_phase_for_game};
 use ofm_core::game::Game;
-use ofm_core::world::{
-    ensure_multi_competition_foundations, rebuild_competitions_for_management_date,
-    team_season_anchor,
-};
-
-use super::{
-    preseason_league_year, preseason_season_start, start_phase_for_game, StartPhase,
-    DEFAULT_LEAGUE_NAME, DEFAULT_LEAGUE_NAME_KEY, ISO_DATE_FORMAT,
-};
 
 // Only `bootstrap_game_for_mcp` needs these, and it is behind the feature.
 #[cfg(feature = "mcp")]
@@ -33,92 +22,6 @@ use {
     ofm_core::state::StateManager,
 };
 
-/// When the player picks `SeasonStart` for a southern-hemisphere (or other
-/// non-August-start) club, align the game clock to that club's actual season-start
-/// date and rebuild competitions from that anchor, so the player arrives at the
-/// beginning of their season, not in July.
-fn align_clock_to_club_season(game: &mut Game, team_id: &str) {
-    if start_phase_for_game(game) == StartPhase::SeasonStart {
-        if let Some(actual_start) = team_season_anchor(game, team_id) {
-            if actual_start < game.clock.current_date {
-                game.clock.current_date = actual_start;
-                game.clock.start_date = actual_start;
-                rebuild_competitions_for_management_date(game, actual_start);
-                game.national_teams.clear();
-                ensure_multi_competition_foundations(game);
-            }
-        }
-    }
-}
-
-/// Settle the date a career opens on, then give every contract that has no start the
-/// day it began, measured against that date.
-///
-/// `align_clock_to` is the club whose season the clock is pulled back to, for the
-/// paths that do that. The order is the point and lives here so it is written once:
-/// every club's season anchor is read *first*, because Brazil's is worked out from
-/// the clock's year and reading it after the clock has moved lands a year early;
-/// the clock is then moved; and starts are stamped last, against the date the career
-/// really opens on, so none can land after it.
-pub(crate) fn date_opening_contracts(game: &mut Game, align_clock_to: Option<&str>) {
-    let club_anchors = club_season_anchors(game);
-    if let Some(team_id) = align_clock_to {
-        align_clock_to_club_season(game, team_id);
-    }
-    stamp_opening_contract_starts(game, &club_anchors);
-}
-
-pub(super) fn has_existing_world_context(game: &Game, stats_state: &StatsState) -> bool {
-    !game.competitions.is_empty()
-        || game.league.is_some()
-        || !game.news.is_empty()
-        || !stats_state.player_matches.is_empty()
-        || !stats_state.team_matches.is_empty()
-}
-
-pub(super) fn bootstrap_existing_world_takeover(
-    game: &mut Game,
-    team_id: &str,
-    stats_state: StatsState,
-) -> Result<StatsState, String> {
-    let team = game
-        .teams
-        .iter()
-        .find(|t| t.id == team_id)
-        .ok_or("be.error.teamNotFound".to_string())?;
-    let team_name = team.name.clone();
-
-    ofm_core::ai_hiring::seed_ai_managers(game);
-
-    let takeover_date = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let incumbent_manager_id = game
-        .teams
-        .iter()
-        .find(|candidate| candidate.id == team_id)
-        .and_then(|candidate| candidate.manager_id.clone());
-
-    if incumbent_manager_id.as_deref() != Some(game.manager.id.as_str()) {
-        let fired = ofm_core::firing::fire_ai_manager_for_team(game, team_id, &takeover_date);
-        if !fired {
-            if let Some(team) = game
-                .teams
-                .iter_mut()
-                .find(|candidate| candidate.id == team_id)
-            {
-                team.manager_id = None;
-            }
-        }
-        ofm_core::job_offers::hire_manager(game, team_id, &takeover_date)?;
-    }
-
-    let staff_msg = ofm_core::messages::staff_advice_message(&team_name, team_id, &takeover_date);
-    game.messages.push(staff_msg);
-    ofm_core::player_events::generate_takeover_contract_review_message(game);
-    ofm_core::season_context::refresh_game_context(game);
-
-    Ok(stats_state)
-}
-
 pub(crate) fn create_new_save(
     save_manager: &mut SaveManager,
     game: &Game,
@@ -126,176 +29,6 @@ pub(crate) fn create_new_save(
     save_name: &str,
 ) -> Result<String, String> {
     save_manager.create_save_with_stats(game, stats_state, save_name)
-}
-
-pub(super) fn bootstrap_season_start(game: &mut Game, team_id: &str) -> Result<StatsState, String> {
-    let team = game
-        .teams
-        .iter()
-        .find(|t| t.id == team_id)
-        .ok_or("be.error.teamNotFound".to_string())?;
-    let team_name = team.name.clone();
-
-    game.manager.hire(team_id.to_string());
-    if let Some(t) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        t.manager_id = Some(game.manager.id.clone());
-    }
-    game.manager_id = game.manager.id.clone();
-    ofm_core::ai_hiring::seed_ai_managers(game);
-
-    let season_start = preseason_season_start(&game.clock);
-    let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
-    let mut league = ofm_core::schedule::generate_league(
-        DEFAULT_LEAGUE_NAME,
-        preseason_league_year(&game.clock),
-        &team_ids,
-        season_start,
-    );
-    league.name_key = Some(DEFAULT_LEAGUE_NAME_KEY.to_string());
-    let friendlies = ofm_core::schedule::generate_preseason_friendlies(&team_ids, season_start, 4);
-    ofm_core::schedule::append_fixtures(&mut league, friendlies);
-    game.league = Some(league);
-    ofm_core::season_context::refresh_game_context(game);
-
-    let date_str = game.clock.current_date.to_rfc3339();
-    let welcome_msg = ofm_core::messages::welcome_message(&team_name, team_id, &date_str);
-    game.messages.push(welcome_msg);
-
-    // Both params are resolved frontend-side: the league name is a translation
-    // key, and the ISO date is formatted in the player's locale.
-    let season_msg = ofm_core::messages::season_schedule_message(
-        DEFAULT_LEAGUE_NAME_KEY,
-        &season_start.format(ISO_DATE_FORMAT).to_string(),
-        &date_str,
-    );
-    game.messages.push(season_msg);
-
-    let team_names: Vec<String> = game.teams.iter().map(|team| team.name.clone()).collect();
-    game.news.push(ofm_core::news::season_preview_article(
-        &team_names,
-        &date_str,
-    ));
-
-    let staff_msg = ofm_core::messages::staff_advice_message(&team_name, team_id, &date_str);
-    game.messages.push(staff_msg);
-
-    ofm_core::player_events::generate_takeover_contract_review_message(game);
-
-    Ok(StatsState::default())
-}
-
-pub(super) fn competitive_fixture_count_for_team(game: &Game, team_id: &str) -> usize {
-    game.league
-        .as_ref()
-        .map(|league| {
-            league
-                .fixtures
-                .iter()
-                .filter(|fixture| {
-                    fixture.counts_for_league_standings()
-                        && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
-                })
-                .count()
-        })
-        .unwrap_or_default()
-}
-
-pub(super) fn completed_competitive_fixture_count_for_team(game: &Game, team_id: &str) -> usize {
-    game.league
-        .as_ref()
-        .map(|league| {
-            league
-                .fixtures
-                .iter()
-                .filter(|fixture| {
-                    fixture.counts_for_league_standings()
-                        && fixture.status == domain::league::FixtureStatus::Completed
-                        && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
-                })
-                .count()
-        })
-        .unwrap_or_default()
-}
-
-pub(super) fn bootstrap_midseason_takeover(
-    game: &mut Game,
-    team_id: &str,
-) -> Result<StatsState, String> {
-    let team = game
-        .teams
-        .iter()
-        .find(|t| t.id == team_id)
-        .ok_or("be.error.teamNotFound".to_string())?;
-    let team_name = team.name.clone();
-
-    ofm_core::ai_hiring::seed_ai_managers(game);
-
-    let season_start = preseason_season_start(&game.clock);
-    let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
-    let mut league = ofm_core::schedule::generate_league(
-        DEFAULT_LEAGUE_NAME,
-        preseason_league_year(&game.clock),
-        &team_ids,
-        season_start,
-    );
-    league.name_key = Some(DEFAULT_LEAGUE_NAME_KEY.to_string());
-    game.league = Some(league);
-    game.clock.current_date = season_start;
-    ofm_core::season_context::refresh_game_context(game);
-
-    let total_fixtures = competitive_fixture_count_for_team(game, team_id);
-    let target_completed = (total_fixtures / 2).max(1);
-    let mut stats_state = StatsState::default();
-    let mut safeguard_days = 0usize;
-    while completed_competitive_fixture_count_for_team(game, team_id) < target_completed {
-        let mut captures = Vec::new();
-        ofm_core::turn::process_day_with_capture(game, &mut |capture| captures.push(capture));
-        for capture in captures {
-            stats_state.append(capture);
-        }
-        safeguard_days += 1;
-        if safeguard_days > 240 {
-            break;
-        }
-    }
-
-    let takeover_date = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let _ = ofm_core::firing::fire_ai_manager_for_team(game, team_id, &takeover_date);
-    ofm_core::job_offers::hire_manager(game, team_id, &takeover_date)?;
-
-    let staff_msg = ofm_core::messages::staff_advice_message(&team_name, team_id, &takeover_date);
-    game.messages.push(staff_msg);
-    ofm_core::player_events::generate_takeover_contract_review_message(game);
-    ofm_core::season_context::refresh_game_context(game);
-
-    Ok(stats_state)
-}
-
-pub(crate) fn bootstrap_team_selection(
-    game: &mut Game,
-    team_id: &str,
-    start_phase: StartPhase,
-    stats_state: StatsState,
-) -> Result<StatsState, String> {
-    let stats_state = if has_existing_world_context(game, &stats_state) {
-        bootstrap_existing_world_takeover(game, team_id, stats_state)?
-    } else {
-        match start_phase {
-            StartPhase::SeasonStart => bootstrap_season_start(game, team_id)?,
-            StartPhase::MidSeason => bootstrap_midseason_takeover(game, team_id)?,
-        }
-    };
-
-    // World generation has already equipped every club for AI management.
-    // At career selection the chosen club becomes the player's blank slate;
-    // rivals keep the identity the generator gave them.
-    if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
-        team.tactics_phase = domain::team::TacticsPhaseSettings::default();
-        team.player_roles.clear();
-    }
-
-    ofm_core::transfers::seed_opening_ai_loan_market(game);
-    Ok(stats_state)
 }
 
 /// Bootstrap a game for MCP auto-start.
@@ -483,7 +216,7 @@ mod tests {
         }
         ofm_core::world::ensure_multi_competition_foundations(&mut game);
 
-        date_opening_contracts(&mut game, Some("br-1"));
+        ofm_core::career::date_opening_contracts(&mut game, Some("br-1"));
 
         let opening = game.clock.current_date.date_naive();
         assert_eq!(

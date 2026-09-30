@@ -27,12 +27,14 @@ mod world_load;
 // through, so it needs a real path anyway.
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::bootstrap_game_for_mcp;
-pub(crate) use bootstrap::{bootstrap_team_selection, create_new_save, date_opening_contracts};
+pub(crate) use bootstrap::create_new_save;
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+pub(crate) use ofm_core::career::{
+    bootstrap_team_selection, date_opening_contracts, start_phase_for_game,
+};
 use ofm_core::world::*;
 use startup::*;
-pub(crate) use startup::{start_phase_for_game, StartPhase};
 use world_build::*;
 use world_load::*;
 // Public, unlike the others: these are `#[tauri::command]`s and the types in

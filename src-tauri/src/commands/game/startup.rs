@@ -7,6 +7,7 @@
 
 use chrono::{Datelike, Duration, Utc};
 
+use ofm_core::career::StartPhase;
 use ofm_core::game::Game;
 use ofm_core::world::{start_date_for_year, MIN_START_YEAR};
 
@@ -22,29 +23,6 @@ pub struct RawStartupOptions {
     start_phase: Option<String>,
     #[serde(default)]
     history_depth_years: Option<u32>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum StartPhase {
-    SeasonStart,
-    MidSeason,
-}
-
-impl StartPhase {
-    fn parse(value: &str) -> Option<Self> {
-        match value {
-            "seasonStart" => Some(Self::SeasonStart),
-            "midSeason" => Some(Self::MidSeason),
-            _ => None,
-        }
-    }
-
-    pub(super) fn as_str(self) -> &'static str {
-        match self {
-            Self::SeasonStart => "seasonStart",
-            Self::MidSeason => "midSeason",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,14 +59,6 @@ pub(super) fn age_on_date(birth_date: chrono::NaiveDate, reference_date: chrono:
         age -= 1;
     }
     age
-}
-
-pub(crate) fn start_phase_for_game(game: &Game) -> StartPhase {
-    if game.clock.current_date > game.clock.start_date {
-        StartPhase::MidSeason
-    } else {
-        StartPhase::SeasonStart
-    }
 }
 
 pub(super) fn normalize_startup_options(
