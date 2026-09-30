@@ -568,8 +568,9 @@ than **three** (`MAX_INTAKE`). A keeper comes first when the academy has none; a
 thinnest groups. The plan says how many and where they play, with no randomness, so an academy
 cost can be attached to it later. No money moves today.
 
-`apply_youth_intake` then brings the planned youngsters in, aged 15–17, on a youth contract that
-starts that day, with a free shirt number. The draw is seeded from the club and the season, so a
+`apply_youth_intake` then brings the planned youngsters in, drawn at 15–17 (a birth late in the
+year makes some 14 by the 1 July count), on a youth contract that starts that day, with a free
+shirt number. The draw is seeded from the club and the season, so a
 replayed season end takes in the same youngsters. It runs in the season end's squad turnover, after
 aging and retirements and before every AI club rebuilds its squad, so a club plans with the
 academy it will start the new season with. The player's club is told who joined
