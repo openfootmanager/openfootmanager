@@ -237,23 +237,6 @@ impl LiveMatchSession {
 // Helper: build a LiveMatchSession from the Game state
 // ---------------------------------------------------------------------------
 
-/// The user's own league round as it stands right now: the matchday of its fixture due today, and
-/// its table before that round is played.
-///
-/// Deliberately the user's competition rather than the one being played: on a cup day the digest
-/// still describes the league round, and a knockout cup has no table to take a baseline from.
-fn user_league_round_context(game: &Game) -> Option<(u32, Vec<StandingEntry>)> {
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let league = game.user_competition()?;
-    let matchday = league
-        .fixtures
-        .iter()
-        .find(|fixture| fixture.date == today)
-        .map(|fixture| fixture.matchday)?;
-
-    Some((matchday, league.standings.clone()))
-}
-
 /// Create a live match session for a specific fixture.
 pub fn create_live_match(
     game: &Game,
@@ -371,7 +354,7 @@ pub fn create_live_match(
         competition_id: league.id.clone(),
         round_matchday: fixture.matchday,
         round_previous_standings: league.standings.clone(),
-        league_round_context: user_league_round_context(game),
+        league_round_context: crate::matchday::user_league_round_context(game),
         home_team_id,
         away_team_id,
         user_side,

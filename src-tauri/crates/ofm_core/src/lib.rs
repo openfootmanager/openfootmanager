@@ -21,6 +21,7 @@ pub mod history_generation;
 pub mod inbox;
 pub mod job_offers;
 pub mod live_match_manager;
+pub mod matchday;
 pub mod messages;
 pub mod national_team;
 pub mod nations;

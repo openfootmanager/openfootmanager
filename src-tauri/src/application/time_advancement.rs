@@ -20,29 +20,6 @@ pub struct AdvanceTimeWithModeResponse {
     pub results: Vec<AdvanceMatchResult>,
 }
 
-/// The matchday and pre-round standings of the competition the round digest will describe.
-///
-/// This must be the same competition `build_round_summary` reads — the user's, which
-/// `sync_legacy_league` mirrors — or the summary computes one competition's deltas from
-/// another's table. It used to read `primary_competition()`, which is `competitions.first()`
-/// and so, for any career outside the first country, a foreign league on another calendar.
-pub(crate) fn round_context_for_today(
-    game: &Game,
-    today: &str,
-) -> Option<(u32, Vec<domain::league::StandingEntry>)> {
-    // Exactly what `build_round_summary` will read: the user's competition, which
-    // `sync_legacy_league` mirrors — falling back to the mirror itself for a save written before
-    // `competitions` existed, where it is the only copy there is.
-    let league = game.user_competition().or(game.league.as_ref())?;
-    let matchday = league
-        .fixtures
-        .iter()
-        .find(|fixture| fixture.date == today)
-        .map(|fixture| fixture.matchday)?;
-
-    Some((matchday, league.standings.clone()))
-}
-
 fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usize)> {
     let user_team_id = game.manager.team_id.as_ref()?;
     for (competition_index, competition) in game.competitions.iter().enumerate() {
@@ -100,22 +77,6 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usiz
         })
 }
 
-/// Knockout ties get extra time (and, if still level, a shootout) in the live
-/// engine; league fixtures end after regulation. `index` is a fixture index
-/// into `game.league`, which at the call sites holds the competition being
-/// played today.
-fn fixture_allows_extra_time(game: &Game, index: usize) -> bool {
-    game.league
-        .as_ref()
-        .and_then(|league| {
-            league
-                .fixtures
-                .get(index)
-                .map(|fixture| league.is_knockout_fixture(&fixture.id))
-        })
-        .unwrap_or(false)
-}
-
 pub fn advance_time_with_mode(
     state: &StateManager,
     mode: &str,
@@ -132,7 +93,7 @@ pub fn advance_time_with_mode(
     let response = state
         .update_game(|game| -> Result<AdvanceTimeWithModeResponse, String> {
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            let round_context = round_context_for_today(game, &today);
+            let round_context = ofm_core::matchday::user_league_round_context(game);
             let user_fixture = scheduled_user_fixture_index(game, &today);
 
             info!(
@@ -150,7 +111,7 @@ pub fn advance_time_with_mode(
                     } else {
                         MatchMode::Spectator
                     };
-                    let allows_extra_time = fixture_allows_extra_time(game, index);
+                    let allows_extra_time = ofm_core::matchday::fixture_allows_extra_time(game, index);
                     let session = live_match_manager::create_live_match(
                         game,
                         index,
@@ -197,61 +158,27 @@ pub fn advance_time_with_mode(
                     })
                 }
                 ("delegate", Some((competition_index, index))) => {
-                    if let Some(competition) = game.competitions.get(competition_index).cloned() {
-                        game.league = Some(competition);
-                    }
                     info!(
                         "[cmd] advance_time_with_mode: delegate fixture_idx={}, date={}",
                         index, today
                     );
-                    let allows_extra_time = fixture_allows_extra_time(game, index);
-                    let mut session = live_match_manager::create_live_match(
+                    // The whole day, in one call, so the harness and this branch cannot drift.
+                    let outcome = ofm_core::matchday::play_user_matchday_with_capture(
                         game,
+                        competition_index,
                         index,
-                        MatchMode::Instant,
-                        allows_extra_time,
+                        &mut |capture| captures.push(capture),
                     )?;
-                    session.user_side = None;
-                    session.run_to_completion();
 
-                    let home_team_id = session.home_team_id.clone();
-                    let away_team_id = session.away_team_id.clone();
-                    let report = session.match_state.into_report();
-
-                    ofm_core::turn::simulate_other_matches_with_capture(
-                        game,
-                        &today,
-                        Some(index),
-                        &mut |capture| captures.push(capture),
-                    );
-
-                    ofm_core::turn::apply_match_report_with_capture(
-                        game,
-                        index,
-                        &home_team_id,
-                        &away_team_id,
-                        &report,
-                        &mut |capture| captures.push(capture),
-                    );
-                    if competition_index < game.competitions.len() {
-                        if let Some(updated_competition) = game.league.take() {
-                            game.competitions[competition_index] = updated_competition;
-                            game.sync_legacy_league();
-                        }
-                    }
-
-                    ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
-                        captures.push(capture)
-                    });
-
-                    // After the sweep: see the note in `application/live_match.rs`. Built before
-                    // it, the summary describes a round the response has since played.
-                    let round_summary =
-                        round_context
-                            .as_ref()
-                            .and_then(|(matchday, previous_standings)| {
-                                build_round_summary_dto(game, *matchday, previous_standings)
-                            });
+                    // The baseline comes from the session, captured before the round was played;
+                    // reading the table now would report every delta as zero. Built after the day
+                    // so it describes the round the response is carrying.
+                    let round_summary = outcome
+                        .league_round_context
+                        .or(round_context)
+                        .and_then(|(matchday, previous_standings)| {
+                            build_round_summary_dto(game, matchday, &previous_standings)
+                        });
                     let results = collect_advance_results(game, &today);
 
                     Ok(AdvanceTimeWithModeResponse {

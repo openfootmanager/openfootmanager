@@ -1,6 +1,5 @@
 use log::info;
 
-use crate::application::time_advancement::round_context_for_today;
 use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
@@ -114,9 +113,8 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             // reports every club's delta as zero — the round has already happened. So the
             // session carries the league baseline from creation time, and today's context is only
             // the fallback for a session that has none.
-            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            let summary_context =
-                league_round_context.or_else(|| round_context_for_today(game, &today));
+            let summary_context = league_round_context
+                .or_else(|| ofm_core::matchday::user_league_round_context(game));
 
             ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
                 captures.push(capture)
