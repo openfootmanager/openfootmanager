@@ -111,6 +111,8 @@ pub(crate) fn release_player_contract(
         to_team_name: None,
         fee: None,
         loan_end_date: None,
+        contract: None,
+        release_reason: None,
     });
 
     let message = match reason {

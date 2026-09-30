@@ -1007,6 +1007,8 @@ pub(crate) fn complete_loan_buy_option_transfer(
             to_team_name: Some(to_team_name.clone()),
             fee: Some(fee),
             loan_end_date: Some(loan.end_date),
+            contract: None,
+            release_reason: None,
         });
     }
 
@@ -1439,6 +1441,8 @@ pub fn process_loan_returns(game: &mut Game) {
                     to_team_name: Some(parent_team_name),
                     fee: None,
                     loan_end_date: Some(loan_end_date),
+                    contract: None,
+                    release_reason: None,
                 });
             }
         }

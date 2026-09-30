@@ -298,7 +298,7 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         parse_position(&natural_position_str)
     };
 
-    Ok(Player {
+    let mut player = Player {
         id: row.get(0)?,
         match_name: row.get(1)?,
         full_name: row.get(2)?,
@@ -358,7 +358,11 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         active_loan: active_loan_json.and_then(|json| serde_json::from_str(&json).ok()),
         morale_core: serde_json::from_str(&morale_core_json).unwrap_or_default(),
         jersey_number,
-    })
+    };
+    // The flat contract fields are derived from the ledger, so a save from before
+    // the ledger needs its one entry made before anything reads them.
+    player.adopt_legacy_contract();
+    Ok(player)
 }
 
 #[cfg(test)]
@@ -621,6 +625,121 @@ mod tests {
         );
     }
 
+    /// A save from before the ledger has a contract in its columns and no entry. The
+    /// flat fields are derived from the ledger now, so without an entry that player
+    /// would load as a free agent and expire on the first day.
+    #[test]
+    fn test_legacy_row_gets_one_legacy_contract_entry_on_load() {
+        let db = test_db();
+        let mut player = sample_player("p-legacy", Some("team-1"));
+        player.contract_end = Some("2029-06-30".to_string());
+        player.wage = 6_500;
+        assert!(player.movement_history.is_empty());
+        upsert_player(db.conn(), &player).unwrap();
+
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert_eq!(stored.movement_history.len(), 1);
+        let record = stored.movement_history[0]
+            .contract
+            .as_ref()
+            .expect("the legacy contract is in the ledger");
+        assert_eq!(
+            record.source,
+            domain::contract_ledger::ContractSource::LegacyMigrated
+        );
+        assert_eq!(
+            record.start, None,
+            "a start nobody recorded is not invented"
+        );
+        assert_eq!(stored.contract_start(), None);
+        assert_eq!(stored.contract_end(), Some("2029-06-30"));
+        assert_eq!(stored.wage(), 6_500);
+    }
+
+    /// Loading, saving and loading again must not stack a second legacy entry.
+    #[test]
+    fn test_legacy_contract_entry_is_not_duplicated_by_a_second_load() {
+        let db = test_db();
+        let mut player = sample_player("p-legacy2", Some("team-1"));
+        player.contract_end = Some("2029-06-30".to_string());
+        player.wage = 6_500;
+        upsert_player(db.conn(), &player).unwrap();
+
+        let first = load_all_players(db.conn()).unwrap().remove(0);
+        upsert_player(db.conn(), &first).unwrap();
+        let second = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert_eq!(second.movement_history.len(), 1);
+    }
+
+    #[test]
+    fn test_a_player_with_no_contract_gets_no_legacy_entry() {
+        let db = test_db();
+        let mut free_agent = sample_player("p-free", None);
+        free_agent.wage = 0;
+        free_agent.contract_end = None;
+        upsert_player(db.conn(), &free_agent).unwrap();
+
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert!(stored.movement_history.is_empty());
+    }
+
+    /// Read back with raw SQL after a second write, for the same reason as the
+    /// contract-start test above: the ledger is one JSON column that the
+    /// `ON CONFLICT DO UPDATE` block must overwrite on every save.
+    #[test]
+    fn test_contract_entries_survive_a_second_write() {
+        use domain::contract_ledger::{ContractRecord, ContractSource};
+        let db = test_db();
+        let mut player = sample_player("p-ledger", Some("team-1"));
+        let record = |start: &str, end: &str, wage: u32, source| ContractRecord {
+            start: Some(start.to_string()),
+            end: Some(end.to_string()),
+            weekly_wage: wage,
+            source,
+        };
+        player
+            .record_movement(PlayerMovementEntry {
+                contract: Some(record(
+                    "2024-07-01",
+                    "2026-06-30",
+                    4_000,
+                    ContractSource::Initial,
+                )),
+                ..PlayerMovementEntry::new("2024-07-01", PlayerMovementKind::InitialContract)
+            })
+            .unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+        player
+            .record_movement(PlayerMovementEntry {
+                contract: Some(record(
+                    "2026-01-10",
+                    "2029-06-30",
+                    9_000,
+                    ContractSource::Renewal,
+                )),
+                ..PlayerMovementEntry::new("2026-01-10", PlayerMovementKind::Renewal)
+            })
+            .unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+
+        let json: String = db
+            .conn()
+            .query_row(
+                "SELECT movement_history FROM players WHERE id = ?1",
+                ["p-ledger"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(json.contains("\"weekly_wage\":4000"), "{json}");
+        assert!(json.contains("\"weekly_wage\":9000"), "{json}");
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+        assert_eq!(stored.wage(), 9_000);
+        assert_eq!(stored.movement_history.len(), 2);
+    }
+
     /// A save written before contracts had a start keeps `None`, and `None` is not
     /// "expired" — it is "we do not know". Fabricating a start here would invent
     /// employment history for every player in every existing career.
@@ -868,6 +987,8 @@ mod tests {
             to_team_name: Some("Beta FC".to_string()),
             fee: Some(1_250_000),
             loan_end_date: None,
+            contract: None,
+            release_reason: None,
         });
 
         upsert_player(db.conn(), &player).unwrap();
@@ -877,7 +998,13 @@ mod tests {
             .find(|candidate| candidate.id == "p-move")
             .expect("stored player should exist");
 
-        assert_eq!(stored.movement_history.len(), 1);
+        // The transfer entry comes back untouched; the second is the contract the
+        // sample player's columns describe, which a load adds once.
+        assert_eq!(stored.movement_history.len(), 2);
+        assert_eq!(
+            stored.movement_history[1].kind,
+            PlayerMovementKind::InitialContract
+        );
         assert_eq!(
             stored.movement_history[0].kind,
             PlayerMovementKind::PermanentTransfer

@@ -177,6 +177,8 @@ pub fn offer_free_agent_contract(
             to_team_name: Some(team.name.clone()),
             fee: None,
             loan_end_date: None,
+            contract: None,
+            release_reason: None,
         });
         if matches!(
             player

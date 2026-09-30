@@ -532,6 +532,12 @@ pub enum PlayerMovementKind {
     LoanToBuy,
     FreeAgentSigning,
     Released,
+    /// A new agreement with the club he is already at.
+    Renewal,
+    Retired,
+    /// The contract in force when a career opened, or made from a save that
+    /// predates the ledger.
+    InitialContract,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -550,6 +556,31 @@ pub struct PlayerMovementEntry {
     pub fee: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub loan_end_date: Option<String>,
+    /// Present when this entry establishes a contract. See `contract_ledger`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract: Option<crate::contract_ledger::ContractRecord>,
+    /// Present on a `Released` entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_reason: Option<crate::contract_ledger::ReleaseReason>,
+}
+
+impl PlayerMovementEntry {
+    /// An entry with nothing but its date and kind; the rest is filled by struct
+    /// update at the call site, so a new optional field does not touch every caller.
+    pub fn new(date: impl Into<String>, kind: PlayerMovementKind) -> Self {
+        Self {
+            date: date.into(),
+            kind,
+            from_team_id: None,
+            from_team_name: None,
+            to_team_id: None,
+            to_team_name: None,
+            fee: None,
+            loan_end_date: None,
+            contract: None,
+            release_reason: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

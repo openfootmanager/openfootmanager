@@ -115,6 +115,8 @@ pub(super) fn execute_loan(
         to_team_name: Some(loan_team_name.clone()),
         fee: None,
         loan_end_date: Some(end_date.to_string()),
+        contract: None,
+        release_reason: None,
     });
 
     withdraw_pending_transfer_offers(player, &closed_on);
@@ -323,6 +325,8 @@ pub(super) fn execute_transfer(
             to_team_name: Some(to_team_name.clone()),
             fee: Some(fee),
             loan_end_date: None,
+            contract: None,
+            release_reason: None,
         });
         // Remove from any starting XI
     }
