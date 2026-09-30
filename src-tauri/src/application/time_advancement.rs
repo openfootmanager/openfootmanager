@@ -266,12 +266,13 @@ pub fn advance_time_with_mode(
 
 #[cfg(test)]
 mod tests {
-    use super::scheduled_user_fixture_index;
+    use super::{advance_time_with_mode, scheduled_user_fixture_index};
     use chrono::{TimeZone, Utc};
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
     use domain::manager::Manager;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::StateManager;
 
     fn scheduled(id: &str, date: &str, home: &str, away: &str) -> Fixture {
         Fixture {
@@ -357,6 +358,50 @@ mod tests {
         assert_eq!(
             competition_index, None,
             "nothing to replace the mirror with, so the mirror stands"
+        );
+    }
+
+    /// **Given** the user's fixture sits in a competition whose clubs have nobody available,
+    /// **when** a live match is started for it,
+    /// **then** the call fails and `game.league` still holds what it held before.
+    ///
+    /// This branch swaps the competition into the legacy slot before building the session, because
+    /// that is where `create_live_match` reads the fixture from — and it can refuse, a side with
+    /// nobody available being a handled `Err` rather than a panic. The closure runs inside
+    /// `update_game`, which hands out `&mut Game` and keeps every mutation whether the closure
+    /// returns `Ok` or `Err`. So an early return without restoring leaves the player's own game
+    /// pointing at another competition, with no match played to explain why.
+    ///
+    /// The delegate path has the same shape and its own test in `ofm_core`; this pins the one the
+    /// reviewer's probe did not reach. Dropping the restore here left all twenty-five app-crate
+    /// tests green.
+    #[test]
+    fn a_live_match_that_cannot_start_leaves_the_mirror_as_it_found_it() {
+        let ours = league(
+            "eng-d1",
+            vec![scheduled("f1", "2036-05-01", "eng-00", "eng-01")],
+        );
+        // What the day-start code happened to leave staged in the legacy slot.
+        let staged = league("staged-elsewhere", Vec::new());
+        // No players anywhere in the world, so `create_live_match` refuses.
+        let game = game_with(vec![ours], Some(staged));
+
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let outcome = advance_time_with_mode(&state, "live");
+
+        assert!(
+            outcome.is_err(),
+            "a side with nobody available cannot play, and that is an Err rather than a panic"
+        );
+        let mirror = state
+            .get_game(|game| game.league.as_ref().map(|league| league.id.clone()))
+            .flatten();
+        assert_eq!(
+            mirror.as_deref(),
+            Some("staged-elsewhere"),
+            "the mirror is restored, so the game the player returns to is the one they left"
         );
     }
 }

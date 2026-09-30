@@ -29,12 +29,25 @@ pub struct UserMatchdayOutcome {
 /// The user's league round as it stands right now: the matchday of its fixture due today, and its
 /// table before that round is played.
 ///
-/// Deliberately the user's competition and not the one being played — on a cup day the digest still
-/// describes the league round, and a knockout cup has no table to take a baseline from. Falls back
-/// to the legacy mirror for a save written before `competitions` existed, where it is the only copy.
+/// Deliberately the user's league and not the competition being played — on a cup day the digest
+/// still describes the league round, and a knockout cup has no table to take a baseline from.
+///
+/// `user_league` and not `user_competition`, which falls back to any competition the club is in: for
+/// a club that plays cup football only that returned the *cup*, and the digest then took a cup round
+/// number and a knockout's empty standings as its league baseline. The right answer there is no
+/// digest at all, which is what `None` gives.
+///
+/// The legacy mirror is a fallback only when there are no competitions at all — a save written
+/// before `competitions` existed, where the mirror *is* the league. Reaching for it whenever no
+/// league is found would hand a cup-only club whatever the mirror happened to hold.
 pub fn user_league_round_context(game: &Game) -> Option<(u32, Vec<StandingEntry>)> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let league = game.user_competition().or(game.league.as_ref())?;
+    let league = game.user_league().or_else(|| {
+        game.competitions
+            .is_empty()
+            .then_some(game.league.as_ref())
+            .flatten()
+    })?;
     let matchday = league
         .fixtures
         .iter()
@@ -156,4 +169,152 @@ where
         report,
         league_round_context,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::user_league_round_context;
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{
+        CompetitionType, Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry,
+    };
+    use domain::manager::Manager;
+
+    const TODAY: &str = "2036-05-01";
+
+    fn game_managing(team_id: &str) -> Game {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire(team_id.to_string());
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2036, 5, 1, 12, 0, 0).unwrap());
+        Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    fn competition(
+        id: &str,
+        kind: CompetitionType,
+        participants: &[&str],
+        matchday: u32,
+    ) -> League {
+        let mut competition = League::new(
+            id.to_string(),
+            id.to_string(),
+            2036,
+            &participants
+                .iter()
+                .map(|id| (*id).to_string())
+                .collect::<Vec<_>>(),
+        );
+        competition.kind = kind;
+        competition.standings = participants
+            .iter()
+            .map(|id| StandingEntry::new((*id).to_string()))
+            .collect();
+        competition.fixtures = vec![Fixture {
+            id: format!("{id}-f1"),
+            competition_id: id.to_string(),
+            matchday,
+            date: TODAY.to_string(),
+            home_team_id: participants[0].to_string(),
+            away_team_id: participants[1].to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        }];
+        competition
+    }
+
+    /// **Given** the user's club plays in a league, **when** the round context is asked for,
+    /// **then** it is that league's round and table.
+    #[test]
+    fn the_baseline_is_the_users_own_league() {
+        let mut game = game_managing("eng-00");
+        game.competitions = vec![
+            competition("cup", CompetitionType::Cup, &["eng-00", "eng-01"], 7),
+            competition("eng-d1", CompetitionType::League, &["eng-00", "eng-01"], 32),
+        ];
+
+        let (matchday, standings) =
+            user_league_round_context(&game).expect("the user is in a league");
+
+        assert_eq!(matchday, 32, "the league's round, not the cup's");
+        assert_eq!(standings.len(), 2);
+    }
+
+    /// **Given** the user's club is in a cup and no league at all, **when** the round context is
+    /// asked for, **then** there is none.
+    ///
+    /// `user_competition` falls back to any competition the club is in, so this used to answer with
+    /// the *cup*: a cup round number presented as a league matchday, and a knockout's standings —
+    /// empty, or the seeded positions of whoever was drawn — as the table the digest measures
+    /// movement against. Every delta in that digest is meaningless. No league, no digest.
+    #[test]
+    fn a_club_that_plays_only_cup_football_has_no_league_round() {
+        let mut game = game_managing("eng-00");
+        game.competitions = vec![
+            competition("cup", CompetitionType::Cup, &["eng-00", "eng-01"], 7),
+            // A league exists in the world, but the user's club is not in it.
+            competition("eng-d1", CompetitionType::League, &["eng-02", "eng-03"], 32),
+        ];
+
+        assert!(
+            user_league_round_context(&game).is_none(),
+            "a cup round is not a league round, and a knockout has no table to be a baseline"
+        );
+    }
+
+    /// **Given** a save written before `competitions` existed — the league is in the legacy mirror
+    /// only — **when** the round context is asked for, **then** the mirror supplies it.
+    #[test]
+    fn a_pre_competitions_save_takes_its_baseline_from_the_mirror() {
+        let mut game = game_managing("eng-00");
+        game.league = Some(competition(
+            "legacy",
+            CompetitionType::League,
+            &["eng-00", "eng-01"],
+            14,
+        ));
+
+        let (matchday, standings) =
+            user_league_round_context(&game).expect("the mirror is the only copy this save has");
+
+        assert_eq!(matchday, 14);
+        assert_eq!(standings.len(), 2);
+    }
+
+    /// **Given** competitions exist but none is the user's league, **when** the round context is
+    /// asked for, **then** the legacy mirror is *not* consulted.
+    ///
+    /// The mirror is a working buffer as well as a legacy home — `turn` swaps competitions through
+    /// it — so falling back to it whenever no league is found would hand a cup-only club a baseline
+    /// from whatever was last staged there.
+    #[test]
+    fn the_mirror_is_not_consulted_when_competitions_exist() {
+        let mut game = game_managing("eng-00");
+        game.competitions = vec![competition(
+            "cup",
+            CompetitionType::Cup,
+            &["eng-00", "eng-01"],
+            7,
+        )];
+        // As the day-start code would have left it.
+        game.league = Some(competition(
+            "someone-elses-league",
+            CompetitionType::League,
+            &["eng-02", "eng-03"],
+            9,
+        ));
+
+        assert!(
+            user_league_round_context(&game).is_none(),
+            "the mirror is a staging slot here, not this club's league"
+        );
+    }
 }
