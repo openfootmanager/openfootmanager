@@ -802,6 +802,7 @@ fn is_mirrored_side_pair(left_position: &Position, right_position: &Position) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repositories::competition_repo;
     use chrono::TimeZone;
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
     use domain::player::{Footedness, Player, PlayerAttributes, Position, SquadRole};
@@ -1405,11 +1406,10 @@ mod tests {
         // run the repair a second time and report the same answer whether or not the first one was
         // ever written back — proving idempotence, not persistence.
         //
-        // What this does NOT pin, checked by mutation: dropping `needs_resave = true` from the
-        // repair's branch still leaves the fixture `Completed` on disk, because other backfills in
-        // `load_game` set the flag for this sample save and the resave happens anyway. On a save
-        // where none of them fire, the flag is the only thing writing the repair back. Isolating
-        // that needs a fixture that triggers no other backfill, which this one is not.
+        // This test does not pin `needs_resave` on its own — other backfills in `load_game` set the
+        // flag for a freshly created save, so the resave happens with or without the repair's
+        // branch. That is isolated in
+        // `only_the_repairs_own_resave_flag_writes_a_late_stranded_fixture_back` below.
         let db_path = saves_dir.join(format!("{save_id}.db"));
         let db = GameDatabase::open_save(&db_path).unwrap();
         let from_disk = GamePersistenceReader::read_game(&db).unwrap();
@@ -1427,6 +1427,90 @@ mod tests {
         assert!(
             persisted.result.is_some(),
             "and the scoreline it chose is the one on disk"
+        );
+    }
+
+    #[test]
+    fn only_the_repairs_own_resave_flag_writes_a_late_stranded_fixture_back() {
+        // The test above proves the repair reaches disk, but not that the repair is what put it
+        // there: a freshly created save trips several other backfills, any one of which sets
+        // `needs_resave`, so the write happens regardless.
+        //
+        // So let the save settle first. One load runs every backfill and resaves; a second load has
+        // nothing left to do. Only *then* write a stranded fixture straight into the database,
+        // behind `load_game`'s back. Now the repair's own flag is the only thing that can persist
+        // it, which is what dropping that flag has to break.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let save_id = sm.create_save(&game, "Settled Career").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        // Settle it: whatever the other backfills want to do, they do now.
+        sm.load_game(&save_id).unwrap();
+
+        // Injected after settling, so no other backfill has a reason to fire on the next load.
+        let stranded_date = (game.clock.current_date - chrono::Duration::days(7))
+            .format("%Y-%m-%d")
+            .to_string();
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let mut competitions = competition_repo::load_competitions(db.conn()).unwrap();
+            let competition = competitions
+                .first_mut()
+                .expect("the settled save has a competition");
+            competition.fixtures.push(Fixture {
+                id: "late-stranded".to_string(),
+                competition_id: competition.id.clone(),
+                matchday: 2,
+                date: stranded_date,
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            });
+            competition_repo::replace_competitions(db.conn(), &competitions).unwrap();
+        }
+
+        // Confirm the premise: the fixture really is stranded on disk before the load.
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let before = competition_repo::load_competitions(db.conn()).unwrap();
+            let injected = before
+                .iter()
+                .flat_map(|competition| competition.fixtures.iter())
+                .find(|fixture| fixture.id == "late-stranded")
+                .expect("the injected fixture is in the file");
+            assert_eq!(
+                injected.status,
+                FixtureStatus::Scheduled,
+                "the premise: nothing has played it yet"
+            );
+        }
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let from_disk = competition_repo::load_competitions(db.conn()).unwrap();
+        let persisted = from_disk
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .find(|fixture| fixture.id == "late-stranded")
+            .expect("the fixture is still in the saved file");
+        assert_eq!(
+            persisted.status,
+            FixtureStatus::Completed,
+            "the repair's own resave flag is what writes it back — nothing else had a reason to"
+        );
+        assert!(
+            persisted.result.is_some(),
+            "and the scoreline reached the file with it"
         );
     }
 
