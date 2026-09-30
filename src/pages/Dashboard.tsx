@@ -56,6 +56,7 @@ import {
   getBackgroundPortraitPrewarmKey,
   queueBackgroundPortraitPrewarm,
 } from "../services/portraitService";
+import { getFinanceSnapshot, type TeamFinanceSnapshotData } from "../services/financeService";
 
 const CLUB_TABS = new Set([
   "Squad",
@@ -128,6 +129,37 @@ export default function Dashboard(): JSX.Element {
   const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
+  const [financeVerdict, setFinanceVerdict] = useState<{
+    gameState: GameStateData;
+    teamId: string;
+    snapshot: TeamFinanceSnapshotData;
+  } | null>(null);
+
+  useEffect(() => {
+    const teamId = gameState?.manager.team_id;
+    if (!gameState || !teamId) {
+      setFinanceVerdict(null);
+      return;
+    }
+
+    let cancelled = false;
+    void getFinanceSnapshot(teamId)
+      .then(({ snapshot }) => {
+        if (!cancelled) {
+          setFinanceVerdict({ gameState, teamId, snapshot });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load dashboard finance snapshot:", error);
+        if (!cancelled) {
+          setFinanceVerdict(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameState]);
   const loadActiveGameState = useCallback(async () => {
     const [stateResult, saveIdResult] = await Promise.allSettled([
       invoke<GameStateData>("get_active_game"),
@@ -465,7 +497,11 @@ export default function Dashboard(): JSX.Element {
     sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
-  const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t);
+  const currentFinanceVerdict =
+    financeVerdict?.gameState === gameState && financeVerdict.teamId === gameState.manager.team_id
+      ? financeVerdict.snapshot
+      : null;
+  const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t, currentFinanceVerdict);
   const hasProfileHistory = hasDashboardProfileHistory(profileNavigation);
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])

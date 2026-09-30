@@ -173,7 +173,26 @@ function createGameState(): GameStateData {
   };
 }
 
-const gameState = createGameState();
+let gameState = createGameState();
+function createBackendFinanceSnapshot() {
+  return {
+    annual_wage_bill: 12000,
+    weekly_wage_spend: 12000,
+    weekly_wage_budget: 50000,
+    weekly_recurring_income: 12000,
+    weekly_sponsor_income: 12000,
+    projected_weekly_net: 0,
+    cash_runway_weeks: null as number | null,
+    wage_budget_usage_percent: 24,
+    currently_in_debt: false,
+    currently_over_budget: false,
+    wage_budget_status: "stable",
+    runway_status: "stable",
+    overall_status: "stable",
+    marketing_campaign_cooldown_days_remaining: 0,
+  };
+}
+let backendFinanceSnapshot = createBackendFinanceSnapshot();
 
 vi.mock("../lib/extraTranslations", () => ({
   applyExtraTranslations: vi.fn(),
@@ -236,16 +255,22 @@ vi.mock("../store/gameStore", () => ({
   }),
 }));
 
-vi.mock("../store/settingsStore", () => ({
-  useSettingsStore: () => ({
+vi.mock("../store/settingsStore", () => {
+  const getState = () => ({
     settings: {
       language: "en",
       default_match_mode: "live",
     },
+    currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
+    supportedCurrencies: { EUR: { code: "EUR", symbol: "€", exchange_rate: 1 } },
     loaded: true,
-    loadSettings: loadSettingsMock,
-  }),
-}));
+  });
+  const useSettingsStore = Object.assign(
+    () => ({ ...getState(), loadSettings: loadSettingsMock }),
+    { getState },
+  );
+  return { useSettingsStore };
+});
 
 vi.mock("../hooks/useAdvanceTime", () => ({
   useAdvanceTime: () => ({
@@ -352,7 +377,14 @@ vi.mock("../components/teamProfile", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardAlerts", () => ({
-  default: () => <div>Alerts Mock</div>,
+  default: ({ alerts }: { alerts: { id: string }[] }) => (
+    <div>
+      Alerts Mock
+      {alerts.map((alert) => (
+        <span key={alert.id}>{alert.id}</span>
+      ))}
+    </div>
+  ),
 }));
 
 vi.mock("../components/dashboard/DashboardTabContent", () => ({
@@ -386,6 +418,8 @@ vi.mock("../components/dashboard/DashboardMatchConfirmModal", () => ({
 
 describe("Dashboard", () => {
   beforeEach(() => {
+    gameState = createGameState();
+    backendFinanceSnapshot = createBackendFinanceSnapshot();
     registeredEventHandlers.clear();
     listenMock.mockClear();
     invokeMock.mockReset();
@@ -403,8 +437,48 @@ describe("Dashboard", () => {
         return gameState;
       }
 
+      if (command === "get_finance_snapshot") {
+        return { snapshot: backendFinanceSnapshot };
+      }
+
       return null;
     });
+  });
+
+  it("uses the backend cash verdict instead of a false local crisis", async () => {
+    const team = gameState.teams[0];
+    const player = gameState.players[0];
+    if (!team || !player) throw new Error("expected managed team and player");
+    team.finance = 20000;
+    team.wage_budget = 20000;
+    player.wage = 10000;
+    backendFinanceSnapshot = {
+      ...backendFinanceSnapshot,
+      weekly_recurring_income: 15200,
+      projected_weekly_net: 5200,
+      wage_budget_status: "warning",
+      wage_budget_usage_percent: 105,
+      overall_status: "warning",
+    };
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("wage_pressure")).toBeInTheDocument();
+    expect(invokeMock).toHaveBeenCalledWith("get_finance_snapshot", { teamId: "team-1" });
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
+  });
+
+  it("shows a finance crisis when the backend verdict is critical", async () => {
+    backendFinanceSnapshot = {
+      ...backendFinanceSnapshot,
+      runway_status: "critical",
+      cash_runway_weeks: 2,
+      overall_status: "critical",
+    };
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("finance_crisis")).toBeInTheDocument();
   });
 
   // A finished league that is not the player's own, sorting first in the array.
@@ -531,6 +605,10 @@ describe("Dashboard", () => {
         return gameState;
       }
 
+      if (command === "get_finance_snapshot") {
+        return { snapshot: backendFinanceSnapshot };
+      }
+
       if (command === "get_active_save_id") {
         throw new Error("save id unavailable");
       }
@@ -557,6 +635,10 @@ describe("Dashboard", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_active_game") {
         return gameState;
+      }
+
+      if (command === "get_finance_snapshot") {
+        return { snapshot: backendFinanceSnapshot };
       }
 
       if (command === "get_active_save_id") {
