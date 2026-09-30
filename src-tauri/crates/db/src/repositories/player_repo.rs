@@ -47,8 +47,9 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
           contract_end, wage, market_value, stats, career,
           transfer_listed, loan_listed, transfer_offers, alternate_positions,
           natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
-          ovr, potential, media_json, jersey_number, loan_offers, active_loan, movement_history)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38)
+          ovr, potential, media_json, jersey_number, loan_offers, active_loan, movement_history,
+          contract_start)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39)
          ON CONFLICT(id) DO UPDATE SET
            match_name = excluded.match_name,
            full_name = excluded.full_name,
@@ -64,6 +65,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
            team_id = excluded.team_id,
            retired = excluded.retired,
            traits = excluded.traits,
+           contract_start = excluded.contract_start,
            contract_end = excluded.contract_end,
            wage = excluded.wage,
            market_value = excluded.market_value,
@@ -126,6 +128,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             loan_offers_json,
             active_loan_json,
             movement_history_json,
+            p.contract_start,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -202,7 +205,8 @@ pub fn load_all_players(conn: &Connection) -> Result<Vec<Player>, String> {
                     natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
                     ovr, potential, COALESCE(media_json, '{}'), jersey_number,
                     COALESCE(loan_offers, '[]'), active_loan,
-                    COALESCE(movement_history, '[]')
+                    COALESCE(movement_history, '[]'),
+                    contract_start
              FROM players",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -229,7 +233,8 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
                     natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
                     ovr, potential, COALESCE(media_json, '{}'), jersey_number,
                     COALESCE(loan_offers, '[]'), active_loan,
-                    COALESCE(movement_history, '[]')
+                    COALESCE(movement_history, '[]'),
+                    contract_start
              FROM players WHERE team_id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -338,6 +343,7 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         traits: serde_json::from_str(&traits_json).unwrap_or_default(),
         ovr,
         potential,
+        contract_start: row.get(38)?,
         contract_end: row.get(15)?,
         wage: row.get(16)?,
         market_value: market_value_i64 as u64,
@@ -554,6 +560,82 @@ mod tests {
         assert_eq!(stored.ovr, 88);
         assert_eq!(stored.potential, 95);
         assert_eq!(stored.contract_end.as_deref(), Some("2030-06-30"));
+    }
+
+    /// A contract has a start as well as an end, and the start must survive a save.
+    ///
+    /// Written through serde rather than field access on purpose: before
+    /// `contract_start` exists the unknown key is dropped on the way in and the
+    /// round trip fails on behaviour, which is the red this needs. A test that
+    /// named the field would merely fail to compile, and a tree that does not
+    /// build has not demonstrated anything about persistence.
+    #[test]
+    fn test_player_contract_start_roundtrip() {
+        let db = test_db();
+        let mut value = serde_json::to_value(sample_player("p-cs", Some("team-1"))).unwrap();
+        value["contract_start"] = serde_json::json!("2019-07-01");
+        let player: Player = serde_json::from_value(value).unwrap();
+
+        upsert_player(db.conn(), &player).unwrap();
+
+        let stored = &load_all_players(db.conn()).unwrap()[0];
+        assert_eq!(
+            serde_json::to_value(stored).unwrap()["contract_start"],
+            serde_json::json!("2019-07-01"),
+            "an authored contract start must survive the repository round trip"
+        );
+    }
+
+    /// The second write is a separate site from the first.
+    ///
+    /// `upsert_player` inserts with an `ON CONFLICT DO UPDATE SET` block that
+    /// lists every column by hand, so a field can be inserted correctly and then
+    /// silently dropped on every later save. The round-trip test above only ever
+    /// inserts, so it passes against that bug. This one reads the column back with
+    /// raw SQL after a second upsert, which is the only thing that catches it.
+    #[test]
+    fn test_player_contract_start_survives_a_second_write() {
+        let db = test_db();
+        let mut value = serde_json::to_value(sample_player("p-cs2", Some("team-1"))).unwrap();
+        value["contract_start"] = serde_json::json!("2019-07-01");
+        let player: Player = serde_json::from_value(value).unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+
+        let mut moved = serde_json::to_value(&player).unwrap();
+        moved["contract_start"] = serde_json::json!("2024-01-15");
+        let renewed: Player = serde_json::from_value(moved).unwrap();
+        upsert_player(db.conn(), &renewed).unwrap();
+
+        let stored: Option<String> = db
+            .conn()
+            .query_row(
+                "SELECT contract_start FROM players WHERE id = ?1",
+                ["p-cs2"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            stored.as_deref(),
+            Some("2024-01-15"),
+            "a renewed contract start must overwrite the stored one, not leave it stale"
+        );
+    }
+
+    /// A save written before contracts had a start keeps `None`, and `None` is not
+    /// "expired" — it is "we do not know". Fabricating a start here would invent
+    /// employment history for every player in every existing career.
+    #[test]
+    fn test_player_contract_start_absent_stays_none() {
+        let db = test_db();
+        let player = sample_player("p-cs3", Some("team-1"));
+        upsert_player(db.conn(), &player).unwrap();
+
+        let stored = &load_all_players(db.conn()).unwrap()[0];
+        assert_eq!(
+            serde_json::to_value(stored).unwrap()["contract_start"],
+            serde_json::Value::Null,
+            "an unset contract start must round-trip as unset"
+        );
     }
 
     #[test]

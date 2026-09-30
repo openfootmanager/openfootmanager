@@ -319,6 +319,50 @@ fn incoming_transfer_offers_do_not_arrive_when_window_is_closed() {
     assert!(game.messages.is_empty());
 }
 
+/// Joining a new club is signing a new contract. It starts on the day the move
+/// happens, which for a bid made with the window closed is the day it registers and
+/// not the day of the bid, and it must not keep the selling club's start date.
+#[test]
+fn a_permanent_transfer_starts_a_new_contract_on_the_day_it_registers() {
+    let mut player = make_player("player-new-contract");
+    player.contract_start = Some("2019-07-01".to_string());
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    make_transfer_bid(&mut game, "player-new-contract", 2_000_000)
+        .expect("an accepted closed-window bid schedules registration");
+
+    let scheduled = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-new-contract")
+        .unwrap();
+    assert_eq!(
+        scheduled.contract_start.as_deref(),
+        Some("2019-07-01"),
+        "until the move registers the player is still on the selling club's contract"
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let registered = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-new-contract")
+        .unwrap();
+    assert_eq!(registered.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        registered.contract_start.as_deref(),
+        Some("2027-01-01"),
+        "the new contract starts the day the transfer registers, not on the bid date \
+         or the selling club's start"
+    );
+}
+
 #[test]
 fn accepted_closed_window_transfer_bid_is_registered_when_the_window_opens() {
     let player = make_player("player-bid-closed");
@@ -1086,6 +1130,10 @@ fn loan_buy_option_can_be_exercised_from_active_user_loan() {
     player.potential = 74;
     player.stats.appearances = 0;
     player.wage = 520_000;
+    // The parent club's contract, signed long before the loan. A loan must leave it
+    // alone and buying the player must replace it, so a value that a `None` start
+    // could not distinguish from "set by the buy".
+    player.contract_start = Some("2019-07-01".to_string());
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     attach_transfer_log_league(&mut game);
@@ -1122,6 +1170,12 @@ fn loan_buy_option_can_be_exercised_from_active_user_loan() {
             && entry.fee.is_none()
             && entry.loan_end_date.as_deref() == Some("2027-01-01")
     }));
+    // Out on loan the player is still the parent club's, on the parent's contract.
+    assert_eq!(
+        player.contract_start.as_deref(),
+        Some("2019-07-01"),
+        "a loan must not touch the parent club's contract"
+    );
 
     let buyer_finance_before = game
         .teams
@@ -1146,6 +1200,13 @@ fn loan_buy_option_can_be_exercised_from_active_user_loan() {
         .unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-1"));
     assert!(player.active_loan.is_none());
+    // Buying the player is a new agreement with the buying club, dated the day it is
+    // done, not the parent club's 2019 contract carried across.
+    assert_eq!(
+        player.contract_start,
+        Some(game.clock.current_date.format("%Y-%m-%d").to_string()),
+        "a loan-to-buy starts a new contract on the day of the purchase"
+    );
     assert!(player.movement_history.iter().any(|entry| {
         entry.kind == PlayerMovementKind::LoanStart
             && entry.from_team_name.as_deref() == Some("Seller FC")

@@ -992,6 +992,9 @@ pub(crate) fn complete_loan_buy_option_transfer(
         .find(|player| player.id == player_id)
     {
         player.team_id = Some(buying_team_id.to_string());
+        // Buying the player is a new agreement with the buying club from today. While
+        // on loan the contract stayed the parent club's, so this is the moment it changes.
+        player.contract_start = Some(today.clone());
         player.transfer_listed = false;
         player.loan_listed = false;
         player.active_loan = None;

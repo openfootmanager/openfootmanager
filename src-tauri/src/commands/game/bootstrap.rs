@@ -8,11 +8,16 @@
 
 use db::save_manager::SaveManager;
 use domain::stats::StatsState;
+use ofm_core::contracts::{club_season_anchors, stamp_opening_contract_starts};
 use ofm_core::game::Game;
+use ofm_core::world::{
+    ensure_multi_competition_foundations, rebuild_competitions_for_management_date,
+    team_season_anchor,
+};
 
 use super::{
-    preseason_league_year, preseason_season_start, StartPhase, DEFAULT_LEAGUE_NAME,
-    DEFAULT_LEAGUE_NAME_KEY, ISO_DATE_FORMAT,
+    preseason_league_year, preseason_season_start, start_phase_for_game, StartPhase,
+    DEFAULT_LEAGUE_NAME, DEFAULT_LEAGUE_NAME_KEY, ISO_DATE_FORMAT,
 };
 
 // Only `bootstrap_game_for_mcp` needs these, and it is behind the feature.
@@ -21,13 +26,47 @@ use {
     super::{
         build_game_from_world_data, default_save_name, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        start_phase_for_game,
     },
     chrono::Datelike,
     domain::manager::Manager,
     log::info,
     ofm_core::state::StateManager,
 };
+
+/// When the player picks `SeasonStart` for a southern-hemisphere (or other
+/// non-August-start) club, align the game clock to that club's actual season-start
+/// date and rebuild competitions from that anchor, so the player arrives at the
+/// beginning of their season, not in July.
+fn align_clock_to_club_season(game: &mut Game, team_id: &str) {
+    if start_phase_for_game(game) == StartPhase::SeasonStart {
+        if let Some(actual_start) = team_season_anchor(game, team_id) {
+            if actual_start < game.clock.current_date {
+                game.clock.current_date = actual_start;
+                game.clock.start_date = actual_start;
+                rebuild_competitions_for_management_date(game, actual_start);
+                game.national_teams.clear();
+                ensure_multi_competition_foundations(game);
+            }
+        }
+    }
+}
+
+/// Settle the date a career opens on, then give every contract that has no start the
+/// day it began, measured against that date.
+///
+/// `align_clock_to` is the club whose season the clock is pulled back to, for the
+/// paths that do that. The order is the point and lives here so it is written once:
+/// every club's season anchor is read *first*, because Brazil's is worked out from
+/// the clock's year and reading it after the clock has moved lands a year early;
+/// the clock is then moved; and starts are stamped last, against the date the career
+/// really opens on, so none can land after it.
+pub(crate) fn date_opening_contracts(game: &mut Game, align_clock_to: Option<&str>) {
+    let club_anchors = club_season_anchors(game);
+    if let Some(team_id) = align_clock_to {
+        align_clock_to_club_season(game, team_id);
+    }
+    stamp_opening_contract_starts(game, &club_anchors);
+}
 
 pub(super) fn has_existing_world_context(game: &Game, stats_state: &StatsState) -> bool {
     !game.competitions.is_empty()
@@ -336,6 +375,9 @@ pub fn bootstrap_game_for_mcp(
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let (mut game, current_stats_state) =
         build_game_from_world_data(clock, manager, &startup_options, world);
+    // This path does not align the clock to a club's season, so nothing moves the
+    // opening date; contracts are still dated against it.
+    date_opening_contracts(&mut game, None);
 
     info!(
         "[mcp-bootstrap] Built game: {} teams, {} players, manager.team_id={:?}",
@@ -409,5 +451,72 @@ mod tests {
         assert_eq!(loaded_stats.team_matches[0].team_id, "team1");
 
         std::fs::remove_dir_all(&saves_dir).unwrap();
+    }
+
+    /// A Brazilian career opens on 15 December of the year *before* the clock's, so
+    /// aligning the clock to that club moves it back by half a year. Every contract
+    /// has to be dated against the date the career actually opens on, and each
+    /// club's anchor has to have been read before the move: Brazil's is worked out
+    /// from the clock's year, so reading it afterwards lands a year too early.
+    #[test]
+    fn opening_a_brazilian_career_dates_no_contract_after_the_opening_date() {
+        let mut game = make_bootstrap_test_game();
+        let mut brazilian = domain::team::Team::new(
+            "br-1".to_string(),
+            "Santos FC".to_string(),
+            "SAN".to_string(),
+            "BR".to_string(),
+            "Santos".to_string(),
+            "Vila".to_string(),
+            20_000,
+        );
+        brazilian.football_nation = "BR".to_string();
+        game.teams.push(brazilian);
+        for index in 0..3 {
+            let mut player = game.players[0].clone();
+            player.id = format!("br-player-{index}");
+            player.team_id = Some("br-1".to_string());
+            game.players.push(player);
+        }
+        for player in &mut game.players {
+            player.contract_end = Some("2033-06-30".to_string());
+        }
+        ofm_core::world::ensure_multi_competition_foundations(&mut game);
+
+        date_opening_contracts(&mut game, Some("br-1"));
+
+        let opening = game.clock.current_date.date_naive();
+        assert_eq!(
+            opening.to_string(),
+            "2031-12-15",
+            "the clock should have been aligned to the Brazilian club's season"
+        );
+        let brazilian_start = game
+            .players
+            .iter()
+            .find(|player| player.id == "br-player-0")
+            .and_then(|player| player.contract_start.clone());
+        assert_eq!(
+            brazilian_start.as_deref(),
+            Some("2031-12-15"),
+            "the anchor was read after the clock moved, a year too early"
+        );
+        // Only people under contract: foundations also mint national-team fillers,
+        // who belong to no club and rightly have neither a start nor an end.
+        for player in game
+            .players
+            .iter()
+            .filter(|player| player.team_id.is_some() && player.contract_end.is_some())
+        {
+            let start = player
+                .contract_start
+                .as_deref()
+                .unwrap_or_else(|| panic!("{} was given no contract start", player.id));
+            assert!(
+                start <= opening.to_string().as_str(),
+                "{} starts {start}, after the career opens on {opening}",
+                player.id
+            );
+        }
     }
 }

@@ -172,11 +172,18 @@ pub(crate) fn round_up_to_nearest_thousand(value: u32) -> u32 {
     value.div_ceil(1000) * 1000
 }
 
+/// A contract date as stored: `"YYYY-MM-DD"`, or nothing if it is not one.
+///
+/// Dates are plain strings on the wire and in saves, so every reader parses them;
+/// this is the one place that says how.
+pub(crate) fn parse_contract_date(value: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(value, "%Y-%m-%d").ok()
+}
+
 pub(crate) fn contract_days_remaining(
     contract_end: Option<&str>,
     current_date: NaiveDate,
 ) -> Option<i64> {
-    let contract_end = contract_end?;
-    let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").ok()?;
+    let contract_end_date = parse_contract_date(contract_end?)?;
     Some((contract_end_date - current_date).num_days())
 }
