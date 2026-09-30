@@ -536,6 +536,18 @@ impl SaveManager {
         if ofm_core::finances::backfill_opening_balances(&mut game) {
             needs_resave = true;
         }
+
+        // Unconditional, not gated on the save format: "no fixture stays Scheduled in the past" is
+        // an invariant, not a one-time migration, so this also heals a future regression of the
+        // class #608 was. Idempotent, so a load that finds nothing does not resave.
+        let repaired_fixtures = ofm_core::catchup::repair_stranded_fixtures(&mut game);
+        if repaired_fixtures > 0 {
+            info!(
+                "[save_manager] repaired {} fixture(s) left scheduled in the past for save {}",
+                repaired_fixtures, save_id
+            );
+            needs_resave = true;
+        }
         if save_format_version < 6 && ofm_core::finances::apply_weekly_unit_runway_floor(&mut game)
         {
             needs_resave = true;
@@ -1331,6 +1343,77 @@ mod tests {
         assert_eq!(saves.len(), 1);
         assert_eq!(saves[0].manager_name, "Jane Doe");
         assert_eq!(saves[0].team_name, "");
+    }
+
+    #[test]
+    fn loading_a_save_repairs_fixtures_stranded_in_the_past_and_persists_them() {
+        // The aftermath of #608: on any day the player watched their own match, every other
+        // competition's fixtures due that day were skipped. Nothing picks them up again, because
+        // every "due today" check matches on `date == today`. Existing saves therefore carry
+        // fixtures that can never be played, so the repair runs on load.
+        //
+        // Asserted at the persistence boundary and then re-read from the file, because a repair
+        // that fixes the in-memory `Game` and never reaches the database would pass a test that
+        // only inspects what `load_game` returned, and would re-run on every load for ever.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game_with_league();
+        let stranded_date = {
+            let day_before = game.clock.current_date - chrono::Duration::days(7);
+            day_before.format("%Y-%m-%d").to_string()
+        };
+        // `sample_game_with_league` builds the legacy shape (mirror only), so promote it to the
+        // modern one first — this test is about a save written *after* competitions existed.
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let competition = game
+            .competitions
+            .first_mut()
+            .expect("the league is now a competition");
+        competition.fixtures.push(Fixture {
+            id: "stranded-1".to_string(),
+            competition_id: competition.id.clone(),
+            matchday: 1,
+            date: stranded_date,
+            home_team_id: "team-001".to_string(),
+            away_team_id: "team-002".to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        });
+        let save_id = sm.create_save(&game, "Stranded Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        let fixture = loaded
+            .competitions
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .find(|fixture| fixture.id == "stranded-1")
+            .expect("the stranded fixture survives the load");
+        assert_eq!(
+            fixture.status,
+            FixtureStatus::Completed,
+            "a fixture whose date has passed cannot become due again, so the load resolves it"
+        );
+        assert!(fixture.result.is_some(), "and it gets a scoreline");
+
+        // Re-read from the file: the repair has to be written back, or it happens again every load.
+        let reopened = sm.load_game(&save_id).unwrap();
+        let persisted = reopened
+            .competitions
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .find(|fixture| fixture.id == "stranded-1")
+            .expect("the fixture is still there on the second load");
+        assert_eq!(
+            persisted.status,
+            FixtureStatus::Completed,
+            "the repair was persisted rather than recomputed"
+        );
     }
 
     #[test]

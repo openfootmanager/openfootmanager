@@ -5,6 +5,7 @@
 //! quick scoreline-only results so the player joins a living, in-progress
 //! season rather than a blank table.
 
+use crate::game::Game;
 use chrono::{DateTime, NaiveDate, Utc};
 use domain::league::{FixtureStatus, League, MatchResult};
 use domain::player::Player;
@@ -128,6 +129,57 @@ pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cuto
     }
 }
 
+/// Resolve fixtures left `Scheduled` with a date that has already passed.
+///
+/// Called on every save load. Distinct from [`simulate_past_fixtures`], which runs once at career
+/// creation to fill in a season that began before the game's anchor date — this is a repair for
+/// fixtures that *should* have been played during the career and were not.
+///
+/// It exists because #608 skipped whole days: on any day the player watched their own match, every
+/// other competition's fixtures due that day were never simulated. Nothing picks them up afterwards,
+/// because every "due today" check matches on `date == today` — so the table stays permanently
+/// short, a knockout bracket stalls with no winner, and `is_season_complete` does not even notice,
+/// since it only asks about fixtures still to come.
+///
+/// Deliberately unconditional rather than gated on a save-format version. This is a data-integrity
+/// invariant — no fixture stays `Scheduled` in the past — not a one-time migration, so it also heals
+/// any future regression of the same class. It is idempotent: once repaired there is nothing to
+/// find, and the count it returns is zero, so a load does not keep rewriting the save.
+///
+/// `InProgress` is left alone: a save taken mid-match may have a resumable session, and resolving it
+/// by scoreline would discard it.
+///
+/// Returns how many fixtures were repaired, for the caller to log and to decide whether to resave.
+pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
+    let today = game.clock.current_date.date_naive();
+    let stranded = |competition: &League| {
+        competition
+            .fixtures
+            .iter()
+            .filter(|fixture| {
+                fixture.status == FixtureStatus::Scheduled
+                    && NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+                        .map(|date| date < today)
+                        .unwrap_or(false)
+            })
+            .count()
+    };
+
+    let total: usize = game.competitions.iter().map(stranded).sum();
+    if total == 0 {
+        return 0;
+    }
+
+    // Taken out so the scoreline model can read `game.players` while the competitions are mutated.
+    let mut competitions = std::mem::take(&mut game.competitions);
+    for competition in &mut competitions {
+        simulate_past_fixtures(competition, &game.players, game.clock.current_date);
+    }
+    game.competitions = competitions;
+
+    total
+}
+
 #[cfg(test)]
 mod tests {
     use super::apply_simulated_result;
@@ -190,5 +242,146 @@ mod tests {
         assert_eq!(result.home_penalties, None);
         assert_eq!(result.away_penalties, None);
         assert!(result.advancing_is_home());
+    }
+    // ---------------------------------------------------------------------
+    // Repairing fixtures that were stranded in the past (#608's aftermath).
+    // ---------------------------------------------------------------------
+
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::league::StandingEntry;
+    use domain::manager::Manager;
+
+    fn game_on(date: &str) -> Game {
+        let parts: Vec<u32> = date.split('-').map(|p| p.parse().unwrap()).collect();
+        let clock = GameClock::new(
+            Utc.with_ymd_and_hms(parts[0] as i32, parts[1], parts[2], 12, 0, 0)
+                .unwrap(),
+        );
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    fn league_with_fixture_on(date: &str) -> League {
+        let mut league = League::new(
+            "league1".to_string(),
+            "Test League".to_string(),
+            1,
+            &["home".to_string(), "away".to_string()],
+        );
+        league.standings = vec![
+            StandingEntry::new("home".to_string()),
+            StandingEntry::new("away".to_string()),
+        ];
+        league.fixtures = vec![Fixture {
+            id: "fix-1".to_string(),
+            competition_id: "league1".to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: "home".to_string(),
+            away_team_id: "away".to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        }];
+        league
+    }
+
+    #[test]
+    fn repairs_a_fixture_left_scheduled_in_the_past() {
+        // #608 left fixtures `Scheduled` with a date that had passed. Nothing can pick them up
+        // again — every due-today check matches on `date == today` — so the table is permanently
+        // short and a knockout bracket permanently stalled.
+        let mut game = game_on("2030-09-01");
+        game.competitions = vec![league_with_fixture_on("2030-08-10")];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(repaired, 1, "the stranded fixture is counted");
+        assert_eq!(
+            game.competitions[0].fixtures[0].status,
+            FixtureStatus::Completed
+        );
+        assert!(game.competitions[0].fixtures[0].result.is_some());
+        assert!(
+            game.competitions[0]
+                .standings
+                .iter()
+                .all(|entry| entry.played == 1),
+            "the table records the match that was missing from it"
+        );
+    }
+
+    #[test]
+    fn leaves_today_and_the_future_alone() {
+        // The repair must not eat the season. Only a date that has *passed* is unreachable; today's
+        // fixtures are about to be played by the day's own code, and later ones are not due yet.
+        let mut game = game_on("2030-09-01");
+        game.competitions = vec![
+            league_with_fixture_on("2030-09-01"),
+            league_with_fixture_on("2030-09-08"),
+        ];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(repaired, 0, "nothing was stranded");
+        for competition in &game.competitions {
+            assert_eq!(
+                competition.fixtures[0].status,
+                FixtureStatus::Scheduled,
+                "a fixture due today or later is not the repair's business"
+            );
+        }
+    }
+
+    #[test]
+    fn is_idempotent_so_every_load_does_not_re_resave() {
+        // It runs on every load, not behind a save-format gate, so the second run has to be a
+        // no-op — otherwise every load reports a change and rewrites the save.
+        let mut game = game_on("2030-09-01");
+        game.competitions = vec![league_with_fixture_on("2030-08-10")];
+
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 1);
+        let after_first = game.competitions[0].fixtures[0]
+            .result
+            .as_ref()
+            .map(|result| (result.home_goals, result.away_goals));
+
+        assert_eq!(
+            super::repair_stranded_fixtures(&mut game),
+            0,
+            "a second load finds nothing left to repair"
+        );
+        assert_eq!(
+            game.competitions[0].fixtures[0]
+                .result
+                .as_ref()
+                .map(|result| (result.home_goals, result.away_goals)),
+            after_first,
+            "and does not re-roll the result it already recorded"
+        );
+    }
+
+    #[test]
+    fn leaves_an_in_progress_fixture_alone() {
+        // A save taken mid-match has an `InProgress` fixture whose live session may be resumable.
+        // Resolving it by scoreline would throw that away.
+        let mut game = game_on("2030-09-01");
+        let mut league = league_with_fixture_on("2030-08-10");
+        league.fixtures[0].status = FixtureStatus::InProgress;
+        game.competitions = vec![league];
+
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 0);
+        assert_eq!(
+            game.competitions[0].fixtures[0].status,
+            FixtureStatus::InProgress
+        );
     }
 }
