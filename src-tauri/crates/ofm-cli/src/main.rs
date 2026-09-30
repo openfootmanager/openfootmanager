@@ -807,6 +807,104 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// A real on-disk package, so these scenarios exercise pack's validation gate.
+    fn group_cup_package(name: &str, entrants: usize, format: serde_json::Value) -> PathBuf {
+        let dir = scratch_dir(name);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let teams: Vec<_> = (0..entrants)
+            .map(|i| {
+                json!({
+                    "id": format!("club-{i}"), "name": format!("Club {i}"), "city": "City",
+                    "country": "ENG", "reputationRange": [500, 500],
+                    "colors": {"primary": "#000000", "secondary": "#ffffff"}
+                })
+            })
+            .collect();
+        std::fs::write(
+            dir.join("teams.json"),
+            json!({"schema": "team", "items": teams}).to_string(),
+        )
+        .expect("teams written");
+        std::fs::write(dir.join("cup.json"), json!({
+            "schema": "competition", "id": "authored-cup", "name": "Authored Cup",
+            "type": "Cup", "scope": "Domestic", "format": format,
+            "participants": {"selector": {"kind": "topByReputation", "country": "ENG", "count": 100}}
+        }).to_string()).expect("cup written");
+        dir
+    }
+
+    /// Given impossible resolved group shapes, pack must report the core error
+    /// before writing an archive, rather than failing only at game load.
+    #[test]
+    fn pack_rejects_invalid_resolved_group_qualification() {
+        for (entrants, format) in [
+            (
+                7,
+                json!({"kind":"GroupAndKnockout", "groupSize":3, "qualifiersPerGroup":3}),
+            ),
+            (
+                3,
+                json!({"kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":1}),
+            ),
+        ] {
+            let dir = group_cup_package(&format!("invalid-group-{entrants}"), entrants, format);
+            let out = dir.join("invalid.ofm");
+            let code = cmd_pack(&dir, Some(&out));
+            let (_, errors) = load_world_package(&dir);
+            assert_eq!(code, 1, "pack must reject an impossible resolved field");
+            assert!(!out.exists(), "invalid input must not produce an archive");
+            let qualification: Vec<_> = errors
+                .iter()
+                .filter(|e| e.code == "be.error.competitionDef.invalidGroupQualification")
+                .collect();
+            assert_eq!(qualification.len(), 1, "specific error: {errors:?}");
+            assert_eq!(qualification[0].file, "cup.json");
+            assert!(qualification[0]
+                .params
+                .contains(&("competition".into(), "authored-cup".into())));
+            std::fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    /// Given seven clubs and a maximum of three, balanced groups of 3/2/2
+    /// can supply two qualifiers each and one extra next-place finisher.
+    #[test]
+    fn pack_accepts_balanced_uneven_groups() {
+        let dir = group_cup_package(
+            "balanced-groups",
+            7,
+            json!({
+                "kind":"GroupAndKnockout", "groupSize":3, "qualifiersPerGroup":2, "bestThirdQualifiers":1
+            }),
+        );
+        let out = dir.join("balanced.ofm");
+        assert_eq!(cmd_pack(&dir, Some(&out)), 0);
+        assert!(out.exists());
+        let (package, errors) = load_world_package_from_ofm(&out);
+        assert!(
+            errors.is_empty(),
+            "the packed archive must validate: {errors:?}"
+        );
+        assert_eq!(package.teams.len(), 7);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given one resolved club, pack preserves construction's optional-cup skip.
+    #[test]
+    fn pack_preserves_single_club_selector_skips() {
+        let dir = group_cup_package(
+            "single-club-selector",
+            1,
+            json!({
+                "kind":"GroupAndKnockout", "groupSize":2
+            }),
+        );
+        let out = dir.join("skipped.ofm");
+        assert_eq!(cmd_pack(&dir, Some(&out)), 0);
+        assert!(out.exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn pack_names_the_archive_after_the_package_id() {
         assert_eq!(

@@ -1010,8 +1010,14 @@ mod tests {
         let mut layer = WorldPackage::default();
         layer.teams.extend(clubs(0..7));
         layer.competitions.push(definition);
-        // Packing a definition layer does not promise it can form a world alone.
-        assert!(crate::generator::validate_package(&layer).is_empty());
+        // Standalone authoring validation uses this layer's resolved field.
+        let errors = crate::generator::validate_package(&layer);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.code == "be.error.competitionDef.invalidGroupQualification"),
+            "standalone qualification must be checked before export: {errors:?}"
+        );
         let sources = DefinitionSources::embedded_only();
         assert!(
             matches!(build_world_from_package(&layer, Some(2031), &sources),
@@ -1036,14 +1042,26 @@ mod tests {
         );
     }
 
+    /// Three entrants at maximum size two would leave a lone club with no match.
+    #[test]
+    fn public_world_loader_rejects_singleton_groups() {
+        for selector in [false, true] {
+            let json = group_world_json(
+                3,
+                serde_json::json!({
+                    "kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":1
+                }),
+                selector,
+            );
+            assert!(matches!(load_world_from_json(&json),
+                Err(key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR));
+        }
+    }
+
     #[test]
     fn public_world_loader_rejects_incompatible_group_qualification() {
         for selector in [false, true] {
             for (entrants, format) in [
-                (
-                    3,
-                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":1}),
-                ),
                 (
                     8,
                     serde_json::json!({"kind":"GroupAndKnockout","groupSize":0}),
