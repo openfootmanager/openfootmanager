@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { addBuild, KEEP, MAX_COMMITS, seedHistory } from "./update-nightly-history.mjs";
+import {
+  addBuild,
+  KEEP,
+  MAX_COMMITS,
+  seedHistory,
+  updateHistory,
+} from "./update-nightly-history.mjs";
 
 const REPO = "openfootmanager/openfootmanager";
 
@@ -71,13 +77,34 @@ describe("addBuild", () => {
     expect(entry).not.toHaveProperty("notes");
   });
 
-  it("finds the previous build by date when runs arrive out of order", () => {
+  it("links a late build in, and relinks the newer build past it", () => {
     const git = fakeGit();
     // The third build's run lands before the second's (the second was cancelled and re-run).
     const builds = addBuild(addBuild(addBuild([], first, git), third, git), second, git);
 
-    expect(builds.map((b) => b.tag)).toEqual([third.tag, second.tag, first.tag]);
-    expect(builds[1].previousTag).toBe(first.tag);
+    expect(builds.map((b) => [b.tag, b.previousTag])).toEqual([
+      [third.tag, second.tag],
+      [second.tag, first.tag],
+      [first.tag, null],
+    ]);
+    // Without the relink the third build keeps first..third, claiming the second build's commits.
+    expect(builds[0].compareUrl).toBe(
+      `https://github.com/${REPO}/compare/${second.tag}...${third.tag}`,
+    );
+    expect(builds[0].commits[0].subject).toBe("fix(test): change 0 before 8e01f97");
+    expect(git.ranges.at(-2)).toEqual(["eca2db3", "ba81840"]);
+    expect(git.ranges.at(-1)).toEqual(["ba81840", "8e01f97"]);
+  });
+
+  it("leaves the newer build alone when it already points at the added one", () => {
+    const git = fakeGit();
+    const builds = addBuild(addBuild(addBuild([], first, git), second, git), third, git);
+    const before = git.ranges.length;
+
+    addBuild(builds, second, git);
+
+    // Only the re-added build is recomputed; the third already follows it.
+    expect(git.ranges.length - before).toBe(1);
   });
 
   it("replaces a build that is added twice instead of listing it twice", () => {
@@ -122,6 +149,31 @@ describe("addBuild", () => {
       /per-build nightly/,
     );
     expect(() => addBuild([], { ...first, tag: "v0.2.0" }, fakeGit())).toThrow(/per-build nightly/);
+  });
+});
+
+describe("updateHistory", () => {
+  const earlier = new Date("2026-09-30T00:00:00Z");
+  const later = new Date("2026-09-30T06:00:00Z");
+
+  it("stamps the time when a build is added", () => {
+    const history = updateHistory({ schemaVersion: 1, builds: [] }, first, fakeGit(), earlier);
+
+    expect(history).toMatchObject({ schemaVersion: 1, updatedAt: earlier.toISOString() });
+    expect(history.builds).toHaveLength(1);
+  });
+
+  it("keeps the old stamp when a re-run changes nothing, so the file is identical", () => {
+    const git = fakeGit();
+    const once = updateHistory(
+      updateHistory({ schemaVersion: 1, builds: [] }, first, git, earlier),
+      second,
+      git,
+      earlier,
+    );
+    const again = updateHistory(once, second, git, later);
+
+    expect(JSON.stringify(again)).toBe(JSON.stringify(once));
   });
 });
 

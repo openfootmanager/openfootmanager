@@ -49,6 +49,28 @@ export const gitCli = {
 
 const newestFirst = (a, b) => b.publishedAt.localeCompare(a.publishedAt);
 
+/** `build` linked to `previous`: the build before it, and the commits between the two. */
+function linked(build, previous, git) {
+  // Unknown when either end is missing from this checkout, rather than a guessed zero.
+  let commitCount = null;
+  let commits = [];
+  if (previous && git.hasCommit(previous.commit) && git.hasCommit(build.commit)) {
+    const all = git.commitsBetween(previous.commit, build.commit);
+    commitCount = all.length;
+    commits = all.slice(0, MAX_COMMITS);
+  }
+
+  const repository = `https://github.com/${build.repository}`;
+  return {
+    ...build,
+    previousTag: previous?.tag ?? null,
+    compareUrl: previous ? `${repository}/compare/${previous.tag}...${build.tag}` : null,
+    checksumsUrl: `${repository}/releases/download/${build.tag}/nightly-checksums.txt`,
+    commitCount,
+    commits,
+  };
+}
+
 /**
  * `builds` with `manifest` added (or replaced, if its tag is already there), newest first, at most
  * KEEP. Pure apart from the `git` lookups.
@@ -58,36 +80,37 @@ export function addBuild(builds, manifest, git = gitCli) {
     throw new Error(`Not a per-build nightly tag: ${manifest.tag}`);
   }
 
-  const others = builds.filter((build) => build.tag !== manifest.tag);
-  const previous =
-    others.filter((build) => build.publishedAt < manifest.publishedAt).sort(newestFirst)[0] ?? null;
-
-  // Unknown when either end is missing from this checkout, rather than a guessed zero.
-  let commitCount = null;
-  let commits = [];
-  if (previous && git.hasCommit(previous.commit) && git.hasCommit(manifest.commit)) {
-    const all = git.commitsBetween(previous.commit, manifest.commit);
-    commitCount = all.length;
-    commits = all.slice(0, MAX_COMMITS);
-  }
-
-  const repository = `https://github.com/${manifest.repository}`;
   // The release notes are boilerplate the page never shows; leaving them out keeps the file small.
   const { notes: _notes, ...entry } = manifest;
+  const sorted = [entry, ...builds.filter((build) => build.tag !== manifest.tag)].sort(newestFirst);
+  const at = sorted.findIndex((build) => build.tag === manifest.tag);
 
-  return [
-    {
-      ...entry,
-      previousTag: previous?.tag ?? null,
-      compareUrl: previous ? `${repository}/compare/${previous.tag}...${manifest.tag}` : null,
-      checksumsUrl: `${repository}/releases/download/${manifest.tag}/nightly-checksums.txt`,
-      commitCount,
-      commits,
-    },
-    ...others,
-  ]
-    .sort(newestFirst)
-    .slice(0, KEEP);
+  sorted[at] = linked(sorted[at], sorted[at + 1] ?? null, git);
+
+  // A build whose run arrives after a newer build's (cancelled, then re-run) lands between that
+  // newer build and the one it was linked to. Relink the newer build to it, or the two would
+  // claim the same commits.
+  if (at > 0 && sorted[at - 1].previousTag !== manifest.tag) {
+    sorted[at - 1] = linked(sorted[at - 1], sorted[at], git);
+  }
+
+  return sorted.slice(0, KEEP);
+}
+
+/**
+ * The history file with `manifest` added. When that changes no build — a re-run for a build
+ * already recorded — the timestamp is kept too, so the file is byte-for-byte the same and the
+ * workflow's "no changes" path skips the commit.
+ */
+export function updateHistory(history, manifest, git = gitCli, now = new Date()) {
+  const builds = addBuild(history.builds, manifest, git);
+  const unchanged = JSON.stringify(builds) === JSON.stringify(history.builds);
+
+  return {
+    schemaVersion: 1,
+    updatedAt: unchanged && history.updatedAt ? history.updatedAt : now.toISOString(),
+    builds,
+  };
 }
 
 /** A history from scratch: every earlier manifest, oldest first, then this one. */
@@ -130,21 +153,25 @@ function main([historyPath, manifestPath]) {
   }
 
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  let builds;
+  let history;
 
   if (existsSync(historyPath)) {
-    const history = JSON.parse(readFileSync(historyPath, "utf8"));
-    if (history.schemaVersion !== 1 || !Array.isArray(history.builds)) {
+    const existing = JSON.parse(readFileSync(historyPath, "utf8"));
+    if (existing.schemaVersion !== 1 || !Array.isArray(existing.builds)) {
       throw new Error(`${historyPath} is not a schemaVersion 1 history file`);
     }
-    builds = addBuild(history.builds, manifest);
+    history = updateHistory(existing, manifest);
   } else {
     const earlier = releasedManifests(manifest.tag);
     console.log(`Seeding the history from ${earlier.length} earlier nightly releases.`);
-    builds = seedHistory(earlier, manifest);
+    history = {
+      schemaVersion: 1,
+      updatedAt: new Date().toISOString(),
+      builds: seedHistory(earlier, manifest),
+    };
   }
 
-  const history = { schemaVersion: 1, updatedAt: new Date().toISOString(), builds };
+  const { builds } = history;
   writeFileSync(historyPath, `${JSON.stringify(history, null, 2)}\n`);
   console.log(
     `${historyPath}: ${builds.length} builds, newest ${builds[0].tag} (${builds[0].commitCount ?? "no"} commits since the one before).`,
