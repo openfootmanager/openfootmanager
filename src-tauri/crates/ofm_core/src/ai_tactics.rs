@@ -306,9 +306,11 @@ const FORM_MINIMUM: usize = 3;
 // They are measurements, and they move when the football does. First set at 2.8
 // and 1.2 when a club scored 2.06 a game; fielding a real, rested eleven instead
 // of a whole tired squad lifted that to about 2.29, where 2.8 conceded sits near
-// p70 and a third of clubs read as leaking. Six probe seasons put p85 at 3.2 in
-// four of them and p15 at 1.4 in four. Anything that changes how many goals are
-// scored should re-read that table before trusting these.
+// p70 and a third of clubs read as leaking; they moved to 3.2 and 1.4. Playing
+// every active fixture on the live engine, with benches and managers, lifted
+// scoring again to about 2.52, and six probe seasons put the pooled p85 at 3.4
+// and p15 at 1.6. Anything that changes how many goals are scored should
+// re-read that table before trusting these.
 //
 // The first pass used 2.2 and 0.8, which read like a matched pair and were
 // nothing of the kind: 2.2 sat just above the median and fired for two clubs in
@@ -317,9 +319,9 @@ const FORM_MINIMUM: usize = 3;
 // and the reaction table came out as one column of compact blocks.
 
 /// Conceding at this rate says the plan is not holding, whatever the badge says.
-const LEAKY: f64 = 3.2;
+const LEAKY: f64 = 3.4;
 /// Scoring at this rate says the same about the other end.
-const BLUNT: f64 = 1.4;
+const BLUNT: f64 = 1.6;
 
 struct FormReading {
     conceded_per_game: f64,
