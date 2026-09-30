@@ -20,11 +20,20 @@ pub struct AdvanceTimeWithModeResponse {
     pub results: Vec<AdvanceMatchResult>,
 }
 
-fn round_context_for_today(
+/// The matchday and pre-round standings of the competition the round digest will describe.
+///
+/// This must be the same competition `build_round_summary` reads — the user's, which
+/// `sync_legacy_league` mirrors — or the summary computes one competition's deltas from
+/// another's table. It used to read `primary_competition()`, which is `competitions.first()`
+/// and so, for any career outside the first country, a foreign league on another calendar.
+pub(crate) fn round_context_for_today(
     game: &Game,
     today: &str,
 ) -> Option<(u32, Vec<domain::league::StandingEntry>)> {
-    let league = game.primary_competition()?;
+    // Exactly what `build_round_summary` will read: the user's competition, which
+    // `sync_legacy_league` mirrors — falling back to the mirror itself for a save written before
+    // `competitions` existed, where it is the only copy there is.
+    let league = game.user_competition().or(game.league.as_ref())?;
     let matchday = league
         .fixtures
         .iter()
@@ -231,14 +240,18 @@ pub fn advance_time_with_mode(
                         }
                     }
 
+                    ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
+                        captures.push(capture)
+                    });
+
+                    // After the sweep: see the note in `application/live_match.rs`. Built before
+                    // it, the summary describes a round the response has since played.
                     let round_summary =
                         round_context
                             .as_ref()
                             .and_then(|(matchday, previous_standings)| {
                                 build_round_summary_dto(game, *matchday, previous_standings)
                             });
-
-                    ofm_core::turn::finish_live_match_day(game);
                     let results = collect_advance_results(game, &today);
 
                     Ok(AdvanceTimeWithModeResponse {

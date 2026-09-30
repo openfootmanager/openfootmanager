@@ -30,7 +30,6 @@ export {
   formatDateFull,
   formatDateShort,
   formatMatchDate,
-  getLocale,
 } from "./dateFormatting";
 export {
   getContractRiskBadgeVariant,

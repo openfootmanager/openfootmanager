@@ -4,35 +4,29 @@ import {
   collectMissingKeys,
   collectOrphanKeys,
   collectUntranslatedKeys,
-  type LocaleTree,
+  LOCALE_FILES,
+  NON_ENGLISH_LOCALES,
 } from "./i18nTestHelpers";
+import { SUPPORTED_LANGUAGES } from "./index";
 import INTENTIONAL_SAME from "./INTENTIONAL_SAME.json";
-import cs from "./locales/cs.json";
-import de from "./locales/de.json";
-import en from "./locales/en.json";
-import es from "./locales/es.json";
-import fr from "./locales/fr.json";
-import idLocale from "./locales/id.json";
-import itLocale from "./locales/it.json";
-import ptBR from "./locales/pt-BR.json";
-import pt from "./locales/pt.json";
-import ru from "./locales/ru.json";
-import tr from "./locales/tr.json";
-import zhCN from "./locales/zh-CN.json";
 
-const LOCALES: Record<string, LocaleTree> = {
-  cs,
-  de,
-  es,
-  fr,
-  it: itLocale,
-  id: idLocale,
-  pt,
-  "pt-BR": ptBR,
-  ru,
-  tr,
-  "zh-CN": zhCN,
-};
+const en = LOCALE_FILES.en;
+const LOCALES = NON_ENGLISH_LOCALES;
+
+describe("supported languages", () => {
+  // The registry had no gate at all. A thirteenth language could be added to
+  // SUPPORTED_LANGUAGES and shipped with a one-key file, and every locale suite
+  // still passed: the picker offered it and the app rendered English. Both
+  // directions are asserted, because a file with no registry entry is dead
+  // weight nobody can select, and a registry entry with no file is a language
+  // the picker offers and cannot load.
+  it("names exactly the locales that have a file", () => {
+    const registered = SUPPORTED_LANGUAGES.map((language) => language.code).sort();
+    const onDisk = Object.keys(LOCALE_FILES).sort();
+
+    expect(onDisk).toEqual(registered);
+  });
+});
 
 describe("locale coverage", () => {
   it("keeps every supported locale aligned with English translation keys", () => {
