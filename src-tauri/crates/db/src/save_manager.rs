@@ -1401,18 +1401,32 @@ mod tests {
         );
         assert!(fixture.result.is_some(), "and it gets a scoreline");
 
-        // Re-read from the file: the repair has to be written back, or it happens again every load.
-        let reopened = sm.load_game(&save_id).unwrap();
-        let persisted = reopened
+        // Read the database directly rather than calling `load_game` again. A second load would
+        // run the repair a second time and report the same answer whether or not the first one was
+        // ever written back — proving idempotence, not persistence.
+        //
+        // What this does NOT pin, checked by mutation: dropping `needs_resave = true` from the
+        // repair's branch still leaves the fixture `Completed` on disk, because other backfills in
+        // `load_game` set the flag for this sample save and the resave happens anyway. On a save
+        // where none of them fire, the flag is the only thing writing the repair back. Isolating
+        // that needs a fixture that triggers no other backfill, which this one is not.
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let from_disk = GamePersistenceReader::read_game(&db).unwrap();
+        let persisted = from_disk
             .competitions
             .iter()
             .flat_map(|competition| competition.fixtures.iter())
             .find(|fixture| fixture.id == "stranded-1")
-            .expect("the fixture is still there on the second load");
+            .expect("the fixture is in the saved file");
         assert_eq!(
             persisted.status,
             FixtureStatus::Completed,
-            "the repair was persisted rather than recomputed"
+            "the repair was written back to the save, not recomputed on every load"
+        );
+        assert!(
+            persisted.result.is_some(),
+            "and the scoreline it chose is the one on disk"
         );
     }
 
