@@ -4,6 +4,10 @@
 //! entry in `Player::movement_history`, and only `Player::record_movement` can add to
 //! that (the ledger's entries are private, so the compiler holds that line).
 //!
+//! The compiler already refuses `player.movement_history.push(..)` outside `domain`, so
+//! a third test holds the rest of that line in the source as well, for the things it
+//! does not refuse: replacing the whole ledger, or borrowing it mutably.
+//!
 //! What the compiler cannot hold is the two ways a contract enters a player without an
 //! entry yet: *staging* (world generation rolls a contract before there is any
 //! history; opening a career turns it into an entry) and *restoring* a ledger from a
@@ -25,6 +29,21 @@ const STAGING_ALLOWED: &[&str] = &[
     "crates/domain/src/contract_ledger.rs",
     "crates/ofm_core/src/generator/generation.rs",
     "crates/ofm_core/src/generator/mod.rs",
+];
+
+/// Methods that change a list. Any of them on a movement history, outside the ledger's
+/// own module, is a writer that bypassed `Player::record_movement`.
+const MUTATORS: &[&str] = &[
+    "push", "extend", "insert", "append", "splice", "retain", "drain", "clear", "truncate",
+    "remove", "swap", "sort", "pop", "resize", "dedup", "reverse", "rotate", "fill",
+];
+
+/// Where a ledger may be mutated: its own module. The player repository is let through
+/// only because its upsert SQL names the column (`movement_history = excluded...`);
+/// it builds a ledger with `MovementLedger::restore` and never changes one.
+const LEDGER_ALLOWED: &[&str] = &[
+    "crates/domain/src/contract_ledger.rs",
+    "crates/db/src/repositories/player_repo.rs",
 ];
 
 /// Where a ledger may be rebuilt from a save.
@@ -139,4 +158,82 @@ fn only_the_player_repository_restores_a_ledger() {
          contract columns mean:\n{}",
         offenders.join("\n")
     );
+}
+
+/// Every way the source can change a `movement_history` other than through the
+/// ledger: a mutating method, an assignment, or a `&mut` borrow.
+fn ledger_mutations(code: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut from = 0;
+    while let Some(at) = code[from..].find("movement_history") {
+        let start = from + at;
+        let end = start + "movement_history".len();
+        from = end;
+        let after: String = code[end..]
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .take(24)
+            .collect();
+        for method in MUTATORS {
+            if after.starts_with(&format!(".{method}(")) {
+                found.push(format!("calls .{method}(..)"));
+            }
+        }
+        if after.starts_with('=') && !after.starts_with("==") {
+            found.push("assigns it".to_string());
+        }
+        // `&mut x.movement_history`: walk back over the path to the borrow.
+        let path_start = code[..start]
+            .rfind(|c: char| !(c.is_alphanumeric() || matches!(c, '_' | '.' | '[' | ']')))
+            .map_or(0, |i| i + 1);
+        if code[..path_start].trim_end().ends_with("&mut") {
+            found.push("borrows it mutably".to_string());
+        }
+    }
+    found
+}
+
+#[test]
+fn nothing_outside_the_ledger_mutates_a_movement_history() {
+    let (root, files) = sources();
+    let mut offenders = Vec::new();
+    for file in files {
+        let rel = relative(&file, &root);
+        if LEDGER_ALLOWED.contains(&rel.as_str()) {
+            continue;
+        }
+        for what in ledger_mutations(&production_code(&file)) {
+            offenders.push(format!("{rel} {what}"));
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "a movement history changes only through Player::record_movement:\n{}",
+        offenders.join("\n")
+    );
+}
+
+#[test]
+fn the_mutation_scan_recognises_what_it_is_meant_to_refuse() {
+    for code in [
+        "p.movement_history.push(e);",
+        "p.movement_history\n    .extend(more);",
+        "p.movement_history = Default::default();",
+        "let h = &mut p.movement_history;",
+        "std::mem::take(&mut player.movement_history)",
+        "player.movement_history.retain(|e| keep(e));",
+    ] {
+        assert!(
+            !ledger_mutations(code).is_empty(),
+            "missed a mutation: {code}"
+        );
+    }
+    for code in [
+        "p.movement_history.iter().any(|e| e.contract.is_some());",
+        "if p.movement_history == other.movement_history {}",
+        "let n = p.movement_history.len();",
+        "movement_history: MovementLedger::restore(a, b, c, 0),",
+    ] {
+        assert!(ledger_mutations(code).is_empty(), "flagged a read: {code}");
+    }
 }
