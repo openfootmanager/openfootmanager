@@ -902,6 +902,62 @@ fn accepted_post_window_loan_is_scheduled_for_the_next_window() {
     assert_eq!(scheduled_player.loan_offers[0].end_date, "2028-06-30");
 }
 
+/// Agrees an AI club's loan for a user player while the window is closed, sets the borrower's
+/// wage budget, then opens the window and runs registration.
+fn register_scheduled_incoming_loan(borrower_wage_budget: i64) -> Game {
+    let mut player = make_user_player("player-ai-borrow");
+    player.wage = 520_000;
+    let mut offer = make_pending_incoming_loan_offer("loan-offer-ai", 75, None);
+    // Dated on the day it is answered, so stale-offer expiry leaves it alone.
+    offer.date = "2026-12-20".to_string();
+    offer.start_date = "2027-01-01".to_string();
+    offer.end_date = "2027-06-30".to_string();
+    player.loan_offers.push(offer);
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].wage_budget = 2_000_000;
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    respond_to_loan_offer(&mut game, "player-ai-borrow", "loan-offer-ai", true)
+        .expect("the user should be able to agree the loan outside the window");
+    assert_eq!(
+        find_player(&game, "player-ai-borrow").loan_offers[0].status,
+        LoanOfferStatus::PendingRegistration
+    );
+
+    game.teams[1].wage_budget = borrower_wage_budget;
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_loan_registrations(&mut game);
+    game
+}
+
+#[test]
+fn scheduled_loan_to_an_ai_club_registers_when_the_borrower_can_afford_it() {
+    let game = register_scheduled_incoming_loan(2_000_000);
+
+    let player = find_player(&game, "player-ai-borrow");
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Accepted);
+}
+
+#[test]
+fn scheduled_loan_to_an_ai_club_fails_registration_when_the_borrower_cannot_afford_it() {
+    // The borrower's 75% share of a 520k wage is 390k: well past a 50k budget's soft cap.
+    let game = register_scheduled_incoming_loan(50_000);
+
+    let player = find_player(&game, "player-ai-borrow");
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert!(player.active_loan.is_none());
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Withdrawn);
+    assert_eq!(
+        player.loan_offers[0].closed_on.as_deref(),
+        Some("2027-01-01")
+    );
+}
+
 #[test]
 fn loan_offer_rejects_end_date_after_player_contract() {
     let mut player = make_player("player-short-contract-loan");

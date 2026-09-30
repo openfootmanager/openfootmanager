@@ -8,5 +8,7 @@ pub mod save_index;
 pub mod save_index_manager;
 pub mod save_load_error;
 pub mod save_manager;
+#[cfg(test)]
+pub(crate) mod stored_text;
 
 pub use save_load_error::SaveLoadError;

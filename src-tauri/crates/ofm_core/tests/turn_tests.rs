@@ -20,6 +20,8 @@ use std::collections::HashMap;
 
 #[path = "turn_tests/fixtures.rs"]
 mod fixtures;
+#[path = "turn_tests/live_match_day.rs"]
+mod live_match_day;
 #[path = "turn_tests/training_ground.rs"]
 mod training_ground;
 #[path = "turn_tests/unwatched.rs"]

@@ -151,48 +151,14 @@ fn run_training_ground(game: &mut Game) {
     training::check_squad_fitness_warnings(game);
 }
 
-/// Process a single day advance.
-pub fn process_day(game: &mut Game) {
-    process_day_with_capture(game, &mut |_| {});
-}
-
-pub fn process_day_with_capture<F>(game: &mut Game, on_capture: &mut F)
-where
-    F: FnMut(StatsState),
-{
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    transfers::process_loan_development_reports(game);
-    transfers::process_loan_returns(game);
-
-    let due_competitions = competition_indices_due_today(game, &today);
-    let has_match_today = !due_competitions.is_empty();
-
-    if has_match_today {
-        info!("[turn] process_day {}: matchday", today);
-        for competition_index in due_competitions {
-            simulate_competition_day_with_capture(game, competition_index, &today, on_capture);
-        }
-    }
-    // Unconditional, and after the matches: a fixture somewhere in the world says
-    // nothing about whether *this* club trains. `run_training_ground` skips only
-    // the clubs actually playing today.
-    run_training_ground(game);
-
-    // Tiered simulation: competitions outside the active scope are resolved by
-    // scoreline only, keeping the dormant world moving without the full engine.
-    let dormant_competitions = dormant_competition_indices_due_today(game, &today);
-    if !dormant_competitions.is_empty() {
-        let mut rng = rand::rng();
-        for competition_index in dormant_competitions {
-            dormant::simulate_dormant_competition_day(game, competition_index, &today, &mut rng);
-        }
-    }
-
-    // National-team football: window friendlies and any running World Cup.
-    // Both self-filter by date, so they are no-ops on other days.
-    crate::national_team::process_national_team_fixtures_due(game, &today, &mut rand::rng());
-    crate::world_cup::process_world_cup_fixtures_due(game, &today, &mut rand::rng());
-
+/// Everything both endings of a day do, in the order they both did it.
+///
+/// `process_day` and `finish_live_match_day` were two hand-maintained copies of this sequence,
+/// and the live one had drifted: it never simulated the other competitions due that day, the
+/// dormant tier, the internationals or the World Cup. Because a fixture is only ever due on an
+/// exact date match, everything it skipped was skipped permanently. Sharing the tail means a step
+/// can no longer be in one ending and not the other.
+fn process_day_common(game: &mut Game, today: &str) {
     crate::contracts::process_contract_expiries(game);
 
     // Weekly financial processing (wages, matchday income, warnings)
@@ -213,51 +179,103 @@ where
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
 
-    news::generate_weekly_digest_news(game, &today);
-    news::generate_pre_match_messages(game, &today);
+    news::generate_weekly_digest_news(game, today);
+    news::generate_pre_match_messages(game, today);
 
     crate::firing::check_manager_firing(game);
     crate::ai_hiring::process_vacant_ai_clubs(game);
     crate::job_offers::check_job_offers(game);
+}
+
+/// The football that happens today outside the fixture the player was watching.
+///
+/// Every competition still holding a scheduled fixture for `today`, then the dormant tier, then
+/// national-team football. Safe to call after the player's own match has been applied: a fixture
+/// already `Completed` is no longer due, so nothing is played twice.
+fn simulate_the_rest_of_the_world<F>(game: &mut Game, today: &str, on_capture: &mut F)
+where
+    F: FnMut(StatsState),
+{
+    let due = competition_indices_due_today(game, today);
+    if !due.is_empty() {
+        info!("[turn] {}: matchday in {} competition(s)", today, due.len());
+    }
+    for competition_index in due {
+        simulate_competition_day_with_capture(game, competition_index, today, on_capture);
+    }
+
+    // Tiered simulation: competitions outside the active scope are resolved by
+    // scoreline only, keeping the dormant world moving without the full engine.
+    let dormant_competitions = dormant_competition_indices_due_today(game, today);
+    if !dormant_competitions.is_empty() {
+        let mut rng = rand::rng();
+        for competition_index in dormant_competitions {
+            dormant::simulate_dormant_competition_day(game, competition_index, today, &mut rng);
+        }
+    }
+
+    // National-team football: window friendlies and any running World Cup.
+    // Both self-filter by date, so they are no-ops on other days.
+    crate::national_team::process_national_team_fixtures_due(game, today, &mut rand::rng());
+    crate::world_cup::process_world_cup_fixtures_due(game, today, &mut rand::rng());
+}
+
+/// Process a single day advance.
+pub fn process_day(game: &mut Game) {
+    process_day_with_capture(game, &mut |_| {});
+}
+
+pub fn process_day_with_capture<F>(game: &mut Game, on_capture: &mut F)
+where
+    F: FnMut(StatsState),
+{
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    transfers::process_loan_development_reports(game);
+    transfers::process_loan_returns(game);
+
+    simulate_the_rest_of_the_world(game, &today, on_capture);
+
+    // Unconditional, and after the matches: a fixture somewhere in the world says
+    // nothing about whether *this* club trains. `run_training_ground` skips only
+    // the clubs actually playing today.
+    run_training_ground(game);
+
+    process_day_common(game, &today);
 
     debug!("[turn] process_day {}: complete, advancing clock", today);
     game.clock.advance_days(1);
     crate::season_context::refresh_game_context(game);
 }
 
-/// Called after a live match finishes to complete the day:
-/// generates matchday news, pre-match messages, and advances the clock by one day.
+/// Complete the day after the player's own match has been played and applied.
+///
+/// This runs *instead of* [`process_day`], not after it, so everything a day does has to happen
+/// here too — including the football the player was not watching.
 pub fn finish_live_match_day(game: &mut Game) {
+    finish_live_match_day_with_capture(game, &mut |_| {});
+}
+
+/// [`finish_live_match_day`], keeping the stats produced by the matches it simulates.
+pub fn finish_live_match_day_with_capture<F>(game: &mut Game, on_capture: &mut F)
+where
+    F: FnMut(StatsState),
+{
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     info!("[turn] finish_live_match_day: {}", today);
     transfers::process_loan_development_reports(game);
     transfers::process_loan_returns(game);
     generate_matchday_news(game, &today);
+
+    // The rest of the world had a day too. The player's own fixture is already settled, so it is
+    // no longer due and is not played twice; everything else due today would otherwise be
+    // stranded, because a fixture is only ever due on an exact date match.
+    simulate_the_rest_of_the_world(game, &today, on_capture);
+
     // The user's fixture is over; the rest of the world still had a day, and the
     // clubs that were not in it still had a session or a rest day.
     run_training_ground(game);
 
-    crate::contracts::process_contract_expiries(game);
-    crate::finances::process_weekly_finances(game);
-
-    board_objectives::generate_objectives(game);
-    board_objectives::update_objective_progress(game);
-
-    player_events::check_player_events(game);
-    progress_injury_recovery(game);
-    random_events::check_random_events(game);
-    scouting::process_scouting(game);
-    transfers::process_pending_transfer_registrations(game);
-    transfers::process_pending_loan_registrations(game);
-    transfers::generate_incoming_transfer_offers(game);
-    crate::generator::process_available_staff_market(game);
-    crate::ai_hiring::update_ai_manager_satisfaction(game);
-    news::generate_weekly_digest_news(game, &today);
-    news::generate_pre_match_messages(game, &today);
-
-    crate::firing::check_manager_firing(game);
-    crate::ai_hiring::process_vacant_ai_clubs(game);
-    crate::job_offers::check_job_offers(game);
+    process_day_common(game, &today);
 
     game.clock.advance_days(1);
     game.sync_legacy_league();
