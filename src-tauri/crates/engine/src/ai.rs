@@ -532,18 +532,23 @@ fn consider_tactic_change(obs: &AiObservation<'_>, profile: &AiProfile) -> Optio
     turn_a_dial(obs)
 }
 
-/// The four dials `--phase-sweep` found the engine still prices one-sidedly,
-/// and the most any one side may hold at once.
+/// The most of the four under-priced dials (see [`under_priced_dials`]) any one
+/// side may hold at once.
 ///
-/// `ofm_core::ai_tactics` keeps the same rule for the plan a club takes *into* a
-/// match. Duplicating it is what the crate boundary costs: the engine does not
-/// depend on `domain`, so it cannot see `TacticsPhaseSettings`, and a manager
-/// who could turn these dials freely at eighty minutes would undo between the
-/// whistles exactly what the blueprints ration between matches. Move one and
-/// move both.
-const MAX_UNDER_PRICED_DIALS: usize = 2;
+/// This is the one copy of the rule. It lives here because the engine is what
+/// prices the dials, and it is public because `ofm_core::ai_tactics` rations
+/// the plan a club takes *into* a match by the same rule: it converts its
+/// settings to a [`TacticsConfig`] and asks, rather than keeping a second copy.
+/// A manager who could turn these dials freely at eighty minutes would undo
+/// between the whistles exactly what the blueprints ration between matches.
+pub const MAX_UNDER_PRICED_DIALS: usize = 2;
 
-fn under_priced_dials(tactics: &TacticsConfig) -> usize {
+/// How many of the four dials `--phase-sweep` found the engine pricing
+/// one-sidedly a side is holding: a low or very low line, a compact shape, a
+/// narrow width and a long counter-press. The engine now charges for all four,
+/// but has not been shown to charge them in full; the ration can go when a
+/// fresh sweep shows they trade evenly.
+pub fn under_priced_dials(tactics: &TacticsConfig) -> usize {
     [
         matches!(
             tactics.defensive_line,

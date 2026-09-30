@@ -146,32 +146,16 @@ pub fn blueprint_for(play_style: &PlayStyle) -> TacticsPhaseSettings {
 // The weekly review
 // ---------------------------------------------------------------------------
 
-/// The four dials `--phase-sweep` found the engine giving away, and the most any
-/// one club may hold. The blueprints are rationed by hand; adaptation has to
-/// obey the same limit at run time, because "we keep conceding" pushes a club
-/// straight at the deep line and the compact block. The engine now charges for
-/// all four, but not provably in full — see the module docs for when this
-/// limit can be revisited.
+/// How many of the engine's under-priced dials this plan holds.
 ///
-/// `engine::ai` keeps its own copy of this rule for the dials a manager turns
-/// during a match. That is duplication the crate boundary requires rather than
-/// an oversight: the engine does not depend on `domain`, so it cannot see
-/// `TacticsPhaseSettings` at all. Move one and move both.
-const MAX_UNDER_PRICED_DIALS: usize = 2;
-
+/// The rule — which four dials, and that a club may hold at most
+/// [`engine::ai::MAX_UNDER_PRICED_DIALS`] of them — belongs to the engine, which
+/// prices them and applies the same ration to the dials a manager turns during
+/// a match. The review asks it rather than keeping a copy. Adaptation has to
+/// obey the ration at run time as well as the blueprints, because "we keep
+/// conceding" pushes a club straight at the deep line and the compact block.
 fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
-    [
-        matches!(
-            settings.defensive_line,
-            DefensiveLine::VeryLow | DefensiveLine::Low
-        ),
-        settings.defensive_shape == DefensiveShape::Compact,
-        settings.width == PitchWidth::Narrow,
-        settings.counter_press_duration == CounterPressDuration::Long,
-    ]
-    .iter()
-    .filter(|taken| **taken)
-    .count()
+    engine::ai::under_priced_dials(&crate::turn::squad::domain_to_engine_tactics(settings))
 }
 
 /// A club sits down to look at itself once a week, on a day of its own.
@@ -462,7 +446,7 @@ fn go_more_direct(settings: &mut TacticsPhaseSettings) -> bool {
 fn shade(settings: &mut TacticsPhaseSettings, moves: &[fn(&mut TacticsPhaseSettings) -> bool]) {
     for change in moves {
         let mut trial = settings.clone();
-        if change(&mut trial) && under_priced_dials(&trial) <= MAX_UNDER_PRICED_DIALS {
+        if change(&mut trial) && under_priced_dials(&trial) <= engine::ai::MAX_UNDER_PRICED_DIALS {
             *settings = trial;
             return;
         }
@@ -968,7 +952,7 @@ mod tests {
                     let plan = match_plan(&style, squad.as_ref(), form.as_ref());
                     let taken = under_priced_dials(&plan);
                     assert!(
-                        taken <= MAX_UNDER_PRICED_DIALS,
+                        taken <= engine::ai::MAX_UNDER_PRICED_DIALS,
                         "{style:?} ended up holding {taken} of the four under-priced \
                          dials after adapting: {plan:?}"
                     );

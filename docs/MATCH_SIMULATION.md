@@ -349,8 +349,9 @@ identical from the touchline, and a manager takes the wrong one off with probabi
   minutes with nothing to chase.
 - If the style is already right, one dial underneath it (`ChangeTacticalDial`). Chasing: a higher
   line, then a faster break, then a harder press. Protecting: a lower line, then a compact shape,
-  then a passive press — subject to the same ration on under-priced dials that `ai_tactics` applies
-  between matches, at most two per side.
+  then a passive press — subject to the ration on under-priced dials, at most two per side. The
+  rule lives once, in `engine::ai::under_priced_dials` and `MAX_UNDER_PRICED_DIALS`; `ai_tactics`
+  applies the same one between matches by asking the engine.
 
 **Nothing here ever issues a command to undo an earlier one.** A position that has stopped calling
 for a change produces no target rather than the opposite one, so a side that dropped deep under
