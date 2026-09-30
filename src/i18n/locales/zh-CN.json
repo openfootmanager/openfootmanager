@@ -2632,6 +2632,14 @@
         "potentialBelowOverall": "“{{entity}}”的潜力为 {{potential}}，低于其综合评分 {{ability}}。球员的上限不能低于其当前能力。",
         "potentialBelowAttributes": "“{{entity}}”的潜力为 {{potential}}，低于其属性得出的 {{ability}}。球员的上限不能低于其当前能力。",
         "potentialBelowDefaultAbility": "“{{entity}}”的潜力为 {{potential}}，低于未填写综合评分和属性时使用的默认能力 {{ability}}。",
+        "invalidDate": "“{{entity}}”的 {{field}} 为 “{{value}}”，这不是有效日期。请使用 YYYY-MM-DD 格式。",
+        "contractEndAndLength": "“{{entity}}”同时设置了 contractEnd 和 contractLength。请只保留其中一个：它们用两种方式表达同一件事。",
+        "contractLengthOutOfRange": "“{{entity}}”的 contractLength 为 {{length}}。合同期限须为 1 到 {{max}} 年。",
+        "contractEndNotAfterStart": "“{{entity}}”的合同结束日期（{{end}}）不晚于开始日期（{{start}}）。",
+        "playerFieldOutOfRange": "“{{entity}}”的 {{field}} 超出范围。它必须介于 {{min}} 到 {{max}} 之间。",
+        "alternatePositionInvalid": "“{{entity}}”将 {{position}} 列为备选位置。备选位置必须是具体位置，不能与球员自身位置相同，且只能列出一次。",
+        "identityNeedsSpecificPosition": "“{{entity}}”设置了非惯用脚或备选位置，但 {{position}} 是一个笼统的分组，游戏会根据球员属性重新计算并丢弃你写下的内容。请为球员指定具体位置，例如 CentralMidfielder 或 Striker。",
+        "careerEntryNeedsClub": "“{{entity}}”有一条生涯记录（第 {{row}} 行）没有填写俱乐部名称。",
         "unsupportedFormatVersion": "此扩展包由更新版本的游戏创建（格式 {{version}}，本版本支持 {{supported}}）。请更新游戏后再打开。"
       },
       "competitionDef": {

@@ -327,6 +327,12 @@ fn default_attr() -> u8 {
     50
 }
 
+/// The range a weak-foot skill is held to. `Player::weak_foot` is a bare `u8`, so
+/// nothing in the type stops a 0 or a 200; the rating clamps to this, and package
+/// validation refuses a value outside it, from the one definition.
+pub const WEAK_FOOT_MIN: u8 = 1;
+pub const WEAK_FOOT_MAX: u8 = 5;
+
 fn default_weak_foot() -> u8 {
     2
 }

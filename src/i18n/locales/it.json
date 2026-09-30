@@ -2632,6 +2632,14 @@
         "potentialBelowOverall": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore al suo voto complessivo di {{ability}}. Il tetto di un giocatore non può stare sotto la sua abilità attuale.",
         "potentialBelowAttributes": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore al voto complessivo di {{ability}} che risulta dai suoi attributi. Il tetto di un giocatore non può stare sotto la sua abilità attuale.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" ha un potenziale di {{potential}}, inferiore all'abilità predefinita di {{ability}} usata quando non sono indicati né media né attributi.",
+        "invalidDate": "\"{{entity}}\" ha un {{field}} di \"{{value}}\", che non è una data reale. Usa il formato AAAA-MM-GG.",
+        "contractEndAndLength": "\"{{entity}}\" ha sia contractEnd sia contractLength. Indicane solo uno: dicono la stessa cosa in due modi.",
+        "contractLengthOutOfRange": "\"{{entity}}\" ha un contractLength di {{length}}. Un contratto dura da 1 a {{max}} anni.",
+        "contractEndNotAfterStart": "Il contratto di \"{{entity}}\" finisce ({{end}}) il giorno in cui inizia ({{start}}) o prima.",
+        "playerFieldOutOfRange": "\"{{entity}}\" ha un {{field}} fuori intervallo. Deve essere compreso tra {{min}} e {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" indica {{position}} come ruolo alternativo. Un'alternativa deve essere un ruolo specifico, diverso da quello del giocatore e indicato una sola volta.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" indica un piede debole o dei ruoli alternativi, ma {{position}} è un gruppo generico, quindi il gioco li ricalcolerebbe dagli attributi del giocatore e scarterebbe ciò che hai scritto. Assegna al giocatore un ruolo specifico, come CentralMidfielder o Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" ha una voce di carriera (riga {{row}}) senza nome del club.",
         "unsupportedFormatVersion": "Questo pacchetto è stato creato con una versione più recente del gioco (formato {{version}}; questa versione supporta {{supported}}). Aggiorna il gioco per aprirlo."
       },
       "competitionDef": {

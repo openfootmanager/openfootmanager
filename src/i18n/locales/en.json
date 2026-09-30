@@ -2649,6 +2649,14 @@
         "potentialBelowOverall": "\"{{entity}}\" has a potential of {{potential}}, below their overall of {{ability}}. A player's ceiling cannot sit under their current ability.",
         "potentialBelowAttributes": "\"{{entity}}\" has a potential of {{potential}}, below the {{ability}} their attributes work out to. A player's ceiling cannot sit under their current ability.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" has a potential of {{potential}}, below the default ability of {{ability}} used when neither overall nor attributes is given.",
+        "invalidDate": "\"{{entity}}\" has a {{field}} of \"{{value}}\", which is not a real date. Use the form YYYY-MM-DD.",
+        "contractEndAndLength": "\"{{entity}}\" has both a contractEnd and a contractLength. Give one or the other: they say the same thing two ways.",
+        "contractLengthOutOfRange": "\"{{entity}}\" has a contractLength of {{length}}. A contract runs from 1 to {{max}} years.",
+        "contractEndNotAfterStart": "\"{{entity}}\" has a contract that ends ({{end}}) on or before the day it starts ({{start}}).",
+        "playerFieldOutOfRange": "\"{{entity}}\" has a {{field}} outside its range. It must be between {{min}} and {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" lists {{position}} as an alternate position. An alternate must be a specific position, different from the player's own, and listed only once.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" has a weak foot or alternate positions, but {{position}} is a general group, so the game would re-work them from the player's attributes and discard what you wrote. Give the player a specific position, such as CentralMidfielder or Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" has a career entry (row {{row}}) with no club name.",
         "unsupportedFormatVersion": "This package was made with a newer version of the game (format {{version}}; this build supports {{supported}}). Update the game to open it."
       },
       "conflict": {

@@ -2649,6 +2649,14 @@
         "potentialBelowOverall": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, genel gücü olan {{ability}} değerinin altında. Bir oyuncunun tavanı mevcut gücünün altında olamaz.",
         "potentialBelowAttributes": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, özelliklerinden çıkan {{ability}} değerinin altında. Bir oyuncunun tavanı mevcut gücünün altında olamaz.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, genel güç ve özellikler verilmediğinde kullanılan varsayılan {{ability}} değerinin altında.",
+        "invalidDate": "\"{{entity}}\" oyuncusunun {{field}} değeri \"{{value}}\" ve bu geçerli bir tarih değil. YYYY-AA-GG biçimini kullanın.",
+        "contractEndAndLength": "\"{{entity}}\" oyuncusunda hem contractEnd hem contractLength var. Yalnızca birini girin: ikisi aynı şeyi iki farklı yolla söyler.",
+        "contractLengthOutOfRange": "\"{{entity}}\" oyuncusunun contractLength değeri {{length}}. Bir sözleşme 1 ile {{max}} yıl arasında sürer.",
+        "contractEndNotAfterStart": "\"{{entity}}\" oyuncusunun sözleşmesi ({{end}}), başladığı günde ({{start}}) ya da ondan önce bitiyor.",
+        "playerFieldOutOfRange": "\"{{entity}}\" oyuncusunun {{field}} değeri aralık dışında. {{min}} ile {{max}} arasında olmalıdır.",
+        "alternatePositionInvalid": "\"{{entity}}\" oyuncusu için {{position}} alternatif pozisyon olarak listelenmiş. Alternatif, belirli bir pozisyon olmalı, oyuncunun kendi pozisyonundan farklı olmalı ve yalnızca bir kez listelenmelidir.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" oyuncusunda zayıf ayak veya alternatif pozisyonlar var, ancak {{position}} genel bir gruptur; bu yüzden oyun bunları oyuncunun özelliklerinden yeniden hesaplar ve yazdığınızı atar. Oyuncuya CentralMidfielder veya Striker gibi belirli bir pozisyon verin.",
+        "careerEntryNeedsClub": "\"{{entity}}\" oyuncusunun kariyer kaydında (satır {{row}}) kulüp adı yok.",
         "unsupportedFormatVersion": "Bu paket oyunun daha yeni bir sürümüyle oluşturuldu (biçim {{version}}; bu sürüm {{supported}} destekliyor). Açmak için oyunu güncelleyin."
       },
       "conflict": {

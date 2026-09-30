@@ -2632,6 +2632,14 @@
         "potentialBelowOverall": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da sua nota global de {{ability}}. O tecto de um jogador não pode ficar abaixo da sua capacidade actual.",
         "potentialBelowAttributes": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo dos {{ability}} que resultam dos seus atributos. O tecto de um jogador não pode ficar abaixo da sua capacidade actual.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" tem um potencial de {{potential}}, abaixo da capacidade predefinida de {{ability}} usada quando não se indica média nem atributos.",
+        "invalidDate": "\"{{entity}}\" tem um {{field}} de \"{{value}}\", que não é uma data real. Use o formato AAAA-MM-DD.",
+        "contractEndAndLength": "\"{{entity}}\" tem contractEnd e contractLength em simultâneo. Indique apenas um dos dois: dizem o mesmo de duas formas.",
+        "contractLengthOutOfRange": "\"{{entity}}\" tem um contractLength de {{length}}. Um contrato dura de 1 a {{max}} anos.",
+        "contractEndNotAfterStart": "\"{{entity}}\" tem um contrato que termina ({{end}}) no dia em que começa ({{start}}) ou antes.",
+        "playerFieldOutOfRange": "\"{{entity}}\" tem um {{field}} fora do intervalo. Tem de estar entre {{min}} e {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" indica {{position}} como posição alternativa. Uma alternativa tem de ser uma posição específica, diferente da do próprio jogador e indicada uma só vez.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" indica pé fraco ou posições alternativas, mas {{position}} é um grupo geral, pelo que o jogo voltaria a calculá-las a partir dos atributos do jogador e descartaria o que escreveu. Dê ao jogador uma posição específica, como CentralMidfielder ou Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" tem uma entrada de carreira (linha {{row}}) sem nome de clube.",
         "unsupportedFormatVersion": "Este pacote foi criado com uma versão mais recente do jogo (formato {{version}}; esta versão suporta {{supported}}). Atualize o jogo para o abrir."
       },
       "competitionDef": {

@@ -2649,6 +2649,14 @@
         "potentialBelowOverall": "\"{{entity}}\" memiliki potensi {{potential}}, di bawah OVR-nya yang {{ability}}. Batas seorang pemain tidak boleh berada di bawah kemampuannya saat ini.",
         "potentialBelowAttributes": "\"{{entity}}\" memiliki potensi {{potential}}, di bawah {{ability}} yang dihasilkan atributnya. Batas seorang pemain tidak boleh berada di bawah kemampuannya saat ini.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" memiliki potensi {{potential}}, di bawah kemampuan bawaan {{ability}} yang dipakai ketika OVR maupun atribut tidak diisi.",
+        "invalidDate": "\"{{entity}}\" memiliki {{field}} bernilai \"{{value}}\", yang bukan tanggal yang sebenarnya. Gunakan format YYYY-MM-DD.",
+        "contractEndAndLength": "\"{{entity}}\" memiliki contractEnd sekaligus contractLength. Isi salah satunya saja: keduanya menyatakan hal yang sama dengan dua cara.",
+        "contractLengthOutOfRange": "\"{{entity}}\" memiliki contractLength sebesar {{length}}. Kontrak berlangsung 1 sampai {{max}} tahun.",
+        "contractEndNotAfterStart": "Kontrak \"{{entity}}\" berakhir ({{end}}) pada atau sebelum hari kontrak itu dimulai ({{start}}).",
+        "playerFieldOutOfRange": "\"{{entity}}\" memiliki {{field}} di luar rentang. Nilainya harus antara {{min}} dan {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" mencantumkan {{position}} sebagai posisi alternatif. Posisi alternatif harus posisi spesifik, berbeda dari posisi pemain itu sendiri, dan hanya dicantumkan sekali.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" memiliki kaki lemah atau posisi alternatif, tetapi {{position}} adalah kelompok umum, sehingga permainan akan menghitung ulang dari atribut pemain dan membuang yang Anda tulis. Beri pemain posisi spesifik, seperti CentralMidfielder atau Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" memiliki entri karier (baris {{row}}) tanpa nama klub.",
         "unsupportedFormatVersion": "Paket ini dibuat dengan versi permainan yang lebih baru (format {{version}}; build ini mendukung {{supported}}). Perbarui permainan untuk membukanya."
       },
       "conflict": {

@@ -2649,6 +2649,14 @@
         "potentialBelowOverall": "«{{entity}}»: потенциал {{potential}} ниже общего рейтинга {{ability}}. Предел игрока не может быть ниже его текущего уровня.",
         "potentialBelowAttributes": "«{{entity}}»: потенциал {{potential}} ниже уровня {{ability}}, который дают его характеристики. Предел игрока не может быть ниже его текущего уровня.",
         "potentialBelowDefaultAbility": "«{{entity}}»: потенциал {{potential}} ниже уровня по умолчанию {{ability}}, который используется, когда не указаны ни общий рейтинг, ни характеристики.",
+        "invalidDate": "У «{{entity}}» в поле {{field}} указано «{{value}}», а это не настоящая дата. Используйте формат ГГГГ-ММ-ДД.",
+        "contractEndAndLength": "У «{{entity}}» заданы и contractEnd, и contractLength. Укажите что-то одно: они выражают одно и то же двумя способами.",
+        "contractLengthOutOfRange": "У «{{entity}}» contractLength равен {{length}}. Контракт длится от 1 до {{max}} лет.",
+        "contractEndNotAfterStart": "Контракт «{{entity}}» заканчивается ({{end}}) в день начала ({{start}}) или раньше.",
+        "playerFieldOutOfRange": "У «{{entity}}» значение {{field}} вне допустимого диапазона. Оно должно быть от {{min}} до {{max}}.",
+        "alternatePositionInvalid": "У «{{entity}}» в запасных позициях указана {{position}}. Запасная позиция должна быть конкретной, отличаться от основной позиции игрока и указываться только один раз.",
+        "identityNeedsSpecificPosition": "У «{{entity}}» заданы слабая нога или запасные позиции, но {{position}} — это общая группа, поэтому игра пересчитает их по атрибутам игрока и отбросит написанное вами. Задайте игроку конкретную позицию, например CentralMidfielder или Striker.",
+        "careerEntryNeedsClub": "У «{{entity}}» в записи карьеры (строка {{row}}) не указано название клуба.",
         "unsupportedFormatVersion": "Этот пакет создан в более новой версии игры (формат {{version}}; эта сборка поддерживает {{supported}}). Обновите игру, чтобы открыть его."
       },
       "competitionDef": {

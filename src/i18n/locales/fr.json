@@ -2632,6 +2632,14 @@
         "potentialBelowOverall": "\"{{entity}}\" a un potentiel de {{potential}}, inférieur à sa note générale de {{ability}}. Le plafond d'un joueur ne peut pas être inférieur à son niveau actuel.",
         "potentialBelowAttributes": "\"{{entity}}\" a un potentiel de {{potential}}, inférieur aux {{ability}} que donnent ses attributs. Le plafond d'un joueur ne peut pas être inférieur à son niveau actuel.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" a un potentiel de {{potential}}, inférieur au niveau par défaut de {{ability}} utilisé lorsque ni la note générale ni les attributs ne sont indiqués.",
+        "invalidDate": "\"{{entity}}\" a un {{field}} de \"{{value}}\", qui n'est pas une vraie date. Utilisez le format AAAA-MM-JJ.",
+        "contractEndAndLength": "\"{{entity}}\" a à la fois contractEnd et contractLength. Indiquez l'un ou l'autre : ils disent la même chose de deux façons.",
+        "contractLengthOutOfRange": "\"{{entity}}\" a un contractLength de {{length}}. Un contrat dure de 1 à {{max}} ans.",
+        "contractEndNotAfterStart": "\"{{entity}}\" a un contrat qui se termine ({{end}}) le jour où il commence ({{start}}) ou avant.",
+        "playerFieldOutOfRange": "\"{{entity}}\" a un {{field}} hors limites. Il doit être compris entre {{min}} et {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" indique {{position}} comme poste alternatif. Un poste alternatif doit être un poste précis, différent de celui du joueur, et n'apparaître qu'une fois.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" indique un mauvais pied ou des postes alternatifs, mais {{position}} est un groupe général : le jeu les recalculerait à partir des attributs du joueur et écarterait ce que vous avez écrit. Donnez au joueur un poste précis, comme CentralMidfielder ou Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" a une entrée de carrière (ligne {{row}}) sans nom de club.",
         "unsupportedFormatVersion": "Ce paquet a été créé avec une version plus récente du jeu (format {{version}} ; cette version prend en charge {{supported}}). Mettez le jeu à jour pour l'ouvrir."
       },
       "competitionDef": {

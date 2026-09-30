@@ -2632,6 +2632,14 @@
         "potentialBelowOverall": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter der Gesamtstärke von {{ability}}. Die Obergrenze eines Spielers darf nicht unter seiner aktuellen Stärke liegen.",
         "potentialBelowAttributes": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter den {{ability}}, die sich aus den Attributen ergeben. Die Obergrenze eines Spielers darf nicht unter seiner aktuellen Stärke liegen.",
         "potentialBelowDefaultAbility": "„{{entity}}“ hat ein Potenzial von {{potential}} und liegt damit unter der Standardstärke von {{ability}}, die ohne Gesamtstärke und Attribute verwendet wird.",
+        "invalidDate": "„{{entity}}“ hat ein {{field}} von „{{value}}“, das kein echtes Datum ist. Verwende das Format JJJJ-MM-TT.",
+        "contractEndAndLength": "„{{entity}}“ hat sowohl contractEnd als auch contractLength. Gib nur eines von beiden an: sie sagen dasselbe auf zwei Arten.",
+        "contractLengthOutOfRange": "„{{entity}}“ hat ein contractLength von {{length}}. Ein Vertrag läuft 1 bis {{max}} Jahre.",
+        "contractEndNotAfterStart": "Der Vertrag von „{{entity}}“ endet ({{end}}) am oder vor dem Tag, an dem er beginnt ({{start}}).",
+        "playerFieldOutOfRange": "„{{entity}}“ hat ein {{field}} außerhalb des gültigen Bereichs. Es muss zwischen {{min}} und {{max}} liegen.",
+        "alternatePositionInvalid": "„{{entity}}“ führt {{position}} als Alternativposition auf. Eine Alternative muss eine konkrete Position sein, sich von der eigenen Position des Spielers unterscheiden und nur einmal vorkommen.",
+        "identityNeedsSpecificPosition": "„{{entity}}“ hat einen schwachen Fuß oder Alternativpositionen, aber {{position}} ist eine allgemeine Gruppe, daher würde das Spiel sie aus den Attributen des Spielers neu berechnen und verwerfen, was du geschrieben hast. Gib dem Spieler eine konkrete Position, etwa CentralMidfielder oder Striker.",
+        "careerEntryNeedsClub": "„{{entity}}“ hat einen Karriereeintrag (Zeile {{row}}) ohne Vereinsnamen.",
         "unsupportedFormatVersion": "Dieses Paket wurde mit einer neueren Version des Spiels erstellt (Format {{version}}; diese Version unterstützt {{supported}}). Aktualisiere das Spiel, um es zu öffnen."
       },
       "competitionDef": {

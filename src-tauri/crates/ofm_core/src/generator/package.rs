@@ -17,6 +17,7 @@ use domain::league::CompetitionScope;
 use domain::player::{PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
+use super::authored_player::authored_player_errors;
 use super::{CompetitionDefinition, NamePool, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
@@ -439,7 +440,9 @@ const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
 const WORLD_EXPORT_NOT_PACKAGE: &str = "be.error.package.worldExportNotPackage";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
 const UNKNOWN_COUNTRY: &str = "be.error.package.unknownCountry";
-const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
+// `pub(super)`: the rules for an authored player's extra fields live in their own
+// module and name a team by this same key rather than a second one.
+pub(super) const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
 const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
 const UNKNOWN_REGION: &str = "be.error.package.unknownRegion";
 const REVERSED_RANGE: &str = "be.error.package.reversedRange";
@@ -471,7 +474,7 @@ pub struct PackageError {
 }
 
 impl PackageError {
-    fn new(code: &str, file: &str) -> Self {
+    pub(super) fn new(code: &str, file: &str) -> Self {
         Self {
             code: code.to_string(),
             file: file.to_string(),
@@ -479,7 +482,7 @@ impl PackageError {
         }
     }
 
-    fn with(mut self, key: &str, value: impl Into<String>) -> Self {
+    pub(super) fn with(mut self, key: &str, value: impl Into<String>) -> Self {
         self.params.push((key.to_string(), value.into()));
         self
     }
@@ -1192,6 +1195,11 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         errors.extend(player_potential_errors(
             player,
             &package.source_at("player", index),
+        ));
+        errors.extend(authored_player_errors(
+            player,
+            &package.source_at("player", index),
+            &team_ids,
         ));
     }
 

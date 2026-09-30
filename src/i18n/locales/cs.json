@@ -2649,6 +2649,14 @@
         "potentialBelowOverall": "„{{entity}}“ má potenciál {{potential}}, což je méně než jeho celkové hodnocení {{ability}}. Strop hráče nemůže být pod jeho současnou úrovní.",
         "potentialBelowAttributes": "„{{entity}}“ má potenciál {{potential}}, což je méně než celkové hodnocení {{ability}}, které vychází z jeho atributů. Strop hráče nemůže být pod jeho současnou úrovní.",
         "potentialBelowDefaultAbility": "„{{entity}}“ má potenciál {{potential}}, což je méně než výchozí úroveň {{ability}} použitá, když není zadáno celkové hodnocení ani atributy.",
+        "invalidDate": "„{{entity}}“ má v poli {{field}} hodnotu „{{value}}“, což není skutečné datum. Použijte formát RRRR-MM-DD.",
+        "contractEndAndLength": "„{{entity}}“ má zadané contractEnd i contractLength. Uveďte jen jedno z nich: říkají totéž dvěma způsoby.",
+        "contractLengthOutOfRange": "„{{entity}}“ má contractLength {{length}}. Smlouva trvá od 1 do {{max}} let.",
+        "contractEndNotAfterStart": "Smlouva „{{entity}}“ končí ({{end}}) v den, kdy začíná ({{start}}), nebo dříve.",
+        "playerFieldOutOfRange": "„{{entity}}“ má hodnotu {{field}} mimo povolený rozsah. Musí být mezi {{min}} a {{max}}.",
+        "alternatePositionInvalid": "„{{entity}}“ uvádí jako alternativní pozici {{position}}. Alternativa musí být konkrétní pozice, odlišná od pozice samotného hráče a uvedená jen jednou.",
+        "identityNeedsSpecificPosition": "„{{entity}}“ má slabší nohu nebo alternativní pozice, ale {{position}} je obecná skupina, takže by je hra přepočítala z atributů hráče a zahodila to, co jste napsali. Zadejte hráči konkrétní pozici, například CentralMidfielder nebo Striker.",
+        "careerEntryNeedsClub": "„{{entity}}“ má záznam kariéry (řádek {{row}}) bez názvu klubu.",
         "unsupportedFormatVersion": "Tento balíček byl vytvořen v novější verzi hry (formát {{version}}; tato verze podporuje {{supported}}). Pro otevření hru aktualizujte."
       },
       "conflict": {

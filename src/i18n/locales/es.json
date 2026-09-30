@@ -2632,6 +2632,14 @@
         "potentialBelowOverall": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a su media de {{ability}}. El techo de un jugador no puede quedar por debajo de su capacidad actual.",
         "potentialBelowAttributes": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a los {{ability}} que dan sus atributos. El techo de un jugador no puede quedar por debajo de su capacidad actual.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a la capacidad predeterminada de {{ability}} que se usa cuando no se indica ni media ni atributos.",
+        "invalidDate": "\"{{entity}}\" tiene un {{field}} de \"{{value}}\", que no es una fecha real. Usa el formato AAAA-MM-DD.",
+        "contractEndAndLength": "\"{{entity}}\" tiene a la vez contractEnd y contractLength. Indica solo uno de los dos: expresan lo mismo de dos formas.",
+        "contractLengthOutOfRange": "\"{{entity}}\" tiene un contractLength de {{length}}. Un contrato dura de 1 a {{max}} años.",
+        "contractEndNotAfterStart": "\"{{entity}}\" tiene un contrato que termina ({{end}}) el mismo día en que empieza ({{start}}) o antes.",
+        "playerFieldOutOfRange": "\"{{entity}}\" tiene un {{field}} fuera de rango. Debe estar entre {{min}} y {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" incluye {{position}} como posición alternativa. Una alternativa debe ser una posición concreta, distinta de la del propio jugador y aparecer una sola vez.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" indica pierna mala o posiciones alternativas, pero {{position}} es un grupo general, así que el juego las recalcularía a partir de los atributos del jugador y descartaría lo que escribiste. Dale una posición concreta, como CentralMidfielder o Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" tiene una entrada de carrera (fila {{row}}) sin nombre de club.",
         "unsupportedFormatVersion": "Este paquete se creó con una versión más reciente del juego (formato {{version}}; esta versión admite {{supported}}). Actualiza el juego para abrirlo."
       },
       "competitionDef": {
