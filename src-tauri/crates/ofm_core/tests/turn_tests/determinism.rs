@@ -139,3 +139,37 @@ fn a_streak_moves_morale_the_same_way_from_the_same_seed() {
         );
     }
 }
+
+/// The user's own match, played through the live engine: every goal and every
+/// shot, as the engine reported them.
+fn users_match_with_seed(game: &Game, seed: u64) -> String {
+    let mut game = game.clone();
+    game.seed = seed;
+    let outcome =
+        ofm_core::matchday::play_user_matchday_with_capture(&mut game, Some(0), 0, &mut |_| {})
+            .expect("the user's matchday is played");
+    // Through `Value`, whose maps are sorted: the report's per-player stats are a `HashMap`,
+    // which prints in a different order for two equal values.
+    serde_json::to_value(&outcome.report).unwrap().to_string()
+}
+
+/// Given a club whose own match is played through the live engine,
+/// When the day is played twice from the same save and seed, for forty seeds,
+/// Then the match is the same, event for event, both times — and the seed is what makes
+///      one match differ from another.
+#[test]
+fn the_users_live_match_is_the_same_from_the_same_seed() {
+    let save = super::user_matchday::game_before_the_users_match();
+
+    for seed in 0..40 {
+        assert_eq!(
+            users_match_with_seed(&save, seed),
+            users_match_with_seed(&save, seed),
+            "seed {seed}"
+        );
+    }
+    let matches: std::collections::BTreeSet<String> = (0..40)
+        .map(|seed| users_match_with_seed(&save, seed))
+        .collect();
+    assert!(matches.len() > 1, "forty seeds all played the same match");
+}
