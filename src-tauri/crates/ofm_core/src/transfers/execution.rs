@@ -238,11 +238,11 @@ pub(super) fn ensure_transfer_cash_postable(
     )
 }
 
-/// The contract a club would give a player it buys, if the board lets it pay it: the
-/// buying club, his wage and the day it ends. Its standard terms (the ones a renewal
-/// is judged by), through the one wage rule. `Err` is the board's refusal, in the same
-/// words a renewal gets.
-pub(super) fn buyers_contract_terms(
+/// The contract a club would give a player it buys: the buying club, his wage and the
+/// day it ends. Its standard terms, the ones a renewal is judged by. The board has not
+/// been asked: [`buyers_contract_terms`] asks it, and a preview that only wants to show
+/// the figures uses this.
+pub(super) fn buyers_standard_terms(
     game: &Game,
     player: &Player,
     buyer_team_id: &str,
@@ -258,6 +258,17 @@ pub(super) fn buyers_contract_terms(
     let (wage, end) =
         standard_contract_terms(player, &buyer, game.clock.current_date.date_naive(), 0)
             .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
+    Ok((buyer, wage, end))
+}
+
+/// [`buyers_standard_terms`], if the board lets the buyer pay them, through the one
+/// wage rule. `Err` is the board's refusal, in the same words a renewal gets.
+pub(super) fn buyers_contract_terms(
+    game: &Game,
+    player: &Player,
+    buyer_team_id: &str,
+) -> Result<(Team, u32, NaiveDate), String> {
+    let (buyer, wage, end) = buyers_standard_terms(game, player, buyer_team_id)?;
     if !purchase_wage_policy_verdict(game, &buyer, player, wage).permits() {
         return Err(renewal_wage_policy_error_message(&buyer));
     }

@@ -1180,7 +1180,14 @@ mod tests {
             response.projection.weekly_wage_budget,
             response.projection.annual_wage_budget
         );
-        assert_eq!(response.projection.incoming_player_weekly_wage, 1_000);
+        // He is shown at the wage the buyer would pay (its standard terms, rounded up to
+        // the thousand), not the 1,000 he earns at his club.
+        assert_ne!(response.projection.incoming_player_weekly_wage, 1_000);
+        assert_eq!(
+            response.projection.incoming_player_weekly_wage,
+            response.projection.annual_wage_bill_after
+                - response.projection.annual_wage_bill_before
+        );
     }
 
     #[test]
