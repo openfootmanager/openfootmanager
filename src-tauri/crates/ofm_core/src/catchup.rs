@@ -274,14 +274,22 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate) -> usize {
         resolved += crate::world_cup::process_world_cup_fixtures_due(game, &date, &mut rng);
     }
 
-    // Whatever a national-team competition still holds, those processors could not reach:
-    // `process_world_cup_fixtures_due` serves international-scope tournaments only, and a package
-    // may author a national-team competition at continental scope. Falling back to the scoreline
-    // sweep is worse football than a squad-strength result, but the alternative is a fixture
-    // stranded for good — which is the bug, not a lesser version of it.
+    // A national-team competition the processors above cannot reach at all:
+    // `process_world_cup_fixtures_due` serves international *scope* only, and a package may author a
+    // national-team competition at continental scope (`competition.scope` comes straight from the
+    // definition file). For those, the scoreline sweep is worse football than a squad-strength
+    // result but better than a fixture stranded for good — which is the bug, not a lesser form of it.
+    //
+    // Excluding what those processors *do* serve is not a nicety. The dates were collected before
+    // this pass played anything, so a round the national path has just seeded — the final of a
+    // bracket, the knockouts after a group stage — is stranded-in-the-past and not yet on the list.
+    // Without this filter the fallback would resolve it here, by coin flip between two sides scored
+    // at 50.0 apiece, before the next pass could hand it to the engine that owns it.
     let mut competitions = std::mem::take(&mut game.competitions);
     for competition in competitions.iter_mut().filter(|competition| {
-        is_national_team_competition(competition) && stranded_in(competition, today) > 0
+        is_national_team_competition(competition)
+            && !crate::world_cup::is_world_cup_competition(competition)
+            && stranded_in(competition, today) > 0
     }) {
         resolved += simulate_past_fixtures(competition, &game.players, game.clock.current_date);
     }
@@ -612,45 +620,45 @@ mod tests {
     /// Two national sides with real squads, and no clubs at all — which is the point. A nation has
     /// no players *on its books*, so `club_strength` falls through to its neutral 50.0 for both
     /// sides and the tie becomes a coin flip between two blanks.
+    fn add_national_squad(game: &mut Game, team_id: &str, nation: &str, prefix: &str, ovr: u8) {
+        let mut squad = Vec::new();
+        for index in 0..11 {
+            let position = if index == 0 {
+                Position::Goalkeeper
+            } else if index < 5 {
+                Position::Defender
+            } else if index < 9 {
+                Position::Midfielder
+            } else {
+                Position::Forward
+            };
+            let mut player = Player::new(
+                format!("{prefix}-{index}"),
+                format!("{prefix} {index}"),
+                format!("{prefix} {index}"),
+                "1998-01-01".to_string(),
+                nation.to_string(),
+                position,
+                uniform_attributes(60),
+            );
+            player.ovr = ovr;
+            squad.push(player);
+        }
+        let mut team = NationalTeam::new(
+            team_id.to_string(),
+            nation.to_string(),
+            nation.to_string(),
+            None,
+        );
+        team.squad_player_ids = squad.iter().map(|player| player.id.clone()).collect();
+        game.players.extend(squad);
+        game.national_teams.push(team);
+    }
+
     fn game_with_two_national_squads(today: &str) -> Game {
         let mut game = game_on(today);
-        for (team_id, nation, prefix, ovr) in [
-            ("nt-eng", "England", "eng", 80u8),
-            ("nt-bra", "Brazil", "bra", 70u8),
-        ] {
-            let mut squad = Vec::new();
-            for index in 0..11 {
-                let position = if index == 0 {
-                    Position::Goalkeeper
-                } else if index < 5 {
-                    Position::Defender
-                } else if index < 9 {
-                    Position::Midfielder
-                } else {
-                    Position::Forward
-                };
-                let mut player = Player::new(
-                    format!("{prefix}-{index}"),
-                    format!("{prefix} {index}"),
-                    format!("{prefix} {index}"),
-                    "1998-01-01".to_string(),
-                    nation.to_string(),
-                    position,
-                    uniform_attributes(60),
-                );
-                player.ovr = ovr;
-                squad.push(player);
-            }
-            let mut team = NationalTeam::new(
-                team_id.to_string(),
-                nation.to_string(),
-                nation.to_string(),
-                None,
-            );
-            team.squad_player_ids = squad.iter().map(|player| player.id.clone()).collect();
-            game.players.extend(squad);
-            game.national_teams.push(team);
-        }
+        add_national_squad(&mut game, "nt-eng", "England", "eng", 80);
+        add_national_squad(&mut game, "nt-bra", "Brazil", "bra", 70);
         game
     }
 
@@ -707,6 +715,73 @@ mod tests {
             ranked.contains(&"ENG".to_string()) && ranked.contains(&"BRA".to_string()),
             "both nations are in the world ranking after playing: {ranked:?}"
         );
+    }
+
+    #[test]
+    fn a_cascaded_international_round_still_goes_through_the_national_team_path() {
+        // The two fixes meet here, and the first version got it wrong.
+        //
+        // The stranded dates are collected before the pass plays anything, so the final that playing
+        // the semi-finals *seeds* is stranded-in-the-past and not on that list. The fallback sweep
+        // for package-authored competitions then matched the World Cup as well, and resolved the
+        // final by coin flip between two sides scored at 50.0 — inside the same pass, before the
+        // next one could hand it to the national-team engine.
+        //
+        // A single-fixture international cannot see this, and a club cup cannot either. It takes a
+        // bracket that cascades *and* is national.
+        let mut game = game_with_two_national_squads("2030-12-01");
+        add_national_squad(&mut game, "nt-fra", "France", "fra", 75);
+        add_national_squad(&mut game, "nt-arg", "Argentina", "arg", 78);
+
+        let mut competition = League::new(
+            "wc-2030".to_string(),
+            "World Cup 2030".to_string(),
+            2030,
+            &[
+                "nt-eng".to_string(),
+                "nt-bra".to_string(),
+                "nt-fra".to_string(),
+                "nt-arg".to_string(),
+            ],
+        );
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::International;
+        competition.rules.format = CompetitionFormat::Knockout;
+        competition.fixtures = vec![
+            international_fixture("sf-1", "2030-06-12", "nt-eng", "nt-bra"),
+            international_fixture("sf-2", "2030-06-12", "nt-fra", "nt-arg"),
+        ];
+        competition.knockout_rounds = vec![KnockoutRoundState {
+            id: "semis".to_string(),
+            name: "Semi-finals".to_string(),
+            fixture_ids: vec!["sf-1".to_string(), "sf-2".to_string()],
+            bye_team_ids: Vec::new(),
+            completed: false,
+        }];
+        game.competitions = vec![competition];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(repaired, 3, "two semi-finals and the final they produced");
+        let cup = &game.competitions[0];
+        assert!(
+            cup.fixtures
+                .iter()
+                .all(|fixture| fixture.status == FixtureStatus::Completed),
+            "including the final, which did not exist when the pass began"
+        );
+
+        // The discriminator, and the reason it is this one: a champion is recorded only by
+        // `process_world_cup_fixtures_due`. The scoreline sweep completes the final and marks the
+        // round done, so fixture status cannot tell the two paths apart — and scorers cannot either,
+        // because a 0-0 final decided on penalties has none on either path.
+        let champions = &game.world_history.world_cup_champions;
+        assert_eq!(
+            champions.len(),
+            1,
+            "the final was played by the engine that crowns a champion, not by the fallback sweep"
+        );
+        assert_eq!(champions[0].year, 2030);
     }
 
     #[test]
