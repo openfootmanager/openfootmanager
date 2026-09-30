@@ -354,3 +354,48 @@ fn simulate_other_matches_settles_knockout_draws_with_shootout() {
     }
     assert!(saw_draw, "expected at least one drawn knockout in 200 sims");
 }
+
+/// Given a league fixture nobody watches, when it is played many times over and
+/// some of those end level, then none of them goes to extra time or to penalties:
+/// a league draw is a draw. The counterpart to the knockout tie above, and the
+/// shape of #601, where a league match was handed to the engine as a knockout.
+#[test]
+fn a_level_league_match_nobody_watches_ends_at_full_time() {
+    let game = make_game_with_match();
+    assert!(
+        !game.league.as_ref().unwrap().is_knockout_fixture("fix1"),
+        "the fixture must be a league match for this to prove anything"
+    );
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let mut draws = 0;
+    for _attempt in 0..200 {
+        let mut game = game.clone();
+        turn::simulate_other_matches(&mut game, &today, None);
+
+        let result = game.league.as_ref().unwrap().fixtures[0]
+            .result
+            .clone()
+            .expect("fixture should have a result");
+        assert!(
+            result.home_penalties.is_none() && result.away_penalties.is_none(),
+            "a league match went to penalties: {result:?}"
+        );
+        let longest = game
+            .players
+            .iter()
+            .map(|player| player.stats.minutes_played)
+            .max()
+            .unwrap_or(0);
+        assert!(
+            longest < 120,
+            "a league match played extra time: the longest shift was {longest} minutes"
+        );
+        if result.home_goals == result.away_goals {
+            draws += 1;
+            if draws >= 5 {
+                return;
+            }
+        }
+    }
+    panic!("expected at least five level league matches in 200, saw {draws}");
+}
