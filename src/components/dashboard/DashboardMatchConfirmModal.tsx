@@ -15,6 +15,7 @@ interface DashboardMatchConfirmModalProps {
   onConfirm: () => void;
   teams: TeamData[];
   todayMatchFixture: FixtureData | null;
+  competitionName?: string;
 }
 
 export default function DashboardMatchConfirmModal({
@@ -24,6 +25,7 @@ export default function DashboardMatchConfirmModal({
   onConfirm,
   teams,
   todayMatchFixture,
+  competitionName,
 }: DashboardMatchConfirmModalProps): JSX.Element {
   const { t } = useTranslation();
 
@@ -45,7 +47,7 @@ export default function DashboardMatchConfirmModal({
       {todayMatchFixture && (
         <div className="mb-4 rounded-xl bg-gray-50 p-4 text-center dark:bg-navy-700">
           <p className="mb-2 text-xs font-heading uppercase tracking-widest text-gray-400">
-            {getFixtureDisplayLabel(t, todayMatchFixture)}
+            {getFixtureDisplayLabel(t, todayMatchFixture, competitionName)}
           </p>
           <p className="text-lg font-heading font-bold text-gray-900 dark:text-white">
             {getTeamName(teams, todayMatchFixture.home_team_id)}{" "}
