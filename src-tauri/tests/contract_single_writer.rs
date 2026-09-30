@@ -70,10 +70,14 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// The non-test part of a file: a whole `tests.rs` is test code, and in any other
+/// The non-test part of a file: a whole `tests.rs` or `test_fixtures.rs` is test code, and in any other
 /// file everything from its `#[cfg(test)] mod` onwards is.
 fn production_code(path: &Path) -> String {
-    if path.file_name().is_some_and(|name| name == "tests.rs") {
+    // A whole `tests.rs` or `test_fixtures.rs` is test code.
+    if path
+        .file_name()
+        .is_some_and(|name| name == "tests.rs" || name == "test_fixtures.rs")
+    {
         return String::new();
     }
     let text = fs::read_to_string(path).unwrap_or_default();

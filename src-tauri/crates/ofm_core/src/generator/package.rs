@@ -4042,7 +4042,11 @@ colors:
             vec!["zed-fc", "zed-utd"],
             "stable authored ids are kept"
         );
-        assert_eq!(world.players.len(), 44, "22 players per club are generated");
+        assert_eq!(
+            world.players.len(),
+            46,
+            "22 players and an academy keeper per club are generated"
+        );
 
         let galaxy = world
             .regions

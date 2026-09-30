@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Pouca confiança, moral baixa ou pressão contratual estão a endurecer a posição deles. Outra proposta fraca pode fechar a porta.",
     "renewalFeedbackAcceptedHeadline": "O pacote convenceu-os rapidamente.",
     "renewalFeedbackAcceptedDetail": "A proposta ficou suficientemente perto do que pretendiam, por isso a conversa manteve-se construtiva.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Aceitaram. O acordo leva a massa salarial além da política da direção, mas a direção autorizou: sem este jogador, o plantel ficaria abaixo do mínimo que um clube tem de manter.",
     "renewalFeedbackAcceptedLateHeadline": "Aceitaram, mas já restava pouca paciência.",
     "renewalFeedbackAcceptedLateDetail": "Fechaste o acordo depois de uma troca mais dura. O lado deles esteve perto de abandonar a conversa.",
     "renewalFeedbackBlockedHeadline": "Não vão reabrir a conversa por agora.",
@@ -2563,6 +2564,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Este jogador não pode sair: o plantel ficaria abaixo do mínimo que um clube tem de manter. Setor afetado: {{group}}.",
+        "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no plantel principal, o mínimo que um clube tem de manter."
+      },
       "noActiveGameSession": "Sem sessão de jogo ativa",
       "noActiveSaveSession": "Sem sessão de gravação ativa",
       "saveNotFound": "Gravação '{{saveId}}' não encontrada.",
@@ -2858,22 +2863,6 @@
         "randomDescription": "Liga gerada aleatoriamente com {{teamCount}} equipas por toda a Europa",
         "exportedName": "Mundo Exportado",
         "exportedDescription": "Mundo com {{teamCount}} equipas exportado de um jogo guardado"
-      },
-      "welcome": {
-        "subject0": "Bem-vindo ao {{team}}",
-        "subject1": "Nova Era no {{team}}",
-        "subject2": "{{team}} Aguarda a Sua Liderança",
-        "body0": "O conselho de administração do {{team}} tem o prazer de o receber como novo treinador.\n\nTemos grandes expectativas para o seu mandato e acreditamos que pode levar este clube à glória. A sua primeira tarefa será rever o plantel e preparar um plano táctico para a próxima época.\n\nDesejamos-lhe a melhor sorte.",
-        "body1": "Em nome de toda a família {{team}}, estamos entusiasmados por anunciar a sua nomeação como treinador.\n\nOs adeptos estão ansiosos por ver a sua visão para a equipa. Reserve tempo para avaliar o plantel, rever a nossa posição financeira e definir a sua abordagem táctica.\n\nO conselho está consigo.",
-        "body2": "Bem-vindo ao {{team}}! Os adeptos e o staff estão entusiasmados com o futuro sob a sua orientação.\n\nRecomendamos que comece por rever os pontos fortes e fracos do seu plantel, e depois configure a sua formação e regime de treino preferidos.\n\nA próxima época será um verdadeiro teste — dê-nos orgulho.",
-        "actionReview": "Rever Plantel",
-        "actionThank": "Agradecer ao Conselho"
-      },
-      "schedule": {
-        "subject": "Calendário da Época Publicado",
-        "body0": "O calendário da {{league}} foi divulgado. A época começa a {{start}}.\n\nReveja a lista de jogos e certifique-se de que o seu plantel está pronto para os desafios que se aproximam. A preparação de pré-época será crucial.",
-        "body1": "Lista de jogos confirmada! A época da {{league}} começa a {{start}}.\n\nEstude cuidadosamente os primeiros jogos — um bom início pode definir o tom de toda a campanha. Garanta que os seus jogadores-chave estejam em forma.",
-        "actionView": "Ver Calendário"
       },
       "preMatch": {
         "subject": "Próximo: vs {{opponent}} ({{venue}})",
@@ -3259,6 +3248,22 @@
         "subject": "{{player}} assina pelo {{team}}",
         "body": "{{player}} juntou-se ao {{team}} como agente livre com um contrato de {{years}} ano(s)."
       },
+      "squadBelowFloor": {
+        "subject": "Plantel abaixo do mínimo: {{group}}",
+        "body": "Mister, faltam-nos jogadores. {{group}}: {{have}} inscritos, e um clube tem de ter pelo menos {{floor}}. Traz mais antes do nosso próximo jogo — se não conseguirmos apresentar uma equipa no pontapé de saída, terei de promover jogadores da formação ou contratar jogadores livres para que o jogo se possa realizar.",
+        "totalSubject": "Plantel abaixo do tamanho mínimo",
+        "totalBody": "Mister, restam-nos apenas {{have}} jogadores no plantel principal, e um clube tem de ter pelo menos {{floor}} para se aguentar. Traz mais antes do nosso próximo jogo — se não conseguirmos apresentar uma equipa no pontapé de saída, terei de promover jogadores da formação ou contratar jogadores livres para que o jogo se possa realizar."
+      },
+      "squadToppedUp": {
+        "subject": "Contratações de emergência: {{team}}",
+        "body": "Mister, não tínhamos jogadores suficientes para apresentar uma equipa, por isso, antes do pontapé de saída, integrei no plantel principal estes jogadores, primeiro da formação e depois jogadores livres: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Ninguém disponível: {{group}}",
+        "body": "Mister, não conseguimos completar o plantel e não havia ninguém para trazer. {{group}}: {{have}} dos {{floor}} que um clube tem de manter, e nem a nossa formação nem o mercado de jogadores livres têm alguém para preencher a lacuna.",
+        "totalSubject": "Ninguém disponível para completar o plantel",
+        "totalBody": "Mister, restam-nos apenas {{have}} jogadores no plantel principal, menos do que os {{floor}} que um clube tem de manter, e nem a nossa formação nem o mercado de jogadores livres têm alguém para preencher a lacuna."
+      },
       "delegatedRenewals": {
         "subject": "Relatório do adjunto — Renovações contratuais",
         "body": "Mister, passei pela nossa lista de renovações no {{team}}. {{successes}} concluídas, {{stalled}} ainda pendentes e {{failures}} falhadas.",
@@ -3270,6 +3275,7 @@
         "notes": {
           "managerBlocked": "Disseste-me para ainda não reabrir as conversas contratuais.",
           "completed": "Consegui fechar esta sem precisares de intervir.",
+          "completedToKeepSquadFloor": "Feito, acima da política salarial da direção. A direção autorizou porque, sem este jogador, ficaríamos abaixo do plantel mínimo.",
           "beyondLimits": "O entourage deles quer cerca de {{wage}}/semana por {{years}} anos, acima dos limites da delegação.",
           "boardWagePolicy": "A política salarial da direção bloqueia esta renovação. Mantém os salários semanais perto de {{budget}} enquanto recuperamos.",
           "prefersManager": "Eles ouviriam, mas ainda querem cerca de {{wage}}/semana por {{years}} anos e preferem falar diretamente contigo.",

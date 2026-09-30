@@ -121,21 +121,19 @@ pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<String,
         return Err("be.error.mcp.teamAlreadyAssigned".to_string());
     }
 
-    // Use bootstrap_team_selection logic
     let current_stats_state = ctx
         .state_manager
         .get_stats_state(|s| s.clone())
         .unwrap_or_default();
 
-    // Same dating as the Tauri command. This tool has never aligned the clock to the
-    // club's season, which is a divergence from `select_team` left as it was.
-    crate::commands::game::date_opening_contracts(&mut game, None);
-
-    let start_phase = crate::commands::game::start_phase_for_game(&game);
-    let stats_state = crate::commands::game::bootstrap_team_selection(
+    // The same career start as the app's `select_team`, because it is the same
+    // function. This tool used to do a subset of it: it never aligned the clock to
+    // the club's season, never resolved the simulation scope for the club, and
+    // never made positions granular, so an agent's career differed from a player's.
+    let stats_state = crate::commands::game::begin_career(
         &mut game,
         &team_id,
-        start_phase,
+        crate::commands::game::CareerScope::default(),
         current_stats_state,
     )?;
 

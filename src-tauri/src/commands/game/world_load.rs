@@ -184,7 +184,8 @@ pub(super) fn game_clock_for_world(
 mod tests {
     use super::*;
     use crate::commands::game::testkit::{make_historical_snapshot_world, temp_pkg_dir};
-    use crate::commands::game::{StartPhase, DEFAULT_GENERATED_HISTORY_DEPTH_YEARS};
+    use crate::commands::game::DEFAULT_GENERATED_HISTORY_DEPTH_YEARS;
+    use ofm_core::career::StartPhase;
 
     #[test]
     fn loads_a_world_from_a_package_directory() {

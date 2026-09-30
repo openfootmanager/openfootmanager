@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Kepercayaan rendah, moral rendah, atau tekanan kontrak membuat pihak mereka mendesak. Tawaran lemah lainnya bisa menutup pintu.",
     "renewalFeedbackAcceptedHeadline": "Mereka menyukai paket itu dan bergerak cepat.",
     "renewalFeedbackAcceptedDetail": "Tawaran cukup dekat dengan ekspektasi mereka, sehingga negosiasi tetap konstruktif.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Mereka setuju. Kesepakatan ini membuat tagihan gaji melampaui kebijakan manajemen, tetapi manajemen mengizinkannya: tanpa pemain ini, skuad akan turun di bawah batas minimum yang harus dipertahankan klub.",
     "renewalFeedbackAcceptedLateHeadline": "Mereka menerima, tetapi kesabaran tinggal sedikit.",
     "renewalFeedbackAcceptedLateDetail": "Kamu menyelesaikan kesepakatan setelah pertukaran yang lebih sulit. Pihak mereka hampir meninggalkan diskusi.",
     "renewalFeedbackBlockedHeadline": "Mereka belum membuka kembali percakapan.",
@@ -2563,6 +2564,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",
+        "wouldLeaveSeniorsShort": "Pemain ini tidak bisa pergi: klub akan tinggal memiliki kurang dari {{floor}} pemain di tim utama, batas minimum yang harus dipertahankan klub."
+      },
       "noActiveGameSession": "Tidak ada sesi permainan yang aktif",
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
@@ -2858,22 +2863,6 @@
         "randomDescription": "Liga yang dihasilkan secara acak dengan {{teamCount}} tim di seluruh Eropa",
         "exportedName": "Dunia yang Diekspor",
         "exportedDescription": "Dunia dengan {{teamCount}} tim yang diekspor dari permainan tersimpan"
-      },
-      "welcome": {
-        "subject0": "Selamat Datang di {{team}}",
-        "subject1": "Era Baru di {{team}}",
-        "subject2": "{{team}} Menanti Kepemimpinan Kamu",
-        "body0": "Dewan direksi di {{team}} dengan senang hati menyambut kamu sebagai manajer baru.\n\nKami memiliki harapan tinggi terhadap masa jabatan kamu dan yakin kamu dapat membawa klub ini meraih kejayaan. Tugas pertama kamu adalah meninjau skuad dan menyiapkan rencana taktis untuk musim mendatang.\n\nKami mendoakan yang terbaik untuk kamu.",
-        "body1": "Atas nama seluruh keluarga {{team}}, kami dengan bangga mengumumkan penunjukan kamu sebagai manajer.\n\nPara pendukung tidak sabar untuk melihat visi kamu bagi tim. Luangkan waktu untuk menilai skuad, meninjau posisi keuangan, dan menentukan pendekatan taktis kamu.\n\nManajemen berdiri di belakang kamu.",
-        "body2": "Selamat datang di {{team}}! Para pendukung dan staf sangat antusias dengan masa depan di bawah arahan kamu.\n\nKami menyarankan kamu untuk mulai dengan meninjau kekuatan dan kelemahan skuad, lalu menyiapkan formasi dan program latihan yang kamu inginkan.\n\nMusim mendatang akan menjadi ujian sesungguhnya — buat kami bangga.",
-        "actionReview": "Tinjau Skuad",
-        "actionThank": "Berterima Kasih kepada Manajemen"
-      },
-      "schedule": {
-        "subject": "Jadwal Musim Dirilis",
-        "body0": "Jadwal {{league}} telah dirilis. Musim akan dimulai pada {{start}}.\n\nTinjau daftar pertandingan dan pastikan skuad kamu siap menghadapi tantangan ke depan. Persiapan pramusim akan sangat penting.",
-        "body1": "Daftar pertandingan terkonfirmasi! Musim {{league}} dimulai pada {{start}}.\n\nPelajari jadwal awal dengan saksama — awal yang kuat dapat menentukan arah seluruh musim. Pastikan pemain kunci kamu dalam kondisi prima.",
-        "actionView": "Lihat Jadwal"
       },
       "preMatch": {
         "subject": "Segera: vs {{opponent}} ({{venue}})",
@@ -3259,6 +3248,22 @@
         "subject": "{{player}} Menandatangani Kontrak dengan {{team}}",
         "body": "{{player}} telah bergabung dengan {{team}} sebagai agen bebas dengan kontrak {{years}} tahun."
       },
+      "squadBelowFloor": {
+        "subject": "Skuad di Bawah Minimum: {{group}}",
+        "body": "Bos, kita kekurangan pemain. {{group}}: {{have}} terdaftar, padahal klub harus punya setidaknya {{floor}}. Datangkan pemain lagi sebelum pertandingan berikutnya — kalau saat sepak mula kita tidak bisa menurunkan tim, saya terpaksa menaikkan pemain dari akademi atau mengontrak agen bebas agar pertandingan tetap bisa berjalan.",
+        "totalSubject": "Skuad di Bawah Ukuran Minimum",
+        "totalBody": "Bos, di tim utama kita tinggal {{have}} pemain, padahal klub harus punya setidaknya {{floor}} agar tetap kokoh. Datangkan pemain lagi sebelum pertandingan berikutnya — kalau saat sepak mula kita tidak bisa menurunkan tim, saya terpaksa menaikkan pemain dari akademi atau mengontrak agen bebas agar pertandingan tetap bisa berjalan."
+      },
+      "squadToppedUp": {
+        "subject": "Rekrutan Darurat: {{team}}",
+        "body": "Bos, kita tidak punya cukup pemain untuk menurunkan tim, jadi sebelum sepak mula saya memasukkan pemain berikut ke tim utama, dari akademi dulu lalu dari agen bebas: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Tidak Ada yang Tersedia: {{group}}",
+        "body": "Bos, kita tidak bisa melengkapi skuad dan tidak ada yang bisa didatangkan. {{group}}: {{have}} dari {{floor}} yang harus dipertahankan klub, dan baik akademi kita maupun pasar agen bebas tidak punya siapa pun untuk menutup kekurangan itu.",
+        "totalSubject": "Tidak Ada yang Tersedia untuk Melengkapi Skuad",
+        "totalBody": "Bos, di tim utama kita tinggal {{have}} pemain, kurang dari {{floor}} yang harus dipertahankan klub, dan baik akademi kita maupun pasar agen bebas tidak punya siapa pun untuk menutup kekurangan itu."
+      },
       "delegatedRenewals": {
         "subject": "Laporan Asisten — Perpanjangan Kontrak",
         "body": "Bos, saya sudah menelusuri daftar perpanjangan kami di {{team}}. {{successes}} selesai, {{stalled}} masih tertunda, {{failures}} gagal.",
@@ -3270,6 +3275,7 @@
         "notes": {
           "managerBlocked": "Kamu meminta saya untuk belum membuka kembali pembicaraan kontrak.",
           "completed": "Saya berhasil menyelesaikan yang satu ini tanpa perlu kamu turun tangan.",
+          "completedToKeepSquadFloor": "Beres, melampaui kebijakan gaji manajemen. Manajemen mengizinkannya karena tanpa pemain ini kita akan turun di bawah skuad minimum.",
           "beyondLimits": "Mereka menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun, yang melebihi batas pendelegasian.",
           "boardWagePolicy": "Kebijakan gaji manajemen menghalangi perpanjangan ini. Jaga gaji mingguan di sekitar {{budget}} sambil kami pulih.",
           "prefersManager": "Mereka bersedia mendengarkan, tetapi masih menginginkan sekitar {{wage}}/minggu untuk {{years}} tahun dan lebih suka mendengarnya langsung dari kamu.",

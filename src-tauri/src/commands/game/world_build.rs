@@ -86,7 +86,7 @@ pub(super) fn build_game_from_world_data(
         defined_competitions
     };
 
-    match metadata.kind {
+    let (mut game, stats) = match metadata.kind {
         ofm_core::generator::WorldDataKind::HistoricalSnapshot => {
             game.managers.extend(
                 managers
@@ -119,5 +119,9 @@ pub(super) fn build_game_from_world_data(
             apply_generated_past_history(&mut game, startup_options);
             (game, StatsState::default())
         }
-    }
+    };
+    // Once the competitions are in place, so "does the player's club play
+    // today" has an answer. A package can leave a club thin.
+    ofm_core::squad_floor::repair_squads_on_load(&mut game);
+    (game, stats)
 }

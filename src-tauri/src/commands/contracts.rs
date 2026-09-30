@@ -547,6 +547,12 @@ mod tests {
             make_player_with_position("player-9", Position::Midfielder),
             make_player_with_position("player-10", Position::Midfielder),
             make_player_with_position("player-11", Position::Forward),
+            // Sixteen in all, so the club can release one and stay at the
+            // fifteen-senior squad floor.
+            make_player_with_position("depth-gk", Position::Goalkeeper),
+            make_player_with_position("depth-def", Position::Defender),
+            make_player_with_position("depth-mid-1", Position::Midfielder),
+            make_player_with_position("depth-mid-2", Position::Midfielder),
         ];
         game
     }

@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Wenig Vertrauen, schwache Moral oder Vertragsdruck lassen die Spielerseite hart bleiben. Ein weiteres schwaches Angebot könnte alles beenden.",
     "renewalFeedbackAcceptedHeadline": "Das Paket hat überzeugt und wurde schnell angenommen.",
     "renewalFeedbackAcceptedDetail": "Das Angebot lag nah genug an ihren Erwartungen, deshalb blieben die Gespräche konstruktiv.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Angenommen. Der Vertrag bringt die Gehaltssumme über die Vorgabe des Vorstands, doch der Vorstand hat zugestimmt: Ohne diesen Spieler fiele der Kader unter das Minimum, das ein Verein halten muss.",
     "renewalFeedbackAcceptedLateHeadline": "Sie haben akzeptiert, aber viel Geduld war nicht mehr übrig.",
     "renewalFeedbackAcceptedLateDetail": "Du hast den Deal nach einem härteren Austausch doch noch abgeschlossen. Die Gegenseite stand kurz davor, die Gespräche zu beenden.",
     "renewalFeedbackBlockedHeadline": "Sie nehmen das Gespräch im Moment nicht wieder auf.",
@@ -2563,6 +2564,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",
+        "wouldLeaveSeniorsShort": "Dieser Spieler kann nicht gehen: Der Verein hätte dann weniger als {{floor}} Spieler im Profikader, das Minimum, das ein Verein halten muss."
+      },
       "noActiveGameSession": "Keine aktive Spielsitzung",
       "noActiveSaveSession": "Keine aktive Speicherstandsitzung",
       "saveNotFound": "Speicherstand '{{saveId}}' wurde nicht gefunden.",
@@ -2858,22 +2863,6 @@
         "randomDescription": "Zufällig generierte Liga mit {{teamCount}} Teams in ganz Europa",
         "exportedName": "Exportierte Welt",
         "exportedDescription": "Welt mit {{teamCount}} Teams, aus einem gespeicherten Spiel exportiert"
-      },
-      "welcome": {
-        "subject0": "Willkommen bei {{team}}",
-        "subject1": "Neue Ära bei {{team}}",
-        "subject2": "{{team}} Erwartet Ihre Führung",
-        "body0": "Der Vorstand von {{team}} freut sich, Sie als neuen Trainer begrüßen zu dürfen.\n\nWir haben große Hoffnungen in Ihre Amtszeit und glauben, dass Sie diesen Verein zum Ruhm führen können. Ihre erste Aufgabe wird es sein, den Kader zu überprüfen und einen taktischen Plan für die kommende Saison vorzubereiten.\n\nWir wünschen Ihnen viel Erfolg.",
-        "body1": "Im Namen der gesamten {{team}}-Familie freuen wir uns, Ihre Ernennung zum Trainer bekannt zu geben.\n\nDie Fans sind gespannt auf Ihre Vision für das Team. Nehmen Sie sich Zeit, den Kader zu bewerten, unsere finanzielle Lage zu prüfen und Ihren taktischen Ansatz festzulegen.\n\nDer Vorstand steht hinter Ihnen.",
-        "body2": "Willkommen bei {{team}}! Die Fans und das Personal freuen sich auf die Zukunft unter Ihrer Führung.\n\nWir empfehlen Ihnen, zunächst die Stärken und Schwächen Ihres Kaders zu überprüfen und dann Ihre bevorzugte Formation und Trainingsplanung einzurichten.\n\nDie kommende Saison wird ein echter Test — machen Sie uns stolz.",
-        "actionReview": "Kader überprüfen",
-        "actionThank": "Dem Vorstand danken"
-      },
-      "schedule": {
-        "subject": "Saisonspielplan veröffentlicht",
-        "body0": "Der Spielplan der {{league}} wurde veröffentlicht. Die Saison beginnt am {{start}}.\n\nÜberprüfen Sie die Spielliste und stellen Sie sicher, dass Ihr Kader für die kommenden Herausforderungen bereit ist. Die Vorbereitung wird entscheidend sein.",
-        "body1": "Spielplan bestätigt! Die {{league}}-Saison beginnt am {{start}}.\n\nStudieren Sie die ersten Spiele sorgfältig — ein guter Start kann den Ton für die gesamte Kampagne setzen. Stellen Sie sicher, dass Ihre Schlüsselspieler fit sind.",
-        "actionView": "Spielplan ansehen"
       },
       "preMatch": {
         "subject": "Anstehend: vs {{opponent}} ({{venue}})",
@@ -3259,6 +3248,22 @@
         "subject": "{{player}} unterschreibt bei {{team}}",
         "body": "{{player}} hat sich {{team}} als vereinsloser Spieler mit einem Vertrag über {{years}} Jahr(e) angeschlossen."
       },
+      "squadBelowFloor": {
+        "subject": "Kader unter dem Minimum: {{group}}",
+        "body": "Boss, uns fehlen Spieler. {{group}}: {{have}} gemeldet, ein Verein muss aber mindestens {{floor}} haben. Bitte hol vor unserem nächsten Spiel weitere Spieler – können wir beim Anpfiff keine Mannschaft aufstellen, muss ich Spieler aus der Jugend hochziehen oder vereinslose Spieler verpflichten, damit das Spiel stattfinden kann.",
+        "totalSubject": "Kader unter der Mindestgröße",
+        "totalBody": "Boss, wir haben nur noch {{have}} Spieler im Profikader, ein Verein braucht aber mindestens {{floor}}, um handlungsfähig zu bleiben. Bitte hol vor unserem nächsten Spiel weitere Spieler – können wir beim Anpfiff keine Mannschaft aufstellen, muss ich Spieler aus der Jugend hochziehen oder vereinslose Spieler verpflichten, damit das Spiel stattfinden kann."
+      },
+      "squadToppedUp": {
+        "subject": "Notverpflichtungen: {{team}}",
+        "body": "Boss, wir hatten nicht genug Spieler, um eine Mannschaft aufzustellen, also habe ich vor dem Anpfiff diese Spieler in den Profikader geholt, zuerst aus der Jugend, dann vereinslose Spieler: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Niemand verfügbar: {{group}}",
+        "body": "Boss, wir konnten keinen vollständigen Kader stellen, und es war niemand zu holen. {{group}}: {{have}} von den {{floor}}, die ein Verein halten muss, und weder unsere Jugend noch der Markt der vereinslosen Spieler hat jemanden, der die Lücke füllt.",
+        "totalSubject": "Niemand verfügbar, um den Kader aufzufüllen",
+        "totalBody": "Boss, wir haben nur noch {{have}} Spieler im Profikader, weniger als die {{floor}}, die ein Verein halten muss, und weder unsere Jugend noch der Markt der vereinslosen Spieler hat jemanden, der die Lücke füllt."
+      },
       "delegatedRenewals": {
         "subject": "Assistentenbericht — Vertragsverlängerungen",
         "body": "Boss, ich habe unsere Verlängerungsliste bei {{team}} durchgearbeitet. {{successes}} abgeschlossen, {{stalled}} noch offen, {{failures}} gescheitert.",
@@ -3270,6 +3275,7 @@
         "notes": {
           "managerBlocked": "Du hast mir gesagt, ich soll die Vertragsgespräche noch nicht wieder aufnehmen.",
           "completed": "Ich konnte das ohne dein Eingreifen abschließen.",
+          "completedToKeepSquadFloor": "Erledigt, über der Gehaltsvorgabe des Vorstands. Der Vorstand hat zugestimmt, weil wir ohne diesen Spieler unter den Mindestkader fallen würden.",
           "beyondLimits": "Die Spielerseite will etwa {{wage}}/Woche für {{years}} Jahre, das liegt außerhalb der Delegationsgrenzen.",
           "boardWagePolicy": "Die Gehaltspolitik des Vorstands blockiert diese Verlängerung. Halte die Wochengehälter während der Erholung nahe bei {{budget}}.",
           "prefersManager": "Sie würden zuhören, wollen aber noch etwa {{wage}}/Woche für {{years}} Jahre und bevorzugen ein Gespräch direkt mit dir.",

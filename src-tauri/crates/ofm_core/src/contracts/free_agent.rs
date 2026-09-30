@@ -148,50 +148,20 @@ pub fn offer_free_agent_contract(
 
     if offer.weekly_wage >= expected_wage && offer.contract_years >= expected_years {
         let player = game.players[player_index].clone();
-        if !renewal_wage_policy_allows(game, &team, &player, offer.weekly_wage) {
+        let verdict = wage_policy_verdict(game, &team, &player, offer.weekly_wage);
+        if !verdict.permits() {
             return Err(renewal_wage_policy_error_message(&team));
         }
 
-        let new_contract_end = current_date
-            .checked_add_months(Months::new(offer.contract_years * 12))
-            .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
-
-        let resolved_jersey_number =
-            crate::roster::resolve_jersey_for(game, &game.players[player_index], &team);
-
-        let player = &mut game.players[player_index];
-        player.team_id = Some(team.id.clone());
-        player.jersey_number = resolved_jersey_number;
-        player.transfer_listed = false;
-        player.loan_listed = false;
-        player.transfer_offers.clear();
-        record_movement(
-            player,
-            contract_entry(
-                PlayerMovementKind::FreeAgentSigning,
-                current_date,
-                &team,
-                contract_record(
-                    current_date,
-                    new_contract_end,
-                    offer.weekly_wage,
-                    ContractSource::FreeAgent,
-                ),
-            ),
-        );
-        if matches!(
-            player
-                .morale_core
-                .unresolved_issue
-                .as_ref()
-                .map(|issue| &issue.category),
-            Some(domain::player::PlayerIssueCategory::Contract)
-        ) {
-            player.morale_core.unresolved_issue = None;
-        }
-        player.morale_core.renewal_state = None;
-        player.morale = (i16::from(player.morale) + 6).clamp(0, 100) as u8;
-        player.morale_core.manager_trust = player.morale_core.manager_trust.max(55);
+        sign_free_agent(
+            game,
+            player_index,
+            &team,
+            offer.weekly_wage,
+            offer.contract_years,
+            current_date,
+        )?;
+        let player = &game.players[player_index];
 
         game.messages.push(free_agent_signed_message(
             &player.id,
@@ -208,14 +178,17 @@ pub fn offer_free_agent_contract(
             RenewalSessionStatus::Agreed,
             true,
             cooled_off,
-            Some(build_renewal_feedback(
-                player,
-                current_date,
-                RenewalDecision::Accepted,
-                RenewalSessionStatus::Agreed,
-                round,
-                expected_wage,
-                false,
+            Some(with_wage_policy_waiver(
+                build_renewal_feedback(
+                    player,
+                    current_date,
+                    RenewalDecision::Accepted,
+                    RenewalSessionStatus::Agreed,
+                    round,
+                    expected_wage,
+                    false,
+                ),
+                verdict,
             )),
         ));
     }
@@ -278,4 +251,60 @@ pub(crate) fn free_agent_signed_message(
         i18n_params,
     )
     .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
+}
+
+/// Sign a free agent to `team` on the given terms: the club, the contract, a
+/// shirt number, the movement record and the morale of a player who has found
+/// a club. The one way a free agent joins a club — the player's own offer and
+/// the squad-floor top-up both come through here, so a signing means the same
+/// thing whoever makes it. Whether the deal should happen at all (the wage
+/// policy, the player's demands) is the caller's question, not this one's.
+pub(crate) fn sign_free_agent(
+    game: &mut Game,
+    player_index: usize,
+    team: &Team,
+    weekly_wage: u32,
+    contract_years: u32,
+    current_date: NaiveDate,
+) -> Result<(), String> {
+    let new_contract_end = current_date
+        .checked_add_months(Months::new(contract_years * 12))
+        .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
+    let resolved_jersey_number =
+        crate::roster::resolve_jersey_for(game, &game.players[player_index], team);
+
+    let player = &mut game.players[player_index];
+    player.team_id = Some(team.id.clone());
+    player.jersey_number = resolved_jersey_number;
+    player.transfer_listed = false;
+    player.loan_listed = false;
+    player.transfer_offers.clear();
+    record_movement(
+        player,
+        contract_entry(
+            PlayerMovementKind::FreeAgentSigning,
+            current_date,
+            team,
+            contract_record(
+                current_date,
+                new_contract_end,
+                weekly_wage,
+                ContractSource::FreeAgent,
+            ),
+        ),
+    );
+    if matches!(
+        player
+            .morale_core
+            .unresolved_issue
+            .as_ref()
+            .map(|issue| &issue.category),
+        Some(domain::player::PlayerIssueCategory::Contract)
+    ) {
+        player.morale_core.unresolved_issue = None;
+    }
+    player.morale_core.renewal_state = None;
+    player.morale = (i16::from(player.morale) + 6).clamp(0, 100) as u8;
+    player.morale_core.manager_trust = player.morale_core.manager_trust.max(55);
+    Ok(())
 }

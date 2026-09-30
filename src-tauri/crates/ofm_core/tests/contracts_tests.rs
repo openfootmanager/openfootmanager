@@ -132,6 +132,25 @@ fn make_game() -> Game {
     )
 }
 
+/// A sound squad of fifteen seniors on no wage around player-1, so the club
+/// can let any one of its players go without falling below the squad floor —
+/// for tests about the wage policy or a termination itself, which the floor
+/// would otherwise overrule. No wage, so the bill is unchanged.
+fn give_squad_depth(game: &mut Game) {
+    for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+        .into_iter()
+        .zip([2, 5, 5, 3])
+    {
+        for index in 0..count {
+            let id = format!("depth-{group:?}-{index}");
+            let mut player = make_player_with(&id, 0, "2030-06-30");
+            player.position = group.clone();
+            player.natural_position = group.clone();
+            game.players.push(player);
+        }
+    }
+}
+
 fn make_squad_game() -> Game {
     let mut game = make_game();
     game.players = vec![
@@ -334,6 +353,7 @@ fn termination_preview_reports_severance_and_squad_safety() {
 #[test]
 fn terminate_contract_now_releases_player_and_charges_severance() {
     let mut game = make_squad_game();
+    give_squad_depth(&mut game);
     let original_finance = game.teams[0].finance;
 
     let result = terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
@@ -409,6 +429,25 @@ fn terminate_contract_now_blocks_when_goalkeeper_would_be_lost() {
         "be.error.contracts.terminationWouldLeaveMatchdaySquadShort"
     );
     let player = game.players.iter().find(|p| p.id == "gk-1").unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(game.teams[0].finance, original_finance);
+}
+
+/// Eleven fit players would still take the field without him, so the matchday
+/// check lets it through; the club would be down to three defenders, which the
+/// squad floor does not.
+#[test]
+fn terminate_contract_now_blocks_when_the_squad_would_fall_below_the_floor() {
+    let mut game = make_squad_game();
+    let original_finance = game.teams[0].finance;
+
+    let error = terminate_contract_now(&mut game, "player-3").expect_err("termination should fail");
+
+    assert_eq!(
+        error,
+        "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Defender"
+    );
+    let player = game.players.iter().find(|p| p.id == "player-3").unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-1"));
     assert_eq!(game.teams[0].finance, original_finance);
 }
@@ -915,10 +954,22 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
     assert_eq!(
         player.contract_start(),
         Some("2026-08-01"),
-        "a delegated renewal is still an agreement signed today: this is its own \
-         write site, not the manual renewal path"
+        "a delegated renewal is still an agreement signed today"
     );
     assert!(player.wage() >= 14_000);
+    // The one renewal writer, told the assistant agreed it: the session says so,
+    // and the manager's own talks are left as they were.
+    let session = player.morale_core.renewal_state.as_ref().unwrap();
+    assert_eq!(
+        session.last_outcome,
+        Some(domain::player::RenewalSessionOutcome::AcceptedByAssistant)
+    );
+    assert_eq!(
+        session.last_assistant_attempt_date.as_deref(),
+        Some("2026-08-01")
+    );
+    assert_eq!(session.last_attempt_date, None, "the manager never talked");
+    assert_eq!(session.conversation_round, 0);
 
     let report_message = game
         .messages
@@ -955,10 +1006,65 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
     );
 }
 
+/// The same offer the test below has refused, but player-1 is the club's only
+/// forward: without him it would be below the squad floor, so the board lets
+/// the wage policy go — and the manager is told that is why.
+#[test]
+fn renewal_over_the_wage_policy_goes_through_when_the_squad_would_fall_below_the_floor() {
+    let mut game = make_game();
+    game.teams[0].wage_budget = 200_000;
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 250_000,
+            contract_years: 3,
+        },
+    )
+    .expect("the floor overrules the wage policy");
+
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_eq!(
+        outcome
+            .feedback
+            .as_ref()
+            .and_then(|feedback| feedback.detail_key.as_deref()),
+        Some("playerProfile.renewalFeedbackAcceptedToKeepSquadFloorDetail")
+    );
+    assert_eq!(game.players[0].wage(), 250_000);
+}
+
+/// A renewal inside the policy is not described as a waiver.
+#[test]
+fn renewal_within_the_wage_policy_is_not_described_as_a_waiver() {
+    let mut game = make_game();
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    )
+    .expect("an ordinary renewal");
+
+    assert_eq!(outcome.decision, RenewalDecision::Accepted);
+    assert_ne!(
+        outcome
+            .feedback
+            .as_ref()
+            .and_then(|feedback| feedback.detail_key.as_deref()),
+        Some("playerProfile.renewalFeedbackAcceptedToKeepSquadFloorDetail")
+    );
+}
+
 #[test]
 fn renewal_is_blocked_when_offer_pushes_healthy_club_far_over_soft_cap() {
     let mut game = make_game();
     game.teams[0].wage_budget = 200_000;
+    give_squad_depth(&mut game);
 
     let err = propose_renewal(
         &mut game,
@@ -1003,6 +1109,7 @@ fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
     game.players[0].stage_wage(48_000);
     game.players
         .push(make_player_with("player-2", 40_000, "2027-06-30"));
+    give_squad_depth(&mut game);
 
     let err = propose_renewal(
         &mut game,
@@ -1320,6 +1427,7 @@ fn expiry_is_idempotent_on_the_same_day() {
 #[test]
 fn manager_termination_appends_released_with_the_reason_terminated() {
     let mut game = make_squad_game();
+    give_squad_depth(&mut game);
 
     terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
 

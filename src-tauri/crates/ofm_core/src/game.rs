@@ -141,6 +141,13 @@ pub struct Game {
     /// `persist_active_game`.
     #[serde(skip)]
     pub cash_journal_dirty_ids: Vec<String>,
+    /// Every emergency squad top-up this session made
+    /// ([`crate::squad_floor::restore_minimum_squad`]). A diagnostic, not game
+    /// state: never saved or sent over IPC, so a loaded game starts it empty.
+    /// Ordinary squad planning should leave it empty for AI clubs; tests and
+    /// the season harness read it to check that it does.
+    #[serde(skip)]
+    pub squad_floor_top_ups: Vec<crate::squad_floor::SquadFloorTopUp>,
 }
 
 impl Game {
@@ -182,6 +189,7 @@ impl Game {
             package_lockfile: vec![],
             cash_journal: CashJournal::default(),
             cash_journal_dirty_ids: Vec::new(),
+            squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);
@@ -265,21 +273,43 @@ impl Game {
     ///
     /// Shared with the transfer log so a record involving the user's club lands in the same
     /// competition `sync_legacy_league` mirrors, rather than one the mirror never shows.
-    pub(crate) fn user_competition_index(&self) -> Option<usize> {
-        let team_id = self.manager.team_id.as_deref()?;
-        let contains = |competition: &League| {
-            competition
-                .standings
-                .iter()
-                .any(|entry| entry.team_id == team_id)
-                || competition.participant_ids.iter().any(|id| id == team_id)
+    /// Whether the user's club takes part in `competition`. `false` when they manage nobody.
+    fn user_club_takes_part_in(&self, competition: &League) -> bool {
+        let Some(team_id) = self.manager.team_id.as_deref() else {
+            return false;
         };
+        competition
+            .standings
+            .iter()
+            .any(|entry| entry.team_id == team_id)
+            || competition.participant_ids.iter().any(|id| id == team_id)
+    }
+
+    pub(crate) fn user_competition_index(&self) -> Option<usize> {
         self.competitions
             .iter()
             .position(|competition| {
-                competition.kind == CompetitionType::League && contains(competition)
+                competition.kind == CompetitionType::League
+                    && self.user_club_takes_part_in(competition)
             })
-            .or_else(|| self.competitions.iter().position(contains))
+            .or_else(|| {
+                self.competitions
+                    .iter()
+                    .position(|competition| self.user_club_takes_part_in(competition))
+            })
+    }
+
+    /// The user's domestic **league**, and only that: `None` when their club plays cup football
+    /// only, which is a real state rather than an error.
+    ///
+    /// Distinct from [`Self::user_competition`], which falls back to *any* competition the club
+    /// takes part in. That fallback is right for "which competition is this manager's" and wrong for
+    /// anything needing a league table: a knockout cup has no table, and its "matchday" is a round
+    /// number from a different sequence, so borrowing it produces a digest describing nothing.
+    pub fn user_league(&self) -> Option<&League> {
+        self.competitions.iter().find(|competition| {
+            competition.kind == CompetitionType::League && self.user_club_takes_part_in(competition)
+        })
     }
 
     /// The competition the user's club plays in, preferring its domestic league.
@@ -306,6 +336,17 @@ impl Game {
             .filter(|competition| competition.country_id.as_deref() == Some(country_code))
             .find_map(|competition| competition.region_id.clone())
             .unwrap_or_else(|| crate::nations::region_for_code(country_code).to_string())
+    }
+
+    /// A club's display name, or its id when no club has it — the fallback
+    /// every inbox message, news item and result row wants, so a dangling id
+    /// still says something rather than nothing.
+    pub fn team_name_or_id(&self, team_id: &str) -> String {
+        self.teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .map(|team| team.name.clone())
+            .unwrap_or_else(|| team_id.to_string())
     }
 
     /// Whether a competition falls within the player's active simulation scope.

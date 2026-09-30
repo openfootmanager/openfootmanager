@@ -57,6 +57,9 @@ pub(super) fn execute_loan(
     if parent_team_id == loan_team_id {
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
+    // First, before anything moves: an agreement struck while the club had
+    // players to spare can fall due after it has lost some.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
 
     let player_snapshot = game
         .players
@@ -68,8 +71,8 @@ pub(super) fn execute_loan(
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
-    let parent_team_name = team_name_or_id(game, parent_team_id);
-    let loan_team_name = team_name_or_id(game, loan_team_id);
+    let parent_team_name = game.team_name_or_id(parent_team_id);
+    let loan_team_name = game.team_name_or_id(loan_team_id);
 
     let resolved_jersey_number = game
         .teams
@@ -243,6 +246,9 @@ pub(super) fn execute_transfer(
     from_team_id: &str,
     fee: u64,
 ) -> Result<(), String> {
+    // First, before anything moves: an agreement struck while the club had
+    // players to spare can fall due after it has lost some.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
     let player_snapshot = game
         .players
         .iter()
@@ -254,18 +260,8 @@ pub(super) fn execute_transfer(
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
-    let from_team_name = game
-        .teams
-        .iter()
-        .find(|team| team.id == from_team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| from_team_id.to_string());
-    let to_team_name = game
-        .teams
-        .iter()
-        .find(|team| team.id == to_team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| to_team_id.to_string());
+    let from_team_name = game.team_name_or_id(from_team_id);
+    let to_team_name = game.team_name_or_id(to_team_id);
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let departing_starter_ids: Vec<String> = game
         .teams
@@ -495,13 +491,6 @@ pub(super) fn should_generate_major_transfer_news(
     fee: u64,
 ) -> bool {
     fee >= 1_000_000 || player.market_value >= 1_000_000
-}
-pub(super) fn team_name_or_id(game: &Game, team_id: &str) -> String {
-    game.teams
-        .iter()
-        .find(|team| team.id == team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| team_id.to_string())
 }
 pub fn process_pending_transfer_registrations(game: &mut Game) {
     if !transfer_window_is_open(game) {

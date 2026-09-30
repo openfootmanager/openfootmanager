@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Une confiance faible, un moral fragile ou la pression du contrat rendent leur position plus dure. Une nouvelle petite offre pourrait tout fermer.",
     "renewalFeedbackAcceptedHeadline": "La proposition leur a convenu rapidement.",
     "renewalFeedbackAcceptedDetail": "L'offre s'est approchée assez près de leurs attentes pour garder une discussion constructive.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Ils ont accepté. L'accord fait dépasser à la masse salariale la politique du conseil, mais le conseil l'a autorisé : sans ce joueur, l'effectif passerait sous le minimum qu'un club doit conserver.",
     "renewalFeedbackAcceptedLateHeadline": "Ils ont accepté, mais la patience était presque épuisée.",
     "renewalFeedbackAcceptedLateDetail": "Vous avez conclu l'accord après un échange plus difficile. Leur camp était proche d'abandonner la discussion.",
     "renewalFeedbackBlockedHeadline": "Ils ne rouvrent pas la discussion pour le moment.",
@@ -2563,6 +2564,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}.",
+        "wouldLeaveSeniorsShort": "Ce joueur ne peut pas partir : le club aurait moins de {{floor}} joueurs dans son effectif professionnel, le minimum qu'un club doit conserver."
+      },
       "noActiveGameSession": "Aucune partie active",
       "noActiveSaveSession": "Aucune session de sauvegarde active",
       "saveNotFound": "Sauvegarde '{{saveId}}' introuvable.",
@@ -2858,22 +2863,6 @@
         "randomDescription": "Championnat généré aléatoirement avec {{teamCount}} équipes à travers l'Europe",
         "exportedName": "Monde exporté",
         "exportedDescription": "Monde avec {{teamCount}} équipes exporté depuis une sauvegarde"
-      },
-      "welcome": {
-        "subject0": "Bienvenue à {{team}}",
-        "subject1": "Nouvelle Ère à {{team}}",
-        "subject2": "{{team}} Attend Votre Leadership",
-        "body0": "Le conseil d'administration de {{team}} est ravi de vous accueillir en tant que nouveau manager.\n\nNous avons de grands espoirs pour votre mandat et croyons que vous pouvez mener ce club vers la gloire. Votre première tâche sera de passer en revue l'effectif et de préparer un plan tactique pour la saison à venir.\n\nNous vous souhaitons bonne chance.",
-        "body1": "Au nom de toute la famille {{team}}, nous sommes ravis d'annoncer votre nomination en tant que manager.\n\nLes supporters sont impatients de voir votre vision pour l'équipe. Prenez le temps d'évaluer l'effectif, de revoir notre situation financière et de définir votre approche tactique.\n\nLe conseil vous soutient.",
-        "body2": "Bienvenue à {{team}} ! Les supporters et le staff sont enthousiastes pour l'avenir sous votre direction.\n\nNous vous recommandons de commencer par évaluer les forces et faiblesses de votre effectif, puis de configurer votre formation et régime d'entraînement préférés.\n\nLa saison à venir sera un véritable test — rendez-nous fiers.",
-        "actionReview": "Examiner l'Effectif",
-        "actionThank": "Remercier le Conseil"
-      },
-      "schedule": {
-        "subject": "Calendrier de la Saison Publié",
-        "body0": "Le calendrier de la {{league}} a été publié. La saison commence le {{start}}.\n\nConsultez la liste des matchs et assurez-vous que votre effectif est prêt pour les défis à venir. La préparation de pré-saison sera cruciale.",
-        "body1": "Liste des matchs confirmée ! La saison de la {{league}} débute le {{start}}.\n\nÉtudiez attentivement les premiers matchs — un bon départ peut donner le ton de toute la campagne. Assurez-vous que vos joueurs clés sont en forme.",
-        "actionView": "Voir le Calendrier"
       },
       "preMatch": {
         "subject": "À venir : vs {{opponent}} ({{venue}})",
@@ -3259,6 +3248,22 @@
         "subject": "{{player}} signe pour {{team}}",
         "body": "{{player}} a rejoint {{team}} comme joueur libre avec un contrat de {{years}} an(s)."
       },
+      "squadBelowFloor": {
+        "subject": "Effectif sous le minimum : {{group}}",
+        "body": "Coach, il nous manque des joueurs. {{group}} : {{have}} inscrits, alors qu'un club doit en compter au moins {{floor}}. Veuillez recruter avant notre prochain match — si nous ne pouvons pas aligner une équipe au coup d'envoi, je devrai faire monter des joueurs du centre de formation ou engager des joueurs libres pour que le match puisse avoir lieu.",
+        "totalSubject": "Effectif sous la taille minimale",
+        "totalBody": "Coach, il ne nous reste que {{have}} joueurs dans l'effectif professionnel, alors qu'un club doit en garder au moins {{floor}} pour tenir. Veuillez recruter avant notre prochain match — si nous ne pouvons pas aligner une équipe au coup d'envoi, je devrai faire monter des joueurs du centre de formation ou engager des joueurs libres pour que le match puisse avoir lieu."
+      },
+      "squadToppedUp": {
+        "subject": "Recrutements d'urgence : {{team}}",
+        "body": "Coach, nous n'avions pas assez de joueurs pour aligner une équipe, j'ai donc intégré ces joueurs à l'effectif professionnel avant le coup d'envoi, d'abord depuis le centre de formation, puis parmi les joueurs libres : {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Personne de disponible : {{group}}",
+        "body": "Coach, nous n'avons pas pu compléter l'effectif et il n'y avait personne à faire venir. {{group}} : {{have}} sur les {{floor}} qu'un club doit conserver, et ni notre centre de formation ni le marché des joueurs libres n'ont de quoi combler le manque.",
+        "totalSubject": "Personne de disponible pour compléter l'effectif",
+        "totalBody": "Coach, il ne nous reste que {{have}} joueurs dans l'effectif professionnel, moins que les {{floor}} qu'un club doit conserver, et ni notre centre de formation ni le marché des joueurs libres n'ont de quoi combler le manque."
+      },
       "delegatedRenewals": {
         "subject": "Rapport de l'adjoint — Renouvellements",
         "body": "Coach, j'ai passé en revue notre liste de renouvellements à {{team}}. {{successes}} conclus, {{stalled}} encore en attente, {{failures}} échoués.",
@@ -3270,6 +3275,7 @@
         "notes": {
           "managerBlocked": "Tu m'as dit de ne pas rouvrir les discussions contractuelles pour l'instant.",
           "completed": "J'ai pu régler ce dossier sans que tu aies besoin d'intervenir.",
+          "completedToKeepSquadFloor": "C'est fait, au-delà de la politique salariale du conseil. Le conseil l'a autorisé, car sans ce joueur nous passerions sous l'effectif minimum.",
           "beyondLimits": "Le clan du joueur veut environ {{wage}}/semaine pour {{years}} ans, au-delà des limites de délégation.",
           "boardWagePolicy": "La politique salariale du conseil bloque ce renouvellement. Maintiens la masse salariale hebdomadaire près de {{budget}} pendant la phase de redressement.",
           "prefersManager": "Ils écouteraient, mais demandent encore environ {{wage}}/semaine pour {{years}} ans et préfèrent parler directement avec toi.",

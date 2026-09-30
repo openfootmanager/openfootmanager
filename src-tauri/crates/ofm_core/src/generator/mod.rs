@@ -44,8 +44,23 @@ use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
 const OPENING_YOUTH_ACADEMY_SIZE: usize = 3;
-const OPENING_YOUTH_MAX_AGE: i32 = 21;
+use crate::roster::YOUTH_ACADEMY_MAX_AGE as OPENING_YOUTH_MAX_AGE;
 const AVAILABLE_STAFF_MARKET_ROTATION_DAYS: i64 = 30;
+
+/// Unattached players a generated world opens with, per club, by position
+/// group. Real football always has players between clubs; a club short of
+/// players signs from them rather than having one made for it (see
+/// `squad_floor`). Keepers included, because no club's academy produces a
+/// senior keeper quickly and every club needs a second one.
+/// Players a generated club opens with: its squad slots and an academy keeper.
+const GENERATED_CLUB_PLAYERS: usize = SQUAD_SLOTS + 1;
+
+const OPENING_FREE_AGENTS_PER_CLUB: [(Position, usize); 4] = [
+    (Position::Goalkeeper, 1),
+    (Position::Defender, 1),
+    (Position::Midfielder, 1),
+    (Position::Forward, 1),
+];
 
 fn standard_available_staff_roles() -> [StaffRole; 12] {
     [
@@ -328,7 +343,7 @@ pub fn generate_national_team_player(
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
     let slot = senior_slot(squad_slot % SQUAD_SLOTS);
-    let mut player = generate_random_player_from_def(
+    let player = generate_random_player_from_def(
         "national-pool",
         slot,
         &nationality,
@@ -336,6 +351,12 @@ pub fn generate_national_team_player(
         &names_def,
         &mut rng,
     );
+    as_free_agent(player)
+}
+
+/// A generated player belonging to nobody: no club, no contract, no wage, not
+/// on any list.
+fn as_free_agent(mut player: Player) -> Player {
     player.team_id = None;
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
@@ -776,7 +797,7 @@ fn build_club(
     let mut team = build_team(tdef, rng);
     let team_id = team.id.clone();
 
-    let mut team_players = Vec::with_capacity(SQUAD_SLOTS);
+    let mut team_players = Vec::with_capacity(GENERATED_CLUB_PLAYERS);
     for slot in 0..SQUAD_SLOTS {
         let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
         let mut player = generate_random_player_from_def(
@@ -813,6 +834,30 @@ fn build_club(
         ));
     }
 
+    // An academy keeper on top of the two senior ones. The opening academy
+    // never takes a keeper from the senior squad — that would leave the club
+    // below the squad floor — so without this one a club's academy could never
+    // replace a keeper. Added before the club is normalised, so its wage
+    // budget is set with him in the squad.
+    let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
+    let youth_keeper_slot = youth_slots_for_target(Some(Position::Goalkeeper))[0];
+    let mut academy_keeper = generate_random_player_from_def(
+        &team_id,
+        youth_keeper_slot,
+        &nationality,
+        opening_year,
+        names_def,
+        rng,
+    );
+    academy_keeper.squad_role = domain::player::SquadRole::Youth;
+    academy_keeper.jersey_number = crate::roster::jersey_among(
+        team_players
+            .iter()
+            .filter_map(|player| player.jersey_number),
+        None,
+    );
+    team_players.push(academy_keeper);
+
     // A generated club has no authored players; `build_package_club` names them.
     normalize_generated_team(
         &mut team,
@@ -823,20 +868,34 @@ fn build_club(
     (team, team_players, team_staff)
 }
 
-/// Position-group floor for a finished squad, or 0 for a group with no floor.
-fn group_floor(group: &Position) -> usize {
-    MIN_PLAYERS_PER_GROUP
-        .iter()
-        .find(|(position, _)| position == group)
-        .map(|(_, floor)| *floor)
-        .unwrap_or(0)
-}
-
-/// Index of a position group within [`MIN_PLAYERS_PER_GROUP`].
-fn group_index(group: &Position) -> Option<usize> {
-    MIN_PLAYERS_PER_GROUP
-        .iter()
-        .position(|(position, _)| position == group)
+/// The free agents a generated world opens with: [`OPENING_FREE_AGENTS_PER_CLUB`]
+/// for each of `club_count` clubs, senior-aged, drawn from `rng` so a seeded
+/// world opens with the same pool.
+fn generate_opening_free_agents(
+    club_count: usize,
+    country_codes: &[String],
+    opening_year: u32,
+    names_def: &NamesDefinition,
+    rng: &mut impl rand::Rng,
+) -> Vec<Player> {
+    let mut free_agents = Vec::new();
+    for (group, per_club) in OPENING_FREE_AGENTS_PER_CLUB {
+        for _ in 0..club_count * per_club {
+            let nationality = &country_codes[rng.random_range(0..country_codes.len())];
+            let player = generate_random_player_from_def(
+                "",
+                senior_slot_for(&group),
+                nationality,
+                opening_year,
+                names_def,
+                rng,
+            );
+            let mut agent = as_free_agent(player);
+            agent.jersey_number = None;
+            free_agents.push(agent);
+        }
+    }
+    free_agents
 }
 
 /// Drop generated backfill players — the ones no authored player displaced —
@@ -883,10 +942,8 @@ fn trim_backfill_players(
         // Recount survivors each pass so the floors are honoured as we go.
         let mut counts = [0usize; MIN_PLAYERS_PER_GROUP.len()];
         for (index, player) in players.iter().enumerate() {
-            if !doomed[index]
-                && let Some(group) = group_index(&player.position.to_group_position())
-            {
-                counts[group] += 1;
+            if !doomed[index] {
+                counts[crate::squad_floor::group_index(&player.position)] += 1;
             }
         }
 
@@ -896,8 +953,8 @@ fn trim_backfill_players(
             .filter(|index| !doomed[*index])
             .filter_map(|index| {
                 let group = players[index].position.to_group_position();
-                let surviving = group_index(&group).map(|slot| counts[slot]).unwrap_or(0);
-                let surplus = surviving.checked_sub(group_floor(&group))?;
+                let surviving = counts[crate::squad_floor::group_index(&group)];
+                let surplus = surviving.checked_sub(crate::squad_floor::group_floor(&group))?;
                 (surplus > 0).then_some((index, surplus))
             })
             .max_by_key(|(index, surplus)| {
@@ -1411,6 +1468,14 @@ fn generate_world_with_rng(
         teams_out.push(team);
     }
 
+    players.extend(generate_opening_free_agents(
+        team_defs.len(),
+        country_codes,
+        opening_year,
+        &names_def,
+        &mut rng,
+    ));
+
     // Generate free-agent staff
     for role in standard_available_staff_roles() {
         let nat = &country_codes[rng.random_range(0..country_codes.len())];
@@ -1829,7 +1894,7 @@ mod tests {
         assert_eq!(count_authored(&players), 28, "every authored player kept");
         assert_eq!(
             count_group(&players, Position::Goalkeeper),
-            group_floor(&Position::Goalkeeper),
+            crate::squad_floor::group_floor(&Position::Goalkeeper),
             "generated keepers backfill the missing group"
         );
         assert_eq!(players.len(), 30);
@@ -2119,8 +2184,12 @@ mod tests {
         let expected = config.total_clubs();
         let (teams, players, staff) =
             generate_world_with(&config, &definitions::DefinitionSources::embedded_only());
+        let free_agents: usize = OPENING_FREE_AGENTS_PER_CLUB.iter().map(|(_, n)| n).sum();
         assert_eq!(teams.len(), expected);
-        assert_eq!(players.len(), expected * 22);
+        assert_eq!(
+            players.len(),
+            expected * (GENERATED_CLUB_PLAYERS + free_agents)
+        );
         assert_eq!(staff.len(), expected * 4 + 12);
     }
 
@@ -2153,13 +2222,19 @@ mod tests {
             &definitions::DefinitionSources::embedded_only(),
         );
         let team_ids: Vec<&str> = teams.iter().map(|t| t.id.as_str()).collect();
+        let mut free_agents = 0;
         for p in &players {
-            assert!(p.team_id.is_some(), "Player {} has no team", p.full_name);
-            assert!(
-                team_ids.contains(&p.team_id.as_deref().unwrap()),
-                "Player has unknown team"
-            );
+            match p.team_id.as_deref() {
+                Some(team_id) => assert!(team_ids.contains(&team_id), "Player has unknown team"),
+                None => free_agents += 1,
+            }
         }
+        let per_club: usize = OPENING_FREE_AGENTS_PER_CLUB.iter().map(|(_, n)| n).sum();
+        assert_eq!(
+            free_agents,
+            teams.len() * per_club,
+            "only the opening pool is unattached"
+        );
     }
 
     #[test]
@@ -2173,7 +2248,7 @@ mod tests {
                 .iter()
                 .filter(|p| p.team_id.as_deref() == Some(&team.id))
                 .collect();
-            assert_eq!(team_players.len(), 22);
+            assert_eq!(team_players.len(), GENERATED_CLUB_PLAYERS);
             let gk = team_players
                 .iter()
                 .filter(|p| p.position == Position::Goalkeeper)
@@ -2235,8 +2310,8 @@ mod tests {
 
             assert_eq!(
                 youth_players.len(),
-                OPENING_YOUTH_ACADEMY_SIZE,
-                "{} should open with {} youth academy players",
+                OPENING_YOUTH_ACADEMY_SIZE + 1,
+                "{} should open with {} youth academy players and an academy keeper",
                 team.name,
                 OPENING_YOUTH_ACADEMY_SIZE
             );
@@ -2248,11 +2323,15 @@ mod tests {
                 "{} has an overage opening youth player",
                 team.name
             );
-            assert!(
+            // The academy keeper is added on top of the two senior keepers; the
+            // opening academy itself never takes a keeper from the senior squad.
+            assert_eq!(
                 youth_players
                     .iter()
-                    .all(|player| player.position != Position::Goalkeeper),
-                "{} should keep opening youth players in outfield reserve slots",
+                    .filter(|player| player.position == Position::Goalkeeper)
+                    .count(),
+                1,
+                "{} should open with exactly one academy keeper",
                 team.name
             );
         }
@@ -2671,7 +2750,8 @@ mod tests {
             "every club should come from the overridden nation: {:?}",
             teams.iter().map(|t| &t.country).collect::<Vec<_>>()
         );
-        assert_eq!(players.len(), 4 * 22);
+        let per_club: usize = OPENING_FREE_AGENTS_PER_CLUB.iter().map(|(_, n)| n).sum();
+        assert_eq!(players.len(), 4 * (GENERATED_CLUB_PLAYERS + per_club));
 
         std::fs::remove_dir_all(&dir).ok();
     }
