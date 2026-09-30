@@ -970,9 +970,80 @@ mod tests {
     }
 
     #[test]
+    fn selector_cups_with_fewer_than_two_resolved_clubs_still_load_and_skip() {
+        use chrono::TimeZone;
+        for entrants in [0, 1] {
+            let json = group_world_json(
+                entrants,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                true,
+            );
+            let world = load_world_from_json(&json).expect("empty selectors remain skippable");
+            let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+            assert!(
+                super::super::resolve_definitions(
+                    world.competition_definitions.as_ref().unwrap(),
+                    &world,
+                    2031,
+                    start,
+                )
+                .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn package_group_qualification_uses_the_final_composed_field() {
+        use crate::generator::{CompetitionDefinition, DefinitionSources, TeamDef, WorldPackage};
+        let clubs = |range: std::ops::Range<usize>| -> Vec<TeamDef> {
+            range.map(|i| serde_json::from_value(serde_json::json!({
+                "id":format!("club-{i}"), "name":format!("Club {i}"), "city":"City", "country":"ENG",
+                "colors":{"primary":"#000000", "secondary":"#ffffff"}
+            })).unwrap()).collect()
+        };
+        let definition: CompetitionDefinition = serde_json::from_value(serde_json::json!({
+            "id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+            "format":{"kind":"GroupAndKnockout","groupSize":3,"qualifiersPerGroup":3},
+            "participants":{"selector":{"kind":"topByReputation","country":"ENG","count":100}}
+        }))
+        .unwrap();
+        let mut layer = WorldPackage::default();
+        layer.teams.extend(clubs(0..7));
+        layer.competitions.push(definition);
+        // Packing a definition layer does not promise it can form a world alone.
+        assert!(crate::generator::validate_package(&layer).is_empty());
+        let sources = DefinitionSources::embedded_only();
+        assert!(
+            matches!(build_world_from_package(&layer, Some(2031), &sources),
+            Err(key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR)
+        );
+
+        let mut extension = WorldPackage::default();
+        extension.teams.extend(clubs(7..9));
+        let (merged, errors) = crate::generator::merge_world_packages(vec![layer, extension]);
+        assert!(
+            errors.is_empty(),
+            "the composed package is valid: {errors:?}"
+        );
+        let world = build_world_from_package(&merged, Some(2031), &sources).unwrap();
+        let errors = crate::generator::validate_definitions_for_world(
+            world.competition_definitions.as_ref().unwrap(),
+            &world,
+        );
+        assert!(
+            errors.is_empty(),
+            "qualification uses all nine final clubs: {errors:?}"
+        );
+    }
+
+    #[test]
     fn public_world_loader_rejects_incompatible_group_qualification() {
         for selector in [false, true] {
             for (entrants, format) in [
+                (
+                    3,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":1}),
+                ),
                 (
                     8,
                     serde_json::json!({"kind":"GroupAndKnockout","groupSize":0}),

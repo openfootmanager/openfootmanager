@@ -629,7 +629,10 @@ fn validate_group_qualification(
             } else {
                 0
             };
-            qualifiers > smallest || extra > available_extra || groups * qualifiers + extra < 2
+            smallest < domain::league::MIN_GROUP_SIZE as usize
+                || qualifiers > smallest
+                || extra > available_extra
+                || groups * qualifiers + extra < 2
         });
     if incompatible {
         errors.push(DefinitionError::new(
@@ -654,12 +657,12 @@ pub fn validate_definitions_for_world(
         if competition.participants.selector.is_none() {
             continue; // Explicit lists were checked by validate_format.
         }
+        let entrants = participants[&competition.id].len();
+        if entrants < 2 {
+            continue; // Construction skips these selectors instead of creating a cup.
+        }
         let raised_before = errors.len();
-        validate_group_qualification(
-            competition,
-            Some(participants[&competition.id].len()),
-            &mut errors,
-        );
+        validate_group_qualification(competition, Some(entrants), &mut errors);
         for error in &mut errors[raised_before..] {
             error.competition_index = Some(index);
         }
@@ -1131,7 +1134,7 @@ fn resolve_definition_participants(
 /// Turn a validated definition file into runnable competitions. Selectors are
 /// resolved against the world (in dependency order), and competitions whose
 /// participant list comes out below two clubs are skipped. Call only after
-/// [`validate_definitions`] has returned no errors.
+/// [`validate_definitions_for_world`] has returned no errors.
 ///
 /// `game_start` is the game's anchor date (July 1 of the chosen start year).
 /// Each competition derives its own season-start date from its

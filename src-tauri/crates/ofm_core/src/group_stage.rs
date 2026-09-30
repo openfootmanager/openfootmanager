@@ -73,7 +73,7 @@ fn group_label(index: usize) -> String {
 
 /// Number of balanced groups needed for a field with this maximum group size.
 pub(crate) fn group_count(entrants: usize, group_size: usize) -> usize {
-    // Malformed persisted rules must not panic or create singleton groups.
+    // Use the supported configuration minimum for malformed persisted sizes.
     let group_size = group_size.max(domain::league::MIN_GROUP_SIZE as usize);
     entrants.div_ceil(group_size).max(1)
 }
