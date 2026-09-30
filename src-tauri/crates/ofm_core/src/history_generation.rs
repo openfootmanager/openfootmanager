@@ -378,6 +378,9 @@ fn synthesize_player_season(
     }
 }
 
+/// Youngest age at which a generated career season is recorded.
+const MIN_SENIOR_CAREER_AGE: i32 = 18;
+
 fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry]) {
     let played_by_team: HashMap<&str, u32> = standings
         .iter()
@@ -396,6 +399,14 @@ fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry
         let Some(matches_played) = played_by_team.get(team_id).copied() else {
             continue;
         };
+        // No youth teams yet, so a career starts with the season a player is a senior at
+        // kick-off. `opening_player_age` measures on 1 July, the date seasons start here.
+        if crate::generator::opening_player_age(&player.date_of_birth, season as i32)
+            .is_some_and(|age| age < MIN_SENIOR_CAREER_AGE)
+        {
+            player.stats = PlayerSeasonStats::default();
+            continue;
+        }
 
         player.stats = synthesize_player_season(player, matches_played, season);
         player.career.retain(|entry| entry.season != season);
@@ -822,6 +833,79 @@ mod tests {
         );
         assert_eq!(game.world_history.season_awards.len(), 3);
         assert!(!game.world_history.rivalries.is_empty());
+    }
+
+    fn career_seasons(game: &Game, player_id: &str) -> Vec<u32> {
+        game.players
+            .iter()
+            .find(|player| player.id == player_id)
+            .expect("player")
+            .career
+            .iter()
+            .map(|entry| entry.season)
+            .collect()
+    }
+
+    #[test]
+    fn generated_career_starts_in_the_season_a_player_turns_eighteen() {
+        let mut game = make_game();
+        // 21 at the 2032 start: senior from 2029, so 2029-2031 of a 12-season backfill.
+        game.players[0].date_of_birth = "2011-03-15".to_string();
+
+        generate_past_world_history(&mut game, 2032, 12);
+
+        assert_eq!(career_seasons(&game, "player-1"), vec![2029, 2030, 2031]);
+    }
+
+    #[test]
+    fn underage_imported_stats_cannot_win_first_backfilled_season_awards() {
+        let mut game = make_game();
+        let player = &mut game.players[0];
+        player.date_of_birth = "2015-03-15".to_string(); // 16 at the 2031 season start.
+        player.stats.appearances = 38;
+        player.stats.goals = 999;
+        player.career.push(CareerEntry {
+            season: 2031,
+            team_id: player.team_id.clone().expect("club"),
+            team_name: "Club 1".to_string(),
+            appearances: 38,
+            goals: 999,
+            assists: 0,
+        });
+
+        generate_past_world_history(&mut game, 2032, 1);
+
+        let first_season_awards = game
+            .world_history
+            .season_awards
+            .iter()
+            .find(|awards| awards.season == 2031)
+            .expect("first backfilled season awards");
+        assert_ne!(
+            first_season_awards
+                .golden_boot
+                .as_ref()
+                .expect("winner")
+                .player_id,
+            "player-1"
+        );
+        assert_eq!(career_seasons(&game, "player-1"), vec![2031]);
+        assert_eq!(game.players[0].career[0].goals, 999);
+    }
+
+    #[test]
+    fn a_birthday_on_the_season_start_counts_across_a_leap_year() {
+        let mut game = make_game();
+        // Born 1 July of a leap year: 18 on 1 July 2022 exactly. Day-of-year arithmetic
+        // compares ordinal 183 (2004) with 182 (2022) and wrongly calls him 17.
+        game.players[0].date_of_birth = "2004-07-01".to_string();
+        // One day younger: still 17 when the 2022 season starts.
+        game.players[1].date_of_birth = "2004-07-02".to_string();
+
+        generate_past_world_history(&mut game, 2024, 3);
+
+        assert_eq!(career_seasons(&game, "player-1"), vec![2022, 2023]);
+        assert_eq!(career_seasons(&game, "player-2"), vec![2023]);
     }
 
     #[test]
