@@ -13,7 +13,7 @@
 //! would silently re-roll every other feature's results.
 
 use rand::SeedableRng;
-use rand::rngs::StdRng;
+use rand_chacha::ChaCha12Rng;
 
 use crate::game::Game;
 use crate::stable_hash::stable_hash;
@@ -26,13 +26,32 @@ impl Game {
     /// A random generator for one purpose on one day.
     ///
     /// `tag` names the purpose and must carry whatever tells two uses on the same
-    /// day apart — `"match/<fixture id>"`, not `"match"` — because the same tag on
-    /// the same date is the same stream by design. The derivation is
-    /// [`stable_hash`], which promises the same answer on every toolchain, so a
-    /// saved season replays the same way next year.
-    pub fn rng_for(&self, tag: &str, date: &str) -> StdRng {
+    /// day apart — `"match/<home>/<away>"`, not `"match"` — because the same tag on
+    /// the same date is the same stream by design.
+    ///
+    /// Nothing here depends on a library's choice of default. The key is expanded
+    /// from [`stable_hash`], which promises the same answer on every toolchain, and
+    /// the generator is ChaCha12 by name rather than `StdRng`, which rand reserves
+    /// the right to change. So a saved career replays the same way after a
+    /// dependency bump: `rng_for_is_pinned_to_its_first_draws` fails first if that
+    /// stops being true.
+    ///
+    /// What this makes repeatable is *a save*: the same save, played with the same
+    /// inputs, gives the same days. It does not make a *seed* regenerate a game,
+    /// because world generation still mints ids with `Uuid::new_v4`, and tags carry
+    /// ids — two worlds generated from one seed have different ids and so different
+    /// streams.
+    pub fn rng_for(&self, tag: &str, date: &str) -> ChaCha12Rng {
         let per_purpose = stable_hash(tag.as_bytes(), self.seed);
-        StdRng::seed_from_u64(stable_hash(date.as_bytes(), per_purpose))
+        let mut key = [0u8; 32];
+        let mut word = stable_hash(date.as_bytes(), per_purpose);
+        for chunk in key.chunks_exact_mut(8) {
+            chunk.copy_from_slice(&word.to_le_bytes());
+            // Each word of the key is the hash of the one before it, so the four
+            // differ and the whole key depends on all three inputs.
+            word = stable_hash(&word.to_le_bytes(), per_purpose);
+        }
+        ChaCha12Rng::from_seed(key)
     }
 }
 
@@ -55,7 +74,7 @@ mod tests {
     use crate::clock::GameClock;
     use crate::world::start_date_for_year;
 
-    fn draws(mut rng: StdRng) -> Vec<u32> {
+    fn draws(mut rng: ChaCha12Rng) -> Vec<u32> {
         (0..8).map(|_| rng.random()).collect()
     }
 
@@ -117,6 +136,32 @@ mod tests {
         assert_ne!(
             draws(game_with_seed(1).rng_for("training", "2032-07-01")),
             draws(game_with_seed(2).rng_for("training", "2032-07-01"))
+        );
+    }
+
+    /// Given a known seed, purpose and day,
+    /// When the generator is drawn from,
+    /// Then the first numbers are these — the values a saved career's future is made of.
+    ///
+    /// A golden test: it fails the moment the algorithm, the key derivation or the hash
+    /// changes, which is the point. Re-pin it only with a save-format bump that says a
+    /// replay of older saves is knowingly not preserved.
+    #[test]
+    fn rng_for_is_pinned_to_its_first_draws() {
+        let game = game_with_seed(7);
+
+        assert_eq!(
+            draws(game.rng_for("match/home/away", "2032-07-01")),
+            vec![
+                1_120_400_549,
+                2_779_441_353,
+                2_431_824_407,
+                2_062_034_164,
+                2_293_205_624,
+                4_017_691_427,
+                115_278_181,
+                1_475_461_962
+            ]
         );
     }
 

@@ -2093,6 +2093,17 @@ mod tests {
         assert_eq!(first.seed, ofm_core::seed::seed_for_unseeded_save(&save_id));
         assert_ne!(first.seed, 0);
         assert_eq!(second.seed, first.seed);
+
+        // And it was written back: the derivation is deterministic, so the two loads
+        // above agree whether or not anything was stored. Only the file can say the
+        // seed is now a stored one rather than a recomputed one.
+        let db = GameDatabase::open(&db_path).unwrap();
+        let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+        assert_eq!(meta.seed as u64, first.seed);
+        assert_eq!(
+            meta.save_format_version,
+            meta_repo::CURRENT_SAVE_FORMAT_VERSION
+        );
     }
 
     /// The fallback is for saves that have no seed, not a reseed: a current-format
