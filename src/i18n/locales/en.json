@@ -2608,7 +2608,7 @@
       "worldReadFileFailed": "Failed to read the world database file.",
       "package": {
         "invalid": "This world package is invalid and could not be loaded.",
-        "invalidPackageId": "The package ID \"{{id}}\" cannot be used. It must not be empty or named \"assets\", and cannot contain \"/\", \"\\\", \"..\" or control characters.",
+        "invalidPackageId": "The package ID \"{{id}}\" cannot be used. It must be a plain file name: not empty, not \"assets\", not starting with a dot or ending with a dot or space, no longer than 251 bytes, without \"/\", \"\\\", \"..\", control characters, or punctuation reserved by Windows, and not a name Windows reserves such as CON or NUL.",
         "readFailed": "A package file could not be read.",
         "missingSchema": "A package file is missing its \"schema\" field.",
         "worldExportNotPackage": "This folder is an exported world save, not a package project. Exported worlds use a different format and cannot be edited here.",

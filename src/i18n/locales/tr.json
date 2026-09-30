@@ -2608,7 +2608,7 @@
       "worldReadFileFailed": "Dünya veritabanı dosyası okunamadı.",
       "package": {
         "invalid": "Bu dünya paketi geçersiz ve yüklenemedi.",
-        "invalidPackageId": "\"{{id}}\" paket kimliği kullanılamaz. Boş olamaz, \"assets\" adını taşıyamaz ve \"/\", \"\\\", \"..\" veya kontrol karakterleri içeremez.",
+        "invalidPackageId": "\"{{id}}\" paket kimliği kullanılamaz. Sade bir dosya adı olmalıdır: boş olamaz, \"assets\" olamaz, nokta ile başlayamaz ya da nokta veya boşlukla bitemez, en fazla 251 bayt olabilir, \"/\", \"\\\", \"..\", kontrol karakterleri veya Windows tarafından yasaklanan noktalama işaretlerini içeremez ve CON ya da NUL gibi Windows'un ayırdığı bir ad olamaz.",
         "readFailed": "Bir paket dosyası okunamadı.",
         "missingSchema": "Bir paket dosyasında \"schema\" alanı eksik.",
         "worldExportNotPackage": "Bu klasör dışa aktarılmış bir dünya kaydı, paket projesi değil. Dışa aktarılan dünyalar farklı bir biçim kullanır ve burada düzenlenemez.",
