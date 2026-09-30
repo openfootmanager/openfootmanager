@@ -407,5 +407,6 @@ pub(super) fn make_historical_snapshot_world() -> WorldData {
         },
         extra_translations: std::collections::HashMap::new(),
         build_notices: Vec::new(),
+        generation_seed: None,
     }
 }
