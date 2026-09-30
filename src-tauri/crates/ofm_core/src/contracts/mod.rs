@@ -21,6 +21,7 @@ mod consts;
 mod expiry;
 mod free_agent;
 mod helpers;
+mod opening;
 mod renewals;
 mod termination;
 
@@ -29,6 +30,7 @@ pub(crate) use self::helpers::*;
 // `pub` so the public entry points stay resolvable as `ofm_core::contracts::*`.
 pub use self::expiry::*;
 pub use self::free_agent::*;
+pub use self::opening::*;
 pub use self::renewals::*;
 pub use self::termination::*;
 

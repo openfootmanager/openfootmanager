@@ -112,6 +112,7 @@ CREATE TABLE players (
     injury              TEXT,             -- JSON for Option<Injury> (NULL if none)
     team_id             TEXT,
     traits              TEXT NOT NULL DEFAULT '[]',  -- JSON array
+    contract_start      TEXT,             -- NULL = unknown (saves before v045, or a deal whose start would not precede its end)
     contract_end        TEXT,
     wage                INTEGER NOT NULL DEFAULT 0,
     market_value        INTEGER NOT NULL DEFAULT 0,
