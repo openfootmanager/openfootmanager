@@ -17,17 +17,9 @@ pub fn advance_to_next_season(
     state: State<'_, Arc<StateManager>>,
 ) -> Result<serde_json::Value, String> {
     info!("[cmd] advance_to_next_season");
-    // Season-completeness is validated before any rollover mutation.
     state
         .update_game(|game| {
-            if !ofm_core::end_of_season::is_season_complete(game) {
-                return Err("be.error.seasonNotComplete".to_string());
-            }
-
-            let summary = ofm_core::end_of_season::process_end_of_season(game);
-
-            // End-of-season objective evaluation may have dropped satisfaction — check firing
-            ofm_core::firing::check_manager_firing(game);
+            let summary = ofm_core::end_of_season::advance_to_next_season(game)?;
 
             if game.manager.team_id.is_none() {
                 Ok(serde_json::json!({
