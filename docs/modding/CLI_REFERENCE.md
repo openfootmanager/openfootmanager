@@ -213,7 +213,7 @@ ofm-cli info my-league.ofm
 | `invalidEntity` | Entity body is malformed or missing required fields | `schema` |
 | `missingId` | Entity has an empty `id` field — `kind=world` means the package manifest itself | `kind` (entity type) |
 | `missingMetadata` | The package manifest leaves a required field blank: `name`, `version`, `license`, or an explicitly empty `packageType` (omitting `packageType` resolves to `"database"`) | `field` |
-| `invalidPackageId` | `id` contains a character the installer cannot use (`/`, `\`, `..`, NUL) | `id` |
+| `invalidPackageId` | `id` is not a plain filename the installer can use: it starts with a dot, ends with a dot or space, contains `/`, `\`, `..`, a control character, or Windows-reserved punctuation (`<`, `>`, `:`, `"`, `\|`, `?`, `*`), is longer than 251 bytes, is a Windows device name (`CON`, `NUL`, `COM1`, `COM¹`…), or is `assets` | `id` |
 | `unsupportedFormatVersion` | Package written against a newer `formatVersion` than this build understands | `version`, `supported` |
 | `duplicateId` | Two entities of the same type share an `id` | `kind`, `id` |
 | `unknownConfederation` | Country references a confederation id that does not exist | `country`, `confederation` |
