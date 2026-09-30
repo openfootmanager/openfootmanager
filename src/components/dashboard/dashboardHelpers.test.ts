@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
+import type { TeamFinanceSnapshotData } from "../../services/financeService";
 import {
   getDashboardAlerts,
   getDashboardSearchResults,
@@ -171,6 +172,26 @@ function translateDashboardAlert(key: string, options?: Record<string, unknown>)
   return options ? `${key}:${JSON.stringify(options)}` : key;
 }
 
+function financeVerdict(overrides: Partial<TeamFinanceSnapshotData> = {}): TeamFinanceSnapshotData {
+  return {
+    annualWageBill: 0,
+    weeklyWageSpend: 0,
+    weeklyWageBudget: 10000,
+    weeklyRecurringIncome: 0,
+    weeklySponsorIncome: 0,
+    projectedWeeklyNet: 0,
+    cashRunwayWeeks: null,
+    wageBudgetUsagePercent: 0,
+    currentlyInDebt: false,
+    currentlyOverBudget: false,
+    wageBudgetStatus: "stable",
+    runwayStatus: "stable",
+    overallStatus: "stable",
+    marketingCampaignCooldownDaysRemaining: 0,
+    ...overrides,
+  };
+}
+
 describe("dashboardHelpers", (): void => {
   it("finds today's scheduled fixture for the manager's team", (): void => {
     const fixture = {
@@ -308,14 +329,24 @@ describe("dashboardHelpers", (): void => {
       players: [createPlayer({ id: "p1", wage: 300000 }), createPlayer({ id: "p2", wage: 300000 })],
     });
 
-    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);
+    const alerts = getDashboardAlerts(
+      gameState,
+      false,
+      translateDashboardAlert,
+      financeVerdict({
+        runwayStatus: "critical",
+        cashRunwayWeeks: 2,
+        wageBudgetStatus: "critical",
+        wageBudgetUsagePercent: 120,
+      }),
+    );
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).toContain("finance_crisis");
     expect(alertIds).toContain("wage_pressure");
   });
 
-  it("includes parent-club wage shares for loaned-out players in finance alerts", (): void => {
+  it("does not infer wage pressure from local loan shares when the backend says stable", (): void => {
     const team = createTeam({
       finance: 500000,
       wage_budget: 100000,
@@ -339,10 +370,50 @@ describe("dashboardHelpers", (): void => {
       ],
     });
 
-    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);
+    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert, financeVerdict());
     const alertIds = alerts.map((alert) => alert.id);
 
-    expect(alertIds).toContain("wage_pressure");
+    expect(alertIds).not.toContain("wage_pressure");
+  });
+
+  it("does not raise a finance crisis from a local cash estimate when the backend is stable", (): void => {
+    const gameState = createGameState({
+      teams: [createTeam({ finance: 20000, wage_budget: 20000 })],
+      players: [createPlayer({ wage: 10000 })],
+    });
+
+    const alerts = getDashboardAlerts(
+      gameState,
+      false,
+      translateDashboardAlert,
+      financeVerdict({ projectedWeeklyNet: 5200 }),
+    );
+
+    expect(alerts.map((alert) => alert.id)).not.toContain("finance_crisis");
+  });
+
+  it("waits for the backend verdict before showing finance alerts", (): void => {
+    const gameState = createGameState({
+      teams: [createTeam({ finance: 20000 })],
+      players: [createPlayer({ wage: 10000 })],
+    });
+
+    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);
+
+    expect(alerts.some((alert) => alert.tab === "Finances")).toBe(false);
+  });
+
+  it("raises a crisis when the backend says critical despite a healthy local estimate", (): void => {
+    const gameState = createGameState({ teams: [createTeam({ finance: 500000 })] });
+
+    const alerts = getDashboardAlerts(
+      gameState,
+      false,
+      translateDashboardAlert,
+      financeVerdict({ runwayStatus: "critical", cashRunwayWeeks: 2 }),
+    );
+
+    expect(alerts.map((alert) => alert.id)).toContain("finance_crisis");
   });
 
   it("does not warn about an incomplete Starting XI when a healthy roster can normalize a partial saved lineup", (): void => {
