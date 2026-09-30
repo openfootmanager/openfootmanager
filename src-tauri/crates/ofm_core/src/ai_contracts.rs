@@ -453,6 +453,32 @@ mod tests {
         assert!(contract_end(&game, "old_keeper") > before);
     }
 
+    /// Given an AI club whose best player's contract ends today, and today is
+    /// the club's review day, when the day is played, then he is renewed and
+    /// not released: the club decides before the expiry sweep runs, or the
+    /// sweep would have made him a free agent first.
+    #[test]
+    fn a_day_renews_a_key_player_whose_contract_ends_that_day_before_releasing_him() {
+        let mut game = world();
+        let mut day = game.clock.current_date;
+        while day.weekday().num_days_from_monday() != review_day() {
+            day += Duration::days(1);
+        }
+        game.clock.current_date = day;
+        let mut star = player("star", "ai", Position::Midfielder, 80, 27, 0);
+        star.contract_end = Some(day.format("%Y-%m-%d").to_string());
+        game.players.push(star);
+
+        crate::turn::process_day(&mut game);
+
+        let star = game.players.iter().find(|p| p.id == "star").unwrap();
+        assert_eq!(star.team_id.as_deref(), Some("ai"), "he was released");
+        assert!(
+            star.contract_end.as_deref() > Some(day.format("%Y-%m-%d").to_string().as_str()),
+            "his contract was not renewed"
+        );
+    }
+
     #[test]
     fn a_contract_with_years_to_run_is_not_touched() {
         let mut game = world();

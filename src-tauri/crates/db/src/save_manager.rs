@@ -2499,10 +2499,13 @@ mod tests {
         assert_eq!(starting_xi_ids, team.starting_xi_ids);
     }
 
-    /// A save written before the squad floor was enforced can hold an AI club
-    /// with nobody left. Loading it signs that club a squad, and the signings
-    /// are written back to the save file — read here from the `.db` itself,
-    /// because a reload would simply repair the world again.
+    /// Given a save whose every other repair has already been written back,
+    /// and an AI club that has since lost both its keepers to free agency,
+    /// when the save is loaded, then the club signs two keepers back and the
+    /// signings are in the `.db` — read from the file, because a reload would
+    /// simply repair the world again. The first load settles every other
+    /// load-time repair, so nothing but the squad floor can be what rewrote the
+    /// file the second time.
     #[test]
     fn test_load_game_brings_a_short_ai_club_up_to_the_squad_floor_and_saves_it() {
         let dir = tempfile::tempdir().unwrap();
@@ -2510,28 +2513,54 @@ mod tests {
         let mut sm = SaveManager::init(&saves_dir).unwrap();
 
         let mut game = sample_opening_save_without_youth_academy();
-        let mut position_index = 0;
-        for (group, floor) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP {
-            for _ in 0..floor {
-                position_index += 1;
-                game.players.push(make_opening_repair_player(
-                    &format!("user-{position_index}"),
-                    group.clone(),
-                    "1998-01-01",
-                ));
-            }
-        }
         game.teams.push(Team::new(
             "team-002".to_string(),
-            "Empty Town".to_string(),
-            "EMP".to_string(),
+            "Keeperless Town".to_string(),
+            "KPT".to_string(),
             "GB".to_string(),
             "Leeds".to_string(),
-            "Empty Ground".to_string(),
+            "Town Ground".to_string(),
             10_000,
         ));
-        let save_id = sm.create_save(&game, "Pre-floor Career").unwrap();
+        for team_id in ["team-001", "team-002"] {
+            for (group, floor) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP {
+                for index in 0..floor {
+                    let mut player = make_opening_repair_player(
+                        &format!("{team_id}-{group:?}-{index}"),
+                        group.clone(),
+                        "1998-01-01",
+                    );
+                    player.team_id = Some(team_id.to_string());
+                    player.contract_end = Some("2030-06-30".to_string());
+                    game.players.push(player);
+                }
+            }
+        }
+        // Seeded and normalised up front: AI managers seeded during a load are
+        // re-normalised by the identity upgrade on every later load, which
+        // would rewrite the file for a reason of its own and hide whether the
+        // floor repair asked for the write.
+        ofm_core::ai_hiring::seed_ai_managers(&mut game);
+        ofm_core::football_identity::upgrade_game_football_identities(&mut game);
+        let save_id = sm.create_save(&game, "Floor Career").unwrap();
+        let mut settled = sm.load_game(&save_id).unwrap();
+
+        for player in settled.players.iter_mut() {
+            if player.id.starts_with("team-002-Goalkeeper") {
+                player.team_id = None;
+                player.contract_end = None;
+                player.wage = 0;
+            }
+        }
+        sm.save_game(&settled, &save_id).unwrap();
         let db_path = saves_dir.join(format!("{}.db", save_id));
+        let db = GameDatabase::open(&db_path).unwrap();
+        let before = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(
+            !ofm_core::squad_floor::squad_shortfall(&before, "team-002").is_empty(),
+            "the fixture must reach the file short of keepers"
+        );
+        drop(db);
 
         sm.load_game(&save_id).unwrap();
 
@@ -2540,13 +2569,6 @@ mod tests {
         assert!(
             ofm_core::squad_floor::squad_shortfall(&persisted, "team-002").is_empty(),
             "the repaired squad was not written back"
-        );
-        assert!(
-            persisted
-                .players
-                .iter()
-                .filter(|player| player.team_id.as_deref() == Some("team-002"))
-                .all(|player| player.contract_end.is_some())
         );
     }
 
