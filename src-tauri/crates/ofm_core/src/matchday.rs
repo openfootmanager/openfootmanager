@@ -80,6 +80,8 @@ pub fn play_user_matchday_with_capture<F>(
 where
     F: FnMut(StatsState),
 {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
     if let Some(competition) = game.competitions.get(competition_index).cloned() {
         game.league = Some(competition);
     }
@@ -99,12 +101,7 @@ where
     let away_team_id = session.away_team_id.clone();
     let report = session.match_state.into_report();
 
-    crate::turn::simulate_other_matches_with_capture(
-        game,
-        &game.clock.current_date.format("%Y-%m-%d").to_string(),
-        Some(fixture_index),
-        on_capture,
-    );
+    crate::turn::simulate_other_matches_with_capture(game, &today, Some(fixture_index), on_capture);
 
     crate::turn::apply_match_report_with_capture(
         game,
