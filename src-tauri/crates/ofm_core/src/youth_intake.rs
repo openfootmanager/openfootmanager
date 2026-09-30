@@ -80,10 +80,12 @@ pub fn plan_for<'a>(academy: impl IntoIterator<Item = &'a Player>) -> IntakePlan
 /// Every club takes its season's intake into its academy on `date`, the end of
 /// `season`. The player's club is told who joined.
 pub fn apply_youth_intake(game: &mut Game, date: NaiveDate, season: u32) {
+    // An academy player out on loan belongs to the academy of the club that
+    // owns him and gets him back, not the one borrowing him for a season.
     let mut academies: HashMap<&str, Vec<&Player>> = HashMap::new();
     for player in &game.players {
         if player.squad_role == SquadRole::Youth
-            && let Some(team_id) = player.team_id.as_deref()
+            && let Some(team_id) = crate::contracts::contract_owner_team_id(player)
         {
             academies.entry(team_id).or_default().push(player);
         }
@@ -435,6 +437,41 @@ mod tests {
                 recruit.full_name
             );
         }
+    }
+
+    /// Given a youth forward the rival owns, out on loan at the player's club,
+    /// when the season ends, then he counts for the academy he belongs to and
+    /// returns to: the rival, which has its forward, takes a keeper; the
+    /// borrower, which has none of its own, takes a forward.
+    #[test]
+    fn a_loaned_youngster_counts_for_the_club_that_owns_him() {
+        let mut shape = ACADEMY_TARGET_PER_GROUP;
+        shape[group_index(&Position::Forward)] = 0;
+        let mut before = world(shape, shape);
+        let mut loanee = youngster("loanee", "user", Position::Forward);
+        loanee.active_loan = Some(domain::player::ActiveLoan {
+            parent_team_id: "rival".to_string(),
+            loan_team_id: "user".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 100,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        before.players.push(loanee);
+
+        let after = intake(&before);
+        let groups = |club: &str| {
+            newcomers(&before, &after, club)
+                .into_iter()
+                .map(|recruit| recruit.position.to_group_position())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(groups("user"), vec![Position::Forward]);
+        assert_eq!(groups("rival"), vec![Position::Goalkeeper]);
     }
 
     // -- the player's club -----------------------------------------------------
