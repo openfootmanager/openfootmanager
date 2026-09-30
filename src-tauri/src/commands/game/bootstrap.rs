@@ -479,7 +479,7 @@ mod tests {
             game.players.push(player);
         }
         for player in &mut game.players {
-            player.stored_contract_end = Some("2033-06-30".to_string());
+            player.stage_contract_end(Some("2033-06-30".to_string()));
         }
         ofm_core::world::ensure_multi_competition_foundations(&mut game);
 

@@ -312,8 +312,8 @@ fn process_day_releases_players_with_expired_contracts() {
     game.league.as_mut().unwrap().fixtures[0].date = "2025-06-20".to_string();
 
     let player = game.players.iter_mut().find(|p| p.id == "t1_fwd0").unwrap();
-    player.stored_contract_end = Some("2025-06-15".to_string());
-    player.stored_wage = 12_000;
+    player.stage_contract_end(Some("2025-06-15".to_string()));
+    player.stage_wage(12_000);
     player.morale = 70;
 
     turn::process_day(&mut game);

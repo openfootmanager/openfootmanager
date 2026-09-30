@@ -62,22 +62,11 @@ pub struct Player {
 
     // Contract & value
     //
-    // The three `stored_*` fields are the current contract as it is saved and sent to
-    // the frontend (under their old names, so neither shape changes). They are a
-    // projection of the ledger, brought into line by `record_movement`, and nothing
-    // outside `domain` and `db` names them: read the contract through `wage()`,
-    // `contract_start()`, `contract_end()` or `current_contract()`, and change it by
-    // recording a movement. World generation, which has no history yet, stages a
-    // contract with `stage_contract`, and opening a career turns it into an entry.
-    /// Start of the current agreement ("YYYY-MM-DD"). `None` is an honest unknown
-    /// (a save from before starts were recorded) and must not be read as "expired".
-    #[serde(rename = "contract_start", default)]
-    pub stored_contract_start: Option<String>,
-    #[serde(rename = "contract_end")]
-    pub stored_contract_end: Option<String>,
-    /// Weekly wage.
-    #[serde(rename = "wage")]
-    pub stored_wage: u32,
+    // A player's contract is not a field. It is the latest entry in `movement_history`
+    // (see `contract_ledger`): read it with `wage()`, `contract_start()` and
+    // `contract_end()`, and change it by recording a movement. The ledger still writes
+    // `wage`, `contract_start` and `contract_end` when a player is serialized, so the
+    // frontend and the save columns keep the shape they always had.
     pub market_value: u64,
 
     // Season stats
@@ -85,8 +74,11 @@ pub struct Player {
 
     // Career history
     pub career: Vec<CareerEntry>,
-    #[serde(default)]
-    pub movement_history: Vec<PlayerMovementEntry>,
+    /// Every move and every contract. Flattened so the wire and the saves keep their
+    /// keys: it reads and writes `movement_history`, `wage`, `contract_start` and
+    /// `contract_end` itself.
+    #[serde(flatten)]
+    pub movement_history: crate::contract_ledger::MovementLedger,
 
     // Individual training focus override (takes priority over group and team default)
     #[serde(default)]
@@ -834,13 +826,10 @@ impl Player {
             traits,
             ovr: 0,
             potential: 0,
-            stored_contract_start: None,
-            stored_contract_end: None,
-            stored_wage: 0,
             market_value: 0,
             stats: PlayerSeasonStats::default(),
             career: Vec::new(),
-            movement_history: Vec::new(),
+            movement_history: Default::default(),
             training_focus: None,
             transfer_listed: false,
             loan_listed: false,

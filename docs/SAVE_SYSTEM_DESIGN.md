@@ -222,8 +222,12 @@ not in the three columns above. An entry that makes a contract carries a `contra
 later `released` or `retired` entry ended it. Loan entries carry no contract: a loaned player is
 still on his parent club's agreement.
 
-`contract_start`, `contract_end` and `wage` are written from that current contract, for anything
-that reads the `.db` directly. They are never read as the source once a player has a ledger.
+A player has no wage or contract-date fields. `wage()`, `contract_start()` and `contract_end()`
+read the ledger, and `contract_start`, `contract_end` and `wage` are **written from it** when a
+player is saved (and when it is serialized for the frontend), so anything that reads the `.db`
+directly, and the frontend, see the same shape as before. On load those three columns are a
+**read-only legacy input**: they are used only when the entries hold no contract (a save from
+before the ledger), and ignored as soon as they do.
 
 No migration was needed: every new field is optional. A save from before the ledger gets **one**
 `initial_contract` entry per player under contract when it is loaded, with `source =

@@ -191,7 +191,7 @@ mod tests {
             attrs(),
         );
         player.team_id = team_id.map(str::to_string);
-        player.stored_contract_end = end.map(str::to_string);
+        player.stage_contract_end(end.map(str::to_string));
         player
     }
 
@@ -318,7 +318,7 @@ mod tests {
         // An author may write a start after the opening date: a deal that has not
         // begun yet. That is theirs to say, and the clamp is not applied to it.
         let mut signed = player_at("authored", Some("en-1"), Some("2031-06-30"));
-        signed.stored_contract_start = Some("2030-07-01".to_string());
+        signed.stage_contract_start(Some("2030-07-01".to_string()));
         let mut game = three_club_game(vec![signed]);
 
         let anchors = club_season_anchors(&game);
@@ -401,7 +401,7 @@ mod tests {
     #[test]
     fn opening_a_career_records_one_initial_contract_per_contracted_player() {
         let mut signed = player_at("en-p", Some("en-1"), Some("2027-06-30"));
-        signed.stored_wage = 8_000;
+        signed.stage_wage(8_000);
         let mut game = three_club_game(vec![signed]);
 
         let anchors = club_season_anchors(&game);
@@ -431,7 +431,7 @@ mod tests {
     fn an_opening_start_that_is_unknown_stays_unknown_in_the_entry() {
         // Already over before the Brazilian club's season began, so no start is derived.
         let mut lapsed = player_at("lapsed", Some("br-1"), Some("2025-06-30"));
-        lapsed.stored_wage = 5_000;
+        lapsed.stage_wage(5_000);
         let mut game = three_club_game(vec![lapsed]);
 
         let anchors = club_season_anchors(&game);
@@ -445,8 +445,8 @@ mod tests {
     #[test]
     fn an_authored_contract_is_recorded_exactly_as_authored() {
         let mut signed = player_at("authored", Some("en-1"), Some("2031-06-30"));
-        signed.stored_contract_start = Some("2030-07-01".to_string());
-        signed.stored_wage = 12_345;
+        signed.stage_contract_start(Some("2030-07-01".to_string()));
+        signed.stage_wage(12_345);
         let mut game = three_club_game(vec![signed]);
 
         let anchors = club_season_anchors(&game);
@@ -464,7 +464,7 @@ mod tests {
     #[test]
     fn a_loaned_player_is_recorded_against_the_club_that_holds_his_contract() {
         let mut loaned = player_at("loanee", Some("en-1"), Some("2027-06-30"));
-        loaned.stored_wage = 9_000;
+        loaned.stage_wage(9_000);
         loaned.active_loan = Some(domain::player::ActiveLoan {
             parent_team_id: "br-1".to_string(),
             loan_team_id: "en-1".to_string(),
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn players_with_no_club_or_no_contract_get_no_initial_entry() {
         let mut free_agent = player_at("free-agent", None, Some("2027-06-30"));
-        free_agent.stored_wage = 4_000;
+        free_agent.stage_wage(4_000);
         let mut game = three_club_game(vec![
             free_agent,
             player_at("no-contract", Some("en-1"), None),
@@ -507,7 +507,7 @@ mod tests {
     #[test]
     fn opening_twice_does_not_record_a_second_initial_contract() {
         let mut signed = player_at("en-p", Some("en-1"), Some("2027-06-30"));
-        signed.stored_wage = 8_000;
+        signed.stage_wage(8_000);
         let mut game = three_club_game(vec![signed]);
         let anchors = club_season_anchors(&game);
 

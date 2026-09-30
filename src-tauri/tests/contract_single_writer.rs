@@ -1,26 +1,36 @@
 //! A player's contract has one writer.
 //!
-//! The current contract is the latest entry in `Player::movement_history`, and the
-//! wage and dates a player carries are a projection that `Player::record_movement`
-//! keeps in step with it. That only holds if nothing else adds to the ledger or
-//! writes the projection, so this reads the source and fails on anything that does.
+//! A player has no wage or contract-date fields: the current contract is the latest
+//! entry in `Player::movement_history`, and only `Player::record_movement` can add to
+//! that (the ledger's entries are private, so the compiler holds that line).
 //!
-//! What may name the `stored_*` fields: `domain` (which owns them), the player
-//! repository (which saves and loads them), and world generation (which has no
-//! history yet, so stages the contract it rolls; opening a career turns it into an
-//! entry). Test code is free to stage fixtures. Everything else reads the contract
-//! through `wage()`, `contract_start()` and `contract_end()` and changes it by
-//! recording a movement.
+//! What the compiler cannot hold is the two ways a contract enters a player without an
+//! entry yet: *staging* (world generation rolls a contract before there is any
+//! history; opening a career turns it into an entry) and *restoring* a ledger from a
+//! save. This reads the source and fails if anything but world generation stages, or
+//! anything but the player repository restores. Test code is free to stage fixtures.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
+const STAGERS: &[&str] = &[
+    "stage_contract(",
+    "stage_wage(",
+    "stage_contract_start(",
+    "stage_contract_end(",
+];
+
+/// Where a contract may be staged: the ledger's own module, and world generation.
 const STAGING_ALLOWED: &[&str] = &[
-    "crates/domain/src/player.rs",
     "crates/domain/src/contract_ledger.rs",
-    "crates/db/src/repositories/player_repo.rs",
     "crates/ofm_core/src/generator/generation.rs",
     "crates/ofm_core/src/generator/mod.rs",
+];
+
+/// Where a ledger may be rebuilt from a save.
+const RESTORE_ALLOWED: &[&str] = &[
+    "crates/domain/src/contract_ledger.rs",
+    "crates/db/src/repositories/player_repo.rs",
 ];
 
 fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -87,7 +97,7 @@ fn sources() -> (PathBuf, Vec<PathBuf>) {
 }
 
 #[test]
-fn only_staging_code_names_the_stored_contract_fields() {
+fn only_world_generation_stages_a_contract() {
     let (root, files) = sources();
     let mut offenders = Vec::new();
     for file in files {
@@ -96,41 +106,37 @@ fn only_staging_code_names_the_stored_contract_fields() {
             continue;
         }
         let code = production_code(&file);
-        for name in [
-            "stored_wage",
-            "stored_contract_start",
-            "stored_contract_end",
-        ] {
-            if code.contains(name) {
-                offenders.push(format!("{rel} names {name}"));
+        for call in STAGERS {
+            if code.contains(call) {
+                offenders.push(format!("{rel} calls {call}"));
             }
         }
     }
     assert!(
         offenders.is_empty(),
-        "read the contract through wage()/contract_start()/contract_end() and change it with \
-         Player::record_movement:\n{}",
+        "a contract made in the game is recorded with Player::record_movement; only world \
+         generation stages one:\n{}",
         offenders.join("\n")
     );
 }
 
 #[test]
-fn nothing_but_the_ledger_method_pushes_to_a_movement_history() {
+fn only_the_player_repository_restores_a_ledger() {
     let (root, files) = sources();
     let mut offenders = Vec::new();
     for file in files {
         let rel = relative(&file, &root);
-        if rel == "crates/domain/src/contract_ledger.rs" {
+        if RESTORE_ALLOWED.contains(&rel.as_str()) {
             continue;
         }
-        if production_code(&file).contains("movement_history.push") {
+        if production_code(&file).contains("MovementLedger::restore") {
             offenders.push(rel);
         }
     }
     assert!(
         offenders.is_empty(),
-        "every entry must go through Player::record_movement, which keeps the contract in \
-         step with the ledger:\n{}",
+        "a ledger is rebuilt from a save in one place, which also decides what the old \
+         contract columns mean:\n{}",
         offenders.join("\n")
     );
 }

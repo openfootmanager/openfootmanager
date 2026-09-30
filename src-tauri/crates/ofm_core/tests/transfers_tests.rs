@@ -55,7 +55,7 @@ fn make_player(id: &str) -> Player {
         default_attrs(),
     );
     player.team_id = Some("team-2".to_string());
-    player.stored_contract_end = Some("2028-06-30".to_string());
+    player.stage_contract_end(Some("2028-06-30".to_string()));
     player.market_value = 1_000_000;
     player.morale = 70;
     player
@@ -218,7 +218,7 @@ fn opening_loan_market_seeds_only_eligible_ai_players() {
 
     let mut short_contract = make_player("short-contract");
     short_contract.date_of_birth = "2009-01-01".to_string();
-    short_contract.stored_contract_end = Some("2026-09-01".to_string());
+    short_contract.stage_contract_end(Some("2026-09-01".to_string()));
 
     let mut user_player = make_user_player("user-player");
     user_player.date_of_birth = "2010-01-01".to_string();
@@ -300,7 +300,7 @@ fn opening_loan_market_is_idempotent_after_each_ai_club_reaches_target() {
 #[test]
 fn incoming_transfer_offers_do_not_arrive_when_window_is_closed() {
     let mut player = make_user_player("player-window-closed");
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.market_value = 1_200_000;
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -325,7 +325,7 @@ fn incoming_transfer_offers_do_not_arrive_when_window_is_closed() {
 #[test]
 fn a_permanent_transfer_starts_a_new_contract_on_the_day_it_registers() {
     let mut player = make_player("player-new-contract");
-    player.stored_contract_start = Some("2019-07-01".to_string());
+    player.stage_contract_start(Some("2019-07-01".to_string()));
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
     game.season_context.transfer_window.status = TransferWindowStatus::Closed;
@@ -696,7 +696,7 @@ fn accepted_loan_offer_moves_player_until_return_date() {
     player.potential = 74;
     player.stats.appearances = 2;
     player.stats.minutes_played = 180;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
 
     let mut game = make_game_with_player(
         player,
@@ -766,7 +766,7 @@ fn accepted_closed_window_loan_is_registered_when_the_window_opens() {
     player.loan_listed = true;
     player.ovr = 62;
     player.potential = 74;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
 
     let mut game = make_game_with_player(
         player,
@@ -865,7 +865,7 @@ fn accepted_closed_window_loan_blocks_permanent_bid_before_registration() {
     let mut player = make_player("player-scheduled-lock");
     player.loan_listed = true;
     player.market_value = 500_000;
-    player.stored_wage = 20_000;
+    player.stage_wage(20_000);
 
     let mut game = make_game_with_player(
         player,
@@ -903,10 +903,10 @@ fn accepted_closed_window_loan_blocks_permanent_bid_before_registration() {
 fn accepted_post_window_loan_is_scheduled_for_the_next_window() {
     let mut player = make_player("player-next-window-loan");
     player.loan_listed = true;
-    player.stored_contract_end = Some("2028-07-31".to_string());
+    player.stage_contract_end(Some("2028-07-31".to_string()));
     player.ovr = 62;
     player.potential = 74;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
 
     let mut game = make_game_with_player(
         player,
@@ -950,7 +950,7 @@ fn accepted_post_window_loan_is_scheduled_for_the_next_window() {
 /// wage budget, then opens the window and runs registration.
 fn register_scheduled_incoming_loan(borrower_wage_budget: i64) -> Game {
     let mut player = make_user_player("player-ai-borrow");
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
     let mut offer = make_pending_incoming_loan_offer("loan-offer-ai", 75, None);
     // Dated on the day it is answered, so stale-offer expiry leaves it alone.
     offer.date = "2026-12-20".to_string();
@@ -1006,11 +1006,11 @@ fn scheduled_loan_to_an_ai_club_fails_registration_when_the_borrower_cannot_affo
 fn loan_offer_rejects_end_date_after_player_contract() {
     let mut player = make_player("player-short-contract-loan");
     player.loan_listed = true;
-    player.stored_contract_end = Some("2026-12-01".to_string());
+    player.stage_contract_end(Some("2026-12-01".to_string()));
     player.ovr = 62;
     player.potential = 74;
     player.stats.appearances = 0;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
 
@@ -1037,7 +1037,7 @@ fn loan_offer_rejects_end_date_after_player_contract() {
 fn loan_offer_rejects_terms_that_exceed_user_wage_budget() {
     let mut player = make_player("player-loan-wage-budget");
     player.loan_listed = true;
-    player.stored_wage = 120_000;
+    player.stage_wage(120_000);
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     game.teams[0].wage_budget = 50_000;
 
@@ -1064,13 +1064,13 @@ fn loan_offer_rejects_terms_that_exceed_user_wage_budget() {
 fn loan_offer_counts_existing_loan_wages_against_borrower_budget() {
     let mut player = make_player("player-loan-existing-wage-budget");
     player.loan_listed = true;
-    player.stored_wage = 20_000;
+    player.stage_wage(20_000);
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     game.teams[0].wage_budget = 100_000;
 
     let mut existing_loan = make_player("existing-user-loan");
     existing_loan.team_id = Some("team-1".to_string());
-    existing_loan.stored_wage = 100_000;
+    existing_loan.stage_wage(100_000);
     existing_loan.active_loan = Some(ActiveLoan {
         parent_team_id: "team-2".to_string(),
         loan_team_id: "team-1".to_string(),
@@ -1113,7 +1113,7 @@ fn loan_offer_does_not_require_cash_to_cover_wage_share() {
     player.ovr = 62;
     player.potential = 74;
     player.stats.appearances = 0;
-    player.stored_wage = 120_000;
+    player.stage_wage(120_000);
     let mut game = make_game_with_player(player, vec![], 50_000, 2_000_000);
     game.teams[0].wage_budget = 500_000;
 
@@ -1129,11 +1129,11 @@ fn loan_buy_option_can_be_exercised_from_active_user_loan() {
     player.ovr = 62;
     player.potential = 74;
     player.stats.appearances = 0;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
     // The parent club's contract, signed long before the loan. A loan must leave it
     // alone and buying the player must replace it, so a value that a `None` start
     // could not distinguish from "set by the buy".
-    player.stored_contract_start = Some("2019-07-01".to_string());
+    player.stage_contract_start(Some("2019-07-01".to_string()));
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     attach_transfer_log_league(&mut game);
@@ -1604,7 +1604,7 @@ fn incoming_loan_offer_is_generated_for_loan_listed_user_player() {
     player.ovr = 68;
     player.potential = 80;
     player.stats.appearances = 0;
-    player.stored_wage = 260_000;
+    player.stage_wage(260_000);
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
 
@@ -1631,7 +1631,7 @@ fn incoming_loan_offers_are_capped_per_user_player_per_day() {
     player.ovr = 68;
     player.potential = 80;
     player.stats.appearances = 0;
-    player.stored_wage = 260_000;
+    player.stage_wage(260_000);
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     game.teams
@@ -1671,10 +1671,10 @@ fn incoming_loan_offer_does_not_block_permanent_transfer_interest() {
     loan_player.ovr = 68;
     loan_player.potential = 80;
     loan_player.stats.appearances = 0;
-    loan_player.stored_wage = 260_000;
+    loan_player.stage_wage(260_000);
 
     let mut contract_risk_player = make_user_player("player-contract-risk-mixed-market");
-    contract_risk_player.stored_contract_end = Some("2026-09-01".to_string());
+    contract_risk_player.stage_contract_end(Some("2026-09-01".to_string()));
     contract_risk_player.market_value = 1_200_000;
 
     let mut game = make_game_with_player(loan_player, vec![], 5_000_000, 2_000_000);
@@ -1712,7 +1712,7 @@ fn incoming_loan_offer_does_not_block_permanent_transfer_interest() {
 fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
     let mut player = make_user_player("player-incoming-loan");
     player.loan_listed = true;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
     player.loan_offers.push(LoanOffer {
         id: "loan-offer-1".to_string(),
         from_team_id: "team-2".to_string(),
@@ -1769,7 +1769,7 @@ fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
 fn countering_incoming_loan_offer_can_execute_accepted_terms() {
     let mut player = make_user_player("player-counter-loan-accepted");
     player.loan_listed = true;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
     player.ovr = 68;
     player.potential = 78;
     player
@@ -1815,7 +1815,7 @@ fn countering_incoming_loan_offer_can_execute_accepted_terms() {
 fn countering_incoming_loan_offer_can_keep_talks_live_with_suggested_terms() {
     let mut player = make_user_player("player-counter-loan-live");
     player.loan_listed = true;
-    player.stored_wage = 520_000;
+    player.stage_wage(520_000);
     player.ovr = 60;
     player.potential = 62;
     player.loan_offers.push(make_pending_incoming_loan_offer(
@@ -1894,8 +1894,8 @@ fn countering_incoming_loan_offer_rejects_terms_that_do_not_improve() {
 fn incoming_loan_offer_rejects_end_date_after_player_contract() {
     let mut player = make_user_player("player-incoming-short-contract-loan");
     player.loan_listed = true;
-    player.stored_contract_end = Some("2026-12-01".to_string());
-    player.stored_wage = 520_000;
+    player.stage_contract_end(Some("2026-12-01".to_string()));
+    player.stage_wage(520_000);
     player.loan_offers.push(LoanOffer {
         id: "loan-offer-short-contract".to_string(),
         from_team_id: "team-2".to_string(),
@@ -1965,7 +1965,7 @@ fn permanent_bid_is_rejected_for_active_loan_player() {
 #[test]
 fn expiring_contract_lowers_resistance_to_sale() {
     let mut player = make_player("player-expiring");
-    player.stored_contract_end = Some("2026-08-31".to_string());
+    player.stage_contract_end(Some("2026-08-31".to_string()));
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
 
@@ -2117,7 +2117,7 @@ fn low_transfer_budget_cannot_behave_unrealistically() {
 #[test]
 fn generates_pending_incoming_offer_for_contract_risk_player() {
     let mut player = make_user_player("player-contract-risk");
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.market_value = 1_200_000;
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2149,7 +2149,7 @@ fn generates_pending_incoming_offer_for_contract_risk_player() {
 fn ai_clubs_complete_transfer_between_themselves_without_inbox_message() {
     let mut player = make_player("player-ai-market");
     player.team_id = Some("team-3".to_string());
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.market_value = 1_200_000;
     player.transfer_listed = true;
 
@@ -2187,19 +2187,19 @@ fn ai_clubs_complete_transfer_between_themselves_without_inbox_message() {
 fn ai_market_limits_completed_ai_transfers_per_day() {
     let mut first = make_player("player-ai-limit-1");
     first.team_id = Some("team-3".to_string());
-    first.stored_contract_end = Some("2026-09-01".to_string());
+    first.stage_contract_end(Some("2026-09-01".to_string()));
     first.market_value = 1_200_000;
     first.transfer_listed = true;
 
     let mut second = make_player("player-ai-limit-2");
     second.team_id = Some("team-3".to_string());
-    second.stored_contract_end = Some("2026-09-01".to_string());
+    second.stage_contract_end(Some("2026-09-01".to_string()));
     second.market_value = 1_100_000;
     second.transfer_listed = true;
 
     let mut third = make_player("player-ai-limit-3");
     third.team_id = Some("team-3".to_string());
-    third.stored_contract_end = Some("2026-09-01".to_string());
+    third.stage_contract_end(Some("2026-09-01".to_string()));
     third.market_value = 1_000_000;
     third.transfer_listed = true;
 
@@ -2232,7 +2232,7 @@ fn ai_market_limits_completed_ai_transfers_per_day() {
 #[test]
 fn does_not_duplicate_pending_incoming_offer_from_same_club() {
     let mut player = make_user_player("player-duplicate");
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.transfer_offers.push(TransferOffer {
         id: "offer-existing".to_string(),
         from_team_id: "team-2".to_string(),
@@ -2269,12 +2269,12 @@ fn incoming_offer_messages_from_multiple_clubs_get_unique_ids() {
     // Each user player may attract at most one new club per day, so two unique
     // messages require two different targets.
     let mut first = make_user_player("player-message-ids-1");
-    first.stored_contract_end = Some("2026-09-01".to_string());
+    first.stage_contract_end(Some("2026-09-01".to_string()));
     first.market_value = 1_200_000;
     first.natural_position = Position::Forward;
 
     let mut second = make_user_player("player-message-ids-2");
-    second.stored_contract_end = Some("2026-09-01".to_string());
+    second.stage_contract_end(Some("2026-09-01".to_string()));
     second.market_value = 1_200_000;
     second.natural_position = Position::Defender;
 
@@ -2312,7 +2312,7 @@ fn incoming_offer_messages_from_multiple_clubs_get_unique_ids() {
 #[test]
 fn at_most_one_new_club_bids_on_a_user_player_per_day() {
     let mut player = make_user_player("player-flood");
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.market_value = 1_200_000;
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2346,7 +2346,7 @@ fn at_most_one_new_club_bids_on_a_user_player_per_day() {
 #[test]
 fn repeat_interest_in_a_user_player_collapses_into_one_digest_message() {
     let mut player = make_user_player("player-digest");
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.market_value = 1_200_000;
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2402,7 +2402,7 @@ fn squad_wide_incoming_offers_are_capped_per_day() {
     let mut game = make_game_with_player(
         {
             let mut player = make_user_player("player-squad-0");
-            player.stored_contract_end = Some("2026-09-01".to_string());
+            player.stage_contract_end(Some("2026-09-01".to_string()));
             player.market_value = 1_200_000;
             player.natural_position = positions[0].clone();
             player
@@ -2413,7 +2413,7 @@ fn squad_wide_incoming_offers_are_capped_per_day() {
     );
     for (index, position) in positions.iter().enumerate().skip(1) {
         let mut player = make_user_player(&format!("player-squad-{index}"));
-        player.stored_contract_end = Some("2026-09-01".to_string());
+        player.stage_contract_end(Some("2026-09-01".to_string()));
         player.market_value = 1_200_000;
         player.natural_position = position.clone();
         game.players.push(player);
@@ -2449,11 +2449,11 @@ fn squad_wide_incoming_offers_are_capped_per_day() {
 #[test]
 fn contract_risk_player_draws_interest_before_similar_stable_player() {
     let mut risky = make_user_player("player-risky");
-    risky.stored_contract_end = Some("2026-09-01".to_string());
+    risky.stage_contract_end(Some("2026-09-01".to_string()));
     risky.market_value = 1_100_000;
 
     let mut stable = make_user_player("player-stable");
-    stable.stored_contract_end = Some("2028-06-30".to_string());
+    stable.stage_contract_end(Some("2028-06-30".to_string()));
     stable.market_value = 1_100_000;
 
     let mut game = make_game_with_player(risky, vec![], 5_000_000, 2_000_000);
@@ -2690,7 +2690,7 @@ fn excessive_counter_offer_is_rejected_and_closes_the_negotiation() {
 #[test]
 fn unhappy_player_with_bigger_ambition_gap_is_easier_to_buy() {
     let mut open_player = make_player("player-open");
-    open_player.stored_contract_end = Some("2028-06-30".to_string());
+    open_player.stage_contract_end(Some("2028-06-30".to_string()));
     open_player.morale = 35;
     open_player.stats.appearances = 1;
 
@@ -2701,7 +2701,7 @@ fn unhappy_player_with_bigger_ambition_gap_is_easier_to_buy() {
         make_transfer_bid(&mut open_game, "player-open", 1_050_000).expect("open-player bid");
 
     let mut content_player = make_player("player-content");
-    content_player.stored_contract_end = Some("2028-06-30".to_string());
+    content_player.stage_contract_end(Some("2028-06-30".to_string()));
     content_player.morale = 80;
     content_player.stats.appearances = 12;
 
@@ -2721,7 +2721,7 @@ fn unhappy_player_with_bigger_ambition_gap_is_easier_to_buy() {
 #[test]
 fn blocking_open_player_move_reduces_morale_and_creates_contract_issue() {
     let mut player = make_user_player("player-blocked");
-    player.stored_contract_end = Some("2028-06-30".to_string());
+    player.stage_contract_end(Some("2028-06-30".to_string()));
     player.morale = 42;
     player.stats.appearances = 0;
     player
@@ -2868,7 +2868,7 @@ fn transfer_succeeds_when_incoming_player_jersey_collides_with_buyer_squad() {
     // Player being transferred (currently at the selling club, wears #6 there).
     let mut incoming = make_player("incoming-six");
     incoming.jersey_number = Some(6);
-    incoming.stored_contract_end = Some("2028-06-30".to_string());
+    incoming.stage_contract_end(Some("2028-06-30".to_string()));
     incoming.market_value = 1_000_000;
 
     let mut game = make_game_with_player(incoming, vec![], 5_000_000, 2_000_000);
@@ -2954,7 +2954,7 @@ fn make_loan_pileup_game(player_id: &str, ai_teams: usize) -> Game {
     player.ovr = 68;
     player.potential = 80;
     player.stats.appearances = 0;
-    player.stored_wage = 260_000;
+    player.stage_wage(260_000);
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     for index in 0..ai_teams {
@@ -3031,7 +3031,7 @@ fn a_club_holding_a_pending_loan_offer_does_not_also_open_a_transfer_bid() {
     let mut player = make_user_player("player-user-loan-crosstype");
     player.loan_listed = false;
     player.transfer_listed = true;
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.market_value = 1_200_000;
     player
         .loan_offers
@@ -3098,7 +3098,7 @@ fn pending_loan_offers_count_towards_the_same_cap_as_transfer_bids() {
     let mut player = make_user_player("player-user-crosstype-cap");
     player.loan_listed = true;
     player.transfer_listed = true;
-    player.stored_contract_end = Some("2026-09-01".to_string());
+    player.stage_contract_end(Some("2026-09-01".to_string()));
     player.market_value = 1_200_000;
     for index in 0..3 {
         let mut offer =
@@ -3313,7 +3313,7 @@ fn closed_offers_are_pruned_once_they_fall_outside_the_retention_window() {
 fn a_club_that_is_turned_down_does_not_come_straight_back() {
     let mut player = make_user_player("player-persistent-suitor");
     player.transfer_listed = false;
-    player.stored_contract_end = Some("2026-11-01".to_string());
+    player.stage_contract_end(Some("2026-11-01".to_string()));
     player.market_value = 1_400_000;
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -3416,7 +3416,7 @@ fn a_club_whose_talks_expired_also_waits_before_asking_again() {
 fn make_persistent_suitor_game(player_id: &str, ai_teams: usize) -> Game {
     let mut player = make_user_player(player_id);
     player.transfer_listed = false;
-    player.stored_contract_end = Some("2026-11-01".to_string());
+    player.stage_contract_end(Some("2026-11-01".to_string()));
     player.market_value = 1_400_000;
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -3912,8 +3912,8 @@ fn a_permanent_transfer_creates_a_new_contract_with_the_buyers_terms() {
     let mut player = make_player("player-buyer-terms");
     // The seller's deal: a wage that is not a round thousand and an end date a
     // standard contract would never produce, so carrying either across shows.
-    player.stored_wage = 7_777;
-    player.stored_contract_start = Some("2019-07-01".to_string());
+    player.stage_wage(7_777);
+    player.stage_contract_start(Some("2019-07-01".to_string()));
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
 
     make_transfer_bid(&mut game, "player-buyer-terms", 2_000_000)
@@ -3951,7 +3951,7 @@ fn a_permanent_transfer_creates_a_new_contract_with_the_buyers_terms() {
 fn a_transfer_never_leaves_the_player_unpaid() {
     // Every bid today carries a wage_offered of 0; that must not become his wage.
     let mut player = make_player("player-zero-offer");
-    player.stored_wage = 0;
+    player.stage_wage(0);
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
 
     make_transfer_bid(&mut game, "player-zero-offer", 2_000_000).expect("the bid executes");
@@ -4019,8 +4019,8 @@ fn a_loan_out_and_back_writes_movements_but_no_contract() {
     player.loan_listed = true;
     player.ovr = 62;
     player.potential = 74;
-    player.stored_wage = 520_000;
-    player.stored_contract_start = Some("2019-07-01".to_string());
+    player.stage_wage(520_000);
+    player.stage_contract_start(Some("2019-07-01".to_string()));
     let mut game = make_game_with_player(
         player,
         vec!["player-loan-no-contract".to_string()],
@@ -4059,8 +4059,8 @@ fn a_loan_to_buy_creates_a_new_contract_with_the_buyers_terms() {
     player.ovr = 62;
     player.potential = 74;
     player.stats.appearances = 0;
-    player.stored_wage = 520_000;
-    player.stored_contract_start = Some("2019-07-01".to_string());
+    player.stage_wage(520_000);
+    player.stage_contract_start(Some("2019-07-01".to_string()));
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     attach_transfer_log_league(&mut game);
     make_loan_offer(

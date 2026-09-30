@@ -577,10 +577,10 @@ fn expiring_contract_players_draw_more_rival_interest() {
         .date_naive();
 
     let mut expiring_player = make_player("expiring", "Expiring Star", "team1");
-    expiring_player.stored_contract_end = Some("2025-08-01".to_string());
+    expiring_player.stage_contract_end(Some("2025-08-01".to_string()));
 
     let mut secure_player = make_player("secure", "Secure Squad", "team1");
-    secure_player.stored_contract_end = Some("2028-06-30".to_string());
+    secure_player.stage_contract_end(Some("2028-06-30".to_string()));
 
     let expiring_weight = rival_interest_weight(&expiring_player, current_date);
     let secure_weight = rival_interest_weight(&secure_player, current_date);

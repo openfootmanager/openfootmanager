@@ -567,8 +567,8 @@ pub(super) fn generate_random_player_from_def(
     );
     player.team_id = Some(team_id.to_string());
     player.market_value = market_value;
-    player.stored_wage = wage;
-    player.stored_contract_end = Some(contract_end);
+    player.stage_wage(wage);
+    player.stage_contract_end(Some(contract_end));
     player.condition = rng.random_range(75..100);
     player.morale = rng.random_range(40..76);
 
@@ -1066,14 +1066,14 @@ pub(super) fn generate_player_from_def(
         .map(|photo| photo.trim().to_string())
         .filter(|photo| !photo.is_empty());
     player.market_value = market_value;
-    player.stored_wage = wage;
-    player.stored_contract_start = authored_contract.start.map(contract_date);
-    player.stored_contract_end = Some(
+    player.stage_wage(wage);
+    player.stage_contract_start(authored_contract.start.map(contract_date));
+    player.stage_contract_end(Some(
         authored_contract
             .end
             .map(contract_date)
             .unwrap_or(generated_contract_end),
-    );
+    ));
     player.condition = def.condition.unwrap_or_else(|| rng.random_range(75..100));
     player.morale = def.morale.unwrap_or_else(|| rng.random_range(40..76));
     if let Some(ref foot_str) = def.footedness {

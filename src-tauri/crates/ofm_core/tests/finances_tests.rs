@@ -63,7 +63,7 @@ fn make_player(id: &str, team_id: &str, wage: u32) -> Player {
         attrs,
     );
     p.team_id = Some(team_id.to_string());
-    p.stored_wage = wage;
+    p.stage_wage(wage);
     p.condition = 90;
     p
 }

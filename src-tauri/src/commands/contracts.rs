@@ -460,8 +460,8 @@ mod tests {
             default_attrs(),
         );
         player.team_id = Some("team-1".to_string());
-        player.stored_contract_end = Some("2026-10-15".to_string());
-        player.stored_wage = 12_000;
+        player.stage_contract_end(Some("2026-10-15".to_string()));
+        player.stage_wage(12_000);
         player.morale = 75;
         player.market_value = 350_000;
         player
@@ -555,8 +555,8 @@ mod tests {
         let mut game = make_game();
         let player = &mut game.players[0];
         player.team_id = None;
-        player.stored_contract_end = None;
-        player.stored_wage = 0;
+        player.stage_contract_end(None);
+        player.stage_wage(0);
         player.market_value = 600_000;
         game.season_context.transfer_window.status = TransferWindowStatus::Open;
         game

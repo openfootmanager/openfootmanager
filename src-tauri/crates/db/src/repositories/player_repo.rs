@@ -19,7 +19,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
         serde_json::to_string(&p.stats).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let career_json =
         serde_json::to_string(&p.career).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let movement_history_json = serde_json::to_string(&p.movement_history)
+    let movement_history_json = serde_json::to_string(&p.movement_history[..])
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let offers_json = serde_json::to_string(&p.transfer_offers)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -343,13 +343,17 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         traits: serde_json::from_str(&traits_json).unwrap_or_default(),
         ovr,
         potential,
-        stored_contract_start: row.get(38)?,
-        stored_contract_end: row.get(15)?,
-        stored_wage: row.get(16)?,
         market_value: market_value_i64 as u64,
         stats: serde_json::from_str(&stats_json).unwrap_or_default(),
         career: serde_json::from_str(&career_json).unwrap_or_default(),
-        movement_history: serde_json::from_str(&movement_history_json).unwrap_or_default(),
+        // The contract columns are read only as a legacy input: they describe a contract
+        // for a save from before the ledger, and are ignored once the entries hold one.
+        movement_history: domain::contract_ledger::MovementLedger::restore(
+            serde_json::from_str(&movement_history_json).unwrap_or_default(),
+            row.get(38)?,
+            row.get(15)?,
+            row.get(16)?,
+        ),
         training_focus: training_focus_str.and_then(|s| parse_training_focus(&s)),
         transfer_listed: transfer_listed_int != 0,
         loan_listed: loan_listed_int != 0,
@@ -495,7 +499,7 @@ mod tests {
             },
         );
         p.team_id = team_id.map(|s| s.to_string());
-        p.stored_wage = 5000;
+        p.stage_wage(5000);
         p.market_value = 500_000;
         p
     }
@@ -537,7 +541,7 @@ mod tests {
         player.jersey_number = Some(7);
         player.condition = 50;
         player.morale = 40;
-        player.stored_wage = 12_000;
+        player.stage_wage(12_000);
         player.market_value = 1_200_000;
         player.transfer_listed = true;
         player.loan_listed = true;
@@ -545,7 +549,7 @@ mod tests {
         player.natural_position = Position::Forward;
         player.ovr = 88;
         player.potential = 95;
-        player.stored_contract_end = Some("2030-06-30".to_string());
+        player.stage_contract_end(Some("2030-06-30".to_string()));
         upsert_player(db.conn(), &player).unwrap();
 
         let all = load_all_players(db.conn()).unwrap();
@@ -632,8 +636,8 @@ mod tests {
     fn test_legacy_row_gets_one_legacy_contract_entry_on_load() {
         let db = test_db();
         let mut player = sample_player("p-legacy", Some("team-1"));
-        player.stored_contract_end = Some("2029-06-30".to_string());
-        player.stored_wage = 6_500;
+        player.stage_contract_end(Some("2029-06-30".to_string()));
+        player.stage_wage(6_500);
         assert!(player.movement_history.is_empty());
         upsert_player(db.conn(), &player).unwrap();
 
@@ -662,8 +666,8 @@ mod tests {
     fn test_legacy_contract_entry_is_not_duplicated_by_a_second_load() {
         let db = test_db();
         let mut player = sample_player("p-legacy2", Some("team-1"));
-        player.stored_contract_end = Some("2029-06-30".to_string());
-        player.stored_wage = 6_500;
+        player.stage_contract_end(Some("2029-06-30".to_string()));
+        player.stage_wage(6_500);
         upsert_player(db.conn(), &player).unwrap();
 
         let first = load_all_players(db.conn()).unwrap().remove(0);
@@ -677,8 +681,8 @@ mod tests {
     fn test_a_player_with_no_contract_gets_no_legacy_entry() {
         let db = test_db();
         let mut free_agent = sample_player("p-free", None);
-        free_agent.stored_wage = 0;
-        free_agent.stored_contract_end = None;
+        free_agent.stage_wage(0);
+        free_agent.stage_contract_end(None);
         upsert_player(db.conn(), &free_agent).unwrap();
 
         let stored = load_all_players(db.conn()).unwrap().remove(0);
@@ -1011,18 +1015,20 @@ mod tests {
     fn test_player_movement_history_roundtrip() {
         let db = test_db();
         let mut player = sample_player("p-move", Some("team-002"));
-        player.movement_history.push(PlayerMovementEntry {
-            date: "2026-08-01".to_string(),
-            kind: PlayerMovementKind::PermanentTransfer,
-            from_team_id: Some("team-001".to_string()),
-            from_team_name: Some("Alpha FC".to_string()),
-            to_team_id: Some("team-002".to_string()),
-            to_team_name: Some("Beta FC".to_string()),
-            fee: Some(1_250_000),
-            loan_end_date: None,
-            contract: None,
-            release_reason: None,
-        });
+        player
+            .record_movement(PlayerMovementEntry {
+                date: "2026-08-01".to_string(),
+                kind: PlayerMovementKind::PermanentTransfer,
+                from_team_id: Some("team-001".to_string()),
+                from_team_name: Some("Alpha FC".to_string()),
+                to_team_id: Some("team-002".to_string()),
+                to_team_name: Some("Beta FC".to_string()),
+                fee: Some(1_250_000),
+                loan_end_date: None,
+                contract: None,
+                release_reason: None,
+            })
+            .unwrap();
 
         upsert_player(db.conn(), &player).unwrap();
         let loaded = load_all_players(db.conn()).unwrap();

@@ -115,7 +115,7 @@ fn normalize_opening_contracts(
         .into_iter()
         .skip(MAX_OPENING_EXPIRING_CONTRACTS)
     {
-        players[index].stored_contract_end = Some(second_summer.clone());
+        players[index].stage_contract_end(Some(second_summer.clone()));
     }
 }
 
@@ -340,9 +340,9 @@ pub fn generate_national_team_player(
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
     // agreement with no employer and no expiry.
-    player.stored_contract_start = None;
-    player.stored_contract_end = None;
-    player.stored_wage = 0;
+    player.stage_contract_start(None);
+    player.stage_contract_end(None);
+    player.stage_wage(0);
     player.transfer_listed = false;
     player.loan_listed = false;
     player
@@ -1955,7 +1955,7 @@ mod tests {
 
             let expiring_next_summer = format!("{}-06-30", opening_year + 1);
             for player in players.iter_mut().take(6) {
-                player.stored_contract_end = Some(expiring_next_summer.clone());
+                player.stage_contract_end(Some(expiring_next_summer.clone()));
             }
 
             normalize_generated_team(
@@ -2950,10 +2950,10 @@ mod tests {
         let mut world = make_roster_baseline_world_without_staff();
         world.teams[0].finance = 1_000;
         world.players[0].team_id = Some("team-1".to_string());
-        world.players[0].stored_wage = 5_000;
+        world.players[0].stage_wage(5_000);
         for player in world.players.iter_mut().skip(1) {
             if player.team_id.as_deref() == Some("team-1") {
-                player.stored_wage = 0;
+                player.stage_wage(0);
             }
         }
 

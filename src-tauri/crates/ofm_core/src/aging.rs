@@ -244,7 +244,7 @@ mod tests {
     fn deterministic_retirement_favors_older_out_of_contract_players() {
         let current_date = NaiveDate::from_ymd_opt(2026, 5, 20).unwrap();
         let mut player = make_player("older-pro", "1988-01-01");
-        player.stored_contract_end = Some("2026-05-01".to_string());
+        player.stage_contract_end(Some("2026-05-01".to_string()));
         player.stats = PlayerSeasonStats {
             appearances: 6,
             avg_rating: 6.1,
@@ -258,8 +258,8 @@ mod tests {
     #[test]
     fn apply_seasonal_aging_retires_veteran_and_reduces_pace() {
         let mut veteran = make_player("older-pro", "1988-01-01");
-        veteran.stored_contract_start = Some("2023-07-01".to_string());
-        veteran.stored_contract_end = Some("2026-05-01".to_string());
+        veteran.stage_contract_start(Some("2023-07-01".to_string()));
+        veteran.stage_contract_end(Some("2026-05-01".to_string()));
         veteran.attributes.pace = 20;
         veteran.transfer_listed = true;
         veteran.stats = PlayerSeasonStats {
@@ -303,9 +303,9 @@ mod tests {
     fn retirement_appends_a_retired_entry_and_zeroes_the_wage() {
         use domain::player::PlayerMovementKind;
         let mut veteran = make_player("older-pro", "1988-01-01");
-        veteran.stored_contract_start = Some("2023-07-01".to_string());
-        veteran.stored_contract_end = Some("2026-05-01".to_string());
-        veteran.stored_wage = 9_000;
+        veteran.stage_contract_start(Some("2023-07-01".to_string()));
+        veteran.stage_contract_end(Some("2026-05-01".to_string()));
+        veteran.stage_wage(9_000);
         veteran.stats = PlayerSeasonStats {
             appearances: 6,
             avg_rating: 6.1,
