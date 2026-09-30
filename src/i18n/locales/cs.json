@@ -2617,7 +2617,7 @@
       "worldReadFileFailed": "Nepodařilo se načíst databázový soubor světa.",
       "package": {
         "invalid": "Tento balíček světa je neplatný a nepodařilo se ho načíst.",
-        "invalidPackageId": "ID balíčku „{{id}}“ nelze použít. Nesmí být prázdné ani se jmenovat „assets“ a nesmí obsahovat „/“, „\\“, „..“ ani řídicí znaky.",
+        "invalidPackageId": "ID balíčku „{{id}}“ nelze použít. Musí to být prostý název souboru: nesmí být prázdné ani „assets“, nesmí začínat tečkou ani končit tečkou či mezerou, může mít nejvýše 251 bajtů, nesmí obsahovat „/“, „\\“, „..“, řídicí znaky ani interpunkční znaménka vyhrazená systémem Windows a nesmí to být název vyhrazený systémem Windows, jako CON nebo NUL.",
         "readFailed": "Soubor balíčku nebylo možné načíst.",
         "missingSchema": "V souboru balíčku chybí pole „schema“.",
         "worldExportNotPackage": "Tato složka je exportovaný svět, nikoli projekt balíčku. Exportované světy používají jiný formát a nelze je zde upravovat.",

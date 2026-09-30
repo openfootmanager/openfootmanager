@@ -2600,7 +2600,7 @@
       "worldReadFileFailed": "Die Weltdatenbankdatei konnte nicht gelesen werden.",
       "package": {
         "invalid": "Dieses Welt-Paket ist ungültig und konnte nicht geladen werden.",
-        "invalidPackageId": "Die Paket-ID „{{id}}“ kann nicht verwendet werden. Sie darf nicht leer sein, nicht „assets“ heißen und weder „/“, „\\“, „..“ noch Steuerzeichen enthalten.",
+        "invalidPackageId": "Die Paket-ID „{{id}}“ kann nicht verwendet werden. Sie muss ein einfacher Dateiname sein: nicht leer, nicht „assets“, nicht mit einem Punkt beginnend und nicht auf Punkt oder Leerzeichen endend, höchstens 251 Byte lang, ohne „/“, „\\“, „..“, Steuerzeichen oder unter Windows unzulässige Satzzeichen und kein von Windows reservierter Name wie CON oder NUL.",
         "readFailed": "Eine Paketdatei konnte nicht gelesen werden.",
         "missingSchema": "Einer Paketdatei fehlt das Feld \"schema\".",
         "worldExportNotPackage": "Dieser Ordner ist eine exportierte Weltspeicherung, kein Paketprojekt. Exportierte Welten verwenden ein anderes Format und können hier nicht bearbeitet werden.",
