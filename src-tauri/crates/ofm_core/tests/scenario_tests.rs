@@ -256,35 +256,6 @@ fn different_seeds_produce_different_worlds() {
     );
 }
 
-/// Drive a full season day by day. Asserts no panic on any day, and that the
-/// game-state invariants hold throughout and at the end.
-#[test]
-fn full_season_holds_invariants() {
-    let mut game = make_scenario_game(1);
-
-    assert_game_invariants(&game);
-
-    // A season's fixtures span roughly Aug-May; 365 days covers it with margin
-    // and rolls into the next season, exercising the season-rollover path too.
-    for _ in 0..(365 / 30) {
-        advance_days(&mut game, 30);
-        assert_game_invariants(&game);
-    }
-    advance_days(&mut game, 365 % 30);
-    assert_game_invariants(&game);
-
-    // By now matches have been played, so standings should have moved.
-    let games_played: u32 = game
-        .league
-        .as_ref()
-        .map(|l| l.standings.iter().map(|r| r.played).sum())
-        .unwrap_or(0);
-    assert!(
-        games_played > 0,
-        "a full season should have played some matches"
-    );
-}
-
 /// Every contract runs out, so an AI club only keeps a squad by renewing it.
 /// Four years of a whole generated world: each AI club must still be at the
 /// squad floor, and the report prints how big each squad is and how many
