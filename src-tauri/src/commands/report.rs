@@ -206,11 +206,19 @@ fn copy_active_save(
         |name| name.to_owned(),
     );
 
-    let dir = scratch_root.join(format!("ofm-report-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).map_err(|error| {
+    std::fs::create_dir_all(scratch_root).map_err(|error| {
         log::error!("[report] could not prepare the save copy: {error}");
         REPORT_BUNDLE_FAILED.to_owned()
     })?;
+    // The directory must be unique even when two exports of the same career overlap.
+    let dir = tempfile::Builder::new()
+        .prefix("ofm-report-")
+        .tempdir_in(scratch_root)
+        .map_err(|error| {
+            log::error!("[report] could not prepare the save copy: {error}");
+            REPORT_BUNDLE_FAILED.to_owned()
+        })?
+        .keep();
     let file = dir.join(file_name);
     std::fs::copy(&source, &file).map_err(|error| {
         log::error!("[report] could not copy the save: {error}");
@@ -322,7 +330,11 @@ fn write_report_bundle(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
+    use domain::manager::Manager;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
     use std::sync::Mutex;
 
     fn save_manager_in(dir: &Path) -> SaveManagerState {
@@ -336,18 +348,21 @@ mod tests {
         // The prefilled issue URL used to carry what the player typed verbatim, while the copy of
         // the same words inside the zip was redacted. A path in the description then reached
         // GitHub and the browser's history, and neither gives it back.
-        let redactor = Redactor::new(Some("/home/srobot"), Some("srobot"), None);
+        let mut redactor = Redactor::new(Some("/home/srobot"), Some("srobot"), None);
+        redactor.add_path("/mnt/diagnostics-data/openfootmanager/logs");
 
         let out = redact_all(
             &redactor,
             &[
                 "it died loading /home/srobot/saves/a.db".to_owned(),
                 "srobot expected it to open".to_owned(),
+                "logs at /mnt/diagnostics-data/openfootmanager/logs/today.log".to_owned(),
             ],
         );
 
         assert_eq!(out[0], "it died loading ~/saves/a.db");
         assert!(!out[1].contains("srobot"), "{out:?}");
+        assert_eq!(out[2], "logs at ~/today.log");
     }
 
     #[test]
@@ -394,6 +409,76 @@ mod tests {
 
         assert!(!scratch.exists(), "the copy should not outlive its guard");
     }
+
+    #[test]
+    fn overlapping_exports_keep_their_own_save_copies() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let state = StateManager::new();
+        let manager = save_manager_in(dir.path());
+        let game = Game::new(
+            GameClock::new(Utc.with_ymd_and_hms(2026, 9, 29, 0, 0, 0).unwrap()),
+            Manager::new(
+                "manager-1".to_owned(),
+                "Test".to_owned(),
+                "Manager".to_owned(),
+                "1980-01-01".to_owned(),
+                "England".to_owned(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        let save_id = manager
+            .0
+            .lock()
+            .unwrap()
+            .create_save(&game, "Career")
+            .expect("save");
+        state.set_save_id(save_id);
+        let scratch_root = dir.path().join("cache");
+        let first = copy_active_save(&state, &manager, &scratch_root)
+            .expect("first copy")
+            .expect("active save");
+        let second = copy_active_save(&state, &manager, &scratch_root)
+            .expect("second copy")
+            .expect("active save");
+        assert_ne!(first.dir, second.dir);
+
+        let redactor = Redactor::new(None, None, None);
+        let first_bundle = bundle::write_bundle(
+            &BundleInputs {
+                log_dir: dir.path(),
+                diagnostics_json: "{}",
+                report_text: "Report",
+                crash_json: None,
+                save_path: Some(&first.file),
+            },
+            &dir.path().join("first.zip"),
+            &redactor,
+        )
+        .expect("first export");
+        assert!(first_bundle.included_save);
+        drop(first);
+
+        let second_bundle = bundle::write_bundle(
+            &BundleInputs {
+                log_dir: dir.path(),
+                diagnostics_json: "{}",
+                report_text: "Report",
+                crash_json: None,
+                save_path: Some(&second.file),
+            },
+            &dir.path().join("second.zip"),
+            &redactor,
+        )
+        .expect("second export after first copy is cleaned up");
+        assert!(second_bundle.included_save);
+        assert!(second.file.exists());
+        let second_dir = second.dir.clone();
+        drop(second);
+        assert!(!second_dir.exists());
+    }
 }
 
 /// A dated default for the save dialog, so a second report does not overwrite the first.
@@ -405,8 +490,8 @@ mod tests {
 /// set rather than one per field: the redactor reads the environment on construction, and doing
 /// that four times to answer one screen is waste.
 #[tauri::command]
-pub fn redact_report_fields(values: Vec<String>) -> Vec<String> {
-    redact_all(&Redactor::from_environment(), &values)
+pub fn redact_report_fields(app_handle: tauri::AppHandle, values: Vec<String>) -> Vec<String> {
+    redact_all(&redactor_for(&app_handle), &values)
 }
 
 /// Split from the command so it can be tested against a redactor built for the test.

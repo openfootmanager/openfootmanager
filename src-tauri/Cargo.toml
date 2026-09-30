@@ -84,8 +84,6 @@ csv = "1"
 # and version (crates/ofm_core). A report bundle is the same problem — a handful of files the user
 # will hand to someone else — so it uses the same writer.
 zip = { version = "2", features = ["deflate"] }
-
-[dev-dependencies]
 tempfile = "3"
 
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
