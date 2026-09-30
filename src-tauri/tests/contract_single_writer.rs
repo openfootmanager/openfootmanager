@@ -70,20 +70,26 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// The non-test part of a file: a whole `tests.rs` or `test_fixtures.rs` is test code, and in any other
-/// file everything from its `#[cfg(test)] mod` onwards is.
+/// The non-test part of a file: a whole `tests.rs` or `test_fixtures.rs` is test code, and
+/// in any other file everything from its inline `#[cfg(test)] mod name { .. }` onwards is.
 fn production_code(path: &Path) -> String {
-    // A whole `tests.rs` or `test_fixtures.rs` is test code.
     if path
         .file_name()
         .is_some_and(|name| name == "tests.rs" || name == "test_fixtures.rs")
     {
         return String::new();
     }
-    let text = fs::read_to_string(path).unwrap_or_default();
-    // Only the test *module*: an earlier `#[cfg(test)]` item (a helper, an import)
-    // must not hide the production code that follows it.
-    let mut rest = text.as_str();
+    production_source(&fs::read_to_string(path).unwrap_or_default())
+}
+
+/// [`production_code`] for a file's text.
+///
+/// Only an inline test *module* ends the production code. An earlier `#[cfg(test)]` item
+/// (a helper, an import) must not hide what follows it, and neither must a file-backed
+/// `#[cfg(test)] mod tests;`, which declares test code that lives in another file and
+/// can appear anywhere in the file.
+fn production_source(text: &str) -> String {
+    let mut rest = text;
     let mut offset = 0;
     while let Some(at) = rest.find("#[cfg(test)]") {
         let after = &rest[at + "#[cfg(test)]".len()..];
@@ -95,13 +101,18 @@ fn production_code(path: &Path) -> String {
                 .map_or("", |(_, rest)| rest)
                 .trim_start();
         }
-        if item.starts_with("mod ") {
-            return text[..offset + at].to_string();
+        if let Some(declaration) = item.strip_prefix("mod ") {
+            let after_name = declaration
+                .trim_start_matches(|c: char| c.is_alphanumeric() || c == '_')
+                .trim_start();
+            if after_name.starts_with('{') {
+                return text[..offset + at].to_string();
+            }
         }
         offset += at + "#[cfg(test)]".len();
         rest = after;
     }
-    text
+    text.to_string()
 }
 
 fn relative(path: &Path, root: &Path) -> String {
@@ -240,4 +251,26 @@ fn the_mutation_scan_recognises_what_it_is_meant_to_refuse() {
     ] {
         assert!(ledger_mutations(code).is_empty(), "flagged a read: {code}");
     }
+}
+
+#[test]
+fn production_code_ends_only_at_an_inline_test_module() {
+    // An inline test module ends it, attributes between the gate and the module or not.
+    assert_eq!(
+        production_source("fn a() {}\n#[cfg(test)]\nmod tests {\n fn t() {}\n}\n"),
+        "fn a() {}\n"
+    );
+    assert_eq!(
+        production_source("fn a() {}\n#[cfg(test)]\n#[allow(dead_code)]\nmod tests {}\n"),
+        "fn a() {}\n"
+    );
+    // A test-only helper or import does not hide what follows it.
+    let with_helper = "#[cfg(test)]\nfn helper() {}\nfn production() { p.stage_wage(1); }\n";
+    assert!(production_source(with_helper).contains("stage_wage"));
+    // A file-backed test module is declared elsewhere: what follows it is production code.
+    let file_backed = "fn a() {}\n#[cfg(test)]\nmod tests;\nfn production() { p.stage_wage(1); }\n";
+    assert!(
+        production_source(file_backed).contains("stage_wage"),
+        "a `mod tests;` declaration hid the production code after it"
+    );
 }
