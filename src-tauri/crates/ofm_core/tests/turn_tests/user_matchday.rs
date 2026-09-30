@@ -94,7 +94,7 @@ fn playing_the_users_matchday_leaves_nothing_due_today_unplayed() {
     let mut game = game_before_the_users_match();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    matchday::play_user_matchday_with_capture(&mut game, 0, 0, &mut |_| {})
+    matchday::play_user_matchday_with_capture(&mut game, Some(0), 0, &mut |_| {})
         .expect("the user's matchday is played");
 
     let unplayed: Vec<(String, String)> = game
@@ -124,7 +124,7 @@ fn playing_the_users_matchday_reports_the_pre_round_table() {
     // plays the round, so only a value captured at session creation can be a baseline.
     let mut game = game_before_the_users_match();
 
-    let outcome = matchday::play_user_matchday_with_capture(&mut game, 0, 0, &mut |_| {})
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, Some(0), 0, &mut |_| {})
         .expect("the user's matchday is played");
 
     let (matchday_number, previous) = outcome
@@ -166,7 +166,7 @@ fn the_users_fixture_is_stored_from_the_session_and_the_sweep_plays_the_rest() {
     // the whole round.
     let mut game = game_before_the_users_match();
 
-    let outcome = matchday::play_user_matchday_with_capture(&mut game, 0, 0, &mut |_| {})
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, Some(0), 0, &mut |_| {})
         .expect("the user's matchday is played");
 
     let user_league = &game.competitions[0];
@@ -247,7 +247,7 @@ fn a_session_that_cannot_be_built_leaves_the_mirror_as_it_found_it() {
         .map(|league| league.id.clone())
         .expect("the user's league is in the mirror");
 
-    let outcome = matchday::play_user_matchday_with_capture(&mut game, 1, 0, &mut |_| {});
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, Some(1), 0, &mut |_| {});
 
     assert!(
         outcome.is_err(),
@@ -269,7 +269,7 @@ fn a_session_that_cannot_be_built_leaves_the_mirror_as_it_found_it() {
 fn a_competition_index_that_names_no_competition_is_refused() {
     let mut game = game_before_the_users_match();
 
-    let outcome = matchday::play_user_matchday_with_capture(&mut game, 99, 0, &mut |_| {});
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, Some(99), 0, &mut |_| {});
 
     assert_eq!(
         outcome.err().as_deref(),
@@ -286,21 +286,23 @@ fn a_competition_index_that_names_no_competition_is_refused() {
 }
 
 /// **Given** a save written before `competitions` existed — the user's league is in the legacy
-/// mirror only — **when** the day is played with the index `scheduled_user_fixture_index` answers
-/// for it, **then** the match is played from the mirror.
+/// mirror only — **when** the day is played with no competition named, **then** the match is played
+/// from the mirror.
 ///
-/// That index is `competitions.len()`: deliberately past the end, meaning "leave the mirror alone,
-/// it already holds the fixture". So the guard above must refuse indices *beyond* the sentinel
-/// without refusing the sentinel itself, or every pre-competitions save stops being playable.
+/// `None` is what `scheduled_user_fixture_index` answers for such a save: there is no competition to
+/// name, and the mirror already holds the fixture. This used to be an index one past the end, which
+/// is why the out-of-range guard could not simply refuse everything beyond the list — the legacy
+/// case and a genuinely wrong index were the same value. Now they are different types of answer,
+/// and this test is what stops a future guard from refusing the legacy one.
 #[test]
-fn the_legacy_mirror_sentinel_still_plays_the_users_match() {
+fn a_legacy_save_with_no_competition_named_plays_from_the_mirror() {
     let mut game = game_before_the_users_match();
     let mirror = game.competitions[0].clone();
     game.competitions = Vec::new();
     game.league = Some(mirror);
 
-    let outcome = matchday::play_user_matchday_with_capture(&mut game, 0, 0, &mut |_| {})
-        .expect("the sentinel index plays the fixture the mirror holds");
+    let outcome = matchday::play_user_matchday_with_capture(&mut game, None, 0, &mut |_| {})
+        .expect("with no competition named, the fixture the mirror holds is played");
 
     assert!(
         outcome.report.total_minutes >= 90,
@@ -324,10 +326,11 @@ fn playing_the_users_matchday_hands_back_the_report_and_the_stats() {
     let mut game = game_before_the_users_match();
 
     let mut captures = Vec::new();
-    let outcome = matchday::play_user_matchday_with_capture(&mut game, 0, 0, &mut |capture| {
-        captures.push(capture)
-    })
-    .expect("the user's matchday is played");
+    let outcome =
+        matchday::play_user_matchday_with_capture(&mut game, Some(0), 0, &mut |capture| {
+            captures.push(capture)
+        })
+        .expect("the user's matchday is played");
 
     assert!(
         outcome.report.total_minutes >= 90,

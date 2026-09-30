@@ -68,6 +68,11 @@ pub fn fixture_allows_extra_time(game: &Game, fixture_index: usize) -> bool {
 /// the competition, and run the day's tail. This is what the delegate/instant path does and what a
 /// season harness needs.
 ///
+/// `competition_index` is `None` when there is no competition to name — a save written before
+/// `competitions` existed, where the user's league is reachable only through the legacy `game.league`
+/// mirror. `Some(index)` must name a competition that exists; one that does not is refused rather
+/// than reinterpreted.
+///
 /// It deliberately does **not** serve `Live`/`Spectator`. Those suspend between session creation and
 /// the match being played while the UI drives the minutes, so their sequence belongs to the session
 /// lifecycle and cannot be one call.
@@ -79,7 +84,7 @@ pub fn fixture_allows_extra_time(game: &Game, fixture_index: usize) -> bool {
 /// the `Live` lifecycle it does not have.
 pub fn play_user_matchday_with_capture<F>(
     game: &mut Game,
-    competition_index: usize,
+    competition_index: Option<usize>,
     fixture_index: usize,
     on_capture: &mut F,
 ) -> Result<UserMatchdayOutcome, String>
@@ -88,23 +93,21 @@ where
 {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    // An index one past the end is the documented "the mirror already holds it" sentinel:
-    // `scheduled_user_fixture_index` answers `competitions.len()` for a save written before
-    // `competitions` existed, where the user's league lives only in the legacy slot. Anything
-    // beyond that is a caller error, and the old code swallowed it — `if let Some` simply did not
-    // swap, and the day was then played out of whichever competition the mirror happened to hold.
-    // Playing a stranger's fixture and reporting `Ok` is worse than refusing.
-    if competition_index > game.competitions.len() {
-        return Err(live_match_manager::LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR.to_string());
-    }
-
     // The mirror is swapped in before the session is built, because `create_live_match` reads the
     // fixture out of it. So a failure to build the session has to put it back: an empty squad is a
     // handled `Err`, `update_game` mutates the live game in place, and an early return would leave
     // the player's game pointing at another competition entirely — with no match played to explain
     // why their fixture list changed.
     let mirror_before_the_swap = game.league.clone();
-    if let Some(competition) = game.competitions.get(competition_index).cloned() {
+    if let Some(competition_index) = competition_index {
+        // `None` means "the mirror already holds the fixture" — a save written before `competitions`
+        // existed. `Some` names a competition, and naming one that is not there is a caller error:
+        // the old signature took a bare index and encoded "none" as one past the end, so a genuinely
+        // wrong index was indistinguishable from the legacy case and played the day out of whatever
+        // the mirror happened to hold. A stranger's fixture, reported `Ok`.
+        let Some(competition) = game.competitions.get(competition_index).cloned() else {
+            return Err(live_match_manager::LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR.to_string());
+        };
         game.league = Some(competition);
     }
 
@@ -140,7 +143,7 @@ where
         on_capture,
     );
 
-    if competition_index < game.competitions.len()
+    if let Some(competition_index) = competition_index
         && let Some(updated_competition) = game.league.take()
     {
         game.competitions[competition_index] = updated_competition;
