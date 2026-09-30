@@ -20,11 +20,6 @@ use crate::{SaveManagerState, SAVE_MANAGER_UNAVAILABLE_ERROR};
 const REPORT_BUNDLE_FAILED: &str = "be.error.report.bundleFailed";
 const REPORT_SAVE_MISSING: &str = "be.error.report.saveMissing";
 
-/// What this machine is, for someone reading the report later.
-///
-/// Everything here is about the build and the platform. Nothing about the player's game is
-/// included: the frontend already holds the active career and composes that part of the report
-/// itself, so duplicating it across the IPC boundary would be a second copy that can disagree.
 /// One log file the report would carry.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct LogFileSummary {
@@ -32,6 +27,11 @@ pub struct LogFileSummary {
     pub bytes: u64,
 }
 
+/// What this machine is, for someone reading the report later.
+///
+/// Everything here is about the build and the platform. Nothing about the player's game is
+/// included: the frontend already holds the active career and composes that part of the report
+/// itself, so duplicating it across the IPC boundary would be a second copy that can disagree.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DiagnosticsReport {
     pub app_version: String,
@@ -481,7 +481,6 @@ mod tests {
     }
 }
 
-/// A dated default for the save dialog, so a second report does not overwrite the first.
 /// Redact free text the same way the bundle does, for the parts that leave by another route.
 ///
 /// The prefilled issue URL carried the player's own words verbatim while the copy inside the zip
@@ -502,6 +501,7 @@ fn redact_all(redactor: &Redactor, values: &[String]) -> Vec<String> {
     values.iter().map(|value| redactor.apply(value)).collect()
 }
 
+/// A dated default for the save dialog, so a second report does not overwrite the first.
 #[tauri::command]
 pub fn suggested_report_file_name() -> String {
     bundle::suggested_file_name(chrono::Utc::now())
