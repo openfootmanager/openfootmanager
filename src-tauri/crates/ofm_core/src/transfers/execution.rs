@@ -591,7 +591,6 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
 
     let current_date = game.clock.current_date.date_naive();
     let today = current_date.format("%Y-%m-%d").to_string();
-    let user_team_id = game.manager.team_id.clone();
     type DueLoanRegistration = (String, String, String, String, String, u8, Option<u64>);
 
     let due_registrations: Vec<DueLoanRegistration> = game
@@ -636,14 +635,15 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
             .iter()
             .find(|player| player.id == player_id)
             .is_some_and(|player| {
-                let borrower_can_register = user_team_id.as_deref() != Some(loan_team_id.as_str())
-                    || validate_loan_borrower_affordability(
-                        game,
-                        &loan_team_id,
-                        player,
-                        wage_contribution_pct,
-                    )
-                    .is_ok();
+                // Every borrower, not only the user's club, as `transfer_buyer_can_register`
+                // does for permanent moves: finances can sink between agreement and window.
+                let borrower_can_register = validate_loan_borrower_affordability(
+                    game,
+                    &loan_team_id,
+                    player,
+                    wage_contribution_pct,
+                )
+                .is_ok();
 
                 player.team_id.as_deref() == Some(&parent_team_id)
                     && player.active_loan.is_none()

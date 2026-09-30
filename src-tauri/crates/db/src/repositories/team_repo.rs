@@ -311,6 +311,80 @@ mod tests {
     use domain::team::{Facilities, Sponsorship, SponsorshipBonusCriterion, TeamSeasonRecord};
     use rusqlite::Connection;
 
+    /// Pins the stored name of every play style.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn play_styles_are_stored_by_name() {
+        use PlayStyle as S;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                S::Balanced; [
+                    ("Balanced", S::Balanced),
+                    ("Attacking", S::Attacking),
+                    ("Defensive", S::Defensive),
+                    ("Possession", S::Possession),
+                    ("Counter", S::Counter),
+                    ("HighPress", S::HighPress),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            parse_play_style,
+        );
+    }
+
+    /// Pins the stored name of every team training focus.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn team_training_focuses_are_stored_by_name() {
+        use TrainingFocus as F;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                F::Physical; [
+                    ("Physical", F::Physical),
+                    ("Technical", F::Technical),
+                    ("Tactical", F::Tactical),
+                    ("Defending", F::Defending),
+                    ("Attacking", F::Attacking),
+                    ("Recovery", F::Recovery),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            parse_training_focus,
+        );
+    }
+
+    /// Pins the stored name of every training intensity.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn training_intensities_are_stored_by_name() {
+        use TrainingIntensity as I;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                I::Low; [("Low", I::Low), ("Medium", I::Medium), ("High", I::High)]
+            ),
+            |value| format!("{value:?}"),
+            parse_training_intensity,
+        );
+    }
+
+    /// Pins the stored name of every training schedule.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn training_schedules_are_stored_by_name() {
+        use TrainingSchedule as S;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                S::Intense; [
+                    ("Intense", S::Intense),
+                    ("Balanced", S::Balanced),
+                    ("Light", S::Light),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            parse_training_schedule,
+        );
+    }
+
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
     }

@@ -1,5 +1,4 @@
 use chrono::Utc;
-use domain::player::Position;
 use domain::stats::StatsState;
 use domain::world_history::WorldHistoryArchive;
 use rusqlite::Connection;
@@ -304,7 +303,10 @@ impl GamePersistenceReader {
                     scout_id: assignment.scout_id,
                     region: parse_youth_region(&assignment.region)?,
                     objective: parse_youth_objective(&assignment.objective)?,
-                    target_position: assignment.target_position.as_deref().map(parse_position),
+                    target_position: assignment
+                        .target_position
+                        .as_deref()
+                        .map(player_repo::parse_position),
                     days_remaining: assignment.days_remaining,
                 })
             })
@@ -390,6 +392,69 @@ mod tests {
         WorldHistoryArchive,
     };
     use domain::{manager::Manager, team::Team};
+
+    /// Pins the stored name of every board objective type.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn objective_types_are_stored_by_name() {
+        use ObjectiveType as O;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                O::LeaguePosition; [
+                    ("LeaguePosition", O::LeaguePosition),
+                    ("Wins", O::Wins),
+                    ("GoalsScored", O::GoalsScored),
+                    ("FinancialStability", O::FinancialStability),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_objective_type(stored)
+                    .unwrap_or_else(|error| panic!("{stored:?} does not load back: {error}"))
+            },
+        );
+    }
+
+    /// Pins the stored name of every youth scouting region.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn youth_scouting_regions_are_stored_by_name() {
+        use YouthScoutingRegion as R;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                R::Domestic; [
+                    ("Domestic", R::Domestic),
+                    ("International", R::International),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_youth_region(stored)
+                    .unwrap_or_else(|error| panic!("{stored:?} does not load back: {error}"))
+            },
+        );
+    }
+
+    /// Pins the stored name of every youth scouting objective.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn youth_scouting_objectives_are_stored_by_name() {
+        use YouthScoutingObjective as O;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                O::Balanced; [
+                    ("Balanced", O::Balanced),
+                    ("HighPotential", O::HighPotential),
+                    ("ReadySoon", O::ReadySoon),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_youth_objective(stored)
+                    .unwrap_or_else(|error| panic!("{stored:?} does not load back: {error}"))
+            },
+        );
+    }
 
     fn sample_meta(start_date: &str, game_date: &str, manager_id: &str) -> meta_repo::GameMeta {
         meta_repo::GameMeta {
@@ -728,29 +793,6 @@ fn parse_objective_type(value: &str) -> Result<ObjectiveType, String> {
         "GoalsScored" => Ok(ObjectiveType::GoalsScored),
         "FinancialStability" => Ok(ObjectiveType::FinancialStability),
         _ => Err(game_persistence_load_error()),
-    }
-}
-
-fn parse_position(value: &str) -> Position {
-    match value {
-        "Goalkeeper" => Position::Goalkeeper,
-        "Defender" => Position::Defender,
-        "Midfielder" => Position::Midfielder,
-        "Forward" => Position::Forward,
-        "RightBack" => Position::RightBack,
-        "CenterBack" => Position::CenterBack,
-        "LeftBack" => Position::LeftBack,
-        "RightWingBack" => Position::RightWingBack,
-        "LeftWingBack" => Position::LeftWingBack,
-        "DefensiveMidfielder" => Position::DefensiveMidfielder,
-        "CentralMidfielder" => Position::CentralMidfielder,
-        "AttackingMidfielder" => Position::AttackingMidfielder,
-        "RightMidfielder" => Position::RightMidfielder,
-        "LeftMidfielder" => Position::LeftMidfielder,
-        "RightWinger" => Position::RightWinger,
-        "LeftWinger" => Position::LeftWinger,
-        "Striker" => Position::Striker,
-        _ => Position::Midfielder,
     }
 }
 
