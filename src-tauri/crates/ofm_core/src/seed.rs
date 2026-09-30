@@ -42,9 +42,14 @@ impl Game {
     /// ids — two worlds generated from one seed have different ids and so different
     /// streams.
     pub fn rng_for(&self, tag: &str, date: &str) -> ChaCha12Rng {
-        let per_purpose = stable_hash(tag.as_bytes(), self.seed);
-        expand_to_rng(stable_hash(date.as_bytes(), per_purpose), per_purpose)
+        rng_for_seed(self.seed, tag, date)
     }
+}
+
+/// [`Game::rng_for`] for a seed that is not (yet) on a game: a world being built into one.
+pub fn rng_for_seed(seed: u64, tag: &str, date: &str) -> ChaCha12Rng {
+    let per_purpose = stable_hash(tag.as_bytes(), seed);
+    expand_to_rng(stable_hash(date.as_bytes(), per_purpose), per_purpose)
 }
 
 impl Game {

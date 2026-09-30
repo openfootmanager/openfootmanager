@@ -9,6 +9,7 @@ use crate::game::Game;
 use chrono::{DateTime, NaiveDate, Utc};
 use domain::league::{CompetitionType, FixtureStatus, League, MatchResult};
 use domain::player::Player;
+use rand::Rng;
 
 const CATCHUP_XI: usize = 11;
 
@@ -142,9 +143,9 @@ pub fn simulate_past_fixtures(
     competition: &mut League,
     players: &[Player],
     cutoff: DateTime<Utc>,
+    rng: &mut impl Rng,
 ) -> usize {
     let cutoff_date = cutoff.date_naive();
-    let mut rng = rand::rng();
 
     // Precompute strength once per participant to avoid O(fixtures × players).
     let strengths: std::collections::HashMap<String, f64> = competition
@@ -172,7 +173,7 @@ pub fn simulate_past_fixtures(
             competition,
             idx,
             |team_id| strengths.get(team_id).copied().unwrap_or(50.0),
-            &mut rng,
+            rng,
         );
     }
 
@@ -281,7 +282,7 @@ fn stranded_international_dates(game: &Game, today: NaiveDate) -> Vec<String> {
 }
 
 /// One repair pass. Returns how many fixtures it resolved; zero means nothing moved.
-fn repair_one_pass(game: &mut Game, today: NaiveDate) -> usize {
+fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
     let mut resolved = 0;
 
     // Club football: a scoreline sweep per competition, skipping the ones with nothing stranded so
@@ -292,7 +293,19 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate) -> usize {
     for competition in competitions.iter_mut().filter(|competition| {
         !is_national_team_competition(competition) && stranded_in(competition, today) > 0
     }) {
-        resolved += simulate_past_fixtures(competition, &game.players, game.clock.current_date);
+        // This competition's own stream for this pass: a second pass over the same competition
+        // is a second roll, not the first one again.
+        let mut rng = crate::seed::rng_for_seed(
+            game.seed,
+            &format!("catchup/{}/pass{pass}", competition.id),
+            &today.to_string(),
+        );
+        resolved += simulate_past_fixtures(
+            competition,
+            &game.players,
+            game.clock.current_date,
+            &mut rng,
+        );
     }
     game.competitions = competitions;
 
@@ -305,7 +318,10 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate) -> usize {
     // Replaying a past date also produces the news that date would have produced, a crowned
     // champion included. That is correct — the player learns what happened — but it does mean a load
     // can deliver months-old international news.
-    let mut rng = rand::rng();
+    let mut rng = game.rng_for(
+        &format!("catchup/international/pass{pass}"),
+        &today.to_string(),
+    );
     for date in stranded_international_dates(game, today) {
         resolved += crate::national_team::process_national_team_fixtures_due(game, &date, &mut rng);
         resolved += crate::world_cup::process_world_cup_fixtures_due(game, &date, &mut rng);
@@ -328,7 +344,17 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate) -> usize {
             && !crate::world_cup::is_world_cup_competition(competition)
             && stranded_in(competition, today) > 0
     }) {
-        resolved += simulate_past_fixtures(competition, &game.players, game.clock.current_date);
+        let mut rng = crate::seed::rng_for_seed(
+            game.seed,
+            &format!("catchup/{}/pass{pass}", competition.id),
+            &today.to_string(),
+        );
+        resolved += simulate_past_fixtures(
+            competition,
+            &game.players,
+            game.clock.current_date,
+            &mut rng,
+        );
     }
     game.competitions = competitions;
 
@@ -346,8 +372,8 @@ pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
     }
 
     let mut repaired = 0;
-    for _ in 0..MAX_REPAIR_PASSES {
-        let resolved = repair_one_pass(game, today);
+    for pass in 0..MAX_REPAIR_PASSES {
+        let resolved = repair_one_pass(game, today, pass);
         if resolved == 0 {
             // Nothing moved, so nothing will. Stop instead of spinning: an unplayable fixture stays
             // as it is rather than costing the load a bounded-but-pointless sixty-four passes.
@@ -483,6 +509,72 @@ mod tests {
             result: None,
         }];
         league
+    }
+
+    fn scorelines_after_repairing_twenty_stranded_fixtures(seed: u64) -> Vec<String> {
+        let mut game = game_on("2030-09-01");
+        game.seed = seed;
+        let mut league = league_with_fixture_on("2030-08-10");
+        let template = league.fixtures[0].clone();
+        league.fixtures = (1..=20)
+            .map(|n| Fixture {
+                id: format!("fix-{n}"),
+                matchday: n,
+                date: format!("2030-08-{:02}", n),
+                ..template.clone()
+            })
+            .collect();
+        game.competitions = vec![league];
+
+        super::repair_stranded_fixtures(&mut game);
+
+        game.competitions[0]
+            .fixtures
+            .iter()
+            .map(|fixture| {
+                let result = fixture.result.as_ref().expect("every fixture was repaired");
+                format!("{}-{}", result.home_goals, result.away_goals)
+            })
+            .collect()
+    }
+
+    /// Given a save with twenty stranded fixtures,
+    /// When they are repaired twice from the same seed,
+    /// Then each is settled with the same score both times — a save reloaded twice must not
+    ///      rewrite its own past differently.
+    #[test]
+    fn stranded_fixtures_are_settled_the_same_way_from_the_same_seed() {
+        for seed in 0..10 {
+            assert_eq!(
+                scorelines_after_repairing_twenty_stranded_fixtures(seed),
+                scorelines_after_repairing_twenty_stranded_fixtures(seed),
+                "seed {seed}"
+            );
+        }
+    }
+
+    /// Given two games that differ only in their seed,
+    /// When the same stranded fixtures are repaired in each,
+    /// Then they are not settled alike — a competition caught up to a day is not one fixed
+    ///      set of results for every world that ever has it.
+    #[test]
+    fn the_seed_decides_how_stranded_fixtures_end() {
+        let runs: std::collections::BTreeSet<Vec<String>> = (0..10)
+            .map(scorelines_after_repairing_twenty_stranded_fixtures)
+            .collect();
+
+        assert!(runs.len() > 1, "ten seeds all settled the fixtures alike");
+    }
+
+    /// The control: the repair is drawing, not stamping one score on everything.
+    #[test]
+    fn repaired_fixtures_do_not_all_end_alike() {
+        let scores: std::collections::BTreeSet<String> =
+            scorelines_after_repairing_twenty_stranded_fixtures(1)
+                .into_iter()
+                .collect();
+
+        assert!(scores.len() > 1);
     }
 
     #[test]
@@ -895,5 +987,39 @@ mod tests {
             fixture.result.is_some(),
             "and it carries a result, not just a status"
         );
+    }
+
+    fn friendly_score_after_repair(seed: u64) -> String {
+        let mut game = game_with_two_national_squads("2030-12-01");
+        game.seed = seed;
+        game.national_teams[0].fixtures = vec![international_fixture(
+            "friendly-1",
+            "2030-09-05",
+            "nt-eng",
+            "nt-bra",
+        )];
+        super::repair_stranded_fixtures(&mut game);
+        let result = game.national_teams[0].fixtures[0]
+            .result
+            .as_ref()
+            .expect("the friendly was played");
+        format!("{}-{}", result.home_goals, result.away_goals)
+    }
+
+    /// Given a stranded national-team friendly,
+    /// When it is repaired twice from the same seed,
+    /// Then it ends the same way both times, and the seed is what decides how.
+    #[test]
+    fn a_stranded_friendly_is_settled_the_same_way_from_the_same_seed() {
+        for seed in 0..20 {
+            assert_eq!(
+                friendly_score_after_repair(seed),
+                friendly_score_after_repair(seed),
+                "seed {seed}"
+            );
+        }
+        let scores: std::collections::BTreeSet<String> =
+            (0..40).map(friendly_score_after_repair).collect();
+        assert!(scores.len() > 1, "forty seeds all settled it alike");
     }
 }
