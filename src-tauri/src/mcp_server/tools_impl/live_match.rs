@@ -165,12 +165,12 @@ pub fn match_team_talk(
     tone: String,
     context: String,
 ) -> Result<String, String> {
-    let seed = rand::random::<u64>();
     // Resolves the manager's team before the loop that adjusts morale, so an
     // error path never leaves a half-applied team talk behind.
     let results = ctx
         .state_manager
         .update_game(|game| {
+            let seed = crate::commands::live_match::team_talk_seed(game, &tone, &context);
             crate::commands::live_match::apply_team_talk_internal(game, &tone, &context, seed)
         })
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
