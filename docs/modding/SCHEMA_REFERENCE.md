@@ -248,7 +248,7 @@ and must not list a position twice.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `season` | integer | The calendar year the season began in. |
+| `season` | integer (1–9999) | The calendar year the season began in. |
 | `teamName` | string | The club's name as the profile should read. **Required**, free text. |
 | `teamId` | string or null | A team defined in this package, if the club is one. Omit it for a club the package does not define. |
 | `appearances`, `goals`, `assists` | integer | Counts for that spell. Default `0`. |

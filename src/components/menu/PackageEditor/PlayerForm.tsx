@@ -12,14 +12,19 @@ import {
   POSITIONS,
   PLAYER_ATTR_GROUPS,
   emptyAttributes,
+  parseOptionalWhole,
   parseRating,
   toSlug,
+  WIRE_MAX,
   type PlayerAttrKey,
 } from "./helpers";
 import type { Footedness, PlayerDef, TeamDef } from "./types";
 
 const FOOT_OPTIONS: Footedness[] = ["Right", "Left", "Both"];
 import { PlayerPreviewCard } from "./PlayerPreviewCard";
+import { PlayerCareerFields } from "./PlayerCareerFields";
+import { PlayerContractFields } from "./PlayerContractFields";
+import { PlayerStatusFields } from "./PlayerStatusFields";
 
 interface PlayerFormProps {
   editing: PlayerDef;
@@ -242,6 +247,13 @@ export function PlayerForm({
               onChange={(v) => updateField("dateOfBirth", v || null)}
             />
           </div>
+          <LabeledInput
+            label={t("worldEditor.playerAge")}
+            help={t("worldEditor.playerAgeHelp")}
+            value={editing.age?.toString() ?? ""}
+            type="number"
+            onChange={(v) => updateField("age", parseOptionalWhole(v, WIRE_MAX.u8))}
+          />
 
           <div className="flex items-center gap-2 py-1">
             <Checkbox
@@ -312,6 +324,15 @@ export function PlayerForm({
               ))}
             </div>
           )}
+
+          <PlayerContractFields editing={editing} updateField={updateField} />
+          <PlayerStatusFields editing={editing} updateField={updateField} />
+          <PlayerCareerFields
+            entries={editing.careerHistory ?? []}
+            teamOptions={teamOptions}
+            projectDir={projectDir}
+            onChange={(entries) => updateField("careerHistory", entries)}
+          />
         </EntityFormShell>
       </div>
       <div className="w-64 flex-shrink-0 sticky top-0">

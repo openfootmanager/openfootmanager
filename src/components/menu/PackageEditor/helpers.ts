@@ -9,6 +9,7 @@ import type {
   NamesDefinition,
   ParticipantSpec,
   PlayerAttributesDef,
+  PlayerCareerEntryDef,
   PlayerDef,
   Position,
   SelectorKind,
@@ -208,6 +209,18 @@ export function emptyPlayer(): PlayerDef {
   };
 }
 
+/**
+ * A career row as it starts out: no club, no season, nothing played.
+ *
+ * `teamId` is left out rather than null because a club the package does not
+ * define has no id, and the season of 0 is deliberate, not a default year: the
+ * backend validator reports it until the author fills it in, which is better than
+ * a plausible-looking year nobody chose.
+ */
+export function emptyCareerEntry(): PlayerCareerEntryDef {
+  return { season: 0, teamName: "", appearances: 0, goals: 0, assists: 0 };
+}
+
 export const STAFF_ROLES = ["AssistantManager", "Coach", "Scout", "Physio"] as const;
 export const COACHING_SPECIALIZATIONS = [
   "Fitness",
@@ -301,6 +314,43 @@ export function parseRating(v: string): number | null {
   const parsed = Number(v);
   if (!Number.isFinite(parsed)) return null;
   return Math.min(RATING_MAX, Math.max(RATING_MIN, Math.round(parsed)));
+}
+
+/**
+ * The widest whole number each type a package stores a field in can hold.
+ *
+ * These are the wire's limits, not the game's. The backend validator owns every
+ * game range (a weak foot of 1–5, a condition of 0–100); this only stops a typo
+ * producing a file that cannot be loaded, because a number that does not fit its
+ * type fails the whole entity, not just the field. Generating the editor's types
+ * from the Rust definitions would make these derivable instead of restated.
+ */
+export const WIRE_MAX = {
+  /** `u8`: condition, morale and weak foot. */
+  u8: 255,
+  /** `u32`: wage, contract length, and a career entry's season and counts. */
+  u32: 4_294_967_295,
+  /** `u64` held to what a JavaScript number represents exactly: market value. */
+  safe: Number.MAX_SAFE_INTEGER,
+} as const;
+
+/**
+ * Read an optional whole number out of a numeric input, bounded to what its
+ * stored type can hold and to nothing else.
+ *
+ * A game range is not applied here, on purpose: a condition of 150 is a mistake
+ * the validator reports, and clamping it to 100 would hide the mistake it exists
+ * to show. Negative entries become 0 and oversized ones `max`, because those
+ * would not load at all. Blank and unparseable entries read as absent, which
+ * leaves the engine to decide, rather than as zero. A fraction is rounded, since
+ * a whole-number field rejects 4.6. `Number` rather than `parseInt`, for the same
+ * `1e2` reason as [`parseRating`].
+ */
+export function parseOptionalWhole(v: string, max: number): number | null {
+  if (v.trim() === "") return null;
+  const parsed = Number(v);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.min(max, Math.max(0, Math.round(parsed)));
 }
 
 export function makeRange(a: number | null, b: number | null): [number, number] | null {
