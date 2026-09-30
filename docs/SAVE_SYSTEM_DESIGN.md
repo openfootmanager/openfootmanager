@@ -112,9 +112,9 @@ CREATE TABLE players (
     injury              TEXT,             -- JSON for Option<Injury> (NULL if none)
     team_id             TEXT,
     traits              TEXT NOT NULL DEFAULT '[]',  -- JSON array
-    contract_start      TEXT,             -- NULL = unknown (saves before v045, or a deal whose start would not precede its end)
-    contract_end        TEXT,
-    wage                INTEGER NOT NULL DEFAULT 0,
+    contract_start      TEXT,             -- a copy of the current contract; see "Contract history" below. NULL = unknown
+    contract_end        TEXT,             -- (copy) the current contract's end
+    wage                INTEGER NOT NULL DEFAULT 0,  -- (copy) the current contract's weekly wage
     market_value        INTEGER NOT NULL DEFAULT 0,
     stats               TEXT NOT NULL DEFAULT '{}',  -- JSON for PlayerSeasonStats
     career              TEXT NOT NULL DEFAULT '[]',  -- JSON for Vec<CareerEntry>
@@ -213,6 +213,22 @@ CREATE TABLE scouting_assignments (
     days_remaining  INTEGER NOT NULL
 );
 ```
+
+### Contract history
+
+A player's contracts are kept in `players.movement_history` (a JSON array, present since v041),
+not in the three columns above. An entry that makes a contract carries a `contract` block
+(`start`, `end`, `weekly_wage`, `source`); the current contract is the latest such entry unless a
+later `released` or `retired` entry ended it. Loan entries carry no contract: a loaned player is
+still on his parent club's agreement.
+
+`contract_start`, `contract_end` and `wage` are written from that current contract, for anything
+that reads the `.db` directly. They are never read as the source once a player has a ledger.
+
+No migration was needed: every new field is optional. A save from before the ledger gets **one**
+`initial_contract` entry per player under contract when it is loaded, with `source =
+legacy_migrated`, the end and wage from the old columns, and the start the old columns knew (NULL
+when they did not: it is never invented). A player with no contract gets none.
 
 ### Football Identity Notes
 
