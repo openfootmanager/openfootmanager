@@ -63,7 +63,6 @@ pub fn replace_staff_list(conn: &Connection, staff: &[Staff]) -> Result<(), Stri
 fn parse_role(s: &str) -> StaffRole {
     match s {
         "AssistantManager" => StaffRole::AssistantManager,
-        "Coach" => StaffRole::Coach,
         "Scout" => StaffRole::Scout,
         "Physio" => StaffRole::Physio,
         _ => StaffRole::Coach,
@@ -136,6 +135,50 @@ mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
     use rusqlite::Connection;
+
+    /// Pins the stored name of every staff role.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn staff_roles_are_stored_by_name() {
+        use StaffRole as R;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                R::AssistantManager; [
+                    ("AssistantManager", R::AssistantManager),
+                    ("Coach", R::Coach),
+                    ("Scout", R::Scout),
+                    ("Physio", R::Physio),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            parse_role,
+        );
+    }
+
+    /// Pins the stored name of every coaching specialization.
+    /// The case list also generates an exhaustive match for new variants.
+    #[test]
+    fn coaching_specializations_are_stored_by_name() {
+        use CoachingSpecialization as S;
+        crate::stored_text::assert_stored_as(
+            &crate::stored_text::stored_text_cases!(
+                S::Fitness; [
+                    ("Fitness", S::Fitness),
+                    ("Technique", S::Technique),
+                    ("Tactics", S::Tactics),
+                    ("Defending", S::Defending),
+                    ("Attacking", S::Attacking),
+                    ("GoalKeeping", S::GoalKeeping),
+                    ("Youth", S::Youth),
+                ]
+            ),
+            |value| format!("{value:?}"),
+            |stored: &str| {
+                parse_specialization(stored)
+                    .unwrap_or_else(|| panic!("{stored:?} does not load back"))
+            },
+        );
+    }
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rmcp::handler::server::tool::ToolRoute;
-use rmcp::model::{CallToolResult, Content, Tool};
+use rmcp::model::{CallToolResult, ContentBlock, Tool};
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::formatting::translate_error;
@@ -92,13 +92,13 @@ fn simple_tool(name: &'static str, description: &'static str) -> Tool {
 // ─── Result helpers ─────────────────────────────────────────────────────────
 
 fn error_result(msg: &str) -> CallToolResult {
-    let mut result = CallToolResult::success(vec![Content::text(msg.to_string())]);
+    let mut result = CallToolResult::success(vec![ContentBlock::text(msg.to_string())]);
     result.is_error = Some(true);
     result
 }
 
 fn text_result(text: String) -> CallToolResult {
-    CallToolResult::success(vec![Content::text(text)])
+    CallToolResult::success(vec![ContentBlock::text(text)])
 }
 
 fn err_result(e: &str) -> CallToolResult {
