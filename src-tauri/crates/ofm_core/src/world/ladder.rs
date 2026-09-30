@@ -12,13 +12,39 @@ use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType, Leagu
 
 use crate::game::Game;
 
-/// Each competition's participant count, keyed by id: the "authored size" that
+/// Each country's domestic league tables: the competitions that make up its
+/// ladder, and so the ones a club can be promoted or relegated between.
+///
+/// The one definition of what counts as such a table. Cups, continental
+/// competitions and the World Cup are not on the ladder: they come and go with
+/// their season, so holding them to a size or an existence would be wrong.
+pub fn domestic_tables_by_country(game: &Game) -> BTreeMap<&str, Vec<&League>> {
+    let mut tables_by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
+    for competition in &game.competitions {
+        if competition.rules.format != CompetitionFormat::LeagueTable
+            || competition.kind != CompetitionType::League
+            || competition.scope != CompetitionScope::Domestic
+        {
+            continue;
+        }
+        if let Some(country) = competition.country_id.as_deref() {
+            tables_by_country
+                .entry(country)
+                .or_default()
+                .push(competition);
+        }
+    }
+    tables_by_country
+}
+
+/// Each ladder table's participant count, keyed by id: the "authored size" that
 /// [`ladder_violations`] holds every later state to. Take it once, before
 /// anything moves.
 pub fn division_sizes(game: &Game) -> BTreeMap<String, usize> {
-    game.competitions
-        .iter()
-        .map(|competition| (competition.id.clone(), competition.participant_ids.len()))
+    domestic_tables_by_country(game)
+        .into_values()
+        .flatten()
+        .map(|table| (table.id.clone(), table.participant_ids.len()))
         .collect()
 }
 
@@ -40,21 +66,7 @@ pub fn ladder_violations(game: &Game, authored_sizes: &BTreeMap<String, usize>) 
             .insert(team.id.as_str());
     }
 
-    let mut tables_by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
-    for competition in &game.competitions {
-        if competition.rules.format != CompetitionFormat::LeagueTable
-            || competition.kind != CompetitionType::League
-            || competition.scope != CompetitionScope::Domestic
-        {
-            continue;
-        }
-        if let Some(country) = competition.country_id.as_deref() {
-            tables_by_country
-                .entry(country)
-                .or_default()
-                .push(competition);
-        }
-    }
+    let tables_by_country = domestic_tables_by_country(game);
 
     // Walking only the countries that still have a table would never notice a
     // country whose leagues vanished: a rollover test once passed with both
@@ -67,6 +79,21 @@ pub fn ladder_violations(game: &Game, authored_sizes: &BTreeMap<String, usize>) 
     }
     for country in represented.difference(&expected) {
         violations.push(format!("{country} has a league table but no clubs"));
+    }
+
+    // A division that vanishes while its country keeps others would otherwise be
+    // noticed only indirectly, by its clubs going missing.
+    let current: BTreeSet<&str> = tables_by_country
+        .values()
+        .flatten()
+        .map(|table| table.id.as_str())
+        .collect();
+    for id in authored_sizes.keys() {
+        if !current.contains(id.as_str()) {
+            violations.push(format!(
+                "{id} was an authored division and is no longer a league table"
+            ));
+        }
     }
 
     for (country, tables) in &tables_by_country {
@@ -214,6 +241,59 @@ mod tests {
             violations
                 .iter()
                 .any(|message| message.contains("changed size")),
+            "{violations:?}"
+        );
+    }
+
+    #[test]
+    fn a_division_that_vanishes_while_its_country_keeps_others_is_reported_directly() {
+        let mut game = small_world();
+        let sizes = division_sizes(&game);
+        game.competitions
+            .retain(|competition| competition.id != "eng-d2");
+
+        let violations = ladder_violations(&game, &sizes);
+
+        assert!(
+            violations.iter().any(|message| message.contains("eng-d2")
+                && message.contains("no longer a league table")),
+            "the vanished division must be named, not only implied by its clubs going missing: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn the_authored_sizes_are_the_ladders_tables_and_not_the_cups() {
+        let game = small_world();
+        assert!(
+            game.competitions
+                .iter()
+                .any(|competition| competition.id == "eng-cup"),
+            "the world has a cup, so leaving it out of the sizes is a choice"
+        );
+
+        let sizes = division_sizes(&game);
+
+        assert!(sizes.contains_key("eng-d1") && sizes.contains_key("eng-d2"));
+        assert!(
+            !sizes.contains_key("eng-cup"),
+            "a cup comes and goes with its season and is not part of the ladder: {sizes:?}"
+        );
+    }
+
+    #[test]
+    fn a_club_listed_twice_in_one_table_is_a_violation() {
+        let mut game = small_world();
+        let sizes = division_sizes(&game);
+        // Same length, so the size rule stays quiet and only this rule can fire.
+        let first = table(&mut game, "eng-d1").participant_ids[0].clone();
+        table(&mut game, "eng-d1").participant_ids[1] = first;
+
+        let violations = ladder_violations(&game, &sizes);
+
+        assert!(
+            violations
+                .iter()
+                .any(|message| message.contains("lists a club twice")),
             "{violations:?}"
         );
     }

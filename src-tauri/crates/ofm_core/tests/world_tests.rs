@@ -142,16 +142,6 @@ fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
         let label = format!("rollover {rollover}");
         assert_one_league_per_club(&game, &sizes, &label);
 
-        // Every domestic division that existed at kickoff must still exist.
-        // Size and disjointness assertions say nothing about a league that
-        // is simply gone.
-        for id in sizes.keys() {
-            assert!(
-                game.competitions.iter().any(|c| c.id == *id),
-                "{label}: competition {id} disappeared"
-            );
-        }
-
         // The user's own division has to stay in simulation scope, or the
         // day loop cannot see their fixtures and runs their match against
         // whichever competition sorts first.
