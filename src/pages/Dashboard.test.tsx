@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GameStateData } from "../store/gameStore";
 import type { LeagueData, SeasonContextData } from "../store/types";
@@ -479,6 +479,50 @@ describe("Dashboard", () => {
     render(<Dashboard />);
 
     expect(await screen.findByText("finance_crisis")).toBeInTheDocument();
+  });
+
+  it("ignores stale finance responses after the game state changes", async () => {
+    const firstGameState = gameState;
+    const pendingFinanceResponses: Array<
+      (response: { snapshot: ReturnType<typeof createBackendFinanceSnapshot> }) => void
+    > = [];
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_active_game") return Promise.resolve(gameState);
+      if (command === "get_finance_snapshot") {
+        return new Promise<{ snapshot: ReturnType<typeof createBackendFinanceSnapshot> }>(
+          (resolve) => pendingFinanceResponses.push(resolve),
+        );
+      }
+      return Promise.resolve(null);
+    });
+
+    const criticalResponse = {
+      snapshot: {
+        ...createBackendFinanceSnapshot(),
+        runway_status: "critical",
+        cash_runway_weeks: 2,
+        overall_status: "critical",
+      },
+    };
+    const { rerender } = render(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(1));
+
+    gameState = createGameState();
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(2));
+    await act(async () => pendingFinanceResponses[1]?.(criticalResponse));
+    expect(screen.getByText("finance_crisis")).toBeInTheDocument();
+
+    // A resolved verdict must not remain visible while the next state loads.
+    gameState = firstGameState;
+    rerender(<Dashboard />);
+    await waitFor(() => expect(pendingFinanceResponses).toHaveLength(3));
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
+
+    // Returning to the original state also checks that its cancelled request
+    // cannot overwrite the current verdict while the new request is pending.
+    await act(async () => pendingFinanceResponses[0]?.(criticalResponse));
+    expect(screen.queryByText("finance_crisis")).not.toBeInTheDocument();
   });
 
   // A finished league that is not the player's own, sorting first in the array.
