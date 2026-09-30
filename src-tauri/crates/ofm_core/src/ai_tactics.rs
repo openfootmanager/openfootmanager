@@ -925,6 +925,50 @@ mod tests {
         assert_eq!(reading.defensive_pace, 45.0);
     }
 
+    /// The ration itself, not just today's blueprints. Every current blueprint
+    /// plus one reaction stays within the ration on its own, so the sweep below
+    /// cannot tell a review that checks it from one that does not. Here a plan
+    /// already at the limit is offered a move that would take a third
+    /// under-priced dial, and then a move that would not: the first must be
+    /// refused and the second taken.
+    #[test]
+    fn a_review_will_not_take_a_dial_past_the_ration() {
+        let mut plan = TacticsPhaseSettings {
+            defensive_line: DefensiveLine::Low,
+            defensive_shape: DefensiveShape::Compact,
+            ..TacticsPhaseSettings::default()
+        };
+        assert_eq!(
+            under_priced_dials(&plan),
+            engine::ai::MAX_UNDER_PRICED_DIALS,
+            "the plan should start at the limit, or this test proves nothing"
+        );
+
+        fn narrow(settings: &mut TacticsPhaseSettings) -> bool {
+            let changed = settings.width != PitchWidth::Narrow;
+            settings.width = PitchWidth::Narrow;
+            changed
+        }
+        fn press_harder(settings: &mut TacticsPhaseSettings) -> bool {
+            let changed = settings.pressing_intensity != PressingIntensity::Aggressive;
+            settings.pressing_intensity = PressingIntensity::Aggressive;
+            changed
+        }
+
+        shade(&mut plan, &[narrow, press_harder]);
+
+        assert_ne!(
+            plan.width,
+            PitchWidth::Narrow,
+            "a third under-priced dial was taken past the ration"
+        );
+        assert_eq!(
+            plan.pressing_intensity,
+            PressingIntensity::Aggressive,
+            "the next move within the ration should have been taken instead"
+        );
+    }
+
     /// The reason this exists: the natural answer to conceding is a deeper line
     /// and a compact block, two of the four dials the engine priced one-sidedly.
     /// Left alone, adaptation would quietly undo the ration on the blueprints,
