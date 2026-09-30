@@ -444,8 +444,8 @@ pub(super) fn senior_slot(slot: usize) -> usize {
 
 /// A generated player for squad slot `index`. `age` fixes his age; `None`
 /// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
-/// at the same point in the draw sequence either way, so a seeded world is
-/// unchanged by the parameter.
+/// exactly as before the parameter existed, so every seeded world — all of
+/// which pass `None` — is unchanged by it.
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,

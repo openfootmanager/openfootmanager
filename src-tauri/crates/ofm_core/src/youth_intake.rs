@@ -24,16 +24,16 @@ use std::collections::HashMap;
 /// Academy players a club aims to hold in each position group, in the squad
 /// floor's `[GK, DEF, MID, FWD]` order. Shaped like a squad, a keeper included,
 /// so the players who graduate from it can replace the ones who retire.
-pub(crate) const ACADEMY_TARGET_PER_GROUP: [usize; 4] = [1, 2, 2, 1];
+const ACADEMY_TARGET_PER_GROUP: [usize; 4] = [1, 2, 2, 1];
 
 /// Youngsters every club takes in a season, however full its academy is. A
 /// club always renews itself a little; the minimum is what keeps one whose
 /// academy is full from going a whole season without a newcomer.
-pub(crate) const MIN_INTAKE: usize = 1;
+const MIN_INTAKE: usize = 1;
 
 /// Youngsters a club takes in a season at most, however empty its academy is.
 /// A club rebuilding an academy does it over a few seasons, not in one summer.
-pub(crate) const MAX_INTAKE: usize = 3;
+const MAX_INTAKE: usize = 3;
 
 /// The ages a youngster joins an academy at. Younger than a youth scout's
 /// recruit, who is found ready to play: an intake joins to be brought on.
@@ -116,9 +116,11 @@ fn take_in(
     date: NaiveDate,
     season: u32,
 ) -> Vec<String> {
-    // Seeded from the club and the season, so a replayed season end takes in
-    // the same youngsters: one intake per club per season, whatever order the
-    // clubs come in.
+    // Seeded from the club and the season, so a replayed season end draws the
+    // same youngsters whatever order the clubs come in (their ids are still
+    // fresh). The seed knows nothing of the save: two careers from one package,
+    // whose club ids are authored, draw the same intake. It moves onto the
+    // game's own seed (`Game::rng_for`) once that exists.
     let seed = crate::stable_hash::stable_hash(
         game.teams[team_index].id.as_bytes(),
         u64::from(season) ^ INTAKE_STREAM,
@@ -411,6 +413,28 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         assert_eq!(names(&intake(&before)), names(&intake(&before)));
+    }
+
+    /// Given an AI club with no seniors to spare and nothing on the market, when
+    /// the season end's squad turnover runs, then the youngsters it takes in are
+    /// still in its academy afterwards: a fifteen-year-old joins to be brought
+    /// on, not to be promoted by the rebuild on the day he arrives.
+    #[test]
+    fn a_recruit_is_not_promoted_on_the_day_he_joins() {
+        let before = world([0, 0, 0, 0], [0, 0, 0, 0]);
+        let mut after = before.clone();
+        crate::end_of_season::apply_season_end_squad_turnover(&mut after, season_end(), SEASON);
+
+        let recruits = newcomers(&before, &after, "rival");
+        assert_eq!(recruits.len(), MAX_INTAKE);
+        for recruit in recruits {
+            assert_eq!(
+                recruit.squad_role,
+                SquadRole::Youth,
+                "{} was promoted the day he joined",
+                recruit.full_name
+            );
+        }
     }
 
     // -- the player's club -----------------------------------------------------
