@@ -40,6 +40,8 @@ pub mod season_context;
 pub mod slices;
 pub mod squad_safety;
 pub mod state;
+#[cfg(test)]
+mod test_support;
 pub mod training;
 pub mod transfers;
 pub mod turn;

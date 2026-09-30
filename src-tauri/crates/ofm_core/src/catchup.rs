@@ -7,7 +7,7 @@
 
 use crate::game::Game;
 use chrono::{DateTime, NaiveDate, Utc};
-use domain::league::{FixtureStatus, League, MatchResult};
+use domain::league::{CompetitionType, FixtureStatus, League, MatchResult};
 use domain::player::Player;
 
 const CATCHUP_XI: usize = 11;
@@ -77,7 +77,17 @@ pub(crate) fn apply_simulated_result(
 /// Simulate all fixtures in `competition` whose date is before `cutoff`,
 /// filling in random scorelines and updating standings. Called once at
 /// new-game creation for leagues that started before the game's anchor date.
-pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cutoff: DateTime<Utc>) {
+///
+/// Returns how many fixtures it resolved. Note the due list is computed **once**, before any of it
+/// is played, while resolving a knockout round *seeds the next one* — dated later, but often still
+/// before `cutoff`. So one call advances a bracket by exactly one round. A caller that needs the
+/// whole bracket resolved must call again while the count is non-zero; see
+/// [`repair_stranded_fixtures`], which does.
+pub fn simulate_past_fixtures(
+    competition: &mut League,
+    players: &[Player],
+    cutoff: DateTime<Utc>,
+) -> usize {
     let cutoff_date = cutoff.date_naive();
     let mut rng = rand::rng();
 
@@ -108,6 +118,7 @@ pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cuto
         })
         .collect();
 
+    let resolved = due.len();
     for (idx, fixture_id, home_id, away_id) in due {
         let home_strength = strengths.get(&home_id).copied().unwrap_or(50.0);
         let away_strength = strengths.get(&away_id).copied().unwrap_or(50.0);
@@ -127,6 +138,8 @@ pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cuto
             penalties,
         );
     }
+
+    resolved
 }
 
 /// Resolve fixtures left `Scheduled` with a date that has already passed.
@@ -149,35 +162,156 @@ pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cuto
 /// `InProgress` is left alone: a save taken mid-match may have a resumable session, and resolving it
 /// by scoreline would discard it.
 ///
-/// Returns how many fixtures were repaired, for the caller to log and to decide whether to resave.
-pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
-    let today = game.clock.current_date.date_naive();
-    let stranded = |competition: &League| {
-        competition
-            .fixtures
-            .iter()
-            .filter(|fixture| {
-                fixture.status == FixtureStatus::Scheduled
-                    && NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
-                        .map(|date| date < today)
-                        .unwrap_or(false)
-            })
-            .count()
-    };
+/// A stranded knockout round seeds the next one, so the repair iterates. The cap is a backstop
+/// against a fixture that cannot be resolved at all — the loop normally ends because a pass moved
+/// nothing. Sixty-four rounds is past any real bracket (a 64-team cup is six).
+const MAX_REPAIR_PASSES: usize = 64;
 
-    let total: usize = game.competitions.iter().map(stranded).sum();
-    if total == 0 {
-        return 0;
-    }
+/// Whether `date` (a `%Y-%m-%d` fixture date) has already passed. An unparseable date is *not*
+/// treated as past: rewriting a fixture whose date cannot even be read is the more destructive of
+/// the two mistakes.
+fn is_in_the_past(date: &str, today: NaiveDate) -> bool {
+    NaiveDate::parse_from_str(date, "%Y-%m-%d")
+        .map(|parsed| parsed < today)
+        .unwrap_or(false)
+}
 
+/// National-team football, which the club match engine never simulates — the same test
+/// `turn::competition_indices_due_today` applies when it decides what a day's club sweep may touch.
+fn is_national_team_competition(competition: &League) -> bool {
+    competition.kind == CompetitionType::InternationalNation
+}
+
+fn stranded_in(competition: &League, today: NaiveDate) -> usize {
+    competition
+        .fixtures
+        .iter()
+        .filter(|fixture| {
+            fixture.status == FixtureStatus::Scheduled && is_in_the_past(&fixture.date, today)
+        })
+        .count()
+}
+
+/// Every fixture the repair is responsible for: the competitions, **and** the window fixtures that
+/// live on `game.national_teams` rather than in `competitions` at all. Leaving the latter out of the
+/// count is how they stayed stranded — the early return saw nothing to do.
+fn count_stranded(game: &Game, today: NaiveDate) -> usize {
+    let in_competitions: usize = game
+        .competitions
+        .iter()
+        .map(|competition| stranded_in(competition, today))
+        .sum();
+    let in_national_teams: usize = game
+        .national_teams
+        .iter()
+        .map(|team| {
+            team.fixtures
+                .iter()
+                .filter(|fixture| {
+                    fixture.status == FixtureStatus::Scheduled
+                        && is_in_the_past(&fixture.date, today)
+                })
+                .count()
+        })
+        .sum();
+    in_competitions + in_national_teams
+}
+
+/// The past dates on which a national-team fixture is still `Scheduled`, oldest first.
+///
+/// The national-team processors select by `date == today`, so replaying them means handing each
+/// stranded date back in turn. Oldest first because a group stage decides who is in the knockout
+/// round that follows it.
+fn stranded_international_dates(game: &Game, today: NaiveDate) -> Vec<String> {
+    let mut dates: Vec<String> = game
+        .competitions
+        .iter()
+        .filter(|competition| is_national_team_competition(competition))
+        .flat_map(|competition| competition.fixtures.iter())
+        .chain(
+            game.national_teams
+                .iter()
+                .flat_map(|team| team.fixtures.iter()),
+        )
+        .filter(|fixture| {
+            fixture.status == FixtureStatus::Scheduled && is_in_the_past(&fixture.date, today)
+        })
+        .map(|fixture| fixture.date.clone())
+        .collect();
+    dates.sort();
+    dates.dedup();
+    dates
+}
+
+/// One repair pass. Returns how many fixtures it resolved; zero means nothing moved.
+fn repair_one_pass(game: &mut Game, today: NaiveDate) -> usize {
+    let mut resolved = 0;
+
+    // Club football: a scoreline sweep per competition, skipping the ones with nothing stranded so
+    // an ordinary load does not pay to rank every squad in the world.
+    //
     // Taken out so the scoreline model can read `game.players` while the competitions are mutated.
     let mut competitions = std::mem::take(&mut game.competitions);
-    for competition in &mut competitions {
-        simulate_past_fixtures(competition, &game.players, game.clock.current_date);
+    for competition in competitions.iter_mut().filter(|competition| {
+        !is_national_team_competition(competition) && stranded_in(competition, today) > 0
+    }) {
+        resolved += simulate_past_fixtures(competition, &game.players, game.clock.current_date);
     }
     game.competitions = competitions;
 
-    total
+    // National-team football, replayed date by date through the code that owns it. A nation has no
+    // club players, so `club_strength` reads 50.0 for every side — routing a stranded World Cup tie
+    // or a window friendly through the club sweep makes it a coin flip between two nobodies. These
+    // processors use the called-up squads, apply carry-back to the club players who travelled, and
+    // move the world ranking, exactly as they would have on the day.
+    //
+    // Replaying a past date also produces the news that date would have produced, a crowned
+    // champion included. That is correct — the player learns what happened — but it does mean a load
+    // can deliver months-old international news.
+    let mut rng = rand::rng();
+    for date in stranded_international_dates(game, today) {
+        resolved += crate::national_team::process_national_team_fixtures_due(game, &date, &mut rng);
+        resolved += crate::world_cup::process_world_cup_fixtures_due(game, &date, &mut rng);
+    }
+
+    // Whatever a national-team competition still holds, those processors could not reach:
+    // `process_world_cup_fixtures_due` serves international-scope tournaments only, and a package
+    // may author a national-team competition at continental scope. Falling back to the scoreline
+    // sweep is worse football than a squad-strength result, but the alternative is a fixture
+    // stranded for good — which is the bug, not a lesser version of it.
+    let mut competitions = std::mem::take(&mut game.competitions);
+    for competition in competitions.iter_mut().filter(|competition| {
+        is_national_team_competition(competition) && stranded_in(competition, today) > 0
+    }) {
+        resolved += simulate_past_fixtures(competition, &game.players, game.clock.current_date);
+    }
+    game.competitions = competitions;
+
+    resolved
+}
+
+/// Returns how many fixtures were repaired, for the caller to log and to decide whether to resave.
+pub fn repair_stranded_fixtures(game: &mut Game) -> usize {
+    let today = game.clock.current_date.date_naive();
+
+    // Cheap enough to run on every load: it reads fixture status and date, nothing else. Worth
+    // keeping as a guard because a pass is not cheap — it ranks every participant's squad.
+    if count_stranded(game, today) == 0 {
+        return 0;
+    }
+
+    let mut repaired = 0;
+    for _ in 0..MAX_REPAIR_PASSES {
+        let resolved = repair_one_pass(game, today);
+        if resolved == 0 {
+            // Nothing moved, so nothing will. Stop instead of spinning: an unplayable fixture stays
+            // as it is rather than costing the load a bounded-but-pointless sixty-four passes.
+            break;
+        }
+        repaired += resolved;
+    }
+
+    repaired
 }
 
 #[cfg(test)]
@@ -382,6 +516,220 @@ mod tests {
         assert_eq!(
             game.competitions[0].fixtures[0].status,
             FixtureStatus::InProgress
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // A bracket cascades: repairing one round seeds the next, also in the past.
+    // -----------------------------------------------------------------------
+
+    fn eight_team_cup_starting_on(date: &str) -> League {
+        let clubs: Vec<String> = (1..=8).map(|number| format!("club{number}")).collect();
+        let mut cup = League::new("cup".to_string(), "National Cup".to_string(), 2030, &clubs);
+        cup.rules.format = CompetitionFormat::Knockout;
+        for (index, pair) in clubs.chunks(2).enumerate() {
+            cup.fixtures.push(Fixture {
+                id: format!("r1-{index}"),
+                competition_id: "cup".to_string(),
+                matchday: 1,
+                date: date.to_string(),
+                home_team_id: pair[0].clone(),
+                away_team_id: pair[1].clone(),
+                competition: FixtureCompetition::Cup,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            });
+        }
+        cup.knockout_rounds = vec![KnockoutRoundState {
+            id: "round-1".to_string(),
+            name: "Quarter-finals".to_string(),
+            fixture_ids: cup.fixtures.iter().map(|f| f.id.clone()).collect(),
+            bye_team_ids: Vec::new(),
+            completed: false,
+        }];
+        cup
+    }
+
+    #[test]
+    fn repairs_a_whole_stranded_bracket_and_not_just_its_first_round() {
+        // Resolving a knockout round *seeds the next one* — dated later by the round gap, but for a
+        // bracket deep in the past still before today. `simulate_past_fixtures` builds its due list
+        // once, before playing any of it, so one sweep advances the bracket by exactly one round.
+        //
+        // An eight-team cup therefore repaired 4 fixtures on one load, 2 on the next and 1 on the
+        // one after: three loads to reach a champion, and a bracket that stalls for good if the
+        // player never loads again. The invariant is per load, so the repair iterates.
+        let mut game = game_on("2030-12-01");
+        game.competitions = vec![eight_team_cup_starting_on("2030-08-10")];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        let cup = &game.competitions[0];
+        assert_eq!(
+            repaired,
+            7,
+            "four quarter-finals, two semi-finals and a final, in one call: {:?}",
+            cup.fixtures
+                .iter()
+                .map(|fixture| (fixture.id.as_str(), &fixture.status))
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            cup.fixtures
+                .iter()
+                .all(|fixture| fixture.status == FixtureStatus::Completed),
+            "including the rounds the repair itself brought into being"
+        );
+        assert!(
+            cup.knockout_rounds.iter().all(|round| round.completed),
+            "the bracket reached a champion rather than stalling part-way"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // National-team football is not club football (the user ruling on #642).
+    // -----------------------------------------------------------------------
+
+    use crate::test_support::uniform_attributes;
+    use domain::league::{CompetitionScope, CompetitionType};
+    use domain::national_team::NationalTeam;
+    use domain::player::{Player, Position};
+
+    fn international_fixture(id: &str, date: &str, home: &str, away: &str) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            competition_id: "wc-2030".to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            competition: FixtureCompetition::InternationalNation,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        }
+    }
+
+    /// Two national sides with real squads, and no clubs at all — which is the point. A nation has
+    /// no players *on its books*, so `club_strength` falls through to its neutral 50.0 for both
+    /// sides and the tie becomes a coin flip between two blanks.
+    fn game_with_two_national_squads(today: &str) -> Game {
+        let mut game = game_on(today);
+        for (team_id, nation, prefix, ovr) in [
+            ("nt-eng", "England", "eng", 80u8),
+            ("nt-bra", "Brazil", "bra", 70u8),
+        ] {
+            let mut squad = Vec::new();
+            for index in 0..11 {
+                let position = if index == 0 {
+                    Position::Goalkeeper
+                } else if index < 5 {
+                    Position::Defender
+                } else if index < 9 {
+                    Position::Midfielder
+                } else {
+                    Position::Forward
+                };
+                let mut player = Player::new(
+                    format!("{prefix}-{index}"),
+                    format!("{prefix} {index}"),
+                    format!("{prefix} {index}"),
+                    "1998-01-01".to_string(),
+                    nation.to_string(),
+                    position,
+                    uniform_attributes(60),
+                );
+                player.ovr = ovr;
+                squad.push(player);
+            }
+            let mut team = NationalTeam::new(
+                team_id.to_string(),
+                nation.to_string(),
+                nation.to_string(),
+                None,
+            );
+            team.squad_player_ids = squad.iter().map(|player| player.id.clone()).collect();
+            game.players.extend(squad);
+            game.national_teams.push(team);
+        }
+        game
+    }
+
+    #[test]
+    fn repairs_a_stranded_international_tie_through_the_national_team_path() {
+        // The club sweep would mark this `Completed` too — with an empty scorer list, no carry-back
+        // to the players who travelled, and no movement in the world ranking, because it resolves
+        // the tie between two sides it scores at 50.0 apiece. Routing it through the national-team
+        // processors is what the user ruled for, so assert the things only that path does.
+        let mut game = game_with_two_national_squads("2030-12-01");
+        let mut competition = League::new(
+            "wc-2030".to_string(),
+            "World Cup 2030".to_string(),
+            2030,
+            &["nt-eng".to_string(), "nt-bra".to_string()],
+        );
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::International;
+        competition.fixtures = vec![international_fixture(
+            "wc-g1",
+            "2030-06-12",
+            "nt-eng",
+            "nt-bra",
+        )];
+        game.competitions = vec![competition];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(repaired, 1);
+        let fixture = &game.competitions[0].fixtures[0];
+        assert_eq!(fixture.status, FixtureStatus::Completed);
+        let result = fixture.result.as_ref().expect("the tie was resolved");
+
+        // `apply_simulated_result` — the club sweep's applier — stores an empty scorer list. The
+        // national path names who scored, from the called-up squad.
+        let goals = usize::from(result.home_goals) + usize::from(result.away_goals);
+        assert_eq!(
+            result.home_scorers.len() + result.away_scorers.len(),
+            goals,
+            "every goal in an international is credited to a squad member"
+        );
+        for scorer in result.home_scorers.iter().chain(result.away_scorers.iter()) {
+            assert!(
+                scorer.player_id.starts_with("eng-") || scorer.player_id.starts_with("bra-"),
+                "a scorer who was never called up: {}",
+                scorer.player_id
+            );
+        }
+
+        // And the world ranking moved, which only the national path does — it holds whether or not
+        // anybody scored, so it is what pins the path when the tie finishes 0-0.
+        let ranked = game.world_history.ranked_nation_codes();
+        assert!(
+            ranked.contains(&"ENG".to_string()) && ranked.contains(&"BRA".to_string()),
+            "both nations are in the world ranking after playing: {ranked:?}"
+        );
+    }
+
+    #[test]
+    fn repairs_a_stranded_window_friendly_on_a_national_team() {
+        // These fixtures do not live in `competitions` at all — they hang off `game.national_teams`,
+        // which is why #608 stranded them and why a repair that only walks `competitions` cannot see
+        // them. The count has to include them too, or the early return skips the whole job.
+        let mut game = game_with_two_national_squads("2030-12-01");
+        game.national_teams[0].fixtures = vec![international_fixture(
+            "friendly-1",
+            "2030-09-05",
+            "nt-eng",
+            "nt-bra",
+        )];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(repaired, 1, "the window friendly is found and played");
+        let fixture = &game.national_teams[0].fixtures[0];
+        assert_eq!(fixture.status, FixtureStatus::Completed);
+        assert!(
+            fixture.result.is_some(),
+            "and it carries a result, not just a status"
         );
     }
 }
