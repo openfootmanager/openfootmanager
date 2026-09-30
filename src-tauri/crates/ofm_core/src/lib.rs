@@ -1,5 +1,6 @@
 pub mod advance_results;
 pub mod aging;
+pub mod ai_contracts;
 pub mod ai_hiring;
 mod ai_math;
 mod ai_roles;

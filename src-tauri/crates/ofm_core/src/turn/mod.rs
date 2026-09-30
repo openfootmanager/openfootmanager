@@ -165,6 +165,10 @@ fn run_training_ground(game: &mut Game) {
 /// exact date match, everything it skipped was skipped permanently. Sharing the tail means a step
 /// can no longer be in one ending and not the other.
 fn process_day_common(game: &mut Game, today: &str) {
+    // AI clubs decide on their running-down contracts first, so a renewal made
+    // on the day a contract ends lands before the expiry that would release him.
+    let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
+    crate::ai_contracts::apply_ai_contract_decisions(game, weekday_num);
     crate::contracts::process_contract_expiries(game);
 
     // Weekly financial processing (wages, matchday income, warnings)

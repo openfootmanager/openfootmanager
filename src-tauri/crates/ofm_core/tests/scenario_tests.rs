@@ -284,3 +284,41 @@ fn full_season_holds_invariants() {
         "a full season should have played some matches"
     );
 }
+
+/// Every contract runs out, so an AI club only keeps a squad by renewing it.
+/// Four years of a whole generated world: each AI club must still be at the
+/// squad floor, and the report prints how big each squad is — retirements and
+/// sales still shrink squads that no youth intake refills, which renewals
+/// cannot fix and are not meant to. About half a minute in a release build, so
+/// it is run explicitly; `ai_contracts` holds the same rule to a focused test
+/// in the normal suite.
+#[test]
+#[ignore = "four seasons of a generated world; run explicitly with --ignored --nocapture"]
+fn ai_clubs_keep_a_squad_across_seasons_by_renewing_contracts() {
+    use ofm_core::squad_floor::squad_shortfall;
+
+    let mut game = make_scenario_game(3);
+    let user_club = game.manager.team_id.clone();
+    let ai_clubs: Vec<String> = game
+        .teams
+        .iter()
+        .map(|team| team.id.clone())
+        .filter(|id| Some(id) != user_club.as_ref())
+        .collect();
+
+    advance_days(&mut game, 4 * 365);
+
+    for club in &ai_clubs {
+        let registered = game
+            .players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some(club.as_str()))
+            .count();
+        assert!(
+            squad_shortfall(&game, club).is_empty(),
+            "{club} fell below the squad floor after four years: {:?}",
+            squad_shortfall(&game, club)
+        );
+        println!("{club}: {registered} players after four years");
+    }
+}

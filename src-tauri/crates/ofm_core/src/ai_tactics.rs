@@ -186,7 +186,21 @@ const REVIEW_CYCLE_DAYS: u64 = 7;
 /// a different question.
 const REVIEW_SEED: u64 = 0x7461_6374_6963_7300; // "tactics\0"
 
-fn review_weekday(team_id: &str) -> u32 {
+/// The AI clubs whose weekly review falls on this weekday: every club but the
+/// player's, each on a day of its own. The one answer to "which clubs sit down
+/// to look at themselves today" — the tactical review and the contract review
+/// both ask it, so a club reviews its tactics and its contracts together.
+pub(crate) fn ai_clubs_reviewing_on(game: &Game, weekday_num: u32) -> Vec<String> {
+    let user_team_id = game.manager.team_id.as_deref();
+    game.teams
+        .iter()
+        .filter(|team| Some(team.id.as_str()) != user_team_id)
+        .filter(|team| review_weekday(&team.id) == weekday_num)
+        .map(|team| team.id.clone())
+        .collect()
+}
+
+pub(crate) fn review_weekday(team_id: &str) -> u32 {
     (stable_hash(team_id.as_bytes(), REVIEW_SEED) % REVIEW_CYCLE_DAYS) as u32
 }
 
@@ -505,14 +519,7 @@ fn match_plan(
 /// club, and its next review overwrites the tactics and the roles the player set
 /// there. That is a new manager taking over and doing it his way.
 pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
-    let user_team_id = game.manager.team_id.clone();
-    let due: Vec<String> = game
-        .teams
-        .iter()
-        .filter(|team| Some(&team.id) != user_team_id.as_ref())
-        .filter(|team| review_weekday(&team.id) == weekday_num)
-        .map(|team| team.id.clone())
-        .collect();
+    let due = ai_clubs_reviewing_on(game, weekday_num);
 
     // One pass over the world's fixtures for everybody, not one per club.
     let form = read_form(game);
