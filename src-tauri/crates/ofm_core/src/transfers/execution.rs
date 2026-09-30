@@ -308,6 +308,9 @@ pub(super) fn execute_transfer(
     // Move player
     if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
         p.team_id = Some(to_team_id.to_string());
+        // Joining a club is signing with it: a new agreement from the day the move
+        // happens. `contract_end` is left as the transfer has always left it.
+        p.contract_start = Some(today.clone());
         p.jersey_number = resolved_jersey_number;
         p.transfer_listed = false;
         p.loan_listed = false;
