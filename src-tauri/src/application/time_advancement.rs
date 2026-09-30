@@ -114,7 +114,8 @@ pub fn advance_time_with_mode(
             match (mode, user_fixture) {
                 ("live" | "spectator", Some((competition_index, index))) => {
                     // Same hazard as the delegate path: the mirror is swapped before the session is
-                    // built, and `create_live_match` can refuse — an empty squad is a handled `Err`.
+                    // built, and the kick-off can refuse — an empty squad nobody can fill is a
+                    // handled `Err`.
                     // This closure runs inside `update_game`, which mutates the live game in place,
                     // so returning without putting the mirror back leaves the player looking at
                     // another competition with no match to explain it.
@@ -131,7 +132,7 @@ pub fn advance_time_with_mode(
                         MatchMode::Spectator
                     };
                     let allows_extra_time = ofm_core::matchday::fixture_allows_extra_time(game, index);
-                    let session = match live_match_manager::create_live_match(
+                    let session = match live_match_manager::kick_off_live_match(
                         game,
                         index,
                         match_mode,

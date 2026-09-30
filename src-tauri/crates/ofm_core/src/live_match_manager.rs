@@ -246,9 +246,10 @@ impl LiveMatchSession {
 /// Make both sides of a fixture in `game.league` fit to kick off: a club short
 /// of the squad floor signs free agents first (see
 /// [`crate::squad_floor::ready_for_kick_off`]). Every path that plays a club
-/// fixture calls this before building the teams, so no match starts with a side
-/// that cannot be fielded.
-pub fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
+/// fixture goes through this before building the teams — the unwatched path
+/// directly, the player's own matches through [`kick_off_live_match`] — so no
+/// match starts with a side that cannot be fielded.
+pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
     let Some((home_team_id, away_team_id)) = game.league.as_ref().and_then(|league| {
         league
             .fixtures
@@ -259,6 +260,22 @@ pub fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
     };
     crate::squad_floor::ready_for_kick_off(game, &home_team_id);
     crate::squad_floor::ready_for_kick_off(game, &away_team_id);
+}
+
+/// Kick off a fixture in `game.league` as a live session: both squads made fit
+/// to play first, then the session built.
+///
+/// The entry point for starting a real match. [`create_live_match`] only reads
+/// the game, so it cannot sign anyone; calling it directly skips the kick-off
+/// top-up, which is only right for a caller that has already done it.
+pub fn kick_off_live_match(
+    game: &mut Game,
+    fixture_index: usize,
+    mode: MatchMode,
+    allows_extra_time: bool,
+) -> Result<LiveMatchSession, String> {
+    prepare_kick_off(game, fixture_index);
+    create_live_match(game, fixture_index, mode, allows_extra_time)
 }
 
 /// Create a live match session for a specific fixture.

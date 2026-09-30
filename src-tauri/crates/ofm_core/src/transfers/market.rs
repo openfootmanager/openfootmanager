@@ -21,18 +21,13 @@ pub(crate) fn buyer_has_genuine_interest(
         && buyer_position_depth < POSITION_GROUP_SURPLUS_THRESHOLD
 }
 /// Current squad depth per club and broad position group, computed once so the
-/// market sweep doesn't re-scan every roster.
+/// market sweep doesn't re-scan every roster. The same count the squad floor
+/// keeps, owned so the sweep can go on to move players.
 pub(crate) fn squad_position_depths(game: &Game) -> std::collections::HashMap<String, [usize; 4]> {
-    let mut depths: std::collections::HashMap<String, [usize; 4]> =
-        std::collections::HashMap::new();
-    for player in &game.players {
-        let Some(team_id) = player.team_id.as_deref() else {
-            continue;
-        };
-        let slot = position_group_index(&player.natural_position);
-        depths.entry(team_id.to_string()).or_default()[slot] += 1;
-    }
-    depths
+    crate::squad_floor::registered_by_club(game)
+        .into_iter()
+        .map(|(team_id, depths)| (team_id.to_string(), depths))
+        .collect()
 }
 pub(crate) fn contract_days_remaining(
     current_date: NaiveDate,
@@ -244,7 +239,6 @@ pub fn evaluate_transfer_market(game: &mut Game) {
     // Each club then scans this short, score-sorted list instead of the whole
     // world, turning an O(clubs × players) sweep into O(players + clubs × shortlist).
     let mut shortlist: Vec<MarketTarget> = Vec::new();
-    let registered = crate::squad_floor::registered_by_club(game);
     for player in &game.players {
         let Some(owner_team_id) = player.team_id.as_deref() else {
             continue;
@@ -258,10 +252,9 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         // player's own club is left to decide for itself.
         let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
         if !is_user_owned
-            && registered.get(owner_team_id).is_some_and(|groups| {
-                let group = position_group_index(&player.position);
-                groups[group] <= crate::squad_floor::MIN_PLAYERS_PER_GROUP[group].1
-            })
+            && position_depths
+                .get(owner_team_id)
+                .is_some_and(|depths| !crate::squad_floor::can_spare_one(*depths, &player.position))
         {
             continue;
         }
@@ -278,7 +271,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             is_user_owned,
             score,
             fee: suggested_incoming_fee(current_date, player),
-            position_group_index: position_group_index(&player.natural_position),
+            position_group_index: position_group_index(&player.position),
             owner_reputation: team_reputation.get(owner_team_id).copied().unwrap_or(0),
         });
     }

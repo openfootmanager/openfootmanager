@@ -287,14 +287,16 @@ fn full_season_holds_invariants() {
 
 /// Every contract runs out, so an AI club only keeps a squad by renewing it.
 /// Four years of a whole generated world: each AI club must still be at the
-/// squad floor, and the report prints how big each squad is — retirements and
-/// sales still shrink squads that no youth intake refills, which renewals
-/// cannot fix and are not meant to. About half a minute in a release build, so
-/// it is run explicitly; `ai_contracts` holds the same rule to a focused test
-/// in the normal suite.
+/// squad floor, and the report prints how big each squad is and how many
+/// emergency signings the floor had to make — renewals should carry the load,
+/// and the top-up should barely fire. Retirements and sales still shrink
+/// squads that no youth intake refills, which renewals cannot fix and are not
+/// meant to. About half a minute in a release build, so it is run explicitly;
+/// `ai_contracts` holds the renewal rule to a focused test in the normal suite.
 #[test]
 #[ignore = "four seasons of a generated world; run explicitly with --ignored --nocapture"]
 fn ai_clubs_keep_a_squad_across_seasons_by_renewing_contracts() {
+    use domain::player::PlayerMovementKind;
     use ofm_core::squad_floor::squad_shortfall;
 
     let mut game = make_scenario_game(3);
@@ -305,8 +307,37 @@ fn ai_clubs_keep_a_squad_across_seasons_by_renewing_contracts() {
         .map(|team| team.id.clone())
         .filter(|id| Some(id) != user_club.as_ref())
         .collect();
+    let opening_squads: usize = game
+        .players
+        .iter()
+        .filter(|player| {
+            player
+                .team_id
+                .as_ref()
+                .is_some_and(|team_id| ai_clubs.contains(team_id))
+        })
+        .count();
 
     advance_days(&mut game, 4 * 365);
+
+    // AI clubs sign free agents only to get back to the floor.
+    let top_up_signings = game
+        .players
+        .iter()
+        .flat_map(|player| player.movement_history.iter())
+        .filter(|entry| entry.kind == PlayerMovementKind::FreeAgentSigning)
+        .filter(|entry| {
+            entry
+                .to_team_id
+                .as_ref()
+                .is_some_and(|team_id| ai_clubs.contains(team_id))
+        })
+        .count();
+    println!(
+        "{} AI clubs, {opening_squads} players at the start; \
+         {top_up_signings} floor top-up signings in four years",
+        ai_clubs.len()
+    );
 
     for club in &ai_clubs {
         let registered = game

@@ -846,13 +846,6 @@ fn build_club(
     (team, team_players, team_staff)
 }
 
-/// Index of a position group within [`MIN_PLAYERS_PER_GROUP`].
-fn group_index(group: &Position) -> Option<usize> {
-    MIN_PLAYERS_PER_GROUP
-        .iter()
-        .position(|(position, _)| position == group)
-}
-
 /// Drop generated backfill players — the ones no authored player displaced —
 /// until the squad is down to `target`, so a club that already defines a full
 /// squad opens with exactly the players its author wrote instead of being padded
@@ -897,10 +890,8 @@ fn trim_backfill_players(
         // Recount survivors each pass so the floors are honoured as we go.
         let mut counts = [0usize; MIN_PLAYERS_PER_GROUP.len()];
         for (index, player) in players.iter().enumerate() {
-            if !doomed[index]
-                && let Some(group) = group_index(&player.position.to_group_position())
-            {
-                counts[group] += 1;
+            if !doomed[index] {
+                counts[crate::squad_floor::group_index(&player.position)] += 1;
             }
         }
 
@@ -910,7 +901,7 @@ fn trim_backfill_players(
             .filter(|index| !doomed[*index])
             .filter_map(|index| {
                 let group = players[index].position.to_group_position();
-                let surviving = group_index(&group).map(|slot| counts[slot]).unwrap_or(0);
+                let surviving = counts[crate::squad_floor::group_index(&group)];
                 let surplus = surviving.checked_sub(crate::squad_floor::group_floor(&group))?;
                 (surplus > 0).then_some((index, surplus))
             })

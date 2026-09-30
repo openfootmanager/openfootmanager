@@ -41,7 +41,7 @@ const PEAK_AGE_LIMIT: i32 = 32;
 const PROSPECT_AGE_LIMIT: i32 = 23;
 
 /// Run every AI club's contract review that falls on this weekday.
-pub fn apply_ai_contract_decisions(game: &mut Game, weekday_num: u32) {
+pub(crate) fn apply_ai_contract_decisions(game: &mut Game, weekday_num: u32) {
     let current_date = game.clock.current_date.date_naive();
     for team_id in crate::ai_tactics::ai_clubs_reviewing_on(game, weekday_num) {
         let Some(team) = game.teams.iter().find(|team| team.id == team_id).cloned() else {

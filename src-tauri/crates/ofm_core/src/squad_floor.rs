@@ -21,7 +21,7 @@ pub const MIN_PLAYERS_PER_GROUP: [(Position, usize); 4] = [
 ];
 
 /// The floor for one position group, or 0 for a group with none.
-pub fn group_floor(group: &Position) -> usize {
+pub(crate) fn group_floor(group: &Position) -> usize {
     MIN_PLAYERS_PER_GROUP
         .iter()
         .find(|(position, _)| position == group)
@@ -83,17 +83,25 @@ pub(crate) fn registered_by_club(game: &Game) -> HashMap<&str, [usize; 4]> {
 /// Answers for the club he is registered to, which is the club that loses him:
 /// the buyer or borrower only gains. A club already short in his group cannot
 /// let him go either — the floor is not a line a club may cross further.
-pub fn departure_would_leave_short(game: &Game, player_id: &str) -> Option<Position> {
+pub(crate) fn departure_would_leave_short(game: &Game, player_id: &str) -> Option<Position> {
     let player = game.players.iter().find(|player| player.id == player_id)?;
     let team_id = player.team_id.as_deref()?;
-    let group = player.position.to_group_position();
-    let staying = game
-        .players
-        .iter()
-        .filter(|other| other.id != player_id && other.team_id.as_deref() == Some(team_id))
-        .filter(|other| other.position.to_group_position() == group)
-        .count();
-    (staying < group_floor(&group)).then_some(group)
+    let mut registered = [0; 4];
+    for other in &game.players {
+        if other.team_id.as_deref() == Some(team_id) {
+            registered[group_index(&other.position)] += 1;
+        }
+    }
+    (!can_spare_one(registered, &player.position)).then(|| player.position.to_group_position())
+}
+
+/// Whether a club with `registered` players per group (in
+/// [`MIN_PLAYERS_PER_GROUP`] order) can let one player of `position`'s group go
+/// and stay at the floor. The one statement of that rule, for the refusals and
+/// for the AI market deciding who is worth approaching.
+pub(crate) fn can_spare_one(registered: [usize; 4], position: &Position) -> bool {
+    let group = group_index(position);
+    registered[group] > MIN_PLAYERS_PER_GROUP[group].1
 }
 
 /// [`departure_would_leave_short`] as the refusal a sale, loan or release
@@ -121,7 +129,7 @@ const WOULD_LEAVE_SQUAD_SHORT_ERROR: &str = "be.error.squadFloor.wouldLeaveShort
 /// own club is told which groups are short and left to act, because signing
 /// players on a manager's behalf is his decision until a match cannot go ahead
 /// without them ([`ready_for_kick_off`]).
-pub fn keep_squads_at_the_floor(game: &mut Game) {
+pub(crate) fn keep_squads_at_the_floor(game: &mut Game) {
     for (team_id, shortfall) in clubs_below_the_floor(game) {
         if Some(&team_id) == game.manager.team_id.as_ref() {
             warn_user_club_is_short(game, &team_id, &shortfall);
@@ -176,7 +184,7 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
 /// is topped up, it is brought all the way to the floor and told who was
 /// signed. An AI club is topped up whenever it is short; the daily check should
 /// have got there first, so a top-up here is logged as the sign of a gap in it.
-pub fn ready_for_kick_off(game: &mut Game, team_id: &str) {
+pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str) {
     let is_users_club = Some(team_id) == game.manager.team_id.as_deref();
     if is_users_club && can_put_a_side_out(game, team_id) {
         return;
@@ -239,7 +247,7 @@ fn clubs_below_the_floor(game: &Game) -> Vec<(String, Vec<(Position, usize)>)> {
 fn warn_user_club_is_short(game: &mut Game, team_id: &str, shortfall: &[(Position, usize)]) {
     let season = crate::inbox::recurrence_season(game);
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let team_name = team_name(game, team_id);
+    let team_name = game.team_name_or_id(team_id);
     for (group, missing) in shortfall {
         let floor = group_floor(group);
         let have = floor - missing;
@@ -278,7 +286,7 @@ fn squad_topped_up_message(game: &Game, team_id: &str, signed: &[String]) -> Inb
         .collect::<Vec<_>>()
         .join(", ");
     let mut params = HashMap::new();
-    params.insert("team".to_string(), team_name(game, team_id));
+    params.insert("team".to_string(), game.team_name_or_id(team_id));
     params.insert("players".to_string(), names);
     InboxMessage::new(
         format!("squad_topped_up_{team_id}_{date}"),
@@ -298,14 +306,6 @@ fn squad_topped_up_message(game: &Game, team_id: &str, signed: &[String]) -> Inb
     .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
 }
 
-fn team_name(game: &Game, team_id: &str) -> String {
-    game.teams
-        .iter()
-        .find(|team| team.id == team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| team_id.to_string())
-}
-
 /// Bring a club back up to the floor by signing free agents, and return the
 /// ids of the players it signed (empty when the club was not short).
 ///
@@ -317,7 +317,7 @@ fn team_name(game: &Game, team_id: &str) -> String {
 /// consulted: this is the signing a club makes because it cannot otherwise put
 /// a side out, and "we cannot afford to field a team" is not an outcome the game
 /// allows.
-pub fn restore_minimum_squad(game: &mut Game, team_id: &str) -> Vec<String> {
+pub(crate) fn restore_minimum_squad(game: &mut Game, team_id: &str) -> Vec<String> {
     use chrono::Datelike;
 
     let shortfall = squad_shortfall(game, team_id);

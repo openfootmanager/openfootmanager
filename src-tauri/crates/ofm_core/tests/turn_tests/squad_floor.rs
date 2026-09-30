@@ -50,6 +50,35 @@ fn the_players_club_without_a_keeper_is_topped_up_before_its_match() {
     );
 }
 
+/// The player's own match, started live: the same top-up happens before the
+/// session is built, and the keeper who was signed is on the pitch.
+#[test]
+fn a_live_match_kicks_off_with_a_keeper_signed_for_a_club_that_had_none() {
+    use ofm_core::live_match_manager::{MatchMode, kick_off_live_match};
+
+    let mut game = make_game_with_match();
+    game.players.retain(|player| player.id != "t1_gk");
+
+    let session =
+        kick_off_live_match(&mut game, 0, MatchMode::Live, false).expect("the match kicks off");
+
+    assert!(squad_shortfall(&game, "team1").is_empty());
+    let keeper_on_the_pitch = session.snapshot().home_team.players.iter().any(|player| {
+        game.players.iter().any(|signed| {
+            signed.id == player.id && signed.position.to_group_position() == Position::Goalkeeper
+        })
+    });
+    assert!(
+        keeper_on_the_pitch,
+        "the home side kicked off without a keeper"
+    );
+    assert!(
+        game.messages
+            .iter()
+            .any(|message| { message.body_key.as_deref() == Some("be.msg.squadToppedUp.body") })
+    );
+}
+
 /// Every contract at both clubs ends today. The AI club is back at the floor
 /// by the end of the day; the player's club is warned and left to choose.
 #[test]

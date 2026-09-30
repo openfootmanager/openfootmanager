@@ -411,8 +411,6 @@ pub(super) fn is_youth_reserved_slot(slot: usize) -> bool {
     YOUTH_RESERVED_SLOTS.contains(&slot)
 }
 
-/// Remap a youth-reserved slot to the adjacent senior slot (same position group)
-/// so the player generates at a senior age; non-reserved slots pass through.
 /// The position group a generated squad slot holds: GK 0-1, DEF 2-8, MID 9-15,
 /// FWD 16-21.
 pub(super) fn position_for_slot(index: usize) -> Position {
@@ -434,6 +432,8 @@ pub(super) fn senior_slot_for(group: &Position) -> usize {
         .unwrap_or(0)
 }
 
+/// Remap a youth-reserved slot to the adjacent senior slot (same position group)
+/// so the player generates at a senior age; non-reserved slots pass through.
 pub(super) fn senior_slot(slot: usize) -> usize {
     if is_youth_reserved_slot(slot) {
         slot - 1
