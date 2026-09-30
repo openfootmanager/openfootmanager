@@ -28,6 +28,9 @@ pub enum CompetitionFormat {
     GroupAndKnockout,
 }
 
+/// Smallest supported group; authored values below this are rejected.
+pub const MIN_GROUP_SIZE: u32 = 2;
+
 /// Legacy and built-in group size when no authored override is supplied.
 pub const DEFAULT_GROUP_SIZE: u32 = 4;
 

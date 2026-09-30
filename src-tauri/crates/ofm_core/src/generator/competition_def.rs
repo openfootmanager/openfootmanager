@@ -578,7 +578,7 @@ fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<Definit
         );
     }
     if let Some(group_size) = format.group_size
-        && group_size < 2
+        && group_size < domain::league::MIN_GROUP_SIZE
     {
         errors.push(
             DefinitionError::new("be.error.competitionDef.groupSizeTooSmall", &competition.id)
@@ -612,7 +612,7 @@ fn validate_group_qualification(
     }
     let config = competition.format.group_stage_config();
     let size = config.group_size as usize;
-    if size < 2 {
+    if size < domain::league::MIN_GROUP_SIZE as usize {
         return; // Reported by validate_format; avoid division by zero.
     }
     let qualifiers = config.qualifiers_per_group as usize;

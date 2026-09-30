@@ -975,6 +975,14 @@ mod tests {
             for (entrants, format) in [
                 (
                     8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":0}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":1}),
+                ),
+                (
+                    8,
                     serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":0}),
                 ),
                 (

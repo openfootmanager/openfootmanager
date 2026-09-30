@@ -73,6 +73,8 @@ fn group_label(index: usize) -> String {
 
 /// Number of balanced groups needed for a field with this maximum group size.
 pub(crate) fn group_count(entrants: usize, group_size: usize) -> usize {
+    // Malformed persisted rules must not panic or create singleton groups.
+    let group_size = group_size.max(domain::league::MIN_GROUP_SIZE as usize);
     entrants.div_ceil(group_size).max(1)
 }
 
@@ -481,6 +483,22 @@ mod tests {
         );
         assert!(cup.knockout_rounds.is_empty());
         assert!(cup.standings.is_empty());
+    }
+
+    #[test]
+    fn regeneration_handles_saved_group_sizes_below_minimum() {
+        for size in [0, 1] {
+            let mut cup = make_cup(8);
+            let mut saved_rules = serde_json::to_value(&cup.rules).unwrap();
+            saved_rules["group_size"] = serde_json::json!(size);
+            cup.rules = serde_json::from_value(saved_rules).unwrap();
+
+            regenerate_for_season(&mut cup, 2032, start());
+
+            assert_eq!(cup.groups.len(), 4, "saved group size {size}");
+            assert!(cup.groups.iter().all(|group| group.team_ids.len() == 2));
+            assert_eq!(cup.fixtures.len(), 8);
+        }
     }
 
     #[test]
