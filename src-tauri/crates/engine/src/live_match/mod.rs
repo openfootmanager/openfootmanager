@@ -244,6 +244,10 @@ pub struct LiveMatchState {
     second_half_stoppage: u8,
     et_first_half_stoppage: u8,
     et_second_half_stoppage: u8,
+    /// The minute the period being played kicked off. The clock runs on through
+    /// stoppage, so a period's end is measured from here rather than from a
+    /// fixed minute: see `check_phase_end`.
+    period_started_at: u8,
 
     // Per-minute stamina depletion tracking (player_id → current effective condition)
     player_conditions: HashMap<String, f64>,
@@ -300,6 +304,7 @@ impl LiveMatchState {
             second_half_stoppage: 0,
             et_first_half_stoppage: 0,
             et_second_half_stoppage: 0,
+            period_started_at: 0,
             player_conditions,
             penalty_state: PenaltyShootoutState::default(),
             recent_zones: VecDeque::with_capacity(10),

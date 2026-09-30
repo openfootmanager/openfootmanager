@@ -1825,3 +1825,76 @@ fn very_weak_team_still_finishes() {
     // Strong team should likely dominate
     assert!(snap.events.len() > 50, "Should generate plenty of events");
 }
+
+// ===========================================================================
+// Tests: The match clock
+// ===========================================================================
+
+/// Every period is played in full from the minute it actually kicks off: 45
+/// minutes a half and 15 an extra-time half, plus that period's own stoppage.
+/// The clock runs on through stoppage, so the second half kicks off at 46 or
+/// later; a first half's stoppage must not be taken out of the second half, and
+/// extra time must not start the clock again at a minute already played.
+#[test]
+fn every_period_lasts_its_full_length_whatever_stoppage_came_before() {
+    let mut saw_first_half_stoppage = false;
+    let mut saw_extra_time = false;
+    for seed in 0..200 {
+        let mut state = make_live_match(true);
+        let mut rng = seeded_rng(seed);
+        let events: Vec<MatchEvent> = run_to_finish(&mut state, &mut rng)
+            .into_iter()
+            .flat_map(|result| result.events)
+            .collect();
+        let minutes_of = |kind: EventType| -> Vec<u8> {
+            events
+                .iter()
+                .filter(|event| event.event_type == kind)
+                .map(|event| event.minute)
+                .collect()
+        };
+        let kick_offs = minutes_of(EventType::KickOff);
+        let half_times = minutes_of(EventType::HalfTime);
+        let restarts = minutes_of(EventType::SecondHalfStart);
+        let full_times = minutes_of(EventType::FullTime);
+
+        assert!(
+            half_times[0] >= 45,
+            "seed {seed}: first half ended at {}",
+            half_times[0]
+        );
+        saw_first_half_stoppage |= half_times[0] > 45;
+        assert!(
+            full_times[0] >= restarts[0] + 44,
+            "seed {seed}: the second half kicked off at {} and ended at {}",
+            restarts[0],
+            full_times[0]
+        );
+
+        if kick_offs.len() > 1 {
+            saw_extra_time = true;
+            assert!(
+                kick_offs[1] >= full_times[0],
+                "seed {seed}: extra time kicked off at {} after full time at {}",
+                kick_offs[1],
+                full_times[0]
+            );
+            assert!(
+                half_times[1] >= kick_offs[1] + 14,
+                "seed {seed}: extra time's first half ran {} to {}",
+                kick_offs[1],
+                half_times[1]
+            );
+            assert!(
+                full_times[1] >= restarts[1] + 14,
+                "seed {seed}: extra time's second half ran {} to {}",
+                restarts[1],
+                full_times[1]
+            );
+        }
+    }
+    assert!(
+        saw_first_half_stoppage && saw_extra_time,
+        "200 seeds should include first-half stoppage and a drawn match, or this test proves nothing"
+    );
+}
