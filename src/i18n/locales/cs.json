@@ -1678,6 +1678,8 @@
     "movementWage": "Plat {{wage}}/týd",
     "movementDateUnknown": "Datum neznámé",
     "movementLegacyContract": "Z uložené hry před historií smluv",
+    "movementRenewedWith": "Prodloužení v klubu {{club}}",
+    "movementAtClub": "V klubu {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Příchod do {{to}}",
     "movementFrom": "Odchod z {{from}}",

@@ -1678,6 +1678,8 @@
     "movementWage": "Gaji {{wage}}/mg",
     "movementDateUnknown": "Tanggal tidak diketahui",
     "movementLegacyContract": "Dari simpanan sebelum riwayat kontrak ada",
+    "movementRenewedWith": "Diperpanjang bersama {{club}}",
+    "movementAtClub": "Di {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Bergabung dengan {{to}}",
     "movementFrom": "Meninggalkan {{from}}",

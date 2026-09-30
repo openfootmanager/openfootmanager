@@ -124,4 +124,43 @@ describe("PlayerProfileMovementHistoryCard contract terms", () => {
       "playerProfile.movementInitialContract",
     ]);
   });
+
+  it("says a renewal was with a club, not that the player joined it", () => {
+    renderCard([renewal]);
+
+    expect(
+      screen.getByText('playerProfile.movementRenewedWith {"club":"Alpha FC"}'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/playerProfile\.movementTo/)).not.toBeInTheDocument();
+  });
+
+  it("says an opening contract was at a club, not that the player joined it", () => {
+    renderCard([
+      {
+        date: "2026-07-01",
+        kind: "initial_contract",
+        to_team_id: "team-1",
+        to_team_name: "Alpha FC",
+        contract: { start: null, end: "2028-06-30", weekly_wage: 7000, source: "initial" },
+      },
+    ]);
+
+    expect(
+      screen.getByText('playerProfile.movementAtClub {"club":"Alpha FC"}'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/playerProfile\.movementTo/)).not.toBeInTheDocument();
+  });
+
+  it("still says a signing or a transfer joined the club", () => {
+    renderCard([
+      {
+        date: "2026-07-01",
+        kind: "free_agent_signing",
+        to_team_id: "team-1",
+        to_team_name: "Alpha FC",
+      },
+    ]);
+
+    expect(screen.getByText('playerProfile.movementTo {"to":"Alpha FC"}')).toBeInTheDocument();
+  });
 });

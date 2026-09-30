@@ -1678,6 +1678,8 @@
     "movementWage": "Wage {{wage}}/wk",
     "movementDateUnknown": "Date unknown",
     "movementLegacyContract": "From a save made before contract history",
+    "movementRenewedWith": "Renewed with {{club}}",
+    "movementAtClub": "At {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Joined {{to}}",
     "movementFrom": "Left {{from}}",

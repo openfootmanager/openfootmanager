@@ -1678,6 +1678,8 @@
     "movementWage": "Maaş {{wage}}/hf",
     "movementDateUnknown": "Tarih bilinmiyor",
     "movementLegacyContract": "Sözleşme geçmişinden önce yapılmış bir kayıttan",
+    "movementRenewedWith": "{{club}} ile yenilendi",
+    "movementAtClub": "{{club}} kulübünde",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "{{to}} kulübüne katıldı",
     "movementFrom": "{{from}} kulübünden ayrıldı",

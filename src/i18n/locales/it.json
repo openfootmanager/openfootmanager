@@ -1696,6 +1696,8 @@
     "movementWage": "Stipendio {{wage}}/sett",
     "movementDateUnknown": "Data sconosciuta",
     "movementLegacyContract": "Da un salvataggio precedente allo storico dei contratti",
+    "movementRenewedWith": "Rinnovato con {{club}}",
+    "movementAtClub": "Presso {{club}}",
     "movementFromTo": "Da {{from}} a {{to}}",
     "movementTo": "Arrivato al {{to}}",
     "movementFrom": "Lasciato il {{from}}",

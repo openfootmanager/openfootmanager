@@ -45,6 +45,15 @@ function movementDirection(entry: PlayerMovementEntry, t: TranslateFn): string {
   const fromName = entry.from_team_name || entry.from_team_id || "";
   const toName = entry.to_team_name || entry.to_team_id || "";
 
+  // A renewal and an opening contract are with a club the player is already at: neither
+  // is a joining, so neither says "Joined".
+  if (toName && entry.kind === "renewal") {
+    return t("playerProfile.movementRenewedWith", { club: toName });
+  }
+  if (toName && entry.kind === "initial_contract") {
+    return t("playerProfile.movementAtClub", { club: toName });
+  }
+
   if (fromName && toName) {
     return t("playerProfile.movementFromTo", {
       from: fromName,

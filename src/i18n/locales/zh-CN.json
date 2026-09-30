@@ -1677,6 +1677,8 @@
     "movementWage": "周薪 {{wage}}/周",
     "movementDateUnknown": "日期未知",
     "movementLegacyContract": "来自合同历史出现之前的存档",
+    "movementRenewedWith": "与{{club}}续约",
+    "movementAtClub": "效力于{{club}}",
     "movementFromTo": "{{from}} 转至 {{to}}",
     "movementTo": "加盟 {{to}}",
     "movementFrom": "离开 {{from}}",

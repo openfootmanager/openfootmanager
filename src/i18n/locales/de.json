@@ -1677,6 +1677,8 @@
     "movementWage": "Gehalt {{wage}}/Wo",
     "movementDateUnknown": "Datum unbekannt",
     "movementLegacyContract": "Aus einem Spielstand vor der Vertragshistorie",
+    "movementRenewedWith": "Verlängert bei {{club}}",
+    "movementAtClub": "Bei {{club}}",
     "movementFromTo": "{{from}} zu {{to}}",
     "movementTo": "Wechsel zu {{to}}",
     "movementFrom": "Abgang von {{from}}",

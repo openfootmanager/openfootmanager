@@ -1677,6 +1677,8 @@
     "movementWage": "Зарплата {{wage}}/нед.",
     "movementDateUnknown": "Дата неизвестна",
     "movementLegacyContract": "Из сохранения, сделанного до истории контрактов",
+    "movementRenewedWith": "Продлил контракт с {{club}}",
+    "movementAtClub": "В клубе {{club}}",
     "movementFromTo": "Из {{from}} в {{to}}",
     "movementTo": "Перешёл в {{to}}",
     "movementFrom": "Покинул {{from}}",
