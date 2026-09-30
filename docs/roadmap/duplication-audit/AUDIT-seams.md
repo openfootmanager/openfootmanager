@@ -1,9 +1,11 @@
 # Duplication audit — the seams
 
+**Sweep C — 22–24 September 2026; revision not recorded (branch tip).**
+
 Scope: `src-tauri/src/commands/`, `src-tauri/src/mcp_server/`, `src-tauri/src/application/`,
-`src-tauri/crates/db/src/`, `src-tauri/crates/domain/src/`. Branch `fix/pyramid-promotion-relegation`
-(this worktree; `commands/game.rs` is still the 4,358-line single file here, not the `game/`
-directory). All paths below are relative to `src-tauri/`. Line numbers are from this tree.
+`src-tauri/crates/db/src/`, `src-tauri/crates/domain/src/`. At that revision `commands/game.rs` was
+still a single 4,358-line file rather than the `game/` directory. All paths are relative to
+`src-tauri/`, and line numbers are from that revision.
 
 Not re-reported (known): `season_check_complete` / `season_advance`, `round_context_for_today`
 using `primary_competition()`, the press-conference pair, `game_load_save`, the ARCHITECTURE.md
@@ -530,7 +532,8 @@ Each is one concept in two places; all in sync today; all latent.
 
 **English literals returned by commands** (category 5, "a command returning an English literal
 instead of a key"):
-- `commands/portraits.rs:178,202,209,264,271,315,323,334,352` — ten `format!("failed to …")` messages.
+- `commands/portraits.rs:178,202,209,264,271,315,323,334,352` — nine English `failed to …`
+  messages (mostly `format!`; at least one is a plain `.to_string()`).
 - `commands/sim_lab.rs:143,150` — `"{name} must be between …"`.
 - `commands/time.rs:74` — `format!("be.error.taskJoinFailed: {err}")`: a key with an English
   suffix, which `resolveBackendError` will not parse as `key?param=`.

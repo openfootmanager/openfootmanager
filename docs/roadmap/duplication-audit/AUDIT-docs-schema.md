@@ -1,10 +1,10 @@
 # Docs, package schema, fixtures and tooling duplication audit
 
-Audited 24 September 2026 at **`8e01f97b9b41e16e9e1d482a9d1f87428bed5f3d`**, the locally cached `upstream/develop` tip (PR #559). Read from a worktree detached at that commit. The local branch named `develop` was older. Remote refresh was unavailable: fetch could not write `FETCH_HEAD`, SSH could not use its configuration, and the HTTPS check could not resolve GitHub. Thus “current develop” below means this dated upstream snapshot, not a verified live remote tip.
+**Sweep D — 24 September 2026, at `8e01f97b9b41e16e9e1d482a9d1f87428bed5f3d`** — the `upstream/develop` tip at the time (PR #559). A remote refresh was not possible, so “current develop” below means that dated local tip rather than a verified remote one.
 
-Only this report was added. No commit, push, production edit, dependency installation, Rust compilation, or workspace test run. This is a source audit with bounded probes, not a claim that the application or its full test suites passed.
+This is a source audit with bounded probes. It is not a claim that the application or its full test suites pass.
 
-Scope: the requested documentation, `.ofm` authoring representations and their immediate consumers, fixtures/factories, and build/tooling configuration. Reads outside those areas were limited to proving a documented contract or one of the seven requested verifications. Deliberate engine/domain mirror types, the shared CLI/core validator, and the documented db→core edge are not findings. The previously known command-count, `season_advance`, position-token, `playStyle`, berth-shape and `logo` findings are excluded. The known locale-map duplication appears only in Part 2.
+Scope: the documentation listed below, `.ofm` authoring representations and their immediate consumers, fixtures and factories, and build/tooling configuration. Reads outside those areas were limited to proving a documented contract or one of the seven verifications recorded at the end. Deliberate engine/domain mirror types, the shared CLI/core validator, and the documented db→core edge are not findings. The previously known command-count, `season_advance`, position-token, `playStyle`, berth-shape and `logo` findings are excluded. The known locale-map duplication appears only in Part 2.
 
 Severity: **P1** = accepted authored content silently lost or materially misinterpreted; **P2** = incorrect author/player/contributor contract with a concrete failure or misleading behavior; **P3** = stale reference or maintenance risk without a demonstrated runtime failure. Rank favors observable behavior over duplicated names. “Source-proved” means the relevant input, transformation and consumer were read; it does not mean an end-to-end runtime reproduction was executed.
 
@@ -730,7 +730,7 @@ Migration sources for those additions: `src-tauri/crates/db/src/sql/v015_match_s
 
 ## Fixtures/factories: rule checks and repeated-helper inventory
 
-The sole file under `src/test-utils/` is `factories.ts`, exporting `createTeam`, `createPlayer`, `createStaff` at lines 3/33/92. F21 is a confirmed invalid-enum default. F42 is a confirmed difference between a CSV fixture's claimed validity and package validation. F14/F41 cover the schema fixtures' incomplete contract. The known duplicated locale maps were not counted as new findings.
+The only file under `src/test-utils/` is `factories.ts`, exporting `createTeam`, `createPlayer`, `createStaff` at lines 3/33/92. F21 is a confirmed invalid-enum default. F42 is a confirmed difference between a CSV fixture's claimed validity and package validation. F14/F41 cover the schema fixtures' incomplete contract. The known duplicated locale maps were not counted as new findings.
 
 The following concrete fixture contracts were compared:
 
@@ -775,7 +775,7 @@ This mechanical inventory searched integration/testkit files and inline `#[cfg(t
 
 ## Verification record and limits
 
-- Reviewed the listed documents and the four checked-in AGENTS/CLAUDE files, all seven workflow files, package/Cargo/Biome/baseline configuration, script entry points, schema representations, and the producer/consumer paths cited above. Static searches were used to inventory fixtures and schema occurrences; name matches are explicitly separated from verified divergences.
-- Safe executable probes: the toolchain checker plus 17 regression cases; JSON syntax reads of 11 modding examples; exact read-only oversized-file recount; 44 migration SQL scripts and documented SQL applied to two **in-memory** SQLite databases; static event/test counts; Cargo argument parsing demonstrating the bare `--bin` error.
+- Covered the documents listed above, the four checked-in AGENTS/CLAUDE files, all seven workflow files, package/Cargo/Biome/baseline configuration, script entry points, schema representations, and the producer/consumer paths cited. Static searches inventoried fixtures and schema occurrences; name matches are separated from verified divergences throughout.
+- Read-only probes: the toolchain checker plus 17 regression cases; JSON syntax reads of 11 modding examples; an exact oversized-file recount; 44 migration SQL scripts and documented SQL applied to two **in-memory** SQLite databases; static event and test counts; Cargo argument parsing demonstrating the bare `--bin` error.
 - No Rust or frontend suite was run, no MCP/game scenario was played, and no benchmark/release/advisory operation was performed. Source-proved examples are labeled as such. The complete quality gate was not claimed from its file-size subcheck.
-- A final report check verified referenced repository paths/line bounds, all 42 finding records have the requested fields, all seven verification verdicts are present, and the worktree has no tracked changes. The sole deliverable is this untracked Markdown file; scratch analysis stayed under `/tmp`.
+- A final pass verified the referenced repository paths and line bounds, that all 42 finding records carry their fields, and that all seven verification verdicts are present.

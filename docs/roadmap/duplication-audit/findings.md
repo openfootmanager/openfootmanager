@@ -1,7 +1,6 @@
 # Single-source-of-truth audit — OpenFoot Manager
 
-Read-only audit, 22 Sep 2026. Written to disk 24 Sep after the original report was lost with a
-wiped session — see the note at the bottom.
+**22 September 2026.** Read only.
 
 **What prompted it.** Four bugs in three days turned out to be one shape: a backend rule
 reimplemented somewhere else, then drifting from it. Three of the four were causing visible,
@@ -123,12 +122,3 @@ cooldown and wage/runway thresholds; facility cost; youth-academy age; every han
 `src/store/types.ts`; the MCP tool catalog against `docs/MCP_SERVER.md` (89 = 89);
 `docs/GAME_SYSTEMS.md` fitness tiers and training multipliers. `ofm-cli` links `ofm_core`, so
 package validation is one implementation by construction.
-
----
-
-## Why this file exists
-
-The original report was a subagent message in a session that has since been wiped, and it was
-never written to disk — so it evaporated and had to be reconstructed from conversation context two
-days later. Working notes for anything spanning more than one session belong here, not in the
-scratchpad.

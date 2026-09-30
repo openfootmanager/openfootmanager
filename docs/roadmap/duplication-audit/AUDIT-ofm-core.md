@@ -1,13 +1,14 @@
 # Duplication audit — `src-tauri/crates/ofm_core/src`
 
-Scope: everything under `ofm_core/src` (~49.6k lines in this tree). Read and grep only; nothing
-compiled. Line numbers cite **this worktree at `c8840375`** (branch
-`fix/pyramid-promotion-relegation`). They differ from the brief's — here `transfers/` is still
-`mod.rs` + `execution.rs`, so the brief's `transfers/market.rs:44` is `transfers/mod.rs:292`.
-Every `file:line` below was re-grepped before being written down.
+**Sweep A — 22–24 September 2026, at `c8840375`.**
 
-Items the brief lists as already found are not repeated. Where one of them has a new neighbour,
-it is in §D.
+Scope: everything under `ofm_core/src`, about 49.6k lines at that revision. Read and search only;
+nothing compiled. Line numbers are from that revision and have moved since — `transfers/` was then
+`mod.rs` + `execution.rs`, so a site now in `transfers/market.rs` appears here as
+`transfers/mod.rs:292`. Every `file:line` was re-checked against the source before being recorded.
+
+Findings already known when this sweep ran are not repeated. Where one of them has a newly found
+neighbour, it is in §D.
 
 Ranking: §A is verified divergence a player or package author can observe today. §B is
 divergence that may be deliberate — the maintainer should decide. §C is in-sync copies that can
@@ -281,7 +282,7 @@ display precision.
   and 23 uses in `turn/news.rs`. A further `competitions.first()` at
   `generator/world_io.rs:107` and `game.rs:293 first_mut()`.
 - **`fixture_competition_for` (known).** Confirmed present at `group_stage.rs:52` and
-  `generator/competition_def.rs:647` in this tree.
+  `generator/competition_def.rs:647` at that revision.
 
 ---
 

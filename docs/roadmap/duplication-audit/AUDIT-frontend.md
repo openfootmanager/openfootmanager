@@ -1,16 +1,18 @@
 # Duplication audit — frontend (`src/`)
 
-Scope: `src/components/`, `src/lib/`, `src/utils/`, `src/services/`, `src/store/`, `src/pages/`,
-`src/hooks/`. Read-only, on branch `fix/pyramid-promotion-relegation` at `6e812670`.
+**Sweep B — 22–24 September 2026, at `6e812670`.**
 
-The known findings listed in the brief (pyramid.ts, the Dashboard season decision,
+Scope: `src/components/`, `src/lib/`, `src/utils/`, `src/services/`, `src/store/`, `src/pages/`,
+`src/hooks/`. Read only.
+
+Findings already known when this sweep ran (pyramid.ts, the Dashboard season decision,
 PostMatchHelpers ratings, finance.ts runway, the frozen `asOfDate`, the eleven/twelve locale
 lists, the six standings comparators, `buildPitchRows`, the transfer tension gauge and January
 window, the English error literal, the two exhausted thresholds) are not repeated below except
 where a distinct adjacent site was found.
 
-Every claim below was checked against the current source; `file:line` numbers are from this
-worktree. "Wrong today" means a player can observe the divergence now; "latent" means the copies
+Every claim below was checked against the source at that revision, and `file:line` numbers are from
+it. "Wrong today" means a player can observe the divergence now; "latent" means the copies
 agree today but nothing keeps them so.
 
 **Ranked by what a player sees today**

@@ -6,23 +6,24 @@
 > two reports can disagree about the same file for no reason other than that. `commands/game.rs`, for
 > instance, is still one 4,358-line file in the tree sweeps A–C read.
 >
-> Findings have been fixed since, and a few did not survive closer reading. For what is still
-> outstanding, read [epic #589](https://github.com/openfootmanager/openfootmanager/issues/589) and
-> its children (#590–#603) — that is the live record. This directory is the evidence they were filed
-> from, kept because the reasoning behind a finding is worth more than its one-line summary, and
-> because re-deriving it costs four sweeps.
+> Findings have been fixed since, and a few did not survive closer reading. These reports are not
+> updated as that happens: for what is still outstanding, read
+> [epic #589](https://github.com/openfootmanager/openfootmanager/issues/589) and its children
+> (#590–#603). This directory is the evidence they were filed from, kept because the reasoning
+> behind a finding is worth more than its one-line summary, and because re-deriving it costs four
+> sweeps.
 
 Four sweeps, ~106 findings across ~2,540 lines of report. Full detail in the sibling files; this
 is the map.
 
 | Sweep | Area | Report | Read at | Findings |
 |---|---|---|---|---|
-| A | `ofm_core/src` internals | `AUDIT-ofm-core.md` | `c8840375` (`fix/pyramid-promotion-relegation`) | 7 verified + latent/in-sync sections |
-| B | React frontend (`src/`) | `AUDIT-frontend.md` | `6e812670` (`fix/pyramid-promotion-relegation`) | 37 |
-| C | commands ↔ MCP ↔ `db` ↔ `domain` | `AUDIT-seams.md` | `fix/pyramid-promotion-relegation` (no commit recorded) | 20 + a table of all 89 MCP tools |
-| D | docs, `.ofm` schema, fixtures, CI | `AUDIT-docs-schema.md` | `8e01f97b` (cached `upstream/develop`, PR #559) | 42 + verification of 7 prior findings |
+| A | `ofm_core/src` internals | `AUDIT-ofm-core.md` | `c8840375` | 7 verified + latent/in-sync sections |
+| B | React frontend (`src/`) | `AUDIT-frontend.md` | `6e812670` | 37 |
+| C | commands ↔ MCP ↔ `db` ↔ `domain` | `AUDIT-seams.md` | not recorded (branch tip) | 20 + a table of all 89 MCP tools |
+| D | docs, `.ofm` schema, fixtures, CI | `AUDIT-docs-schema.md` | `8e01f97b` (`upstream/develop`, PR #559) | 42 + verification of 7 prior findings |
 
-Earlier context and the four bugs that prompted the audit: `findings.md` — read 22 Sep 2026, and written up on the 24th after the first copy was lost.
+Earlier context and the four bugs that prompted the audit: `findings.md`, 22 September 2026.
 
 ---
 
@@ -161,10 +162,9 @@ Recorded because the earlier wording was wrong and may have been repeated:
 
 ## Caveats on the audit itself
 
-- Sweep D worked against a locally cached `upstream/develop` snapshot: `git fetch` could not write
-  `FETCH_HEAD` and SSH/HTTPS were both unavailable in that sandbox. "Current develop" there means
-  that dated snapshot.
-- Sweep A's line numbers come from its own worktree, where `transfers/` is not split the same way.
+- Sweep D read a local `upstream/develop` tip that could not be refreshed from the remote, so
+  "current develop" there means that dated revision.
+- Sweep A's line numbers come from a revision in which `transfers/` is not split the same way.
 - Every finding is a source audit with bounded probes. Where a report says "source-proved" it means
   input, transformation and consumer were read — not that a runtime scenario was executed.
 - Four headline claims needed correction on contact. Verify before acting on any single line here.
