@@ -131,6 +131,11 @@ const CAREER_ENTRY_NEEDS_CLUB: &str = "be.error.package.careerEntryNeedsClub";
 /// and it sits comfortably inside the signed 64-bit column the game stores it in.
 const MAX_AUTHORED_VALUE: u64 = 9_007_199_254_740_991;
 
+/// The years a career entry's season may name. Four digits, because the season is
+/// shown and compared as a calendar year; 0 is what a blank row in the editor holds,
+/// and is refused so that it reads as unfinished rather than as a real year.
+const CAREER_SEASONS: std::ops::RangeInclusive<u32> = 1..=9999;
+
 /// Everything wrong with an authored player's contract, status, identity and career
 /// fields. All of it is reported, not just the first, so an author fixes their file
 /// in one pass.
@@ -223,6 +228,13 @@ pub(super) fn authored_player_errors(
     for (index, entry) in player.career_history.iter().enumerate() {
         if entry.team_name.trim().is_empty() {
             errors.push(error(CAREER_ENTRY_NEEDS_CLUB).with("row", (index + 1).to_string()));
+        }
+        if !CAREER_SEASONS.contains(&entry.season) {
+            errors.push(out_of_range(
+                &format!("careerHistory[{index}].season"),
+                (*CAREER_SEASONS.start()).into(),
+                (*CAREER_SEASONS.end()).into(),
+            ));
         }
         // The name is free text, so a club the package does not define is fine. An id
         // is a reference, and is held to the package.
@@ -614,6 +626,31 @@ mod tests {
         }));
         assert_eq!(codes(&unknown), ["be.error.package.unknownTeam"]);
         assert_eq!(param(&unknown[0], "team"), Some("ghost-fc"));
+    }
+
+    /// The editor starts a new row at season 0 on purpose, so that it is reported here
+    /// until the author picks a year rather than looking like a year somebody chose.
+    #[test]
+    fn a_career_season_must_be_a_real_year() {
+        let errors = validate(serde_json::json!({
+            "careerHistory": [
+                { "season": 2019, "teamName": "Juventus" },
+                { "season": 0, "teamName": "Milan" },
+                { "season": 10000, "teamName": "Roma" },
+            ],
+        }));
+        assert_eq!(
+            codes(&errors),
+            [
+                "be.error.package.playerFieldOutOfRange",
+                "be.error.package.playerFieldOutOfRange"
+            ]
+        );
+        // The JSON path of the row, as an author reads it in their own file.
+        assert_eq!(param(&errors[0], "field"), Some("careerHistory[1].season"));
+        assert_eq!(param(&errors[1], "field"), Some("careerHistory[2].season"));
+        assert_eq!(param(&errors[0], "min"), Some("1"));
+        assert_eq!(param(&errors[0], "max"), Some("9999"));
     }
 
     #[test]
