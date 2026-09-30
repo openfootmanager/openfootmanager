@@ -261,6 +261,19 @@ pub(super) fn buyers_standard_terms(
     Ok((buyer, wage, end))
 }
 
+/// Whether the board would let `buyer` pay `player` his standard wage, for the sweep
+/// that asks it of many players for one buyer: the buyer's bill and senior counts come
+/// in already worked out, so nothing here scans the world.
+pub(super) fn buyer_can_pay_standard_wage(
+    player: &Player,
+    buyer: &Team,
+    facts: &BuyerWageFacts,
+    today: NaiveDate,
+) -> bool {
+    standard_contract_terms(player, buyer, today, 0)
+        .is_some_and(|(wage, _)| facts.purchase_verdict(buyer, player, wage).permits())
+}
+
 /// [`buyers_standard_terms`], if the board lets the buyer pay them, through the one
 /// wage rule. `Err` is the board's refusal, in the same words a renewal gets.
 pub(super) fn buyers_contract_terms(

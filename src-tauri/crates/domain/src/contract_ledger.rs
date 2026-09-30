@@ -158,6 +158,16 @@ impl MovementLedger {
 
     /// Change the staged contract, starting from whatever is in force.
     fn stage(&mut self, change: impl FnOnce(&mut StagedContract)) {
+        if self.entries.iter().any(|entry| entry.contract.is_some()) {
+            // A recorded contract is changed by recording a movement; staging over one
+            // would quietly disagree with the entries. Loud in a debug build, and
+            // nothing changes in a release build.
+            debug_assert!(
+                false,
+                "a recorded contract cannot be staged over; record a movement instead"
+            );
+            return;
+        }
         let mut staged = self.staged.take().unwrap_or_else(|| StagedContract {
             start: self.start().map(str::to_string),
             end: self.end().map(str::to_string),
@@ -1035,5 +1045,28 @@ mod tests {
             Some("club-a"),
             "the contract stays with the parent while he is out on loan"
         );
+    }
+
+    /// Once a player has a recorded contract, changing it is a movement. Staging is for a
+    /// player with no history; staging over one would quietly disagree with the entries.
+    /// In a debug build it is loud; in a release build it changes nothing.
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "cannot be staged over")]
+    fn staging_over_a_recorded_contract_is_refused() {
+        let mut p = player();
+        p.record_movement(entry(
+            "2026-07-01",
+            PlayerMovementKind::FreeAgentSigning,
+            Some(contract(
+                Some("2026-07-01"),
+                "2029-06-30",
+                6_000,
+                ContractSource::FreeAgent,
+            )),
+        ))
+        .unwrap();
+
+        p.stage_wage(1);
     }
 }

@@ -181,6 +181,14 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         .map(|team| (team.id.clone(), team.reputation))
         .collect();
     let position_depths = squad_position_depths(game);
+    // Where each target sits in `game.players`, so the buyer's wage check need not search.
+    // The sweep moves players between clubs but never adds or removes one.
+    let player_index: std::collections::HashMap<String, usize> = game
+        .players
+        .iter()
+        .enumerate()
+        .map(|(index, player)| (player.id.clone(), index))
+        .collect();
 
     // In a multi-competition world only the player's active scope shops the
     // market each day; dormant clubs are handled by lighter periodic passes.
@@ -316,6 +324,8 @@ pub fn evaluate_transfer_market(game: &mut Game) {
 
         // The list is score-sorted, so the first target clearing this club's
         // filters is its highest-appeal eligible signing.
+        // Worked out once for this buyer, and only if a target gets as far as needing it.
+        let mut buyer_wage_facts: Option<BuyerWageFacts> = None;
         let chosen = shortlist.iter().find(|target| {
             if target.owner_team_id == buyer_id || moved_player_ids.contains(&target.player_id) {
                 return false;
@@ -351,7 +361,17 @@ pub fn evaluate_transfer_market(game: &mut Game) {
             }
             buyer_team.transfer_budget >= target.fee as i64
                 && buyer_team.finance >= target.fee as i64
-                && ensure_buyer_can_pay_standard_wage(game, &target.player_id, &buyer_id).is_ok()
+                && player_index.get(&target.player_id).is_some_and(|&index| {
+                    let facts = buyer_wage_facts.get_or_insert_with(|| {
+                        BuyerWageFacts::new(calc_wages(game, &buyer_id), buyer_depths)
+                    });
+                    buyer_can_pay_standard_wage(
+                        &game.players[index],
+                        &buyer_team,
+                        facts,
+                        current_date,
+                    )
+                })
         });
 
         let Some(target) = chosen else {
