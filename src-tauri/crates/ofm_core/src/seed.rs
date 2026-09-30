@@ -64,6 +64,23 @@ impl Game {
     }
 }
 
+/// Which of `count` phrasings a message is written in, chosen from what the message is.
+///
+/// Wording is the one random choice that needs no seed: nothing depends on which of two
+/// greetings an inbox item uses, and a pick made from `key` — the message's own id, which
+/// names the event, the player and the day — is the same on every replay with no
+/// generator to thread through every builder. Different events still get different
+/// phrasings, because different keys hash differently.
+///
+/// `count` must be non-zero.
+pub fn variant_for(key: &str, count: usize) -> usize {
+    (stable_hash(key.as_bytes(), VARIANT_SALT) % count as u64) as usize
+}
+
+/// Keeps a phrasing pick from being the same number as any other use of `stable_hash`
+/// on the same string.
+const VARIANT_SALT: u64 = 0x7a51_0000_7a51_0001;
+
 /// The seed a save written before seeds existed is given when it is first loaded.
 ///
 /// Derived from the save's own id, so the same old save is given the same seed on
@@ -146,6 +163,32 @@ mod tests {
             draws(game_with_seed(1).rng_for("training", "2032-07-01")),
             draws(game_with_seed(2).rng_for("training", "2032-07-01"))
         );
+    }
+
+    /// Given a message key and some phrasings,
+    /// When a phrasing is picked, twice,
+    /// Then it is the same one and is always one of them — and across many keys every
+    ///      phrasing is used, so the wording still varies.
+    #[test]
+    fn a_phrasing_is_picked_from_the_message_and_is_always_the_same() {
+        for count in [2, 3] {
+            let picks: Vec<usize> = (0..60)
+                .map(|n| variant_for(&format!("low_morale_p{n}_2032-07-01"), count))
+                .collect();
+            assert_eq!(
+                picks,
+                (0..60)
+                    .map(|n| variant_for(&format!("low_morale_p{n}_2032-07-01"), count))
+                    .collect::<Vec<_>>()
+            );
+            for variant in 0..count {
+                assert!(
+                    picks.contains(&variant),
+                    "phrasing {variant} of {count} never used"
+                );
+            }
+            assert!(picks.iter().all(|&pick| pick < count));
+        }
     }
 
     /// Given a known seed, purpose and day,

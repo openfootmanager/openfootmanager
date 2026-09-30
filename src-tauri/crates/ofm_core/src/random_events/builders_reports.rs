@@ -1,6 +1,5 @@
 use super::{action, params};
 use domain::message::*;
-use rand::RngExt;
 
 fn option(id: &str, label_key: &str, description_key: &str) -> ActionOption {
     ActionOption {
@@ -66,8 +65,7 @@ pub(super) fn mood_report_message(
 }
 
 pub(super) fn board_confidence_message(msg_id: &str, date: &str) -> InboxMessage {
-    let mut rng = rand::rng();
-    let idx = rng.random_range(0..2);
+    let idx = crate::seed::variant_for(msg_id, 2);
 
     InboxMessage::new(
         msg_id.to_string(),
@@ -112,7 +110,7 @@ pub(super) fn board_confidence_message(msg_id: &str, date: &str) -> InboxMessage
 }
 
 pub(super) fn fan_petition_message(msg_id: &str, team_name: &str, date: &str) -> InboxMessage {
-    let idx = rand::rng().random_range(0..3);
+    let idx = crate::seed::variant_for(msg_id, 3);
 
     InboxMessage::new(
         msg_id.to_string(),
@@ -163,7 +161,7 @@ pub(super) fn rival_interest_message(
     rival_name: &str,
     date: &str,
 ) -> InboxMessage {
-    let idx = rand::rng().random_range(0..2);
+    let idx = crate::seed::variant_for(msg_id, 2);
 
     InboxMessage::new(
         msg_id.to_string(),

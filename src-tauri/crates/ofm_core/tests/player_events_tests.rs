@@ -500,8 +500,9 @@ fn bench_complaint_after_5_missed_matches() {
 
     // Now probabilistic (10% daily chance), run multiple iterations
     let mut found = false;
-    for _ in 0..200 {
+    for seed in 0..200 {
         game.messages.clear();
+        game.seed = seed;
         player_events::check_player_events(&mut game);
         if game
             .messages
@@ -640,8 +641,9 @@ fn happy_player_message_with_high_morale() {
 
     // Run many iterations to hit the 10% chance
     let mut found_happy = false;
-    for _ in 0..200 {
+    for seed in 0..200 {
         game.messages.clear();
+        game.seed = seed;
         player_events::check_player_events(&mut game);
         if game
             .messages
@@ -974,8 +976,10 @@ fn morale_talk_work_harder_varies() {
 
     let mut positive_count = 0;
     let mut negative_count = 0;
-    for _ in 0..100 {
+    // Each trial is a different game: one seed would give one outcome every time.
+    for seed in 0..100 {
         let mut g = game.clone();
+        g.seed = seed;
         player_events::apply_player_response(
             &mut g,
             "morale_talk_p_fwd0",
@@ -1312,8 +1316,10 @@ fn bench_complaint_prove_yourself_varies() {
 
     let mut positive = 0;
     let mut negative = 0;
-    for _ in 0..100 {
+    // Each trial is a different game: one seed would give one outcome every time.
+    for seed in 0..100 {
         let mut g = game.clone();
+        g.seed = seed;
         player_events::apply_player_response(
             &mut g,
             "bench_complaint_p_fwd0",
@@ -1400,8 +1406,10 @@ fn happy_player_higher_expectations_varies() {
 
     let mut positive = 0;
     let mut negative = 0;
-    for _ in 0..100 {
+    // Each trial is a different game: one seed would give one outcome every time.
+    for seed in 0..100 {
         let mut g = game.clone();
+        g.seed = seed;
         player_events::apply_player_response(
             &mut g,
             "happy_player_p_fwd0",
@@ -1749,5 +1757,51 @@ fn volatile_player_worse_outcomes_from_tough_love() {
         "Composed player should respond better to tough love: composed={:.1}, volatile={:.1}",
         avg_composed,
         avg_volatile
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Player events come from the game's seed
+// ---------------------------------------------------------------------------
+
+fn a_season_of_player_events(seed: u64) -> Vec<String> {
+    let mut game = make_game();
+    game.seed = seed;
+    for player in &mut game.players {
+        player.morale = 10;
+    }
+    for _ in 0..200 {
+        player_events::check_player_events(&mut game);
+        game.clock.advance_days(1);
+    }
+    game.messages
+        .iter()
+        .map(|message| {
+            format!(
+                "{} {:?} {:?} {:?}",
+                message.date, message.subject_key, message.body_key, message.context.player_id
+            )
+        })
+        .collect()
+}
+
+/// Given unhappy players and a season of days,
+/// When player events are checked each day, twice, from the same seed,
+/// Then the same players complain on the same days.
+#[test]
+fn player_events_fall_the_same_way_from_the_same_seed() {
+    assert_eq!(a_season_of_player_events(11), a_season_of_player_events(11));
+}
+
+/// The control.
+#[test]
+fn the_seed_decides_which_players_speak_up() {
+    let seasons: std::collections::BTreeSet<Vec<String>> =
+        (0..20).map(a_season_of_player_events).collect();
+
+    assert!(seasons.len() > 1, "twenty seeds all gave the same season");
+    assert!(
+        seasons.iter().any(|season| !season.is_empty()),
+        "no seed produced a single message"
     );
 }
