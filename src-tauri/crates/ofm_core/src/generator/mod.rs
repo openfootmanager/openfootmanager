@@ -328,7 +328,7 @@ pub fn generate_national_team_player(
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
     let slot = senior_slot(squad_slot % SQUAD_SLOTS);
-    let mut player = generate_random_player_from_def(
+    let player = generate_random_player_from_def(
         "national-pool",
         slot,
         &nationality,
@@ -336,6 +336,29 @@ pub fn generate_national_team_player(
         &names_def,
         &mut rng,
     );
+    as_free_agent(player)
+}
+
+/// A senior free agent of the given position group — for a club that has to
+/// sign one and finds nobody suitable on the market. See `squad_floor`.
+pub fn generate_free_agent(group: &Position, nationality: &str, year: u32) -> Player {
+    let mut rng = rand::rng();
+    let names_def = default_names_definition();
+    let nationality = generation::canonicalize_generated_nationality(nationality);
+    let player = generate_random_player_from_def(
+        "free-agent",
+        senior_slot_for(group),
+        &nationality,
+        year,
+        &names_def,
+        &mut rng,
+    );
+    as_free_agent(player)
+}
+
+/// A generated player belonging to nobody: no club, no contract, no wage, not
+/// on any list.
+fn as_free_agent(mut player: Player) -> Player {
     player.team_id = None;
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
