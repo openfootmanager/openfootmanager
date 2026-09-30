@@ -667,7 +667,7 @@ mod tests {
         let game = world();
         for (rule, check) in EVERY_DAY {
             // The built world books clubs twice in a day (#553). The rule's own
-            // tests above prove it looks; the gate is what holds the world to it.
+            // tests below prove it looks; the gate is what holds the world to it.
             if *rule == "club-plays-once-a-day" {
                 continue;
             }

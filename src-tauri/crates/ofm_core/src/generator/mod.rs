@@ -1462,6 +1462,24 @@ fn generate_world_with_rng(
 #[cfg(test)]
 mod tests {
 
+    use super::*;
+    mod identity;
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+
+    /// Opening year for tests that need *an* era, not a specific one.
+    const TEST_OPENING_YEAR: u32 = 2026;
+
+    /// The season the motivating historical world models.
+    const HISTORICAL_OPENING_YEAR: u32 = 1962;
+
+    use domain::manager::Manager;
+    use domain::player::{Position, SquadRole};
+    use domain::staff::{Staff, StaffAttributes, StaffRole};
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
     /// Given a config that names the year the world opens in,
     /// When a world is generated from a seed,
     /// Then its contracts run from that year's summer, not from the wall clock's —
@@ -1487,24 +1505,6 @@ mod tests {
             contracts.iter().min()
         );
     }
-    use super::*;
-    mod identity;
-    use crate::clock::GameClock;
-    use crate::game::Game;
-    use chrono::{TimeZone, Utc};
-
-    /// Opening year for tests that need *an* era, not a specific one.
-    const TEST_OPENING_YEAR: u32 = 2026;
-
-    /// The season the motivating historical world models.
-    const HISTORICAL_OPENING_YEAR: u32 = 1962;
-
-    use domain::manager::Manager;
-    use domain::player::{Position, SquadRole};
-    use domain::staff::{Staff, StaffAttributes, StaffRole};
-    use rand::SeedableRng;
-    use rand::rngs::StdRng;
-
     // -- authored squad backfill trimming (#349) ----------------------------
 
     fn test_team_def() -> TeamDef {

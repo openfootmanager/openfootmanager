@@ -86,7 +86,7 @@ impl RunOptions {
 
 #[derive(Debug)]
 pub enum HarnessError {
-    /// A season did not complete within [`MAX_DAYS_PER_SEASON`]. `unfinished`
+    /// A season did not complete within [`RunOptions::max_days_per_season`]. `unfinished`
     /// names each competition still holding a scheduled fixture, which is what
     /// turns "it hung" into a bug someone can file.
     Stalled {
