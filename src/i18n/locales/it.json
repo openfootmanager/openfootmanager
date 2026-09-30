@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}."
+      },
       "noActiveGameSession": "Nessuna partita attiva",
       "noActiveSaveSession": "Nessuna sessione di salvataggio attiva",
       "saveNotFound": "Salvataggio '{{saveId}}' non trovato.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} firma per {{team}}",
         "body": "{{player}} si è unito a {{team}} da svincolato con un contratto di {{years}} anno/i."
+      },
+      "squadBelowFloor": {
+        "subject": "Rosa sotto il minimo: {{group}}",
+        "body": "Mister, ci mancano giocatori. {{group}}: {{have}} tesserati, ma un club deve averne almeno {{floor}}. Ingaggiane altri prima della prossima partita: se al calcio d'inizio saremo ancora corti, dovrò ingaggiare degli svincolati perché la partita si possa giocare."
+      },
+      "squadToppedUp": {
+        "subject": "Ingaggi d'emergenza: {{team}}",
+        "body": "Mister, non avevamo abbastanza giocatori per schierare una squadra, quindi prima del calcio d'inizio ho ingaggiato questi svincolati: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Rapporto dell'assistente — Rinnovi contrattuali",

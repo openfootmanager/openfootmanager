@@ -517,6 +517,8 @@ pub fn make_loan_offer(
 
     if accepted {
         validate_loan_borrower_affordability(game, &user_team_id, player, wage_contribution_pct)?;
+        // Before the offer is marked agreed, like every other refusal here.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
     }
 
     let status = if accepted {
@@ -601,6 +603,9 @@ pub fn respond_to_loan_offer(
 
     if accept && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+    if accept {
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
     }
 
     let offer = player
@@ -767,6 +772,8 @@ pub fn counter_loan_offer(
     let offer_id_string = offer.id.clone();
 
     if accepted {
+        // Before the offer is marked agreed, like every other refusal here.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
         if let Some(player) = game
             .players
             .iter_mut()

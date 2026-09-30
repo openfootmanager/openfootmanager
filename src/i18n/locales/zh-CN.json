@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。"
+      },
       "noActiveGameSession": "当前没有活动中的游戏会话",
       "noActiveSaveSession": "当前没有活动中的存档会话",
       "saveNotFound": "未找到存档“{{saveId}}”。",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} 签约 {{team}}",
         "body": "{{player}} 以自由球员身份加盟 {{team}}，签下了一份 {{years}} 年合同。"
+      },
+      "squadBelowFloor": {
+        "subject": "阵容低于最低人数：{{group}}",
+        "body": "老板，我们人手不够了。{{group}}：注册 {{have}} 人，而俱乐部至少需要 {{floor}} 人。请在下一场比赛前补充球员——如果开球时人数仍然不足，我将不得不签下自由球员，以确保比赛能够进行。"
+      },
+      "squadToppedUp": {
+        "subject": "紧急签约：{{team}}",
+        "body": "老板，我们的球员不足以派出一支球队，所以我在开球前签下了这些自由球员：{{players}}。"
       },
       "delegatedRenewals": {
         "subject": "助理教练报告——合同续约",

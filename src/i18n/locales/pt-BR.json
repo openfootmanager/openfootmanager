@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Este jogador não pode sair: o elenco ficaria abaixo do mínimo que um clube precisa manter. Setor afetado: {{group}}."
+      },
       "noActiveGameSession": "Nenhuma sessão de jogo ativa",
       "noActiveSaveSession": "Nenhuma sessão de salvamento ativa",
       "saveNotFound": "Save '{{saveId}}' não encontrado.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} assina com {{team}}",
         "body": "{{player}} se juntou ao {{team}} como agente livre em um contrato de {{years}} ano(s)."
+      },
+      "squadBelowFloor": {
+        "subject": "Elenco abaixo do mínimo: {{group}}",
+        "body": "Chefe, estamos com falta de jogadores. {{group}}: {{have}} inscritos, e um clube precisa ter pelo menos {{floor}}. Contrate mais antes do nosso próximo jogo — se ainda faltar gente no pontapé inicial, vou ter que contratar agentes livres para que a partida possa acontecer."
+      },
+      "squadToppedUp": {
+        "subject": "Contratações de emergência: {{team}}",
+        "body": "Chefe, não tínhamos jogadores suficientes para escalar um time, então contratei estes agentes livres antes do pontapé inicial: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Relatório do assistente — Renovações contratuais",

@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Este jogador não pode sair: o plantel ficaria abaixo do mínimo que um clube tem de manter. Setor afetado: {{group}}."
+      },
       "noActiveGameSession": "Sem sessão de jogo ativa",
       "noActiveSaveSession": "Sem sessão de gravação ativa",
       "saveNotFound": "Gravação '{{saveId}}' não encontrada.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} assina pelo {{team}}",
         "body": "{{player}} juntou-se ao {{team}} como agente livre com um contrato de {{years}} ano(s)."
+      },
+      "squadBelowFloor": {
+        "subject": "Plantel abaixo do mínimo: {{group}}",
+        "body": "Mister, faltam-nos jogadores. {{group}}: {{have}} inscritos, e um clube tem de ter pelo menos {{floor}}. Contrata mais antes do nosso próximo jogo — se ainda nos faltarem jogadores no pontapé de saída, terei de contratar jogadores livres para que o jogo se possa realizar."
+      },
+      "squadToppedUp": {
+        "subject": "Contratações de emergência: {{team}}",
+        "body": "Mister, não tínhamos jogadores suficientes para apresentar uma equipa, por isso contratei estes jogadores livres antes do pontapé de saída: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Relatório do adjunto — Renovações contratuais",

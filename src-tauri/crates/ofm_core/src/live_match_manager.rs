@@ -243,6 +243,24 @@ impl LiveMatchSession {
 // Helper: build a LiveMatchSession from the Game state
 // ---------------------------------------------------------------------------
 
+/// Make both sides of a fixture in `game.league` fit to kick off: a club short
+/// of the squad floor signs free agents first (see
+/// [`crate::squad_floor::ready_for_kick_off`]). Every path that plays a club
+/// fixture calls this before building the teams, so no match starts with a side
+/// that cannot be fielded.
+pub fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
+    let Some((home_team_id, away_team_id)) = game.league.as_ref().and_then(|league| {
+        league
+            .fixtures
+            .get(fixture_index)
+            .map(|fixture| (fixture.home_team_id.clone(), fixture.away_team_id.clone()))
+    }) else {
+        return;
+    };
+    crate::squad_floor::ready_for_kick_off(game, &home_team_id);
+    crate::squad_floor::ready_for_kick_off(game, &away_team_id);
+}
+
 /// Create a live match session for a specific fixture.
 pub fn create_live_match(
     game: &Game,

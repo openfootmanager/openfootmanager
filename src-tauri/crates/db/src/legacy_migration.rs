@@ -401,6 +401,10 @@ mod tests {
         let mut json: serde_json::Value =
             serde_json::from_str(&minimal_game_json()).expect("minimal game json should parse");
 
+        // At a club, as a player receiving a bid is. A free agent would be
+        // signed by load repair to bring the fixture's club up to the squad
+        // floor, and signing a player clears the offers this test reads.
+        json["players"][0]["team_id"] = serde_json::json!("team-001");
         json["players"][0]["transfer_offers"] = serde_json::json!([
             {
                 "id": "offer-legacy-1",

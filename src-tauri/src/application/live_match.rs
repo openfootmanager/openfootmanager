@@ -256,6 +256,7 @@ pub fn start_live_match_with_identity(
                 return Err("be.error.liveMatch.fixtureNotFound".to_string());
             }
 
+            live_match_manager::prepare_kick_off(game, fixture_index);
             let session = live_match_manager::create_live_match(
                 game,
                 fixture_index,

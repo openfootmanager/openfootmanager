@@ -57,6 +57,9 @@ pub(super) fn execute_loan(
     if parent_team_id == loan_team_id {
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
+    // First, before anything moves: an agreement struck while the club had
+    // players to spare can fall due after it has lost some.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
 
     let player_snapshot = game
         .players
@@ -241,6 +244,9 @@ pub(super) fn execute_transfer(
     from_team_id: &str,
     fee: u64,
 ) -> Result<(), String> {
+    // First, before anything moves: an agreement struck while the club had
+    // players to spare can fall due after it has lost some.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
     let player_snapshot = game
         .players
         .iter()

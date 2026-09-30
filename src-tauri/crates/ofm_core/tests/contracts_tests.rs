@@ -413,6 +413,25 @@ fn terminate_contract_now_blocks_when_goalkeeper_would_be_lost() {
     assert_eq!(game.teams[0].finance, original_finance);
 }
 
+/// Eleven fit players would still take the field without him, so the matchday
+/// check lets it through; the club would be down to three defenders, which the
+/// squad floor does not.
+#[test]
+fn terminate_contract_now_blocks_when_the_squad_would_fall_below_the_floor() {
+    let mut game = make_squad_game();
+    let original_finance = game.teams[0].finance;
+
+    let error = terminate_contract_now(&mut game, "player-3").expect_err("termination should fail");
+
+    assert_eq!(
+        error,
+        "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Defender"
+    );
+    let player = game.players.iter().find(|p| p.id == "player-3").unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(game.teams[0].finance, original_finance);
+}
+
 #[test]
 fn rejected_offer_leaves_state_unchanged() {
     let mut game = make_game();

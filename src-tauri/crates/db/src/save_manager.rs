@@ -586,6 +586,14 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // A save written before the squad floor was enforced can open with
+        // clubs already short of it. Before the stranded-fixture repair below:
+        // that one scores fixtures from the squads, so it reads them repaired.
+        if ofm_core::squad_floor::repair_squads_on_load(&mut game) {
+            info!("[save_manager] brought short squads up to the floor in save {save_id}");
+            needs_resave = true;
+        }
+
         // LAST of the data backfills, and that ordering is load-bearing. The repair resolves a
         // stranded fixture from club strength, which is the average stored `ovr` of the best XI — so
         // running it before the OVR backfill above scores a pre-OVR save's clubs at zero, and the
@@ -2130,9 +2138,11 @@ mod tests {
 
         let loaded = sm.load_game(&save_id).unwrap();
 
+        // Only the seed is under test: the sample club is below the squad floor,
+        // so loading it rightly warns about that, and that warning is ledgered.
         assert!(
-            loaded.emitted_events.is_empty(),
-            "a current-format save must keep its empty ledger, got {:?}",
+            !loaded.emitted_events.contains("world_cup_champion_2030"),
+            "a current-format save must not be seeded from its world history, got {:?}",
             loaded.emitted_events
         );
     }
@@ -2487,6 +2497,57 @@ mod tests {
         let starting_xi_ids: Vec<String> = serde_json::from_str(&starting_xi_json).unwrap();
 
         assert_eq!(starting_xi_ids, team.starting_xi_ids);
+    }
+
+    /// A save written before the squad floor was enforced can hold an AI club
+    /// with nobody left. Loading it signs that club a squad, and the signings
+    /// are written back to the save file — read here from the `.db` itself,
+    /// because a reload would simply repair the world again.
+    #[test]
+    fn test_load_game_brings_a_short_ai_club_up_to_the_squad_floor_and_saves_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_opening_save_without_youth_academy();
+        let mut position_index = 0;
+        for (group, floor) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP {
+            for _ in 0..floor {
+                position_index += 1;
+                game.players.push(make_opening_repair_player(
+                    &format!("user-{position_index}"),
+                    group.clone(),
+                    "1998-01-01",
+                ));
+            }
+        }
+        game.teams.push(Team::new(
+            "team-002".to_string(),
+            "Empty Town".to_string(),
+            "EMP".to_string(),
+            "GB".to_string(),
+            "Leeds".to_string(),
+            "Empty Ground".to_string(),
+            10_000,
+        ));
+        let save_id = sm.create_save(&game, "Pre-floor Career").unwrap();
+        let db_path = saves_dir.join(format!("{}.db", save_id));
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open(&db_path).unwrap();
+        let persisted = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(
+            ofm_core::squad_floor::squad_shortfall(&persisted, "team-002").is_empty(),
+            "the repaired squad was not written back"
+        );
+        assert!(
+            persisted
+                .players
+                .iter()
+                .filter(|player| player.team_id.as_deref() == Some("team-002"))
+                .all(|player| player.contract_end.is_some())
+        );
     }
 
     #[test]

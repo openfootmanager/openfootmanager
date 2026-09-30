@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}."
+      },
       "noActiveGameSession": "Aucune partie active",
       "noActiveSaveSession": "Aucune session de sauvegarde active",
       "saveNotFound": "Sauvegarde '{{saveId}}' introuvable.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} signe pour {{team}}",
         "body": "{{player}} a rejoint {{team}} comme joueur libre avec un contrat de {{years}} an(s)."
+      },
+      "squadBelowFloor": {
+        "subject": "Effectif sous le minimum : {{group}}",
+        "body": "Coach, il nous manque des joueurs. {{group}} : {{have}} inscrits, alors qu'un club doit en compter au moins {{floor}}. Veuillez recruter avant notre prochain match — s'il nous manque encore des joueurs au coup d'envoi, je devrai engager des joueurs libres pour que le match puisse avoir lieu."
+      },
+      "squadToppedUp": {
+        "subject": "Recrutements d'urgence : {{team}}",
+        "body": "Coach, nous n'avions pas assez de joueurs pour aligner une équipe, j'ai donc engagé ces joueurs libres avant le coup d'envoi : {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Rapport de l'adjoint — Renouvellements",

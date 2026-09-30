@@ -22,6 +22,8 @@ use std::collections::HashMap;
 mod fixtures;
 #[path = "turn_tests/live_match_day.rs"]
 mod live_match_day;
+#[path = "turn_tests/squad_floor.rs"]
+mod squad_floor;
 #[path = "turn_tests/training_ground.rs"]
 mod training_ground;
 #[path = "turn_tests/unwatched.rs"]

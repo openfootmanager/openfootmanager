@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}."
+      },
       "noActiveGameSession": "Žádná aktivní herní relace",
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} podepisuje smlouvu s týmem {{team}}",
         "body": "Hráč {{player}} se připojil k týmu {{team}} jako volný hráč a podepsal smlouvu na {{years}} let."
+      },
+      "squadBelowFloor": {
+        "subject": "Kádr pod minimem: {{group}}",
+        "body": "Šéfe, chybí nám hráči. {{group}}: registrováno {{have}}, přitom klub jich musí mít alespoň {{floor}}. Před dalším zápasem prosím doplňte kádr — pokud nám budou hráči chybět i při výkopu, budu muset podepsat volné hráče, aby se zápas mohl odehrát."
+      },
+      "squadToppedUp": {
+        "subject": "Nouzové posily: {{team}}",
+        "body": "Šéfe, neměli jsme dost hráčů, abychom postavili tým, a tak jsem před výkopem podepsal tyto volné hráče: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Zpráva asistenta — Prodloužení smluv",

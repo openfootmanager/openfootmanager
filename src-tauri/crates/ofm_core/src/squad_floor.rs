@@ -6,7 +6,9 @@
 //! every path that can take players away from a club answers to it.
 
 use crate::game::Game;
+use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::player::Position;
+use std::collections::HashMap;
 
 /// Players a club must keep registered in each position group, in
 /// `[GK, DEF, MID, FWD]` order. Twelve in all: an eleven and a second keeper,
@@ -34,18 +36,274 @@ pub fn group_floor(group: &Position) -> usize {
 /// since they are still the club's to field in a crisis, and players out on
 /// loan excluded, since they are registered to their borrower.
 pub fn squad_shortfall(game: &Game, team_id: &str) -> Vec<(Position, usize)> {
+    let mut registered = [0; 4];
+    for player in &game.players {
+        if player.team_id.as_deref() == Some(team_id) {
+            registered[group_index(&player.position)] += 1;
+        }
+    }
+    shortfall_of(registered)
+}
+
+/// Where a position's group sits in [`MIN_PLAYERS_PER_GROUP`]: 0 GK, 1 DEF,
+/// 2 MID, 3 FWD. The one place that order is written down.
+pub(crate) fn group_index(position: &Position) -> usize {
+    let group = position.to_group_position();
     MIN_PLAYERS_PER_GROUP
         .iter()
-        .filter_map(|(group, floor)| {
-            let have = game
-                .players
-                .iter()
-                .filter(|player| player.team_id.as_deref() == Some(team_id))
-                .filter(|player| player.position.to_group_position() == *group)
-                .count();
-            (have < *floor).then(|| (group.clone(), floor - have))
+        .position(|(floor_group, _)| *floor_group == group)
+        .expect("every position belongs to one of the four groups")
+}
+
+/// The shortfall for a club with `registered` players per group, in
+/// [`MIN_PLAYERS_PER_GROUP`] order.
+fn shortfall_of(registered: [usize; 4]) -> Vec<(Position, usize)> {
+    MIN_PLAYERS_PER_GROUP
+        .iter()
+        .zip(registered)
+        .filter(|((_, floor), have)| have < floor)
+        .map(|((group, floor), have)| (group.clone(), floor - have))
+        .collect()
+}
+
+/// Registered players per club and group, for every club, in one pass over
+/// the world's players. A club with nobody registered is absent.
+pub(crate) fn registered_by_club(game: &Game) -> HashMap<&str, [usize; 4]> {
+    let mut by_club: HashMap<&str, [usize; 4]> = HashMap::new();
+    for player in &game.players {
+        if let Some(team_id) = player.team_id.as_deref() {
+            by_club.entry(team_id).or_default()[group_index(&player.position)] += 1;
+        }
+    }
+    by_club
+}
+
+/// The group this player's departure would take below the floor, if any.
+///
+/// Answers for the club he is registered to, which is the club that loses him:
+/// the buyer or borrower only gains. A club already short in his group cannot
+/// let him go either — the floor is not a line a club may cross further.
+pub fn departure_would_leave_short(game: &Game, player_id: &str) -> Option<Position> {
+    let player = game.players.iter().find(|player| player.id == player_id)?;
+    let team_id = player.team_id.as_deref()?;
+    let group = player.position.to_group_position();
+    let staying = game
+        .players
+        .iter()
+        .filter(|other| other.id != player_id && other.team_id.as_deref() == Some(team_id))
+        .filter(|other| other.position.to_group_position() == group)
+        .count();
+    (staying < group_floor(&group)).then_some(group)
+}
+
+/// [`departure_would_leave_short`] as the refusal a sale, loan or release
+/// returns, naming the group it would leave the club short of.
+pub(crate) fn ensure_departure_keeps_floor(game: &Game, player_id: &str) -> Result<(), String> {
+    match departure_would_leave_short(game, player_id) {
+        Some(group) => Err(crate::contracts::backend_text_with_param(
+            WOULD_LEAVE_SQUAD_SHORT_ERROR,
+            "group",
+            &position_group_key(&group),
+        )),
+        None => Ok(()),
+    }
+}
+
+/// The frontend key naming a position group, resolved there as a param value.
+fn position_group_key(group: &Position) -> String {
+    format!("common.positionGroups.{group:?}")
+}
+
+const WOULD_LEAVE_SQUAD_SHORT_ERROR: &str = "be.error.squadFloor.wouldLeaveShort";
+
+/// The daily check, run once every way a club can lose players has had its
+/// turn: an AI club short of the floor signs its way back to it; the player's
+/// own club is told which groups are short and left to act, because signing
+/// players on a manager's behalf is his decision until a match cannot go ahead
+/// without them ([`ready_for_kick_off`]).
+pub fn keep_squads_at_the_floor(game: &mut Game) {
+    for (team_id, shortfall) in clubs_below_the_floor(game) {
+        if Some(&team_id) == game.manager.team_id.as_ref() {
+            warn_user_club_is_short(game, &team_id, &shortfall);
+        } else {
+            let signed = restore_minimum_squad(game, &team_id);
+            log::info!(
+                "[squad_floor] {team_id} was short {shortfall:?}; signed {}",
+                signed.len()
+            );
+        }
+    }
+}
+
+/// Bring a loaded or freshly built world up to the floor.
+///
+/// A save written before the floor was enforced, or a package whose author
+/// left a club thin, can open with clubs already short. The same rule as the
+/// daily check, with one difference: when the player's club has a match today,
+/// the warning would arrive with no time to act on it, so it is left to the
+/// kick-off top-up and its own message instead. Returns whether anything
+/// changed, so a loaded save knows it needs writing back.
+pub fn repair_squads_on_load(game: &mut Game) -> bool {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let user_club_plays_today =
+        game.manager.team_id.as_ref().is_some_and(|team_id| {
+            crate::training::teams_playing_on(game, &today).contains(team_id)
+        });
+    let short_clubs = clubs_below_the_floor(game);
+    let changed = !short_clubs.is_empty();
+    for (team_id, shortfall) in short_clubs {
+        if Some(&team_id) == game.manager.team_id.as_ref() {
+            if !user_club_plays_today {
+                warn_user_club_is_short(game, &team_id, &shortfall);
+            }
+        } else {
+            let signed = restore_minimum_squad(game, &team_id);
+            log::info!(
+                "[squad_floor] on load, {team_id} was short {shortfall:?}; signed {}",
+                signed.len()
+            );
+        }
+    }
+    changed
+}
+
+/// The last line: a club about to kick off short of players signs free agents
+/// first, so every match is played by two sides that can be fielded.
+///
+/// The player's club is only topped up when it could not put a side out at all
+/// — fewer than eleven registered, or no goalkeeper — because until then who to
+/// sign is the manager's call, and the daily warnings have told them. When it
+/// is topped up, it is brought all the way to the floor and told who was
+/// signed. An AI club is topped up whenever it is short; the daily check should
+/// have got there first, so a top-up here is logged as the sign of a gap in it.
+pub fn ready_for_kick_off(game: &mut Game, team_id: &str) {
+    let is_users_club = Some(team_id) == game.manager.team_id.as_deref();
+    if is_users_club && can_put_a_side_out(game, team_id) {
+        return;
+    }
+    let signed = restore_minimum_squad(game, team_id);
+    if signed.is_empty() {
+        return;
+    }
+    if is_users_club {
+        let message = squad_topped_up_message(game, team_id, &signed);
+        crate::inbox::emit(game, message);
+    } else {
+        log::warn!(
+            "[squad_floor] {team_id} reached kick-off short of the floor; signed {}",
+            signed.len()
+        );
+    }
+}
+
+/// Players a side puts on the pitch.
+const PLAYERS_ON_THE_PITCH: usize = 11;
+
+/// Whether the club has eleven players registered, a goalkeeper among them.
+/// Injured players count: the match builder fields them when it must.
+fn can_put_a_side_out(game: &Game, team_id: &str) -> bool {
+    let mut registered = 0;
+    let mut goalkeepers = 0;
+    for player in &game.players {
+        if player.team_id.as_deref() == Some(team_id) {
+            registered += 1;
+            if player.position.to_group_position() == Position::Goalkeeper {
+                goalkeepers += 1;
+            }
+        }
+    }
+    registered >= PLAYERS_ON_THE_PITCH && goalkeepers > 0
+}
+
+/// Every club short of the floor, with its shortfall, in the order clubs are
+/// stored so the signings a day makes do not depend on hashing.
+fn clubs_below_the_floor(game: &Game) -> Vec<(String, Vec<(Position, usize)>)> {
+    let registered = registered_by_club(game);
+    game.teams
+        .iter()
+        .filter_map(|team| {
+            let shortfall = shortfall_of(
+                registered
+                    .get(team.id.as_str())
+                    .copied()
+                    .unwrap_or_default(),
+            );
+            (!shortfall.is_empty()).then(|| (team.id.clone(), shortfall))
         })
         .collect()
+}
+
+/// One message per short group. Keyed on the season, the group and how many
+/// are left, so the player hears once when a group goes short and again if it
+/// gets worse — not every day it stays that way.
+fn warn_user_club_is_short(game: &mut Game, team_id: &str, shortfall: &[(Position, usize)]) {
+    let season = crate::inbox::recurrence_season(game);
+    let date = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let team_name = team_name(game, team_id);
+    for (group, missing) in shortfall {
+        let floor = group_floor(group);
+        let have = floor - missing;
+        let key = format!("squad_below_floor_{team_id}_{season}_{group:?}_{have}");
+        let mut params = HashMap::new();
+        params.insert("team".to_string(), team_name.clone());
+        params.insert("group".to_string(), position_group_key(group));
+        params.insert("have".to_string(), have.to_string());
+        params.insert("floor".to_string(), floor.to_string());
+        let message = InboxMessage::new(
+            key,
+            String::new(),
+            String::new(),
+            String::new(),
+            date.clone(),
+        )
+        .with_category(MessageCategory::Contract)
+        .with_priority(MessagePriority::Urgent)
+        .with_sender_role("")
+        .with_i18n(
+            "be.msg.squadBelowFloor.subject",
+            "be.msg.squadBelowFloor.body",
+            params,
+        )
+        .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager");
+        crate::inbox::emit(game, message);
+    }
+}
+
+fn squad_topped_up_message(game: &Game, team_id: &str, signed: &[String]) -> InboxMessage {
+    let date = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let names = signed
+        .iter()
+        .filter_map(|id| game.players.iter().find(|player| &player.id == id))
+        .map(|player| player.full_name.clone())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let mut params = HashMap::new();
+    params.insert("team".to_string(), team_name(game, team_id));
+    params.insert("players".to_string(), names);
+    InboxMessage::new(
+        format!("squad_topped_up_{team_id}_{date}"),
+        String::new(),
+        String::new(),
+        String::new(),
+        date,
+    )
+    .with_category(MessageCategory::Contract)
+    .with_priority(MessagePriority::Urgent)
+    .with_sender_role("")
+    .with_i18n(
+        "be.msg.squadToppedUp.subject",
+        "be.msg.squadToppedUp.body",
+        params,
+    )
+    .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
+}
+
+fn team_name(game: &Game, team_id: &str) -> String {
+    game.teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.name.clone())
+        .unwrap_or_else(|| team_id.to_string())
 }
 
 /// Bring a club back up to the floor by signing free agents, and return the
@@ -309,5 +567,224 @@ mod tests {
         game.players
             .push(free_agent("keeper", Position::Goalkeeper, 90));
         assert!(restore_minimum_squad(&mut game, "club").is_empty());
+    }
+
+    #[test]
+    fn a_player_cannot_leave_a_group_that_is_at_the_floor() {
+        let game = club_with([2, 5, 4, 2]);
+        assert_eq!(
+            departure_would_leave_short(&game, "Goalkeeper0"),
+            Some(Position::Goalkeeper)
+        );
+        assert_eq!(departure_would_leave_short(&game, "Defender0"), None);
+        assert!(ensure_departure_keeps_floor(&game, "Defender0").is_ok());
+        assert_eq!(
+            ensure_departure_keeps_floor(&game, "Forward1"),
+            Err(
+                "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Forward"
+                    .to_string()
+            )
+        );
+    }
+
+    /// A player who is not at a club leaves nobody short.
+    #[test]
+    fn a_free_agent_leaves_nobody_short() {
+        let mut game = club_with([2, 4, 4, 2]);
+        game.players
+            .push(free_agent("agent", Position::Goalkeeper, 70));
+        assert_eq!(departure_would_leave_short(&game, "agent"), None);
+    }
+
+    /// The same squad as [`club_with`], managed by the player.
+    fn users_club_with(per_group: [usize; 4]) -> Game {
+        let mut game = club_with(per_group);
+        game.manager.hire("club".to_string());
+        game
+    }
+
+    fn inbox_keys(game: &Game) -> Vec<(&str, Option<&str>)> {
+        game.messages
+            .iter()
+            .map(|message| {
+                (
+                    message.body_key.as_deref().unwrap_or(""),
+                    message.i18n_params.get("group").map(String::as_str),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_daily_check_tops_up_an_ai_club_and_only_warns_the_player() {
+        let mut game = users_club_with([1, 4, 4, 1]);
+        game.teams.push(Team::new(
+            "rival".to_string(),
+            "Rival".to_string(),
+            "RIV".to_string(),
+            "England".to_string(),
+            "Leeds".to_string(),
+            "Park".to_string(),
+            10_000,
+        ));
+
+        keep_squads_at_the_floor(&mut game);
+
+        assert!(
+            squad_shortfall(&game, "rival").is_empty(),
+            "the AI club was left short"
+        );
+        assert_eq!(
+            squad_shortfall(&game, "club"),
+            vec![(Position::Goalkeeper, 1), (Position::Forward, 1)],
+            "players were signed for the player's club without asking"
+        );
+        assert_eq!(
+            inbox_keys(&game),
+            vec![
+                (
+                    "be.msg.squadBelowFloor.body",
+                    Some("common.positionGroups.Goalkeeper")
+                ),
+                (
+                    "be.msg.squadBelowFloor.body",
+                    Some("common.positionGroups.Forward")
+                ),
+            ]
+        );
+        let keeper_warning = &game.messages[0].i18n_params;
+        assert_eq!(keeper_warning.get("have").map(String::as_str), Some("1"));
+        assert_eq!(keeper_warning.get("floor").map(String::as_str), Some("2"));
+    }
+
+    /// A shortfall that lasts is one warning, not one a day; the same group
+    /// getting worse is news again.
+    #[test]
+    fn the_player_is_warned_once_until_the_shortfall_gets_worse() {
+        let mut game = users_club_with([1, 4, 4, 2]);
+        keep_squads_at_the_floor(&mut game);
+        game.clock.advance_days(1);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(game.messages.len(), 1);
+
+        game.messages.clear();
+        game.players.retain(|player| player.id != "Goalkeeper0");
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(game.messages.len(), 1, "a worse shortfall went unreported");
+        assert_eq!(
+            game.messages[0].i18n_params.get("have").map(String::as_str),
+            Some("0")
+        );
+    }
+
+    /// No goalkeeper at all: the match cannot go ahead as things stand, so the
+    /// club is brought to the floor — both keepers — and told who they are.
+    #[test]
+    fn at_kick_off_a_players_club_that_cannot_field_a_side_is_topped_up_and_told() {
+        let mut game = users_club_with([0, 4, 4, 2]);
+        game.players
+            .push(free_agent("keeper", Position::Goalkeeper, 70));
+
+        ready_for_kick_off(&mut game, "club");
+
+        assert!(squad_shortfall(&game, "club").is_empty());
+        assert_eq!(game.messages.len(), 1);
+        let message = &game.messages[0];
+        assert_eq!(
+            message.body_key.as_deref(),
+            Some("be.msg.squadToppedUp.body")
+        );
+        let named = message.i18n_params.get("players").unwrap();
+        assert!(named.starts_with("keeper, "), "signings named: {named}");
+    }
+
+    /// Eleven players and a keeper can play. Short of a spare keeper is a
+    /// reason to warn, not to sign someone on the manager's behalf.
+    #[test]
+    fn at_kick_off_a_players_club_that_can_field_a_side_is_left_to_its_manager() {
+        let mut game = users_club_with([1, 4, 4, 2]);
+        game.players
+            .push(free_agent("keeper", Position::Goalkeeper, 70));
+
+        ready_for_kick_off(&mut game, "club");
+
+        assert!(game.messages.is_empty());
+        let keeper = game.players.iter().find(|p| p.id == "keeper").unwrap();
+        assert_eq!(keeper.team_id, None);
+    }
+
+    /// Ten outfield players and a keeper registered, one short of a side.
+    #[test]
+    fn at_kick_off_a_players_club_of_ten_is_topped_up() {
+        let mut game = users_club_with([1, 4, 4, 1]);
+        ready_for_kick_off(&mut game, "club");
+        assert!(squad_shortfall(&game, "club").is_empty());
+        assert_eq!(game.messages.len(), 1);
+    }
+
+    #[test]
+    fn at_kick_off_an_ai_club_is_topped_up_without_a_message() {
+        let mut game = club_with([0, 0, 0, 0]);
+        ready_for_kick_off(&mut game, "club");
+        assert!(squad_shortfall(&game, "club").is_empty());
+        assert!(game.messages.is_empty());
+    }
+
+    #[test]
+    fn at_kick_off_a_club_at_the_floor_is_left_alone() {
+        let mut game = users_club_with([2, 4, 4, 2]);
+        game.players
+            .push(free_agent("keeper", Position::Goalkeeper, 70));
+        ready_for_kick_off(&mut game, "club");
+        assert!(game.messages.is_empty());
+        let keeper = game.players.iter().find(|p| p.id == "keeper").unwrap();
+        assert_eq!(keeper.team_id, None);
+    }
+
+    fn with_fixture_on(game: &mut Game, date: &str) {
+        let teams = vec!["club".to_string(), "rival".to_string()];
+        let mut league =
+            domain::league::League::new("league".to_string(), "League".to_string(), 2026, &teams);
+        league.fixtures.push(domain::league::Fixture {
+            id: "fixture".to_string(),
+            competition_id: "league".to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: "club".to_string(),
+            away_team_id: "rival".to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            status: domain::league::FixtureStatus::Scheduled,
+            result: None,
+        });
+        game.league = Some(league);
+    }
+
+    /// On load, the player hears about a short squad — unless the club plays
+    /// today, when the warning would come with no time to act and kick-off
+    /// sends its own message instead.
+    #[test]
+    fn load_repair_warns_the_player_unless_the_club_plays_today() {
+        let mut quiet_day = users_club_with([1, 4, 4, 2]);
+        with_fixture_on(&mut quiet_day, "2026-08-08");
+        assert!(repair_squads_on_load(&mut quiet_day));
+        assert_eq!(quiet_day.messages.len(), 1);
+        assert!(!squad_shortfall(&quiet_day, "club").is_empty());
+
+        let mut matchday = users_club_with([1, 4, 4, 2]);
+        with_fixture_on(&mut matchday, "2026-08-01");
+        assert!(repair_squads_on_load(&mut matchday));
+        assert!(matchday.messages.is_empty());
+        assert!(!squad_shortfall(&matchday, "club").is_empty());
+    }
+
+    #[test]
+    fn load_repair_tops_up_ai_clubs_and_reports_nothing_to_do_when_all_are_full() {
+        let mut game = club_with([0, 4, 4, 2]);
+        assert!(repair_squads_on_load(&mut game));
+        assert!(squad_shortfall(&game, "club").is_empty());
+        assert!(
+            !repair_squads_on_load(&mut game),
+            "a full world was rewritten"
+        );
     }
 }

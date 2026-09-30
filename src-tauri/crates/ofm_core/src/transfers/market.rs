@@ -6,15 +6,8 @@
 
 use super::*;
 
-/// Broad position group index (0=GK, 1=DEF, 2=MID, 3=FWD) for squad-depth maths.
-pub(crate) fn position_group_index(position: &domain::player::Position) -> usize {
-    match position.to_group_position() {
-        domain::player::Position::Goalkeeper => 0,
-        domain::player::Position::Defender => 1,
-        domain::player::Position::Midfielder => 2,
-        _ => 3,
-    }
-}
+use crate::squad_floor::group_index as position_group_index;
+
 /// Whether a club has a realistic reason to pursue a target: it isn't far below
 /// the player's current club in stature, and it isn't already overloaded in the
 /// player's position group.
@@ -251,11 +244,25 @@ pub fn evaluate_transfer_market(game: &mut Game) {
     // Each club then scans this short, score-sorted list instead of the whole
     // world, turning an O(clubs × players) sweep into O(players + clubs × shortlist).
     let mut shortlist: Vec<MarketTarget> = Vec::new();
+    let registered = crate::squad_floor::registered_by_club(game);
     for player in &game.players {
         let Some(owner_team_id) = player.team_id.as_deref() else {
             continue;
         };
         if player_has_pending_registration(player) {
+            continue;
+        }
+        // An AI club at the floor in his group will not sell him, so no buyer
+        // should spend its approach on him. `execute_transfer` refuses the sale
+        // regardless; this keeps the refusal from costing a buyer its day. The
+        // player's own club is left to decide for itself.
+        let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
+        if !is_user_owned
+            && registered.get(owner_team_id).is_some_and(|groups| {
+                let group = position_group_index(&player.position);
+                groups[group] <= crate::squad_floor::MIN_PLAYERS_PER_GROUP[group].1
+            })
+        {
             continue;
         }
         let mut score = incoming_interest_score(current_date, player);
@@ -265,7 +272,6 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         if score < 35 {
             continue;
         }
-        let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
         shortlist.push(MarketTarget {
             player_id: player.id.clone(),
             owner_team_id: owner_team_id.to_string(),

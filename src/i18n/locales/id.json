@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}."
+      },
       "noActiveGameSession": "Tidak ada sesi permainan yang aktif",
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} Menandatangani Kontrak dengan {{team}}",
         "body": "{{player}} telah bergabung dengan {{team}} sebagai agen bebas dengan kontrak {{years}} tahun."
+      },
+      "squadBelowFloor": {
+        "subject": "Skuad di Bawah Minimum: {{group}}",
+        "body": "Bos, kita kekurangan pemain. {{group}}: {{have}} terdaftar, padahal klub harus punya setidaknya {{floor}}. Rekrut pemain lagi sebelum pertandingan berikutnya — kalau saat sepak mula kita masih kekurangan, saya terpaksa mengontrak agen bebas agar pertandingan tetap bisa berjalan."
+      },
+      "squadToppedUp": {
+        "subject": "Rekrutan Darurat: {{team}}",
+        "body": "Bos, kita tidak punya cukup pemain untuk menurunkan tim, jadi saya mengontrak agen bebas berikut sebelum sepak mula: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Laporan Asisten — Perpanjangan Kontrak",

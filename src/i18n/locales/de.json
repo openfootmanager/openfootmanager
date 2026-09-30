@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}."
+      },
       "noActiveGameSession": "Keine aktive Spielsitzung",
       "noActiveSaveSession": "Keine aktive Speicherstandsitzung",
       "saveNotFound": "Speicherstand '{{saveId}}' wurde nicht gefunden.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} unterschreibt bei {{team}}",
         "body": "{{player}} hat sich {{team}} als vereinsloser Spieler mit einem Vertrag über {{years}} Jahr(e) angeschlossen."
+      },
+      "squadBelowFloor": {
+        "subject": "Kader unter dem Minimum: {{group}}",
+        "body": "Boss, uns fehlen Spieler. {{group}}: {{have}} gemeldet, ein Verein muss aber mindestens {{floor}} haben. Bitte verpflichte vor unserem nächsten Spiel weitere Spieler – fehlen uns beim Anpfiff immer noch Leute, muss ich vereinslose Spieler verpflichten, damit das Spiel stattfinden kann."
+      },
+      "squadToppedUp": {
+        "subject": "Notverpflichtungen: {{team}}",
+        "body": "Boss, wir hatten nicht genug Spieler, um eine Mannschaft aufzustellen, also habe ich vor dem Anpfiff diese vereinslosen Spieler verpflichtet: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Assistentenbericht — Vertragsverlängerungen",

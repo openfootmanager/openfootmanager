@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}."
+      },
       "noActiveGameSession": "No hay una sesión de juego activa",
       "noActiveSaveSession": "No hay una sesión de guardado activa",
       "saveNotFound": "No se encontró la partida guardada '{{saveId}}'.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} ficha por {{team}}",
         "body": "{{player}} se ha unido a {{team}} como agente libre con un contrato de {{years}} año(s)."
+      },
+      "squadBelowFloor": {
+        "subject": "Plantilla por debajo del mínimo: {{group}}",
+        "body": "Míster, nos faltan jugadores. {{group}}: {{have}} inscritos, y un club debe tener al menos {{floor}}. Ficha a más antes de nuestro próximo partido; si seguimos cortos en el saque inicial, tendré que fichar agentes libres para que el partido pueda jugarse."
+      },
+      "squadToppedUp": {
+        "subject": "Fichajes de urgencia: {{team}}",
+        "body": "Míster, no teníamos jugadores suficientes para presentar un equipo, así que fiché a estos agentes libres antes del saque inicial: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Informe del asistente — Renovaciones",

@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}."
+      },
       "noActiveGameSession": "Aktif oyun oturumu yok",
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}}, {{team}} ile İmzaladı",
         "body": "{{player}}, {{years}} yıllık sözleşmeyle {{team}} kadrosuna bonservissiz katıldı."
+      },
+      "squadBelowFloor": {
+        "subject": "Kadro Asgari Sayının Altında: {{group}}",
+        "body": "Hocam, oyuncumuz eksik. {{group}}: {{have}} kayıtlı, oysa bir kulübün en az {{floor}} oyuncusu olmalı. Lütfen bir sonraki maçımızdan önce takviye yapın; başlama vuruşunda hâlâ eksik olursak, maçın oynanabilmesi için serbest oyuncularla sözleşme imzalamak zorunda kalacağım."
+      },
+      "squadToppedUp": {
+        "subject": "Acil Transferler: {{team}}",
+        "body": "Hocam, sahaya bir takım çıkaracak kadar oyuncumuz yoktu, bu yüzden başlama vuruşundan önce şu serbest oyuncularla sözleşme imzaladım: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Yardımcı Raporu — Sözleşme Yenilemeleri",

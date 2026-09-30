@@ -2552,6 +2552,9 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}."
+      },
       "noActiveGameSession": "No active game session",
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
@@ -3231,6 +3234,14 @@
       "freeAgentSigned": {
         "subject": "{{player}} Signs for {{team}}",
         "body": "{{player}} has joined {{team}} as a free agent on a {{years}}-year contract."
+      },
+      "squadBelowFloor": {
+        "subject": "Squad Below the Minimum: {{group}}",
+        "body": "Boss, we are short of players. {{group}}: {{have}} registered, and a club must keep at least {{floor}}. Please sign more before our next match — if we are still short at kick-off, I will have to sign free agents so the match can go ahead."
+      },
+      "squadToppedUp": {
+        "subject": "Emergency Signings: {{team}}",
+        "body": "Boss, we did not have enough players to field a side, so I signed these free agents before kick-off: {{players}}."
       },
       "delegatedRenewals": {
         "subject": "Assistant Report — Contract Renewals",
