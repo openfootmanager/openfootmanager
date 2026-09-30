@@ -406,6 +406,28 @@ mod tests {
 
         assert_eq!(game.teams[0].finance, initial_finance - 1_200);
     }
+
+    /// Given a fixture that cannot be played live and no competition in the
+    /// legacy slot to settle it in, when the match is simulated, then the day
+    /// goes on: the fallback that exists so a day always finishes does not
+    /// itself panic.
+    #[test]
+    fn a_fixture_with_no_competition_to_settle_it_in_does_not_stop_the_day() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 16, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let mut game = Game::new(clock, manager, vec![make_team()], vec![], vec![], vec![]);
+        assert!(game.league.is_none());
+
+        super::simulate_single_match_with_capture(&mut game, 0, &mut |_| {});
+
+        assert!(game.league.is_none());
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -483,10 +505,16 @@ where
             log::error!(
                 "[turn] fixture {idx} could not be played live ({error}); settled by scoreline"
             );
-            let league = game
-                .league
-                .as_mut()
-                .expect("simulate_matchday runs with the competition in the legacy slot");
+            // The day's sweep puts the competition in the legacy slot before it
+            // gets here. Were it ever missing there would be no fixture to
+            // settle either, so the day goes on without it rather than
+            // panicking on the one path that exists so a day always finishes.
+            let Some(league) = game.league.as_mut() else {
+                log::error!(
+                    "[turn] fixture {idx} has no competition in the legacy slot to settle it in"
+                );
+                return;
+            };
             crate::catchup::resolve_fixture_by_scoreline(
                 &game.players,
                 league,
