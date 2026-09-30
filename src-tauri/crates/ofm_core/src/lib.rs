@@ -43,4 +43,5 @@ pub mod state;
 pub mod training;
 pub mod transfers;
 pub mod turn;
+pub mod world;
 pub mod world_cup;

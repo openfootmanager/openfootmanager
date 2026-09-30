@@ -11,7 +11,6 @@
 
 use domain::{
     league::{FixtureCompetition, League},
-    manager::Manager,
     news::{NewsArticle, NewsCategory},
     stats::{PlayerMatchStatsRecord, TeamMatchStatsRecord},
     world_history::{HistoricalSeasonAwardsRecord, WorldHistoryArchive},
@@ -23,33 +22,6 @@ use ofm_core::{
 };
 
 use super::start_date_for_year;
-
-pub(super) fn manager_for(team_id: &str) -> Manager {
-    let mut manager = Manager::new(
-        "mgr".to_string(),
-        "A".to_string(),
-        "B".to_string(),
-        "1980-01-01".to_string(),
-        "England".to_string(),
-    );
-    manager.hire(team_id.to_string());
-    manager
-}
-
-pub(super) fn nation_team(id: &str, nation: &str, reputation: u32) -> domain::team::Team {
-    let mut team = domain::team::Team::new(
-        id.to_string(),
-        id.to_string(),
-        id.to_string(),
-        nation.to_string(),
-        "City".to_string(),
-        "Stadium".to_string(),
-        10_000,
-    );
-    team.football_nation = nation.to_string();
-    team.reputation = reputation;
-    team
-}
 
 pub(super) fn default_player_attributes() -> domain::player::PlayerAttributes {
     domain::player::PlayerAttributes {

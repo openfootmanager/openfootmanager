@@ -6,45 +6,44 @@
 //! foundations a loaded save is missing, reserving international windows, and
 //! resolving which regions and competitions a career actually simulates.
 
-mod plan;
-
 use chrono::{DateTime, Datelike, Duration, Utc};
 
+use crate::game::Game;
 use domain::league::{CompetitionFormat, League};
-use ofm_core::game::Game;
 
-use super::{
-    build_national_teams, competition_required_region_ids, infer_team_region_id,
-    preseason_league_year, preseason_season_start,
-};
-use plan::build_foundation_competition_plan;
+use super::plan::build_foundation_competition_plan;
+use super::*;
 
 // `team_season_anchor` is used by `start_new_game`, which lives a level up, so
 // it needs a re-export rather than the plain import the plan builder gets.
-pub(super) use plan::team_season_anchor;
+pub use plan::team_season_anchor;
 
-pub(super) fn finalize_brazil_state_competition(competition: &mut League) {
+fn finalize_brazil_state_competition(competition: &mut League) {
     competition.rules.counts_in_season_flow = false;
     competition.rules.knockout_round_gap_days = 7;
 }
 
-pub(super) fn build_foundation_competitions(game: &Game) -> Vec<League> {
+/// Build a game's competitions, chunking each country's clubs into divisions
+/// of `division_size`.
+///
+/// Only the season harness passes anything but [`TOP_DIVISION_SIZE`]. It needs
+/// the *shapes* that break — a two-tier pyramid, a split-season country, a
+/// shared continental cup — without the club count that normally comes with
+/// them, because a simulated season costs about n^2.43 in the size of the
+/// world and the shipped one is 440 clubs.
+pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -> Vec<League> {
     let game_start = game.clock.start_date;
     let season = preseason_league_year(&game.clock);
-    build_foundation_competition_plan(game, game_start)
+    build_foundation_competition_plan(game, game_start, division_size)
         .iter()
         .filter_map(|(def, start)| {
             let mut competition =
-                ofm_core::generator::build_explicit_competition(def, season, *start)?;
+                crate::generator::build_explicit_competition(def, season, *start)?;
             // FM-style: if this competition's season already began before the game
             // anchor date, simulate the missing matchdays so the player joins a
             // living in-progress season rather than a blank table.
             if *start <= game_start {
-                ofm_core::catchup::simulate_past_fixtures(
-                    &mut competition,
-                    &game.players,
-                    game_start,
-                );
+                crate::catchup::simulate_past_fixtures(&mut competition, &game.players, game_start);
             }
             if competition.id.starts_with("br-state-") {
                 finalize_brazil_state_competition(&mut competition);
@@ -54,22 +53,19 @@ pub(super) fn build_foundation_competitions(game: &Game) -> Vec<League> {
         .collect()
 }
 
-pub(super) fn rebuild_competitions_for_management_date(
-    game: &mut Game,
-    management_date: DateTime<Utc>,
-) {
+pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date: DateTime<Utc>) {
     let players = &game.players;
     for competition in &mut game.competitions {
         // International tournaments (the World Cup and its qualifying) own a fixed
         // calendar tied to the cup year, not the club's hemisphere. Re-anchoring
         // them against a club's season start would corrupt their dates (and
         // orphan a future-dated kickoff), so leave them untouched.
-        if ofm_core::world_cup::is_world_cup_competition(competition)
-            || ofm_core::world_cup::is_world_cup_qualifying(competition)
+        if crate::world_cup::is_world_cup_competition(competition)
+            || crate::world_cup::is_world_cup_qualifying(competition)
         {
             continue;
         }
-        let (start, is_mid_season) = ofm_core::generator::start_date_at_game_open(
+        let (start, is_mid_season) = crate::generator::start_date_at_game_open(
             management_date,
             competition.season_start_month,
             competition.season_start_day,
@@ -77,17 +73,17 @@ pub(super) fn rebuild_competitions_for_management_date(
         let season = start.year() as u32;
         match competition.rules.format {
             CompetitionFormat::LeagueTable => {
-                ofm_core::schedule::regenerate_league_for_season(competition, season, start)
+                crate::schedule::regenerate_league_for_season(competition, season, start)
             }
             CompetitionFormat::GroupAndKnockout => {
-                ofm_core::group_stage::regenerate_for_season(competition, season, start)
+                crate::group_stage::regenerate_for_season(competition, season, start)
             }
             CompetitionFormat::Knockout => {
-                ofm_core::schedule::regenerate_knockout_for_season(competition, season, start)
+                crate::schedule::regenerate_knockout_for_season(competition, season, start)
             }
         }
         if is_mid_season {
-            ofm_core::catchup::simulate_past_fixtures(competition, players, management_date);
+            crate::catchup::simulate_past_fixtures(competition, players, management_date);
         }
     }
 
@@ -98,33 +94,39 @@ pub(super) fn rebuild_competitions_for_management_date(
         .collect();
     let season = preseason_league_year(&game.clock);
     let mut missing_states: Vec<(League, DateTime<Utc>)> =
-        build_foundation_competition_plan(game, management_date)
+        build_foundation_competition_plan(game, management_date, TOP_DIVISION_SIZE)
             .into_iter()
             .filter(|(definition, _)| {
                 definition.id.starts_with("br-state-") && !existing.contains(&definition.id)
             })
             .filter_map(|(definition, start)| {
                 let mut competition =
-                    ofm_core::generator::build_explicit_competition(&definition, season, start)?;
+                    crate::generator::build_explicit_competition(&definition, season, start)?;
                 finalize_brazil_state_competition(&mut competition);
                 Some((competition, start))
             })
             .collect();
     for (competition, start) in &mut missing_states {
         if *start <= management_date {
-            ofm_core::catchup::simulate_past_fixtures(competition, &game.players, management_date);
+            crate::catchup::simulate_past_fixtures(competition, &game.players, management_date);
         }
     }
     game.competitions
         .extend(missing_states.into_iter().map(|(c, _)| c));
 }
 
-pub(super) fn ensure_multi_competition_foundations(game: &mut Game) {
+pub fn ensure_multi_competition_foundations(game: &mut Game) {
+    ensure_multi_competition_foundations_with(game, TOP_DIVISION_SIZE)
+}
+
+/// As [`ensure_multi_competition_foundations`], but with an explicit division
+/// size. See [`build_foundation_competitions`] for why that exists.
+pub fn ensure_multi_competition_foundations_with(game: &mut Game, division_size: usize) {
     if game.national_teams.is_empty() {
         game.national_teams = build_national_teams(game);
     }
     if game.competitions.is_empty() {
-        game.competitions = build_foundation_competitions(game);
+        game.competitions = build_foundation_competitions(game, division_size);
     }
     if game.active_region_ids.is_empty() {
         game.active_region_ids = game
@@ -150,7 +152,7 @@ pub(super) fn ensure_multi_competition_foundations(game: &mut Game) {
 /// fixtures off those dates, so call-ups never clash with club matches.
 /// Idempotent: existing national-team fixtures (e.g. from a loaded save) are
 /// left untouched, and shifting already-clear club fixtures is a no-op.
-pub(super) fn ensure_international_windows(game: &mut Game) {
+fn ensure_international_windows(game: &mut Game) {
     // A career that opens during a World Cup summer stages the tournament right
     // away: the World Cup is otherwise created only at season rollover, which a
     // fresh save beginning in a cup summer (e.g. mid-2026) never reaches, so the
@@ -158,9 +160,9 @@ pub(super) fn ensure_international_windows(game: &mut Game) {
     // friendlies/qualifiers are scheduled when it runs.
     let now = game.clock.current_date;
     let opens_in_world_cup_summer =
-        ofm_core::world_cup::is_world_cup_summer(now.year()) && (6..=8).contains(&now.month());
+        crate::world_cup::is_world_cup_summer(now.year()) && (6..=8).contains(&now.month());
     if opens_in_world_cup_summer
-        && ofm_core::world_cup::schedule_world_cup_if_due(game, now + Duration::days(2))
+        && crate::world_cup::schedule_world_cup_if_due(game, now + Duration::days(2))
     {
         for national_team in game.national_teams.iter_mut() {
             national_team.fixtures.clear();
@@ -169,7 +171,7 @@ pub(super) fn ensure_international_windows(game: &mut Game) {
     }
 
     let window_dates =
-        ofm_core::national_team::international_window_dates(preseason_season_start(&game.clock));
+        crate::national_team::international_window_dates(preseason_season_start(&game.clock));
     if window_dates.is_empty() {
         return;
     }
@@ -181,31 +183,30 @@ pub(super) fn ensure_international_windows(game: &mut Game) {
     let qualifying_running = game
         .competitions
         .iter()
-        .any(ofm_core::world_cup::is_world_cup_qualifying);
+        .any(crate::world_cup::is_world_cup_qualifying);
     let leads_into_world_cup =
-        ofm_core::world_cup::season_leads_into_world_cup(preseason_season_start(&game.clock));
-    let starts_qualifying = ofm_core::world_cup::season_starts_world_cup_qualifying(
-        preseason_season_start(&game.clock),
-    );
+        crate::world_cup::season_leads_into_world_cup(preseason_season_start(&game.clock));
+    let starts_qualifying =
+        crate::world_cup::season_starts_world_cup_qualifying(preseason_season_start(&game.clock));
     if needs_fixtures && !qualifying_running {
         // A career starting two seasons before a World Cup opens with the full
         // home-and-away qualifying campaign; one starting the season before
         // squeezes in a compressed campaign; any other season opens with
         // friendlies.
         if starts_qualifying {
-            ofm_core::world_cup::schedule_world_cup_qualifying(
+            crate::world_cup::schedule_world_cup_qualifying(
                 game,
                 preseason_season_start(&game.clock).year() + 2,
                 &window_dates,
             );
         } else if leads_into_world_cup {
-            ofm_core::world_cup::schedule_world_cup_qualifying(
+            crate::world_cup::schedule_world_cup_qualifying(
                 game,
                 preseason_season_start(&game.clock).year() + 1,
                 &window_dates,
             );
         } else {
-            ofm_core::national_team::schedule_national_team_friendlies(
+            crate::national_team::schedule_national_team_friendlies(
                 &mut game.national_teams,
                 &window_dates,
                 &mut rand::rng(),
@@ -216,7 +217,7 @@ pub(super) fn ensure_international_windows(game: &mut Game) {
     // Qualifying spreads each window's matches across a multi-day block, so club
     // fixtures must keep clear of the whole span rather than just the openers.
     let reserved_dates = if leads_into_world_cup || starts_qualifying || qualifying_running {
-        ofm_core::national_team::international_window_span_dates(&window_dates)
+        crate::national_team::international_window_span_dates(&window_dates)
     } else {
         window_dates.clone()
     };
@@ -224,21 +225,21 @@ pub(super) fn ensure_international_windows(game: &mut Game) {
         // The World Cup and its qualifying own the reserved window — they are the
         // reason it is reserved — so shifting them off it would move the fixtures
         // we just scheduled there. Only club competitions step aside.
-        if ofm_core::world_cup::is_world_cup_competition(competition)
-            || ofm_core::world_cup::is_world_cup_qualifying(competition)
+        if crate::world_cup::is_world_cup_competition(competition)
+            || crate::world_cup::is_world_cup_qualifying(competition)
         {
             continue;
         }
-        ofm_core::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
+        crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
-    ofm_core::schedule::append_south_american_preseason_friendlies(
+    crate::schedule::append_south_american_preseason_friendlies(
         &mut game.competitions,
         &reserved_dates,
     );
-    ofm_core::schedule::append_other_preseason_friendlies(&mut game.competitions, &reserved_dates);
+    crate::schedule::append_other_preseason_friendlies(&mut game.competitions, &reserved_dates);
 }
 
-pub(super) fn resolve_simulation_scope(
+pub fn resolve_simulation_scope(
     game: &Game,
     team_id: &str,
     requested_region_ids: Option<Vec<String>>,
@@ -317,17 +318,16 @@ pub(super) fn resolve_simulation_scope(
 
 #[cfg(test)]
 mod tests {
+    use super::super::test_fixtures::{manager_for, nation_team, scope_test_game};
     use super::*;
-    use crate::commands::game::start_date_for_year;
-    use crate::commands::game::testkit::{make_bootstrap_test_game, manager_for, nation_team};
+    use crate::clock::GameClock;
     use chrono::TimeZone;
     use domain::league::{CompetitionScope, CompetitionType, FixtureCompetition};
     use domain::manager::Manager;
-    use ofm_core::clock::GameClock;
 
     #[test]
     fn world_cup_summer_career_stages_and_surfaces_the_tournament() {
-        use ofm_core::world_cup::is_world_cup_competition;
+        use crate::world_cup::is_world_cup_competition;
         // A career opening in the 2026 World Cup summer.
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
         let mut game = Game::new(
@@ -362,7 +362,7 @@ mod tests {
 
     #[test]
     fn rebuilding_competitions_leaves_the_world_cup_schedule_intact() {
-        use ofm_core::world_cup::is_world_cup_competition;
+        use crate::world_cup::is_world_cup_competition;
         // A 2026 World Cup summer career, staged at the June anchor.
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
         let mut game = Game::new(
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn non_world_cup_year_career_stages_no_tournament() {
-        use ofm_core::world_cup::is_world_cup_competition;
+        use crate::world_cup::is_world_cup_competition;
         let clock = GameClock::new(Utc.with_ymd_and_hms(2027, 7, 1, 12, 0, 0).unwrap());
         let mut game = Game::new(
             clock,
@@ -482,7 +482,7 @@ mod tests {
         );
         let game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
 
-        let competitions = build_foundation_competitions(&game);
+        let competitions = build_foundation_competitions(&game, TOP_DIVISION_SIZE);
 
         type CompetitionSummary = (
             CompetitionType,
@@ -569,9 +569,11 @@ mod tests {
         assert_eq!(competitions[3].fixtures.len(), 6 * 5);
 
         // No continental cup for a single-region field.
-        assert!(!competitions
-            .iter()
-            .any(|competition| competition.kind == CompetitionType::ContinentalClub));
+        assert!(
+            !competitions
+                .iter()
+                .any(|competition| competition.kind == CompetitionType::ContinentalClub)
+        );
 
         // Default continental berths: first division awards positions 1–4, the
         // cup awards its winner, the second division awards nothing.
@@ -687,8 +689,8 @@ mod tests {
             vec![],
             vec![],
         );
-        game.competitions = build_foundation_competitions(&game);
-        ofm_core::schedule::append_south_american_preseason_friendlies(&mut game.competitions, &[]);
+        game.competitions = build_foundation_competitions(&game, TOP_DIVISION_SIZE);
+        crate::schedule::append_south_american_preseason_friendlies(&mut game.competitions, &[]);
 
         let serie_a = game
             .competitions
@@ -704,16 +706,20 @@ mod tests {
         assert_eq!(serie_a.season_start_month, 1);
         assert_eq!(serie_b.season_start_day, 21);
         assert_eq!(serie_b.season_start_month, 3);
-        assert!(serie_a
-            .fixtures
-            .iter()
-            .any(|fixture| fixture.competition == FixtureCompetition::League
-                && fixture.date == "2026-01-28"));
-        assert!(serie_b
-            .fixtures
-            .iter()
-            .any(|fixture| fixture.competition == FixtureCompetition::League
-                && fixture.date == "2026-03-21"));
+        assert!(
+            serie_a
+                .fixtures
+                .iter()
+                .any(|fixture| fixture.competition == FixtureCompetition::League
+                    && fixture.date == "2026-01-28")
+        );
+        assert!(
+            serie_b
+                .fixtures
+                .iter()
+                .any(|fixture| fixture.competition == FixtureCompetition::League
+                    && fixture.date == "2026-03-21")
+        );
         let friendly_dates: Vec<&str> = serie_a
             .fixtures
             .iter()
@@ -736,11 +742,13 @@ mod tests {
             .filter(|competition| competition.id.starts_with("br-state-"))
             .collect();
         assert_eq!(states.len(), 4);
-        assert!(states
-            .iter()
-            .all(|competition| !competition.rules.counts_in_season_flow
-                && competition.rules.group_stage_legs == 1
-                && competition.name_key.is_some()));
+        assert!(
+            states
+                .iter()
+                .all(|competition| !competition.rules.counts_in_season_flow
+                    && competition.rules.group_stage_legs == 1
+                    && competition.name_key.is_some())
+        );
         for team in &game.teams {
             assert_eq!(
                 states
@@ -760,7 +768,7 @@ mod tests {
         ];
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap());
         let mut game = Game::new(clock, manager_for("br-a"), teams, vec![], vec![], vec![]);
-        let mut authored = ofm_core::schedule::generate_league(
+        let mut authored = crate::schedule::generate_league(
             "Authored Brazil Championship",
             2026,
             &["br-a".to_string(), "br-b".to_string()],
@@ -784,15 +792,17 @@ mod tests {
             .find(|competition| competition.id == "authored-brasileirao")
             .unwrap();
         assert_eq!(competition.season, 2026);
-        assert!(competition
-            .fixtures
-            .iter()
-            .any(|fixture| fixture.date == "2026-01-28"));
+        assert!(
+            competition
+                .fixtures
+                .iter()
+                .any(|fixture| fixture.date == "2026-01-28")
+        );
     }
 
     #[test]
     fn resolve_simulation_scope_auto_enables_required_regions_and_team_competitions() {
-        let mut game = make_bootstrap_test_game();
+        let mut game = scope_test_game();
         game.teams[0].football_nation = "BR".to_string();
         game.teams[1].football_nation = "GB".to_string();
 
@@ -838,7 +848,7 @@ mod tests {
 
     #[test]
     fn resolve_simulation_scope_defaults_to_team_region_when_no_scope_is_provided() {
-        let mut game = make_bootstrap_test_game();
+        let mut game = scope_test_game();
         game.teams[0].football_nation = "BR".to_string();
 
         let mut domestic = League::new(
@@ -857,5 +867,115 @@ mod tests {
 
         assert_eq!(active_regions, vec!["south-america".to_string()]);
         assert_eq!(active_competitions, vec![domestic.id.clone()]);
+    }
+
+    /// A test world needs the *shapes* that break — two-tier pyramids, a
+    /// split-season country, a shared continental cup — without paying for
+    /// 160 clubs to get them. `TOP_DIVISION_SIZE` is 20 and
+    /// `split_into_divisions` folds anything at or below it into one league,
+    /// so the smallest nation that yields a real ladder is 30 clubs. At
+    /// n^2.43, five such nations is minutes per simulated season; at a
+    /// division size of 6 it is seconds.
+    #[test]
+    fn a_smaller_division_size_builds_a_pyramid_from_fewer_clubs() {
+        let teams: Vec<_> = (0..12)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2032).expect("a valid start year"));
+        let mut game = Game::new(clock, manager_for("eng-00"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations_with(&mut game, 6);
+
+        let tiers: Vec<_> = game
+            .competitions
+            .iter()
+            .filter(|competition| {
+                competition.rules.format == CompetitionFormat::LeagueTable
+                    && competition.scope == CompetitionScope::Domestic
+            })
+            .collect();
+        assert_eq!(
+            tiers.len(),
+            2,
+            "twelve clubs at a division size of six is a two-tier pyramid, got {:?}",
+            tiers.iter().map(|t| &t.id).collect::<Vec<_>>()
+        );
+        for tier in &tiers {
+            assert_eq!(
+                tier.participant_ids.len(),
+                6,
+                "{} is the wrong size",
+                tier.id
+            );
+        }
+    }
+
+    /// The default is unchanged: the same twelve clubs are one league.
+    #[test]
+    fn the_default_division_size_still_keeps_a_small_nation_in_one_league() {
+        let teams: Vec<_> = (0..12)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2032).expect("a valid start year"));
+        let mut game = Game::new(clock, manager_for("eng-00"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations(&mut game);
+
+        let tiers = game
+            .competitions
+            .iter()
+            .filter(|competition| {
+                competition.rules.format == CompetitionFormat::LeagueTable
+                    && competition.scope == CompetitionScope::Domestic
+            })
+            .count();
+        assert_eq!(tiers, 1);
+    }
+
+    /// `division_tier_name` names a first and a second division and nothing
+    /// else, so a third tier would share both its display name and its
+    /// translation key with the second. The shipped world never reaches that —
+    /// the largest nation has 40 clubs and the default size is 20 — but a
+    /// caller-chosen size could, so the plan builder widens the divisions
+    /// rather than adding a tier nothing can name.
+    #[test]
+    fn a_division_size_that_would_need_a_third_tier_widens_the_two_instead() {
+        let teams: Vec<_> = (0..18)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2032).expect("a valid start year"));
+        let mut game = Game::new(clock, manager_for("eng-00"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations_with(&mut game, 6);
+
+        let tiers: Vec<_> = game
+            .competitions
+            .iter()
+            .filter(|competition| {
+                competition.rules.format == CompetitionFormat::LeagueTable
+                    && competition.scope == CompetitionScope::Domestic
+            })
+            .collect();
+        assert_eq!(
+            tiers.len(),
+            2,
+            "eighteen clubs at a size of six must not become three tiers"
+        );
+        for tier in &tiers {
+            assert_eq!(
+                tier.participant_ids.len(),
+                9,
+                "{} is the wrong size",
+                tier.id
+            );
+        }
+
+        let names: std::collections::BTreeSet<_> =
+            tiers.iter().map(|tier| tier.name.as_str()).collect();
+        assert_eq!(
+            names.len(),
+            2,
+            "two divisions must not share a name: {names:?}"
+        );
     }
 }

@@ -13,7 +13,6 @@ use crate::commands::util::persist_active_game;
 use crate::SaveManagerState;
 
 mod bootstrap;
-mod foundation;
 mod helpers;
 mod startup;
 mod validation;
@@ -29,9 +28,9 @@ mod world_load;
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::bootstrap_game_for_mcp;
 pub(crate) use bootstrap::{bootstrap_team_selection, create_new_save};
-use foundation::*;
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+use ofm_core::world::*;
 use startup::*;
 pub(crate) use startup::{start_phase_for_game, StartPhase};
 use world_build::*;
