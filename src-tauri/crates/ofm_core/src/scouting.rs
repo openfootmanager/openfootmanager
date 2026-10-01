@@ -366,12 +366,14 @@ fn complete_youth_scouting_assignment(
     // Prospects are scouted mid-career, so they are aged against the running
     // clock rather than the year the world opened in.
     let current_year = chrono::Datelike::year(&game.clock.current_date) as u32;
+    let mut rng = game.rng_today(&format!("youth-scouting/{}", assignment.id));
     let prospects = generate_youth_recruitment_candidates(
         &team,
         assignment.region,
         assignment.objective,
         assignment.target_position.as_ref(),
         current_year,
+        &mut rng,
     );
     if prospects.is_empty() {
         return;
@@ -508,6 +510,7 @@ fn generate_youth_recruitment_candidates(
     objective: YouthScoutingObjective,
     target_position: Option<&Position>,
     current_year: u32,
+    rng: &mut impl rand::Rng,
 ) -> Vec<Player> {
     let pool_size = match objective {
         YouthScoutingObjective::Balanced => 4,
@@ -530,6 +533,7 @@ fn generate_youth_recruitment_candidates(
                     YouthScoutingRegion::International => None,
                 },
                 current_year,
+                &mut *rng,
             );
             prospect.team_id = None;
             prospect.squad_role = SquadRole::Youth;

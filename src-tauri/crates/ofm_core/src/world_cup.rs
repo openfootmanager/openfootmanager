@@ -383,6 +383,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
 
     let current_year = game.clock.current_date.year() as u32;
     let pools = national_pools(game);
+    let mut rng = game.rng_today("national-pool");
     for code in field {
         let have = pools.get(code).map(|ovrs| ovrs.len()).unwrap_or(0);
         for slot in have..TOPPED_UP_POOL {
@@ -391,6 +392,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
                     code,
                     slot,
                     current_year,
+                    &mut rng,
                 ));
         }
     }
@@ -2330,6 +2332,40 @@ mod tests {
         game.legacy_world_cup_draw = legacy;
         let mut rng = game.world_cup_rng(WorldCupStream::Draw, 2026);
         draw_world_cup_groups(&game, &field, None, &BTreeMap::new(), &mut rng)
+    }
+
+    fn world_cup_staged_by(seed: u64) -> (Vec<Vec<String>>, Vec<String>) {
+        let mut game = empty_game();
+        game.seed = seed;
+        schedule_world_cup(&mut game, kickoff(2026), &FORMAT_48);
+        let groups = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_competition(c))
+            .unwrap()
+            .groups
+            .iter()
+            .map(|group| group.team_ids.clone())
+            .collect();
+        let mut pool: Vec<String> = game
+            .players
+            .iter()
+            .map(|player| serde_json::to_value(player).unwrap().to_string())
+            .collect();
+        pool.sort();
+        (groups, pool)
+    }
+
+    /// Given a world with no national players, so every squad has to be made up,
+    /// When a World Cup is staged twice from the same seed, and once from another,
+    /// Then the same players are made, ids and all, and the same groups drawn.
+    #[test]
+    fn the_players_a_world_cup_has_to_make_up_replay_from_the_same_seed() {
+        let staged = world_cup_staged_by(7);
+
+        assert!(!staged.1.is_empty(), "the squads were made up");
+        assert!(staged == world_cup_staged_by(7));
+        assert!(staged != world_cup_staged_by(8));
     }
 
     /// Given new games, and the same cup year,

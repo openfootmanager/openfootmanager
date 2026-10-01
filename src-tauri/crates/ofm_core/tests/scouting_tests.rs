@@ -937,3 +937,49 @@ fn signing_a_scouted_youth_records_a_free_agent_contract() {
     assert_eq!(signed.wage(), record.weekly_wage);
     assert_eq!(signed.contract_start(), Some(today.as_str()));
 }
+
+// ---------------------------------------------------------------------------
+// A youth scout's prospects come from the game's seed
+// ---------------------------------------------------------------------------
+
+/// A save with a scout already sent abroad. Built once and cloned, because the assignment's
+/// id is minted when it starts and two starts are two different saves.
+fn game_with_a_scout_abroad() -> Game {
+    let mut game = make_game();
+    start_youth_scouting(
+        &mut game,
+        "scout1",
+        YouthScoutingRegion::International,
+        YouthScoutingObjective::HighPotential,
+        None,
+    )
+    .unwrap();
+    game
+}
+
+fn youth_report_after_scouting(save: &Game, seed: u64) -> String {
+    let mut game = save.clone();
+    game.seed = seed;
+    complete_scouting(&mut game);
+    game.messages
+        .iter()
+        .filter(|message| {
+            message.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
+        .map(|message| serde_json::to_value(message).unwrap().to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Given a scout sent to find young talent abroad,
+/// When the assignment is played out twice from the same seed, and once from another,
+/// Then the same prospects come back, and others from another seed.
+#[test]
+fn a_youth_scouts_prospects_are_the_same_from_the_same_seed() {
+    let save = game_with_a_scout_abroad();
+    let report = youth_report_after_scouting(&save, 7);
+
+    assert!(!report.is_empty(), "the scout must have reported");
+    assert_eq!(report, youth_report_after_scouting(&save, 7));
+    assert_ne!(report, youth_report_after_scouting(&save, 8));
+}

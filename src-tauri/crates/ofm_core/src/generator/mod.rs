@@ -295,8 +295,8 @@ pub fn generate_national_team_player(
     nationality: &str,
     squad_slot: usize,
     opening_year: u32,
+    rng: &mut impl rand::Rng,
 ) -> Player {
-    let mut rng = rand::rng();
     let names_def = default_names_definition();
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
@@ -308,7 +308,7 @@ pub fn generate_national_team_player(
         opening_year,
         None,
         &names_def,
-        &mut rng,
+        rng,
     );
     as_free_agent(player)
 }
@@ -2119,7 +2119,7 @@ mod tests {
 
     #[test]
     fn generate_national_team_player_is_a_senior_free_agent() {
-        let player = generate_national_team_player("JP", 5, TEST_OPENING_YEAR);
+        let player = generate_national_team_player("JP", 5, TEST_OPENING_YEAR, &mut rand::rng());
 
         assert_eq!(player.nationality, "JP");
         assert_eq!(
@@ -2592,6 +2592,7 @@ mod tests {
                     None,
                     None,
                     TEST_OPENING_YEAR,
+                    &mut rand::rng(),
                 )
                 .nationality
             })
@@ -2624,6 +2625,7 @@ mod tests {
             None,
             Some("GB"),
             TEST_OPENING_YEAR,
+            &mut rand::rng(),
         );
 
         assert_eq!(player.nationality, "ENG");
@@ -2648,6 +2650,7 @@ mod tests {
                 Some(&Position::Goalkeeper),
                 None,
                 TEST_OPENING_YEAR,
+                &mut rand::rng(),
             );
             assert_eq!(
                 player.position,
@@ -2670,7 +2673,8 @@ mod tests {
         // past the youth cap (the youth-reserved slot would cap every player at it).
         let mut saw_senior_age = false;
         for _ in 0..64 {
-            let player = generate_national_team_player("GB", 1, TEST_OPENING_YEAR);
+            let player =
+                generate_national_team_player("GB", 1, TEST_OPENING_YEAR, &mut rand::rng());
             assert_eq!(
                 player.position,
                 Position::Goalkeeper,
