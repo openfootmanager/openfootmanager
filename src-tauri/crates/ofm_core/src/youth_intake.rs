@@ -58,12 +58,7 @@ pub fn plan_for<'a>(academy: impl IntoIterator<Item = &'a Player>) -> IntakePlan
     for player in academy {
         have[group_index(&player.position)] += 1;
     }
-    let lacking: usize = ACADEMY_TARGET_PER_GROUP
-        .iter()
-        .zip(have)
-        .map(|(target, have)| target.saturating_sub(have))
-        .sum();
-    let size = lacking.clamp(MIN_INTAKE, MAX_INTAKE);
+    let size = intake_size(have);
 
     let keeper = group_index(&Position::Goalkeeper);
     let mut groups = Vec::with_capacity(size);
@@ -79,42 +74,50 @@ pub fn plan_for<'a>(academy: impl IntoIterator<Item = &'a Player>) -> IntakePlan
     IntakePlan { groups }
 }
 
+/// How many youngsters a club whose academy holds `have` per group takes: what
+/// it lacks of [`ACADEMY_TARGET_PER_GROUP`], between [`MIN_INTAKE`] and
+/// [`MAX_INTAKE`]. The one place an intake's size is decided.
+fn intake_size(have: [usize; 4]) -> usize {
+    let lacking: usize = ACADEMY_TARGET_PER_GROUP
+        .iter()
+        .zip(have)
+        .map(|(target, have)| target.saturating_sub(have))
+        .sum();
+    lacking.clamp(MIN_INTAKE, MAX_INTAKE)
+}
+
 /// Every club takes its season's intake into its academy on `date`, the end of
-/// `season`. The player's club is told who joined.
+/// `season`.
 pub fn apply_youth_intake(game: &mut Game, date: NaiveDate, season: u32) {
+    let clubs: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+    for club in clubs {
+        take_youth_intake(game, &club, date, season);
+    }
+}
+
+/// One club takes its season's intake into its academy on `date`, the end of its
+/// `season`. The player's club is told who joined; an AI club's refusals are
+/// logged.
+pub fn take_youth_intake(game: &mut Game, team_id: &str, date: NaiveDate, season: u32) {
+    let Some(team_index) = game.teams.iter().position(|team| team.id == team_id) else {
+        log::error!("[youth_intake] no club {team_id} to take an intake");
+        return;
+    };
     // An academy player out on loan belongs to the academy of the club that
     // owns him and gets him back, not the one borrowing him for a season.
-    let mut academies: HashMap<&str, Vec<&Player>> = HashMap::new();
-    for player in &game.players {
-        if player.squad_role == SquadRole::Youth
-            && let Some(team_id) = player.contract_club_id()
-        {
-            academies.entry(team_id).or_default().push(player);
-        }
-    }
-    let plans: Vec<(usize, IntakePlan)> = game
-        .teams
-        .iter()
-        .enumerate()
-        .map(|(index, team)| {
-            let academy = academies.remove(team.id.as_str()).unwrap_or_default();
-            (index, plan_for(academy))
-        })
-        .collect();
+    let plan = plan_for(game.players.iter().filter(|player| {
+        player.squad_role == SquadRole::Youth && player.contract_club_id() == Some(team_id)
+    }));
 
-    let user_team_id = game.manager.team_id.clone();
-    for (team_index, plan) in plans {
-        let intake = take_in(game, team_index, &plan, date, season);
-        if user_team_id.as_deref() == Some(game.teams[team_index].id.as_str()) {
-            tell_the_player(game, team_index, &intake, date, season);
-        } else if intake.refused > 0 {
-            log::info!(
-                "[youth_intake] the board at {} turned away {} of {} recruits on wages",
-                game.teams[team_index].id,
-                intake.refused,
-                plan.groups.len()
-            );
-        }
+    let intake = take_in(game, team_index, &plan, date, season);
+    if game.manager.team_id.as_deref() == Some(team_id) {
+        tell_the_player(game, team_index, &intake, date, season);
+    } else if intake.refused > 0 {
+        log::info!(
+            "[youth_intake] the board at {team_id} turned away {} of {} recruits on wages",
+            intake.refused,
+            plan.groups.len()
+        );
     }
 }
 
