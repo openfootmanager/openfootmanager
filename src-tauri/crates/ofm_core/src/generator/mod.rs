@@ -38,6 +38,7 @@ use domain::team::TeamColors;
 use log::info;
 use rand::RngExt;
 use std::collections::HashSet;
+#[cfg(test)]
 use uuid::Uuid;
 
 use crate::finances::MIN_OPENING_RUNWAY_WEEKS;
@@ -663,10 +664,10 @@ pub fn generate_world(
 }
 
 /// Build a club (without players) from a definition. Uses the definition's
-/// stable `id` when set (world packages); otherwise a fresh UUID.
+/// stable `id` when set (world packages); otherwise one drawn from `rng`.
 fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
     let team_id = if tdef.id.is_empty() {
-        Uuid::new_v4().to_string()
+        generation::seeded_id(rng)
     } else {
         tdef.id.clone()
     };
