@@ -13,7 +13,6 @@
 //! determinism.
 
 use chrono::{TimeZone, Utc};
-use domain::league::FixtureStatus;
 use domain::manager::Manager;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
@@ -22,7 +21,6 @@ use ofm_core::generator::{
     repair_opening_youth_academies,
 };
 use ofm_core::turn;
-use std::collections::HashSet;
 
 // ---------------------------------------------------------------------------
 // Fixture builder
@@ -106,97 +104,6 @@ fn advance_days(game: &mut Game, days: usize) {
 // ---------------------------------------------------------------------------
 // Invariants
 // ---------------------------------------------------------------------------
-
-/// Assert the structural invariants that must hold for any game state, whatever
-/// the random outcomes were. Called repeatedly while a scenario runs.
-fn assert_game_invariants(game: &Game) {
-    let team_ids: HashSet<&str> = game.teams.iter().map(|t| t.id.as_str()).collect();
-
-    // The world is never silently emptied.
-    assert!(!game.teams.is_empty(), "no teams remain");
-    assert!(!game.players.is_empty(), "no players remain");
-
-    // Referential integrity: anyone assigned to a team points at a real team.
-    for player in &game.players {
-        if let Some(team_id) = player.team_id.as_deref() {
-            assert!(
-                team_ids.contains(team_id),
-                "player {} references unknown team {team_id}",
-                player.id
-            );
-        }
-    }
-    for member in &game.staff {
-        if let Some(team_id) = member.team_id.as_deref() {
-            assert!(
-                team_ids.contains(team_id),
-                "staff {} references unknown team {team_id}",
-                member.id
-            );
-        }
-    }
-
-    // Finances stay in a sane range (guards against wraparound / overflow bugs).
-    let limit = i64::MAX / 2;
-    for team in &game.teams {
-        assert!(
-            team.finance.abs() < limit,
-            "team {} finance out of sane range: {}",
-            team.id,
-            team.finance
-        );
-    }
-
-    if let Some(league) = &game.league {
-        // Every standings row maps to a real team, exactly once.
-        let mut seen = HashSet::new();
-        for row in &league.standings {
-            assert!(
-                team_ids.contains(row.team_id.as_str()),
-                "standings row references unknown team {}",
-                row.team_id
-            );
-            assert!(seen.insert(row.team_id.as_str()), "duplicate standings row");
-
-            // Played games are accounted for, and points follow 3-1-0 scoring.
-            assert_eq!(
-                row.played,
-                row.won + row.drawn + row.lost,
-                "team {} played != W+D+L",
-                row.team_id
-            );
-            assert_eq!(
-                row.points,
-                row.won * 3 + row.drawn,
-                "team {} points != 3*W + D",
-                row.team_id
-            );
-        }
-
-        // Each played match adds one game to two teams, so the total is even,
-        // and every goal scored by someone is conceded by someone else.
-        let total_played: u32 = league.standings.iter().map(|r| r.played).sum();
-        assert!(total_played.is_multiple_of(2), "total games played is odd");
-
-        let goals_for: u32 = league.standings.iter().map(|r| r.goals_for).sum();
-        let goals_against: u32 = league.standings.iter().map(|r| r.goals_against).sum();
-        assert_eq!(
-            goals_for, goals_against,
-            "league goals for != goals against"
-        );
-
-        // A finished fixture must carry a result.
-        for fixture in &league.fixtures {
-            if fixture.status == FixtureStatus::Completed {
-                assert!(
-                    fixture.result.is_some(),
-                    "completed fixture {} has no result",
-                    fixture.id
-                );
-            }
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Scenarios
