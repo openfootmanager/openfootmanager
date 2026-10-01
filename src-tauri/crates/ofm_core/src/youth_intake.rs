@@ -150,6 +150,26 @@ struct Intake {
 /// even the youth minimum ends the club's intake: every later one would cost at
 /// least as much against the same bill.
 fn take_in(game: &mut Game, team_index: usize, plan: &IntakePlan, date: NaiveDate) -> Intake {
+    let recruits = draw_recruits(game, team_index, plan, date);
+    let mut intake = sign_until_refused(game, team_index, recruits, date);
+    // Every planned recruit who did not join counts against the intake, whatever
+    // stopped him, so the player is never told an empty list joined.
+    intake.refused = plan.groups.len() - intake.joined.len();
+    intake
+}
+
+/// One planned recruit, drawn: the youngster, the wage he asks, and when the
+/// contract he asks for ends.
+struct Drawn {
+    recruit: Player,
+    asking: u32,
+    end: NaiveDate,
+}
+
+/// Draw `plan`'s youngsters for the club at `team_index`, in plan order, each
+/// with the terms he asks: those he was generated with when they run past
+/// `date`, the club's standard terms otherwise.
+fn draw_recruits(game: &Game, team_index: usize, plan: &IntakePlan, date: NaiveDate) -> Vec<Drawn> {
     // The club's own stream of the save's seed for the day, so a replayed season
     // end draws the same youngsters whatever order the clubs come in (their ids
     // are still fresh), and two careers from one package do not.
@@ -157,32 +177,53 @@ fn take_in(game: &mut Game, team_index: usize, plan: &IntakePlan, date: NaiveDat
         &format!("youth-intake/{}", game.teams[team_index].id),
         &date.format("%Y-%m-%d").to_string(),
     );
-    let mut joined = Vec::with_capacity(plan.groups.len());
-    for group in &plan.groups {
+    let team = &game.teams[team_index];
+    plan.groups
+        .iter()
+        .filter_map(|group| {
+            let age = rng.random_range(INTAKE_AGES);
+            let recruit = crate::generator::generate_youth_intake_recruit(
+                team,
+                group,
+                age,
+                date.year() as u32,
+                &mut rng,
+            );
+            let own_terms = recruit
+                .contract_end()
+                .and_then(crate::contracts::parse_contract_date)
+                .filter(|end| *end > date)
+                .map(|end| (recruit.wage(), end))
+                .filter(|(wage, _)| *wage > 0);
+            let (asking, end) = own_terms
+                .or_else(|| crate::contracts::standard_contract_terms(&recruit, team, date, 0))?;
+            Some(Drawn {
+                recruit,
+                asking,
+                end,
+            })
+        })
+        .collect()
+}
+
+/// Sign `recruits` into the academy of the club at `team_index`, in order, each
+/// on the wage the board agrees to, until the first the board will not pay even
+/// the youth minimum: that ends the club's intake. Joining is a contract made
+/// mid-career, so it goes in his history, as a scouted youngster's signing does.
+fn sign_until_refused(
+    game: &mut Game,
+    team_index: usize,
+    recruits: Vec<Drawn>,
+    date: NaiveDate,
+) -> Intake {
+    let mut joined = Vec::with_capacity(recruits.len());
+    for Drawn {
+        mut recruit,
+        asking,
+        end,
+    } in recruits
+    {
         let team = &game.teams[team_index];
-        let age = rng.random_range(INTAKE_AGES);
-        let mut recruit = crate::generator::generate_youth_intake_recruit(
-            team,
-            group,
-            age,
-            date.year() as u32,
-            &mut rng,
-        );
-        // Joining is a contract made mid-career, so it goes in his history, as a
-        // scouted youngster's signing does: on the terms he was generated with
-        // when they run past today, and on the club's standard terms otherwise —
-        // at the wage the board agrees to.
-        let own_terms = recruit
-            .contract_end()
-            .and_then(crate::contracts::parse_contract_date)
-            .filter(|end| *end > date)
-            .map(|end| (recruit.wage(), end))
-            .filter(|(wage, _)| *wage > 0);
-        let Some((asking, end)) = own_terms
-            .or_else(|| crate::contracts::standard_contract_terms(&recruit, team, date, 0))
-        else {
-            continue;
-        };
         let Some(wage) = agreed_wage(game, team, &recruit, asking) else {
             break;
         };
@@ -199,10 +240,7 @@ fn take_in(game: &mut Game, team_index: usize, plan: &IntakePlan, date: NaiveDat
         joined.push(recruit.full_name.clone());
         game.players.push(recruit);
     }
-    // Every planned recruit who did not join counts against the intake, whatever
-    // stopped him, so the player is never told an empty list joined.
-    let refused = plan.groups.len() - joined.len();
-    Intake { joined, refused }
+    Intake { joined, refused: 0 }
 }
 
 /// Tell the player who joined the academy, and that the board would not take on
@@ -641,6 +679,38 @@ mod tests {
         let before = world_on_a_budget(1_000, 500);
         let after = intake(&before);
         assert_eq!(newcomers(&before, &after, "rival").len(), 1);
+    }
+
+    /// Given a club whose board refuses its first recruit even at the youth
+    /// minimum, when a later recruit asks less than the minimum and would fit,
+    /// then he is not taken either: the first refusal ends the club's intake.
+    #[test]
+    fn the_first_refusal_ends_the_clubs_intake() {
+        // A budget of 1,000 lets the bill reach 1,100: 700 leaves room for 400.
+        // The first recruit is refused at 3,000 and at the minimum; the second,
+        // asking 300, would fit.
+        let mut game = world_on_a_budget(1_000, 700);
+        let end = season_end() + chrono::Months::new(36);
+        let drawn = |id: &str, asking: u32| Drawn {
+            recruit: youngster(id, "rival", Position::Forward),
+            asking,
+            end,
+        };
+        let recruits = vec![drawn("dear", 3_000), drawn("cheap", 300)];
+        let rival_index = game
+            .teams
+            .iter()
+            .position(|team| team.id == "rival")
+            .unwrap();
+
+        let intake = sign_until_refused(&mut game, rival_index, recruits, season_end());
+
+        assert!(
+            intake.joined.is_empty(),
+            "joined after a refusal: {:?}",
+            intake.joined
+        );
+        assert!(!game.players.iter().any(|player| player.id == "cheap"));
     }
 
     /// Given the player's club and an AI club on the same tight budget, they take
