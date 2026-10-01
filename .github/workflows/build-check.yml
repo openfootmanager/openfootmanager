@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
       - develop
+  # The merge queue re-runs the required checks on each PR stacked on top of the ones ahead of
+  # it. Without this trigger a queued PR waits forever for checks that never start. Added after
+  # two individually green PRs broke develop when they landed together (1 Oct 2026).
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
   # Called by the two release workflows before they publish anything. `uses:` with a
   # local path runs the caller's own copy of this file, so the checks a release must
