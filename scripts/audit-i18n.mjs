@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, "src");
-const RUST_DIRS = [path.join(ROOT, "src-tauri", "src"), path.join(ROOT, "src-tauri", "crates")];
 const LOCALES_DIR = path.join(SRC_DIR, "i18n", "locales");
 
 const FRONTEND_EXTENSIONS = new Set([".ts", ".tsx"]);
@@ -308,8 +308,10 @@ function scanFrontend() {
   return files.flatMap((filePath) => scanFrontendFile(filePath));
 }
 
-function scanRust() {
-  const files = RUST_DIRS.flatMap((dir) =>
+// `root` is a parameter so the regression test can scan a fixture tree instead of the repo.
+export function scanRust(root = ROOT) {
+  const rustDirs = [path.join(root, "src-tauri", "src"), path.join(root, "src-tauri", "crates")];
+  const files = rustDirs.flatMap((dir) =>
     walkFiles(
       dir,
       (filePath) => path.extname(filePath) === ".rs" && !RUST_IGNORE_RE.test(filePath),
@@ -381,7 +383,7 @@ function scanRust() {
         if (/^\[(?:cmd|setup)\]/.test(text)) continue;
 
         findings.push({
-          file: path.relative(ROOT, filePath),
+          file: path.relative(root, filePath),
           line: index + 1,
           kind: "rust-string",
           text,
@@ -466,4 +468,7 @@ function main() {
   printFindingSection("Rust/backend hardcoded string candidates", scanRust());
 }
 
-main();
+// Only when run directly, so a test can import scanRust without printing the whole report.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main();
+}
