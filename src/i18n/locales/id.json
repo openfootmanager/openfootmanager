@@ -1667,6 +1667,19 @@
     "movementLoanToBuy": "Pinjam-beli",
     "movementFreeAgentSigning": "Agen bebas",
     "movementReleased": "Dilepas",
+    "movementRenewal": "Perpanjangan",
+    "movementRetired": "Pensiun",
+    "movementInitialContract": "Kontrak awal",
+    "movementReleasedExpired": "Kontrak habis",
+    "movementReleasedTerminated": "Kontrak diputus",
+    "movementContractRange": "Kontrak {{start}} sampai {{end}}",
+    "movementContractUntil": "Kontrak sampai {{end}}",
+    "movementContractFrom": "Kontrak sejak {{start}}",
+    "movementWage": "Gaji {{wage}}/mg",
+    "movementDateUnknown": "Tanggal tidak diketahui",
+    "movementLegacyContract": "Dari simpanan sebelum riwayat kontrak ada",
+    "movementRenewedWith": "Diperpanjang bersama {{club}}",
+    "movementAtClub": "Di {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Bergabung dengan {{to}}",
     "movementFrom": "Meninggalkan {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Rekrutan Darurat: {{team}}",
         "body": "Bos, kita tidak punya cukup pemain untuk menurunkan tim, jadi sebelum sepak mula saya memasukkan pemain berikut ke tim utama, dari akademi dulu lalu dari agen bebas: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Pemain Muda Baru: {{team}}",
+        "body": "Bos, pemain muda angkatan baru berikut telah bergabung dengan akademi: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Tidak Ada yang Tersedia: {{group}}",

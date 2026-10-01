@@ -2,9 +2,10 @@
 //!
 //! These play whole seasons of seeded generated worlds through the real day
 //! (`turn::process_day`), with the season end's squad turnover between them —
-//! aging, retirements, and every AI club rebuilding — and check that ordinary
-//! squad management keeps every AI club at the squad floor without the
-//! emergency top-up ever firing.
+//! aging, retirements, every club's youth intake and every AI club rebuilding —
+//! and check that ordinary squad management keeps every AI club at the squad
+//! floor without the emergency top-up ever firing, and that the world's
+//! population holds steady rather than draining.
 //!
 //! The world is seeded; the day is not yet (random events, injuries and the
 //! match engine draw from ambient randomness), so the proof is a property: it
@@ -23,9 +24,11 @@ use ofm_core::squad_floor::squad_shortfall;
 use ofm_core::turn;
 
 const SEEDS: [u64; 3] = [7, 19, 42];
-/// Seasons the proof plays. Bounded: until clubs' academies take in new
-/// players every season, a world's population only shrinks.
-const SEASONS: u32 = 3;
+/// Seasons the proof plays: long enough for the academies the generator
+/// seeded to have graduated, and the free-agent pool it opened with to have
+/// turned over, so that what is left is the intake's doing. Without an intake
+/// the world drained by the ninth season.
+const SEASONS: u32 = 12;
 
 /// A seeded compact world, the player managing its first club, starting at the
 /// season's opening, its clubs playing a league.
@@ -73,9 +76,40 @@ fn ai_clubs(game: &Game) -> Vec<String> {
         .collect()
 }
 
+/// The world's population at one season's end.
+#[derive(Debug)]
+struct Census {
+    /// Players who have not retired, wherever they are.
+    active: usize,
+    /// Of those, the ones with no club.
+    free_agents: usize,
+    /// Senior players at each AI club.
+    ai_seniors: Vec<usize>,
+}
+
+fn census(game: &Game) -> Census {
+    let active: Vec<_> = game.players.iter().filter(|p| !p.retired).collect();
+    Census {
+        active: active.len(),
+        free_agents: active.iter().filter(|p| p.team_id.is_none()).count(),
+        ai_seniors: ai_clubs(game)
+            .iter()
+            .map(|club| {
+                active
+                    .iter()
+                    .filter(|p| p.team_id.as_deref() == Some(club.as_str()))
+                    .filter(|p| p.squad_role == SquadRole::Senior)
+                    .count()
+            })
+            .collect(),
+    }
+}
+
 /// Play `years` seasons — every day, then the season end's squad turnover —
 /// and fail on the first AI club found below the floor at a season's end.
-fn play_seasons(game: &mut Game, years: u32, label: &str) {
+/// Returns the census at each season's end.
+fn play_seasons(game: &mut Game, years: u32, label: &str) -> Vec<Census> {
+    let mut censuses = Vec::new();
     for year in 0..years {
         for _ in 0..365 {
             turn::process_day(game);
@@ -89,7 +123,9 @@ fn play_seasons(game: &mut Game, years: u32, label: &str) {
                 squad_shortfall(game, &club)
             );
         }
+        censuses.push(census(game));
     }
+    censuses
 }
 
 fn ai_emergencies(game: &Game) -> Vec<&ofm_core::squad_floor::SquadFloorTopUp> {
@@ -168,8 +204,8 @@ fn a_generated_world_opens_with_a_free_agent_pool_keepers_included() {
         assert_eq!(pool.len(), clubs, "{group:?} free agents");
         for agent in pool {
             assert!(!agent.retired);
-            assert_eq!(agent.contract_end, None);
-            assert_eq!(agent.wage, 0);
+            assert_eq!(agent.contract_end(), None);
+            assert_eq!(agent.wage(), 0);
         }
     }
 }
@@ -193,8 +229,8 @@ fn a_seeded_world_opens_with_the_same_pool() {
 
 // --- Seasons -----------------------------------------------------------------
 
-/// Given seeded generated worlds, when three seasons are played — every day,
-/// then the season end's retirements and rebuild — then no AI club is ever
+/// Given seeded generated worlds, when twelve seasons are played — every day,
+/// then the season end's retirements, intake and rebuild — then no AI club is ever
 /// found below the floor at a season's end, and the emergency top-up never
 /// fires: on every seed, on both runs of it.
 #[test]
@@ -213,9 +249,9 @@ fn ai_clubs_stay_at_the_floor_for_seasons_without_an_emergency_top_up() {
     }
 }
 
-/// Given a world where one AI club has no academy at all, when three seasons
-/// are played, it keeps to the floor from the free-agent market alone, without
-/// an emergency.
+/// Given a world where one AI club has no academy at all, when twelve seasons
+/// are played, it keeps to the floor — from the free-agent market until its
+/// intake comes through — without an emergency.
 #[test]
 fn a_club_with_an_empty_academy_keeps_its_floor_through_the_market() {
     let mut game = seeded_world(SEEDS[2]);
@@ -237,22 +273,101 @@ fn a_club_with_an_empty_academy_keeps_its_floor_through_the_market() {
 
 /// Given a world with no free agents and no academies anywhere, when a season
 /// is played, every day still finishes: clubs that cannot be filled play with
-/// who they have, and nobody is created for them.
+/// who they have, and nobody is created for them — the only newcomers are the
+/// season end's youth intake, into the academies.
 #[test]
 fn a_world_with_no_free_agents_and_no_academies_still_finishes_every_day() {
     let mut game = seeded_world(SEEDS[0]);
     game.players
         .retain(|p| p.team_id.is_some() && p.squad_role == SquadRole::Senior);
-    let players_before = game.players.len();
 
     for _ in 0..365 {
         turn::process_day(&mut game);
     }
+    let before: std::collections::HashSet<String> =
+        game.players.iter().map(|p| p.id.clone()).collect();
+    // Every academy is empty, so every club takes the intake an empty academy
+    // plans for.
+    let intake: usize = game
+        .teams
+        .iter()
+        .map(|_| {
+            ofm_core::youth_intake::plan_for(std::iter::empty())
+                .groups
+                .len()
+        })
+        .sum();
     let today = game.clock.current_date.date_naive();
     ofm_core::end_of_season::apply_season_end_squad_turnover(&mut game, today, 2026);
     for _ in 0..30 {
         turn::process_day(&mut game);
     }
 
-    assert_eq!(game.players.len(), players_before, "a player was created");
+    let newcomers: Vec<_> = game
+        .players
+        .iter()
+        .filter(|p| !before.contains(&p.id))
+        .collect();
+    assert_eq!(
+        newcomers.len(),
+        intake,
+        "a player was created beyond the intake"
+    );
+    let season_end = today.format("%Y-%m-%d").to_string();
+    for newcomer in newcomers {
+        assert!(
+            newcomer.contract_start() == Some(season_end.as_str()) && newcomer.team_id.is_some(),
+            "{} was created, and not by the season end's intake",
+            newcomer.id
+        );
+    }
+}
+
+/// Given seeded generated worlds, when twelve seasons are played, then the
+/// world's population holds steady rather than draining: the number of active
+/// players stays within a band of where it started, the free-agent market is
+/// never emptied nor flooded, and every AI club's senior squad stays between
+/// the floor and a squad a club could actually pick from.
+///
+/// The bands are measured, not chosen. A generated world opens below the
+/// intake's equilibrium — four free agents and four academy players a club,
+/// against about seven and six once it settles — so it grows for the first
+/// dozen seasons and then holds: over twenty-five seasons of seed 42, active
+/// players ran 432 at the opening, 514 by the twelfth season and 501–537 from
+/// then on, free agents peaked at 141 for sixteen clubs, and every AI club
+/// kept 18–27 seniors. Without the intake the same world had lost half its
+/// players by the eleventh season.
+#[test]
+fn the_worlds_population_stays_stable_over_twelve_seasons() {
+    for seed in SEEDS {
+        let mut game = seeded_world(seed);
+        let clubs = game.teams.len();
+        let start = census(&game).active;
+        let label = format!("seed {seed}");
+        let censuses = play_seasons(&mut game, SEASONS, &label);
+        for (year, census) in censuses.iter().enumerate() {
+            println!("{label}, season {year}: {census:?}");
+            assert!(
+                census.active * 10 >= start * 9 && census.active * 10 <= start * 14,
+                "{label}: {} active players after season {year}, from {start}",
+                census.active
+            );
+            assert!(
+                census.free_agents >= clubs && census.free_agents <= clubs * 12,
+                "{label}: {} free agents after season {year}, for {clubs} clubs",
+                census.free_agents
+            );
+            for &seniors in &census.ai_seniors {
+                assert!(
+                    (ofm_core::squad_floor::MIN_SENIOR_PLAYERS..=30).contains(&seniors),
+                    "{label}: an AI club holds {seniors} seniors after season {year}"
+                );
+            }
+        }
+        assert!(
+            ai_emergencies(&game).is_empty(),
+            "{label}: emergency top-ups fired: {:?}",
+            ai_emergencies(&game)
+        );
+    }
 }

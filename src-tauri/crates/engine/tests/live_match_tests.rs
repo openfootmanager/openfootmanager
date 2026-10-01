@@ -1825,3 +1825,91 @@ fn very_weak_team_still_finishes() {
     // Strong team should likely dominate
     assert!(snap.events.len() > 50, "Should generate plenty of events");
 }
+
+// ===========================================================================
+// Tests: The match clock
+// ===========================================================================
+
+/// Every period is played in full: 45 simulated minutes a half and 15 an
+/// extra-time half, plus that period's own stoppage — counted in minutes the
+/// engine actually simulated, not in the minute a kick-off event is labelled.
+/// The clock runs on through stoppage, so across the whole match the simulated
+/// minutes run 1, 2, 3 … to the final whistle with none skipped and none played
+/// twice: a second half after three minutes of first-half stoppage runs 49 to
+/// 93, and extra time picks up the minute after full time.
+#[test]
+fn every_period_lasts_its_full_length_whatever_stoppage_came_before() {
+    let mut saw_first_half_stoppage = false;
+    let mut saw_extra_time = false;
+    for seed in 0..200 {
+        let mut state = make_live_match(true);
+        let mut rng = seeded_rng(seed);
+        let results = run_to_finish(&mut state, &mut rng);
+
+        // Kick-offs start a period; every other step before the whistle is a
+        // simulated minute of the period in play.
+        let mut period: Option<usize> = None;
+        let mut played = [0u8; 4];
+        let mut minutes = Vec::new();
+        for result in &results {
+            let kicks_off = result.events.iter().any(|event| {
+                matches!(
+                    event.event_type,
+                    EventType::KickOff | EventType::SecondHalfStart
+                )
+            });
+            if kicks_off {
+                period = Some(match result.phase {
+                    MatchPhase::FirstHalf => 0,
+                    MatchPhase::SecondHalf => 1,
+                    MatchPhase::ExtraTimeFirstHalf => 2,
+                    MatchPhase::ExtraTimeSecondHalf => 3,
+                    other => panic!("seed {seed}: a kick-off in {other:?}"),
+                });
+                continue;
+            }
+            if matches!(
+                result.phase,
+                MatchPhase::Finished | MatchPhase::PenaltyShootout
+            ) {
+                continue;
+            }
+            played[period.expect("a minute before kick-off")] += 1;
+            minutes.push(result.minute);
+        }
+
+        let expected: Vec<u8> = (1..=*minutes.last().unwrap()).collect();
+        assert_eq!(
+            minutes, expected,
+            "seed {seed}: minutes were skipped or played twice"
+        );
+        assert!(
+            played[0] >= 45,
+            "seed {seed}: first half played {}",
+            played[0]
+        );
+        saw_first_half_stoppage |= played[0] > 45;
+        assert!(
+            played[1] >= 45,
+            "seed {seed}: second half played {}",
+            played[1]
+        );
+        if played[2] > 0 {
+            saw_extra_time = true;
+            assert!(
+                played[2] >= 15,
+                "seed {seed}: extra time's first half played {}",
+                played[2]
+            );
+            assert!(
+                played[3] >= 15,
+                "seed {seed}: extra time's second half played {}",
+                played[3]
+            );
+        }
+    }
+    assert!(
+        saw_first_half_stoppage && saw_extra_time,
+        "200 seeds should include first-half stoppage and a drawn match, or this test proves nothing"
+    );
+}

@@ -189,8 +189,8 @@ pub(crate) fn add_free_agent_pool(game: &mut Game, prefix: &str) {
                 position.clone(),
             );
             agent.team_id = None;
-            agent.contract_end = None;
-            agent.wage = 0;
+            agent.stage_contract_end(None);
+            agent.stage_wage(0);
             game.players.push(agent);
         }
     }

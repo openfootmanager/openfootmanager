@@ -1666,6 +1666,19 @@
     "movementLoanToBuy": "Prêt avec achat",
     "movementFreeAgentSigning": "Libre",
     "movementReleased": "Libéré",
+    "movementRenewal": "Prolongation",
+    "movementRetired": "Retraité",
+    "movementInitialContract": "Contrat initial",
+    "movementReleasedExpired": "Contrat arrivé à terme",
+    "movementReleasedTerminated": "Contrat résilié",
+    "movementContractRange": "Contrat du {{start}} au {{end}}",
+    "movementContractUntil": "Contrat jusqu'au {{end}}",
+    "movementContractFrom": "Contrat depuis le {{start}}",
+    "movementWage": "Salaire {{wage}}/sem",
+    "movementDateUnknown": "Date inconnue",
+    "movementLegacyContract": "D'une sauvegarde antérieure à l'historique des contrats",
+    "movementRenewedWith": "Prolongé à {{club}}",
+    "movementAtClub": "À {{club}}",
     "movementFromTo": "De {{from}} à {{to}}",
     "movementTo": "A rejoint {{to}}",
     "movementFrom": "A quitté {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Recrutements d'urgence : {{team}}",
         "body": "Coach, nous n'avions pas assez de joueurs pour aligner une équipe, j'ai donc intégré ces joueurs à l'effectif professionnel avant le coup d'envoi, d'abord depuis le centre de formation, puis parmi les joueurs libres : {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Nouvelle promotion au centre de formation : {{team}}",
+        "body": "Coach, la nouvelle promotion a rejoint le centre de formation : {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Personne de disponible : {{group}}",

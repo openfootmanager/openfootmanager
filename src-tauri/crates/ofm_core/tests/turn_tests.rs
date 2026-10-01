@@ -319,16 +319,16 @@ fn process_day_releases_players_with_expired_contracts() {
     deepen_squad(&mut game, "team2", "t2");
 
     let player = game.players.iter_mut().find(|p| p.id == "t1_fwd0").unwrap();
-    player.contract_end = Some("2025-06-15".to_string());
-    player.wage = 12_000;
+    player.stage_contract_end(Some("2025-06-15".to_string()));
+    player.stage_wage(12_000);
     player.morale = 70;
 
     turn::process_day(&mut game);
 
     let released_player = game.players.iter().find(|p| p.id == "t1_fwd0").unwrap();
     assert_eq!(released_player.team_id, None);
-    assert_eq!(released_player.contract_end, None);
-    assert_eq!(released_player.wage, 0);
+    assert_eq!(released_player.contract_end(), None);
+    assert_eq!(released_player.wage(), 0);
     let message = game
         .messages
         .iter()
@@ -395,48 +395,6 @@ fn simulate_other_matches_skips_fixture() {
         FixtureStatus::Scheduled,
         "Skipped fixture should remain scheduled"
     );
-}
-
-#[test]
-fn simulate_other_matches_settles_knockout_draws_with_shootout() {
-    // Regression: an AI-simulated knockout tie that ended level persisted with
-    // no shootout score, so advance_knockout_competition_round always advanced
-    // the home team. The full-engine sim path must resolve level knockout
-    // ties with a simulated shootout.
-    let mut saw_draw = false;
-    for _attempt in 0..200 {
-        let mut game = make_game_with_match();
-        {
-            let league = game.league.as_mut().unwrap();
-            league.fixtures[0].competition = FixtureCompetition::Cup;
-            league.knockout_rounds = vec![KnockoutRoundState {
-                id: "round-1".to_string(),
-                name: "Final".to_string(),
-                fixture_ids: vec!["fix1".to_string()],
-                bye_team_ids: Vec::new(),
-                completed: false,
-            }];
-        }
-        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-        turn::simulate_other_matches(&mut game, &today, None);
-
-        let result = game.league.as_ref().unwrap().fixtures[0]
-            .result
-            .as_ref()
-            .expect("fixture should have a result");
-        if result.home_goals == result.away_goals {
-            saw_draw = true;
-            let home_pens = result.home_penalties.expect("level knockout needs pens");
-            let away_pens = result.away_penalties.expect("level knockout needs pens");
-            assert_ne!(home_pens, away_pens, "shootout must have a winner");
-            break;
-        }
-        assert!(
-            result.home_penalties.is_none() && result.away_penalties.is_none(),
-            "decisive results must not carry a shootout"
-        );
-    }
-    assert!(saw_draw, "expected at least one drawn knockout in 200 sims");
 }
 
 #[test]

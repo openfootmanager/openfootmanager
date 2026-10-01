@@ -270,30 +270,29 @@ pub(crate) fn sign_free_agent(
     let new_contract_end = current_date
         .checked_add_months(Months::new(contract_years * 12))
         .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
-    let today = current_date.format("%Y-%m-%d").to_string();
-
     let resolved_jersey_number =
         crate::roster::resolve_jersey_for(game, &game.players[player_index], team);
 
     let player = &mut game.players[player_index];
     player.team_id = Some(team.id.clone());
     player.jersey_number = resolved_jersey_number;
-    player.wage = weekly_wage;
-    player.contract_start = Some(today.clone());
-    player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
     player.transfer_listed = false;
     player.loan_listed = false;
     player.transfer_offers.clear();
-    player.movement_history.push(PlayerMovementEntry {
-        date: today,
-        kind: PlayerMovementKind::FreeAgentSigning,
-        from_team_id: None,
-        from_team_name: None,
-        to_team_id: Some(team.id.clone()),
-        to_team_name: Some(team.name.clone()),
-        fee: None,
-        loan_end_date: None,
-    });
+    record_movement(
+        player,
+        contract_entry(
+            PlayerMovementKind::FreeAgentSigning,
+            current_date,
+            team,
+            contract_record(
+                current_date,
+                new_contract_end,
+                weekly_wage,
+                ContractSource::FreeAgent,
+            ),
+        ),
+    );
     if matches!(
         player
             .morale_core

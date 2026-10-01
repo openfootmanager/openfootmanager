@@ -20,9 +20,9 @@ use domain::team::Team;
 
 use crate::contract_wage_policy::wage_policy_verdict;
 use crate::contracts::{
-    RenewalDecision, RenewalOffer, apply_agreed_renewal, contract_owner_team_id,
-    evaluate_renewal_offer, expected_contract_years, expected_wage, next_renewal_round,
-    player_age_on, remaining_contract_days,
+    RenewalDecision, RenewalOffer, apply_agreed_renewal, evaluate_renewal_offer,
+    expected_contract_years, expected_wage, next_renewal_round, player_age_on,
+    remaining_contract_days,
 };
 use crate::game::Game;
 use crate::squad_floor::{
@@ -141,7 +141,7 @@ fn seniors_in(game: &Game, team_id: &str, group: Option<&domain::player::Positio
         .filter(|player| player.squad_role == domain::player::SquadRole::Senior)
         // No end date is a contract the expiry sweep never ends: he stays.
         .filter(|player| {
-            crate::contracts::contract_days_remaining(player.contract_end.as_deref(), current_date)
+            crate::contracts::contract_days_remaining(player.contract_end(), current_date)
                 .is_none_or(|days| days > RENEWAL_HORIZON_DAYS)
         })
         .filter(|player| group.is_none_or(|group| player.position.to_group_position() == *group))
@@ -154,8 +154,8 @@ fn contracts_running_down(game: &Game, team_id: &str, current_date: NaiveDate) -
     game.players
         .iter()
         .enumerate()
-        .filter(|(_, player)| !player.retired && player.contract_end.is_some())
-        .filter(|(_, player)| contract_owner_team_id(player) == Some(team_id))
+        .filter(|(_, player)| !player.retired && player.contract_end().is_some())
+        .filter(|(_, player)| player.contract_club_id() == Some(team_id))
         .filter(|(_, player)| remaining_contract_days(player, current_date) <= RENEWAL_HORIZON_DAYS)
         .map(|(index, _)| index)
         .collect()
@@ -218,6 +218,7 @@ fn renew(game: &mut Game, team: &Team, player_index: usize, current_date: NaiveD
     let round = next_renewal_round(player, None);
     if let Err(error) = apply_agreed_renewal(
         &mut game.players[player_index],
+        team,
         offer.weekly_wage,
         offer.contract_years,
         current_date,
@@ -289,12 +290,12 @@ mod tests {
         );
         player.team_id = Some(team_id.to_string());
         player.ovr = ovr;
-        player.wage = 1_000;
-        player.contract_end = Some(
+        player.stage_wage(1_000);
+        player.stage_contract_end(Some(
             (today() + Duration::days(days_left))
                 .format("%Y-%m-%d")
                 .to_string(),
-        );
+        ));
         player
     }
 
@@ -367,9 +368,9 @@ mod tests {
             .iter()
             .find(|p| p.id == id)
             .unwrap()
-            .contract_end
-            .clone()
+            .contract_end()
             .unwrap()
+            .to_string()
     }
 
     #[test]
@@ -384,6 +385,18 @@ mod tests {
         assert!(
             contract_end(&game, "star") > before,
             "the club let a player it wants run down"
+        );
+        // An AI renewal goes through the one renewal writer, so it is in his history.
+        let star = game.players.iter().find(|p| p.id == "star").unwrap();
+        let entry = star
+            .movement_history
+            .last()
+            .expect("the renewal is recorded");
+        assert_eq!(entry.kind, domain::player::PlayerMovementKind::Renewal);
+        assert_eq!(entry.to_team_id.as_deref(), Some("ai"));
+        assert_eq!(
+            entry.contract.as_ref().map(|c| c.weekly_wage),
+            Some(star.wage())
         );
     }
 
@@ -532,7 +545,7 @@ mod tests {
         // Everyone else on no wage, so his raise alone decides the verdict.
         for other in game.players.iter_mut() {
             if other.team_id.as_deref() == Some("ai") {
-                other.wage = 0;
+                other.stage_wage(0);
             }
         }
         let mut star = player("costly_fwd", "ai", Position::Forward, 80, 27, 90);
@@ -631,7 +644,7 @@ mod tests {
         }
         game.clock.current_date = day;
         let mut star = player("star", "ai", Position::Midfielder, 80, 27, 0);
-        star.contract_end = Some(day.format("%Y-%m-%d").to_string());
+        star.stage_contract_end(Some(day.format("%Y-%m-%d").to_string()));
         game.players.push(star);
 
         crate::turn::process_day(&mut game);
@@ -639,7 +652,7 @@ mod tests {
         let star = game.players.iter().find(|p| p.id == "star").unwrap();
         assert_eq!(star.team_id.as_deref(), Some("ai"), "he was released");
         assert!(
-            star.contract_end.as_deref() > Some(day.format("%Y-%m-%d").to_string().as_str()),
+            star.contract_end() > Some(day.format("%Y-%m-%d").to_string().as_str()),
             "his contract was not renewed"
         );
     }
@@ -655,8 +668,8 @@ mod tests {
     fn free_agent(id: &str, position: Position, ovr: u8) -> Player {
         let mut agent = player(id, "ai", position, ovr, 27, 1_000);
         agent.team_id = None;
-        agent.contract_end = None;
-        agent.wage = 0;
+        agent.stage_contract_end(None);
+        agent.stage_wage(0);
         agent
     }
 
@@ -720,6 +733,16 @@ mod tests {
         apply_ai_squad_planning(&mut game, review_day());
 
         assert_eq!(club_of(&game, "free_keeper"), Some("ai"));
+        let keeper = game.players.iter().find(|p| p.id == "free_keeper").unwrap();
+        let entry = keeper
+            .movement_history
+            .last()
+            .expect("the signing is recorded");
+        assert_eq!(
+            entry.kind,
+            domain::player::PlayerMovementKind::FreeAgentSigning
+        );
+        assert_eq!(entry.to_team_id.as_deref(), Some("ai"));
     }
 
     /// The same, but paying him would break the wage policy: he is not signed,
@@ -730,7 +753,7 @@ mod tests {
         game.players.retain(|p| p.id != "ai_Goalkeeper2");
         for other in game.players.iter_mut() {
             if other.team_id.as_deref() == Some("ai") {
-                other.wage = 0;
+                other.stage_wage(0);
             }
         }
         let mut costly = free_agent("costly_keeper", Position::Goalkeeper, 85);
@@ -802,11 +825,11 @@ mod tests {
         let mut game = world();
         for (index, player) in game.players.iter_mut().enumerate() {
             let days_left = 60 + (index as i64 * 97) % 1_400;
-            player.contract_end = Some(
+            player.stage_contract_end(Some(
                 (today() + Duration::days(days_left))
                     .format("%Y-%m-%d")
                     .to_string(),
-            );
+            ));
             let age = 19 + (index as i32 * 5) % 15;
             player.date_of_birth = format!("{}-01-01", TODAY.0 - age);
         }

@@ -442,11 +442,16 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
+/// A generated player for squad slot `index`. `age` fixes his age; `None`
+/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
+/// exactly as before the parameter existed, so every seeded world — all of
+/// which pass `None` — is unchanged by it.
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,
     nationality: &str,
     opening_year: u32,
+    age: Option<u32>,
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
 ) -> Player {
@@ -462,11 +467,13 @@ pub(super) fn generate_random_player_from_def(
     // Reserve one slot per position group (GK + back line + midfield + attack) as
     // youth-aged so scouted youth recruits land at a consistent age across positions
     // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = if is_youth_reserved_slot(index) {
-        rng.random_range(17..22)
-    } else {
-        rng.random_range(17..36)
-    };
+    let age = age.unwrap_or_else(|| {
+        if is_youth_reserved_slot(index) {
+            rng.random_range(17..22)
+        } else {
+            rng.random_range(17..36)
+        }
+    });
     let birth_year = opening_year.saturating_sub(age);
     let birth_month = rng.random_range(1..13);
     let birth_day = rng.random_range(1..29);
@@ -574,8 +581,8 @@ pub(super) fn generate_random_player_from_def(
     );
     player.team_id = Some(team_id.to_string());
     player.market_value = market_value;
-    player.wage = wage;
-    player.contract_end = Some(contract_end);
+    player.stage_wage(wage);
+    player.stage_contract_end(Some(contract_end));
     player.condition = rng.random_range(75..100);
     player.morale = rng.random_range(40..76);
 
@@ -1073,14 +1080,14 @@ pub(super) fn generate_player_from_def(
         .map(|photo| photo.trim().to_string())
         .filter(|photo| !photo.is_empty());
     player.market_value = market_value;
-    player.wage = wage;
-    player.contract_start = authored_contract.start.map(contract_date);
-    player.contract_end = Some(
+    player.stage_wage(wage);
+    player.stage_contract_start(authored_contract.start.map(contract_date));
+    player.stage_contract_end(Some(
         authored_contract
             .end
             .map(contract_date)
             .unwrap_or(generated_contract_end),
-    );
+    ));
     player.condition = def.condition.unwrap_or_else(|| rng.random_range(75..100));
     player.morale = def.morale.unwrap_or_else(|| rng.random_range(40..76));
     if let Some(ref foot_str) = def.footedness {
@@ -1300,9 +1307,10 @@ mod tests {
             2026,
         );
 
-        assert_eq!(player.contract_end.as_deref(), Some("2031-03-15"));
+        assert_eq!(player.contract_end(), Some("2031-03-15"));
         assert_eq!(
-            player.contract_start, None,
+            player.contract_start(),
+            None,
             "no start was authored, and one is given when the career opens, not here"
         );
     }
@@ -1319,11 +1327,11 @@ mod tests {
             );
 
             assert_eq!(
-                player.contract_end.as_deref(),
+                player.contract_end(),
                 Some(expected_end),
                 "a 3-year length opened in {opening_year}"
             );
-            assert_eq!(player.contract_start, None);
+            assert_eq!(player.contract_start(), None);
         }
     }
 
@@ -1337,8 +1345,8 @@ mod tests {
             2026,
         );
 
-        assert_eq!(player.contract_start.as_deref(), Some("2024-01-15"));
-        assert_eq!(player.contract_end.as_deref(), Some("2026-01-15"));
+        assert_eq!(player.contract_start(), Some("2024-01-15"));
+        assert_eq!(player.contract_end(), Some("2026-01-15"));
     }
 
     /// A start alone is half an interval. Rather than invent an end date, the engine
@@ -1351,8 +1359,8 @@ mod tests {
             2026,
         );
 
-        assert_eq!(player.contract_start.as_deref(), Some("2024-01-15"));
-        let end = player.contract_end.as_deref().expect("an end was rolled");
+        assert_eq!(player.contract_start(), Some("2024-01-15"));
+        let end = player.contract_end().expect("an end was rolled");
         assert!(end > "2024-01-15", "ended {end}, not after the start");
         assert!(
             end <= "2029-01-15",
@@ -1371,7 +1379,7 @@ mod tests {
             2026,
         );
 
-        assert_eq!(player.wage, 12_345);
+        assert_eq!(player.wage(), 12_345);
         assert_eq!(player.market_value, 9_000_000);
     }
 
@@ -1386,7 +1394,7 @@ mod tests {
 
         assert_eq!(player.market_value, 4_000_000);
         assert_eq!(
-            player.wage,
+            player.wage(),
             4_000_000 / 200,
             "wage should be sized from the authored value"
         );
@@ -1401,7 +1409,7 @@ mod tests {
             2026,
         );
 
-        assert_eq!(player.wage, 0);
+        assert_eq!(player.wage(), 0);
         assert_eq!(player.condition, 0);
         assert_eq!(player.morale, 0);
     }
@@ -1453,9 +1461,9 @@ mod tests {
             player.morale
         );
         assert!(player.market_value > 0);
-        assert!(player.wage >= 500);
-        assert!(player.contract_end.is_some());
-        assert_eq!(player.contract_start, None);
+        assert!(player.wage() >= 500);
+        assert!(player.contract_end().is_some());
+        assert_eq!(player.contract_start(), None);
         assert!(
             player.career.is_empty(),
             "history is not invented for an authored player here"

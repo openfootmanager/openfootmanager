@@ -1667,6 +1667,19 @@
     "movementLoanToBuy": "Hostování s opcí",
     "movementFreeAgentSigning": "Volný hráč",
     "movementReleased": "Uvolněn",
+    "movementRenewal": "Prodloužení",
+    "movementRetired": "Ukončil kariéru",
+    "movementInitialContract": "Úvodní smlouva",
+    "movementReleasedExpired": "Smlouva vypršela",
+    "movementReleasedTerminated": "Smlouva rozvázána",
+    "movementContractRange": "Smlouva od {{start}} do {{end}}",
+    "movementContractUntil": "Smlouva do {{end}}",
+    "movementContractFrom": "Smlouva od {{start}}",
+    "movementWage": "Plat {{wage}}/týd",
+    "movementDateUnknown": "Datum neznámé",
+    "movementLegacyContract": "Z uložené hry před historií smluv",
+    "movementRenewedWith": "Prodloužení v klubu {{club}}",
+    "movementAtClub": "V klubu {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Příchod do {{to}}",
     "movementFrom": "Odchod z {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Nouzové posily: {{team}}",
         "body": "Šéfe, neměli jsme dost hráčů, abychom postavili tým, a tak jsem před výkopem přesunul do A-týmu tyto hráče, nejprve z akademie a pak z volných hráčů: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Nový ročník akademie: {{team}}",
+        "body": "Šéfe, do akademie přišel nový ročník: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Nikdo k dispozici: {{group}}",

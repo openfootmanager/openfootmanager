@@ -17,6 +17,7 @@ This document describes the major gameplay systems in OpenFoot Manager beyond ma
 - [Finances](#finances)
 - [Transfers](#transfers)
 - [The Squad Floor](#the-squad-floor)
+- [Youth Intake](#youth-intake)
 
 ---
 
@@ -42,9 +43,15 @@ process_day(game)
 
 On match days, `simulate_matchday()`:
 
-1. Finds all scheduled fixtures for today
-2. For each fixture, converts domain `Player`/`Team` to engine `PlayerData`/`TeamData` via `build_engine_team()`
-3. Calls `engine::simulate()` to get a `MatchReport`
+1. Finds all scheduled fixtures for today in the active competitions
+2. For each fixture, plays it as an unwatched live-engine session, with an AI manager on both
+   touchlines: `live_match_manager::play_unwatched_fixture` kicks off through the squad floor's
+   gate, builds both sides with `turn::squad::build_team_with_bench` (an eleven and a bench, fit
+   players first), and each manager makes substitutions and tactical changes as the match goes.
+   Knockout ties play extra time and, if still level, a penalty shootout. A side nobody can field
+   at all is settled by scoreline instead, and logged. The player's own fixture, when delegated,
+   goes through the same function.
+3. Takes the finished match's `MatchReport`
 4. Updates fixture status to `Completed` with the `MatchResult`
 5. Updates `StandingEntry` for both teams (points: 3/1/0 for win/draw/loss)
 6. Calls `apply_player_stats()` to update individual `PlayerSeasonStats`
@@ -531,8 +538,9 @@ goalkeepers, 4 defenders, 4 midfielders and 2 forwards** (`MIN_PLAYERS_PER_GROUP
 count; players out on loan count for their borrower; academy players do not — they are what a
 short club promotes.
 
-**The game never creates a player, or money, for a club.** A club short of the floor is filled only
-from players who exist: its own academy first, then the free-agent market, on wages the club pays
+**The game never creates a player, or money, for a club** — the one way a player comes into the
+world is the season-end [youth intake](#youth-intake), into academies. A club short of the floor is
+filled only from players who exist: its own academy first, then the free-agent market, on wages the club pays
 even if its balance goes negative. When neither has anyone, the gap is reported (logged for an AI
 club, an inbox message for the player's club) and the day still finishes.
 
@@ -551,3 +559,30 @@ The board's wage policy yields in exactly one case (`contract_wage_policy::wage_
 when the club would be below the floor without the player. That rule is shared by the manager's
 renewals and free-agent signings, the assistant's delegated renewals, AI renewals and planning, and
 the top-up; the manager is told when it applied.
+
+## Youth Intake
+
+Every club, the player's included, takes new youngsters into its academy at each season's end
+(`ofm_core::youth_intake`). Without it a world only loses players: retirements outrun graduations,
+the academies the generator seeds are empty within a few seasons, and the free-agent pool drains
+after them.
+
+The rule is one pure function of a club's academy, `youth_intake::plan_for`: a club takes what it
+lacks of an academy of **1 goalkeeper, 2 defenders, 2 midfielders and 1 forward**
+(`ACADEMY_TARGET_PER_GROUP`), never fewer than **one** youngster a season (`MIN_INTAKE`) nor more
+than **three** (`MAX_INTAKE`). A keeper comes first when the academy has none; after that the
+thinnest groups. The plan says how many and where they play, with no randomness, so an academy
+cost can be attached to it later. No money moves today.
+
+`apply_youth_intake` then brings the planned youngsters in, drawn at 15–17 (a birth late in the
+year makes some 14 by the 1 July count), on a youth contract that starts that day, with a free
+shirt number. The draw is seeded from the club and the season, so a
+replayed season end takes in the same youngsters. It runs last in the season end's squad turnover,
+after aging, retirements and every AI club's rebuild, so the rebuild cannot promote a youngster on
+the day he joins. The player's club is told who joined
+(`be.msg.youthIntake`).
+
+Measured on a seeded compact world with a league: the world opens below the intake's equilibrium,
+grows for about a dozen seasons, and then holds at about a fifth above its opening size, with around
+six academy players and seven free agents per club. `tests/squad_floor_seasons.rs` asserts that
+band over twelve seasons on three seeds.

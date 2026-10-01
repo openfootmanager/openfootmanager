@@ -7,6 +7,7 @@ mod generation;
 pub mod package;
 pub mod scaffold;
 pub mod world_io;
+mod youth;
 
 pub use clubs::WorldGenConfig;
 pub use competition_def::*;
@@ -26,6 +27,8 @@ pub use scaffold::{
     slugify,
 };
 pub use world_io::*;
+pub(crate) use youth::generate_youth_intake_recruit;
+pub use youth::{generate_youth_academy_recruit, generate_youth_academy_recruit_with_nationality};
 
 use domain::league::{CompetitionFormat, CompetitionScope};
 use domain::player::{Player, Position};
@@ -126,7 +129,7 @@ fn normalize_opening_contracts(
         .iter()
         .enumerate()
         .filter(|(_, player)| !authored_ids.contains(&player.id))
-        .filter(|(_, player)| player.contract_end.as_deref() == Some(first_summer.as_str()))
+        .filter(|(_, player)| player.contract_end() == Some(first_summer.as_str()))
         .map(|(index, _)| index)
         .collect();
 
@@ -136,7 +139,7 @@ fn normalize_opening_contracts(
         .into_iter()
         .skip(MAX_OPENING_EXPIRING_CONTRACTS)
     {
-        players[index].contract_end = Some(second_summer.clone());
+        players[index].stage_contract_end(Some(second_summer.clone()));
     }
 }
 
@@ -283,58 +286,6 @@ pub fn repair_opening_youth_academies(game: &mut crate::game::Game) -> bool {
     repaired
 }
 
-/// Generate a youth prospect who is joining **now**.
-///
-/// `current_year` is the year the recruit arrives, not the year the world opened:
-/// a prospect scouted five seasons into a career is fifteen in *that* season. The
-/// two coincide only for the opening intake, which is why the distinction is
-/// worth naming — a call site that passed the world's opening year here would
-/// quietly produce a squad of players five years too old.
-pub fn generate_youth_academy_recruit(
-    team: &Team,
-    target_position: Option<&Position>,
-    current_year: u32,
-) -> Player {
-    generate_youth_academy_recruit_with_nationality(team, target_position, None, current_year)
-}
-
-/// As [`generate_youth_academy_recruit`], with the prospect's nationality forced
-/// rather than drawn from the club's country. See there for `current_year`.
-pub fn generate_youth_academy_recruit_with_nationality(
-    team: &Team,
-    target_position: Option<&Position>,
-    nationality_override: Option<&str>,
-    current_year: u32,
-) -> Player {
-    use domain::player::SquadRole;
-
-    let mut rng = rand::rng();
-    let names_def = default_names_definition();
-    let country_codes = generation::nationality_distribution();
-    let nationality = nationality_override
-        .map(generation::canonicalize_generated_nationality)
-        .unwrap_or_else(|| {
-            // `team_local_nationality`, not `team.country`: a club carries both a
-            // location and a football identity, and where they differ the
-            // football identity is the one a youth intake should draw on.
-            pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng)
-        });
-    let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
-    let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
-    let mut player = generate_random_player_from_def(
-        &team.id,
-        slot_index,
-        &nationality,
-        current_year,
-        &names_def,
-        &mut rng,
-    );
-    player.squad_role = SquadRole::Youth;
-    player.transfer_listed = false;
-    player.loan_listed = false;
-    player
-}
-
 /// Generate a senior free-agent player for a national squad. `squad_slot`
 /// follows the standard squad layout (GK 0-1, DEF 2-8, MID 9-15, FWD 16-21)
 /// and drives the position; the player belongs to no club and holds no
@@ -354,6 +305,7 @@ pub fn generate_national_team_player(
         slot,
         &nationality,
         opening_year,
+        None,
         &names_def,
         &mut rng,
     );
@@ -367,9 +319,9 @@ fn as_free_agent(mut player: Player) -> Player {
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
     // agreement with no employer and no expiry.
-    player.contract_start = None;
-    player.contract_end = None;
-    player.wage = 0;
+    player.stage_contract_start(None);
+    player.stage_contract_end(None);
+    player.stage_wage(0);
     player.transfer_listed = false;
     player.loan_listed = false;
     player
@@ -388,7 +340,7 @@ fn normalize_generated_team(
     // belongs to the squad that finished rather than the one that was built.
     crate::ai_roles::assign_squad_roles(team, players.iter());
 
-    let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
+    let weekly_wage_bill: i64 = players.iter().map(|player| player.wage() as i64).sum();
 
     team.wage_budget = normalized_wage_budget(weekly_wage_bill, team.reputation);
     floor_opening_cash(team, weekly_wage_bill);
@@ -572,7 +524,7 @@ fn floor_imported_world_opening_cash(world: &mut WorldData) {
                 .players
                 .iter()
                 .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                .map(|player| i64::from(player.wage))
+                .map(|player| i64::from(player.wage()))
                 .sum();
             (team.id.clone(), weekly_wage_bill)
         })
@@ -813,6 +765,7 @@ fn build_club(
             slot,
             &nationality,
             opening_year,
+            None,
             names_def,
             rng,
         );
@@ -854,6 +807,7 @@ fn build_club(
         youth_keeper_slot,
         &nationality,
         opening_year,
+        None,
         names_def,
         rng,
     );
@@ -895,6 +849,7 @@ fn generate_opening_free_agents(
                 senior_slot_for(&group),
                 nationality,
                 opening_year,
+                None,
                 names_def,
                 rng,
             );
@@ -1684,8 +1639,7 @@ mod tests {
         assert_eq!(age, 21, "a 1940-born player is 21 in 1962");
 
         let contract_end_year: i32 = star
-            .contract_end
-            .as_deref()
+            .contract_end()
             .expect("authored player should get a contract")[0..4]
             .parse()
             .expect("contract end should start with a year");
@@ -2039,7 +1993,7 @@ mod tests {
 
             let expiring_next_summer = format!("{}-06-30", opening_year + 1);
             for player in players.iter_mut().take(6) {
-                player.contract_end = Some(expiring_next_summer.clone());
+                player.stage_contract_end(Some(expiring_next_summer.clone()));
             }
 
             normalize_generated_team(
@@ -2051,9 +2005,7 @@ mod tests {
 
             let still_expiring = players
                 .iter()
-                .filter(|player| {
-                    player.contract_end.as_deref() == Some(expiring_next_summer.as_str())
-                })
+                .filter(|player| player.contract_end() == Some(expiring_next_summer.as_str()))
                 .count();
             assert!(
                 still_expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
@@ -2092,7 +2044,7 @@ mod tests {
             let kept = players
                 .iter()
                 .filter(|player| player.match_name.starts_with("Authored"))
-                .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                .filter(|player| player.contract_end() == Some(first_summer.as_str()))
                 .count();
             assert_eq!(
                 kept,
@@ -2132,7 +2084,7 @@ mod tests {
 
             let expiring = players
                 .iter()
-                .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                .filter(|player| player.contract_end() == Some(first_summer.as_str()))
                 .count();
             assert!(
                 expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
@@ -2151,9 +2103,10 @@ mod tests {
             player.team_id, None,
             "national-pool players belong to no club"
         );
-        assert_eq!(player.contract_end, None);
+        assert_eq!(player.contract_end(), None);
         assert_eq!(
-            player.contract_start, None,
+            player.contract_start(),
+            None,
             "an unattached player must not carry half an agreement: this one is built \
              from a club template, so the start has to be cleared with the end"
         );
@@ -2288,7 +2241,7 @@ mod tests {
                 let weekly_wages: i64 = players
                     .iter()
                     .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                    .map(|player| player.wage as i64)
+                    .map(|player| player.wage() as i64)
                     .sum();
                 let usage_percent = (weekly_wages * 100) / std::cmp::max(1, team.wage_budget);
 
@@ -2373,7 +2326,7 @@ mod tests {
                 let expiring_contracts = players
                     .iter()
                     .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                    .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                    .filter(|player| player.contract_end() == Some(first_summer.as_str()))
                     .count();
 
                 assert!(
@@ -3050,10 +3003,10 @@ mod tests {
         let mut world = make_roster_baseline_world_without_staff();
         world.teams[0].finance = 1_000;
         world.players[0].team_id = Some("team-1".to_string());
-        world.players[0].wage = 5_000;
+        world.players[0].stage_wage(5_000);
         for player in world.players.iter_mut().skip(1) {
             if player.team_id.as_deref() == Some("team-1") {
-                player.wage = 0;
+                player.stage_wage(0);
             }
         }
 

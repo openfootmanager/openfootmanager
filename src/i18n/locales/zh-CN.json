@@ -1666,6 +1666,19 @@
     "movementLoanToBuy": "租借买断",
     "movementFreeAgentSigning": "自由球员",
     "movementReleased": "解约离队",
+    "movementRenewal": "续约",
+    "movementRetired": "退役",
+    "movementInitialContract": "初始合同",
+    "movementReleasedExpired": "合同到期",
+    "movementReleasedTerminated": "合同解除",
+    "movementContractRange": "合同 {{start}} 至 {{end}}",
+    "movementContractUntil": "合同至 {{end}}",
+    "movementContractFrom": "合同自 {{start}} 起",
+    "movementWage": "周薪 {{wage}}",
+    "movementDateUnknown": "日期未知",
+    "movementLegacyContract": "来自合同历史出现之前的存档",
+    "movementRenewedWith": "与{{club}}续约",
+    "movementAtClub": "效力于{{club}}",
     "movementFromTo": "{{from}} 转至 {{to}}",
     "movementTo": "加盟 {{to}}",
     "movementFrom": "离开 {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "紧急签约：{{team}}",
         "body": "老板，我们的球员不足以派出一支球队，所以我在开球前将这些球员调入一线队，先从青训提拔，再签下自由球员：{{players}}。"
+      },
+      "youthIntake": {
+        "subject": "青训新人：{{team}}",
+        "body": "老板，本赛季的青训新人已加入青训营：{{players}}。"
       },
       "squadCannotBeFilled": {
         "subject": "无人可用：{{group}}",

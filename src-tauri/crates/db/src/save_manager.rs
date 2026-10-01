@@ -513,6 +513,12 @@ impl SaveManager {
                 // suppress every World Cup the *previous* career had seen.
                 ofm_core::inbox::seed_ledger_from_save(&mut game);
             }
+            if save_format_version < 7 {
+                // A save from before games had a seed. Derived from the save's own
+                // id rather than drawn, so the same old save is the same game
+                // every time it is opened; the resave below keeps it from then on.
+                game.seed = ofm_core::seed::seed_for_unseeded_save(save_id);
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -1037,7 +1043,7 @@ mod tests {
     fn sample_game_with_ai_loan_candidates() -> Game {
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].contract_end = Some("2028-06-30".to_string());
+        game.players[0].stage_contract_end(Some("2028-06-30".to_string()));
         game.teams.push(Team::new(
             "team-002".to_string(),
             "Rivals FC".to_string(),
@@ -1055,7 +1061,7 @@ mod tests {
         ] {
             let mut player = make_opening_repair_player(id, Position::Midfielder, date_of_birth);
             player.team_id = Some("team-002".to_string());
-            player.contract_end = Some("2028-06-30".to_string());
+            player.stage_contract_end(Some("2028-06-30".to_string()));
             game.players.push(player);
         }
 
@@ -2060,6 +2066,62 @@ mod tests {
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
     }
 
+    /// Given a save written before games had a seed,
+    /// When it is loaded, twice,
+    /// Then it has a seed — the same one both times, derived from the save, so
+    ///      an old career replays the same days however often it is opened.
+    #[test]
+    fn loading_a_pre_v7_save_gives_it_one_stable_seed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.seed = 0;
+        let save_id = sm.create_save(&game, "Pre Seed").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 6;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let first = sm.load_game(&save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(first.seed, ofm_core::seed::seed_for_unseeded_save(&save_id));
+        assert_ne!(first.seed, 0);
+        assert_eq!(second.seed, first.seed);
+
+        // And it was written back: the derivation is deterministic, so the two loads
+        // above agree whether or not anything was stored. Only the file can say the
+        // seed is now a stored one rather than a recomputed one.
+        let db = GameDatabase::open(&db_path).unwrap();
+        let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+        assert_eq!(meta.seed as u64, first.seed);
+        assert_eq!(
+            meta.save_format_version,
+            meta_repo::CURRENT_SAVE_FORMAT_VERSION
+        );
+    }
+
+    /// The fallback is for saves that have no seed, not a reseed: a current-format
+    /// save keeps the one it was given, or every load would change the game.
+    #[test]
+    fn loading_a_current_format_save_keeps_its_seed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.seed = 0xC0FF_EE00_1234_5678;
+        let save_id = sm.create_save(&game, "Seeded").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.seed, 0xC0FF_EE00_1234_5678);
+    }
+
     #[test]
     fn loading_a_pre_v6_save_floors_cash_to_sixteen_weeks_of_wages() {
         let dir = tempfile::tempdir().unwrap();
@@ -2067,7 +2129,7 @@ mod tests {
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].wage = 5_000;
+        game.players[0].stage_wage(5_000);
         game.teams[0].finance = 1_000;
         let save_id = sm.create_save(&game, "Pre Weekly Lock").unwrap();
         let db_path = saves_dir.join(format!("{save_id}.db"));
@@ -2108,7 +2170,7 @@ mod tests {
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].wage = 5_000;
+        game.players[0].stage_wage(5_000);
         game.teams[0].finance = 1_000;
         let save_id = sm.create_save(&game, "Current Format").unwrap();
 
@@ -2535,7 +2597,7 @@ mod tests {
                         "1998-01-01",
                     );
                     player.team_id = Some(team_id.to_string());
-                    player.contract_end = Some("2030-06-30".to_string());
+                    player.stage_contract_end(Some("2030-06-30".to_string()));
                     game.players.push(player);
                 }
             }
@@ -2551,9 +2613,14 @@ mod tests {
 
         for player in settled.players.iter_mut() {
             if player.id.starts_with("team-002-Goalkeeper") {
+                // Released: his contract ends, which is a movement, not an edit.
+                player
+                    .record_movement(domain::player::PlayerMovementEntry::new(
+                        "2026-07-01",
+                        domain::player::PlayerMovementKind::Released,
+                    ))
+                    .unwrap();
                 player.team_id = None;
-                player.contract_end = None;
-                player.wage = 0;
             }
         }
         sm.save_game(&settled, &save_id).unwrap();

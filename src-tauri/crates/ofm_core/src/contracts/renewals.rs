@@ -43,7 +43,7 @@ pub fn evaluate_renewal_offer(
     let round = next_renewal_round(player, None);
     let expected_wage = expected_wage(player, team, current_date);
     let expected_years = expected_contract_years(player, current_date);
-    let minimum_wage = minimum_acceptable_wage(player.wage);
+    let minimum_wage = minimum_acceptable_wage(player.wage());
 
     if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
         let feedback = build_renewal_feedback(
@@ -66,7 +66,7 @@ pub fn evaluate_renewal_offer(
         );
     }
 
-    if is_insulting_wage_offer(player.wage, expected_wage, offer.weekly_wage) {
+    if is_insulting_wage_offer(player.wage(), expected_wage, offer.weekly_wage) {
         let feedback = build_renewal_feedback(
             player,
             current_date,
@@ -174,7 +174,7 @@ pub fn propose_renewal(
         .position(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
-    if contract_owner_team_id(&game.players[player_index]) != Some(team.id.as_str()) {
+    if game.players[player_index].contract_club_id() != Some(team.id.as_str()) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
@@ -246,7 +246,7 @@ pub fn propose_renewal(
                 RenewalDecision::Accepted,
                 RenewalSessionStatus::Agreed,
                 round,
-                game.players[player_index].wage,
+                game.players[player_index].wage(),
                 false,
             )),
         ));
@@ -292,6 +292,7 @@ pub fn propose_renewal(
 
         apply_agreed_renewal(
             &mut game.players[player_index],
+            &team,
             offer.weekly_wage,
             offer.contract_years,
             current_date,
@@ -501,7 +502,7 @@ pub(crate) fn build_renewal_feedback(
             "playerProfile.renewalFeedbackTenseHeadline",
             Some("playerProfile.renewalFeedbackTenseDetail"),
         )
-    } else if expected_wage > player.wage || round >= 2 {
+    } else if expected_wage > player.wage() || round >= 2 {
         (
             NegotiationMood::Firm,
             "playerProfile.renewalFeedbackFirmHeadline",
@@ -578,6 +579,7 @@ pub(crate) enum RenewalAgreedBy {
 
 pub(crate) fn apply_agreed_renewal(
     player: &mut Player,
+    club: &Team,
     weekly_wage: u32,
     contract_years: u32,
     current_date: NaiveDate,
@@ -588,9 +590,20 @@ pub(crate) fn apply_agreed_renewal(
         .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
     let today = current_date.format("%Y-%m-%d").to_string();
 
-    player.wage = weekly_wage;
-    player.contract_start = Some(today.clone());
-    player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
+    record_movement(
+        player,
+        contract_entry(
+            PlayerMovementKind::Renewal,
+            current_date,
+            club,
+            contract_record(
+                current_date,
+                new_contract_end,
+                weekly_wage,
+                ContractSource::Renewal,
+            ),
+        ),
+    );
     let state = player
         .morale_core
         .renewal_state

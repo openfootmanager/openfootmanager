@@ -131,6 +131,12 @@ pub struct Game {
     /// Records which `.ofm` packages were used to build this save.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub package_lockfile: Vec<crate::generator::PackageLock>,
+    /// The one seed every random choice on the day path is derived from, through
+    /// [`Game::rng_for`]. It is the seed the world was generated from, so a career
+    /// can be replayed from its start; `0` only for a game that was never given one
+    /// (tests), which is still a fixed seed and so still reproducible.
+    #[serde(default)]
+    pub seed: u64,
 
     /// Append-only cash journal. `Clone` is a pointer bump; `post` copy-on-writes.
     /// Skipped on IPC serde. Persistence is incremental SQL, not Game JSON.
@@ -187,6 +193,7 @@ impl Game {
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
+            seed: 0,
             cash_journal: CashJournal::default(),
             cash_journal_dirty_ids: Vec::new(),
             squad_floor_top_ups: Vec::new(),

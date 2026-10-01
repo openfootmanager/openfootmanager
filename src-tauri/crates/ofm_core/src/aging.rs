@@ -1,6 +1,7 @@
+use crate::contracts::{iso, record_movement};
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
-use domain::player::Player;
+use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -68,8 +69,7 @@ fn apply_attribute_curve(player: &mut Player, age: i32, season: u32) {
 
 fn has_expired_contract(player: &Player, current_date: NaiveDate) -> bool {
     player
-        .contract_end
-        .as_deref()
+        .contract_end()
         .and_then(|value| NaiveDate::parse_from_str(value, "%Y-%m-%d").ok())
         .is_some_and(|contract_end| contract_end < current_date)
 }
@@ -88,7 +88,7 @@ fn retirement_chance(player: &Player, age: i32, current_date: NaiveDate) -> u32 
         _ => 100,
     };
 
-    if player.contract_end.is_none() || has_expired_contract(player, current_date) {
+    if player.contract_end().is_none() || has_expired_contract(player, current_date) {
         chance += 18;
     }
     if player.team_id.is_none() {
@@ -120,11 +120,18 @@ fn should_retire(player: &Player, age: i32, current_date: NaiveDate, season: u32
     roll < chance
 }
 
-fn retire_player(player: &mut Player) {
+fn retire_player(player: &mut Player, current_date: NaiveDate) {
+    // Recorded first, while his club is still known. It ends the contract: the dates
+    // and the wage follow it.
+    record_movement(
+        player,
+        PlayerMovementEntry {
+            from_team_id: player.contract_club_id().map(str::to_string),
+            ..PlayerMovementEntry::new(iso(current_date), PlayerMovementKind::Retired)
+        },
+    );
     player.retired = true;
     player.team_id = None;
-    player.contract_start = None;
-    player.contract_end = None;
     player.transfer_listed = false;
     player.loan_listed = false;
     player.transfer_offers.clear();
@@ -145,7 +152,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
             {
                 team.remove_player_references(&player.id);
             }
-            retire_player(player);
+            retire_player(player, current_date);
         }
     }
 }
@@ -237,7 +244,7 @@ mod tests {
     fn deterministic_retirement_favors_older_out_of_contract_players() {
         let current_date = NaiveDate::from_ymd_opt(2026, 5, 20).unwrap();
         let mut player = make_player("older-pro", "1988-01-01");
-        player.contract_end = Some("2026-05-01".to_string());
+        player.stage_contract_end(Some("2026-05-01".to_string()));
         player.stats = PlayerSeasonStats {
             appearances: 6,
             avg_rating: 6.1,
@@ -251,8 +258,8 @@ mod tests {
     #[test]
     fn apply_seasonal_aging_retires_veteran_and_reduces_pace() {
         let mut veteran = make_player("older-pro", "1988-01-01");
-        veteran.contract_start = Some("2023-07-01".to_string());
-        veteran.contract_end = Some("2026-05-01".to_string());
+        veteran.stage_contract_start(Some("2023-07-01".to_string()));
+        veteran.stage_contract_end(Some("2026-05-01".to_string()));
         veteran.attributes.pace = 20;
         veteran.transfer_listed = true;
         veteran.stats = PlayerSeasonStats {
@@ -278,14 +285,45 @@ mod tests {
         assert!(veteran.retired);
         assert_eq!(veteran.team_id, None);
         assert_eq!(
-            veteran.contract_start, None,
+            veteran.contract_start(),
+            None,
             "a retired player has no agreement, so neither date survives"
         );
-        assert_eq!(veteran.contract_end, None);
+        assert_eq!(veteran.contract_end(), None);
         assert!(!veteran.transfer_listed);
         assert!(veteran.attributes.pace < 20);
         assert!(game.teams[0].starting_xi_ids.is_empty());
         assert!(game.teams[0].training_groups[0].player_ids.is_empty());
         assert_eq!(game.teams[0].match_roles.captain, None);
+    }
+
+    /// Retirement ends the contract like any other exit: it is in the history, and
+    /// the wage goes with it instead of being left on a player who will never play.
+    #[test]
+    fn retirement_appends_a_retired_entry_and_zeroes_the_wage() {
+        use domain::player::PlayerMovementKind;
+        let mut veteran = make_player("older-pro", "1988-01-01");
+        veteran.stage_contract_start(Some("2023-07-01".to_string()));
+        veteran.stage_contract_end(Some("2026-05-01".to_string()));
+        veteran.stage_wage(9_000);
+        veteran.stats = PlayerSeasonStats {
+            appearances: 6,
+            avg_rating: 6.1,
+            ..PlayerSeasonStats::default()
+        };
+        let mut game = make_game(vec![veteran]);
+        let current_date = game.clock.current_date.date_naive();
+
+        apply_seasonal_aging(&mut game, current_date, 1);
+
+        let veteran = &game.players[0];
+        assert!(veteran.retired);
+        let entry = veteran
+            .movement_history
+            .last()
+            .expect("retirement is recorded");
+        assert_eq!(entry.kind, PlayerMovementKind::Retired);
+        assert_eq!(entry.from_team_id.as_deref(), Some("team1"));
+        assert_eq!(veteran.wage(), 0, "no wage left on a retired player");
     }
 }

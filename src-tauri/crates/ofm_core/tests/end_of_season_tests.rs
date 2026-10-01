@@ -1930,7 +1930,7 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
         .find(|player| player.id == "p1")
         .unwrap();
     veteran.date_of_birth = "1988-01-01".to_string();
-    veteran.contract_end = Some("2026-05-01".to_string());
+    veteran.stage_contract_end(Some("2026-05-01".to_string()));
     veteran.attributes.pace = 16;
     veteran.attributes.passing = 70;
 
@@ -3718,6 +3718,30 @@ fn advancing_a_complete_season_rolls_it_over_and_returns_the_summary() {
     assert!(
         game.manager.team_id.is_some(),
         "a manager with a healthy board keeps the job"
+    );
+}
+
+/// Given a finished season rolled over once, when advancing is asked for again,
+/// then it is refused and no second youth intake is taken. The intake keeps no
+/// marker of its own — like aging, it runs inside the one rollover, and the
+/// rollover's completeness check is what makes it once a season.
+#[test]
+fn a_season_takes_one_youth_intake_however_often_advancing_is_asked_for() {
+    let mut game = make_completed_season_game();
+    let before = game.players.len();
+
+    advance_to_next_season(&mut game).expect("a finished season advances");
+    let after_one = game.players.len();
+    assert!(
+        after_one > before,
+        "the rollover takes the season's youth intake"
+    );
+
+    assert!(advance_to_next_season(&mut game).is_err());
+    assert_eq!(
+        game.players.len(),
+        after_one,
+        "a second advance took a second intake"
     );
 }
 

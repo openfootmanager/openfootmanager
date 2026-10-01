@@ -80,7 +80,7 @@ fn holds_up_the_floor(player: &Player, team_id: &str) -> bool {
 
 /// Senior players registered to `team_id`, per group, in
 /// [`MIN_PLAYERS_PER_GROUP`] order.
-fn senior_counts(game: &Game, team_id: &str) -> [usize; 4] {
+pub(crate) fn senior_counts(game: &Game, team_id: &str) -> [usize; 4] {
     let mut seniors = [0; 4];
     for player in &game.players {
         if holds_up_the_floor(player, team_id) {
@@ -171,7 +171,16 @@ pub(crate) fn departure_would_leave_short(game: &Game, player_id: &str) -> Optio
 /// This is also the one case in which the board's wage policy yields — see
 /// [`crate::contract_wage_policy::wage_policy_verdict`].
 pub(crate) fn club_needs_him_for_the_floor(game: &Game, team_id: &str, player: &Player) -> bool {
-    let mut seniors = senior_counts(game, team_id);
+    club_needs_him_given(senior_counts(game, team_id), team_id, player)
+}
+
+/// [`club_needs_him_for_the_floor`] for a caller that already has the club's senior
+/// counts (a sweep over many players for one club), so it need not scan the world again.
+pub(crate) fn club_needs_him_given(
+    mut seniors: [usize; 4],
+    team_id: &str,
+    player: &Player,
+) -> bool {
     if player.team_id.as_deref() == Some(team_id) {
         if player.squad_role != SquadRole::Senior {
             return false;
@@ -545,17 +554,28 @@ pub(crate) fn restore_minimum_squad(game: &mut Game, team_id: &str) -> TopUp {
     top_up
 }
 
-/// The club's position groups, the one with least to spare over its minimum
-/// first — where an extra senior helps most. Ties keep [`MIN_PLAYERS_PER_GROUP`]
-/// order.
+/// The club's position groups by [`thinnest_first`] against the floor: any
+/// still below its minimum first, deepest first, then the one with least to
+/// spare — where an extra senior helps most.
 pub(crate) fn groups_thinnest_first(game: &Game, team_id: &str) -> Vec<Position> {
-    let seniors = senior_counts(game, team_id);
-    let mut groups: Vec<(usize, Position)> = MIN_PLAYERS_PER_GROUP
+    thinnest_first(
+        senior_counts(game, team_id),
+        MIN_PLAYERS_PER_GROUP.map(|(_, floor)| floor),
+    )
+}
+
+/// The four position groups ordered by how far `have` stands above `target`,
+/// per group in [`MIN_PLAYERS_PER_GROUP`] order: the furthest below first,
+/// then the least to spare. Ties keep that order. The one statement of
+/// "thinnest first" — the floor asks it against its minimum, the youth intake
+/// against the academy it aims for.
+pub(crate) fn thinnest_first(have: [usize; 4], target: [usize; 4]) -> Vec<Position> {
+    let mut groups: Vec<(i64, Position)> = MIN_PLAYERS_PER_GROUP
         .iter()
         .enumerate()
-        .map(|(index, (group, floor))| (seniors[index].saturating_sub(*floor), group.clone()))
+        .map(|(index, (group, _))| (have[index] as i64 - target[index] as i64, group.clone()))
         .collect();
-    groups.sort_by_key(|(spare, _)| *spare);
+    groups.sort_by_key(|(margin, _)| *margin);
     groups.into_iter().map(|(_, group)| group).collect()
 }
 
@@ -746,8 +766,8 @@ mod tests {
     fn free_agent(id: &str, position: Position, ovr: u8) -> Player {
         let mut agent = player(id, None, position);
         agent.ovr = ovr;
-        agent.contract_end = None;
-        agent.wage = 0;
+        agent.stage_contract_end(None);
+        agent.stage_wage(0);
         agent
     }
 
@@ -970,8 +990,8 @@ mod tests {
         assert_eq!(top_up.signed, vec!["good_keeper".to_string()]);
         let keeper = game.players.iter().find(|p| p.id == "good_keeper").unwrap();
         assert_eq!(keeper.team_id.as_deref(), Some("club"));
-        assert!(keeper.contract_end.is_some(), "signed without a contract");
-        assert!(keeper.wage > 0, "signed on no wage");
+        assert!(keeper.contract_end().is_some(), "signed without a contract");
+        assert!(keeper.wage() > 0, "signed on no wage");
         assert_eq!(team_of(&game, "forward"), None);
         assert_eq!(
             game.teams[0].finance, -1_000_000,
@@ -1005,6 +1025,22 @@ mod tests {
         assert_eq!(game.players.len(), players_before, "a player was created");
         assert!(top_up.brought_in().is_empty());
         assert_eq!(top_up.unfilled, squad_shortfall(&game, "club"));
+    }
+
+    /// Given groups below their target by different amounts, and two with the
+    /// same room to spare, the ordering puts the deepest shortfall first, then
+    /// the least to spare, and keeps group order on a tie.
+    #[test]
+    fn the_thinnest_group_is_the_one_furthest_below_its_target() {
+        assert_eq!(
+            thinnest_first([1, 1, 5, 3], [2, 4, 4, 2]),
+            vec![
+                Position::Defender,
+                Position::Goalkeeper,
+                Position::Midfielder,
+                Position::Forward,
+            ]
+        );
     }
 
     /// Given fourteen seniors at 2/4/6/2 and academy players in defence,

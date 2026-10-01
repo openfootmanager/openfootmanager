@@ -1667,6 +1667,19 @@
     "movementLoanToBuy": "Loan-to-buy",
     "movementFreeAgentSigning": "Free agent",
     "movementReleased": "Released",
+    "movementRenewal": "Renewal",
+    "movementRetired": "Retired",
+    "movementInitialContract": "Opening contract",
+    "movementReleasedExpired": "Contract expired",
+    "movementReleasedTerminated": "Contract terminated",
+    "movementContractRange": "Contract {{start}} to {{end}}",
+    "movementContractUntil": "Contract until {{end}}",
+    "movementContractFrom": "Contract from {{start}}",
+    "movementWage": "Wage {{wage}}/wk",
+    "movementDateUnknown": "Date unknown",
+    "movementLegacyContract": "From a save made before contract history",
+    "movementRenewedWith": "Renewed with {{club}}",
+    "movementAtClub": "At {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Joined {{to}}",
     "movementFrom": "Left {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Emergency Signings: {{team}}",
         "body": "Boss, we did not have enough players to field a side, so before kick-off I brought these players into the first-team squad, from the academy first and then the free-agent market: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Youth Intake: {{team}}",
+        "body": "Boss, this season's youth intake has joined the academy: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "No One Available: {{group}}",

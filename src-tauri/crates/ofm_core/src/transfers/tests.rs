@@ -70,9 +70,9 @@ fn make_game() -> Game {
     );
     player.team_id = Some("team1".to_string());
     player.market_value = 600_000;
-    player.wage = 18_000;
+    player.stage_wage(18_000);
     player.morale = 58;
-    player.contract_end = Some("2027-06-30".to_string());
+    player.stage_contract_end(Some("2027-06-30".to_string()));
     player.stats.appearances = 6;
     player.stats.goals = 19;
 

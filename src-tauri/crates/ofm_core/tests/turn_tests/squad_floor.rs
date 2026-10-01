@@ -29,7 +29,9 @@ fn a_club_with_nobody_registered_signs_a_squad_before_kick_off() {
 
     let fixture = &game.league.as_ref().unwrap().fixtures[0];
     assert_eq!(fixture.status, FixtureStatus::Completed);
-    assert_eq!(fielded_count(&game, "team2"), 11);
+    // Eleven signed players started it; on the one match path a manager may
+    // have brought more of them on from the bench.
+    assert!(fielded_count(&game, "team2") >= 11);
     assert!(squad_shortfall(&game, "team2").is_empty());
 }
 
@@ -188,7 +190,7 @@ fn after_contracts_expire_an_ai_club_is_topped_up_and_the_players_club_is_warned
     let mut game = make_game_without_match_today();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     for player in game.players.iter_mut() {
-        player.contract_end = Some(today.clone());
+        player.stage_contract_end(Some(today.clone()));
     }
 
     turn::process_day(&mut game);

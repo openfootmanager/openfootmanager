@@ -4,7 +4,6 @@
 //! moving cheaply while the player's region is simulated in full.
 
 use crate::game::Game;
-use crate::national_team::simulate_scoreline;
 use domain::league::FixtureStatus;
 use rand::Rng;
 
@@ -18,38 +17,20 @@ pub(super) fn simulate_dormant_competition_day(
     today: &str,
     rng: &mut impl Rng,
 ) {
-    let due: Vec<(usize, String, String, String)> = game.competitions[competition_index]
+    let due: Vec<usize> = game.competitions[competition_index]
         .fixtures
         .iter()
         .enumerate()
         .filter(|(_, fixture)| fixture.date == today && fixture.status == FixtureStatus::Scheduled)
-        .map(|(index, fixture)| {
-            (
-                index,
-                fixture.id.clone(),
-                fixture.home_team_id.clone(),
-                fixture.away_team_id.clone(),
-            )
-        })
+        .map(|(index, _)| index)
         .collect();
 
-    for (fixture_index, fixture_id, home_team_id, away_team_id) in due {
-        let home_strength = crate::catchup::club_strength(&game.players, &home_team_id);
-        let away_strength = crate::catchup::club_strength(&game.players, &away_team_id);
-        let (home_goals, away_goals) = simulate_scoreline(home_strength, away_strength, rng);
-        let competition = &mut game.competitions[competition_index];
-        // Level knockout ties are settled by a simulated shootout so the
-        // bracket advances with a real winner instead of defaulting to home.
-        let penalties = (home_goals == away_goals && competition.is_knockout_fixture(&fixture_id))
-            .then(|| crate::national_team::simulate_shootout(home_strength, away_strength, rng));
-        crate::catchup::apply_simulated_result(
-            competition,
+    for fixture_index in due {
+        crate::catchup::resolve_fixture_by_scoreline(
+            &game.players,
+            &mut game.competitions[competition_index],
             fixture_index,
-            &home_team_id,
-            &away_team_id,
-            home_goals,
-            away_goals,
-            penalties,
+            rng,
         );
     }
 }

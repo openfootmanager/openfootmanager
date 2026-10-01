@@ -21,14 +21,6 @@ fn backend_error_with_param(key: &str, param_name: &str, param_value: i64) -> St
     message
 }
 
-fn contract_owner_team_id(player: &domain::player::Player) -> Option<&str> {
-    player
-        .active_loan
-        .as_ref()
-        .map(|loan| loan.parent_team_id.as_str())
-        .or(player.team_id.as_deref())
-}
-
 fn projected_wage_bills(
     game: &Game,
     team_id: &str,
@@ -139,9 +131,75 @@ pub fn wage_policy_verdict(
     player: &domain::player::Player,
     offered_wage: u32,
 ) -> WagePolicyVerdict {
-    if renewal_wage_policy_allows(game, team, player, offered_wage) {
+    let (current_bill, projected_bill) = projected_wage_bills(game, &team.id, player, offered_wage);
+    verdict_for_bills(team, current_bill, projected_bill, || {
+        crate::squad_floor::club_needs_him_for_the_floor(game, &team.id, player)
+    })
+}
+
+/// The same verdict for a club *buying* the player, who will then be on its books at
+/// the full `offered_wage`. A player already on loan at the buyer is counted at his
+/// loan share today and at the whole wage after the purchase, which
+/// [`wage_policy_verdict`] would not do (it keeps the loan split).
+pub fn purchase_wage_policy_verdict(
+    game: &Game,
+    team: &Team,
+    player: &domain::player::Player,
+    offered_wage: u32,
+) -> WagePolicyVerdict {
+    BuyerWageFacts::of(game, &team.id).purchase_verdict(team, player, offered_wage)
+}
+
+/// What judging a buyer's purchases needs to know about the buyer: its wage bill and its
+/// senior counts. A sweep that judges many players for one club (the AI market) works
+/// these out once and asks for each verdict without scanning the world again; one
+/// purchase goes through [`purchase_wage_policy_verdict`], which builds them itself.
+pub(crate) struct BuyerWageFacts {
+    current_bill: i64,
+    seniors: [usize; 4],
+}
+
+impl BuyerWageFacts {
+    pub(crate) fn of(game: &Game, team_id: &str) -> Self {
+        Self::new(
+            calc_wages(game, team_id),
+            crate::squad_floor::senior_counts(game, team_id),
+        )
+    }
+
+    /// For a caller that already holds the senior counts (the market sweep's depth map).
+    pub(crate) fn new(current_bill: i64, seniors: [usize; 4]) -> Self {
+        Self {
+            current_bill,
+            seniors,
+        }
+    }
+
+    pub(crate) fn purchase_verdict(
+        &self,
+        team: &Team,
+        player: &domain::player::Player,
+        offered_wage: u32,
+    ) -> WagePolicyVerdict {
+        let current_contribution = player_weekly_wage_for_team(player, &team.id);
+        let projected_bill = self.current_bill - current_contribution + i64::from(offered_wage);
+        verdict_for_bills(team, self.current_bill, projected_bill, || {
+            crate::squad_floor::club_needs_him_given(self.seniors, &team.id, player)
+        })
+    }
+}
+
+/// The rule itself, once: the policy on the two bills, then the squad-floor waiver
+/// (asked only when the policy says no).
+fn verdict_for_bills(
+    team: &Team,
+    current_bill: i64,
+    projected_bill: i64,
+    club_needs_him_for_the_floor: impl FnOnce() -> bool,
+) -> WagePolicyVerdict {
+    if wage_policy_allows_projection(team, current_bill, projected_bill) {
         WagePolicyVerdict::WithinPolicy
-    } else if crate::squad_floor::club_needs_him_for_the_floor(game, &team.id, player) {
+    } else if club_needs_him_for_the_floor() {
         WagePolicyVerdict::OverPolicyToKeepSquadFloor
     } else {
         WagePolicyVerdict::OverPolicy
@@ -166,8 +224,9 @@ pub fn project_renewal_financial_impact(
         .iter()
         .find(|player| player.id == player_id)
         .ok_or_else(|| "be.error.playerNotFound".to_string())?;
-    let team_id =
-        contract_owner_team_id(player).ok_or_else(|| ERR_PLAYER_HAS_NO_TEAM.to_string())?;
+    let team_id = player
+        .contract_club_id()
+        .ok_or_else(|| ERR_PLAYER_HAS_NO_TEAM.to_string())?;
     let team = game
         .teams
         .iter()

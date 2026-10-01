@@ -1667,6 +1667,19 @@
     "movementLoanToBuy": "Opsiyonlu kiralama",
     "movementFreeAgentSigning": "Serbest oyuncu",
     "movementReleased": "Serbest bırakıldı",
+    "movementRenewal": "Yenileme",
+    "movementRetired": "Emekli oldu",
+    "movementInitialContract": "Başlangıç sözleşmesi",
+    "movementReleasedExpired": "Sözleşme sona erdi",
+    "movementReleasedTerminated": "Sözleşme feshedildi",
+    "movementContractRange": "Sözleşme {{start}} - {{end}}",
+    "movementContractUntil": "Sözleşme {{end}} tarihine kadar",
+    "movementContractFrom": "Sözleşme {{start}} tarihinden itibaren",
+    "movementWage": "Maaş {{wage}}/hf",
+    "movementDateUnknown": "Tarih bilinmiyor",
+    "movementLegacyContract": "Sözleşme geçmişinden önce yapılmış bir kayıttan",
+    "movementRenewedWith": "{{club}} ile yenilendi",
+    "movementAtClub": "{{club}} kulübünde",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "{{to}} kulübüne katıldı",
     "movementFrom": "{{from}} kulübünden ayrıldı",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Acil Transferler: {{team}}",
         "body": "Hocam, sahaya bir takım çıkaracak kadar oyuncumuz yoktu, bu yüzden başlama vuruşundan önce şu oyuncuları A takıma aldım, önce altyapıdan, sonra serbest oyunculardan: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Altyapıya Yeni Katılanlar: {{team}}",
+        "body": "Hocam, bu sezonun altyapı alımı tamamlandı: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Uygun Oyuncu Yok: {{group}}",

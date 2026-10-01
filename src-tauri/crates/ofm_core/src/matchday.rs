@@ -11,7 +11,7 @@
 //! drifted, and the divergence was invisible for months because the user's own table stayed right.
 
 use crate::game::Game;
-use crate::live_match_manager::{self, MatchMode};
+use crate::live_match_manager;
 use domain::league::StandingEntry;
 use domain::stats::StatsState;
 use engine::report::MatchReport;
@@ -125,26 +125,19 @@ where
         game.league = Some(competition);
     }
 
-    let allows_extra_time = fixture_allows_extra_time(game, fixture_index);
-    let mut session = match live_match_manager::kick_off_live_match(
-        game,
-        fixture_index,
-        MatchMode::Instant,
-        allows_extra_time,
-    ) {
-        Ok(session) => session,
+    let played = match live_match_manager::play_unwatched_fixture(game, fixture_index) {
+        Ok(played) => played,
         Err(error) => {
             game.league = mirror_before_the_swap;
             return Err(error);
         }
     };
-    session.user_side = None;
-    let league_round_context = session.league_round_context.clone();
-    session.run_to_completion();
-
-    let home_team_id = session.home_team_id.clone();
-    let away_team_id = session.away_team_id.clone();
-    let report = session.match_state.into_report();
+    let live_match_manager::UnwatchedFixture {
+        report,
+        home_team_id,
+        away_team_id,
+        league_round_context,
+    } = played;
 
     crate::turn::simulate_other_matches_with_capture(game, &today, Some(fixture_index), on_capture);
 

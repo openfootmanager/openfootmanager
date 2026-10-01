@@ -1666,6 +1666,19 @@
     "movementLoanToBuy": "Empréstimo com compra",
     "movementFreeAgentSigning": "Livre",
     "movementReleased": "Dispensado",
+    "movementRenewal": "Renovação",
+    "movementRetired": "Aposentado",
+    "movementInitialContract": "Contrato inicial",
+    "movementReleasedExpired": "Contrato vencido",
+    "movementReleasedTerminated": "Contrato rescindido",
+    "movementContractRange": "Contrato de {{start}} a {{end}}",
+    "movementContractUntil": "Contrato até {{end}}",
+    "movementContractFrom": "Contrato desde {{start}}",
+    "movementWage": "Salário {{wage}}/sem",
+    "movementDateUnknown": "Data desconhecida",
+    "movementLegacyContract": "De um jogo salvo antes do histórico de contratos",
+    "movementRenewedWith": "Renovou com {{club}}",
+    "movementAtClub": "Em {{club}}",
     "movementFromTo": "De {{from}} para {{to}}",
     "movementTo": "Chegou ao {{to}}",
     "movementFrom": "Saiu do {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Contratações de emergência: {{team}}",
         "body": "Chefe, não tínhamos jogadores suficientes para escalar um time, então, antes do pontapé inicial, levei estes jogadores para o elenco profissional, primeiro da base e depois agentes livres: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Novos garotos na base: {{team}}",
+        "body": "Chefe, a nova safra chegou às categorias de base: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Ninguém disponível: {{group}}",

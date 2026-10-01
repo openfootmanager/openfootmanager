@@ -64,10 +64,16 @@ pub(super) fn build_game_from_world_data(
         world_history,
         metadata,
         extra_translations,
+        generation_seed,
         ..
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    // The world's own seed when it was generated from one; a world nothing seeded
+    // (an import, a package) gets a fresh one, so that no two careers share the
+    // default 0. Either way it is stored on the game, which is the one place the
+    // day's dice come from.
+    game.seed = generation_seed.unwrap_or_else(rand::random);
     if game
         .staff
         .iter()

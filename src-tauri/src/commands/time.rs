@@ -751,7 +751,7 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == player_id)
             .unwrap();
-        player.contract_end = Some("2025-08-01".to_string());
+        player.stage_contract_end(Some("2025-08-01".to_string()));
         player.morale_core.renewal_state = Some(ContractRenewalState {
             status: RenewalSessionStatus::Blocked,
             manager_blocked_until: None,
@@ -1020,8 +1020,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p10")
             .unwrap();
-        first_key_player.contract_end = Some("2025-08-01".to_string());
-        first_key_player.wage = 35_000;
+        first_key_player.stage_contract_end(Some("2025-08-01".to_string()));
+        first_key_player.stage_wage(35_000);
         first_key_player.attributes.pace = 92;
         first_key_player.attributes.shooting = 94;
         first_key_player.attributes.dribbling = 90;
@@ -1031,8 +1031,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p11")
             .unwrap();
-        second_key_player.contract_end = Some("2025-09-01".to_string());
-        second_key_player.wage = 25_000;
+        second_key_player.stage_contract_end(Some("2025-09-01".to_string()));
+        second_key_player.stage_wage(25_000);
         second_key_player.attributes.pace = 90;
         second_key_player.attributes.shooting = 91;
         second_key_player.attributes.dribbling = 89;
@@ -1072,16 +1072,16 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p10")
             .unwrap();
-        first_risk.contract_end = Some("2025-08-01".to_string());
-        first_risk.wage = 35_000;
+        first_risk.stage_contract_end(Some("2025-08-01".to_string()));
+        first_risk.stage_wage(35_000);
 
         let second_risk = game
             .players
             .iter_mut()
             .find(|player| player.id == "p11")
             .unwrap();
-        second_risk.contract_end = Some("2025-09-01".to_string());
-        second_risk.wage = 25_000;
+        second_risk.stage_contract_end(Some("2025-09-01".to_string()));
+        second_risk.stage_wage(25_000);
 
         let blockers = compute_blocking_actions(&game);
 
@@ -1118,8 +1118,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p10")
             .unwrap();
-        first_key_player.contract_end = Some("2025-08-01".to_string());
-        first_key_player.wage = 35_000;
+        first_key_player.stage_contract_end(Some("2025-08-01".to_string()));
+        first_key_player.stage_wage(35_000);
         first_key_player.attributes.pace = 92;
         first_key_player.attributes.shooting = 94;
         first_key_player.attributes.dribbling = 90;
@@ -1141,8 +1141,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p11")
             .unwrap();
-        second_key_player.contract_end = Some("2025-09-01".to_string());
-        second_key_player.wage = 25_000;
+        second_key_player.stage_contract_end(Some("2025-09-01".to_string()));
+        second_key_player.stage_wage(25_000);
         second_key_player.attributes.pace = 90;
         second_key_player.attributes.shooting = 91;
         second_key_player.attributes.dribbling = 89;

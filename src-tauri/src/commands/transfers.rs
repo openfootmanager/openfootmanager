@@ -583,7 +583,7 @@ mod tests {
             default_attrs(),
         );
         player.team_id = Some("team-1".to_string());
-        player.contract_end = Some("2028-06-30".to_string());
+        player.stage_contract_end(Some("2028-06-30".to_string()));
         player.market_value = 1_000_000;
         player.transfer_offers.push(TransferOffer {
             id: "offer-1".to_string(),
@@ -623,7 +623,7 @@ mod tests {
                         default_attrs(),
                     );
                     player.team_id = Some(team_id.to_string());
-                    player.contract_end = Some("2031-06-30".to_string());
+                    player.stage_contract_end(Some("2031-06-30".to_string()));
                     player.market_value = 0;
                     game.players.push(player);
                 }
@@ -666,9 +666,9 @@ mod tests {
             default_attrs(),
         );
         player.team_id = Some("team-2".to_string());
-        player.contract_end = Some("2028-06-30".to_string());
+        player.stage_contract_end(Some("2028-06-30".to_string()));
         player.market_value = 1_000_000;
-        player.wage = 1_000;
+        player.stage_wage(1_000);
         player.morale = 35;
         player.stats.appearances = 1;
         player
@@ -965,7 +965,7 @@ mod tests {
         let state = StateManager::new();
         let mut game = make_game();
         game.players[0].loan_listed = true;
-        game.players[0].wage = 520_000;
+        game.players[0].stage_wage(520_000);
         game.players[0].ovr = 68;
         game.players[0].potential = 78;
         game.teams[1].finance = 6_000_000;
@@ -1180,7 +1180,14 @@ mod tests {
             response.projection.weekly_wage_budget,
             response.projection.annual_wage_budget
         );
-        assert_eq!(response.projection.incoming_player_weekly_wage, 1_000);
+        // He is shown at the wage the buyer would pay (its standard terms, rounded up to
+        // the thousand), not the 1,000 he earns at his club.
+        assert_ne!(response.projection.incoming_player_weekly_wage, 1_000);
+        assert_eq!(
+            response.projection.incoming_player_weekly_wage,
+            response.projection.annual_wage_bill_after
+                - response.projection.annual_wage_bill_before
+        );
     }
 
     #[test]

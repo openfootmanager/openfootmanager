@@ -1666,6 +1666,19 @@
     "movementLoanToBuy": "Аренда с выкупом",
     "movementFreeAgentSigning": "Свободный агент",
     "movementReleased": "Освобождён",
+    "movementRenewal": "Продление",
+    "movementRetired": "Завершил карьеру",
+    "movementInitialContract": "Начальный контракт",
+    "movementReleasedExpired": "Контракт истёк",
+    "movementReleasedTerminated": "Контракт расторгнут",
+    "movementContractRange": "Контракт с {{start}} по {{end}}",
+    "movementContractUntil": "Контракт до {{end}}",
+    "movementContractFrom": "Контракт с {{start}}",
+    "movementWage": "Зарплата {{wage}}/нед.",
+    "movementDateUnknown": "Дата неизвестна",
+    "movementLegacyContract": "Из сохранения, сделанного до истории контрактов",
+    "movementRenewedWith": "Продлил контракт с {{club}}",
+    "movementAtClub": "В клубе {{club}}",
     "movementFromTo": "Из {{from}} в {{to}}",
     "movementTo": "Перешёл в {{to}}",
     "movementFrom": "Покинул {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Экстренные подписания: {{team}}",
         "body": "Нам не хватало игроков, чтобы выставить состав, поэтому перед стартовым свистком я перевёл в основной состав этих игроков — сначала из академии, затем из свободных агентов: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Новый набор в академию: {{team}}",
+        "body": "В академию пришёл новый набор: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Некого заявить: {{group}}",

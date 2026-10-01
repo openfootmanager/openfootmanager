@@ -1666,6 +1666,19 @@
     "movementLoanToBuy": "Leihe mit Kauf",
     "movementFreeAgentSigning": "Ablösefrei",
     "movementReleased": "Freigestellt",
+    "movementRenewal": "Verlängerung",
+    "movementRetired": "Karriereende",
+    "movementInitialContract": "Anfangsvertrag",
+    "movementReleasedExpired": "Vertrag ausgelaufen",
+    "movementReleasedTerminated": "Vertrag aufgelöst",
+    "movementContractRange": "Vertrag vom {{start}} bis {{end}}",
+    "movementContractUntil": "Vertrag bis {{end}}",
+    "movementContractFrom": "Vertrag ab {{start}}",
+    "movementWage": "Gehalt {{wage}}/Wo",
+    "movementDateUnknown": "Datum unbekannt",
+    "movementLegacyContract": "Aus einem Spielstand vor der Vertragshistorie",
+    "movementRenewedWith": "Verlängert bei {{club}}",
+    "movementAtClub": "Bei {{club}}",
     "movementFromTo": "{{from}} zu {{to}}",
     "movementTo": "Wechsel zu {{to}}",
     "movementFrom": "Abgang von {{from}}",
@@ -3247,6 +3260,10 @@
       "squadToppedUp": {
         "subject": "Notverpflichtungen: {{team}}",
         "body": "Boss, wir hatten nicht genug Spieler, um eine Mannschaft aufzustellen, also habe ich vor dem Anpfiff diese Spieler in den Profikader geholt, zuerst aus der Jugend, dann vereinslose Spieler: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Neuer Jugendjahrgang: {{team}}",
+        "body": "Boss, der neue Jugendjahrgang ist in unsere Jugend aufgenommen worden: {{players}}."
       },
       "squadCannotBeFilled": {
         "subject": "Niemand verfügbar: {{group}}",
