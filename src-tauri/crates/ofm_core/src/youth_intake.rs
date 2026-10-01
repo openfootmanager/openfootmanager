@@ -139,7 +139,7 @@ fn agreed_wage(game: &Game, team: &Team, recruit: &Player, asking: u32) -> Optio
 }
 
 /// What came of a club's intake: who joined, in plan order, and how many of the
-/// plan the board would not pay for.
+/// plan did not — the board would not pay for them.
 struct Intake {
     joined: Vec<String>,
     refused: usize,
@@ -158,7 +158,7 @@ fn take_in(game: &mut Game, team_index: usize, plan: &IntakePlan, date: NaiveDat
         &date.format("%Y-%m-%d").to_string(),
     );
     let mut joined = Vec::with_capacity(plan.groups.len());
-    for (taken, group) in plan.groups.iter().enumerate() {
+    for group in &plan.groups {
         let team = &game.teams[team_index];
         let age = rng.random_range(INTAKE_AGES);
         let mut recruit = crate::generator::generate_youth_intake_recruit(
@@ -184,10 +184,7 @@ fn take_in(game: &mut Game, team_index: usize, plan: &IntakePlan, date: NaiveDat
             continue;
         };
         let Some(wage) = agreed_wage(game, team, &recruit, asking) else {
-            return Intake {
-                joined,
-                refused: plan.groups.len() - taken,
-            };
+            break;
         };
         crate::contracts::record_movement(
             &mut recruit,
@@ -202,7 +199,10 @@ fn take_in(game: &mut Game, team_index: usize, plan: &IntakePlan, date: NaiveDat
         joined.push(recruit.full_name.clone());
         game.players.push(recruit);
     }
-    Intake { joined, refused: 0 }
+    // Every planned recruit who did not join counts against the intake, whatever
+    // stopped him, so the player is never told an empty list joined.
+    let refused = plan.groups.len() - joined.len();
+    Intake { joined, refused }
 }
 
 /// Tell the player who joined the academy, and that the board would not take on
