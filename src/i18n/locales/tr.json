@@ -2704,6 +2704,7 @@
         "unknownCountry": "Bilinmeyen ülke \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Grup ayarları yalnızca grup ve eleme formatına uygulanır.",
         "groupSizeTooSmall": "{{groupSize}} grup boyutu çok küçük (en az 2).",
+        "invalidGroupQualification": "Bu katılımcılarla gruplardan çıkma ayarları karşılanamaz.",
         "zeroLegs": "Bir turnuva en az bir maç ayağı gerektirir.",
         "noParticipants": "Katılımcı yok: açık bir liste veya bir seçici sağlayın.",
         "bothParticipantSources": "Açık bir liste veya bir seçici sağlayın, ikisini birden değil.",
@@ -3262,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Altyapıya Yeni Katılanlar: {{team}}",
-        "body": "Hocam, bu sezonun altyapı alımı tamamlandı: {{players}}."
+        "body": "Hocam, bu sezonun altyapı alımı tamamlandı: {{players}}.",
+        "bodyPartlyRefused": "Hocam, bu sezon altyapıya katılanlar: {{players}}. Yönetim Kurulu, alımın geri kalanının maaşlarını üstlenmek istemedi.",
+        "bodyAllRefused": "Hocam, Yönetim Kurulu bu sezonki altyapı alımının maaşlarını üstlenmek istemedi, bu yüzden altyapıya kimse katılmadı."
       },
       "squadCannotBeFilled": {
         "subject": "Uygun Oyuncu Yok: {{group}}",

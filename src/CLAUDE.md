@@ -10,6 +10,11 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules.
 **Every string a player can read must exist in all 12 locales.** No exceptions, no "I'll add the
 translations later."
 
+"A player can read it" is the whole test. Everything rendered in `src/` qualifies, including an
+`aria-label` and any backend error the UI surfaces. It does **not** reach text whose only reader is
+an AI agent or a modder — MCP tool output, `ofm-cli`, `docs/` — which stays English on purpose; the
+root [`../CLAUDE.md`](../CLAUDE.md) rule 2 has the table.
+
 - Source of truth for the locale list: `SUPPORTED_LANGUAGES` in `src/i18n/index.ts` —
   `en, es, pt, fr, de, it, ru, pt-BR, zh-CN, cs, tr, id`.
 - Translation files: `src/i18n/locales/<code>.json`.

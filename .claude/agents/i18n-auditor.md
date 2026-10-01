@@ -17,6 +17,27 @@ Every string a player can read exists in every locale in `SUPPORTED_LANGUAGES`
 grows. English-only is a broken build, not a TODO. This is the most frequently violated
 rule in the project, which is why you exist.
 
+### What is out of scope — do not report these
+
+"A player can read it" is the test, and it is narrower than "a human can read it". These surfaces
+are **English on purpose**, and flagging them is a false positive:
+
+| Surface | Reader |
+|---|---|
+| `src-tauri/src/mcp_server/` tool output, including markdown reports | An AI agent playing the game |
+| `src-tauri/crates/ofm-cli/` output and its scaffold templates | A modder at a terminal |
+| `docs/`, including `docs/modding/` | Developers and modders |
+| Code comments, `log::` lines, panic messages | Nobody ships these to a player |
+
+The boundary inside the MCP server: its own private errors (for example the press-conference `Err`
+values in `mcp_server/tools_impl/live_match.rs`) are rendered for the agent by `tools.rs::err_result`
+and never reach the UI, so they are not a finding either way. An MCP function that propagates an
+error from a shared `application::` service which also backs a Tauri command (for example
+`application::live_match::*`) must keep the `be.error.*` key, because the UI shows that error on the
+Tauri path. Reported as a defect on #479 and #437 (the CLI scaffold) and closed both times.
+
+A backend error returned from a **Tauri command** is always in scope: the UI shows it.
+
 Key files:
 
 | Path | Role |

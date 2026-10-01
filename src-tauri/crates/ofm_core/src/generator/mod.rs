@@ -46,6 +46,12 @@ use chrono::Datelike;
 use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
+const DEFAULT_TEAM_REPUTATION_RANGE: [u32; 2] = [300, 900];
+#[cfg(test)]
+thread_local! {
+    // Count actual builder entries on this test thread, including validation.
+    static PACKAGE_WORLD_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
 const OPENING_YOUTH_ACADEMY_SIZE: usize = 3;
 use crate::roster::YOUTH_ACADEMY_MAX_AGE as OPENING_YOUTH_MAX_AGE;
 const AVAILABLE_STAFF_MARKET_ROTATION_DAYS: i64 = 30;
@@ -682,7 +688,9 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         tdef.stadium_name.clone()
     };
 
-    let rep_range = tdef.reputation_range.unwrap_or([300, 900]);
+    let rep_range = tdef
+        .reputation_range
+        .unwrap_or(DEFAULT_TEAM_REPUTATION_RANGE);
     let fin_range = tdef.finance_range.unwrap_or([500_000, 10_000_000]);
 
     let mut team = domain::team::Team::new(
@@ -1026,12 +1034,20 @@ fn regions_from_package(
         .map(|country| (country.id.as_str(), country.confederation.as_str()))
         .collect();
 
-    for team in teams {
-        let code = if team.football_nation.is_empty() {
-            team.country.as_str()
-        } else {
-            team.football_nation.as_str()
-        };
+    // Declared countries remain part of the world even when they have no club.
+    // Carry them in the existing region catalog so export/load retains them.
+    for code in package
+        .countries
+        .iter()
+        .map(|country| country.id.as_str())
+        .chain(teams.iter().map(|team| {
+            if team.football_nation.is_empty() {
+                team.country.as_str()
+            } else {
+                team.football_nation.as_str()
+            }
+        }))
+    {
         let region = country_region
             .get(code)
             .copied()
@@ -1172,6 +1188,8 @@ pub fn build_world_data_from_package(
     opening_year: Option<u32>,
     sources: &definitions::DefinitionSources,
 ) -> WorldData {
+    #[cfg(test)]
+    PACKAGE_WORLD_BUILDS.with(|count| count.set(count.get() + 1));
     let opening_year = opening_year
         .or_else(|| {
             package

@@ -300,4 +300,61 @@ mod tests {
         assert_eq!(loaded.len(), 1, "the retired edition is gone: {loaded:?}");
         assert_eq!(loaded[0].id, "eng-d1");
     }
+    #[test]
+    fn authored_group_size_survives_sqlite_and_next_season() {
+        use chrono::TimeZone;
+        let database = GameDatabase::open_in_memory().unwrap();
+        let connection = database.conn();
+        let ids: Vec<String> = (0..8).map(|i| format!("club-{i}")).collect();
+        let start = chrono::Utc.with_ymd_and_hms(2031, 8, 1, 0, 0, 0).unwrap();
+        let definition: ofm_core::generator::CompetitionDefinition = serde_json::from_value(
+            serde_json::json!({"id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+                "format":{"kind":"GroupAndKnockout","groupSize":2}, "participants":{"explicit":ids}})
+        ).unwrap();
+        let cup =
+            ofm_core::generator::build_explicit_competition(&definition, 2031, start).unwrap();
+        replace_competitions(connection, &[cup]).unwrap();
+        let stored: String = connection
+            .query_row("SELECT rules_json FROM competitions", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&stored).unwrap()["group_size"],
+            2
+        );
+        let mut loaded = load_competitions(connection).unwrap().remove(0);
+        assert_eq!(
+            serde_json::to_value(&loaded.rules).unwrap()["group_size"],
+            2
+        );
+        ofm_core::group_stage::regenerate_for_season(
+            &mut loaded,
+            2032,
+            start + chrono::Duration::days(366),
+        );
+        assert_eq!(loaded.groups.len(), 4);
+        assert!(loaded.groups.iter().all(|group| group.team_ids.len() == 2));
+        assert_eq!(loaded.fixtures.len(), 8);
+        replace_competitions(connection, &[loaded]).unwrap();
+        let loaded = load_competitions(connection).unwrap().remove(0);
+        assert_eq!(loaded.season, 2032);
+        assert_eq!(loaded.groups.len(), 4);
+
+        // A shipped rules_json without the new field keeps the old shape.
+        let mut old_rules: serde_json::Value = serde_json::from_str(&stored).unwrap();
+        old_rules.as_object_mut().unwrap().remove("group_size");
+        connection
+            .execute(
+                "UPDATE competitions SET rules_json = ?1",
+                [old_rules.to_string()],
+            )
+            .unwrap();
+        let mut legacy = load_competitions(connection).unwrap().remove(0);
+        assert_eq!(
+            serde_json::to_value(&legacy.rules).unwrap()["group_size"],
+            4
+        );
+        ofm_core::group_stage::regenerate_for_season(&mut legacy, 2033, start);
+        assert_eq!(legacy.groups.len(), 2);
+        assert_eq!(legacy.fixtures.len(), 24);
+    }
 }

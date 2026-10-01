@@ -139,7 +139,7 @@ export default defineConfig(async ({ command }) => ({
     globals: true,
     // The CI scripts under .github/scripts are plain Node modules; their tests opt into the node
     // environment with a `@vitest-environment node` docblock.
-    include: ["src/**/*.test.{ts,tsx}", ".github/scripts/**/*.test.mjs"],
+    include: ["src/**/*.test.{ts,tsx}", ".github/scripts/**/*.test.mjs", "scripts/*.test.mjs"],
     setupFiles: ["src/test-setup.ts"],
     coverage: {
       exclude: ["src/i18n/locales/**", "src/**/*.test.{ts,tsx}", "src/test-setup.ts"],

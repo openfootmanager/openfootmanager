@@ -29,8 +29,7 @@ pub(super) fn validate_against_world(
     file: &ofm_core::generator::CompetitionDefinitionFile,
     world: &ofm_core::generator::WorldData,
 ) -> Vec<CompetitionDefinitionIssue> {
-    let ctx = ofm_core::generator::WorldValidationContext::from_world(world);
-    ofm_core::generator::validate_definitions(file, &ctx)
+    ofm_core::generator::validate_definitions_for_world(file, world)
         .into_iter()
         .map(|error| CompetitionDefinitionIssue {
             code: error.code,

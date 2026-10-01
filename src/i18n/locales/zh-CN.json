@@ -2679,6 +2679,7 @@
         "unknownCountry": "未知国家“{{country}}”。",
         "groupConfigOnNonGroupFormat": "分组设置仅适用于小组赛加淘汰赛格式。",
         "groupSizeTooSmall": "小组规模 {{groupSize}} 太小（至少 2）。",
+        "invalidGroupQualification": "这些参赛球队无法满足小组晋级设置。",
         "zeroLegs": "赛事至少需要一回合。",
         "noParticipants": "没有参赛者：请提供明确列表或选择器。",
         "bothParticipantSources": "请提供明确列表或选择器，二者不可兼用。",
@@ -3262,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "青训新人：{{team}}",
-        "body": "老板，本赛季的青训新人已加入青训营：{{players}}。"
+        "body": "老板，本赛季的青训新人已加入青训营：{{players}}。",
+        "bodyPartlyRefused": "老板，本赛季青训营新人：{{players}}。董事会不愿承担其余青训新人的薪水。",
+        "bodyAllRefused": "老板，董事会不愿承担本赛季青训新人的薪水，所以没有人加入青训营。"
       },
       "squadCannotBeFilled": {
         "subject": "无人可用：{{group}}",

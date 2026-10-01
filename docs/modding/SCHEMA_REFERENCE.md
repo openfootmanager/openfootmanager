@@ -505,7 +505,7 @@ Competitions are the most complex entity. A competition defines a league, cup, o
 |-------|------|---------|-------------|
 | `kind` | string | — | `"LeagueTable"`, `"Knockout"`, or `"GroupAndKnockout"` |
 | `legs` | integer | `2` | _(LeagueTable / groups phase only)_ Number of legs per round-robin cycle. `1` = one-leg, `2` = home and away. |
-| `groupSize` | integer | `4` | _(GroupAndKnockout only)_ Clubs per group. |
+| `groupSize` | integer | `4` | _(GroupAndKnockout only)_ Maximum clubs per group. Uneven fields are balanced across groups. |
 | `qualifiersPerGroup` | integer | `2` | _(GroupAndKnockout only)_ Clubs advancing from each group. |
 | `bestThirdQualifiers` | integer | `0` | _(GroupAndKnockout only)_ Best third-placed teams that also advance (like the 2026 World Cup format). |
 

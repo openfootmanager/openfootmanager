@@ -2679,6 +2679,7 @@
         "unknownCountry": "País desconhecido \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "As configurações de grupo só se aplicam a um formato de grupos e mata-mata.",
         "groupSizeTooSmall": "O tamanho do grupo {{groupSize}} é pequeno demais (mínimo 2).",
+        "invalidGroupQualification": "Esses participantes não permitem cumprir as configurações de classificação dos grupos.",
         "zeroLegs": "Uma competição precisa de pelo menos um jogo.",
         "noParticipants": "Sem participantes: forneça uma lista explícita ou um seletor.",
         "bothParticipantSources": "Forneça uma lista explícita ou um seletor, não ambos.",
@@ -3262,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Novos garotos na base: {{team}}",
-        "body": "Chefe, a nova safra chegou às categorias de base: {{players}}."
+        "body": "Chefe, a nova safra chegou às categorias de base: {{players}}.",
+        "bodyPartlyRefused": "Chefe, novos na base nesta temporada: {{players}}. A diretoria não quis bancar os salários do restante da safra.",
+        "bodyAllRefused": "Chefe, a diretoria não quis bancar os salários da nova safra, então ninguém chegou à base nesta temporada."
       },
       "squadCannotBeFilled": {
         "subject": "Ninguém disponível: {{group}}",

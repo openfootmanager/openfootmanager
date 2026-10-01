@@ -314,7 +314,7 @@ fn draw_world_cup_groups(
     pools: &BTreeMap<String, Vec<u8>>,
     rng: &mut impl Rng,
 ) -> Vec<Vec<String>> {
-    const GROUP_SIZE: usize = 4;
+    const GROUP_SIZE: usize = domain::league::DEFAULT_GROUP_SIZE as usize;
     let mut ranked = ranked_field_with_pools(game, field_codes, pools);
     // The host is seeded into Pot 1 regardless of its ranking.
     if let Some(host) = host_code
@@ -331,7 +331,7 @@ fn draw_world_cup_groups(
         .collect();
     // Round up so every team lands in a group: a field that is not a multiple of
     // four yields a few groups of three rather than silently dropping teams.
-    let group_count = ranked.len().div_ceil(GROUP_SIZE).max(1);
+    let group_count = crate::group_stage::group_count(ranked.len(), GROUP_SIZE);
     let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
 
     for pot_index in 0..GROUP_SIZE {
@@ -514,6 +514,7 @@ pub fn schedule_world_cup_with_field(
         CompetitionType::InternationalNation,
         CompetitionScope::International,
         &GroupStageConfig {
+            group_size: domain::league::DEFAULT_GROUP_SIZE,
             legs: 1,
             matchday_gap_days: GROUP_MATCHDAY_GAP_DAYS,
             qualifiers_per_group: format.qualifiers_per_group,
@@ -930,7 +931,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         let group_count = if single_league {
             1
         } else {
-            codes.len().div_ceil(group_size).max(1)
+            crate::group_stage::group_count(codes.len(), group_size)
         };
         let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
         for (index, code) in codes.iter().enumerate() {

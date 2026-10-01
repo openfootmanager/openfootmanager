@@ -7,9 +7,12 @@
 //! floor without the emergency top-up ever firing, and that the world's
 //! population holds steady rather than draining.
 //!
-//! The world is seeded; the day is not yet (random events, injuries and the
-//! match engine draw from ambient randomness), so the proof is a property: it
-//! must hold on every seed, on every run of it. A seeded day is its own change.
+//! The world is generated from the seed, and the save is given the same seed, so
+//! the draws that go through `Game::rng_for` (the youth intake among them) differ
+//! from one seed to the next. A run is still not repeatable: generation mints
+//! club and player ids with `Uuid::new_v4`, and `rng_for` streams are keyed on
+//! them, and parts of the day still draw from ambient randomness. So the proof is
+//! a property: it must hold on every seed, on every run of it.
 
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
@@ -22,6 +25,7 @@ use ofm_core::generator::{
 };
 use ofm_core::squad_floor::squad_shortfall;
 use ofm_core::turn;
+use std::collections::HashSet;
 
 const SEEDS: [u64; 3] = [7, 19, 42];
 /// Seasons the proof plays: long enough for the academies the generator
@@ -56,6 +60,9 @@ fn seeded_world(seed: u64) -> Game {
         world.staff,
         vec![],
     );
+    // The save's seed as well as the world's: without it every world would share
+    // seed 0, and every draw through `Game::rng_for` the one stream.
+    game.seed = seed;
     game.available_staff_market_last_activity_date = Some(start.format("%Y-%m-%d").to_string());
     repair_opening_youth_academies(&mut game);
     game.league = Some(ofm_core::schedule::generate_league(
@@ -85,11 +92,35 @@ struct Census {
     free_agents: usize,
     /// Senior players at each AI club.
     ai_seniors: Vec<usize>,
+    /// AI clubs that took no youngster into their academy at this season's end,
+    /// and whether each was in debt at the time.
+    ai_without_recruits: Vec<(String, bool)>,
 }
 
-fn census(game: &Game) -> Census {
+/// The census at a season's end, `before` being the players there before its
+/// turnover ran on `season_end`.
+fn census(game: &Game, before: &HashSet<String>, season_end: &str) -> Census {
     let active: Vec<_> = game.players.iter().filter(|p| !p.retired).collect();
+    let took_someone = |club: &str| {
+        game.players.iter().any(|p| {
+            !before.contains(&p.id)
+                && p.squad_role == SquadRole::Youth
+                && p.contract_club_id() == Some(club)
+                && p.contract_start() == Some(season_end)
+        })
+    };
     Census {
+        ai_without_recruits: ai_clubs(game)
+            .into_iter()
+            .filter(|club| !took_someone(club))
+            .map(|club| {
+                let in_debt = game
+                    .teams
+                    .iter()
+                    .any(|team| team.id == club && team.finance < 0);
+                (club, in_debt)
+            })
+            .collect(),
         active: active.len(),
         free_agents: active.iter().filter(|p| p.team_id.is_none()).count(),
         ai_seniors: ai_clubs(game)
@@ -109,12 +140,25 @@ fn census(game: &Game) -> Census {
 /// and fail on the first AI club found below the floor at a season's end.
 /// Returns the census at each season's end.
 fn play_seasons(game: &mut Game, years: u32, label: &str) -> Vec<Census> {
-    let mut censuses = Vec::new();
+    play_seasons_watching(game, years, label, |_, _| {})
+}
+
+/// [`play_seasons`], handing each season's census to `after_each` as that season
+/// ends, with the one before it — so a check fails on the season it is about,
+/// before a later season's floor check can fail first.
+fn play_seasons_watching(
+    game: &mut Game,
+    years: u32,
+    label: &str,
+    mut after_each: impl FnMut(&Census, Option<&Census>),
+) -> Vec<Census> {
+    let mut censuses: Vec<Census> = Vec::new();
     for year in 0..years {
         for _ in 0..365 {
             turn::process_day(game);
         }
         let today = game.clock.current_date.date_naive();
+        let before: HashSet<String> = game.players.iter().map(|p| p.id.clone()).collect();
         ofm_core::end_of_season::apply_season_end_squad_turnover(game, today, 2026 + year);
         for club in ai_clubs(game) {
             assert!(
@@ -123,7 +167,9 @@ fn play_seasons(game: &mut Game, years: u32, label: &str) -> Vec<Census> {
                 squad_shortfall(game, &club)
             );
         }
-        censuses.push(census(game));
+        let this_season = census(game, &before, &today.format("%Y-%m-%d").to_string());
+        after_each(&this_season, censuses.last());
+        censuses.push(this_season);
     }
     censuses
 }
@@ -342,7 +388,7 @@ fn the_worlds_population_stays_stable_over_twelve_seasons() {
     for seed in SEEDS {
         let mut game = seeded_world(seed);
         let clubs = game.teams.len();
-        let start = census(&game).active;
+        let start = game.players.iter().filter(|p| !p.retired).count();
         let label = format!("seed {seed}");
         let censuses = play_seasons(&mut game, SEASONS, &label);
         for (year, census) in censuses.iter().enumerate() {
@@ -369,5 +415,42 @@ fn the_worlds_population_stays_stable_over_twelve_seasons() {
             "{label}: emergency top-ups fired: {:?}",
             ai_emergencies(&game)
         );
+    }
+}
+
+/// Given seeded generated worlds, when twelve seasons are played, then no AI club
+/// goes two season ends running without taking a youngster into its academy,
+/// unless it was in debt both times. The board may turn an intake away on wages;
+/// it may not starve a solvent club of youth season after season.
+///
+/// The bound is measured, not chosen. On these worlds, and on a three-nation
+/// pyramid of 80 clubs over five seasons (`youth_intake_wages_probe`), the board
+/// turned away none of the intake: no club ever took nobody. Two seasons running
+/// leaves one season's slack over what was seen.
+#[test]
+fn no_solvent_ai_club_goes_without_youngsters_two_seasons_running() {
+    for seed in SEEDS {
+        let mut game = seeded_world(seed);
+        let label = format!("seed {seed}");
+        let mut season = 0;
+        let censuses = play_seasons_watching(&mut game, SEASONS, &label, |this, last| {
+            for (club, in_debt) in &this.ai_without_recruits {
+                let also_last_season = last
+                    .into_iter()
+                    .flat_map(|census| &census.ai_without_recruits)
+                    .find(|(other, _)| other == club);
+                if let Some((_, was_in_debt)) = also_last_season {
+                    assert!(
+                        *in_debt && *was_in_debt,
+                        "{label}: {club} took no youngster after seasons {} and {season}, \
+                         and was not in debt both times",
+                        season - 1
+                    );
+                }
+            }
+            season += 1;
+        });
+        let without: usize = censuses.iter().map(|c| c.ai_without_recruits.len()).sum();
+        println!("{label}: AI club-seasons without a recruit: {without}");
     }
 }

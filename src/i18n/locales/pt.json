@@ -2679,6 +2679,7 @@
         "unknownCountry": "País desconhecido \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "As definições de grupo só se aplicam a um formato de grupos e eliminatórias.",
         "groupSizeTooSmall": "O tamanho do grupo {{groupSize}} é demasiado pequeno (mínimo 2).",
+        "invalidGroupQualification": "Estes participantes não permitem cumprir as definições de apuramento dos grupos.",
         "zeroLegs": "Uma competição precisa de pelo menos uma mão.",
         "noParticipants": "Sem participantes: forneça uma lista explícita ou um seletor.",
         "bothParticipantSources": "Forneça uma lista explícita ou um seletor, não ambos.",
@@ -3262,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Novos jovens na formação: {{team}}",
-        "body": "Mister, a nova fornada juntou-se à formação: {{players}}."
+        "body": "Mister, a nova fornada juntou-se à formação: {{players}}.",
+        "bodyPartlyRefused": "Mister, novos na formação esta época: {{players}}. O Conselho de Administração não quis assumir os salários do resto da fornada.",
+        "bodyAllRefused": "Mister, o Conselho de Administração não quis assumir os salários da nova fornada, por isso esta época ninguém entrou na formação."
       },
       "squadCannotBeFilled": {
         "subject": "Ninguém disponível: {{group}}",
