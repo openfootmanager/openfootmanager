@@ -16,7 +16,10 @@ The authoritative checklist lives in the code, at `tool_catalog()` in
 
 **The router and the catalog are two separate lists that must stay in sync.** `help_find_tool`
 searches only the catalog, so a tool registered in the router but missing from the catalog works
-if an agent guesses its name and is otherwise invisible. Nothing checks this for you.
+if an agent guesses its name and is otherwise invisible. The `tools.rs` tests
+`every_routed_tool_is_in_the_catalog`, `every_catalogued_tool_has_a_route`, duplicate-name and
+registration-parser checks enforce this when run with `--lib --features mcp`; they are not
+executed by a default-feature test run.
 
 ---
 
@@ -27,7 +30,9 @@ if an agent guesses its name and is otherwise invisible. Nothing checks this for
 `live_match.rs`, `help.rs`. Shared helpers (`require_game`, `user_team`, …) are in `helpers.rs`.
 
 **Call the same `_internal` function the Tauri command calls.** Never reimplement game logic here.
-If the behaviour has no `_internal` split yet, do that first — see `/add-tauri-command`.
+If the behaviour has no `_internal` split yet, do that first — see `/add-tauri-command`. Check
+that the shared function is reachable in default and `mcp` builds; application code never imports
+MCP or commands. Apply the root Code quality limits and use `/write-tests` (programme PR 2) first.
 
 Return text an agent can actually use. Tools return prose or JSON, not opaque ids: an agent
 reading `info_standings` should be able to act on it without a second call. Follow the formatting
@@ -83,10 +88,14 @@ Stale counts are how this document rots.
 cargo build --manifest-path src-tauri/Cargo.toml --features mcp
 cargo clippy --manifest-path src-tauri/Cargo.toml --features mcp --all-targets
 cargo test --manifest-path src-tauri/Cargo.toml --workspace
+cargo test --manifest-path src-tauri/Cargo.toml --lib --features mcp
 ```
 
 The `mcp` feature is not compiled by default, so a normal `cargo check` will **not** catch a
-mistake in this code. Always build with `--features mcp`.
+mistake in this code. Build **and test** with `--features mcp`. Add one test per GWT scenario
+through the shared seam and adapter: wrapper equivalence, errors, competition gating and event
+emission. For persistence claims, read the saved database through a fresh reader; a returned
+clone does not prove a write. Use `ofm-test-reviewer` for regression effectiveness evidence.
 
 End-to-end, against a running instance:
 
