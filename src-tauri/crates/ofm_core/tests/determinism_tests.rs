@@ -234,3 +234,39 @@ fn a_rollover_schedules_the_same_international_windows() {
     );
     assert_eq!(first, second);
 }
+
+/// Given a world whose career opens on a calendar with friendly windows to fill,
+/// When its competitions are founded, twice from the same seed, and once from another,
+/// Then the friendlies drawn for the opening season are the same, and others from another seed.
+#[test]
+fn the_opening_seasons_international_friendlies_follow_the_seed() {
+    let sources = DefinitionSources::embedded_only();
+    let data = generate_world_data_seeded_with(1, &WorldGenConfig::compact(), &sources);
+    let manager = domain::manager::Manager::new(
+        "m".to_string(),
+        "D".to_string(),
+        "E".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    let unfounded = Game::new(
+        GameClock::new(start_date_for_year(2027).unwrap()),
+        manager,
+        data.teams,
+        data.players,
+        data.staff,
+        vec![],
+    );
+    let founded_with = |seed: u64| {
+        let mut game = unfounded.clone();
+        game.seed = seed;
+        ensure_multi_competition_foundations(&mut game);
+        international_fixtures(&game)
+    };
+
+    let fixtures = founded_with(7);
+
+    assert!(!fixtures.is_empty(), "the opening season has friendlies");
+    assert_eq!(fixtures, founded_with(7));
+    assert_ne!(fixtures, founded_with(8));
+}

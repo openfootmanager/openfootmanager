@@ -323,7 +323,7 @@ fn repair_one_pass(game: &mut Game, today: NaiveDate, pass: usize) -> usize {
         &today.to_string(),
     );
     for date in stranded_international_dates(game, today) {
-        resolved += crate::national_team::process_national_team_fixtures_due(game, &date, &mut rng);
+        resolved += crate::national_team::process_national_team_fixtures_due(game, &date);
         resolved += crate::world_cup::process_world_cup_fixtures_due(game, &date, &mut rng);
     }
 

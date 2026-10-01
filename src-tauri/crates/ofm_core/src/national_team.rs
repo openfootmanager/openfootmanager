@@ -112,11 +112,7 @@ pub fn schedule_national_team_friendlies(
 
 /// Simulate every national-team fixture due on `today`, applying full carry-back
 /// to the called-up club players. Returns the number of fixtures simulated.
-pub fn process_national_team_fixtures_due(
-    game: &mut Game,
-    today: &str,
-    rng: &mut impl Rng,
-) -> usize {
+pub fn process_national_team_fixtures_due(game: &mut Game, today: &str) -> usize {
     let due: Vec<(usize, usize)> = game
         .national_teams
         .iter()
@@ -139,8 +135,12 @@ pub fn process_national_team_fixtures_due(
             (fixture.home_team_id.clone(), fixture.away_team_id.clone())
         };
 
+        // A stream per fixture, told apart by the two nations: a stream shared by the day would
+        // hand each fixture whatever the ones before it left, and the order they come in is the
+        // order of `game.national_teams`, which a save reloads by name.
+        let mut rng = game.rng_for(&format!("national-match/{home_id}/{away_id}"), today);
         let (home_goals, away_goals, home_scorers, away_scorers) =
-            play_national_match(game, &home_id, &away_id, rng);
+            play_national_match(game, &home_id, &away_id, &mut rng);
 
         let fixture = &mut game.national_teams[team_index].fixtures[fixture_index];
         fixture.status = FixtureStatus::Completed;
@@ -646,8 +646,7 @@ mod tests {
         let away = make_national_team("nt-bra", "BRA", &["p2"]);
         game.national_teams = vec![home, away];
 
-        let mut rng = StdRng::seed_from_u64(42);
-        let simulated = process_national_team_fixtures_due(&mut game, "2026-09-09", &mut rng);
+        let simulated = process_national_team_fixtures_due(&mut game, "2026-09-09");
 
         assert_eq!(simulated, 1);
         let fixture = &game.national_teams[0].fixtures[0];
@@ -675,8 +674,7 @@ mod tests {
         });
         game.national_teams = vec![home, make_national_team("nt-bra", "BRA", &["p2"])];
 
-        let mut rng = StdRng::seed_from_u64(3);
-        let simulated = process_national_team_fixtures_due(&mut game, "2026-09-09", &mut rng);
+        let simulated = process_national_team_fixtures_due(&mut game, "2026-09-09");
 
         assert_eq!(simulated, 0);
         assert_eq!(

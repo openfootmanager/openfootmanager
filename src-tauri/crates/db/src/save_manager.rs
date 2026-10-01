@@ -2111,6 +2111,102 @@ mod tests {
         );
     }
 
+    /// Twelve national teams with a friendly each today, named so that the order a save reloads
+    /// them in (by name) is not the order they were made in.
+    fn game_with_a_window_today() -> Game {
+        let mut game = sample_game();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 9, 0, 0, 0).unwrap();
+        let today = "2026-09-09".to_string();
+        let names = [
+            "Zulu", "Alpha", "Yankee", "Bravo", "Xray", "Charlie", "Whiskey", "Delta", "Victor",
+            "Echo", "Uniform", "Foxtrot",
+        ];
+        let mut teams: Vec<domain::national_team::NationalTeam> = names
+            .iter()
+            .enumerate()
+            .map(|(n, name)| {
+                domain::national_team::NationalTeam::new(
+                    format!("nt-{n}"),
+                    (*name).to_string(),
+                    format!("C{n}"),
+                    None,
+                )
+            })
+            .collect();
+        for pair in 0..6 {
+            let (home, away) = (format!("nt-{}", pair * 2), format!("nt-{}", pair * 2 + 1));
+            teams[pair * 2].fixtures.push(domain::league::Fixture {
+                id: format!("ntf-{pair}"),
+                competition_id: "international-friendlies".to_string(),
+                matchday: 1,
+                date: today.clone(),
+                home_team_id: home,
+                away_team_id: away,
+                competition: domain::league::FixtureCompetition::InternationalNation,
+                status: domain::league::FixtureStatus::Scheduled,
+                result: None,
+            });
+        }
+        game.national_teams = teams;
+        game
+    }
+
+    fn friendly_scores(game: &Game) -> std::collections::BTreeMap<String, (u8, u8)> {
+        game.national_teams
+            .iter()
+            .flat_map(|team| team.fixtures.iter())
+            .filter_map(|fixture| {
+                let result = fixture.result.as_ref()?;
+                Some((
+                    format!("{}-{}", fixture.home_team_id, fixture.away_team_id),
+                    (result.home_goals, result.away_goals),
+                ))
+            })
+            .collect()
+    }
+
+    /// Given national-team friendlies due today,
+    /// When the game is saved and reloaded before the day is played — the .db hands the national
+    ///      teams back in name order, not the order they were made in —
+    /// Then the day plays out as it would have without the reload: each fixture has a stream of
+    ///      its own, so no fixture depends on how many were played before it.
+    #[test]
+    fn a_reload_before_a_national_window_does_not_change_its_results() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = game_with_a_window_today();
+        game.seed = 11;
+        let save_id = sm.create_save(&game, "Window").unwrap();
+        let mut reloaded = sm.load_game(&save_id).unwrap();
+        assert_ne!(
+            game.national_teams
+                .iter()
+                .map(|t| t.id.clone())
+                .collect::<Vec<_>>(),
+            reloaded
+                .national_teams
+                .iter()
+                .map(|t| t.id.clone())
+                .collect::<Vec<_>>(),
+            "the fixture must reorder the teams or this proves nothing"
+        );
+
+        ofm_core::turn::process_day(&mut game);
+        ofm_core::turn::process_day(&mut reloaded);
+
+        let scores = friendly_scores(&game);
+        assert_eq!(scores.len(), 6, "the window was played");
+        assert!(
+            scores
+                .values()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                > 1,
+            "the six fixtures were not all settled by one stream"
+        );
+        assert_eq!(scores, friendly_scores(&reloaded));
+    }
+
     /// Given a save written before World Cups were drawn from the game's seed,
     /// When it is loaded, twice,
     /// Then it is marked to keep drawing them the old way, and the mark is in the file:

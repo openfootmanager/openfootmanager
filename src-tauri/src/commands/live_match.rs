@@ -56,10 +56,20 @@ pub fn finish_live_match_internal(state: &StateManager) -> Result<FinishLiveMatc
 
 /// The seed a team talk's morale swings are drawn from: the game's, for this tone and this
 /// moment of the match, so the same talk in the same spot replays the same way.
-pub(crate) fn team_talk_seed(game: &Game, tone: &str, context: &str) -> u64 {
+/// The seed for a talk given in a named phase of the match (half-time, full-time): the same tone in the same score line is a different talk at each, and must not draw the
+/// same swings twice.
+pub(crate) fn team_talk_seed_in_phase(game: &Game, tone: &str, context: &str, phase: &str) -> u64 {
     use rand::RngExt;
-    game.rng_today(&format!("team-talk/{tone}/{context}"))
+    game.rng_today(&format!("team-talk/{tone}/{context}/{phase}"))
         .random()
+}
+
+/// The phase the live match is in, as a tag for [`team_talk_seed_in_phase`]; empty when there
+/// is no live match.
+pub(crate) fn live_phase_tag(state: &ofm_core::state::StateManager) -> String {
+    state
+        .with_live_match(|session| format!("{:?}", session.match_state.phase()))
+        .unwrap_or_default()
 }
 
 pub fn apply_team_talk_internal(
@@ -140,9 +150,10 @@ pub fn apply_team_talk(
 ) -> Result<Vec<serde_json::Value>, String> {
     info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
     // apply_team_talk validates (team assigned) before mutating morale.
+    let phase = live_phase_tag(&state);
     state
         .update_game(|game| {
-            let seed = team_talk_seed(game, &tone, &context);
+            let seed = team_talk_seed_in_phase(game, &tone, &context, &phase);
             apply_team_talk_internal(game, &tone, &context, seed)
         })
         .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
@@ -612,13 +623,30 @@ mod tests {
     fn a_team_talks_seed_comes_from_the_game() {
         let mut game = game_after_a_match();
         game.seed = 5;
-        let seed = super::team_talk_seed(&game, "calm", "losing");
+        let seed = super::team_talk_seed_in_phase(&game, "calm", "losing", "HalfTime");
 
-        assert_eq!(seed, super::team_talk_seed(&game, "calm", "losing"));
-        assert_ne!(seed, super::team_talk_seed(&game, "aggressive", "losing"));
-        assert_ne!(seed, super::team_talk_seed(&game, "calm", "winning"));
+        assert_eq!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "losing", "HalfTime")
+        );
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "aggressive", "losing", "HalfTime")
+        );
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "winning", "HalfTime")
+        );
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "losing", "FullTime"),
+            "the same talk at half-time and at full-time is two talks"
+        );
         game.seed = 6;
-        assert_ne!(seed, super::team_talk_seed(&game, "calm", "losing"));
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "losing", "HalfTime")
+        );
     }
 
     #[test]

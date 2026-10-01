@@ -230,10 +230,15 @@ fn ensure_international_windows(game: &mut Game) {
                 &window_dates,
             );
         } else {
+            // Keyed by the year the windows belong to, as the rollover's are.
+            let mut friendlies_rng = game.rng_for(
+                "national-team-friendlies",
+                &preseason_season_start(&game.clock).year().to_string(),
+            );
             crate::national_team::schedule_national_team_friendlies(
                 &mut game.national_teams,
                 &window_dates,
-                &mut rand::rng(),
+                &mut friendlies_rng,
             );
         }
     }

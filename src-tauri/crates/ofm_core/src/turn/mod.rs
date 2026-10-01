@@ -223,16 +223,14 @@ where
     // scoreline only, keeping the dormant world moving without the full engine.
     let dormant_competitions = dormant_competition_indices_due_today(game, today);
     if !dormant_competitions.is_empty() {
-        let mut rng = game.rng_for("dormant-competitions", today);
         for competition_index in dormant_competitions {
-            dormant::simulate_dormant_competition_day(game, competition_index, today, &mut rng);
+            dormant::simulate_dormant_competition_day(game, competition_index, today);
         }
     }
 
     // National-team football: window friendlies and any running World Cup.
     // Both self-filter by date, so they are no-ops on other days.
-    let mut national_rng = game.rng_for("national-teams", today);
-    crate::national_team::process_national_team_fixtures_due(game, today, &mut national_rng);
+    crate::national_team::process_national_team_fixtures_due(game, today);
     let mut world_cup_rng = game.rng_for("world-cup", today);
     crate::world_cup::process_world_cup_fixtures_due(game, today, &mut world_cup_rng);
 }
