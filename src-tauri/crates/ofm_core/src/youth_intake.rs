@@ -19,8 +19,7 @@ use domain::contract_ledger::ContractSource;
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::player::{Player, PlayerMovementKind, Position, SquadRole};
 use domain::team::Team;
-use rand::rngs::StdRng;
-use rand::{RngExt, SeedableRng};
+use rand::RngExt;
 use std::collections::HashMap;
 
 /// Academy players a club aims to hold in each position group, in the squad
@@ -109,7 +108,7 @@ pub fn take_youth_intake(game: &mut Game, team_id: &str, date: NaiveDate, season
         player.squad_role == SquadRole::Youth && player.contract_club_id() == Some(team_id)
     }));
 
-    let intake = take_in(game, team_index, &plan, date, season);
+    let intake = take_in(game, team_index, &plan, date);
     if game.manager.team_id.as_deref() == Some(team_id) {
         tell_the_player(game, team_index, &intake, date, season);
     } else if intake.refused > 0 {
@@ -150,23 +149,14 @@ struct Intake {
 /// on the wage the board agrees to. The first recruit the board will not pay
 /// even the youth minimum ends the club's intake: every later one would cost at
 /// least as much against the same bill.
-fn take_in(
-    game: &mut Game,
-    team_index: usize,
-    plan: &IntakePlan,
-    date: NaiveDate,
-    season: u32,
-) -> Intake {
-    // Seeded from the club and the season, so a replayed season end draws the
-    // same youngsters whatever order the clubs come in (their ids are still
-    // fresh). The seed knows nothing of the save: two careers from one package,
-    // whose club ids are authored, draw the same intake. It moves onto the
-    // game's own seed (`Game::rng_for`, #665) once that exists.
-    let seed = crate::stable_hash::stable_hash(
-        game.teams[team_index].id.as_bytes(),
-        u64::from(season) ^ INTAKE_STREAM,
+fn take_in(game: &mut Game, team_index: usize, plan: &IntakePlan, date: NaiveDate) -> Intake {
+    // The club's own stream of the save's seed for the day, so a replayed season
+    // end draws the same youngsters whatever order the clubs come in (their ids
+    // are still fresh), and two careers from one package do not.
+    let mut rng = game.rng_for(
+        &format!("youth-intake/{}", game.teams[team_index].id),
+        &date.format("%Y-%m-%d").to_string(),
     );
-    let mut rng = StdRng::seed_from_u64(seed);
     let mut joined = Vec::with_capacity(plan.groups.len());
     for (taken, group) in plan.groups.iter().enumerate() {
         let team = &game.teams[team_index];
@@ -214,10 +204,6 @@ fn take_in(
     }
     Intake { joined, refused: 0 }
 }
-
-/// Folded into the intake's seed so its stream is its own, not whichever other
-/// policy hashes a club id under the same season.
-const INTAKE_STREAM: u64 = 0x5955_4f55_5448; // "YOUTH"
 
 /// Tell the player who joined the academy, and that the board would not take on
 /// the rest when it turned any away.
@@ -494,6 +480,24 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         assert_eq!(names(&intake(&before)), names(&intake(&before)));
+    }
+
+    /// Given two careers in the same world — the same club ids, as two careers
+    /// started from one package have — but different saves, when a season
+    /// ends, then each draws its own intake: the draw comes from the save's
+    /// seed, not from the club id alone.
+    #[test]
+    fn two_saves_of_one_world_draw_different_intakes() {
+        let drawn = |seed: u64| {
+            let mut before = world([0, 0, 0, 0], [0, 0, 0, 0]);
+            before.seed = seed;
+            let after = intake(&before);
+            newcomers(&before, &after, "rival")
+                .into_iter()
+                .map(|recruit| (recruit.full_name.clone(), recruit.date_of_birth.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_ne!(drawn(1), drawn(2));
     }
 
     /// Given an AI club with no seniors to spare and nothing on the market, when
