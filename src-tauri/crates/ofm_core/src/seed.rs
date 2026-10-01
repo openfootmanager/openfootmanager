@@ -46,6 +46,39 @@ impl Game {
     }
 }
 
+/// Which of the World Cup's two draws a generator is for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorldCupStream {
+    /// The draw of the finals field into groups.
+    Draw,
+    /// Everything settled around the qualifying campaign: the inter-confederation playoff
+    /// and the rollover's settling of outstanding ties.
+    Settle,
+}
+
+impl Game {
+    /// The generator for a World Cup year's draw or settling.
+    ///
+    /// A game from before these were seeded from the game ([`Game::legacy_world_cup_draw`])
+    /// gets exactly the stream it always had, keyed by the year alone; every other game gets
+    /// its own, from its seed. The legacy streams are `StdRng`, deliberately: they are the
+    /// stream an old career was already promised, and the one place that name stays.
+    pub fn world_cup_rng(&self, stream: WorldCupStream, year: i32) -> Box<dyn rand::Rng> {
+        if self.legacy_world_cup_draw {
+            let seed = match stream {
+                WorldCupStream::Draw => year as u64,
+                WorldCupStream::Settle => u64::from(year.unsigned_abs()) ^ 0xF1FA,
+            };
+            return Box::new(rand::rngs::StdRng::seed_from_u64(seed));
+        }
+        let tag = match stream {
+            WorldCupStream::Draw => "world-cup/draw",
+            WorldCupStream::Settle => "world-cup/settle",
+        };
+        Box::new(self.rng_for(tag, &year.to_string()))
+    }
+}
+
 /// [`Game::rng_for`] for a seed that is not (yet) on a game: a world being built into one.
 pub fn rng_for_seed(seed: u64, tag: &str, date: &str) -> ChaCha12Rng {
     let per_purpose = stable_hash(tag.as_bytes(), seed);
@@ -227,6 +260,67 @@ mod tests {
                 );
             }
             assert!(picks.iter().all(|&pick| pick < count));
+        }
+    }
+
+    fn world_cup_draws(game: &Game, stream: WorldCupStream, year: i32) -> Vec<u32> {
+        let mut rng = game.world_cup_rng(stream, year);
+        (0..8).map(|_| rng.random()).collect()
+    }
+
+    /// Given a game that began after World Cups were seeded from the game,
+    /// When the draw of a cup year is made twice, and in a game with another seed,
+    /// Then the same game draws the same way both times, and another game does not.
+    #[test]
+    fn a_new_game_draws_its_world_cup_from_its_own_seed() {
+        let game = game_with_seed(7);
+
+        assert_eq!(
+            world_cup_draws(&game, WorldCupStream::Draw, 2030),
+            world_cup_draws(&game, WorldCupStream::Draw, 2030)
+        );
+        assert_ne!(
+            world_cup_draws(&game, WorldCupStream::Draw, 2030),
+            world_cup_draws(&game_with_seed(8), WorldCupStream::Draw, 2030)
+        );
+        assert_ne!(
+            world_cup_draws(&game, WorldCupStream::Draw, 2030),
+            world_cup_draws(&game, WorldCupStream::Draw, 2034),
+            "another cup year is another draw"
+        );
+        assert_ne!(
+            world_cup_draws(&game, WorldCupStream::Draw, 2030),
+            world_cup_draws(&game, WorldCupStream::Settle, 2030),
+            "the draw and the settling of qualifiers are separate streams"
+        );
+    }
+
+    /// Given a game from before World Cups were seeded from the game,
+    /// When a cup year is drawn, whatever the game's seed,
+    /// Then it is drawn exactly as it was then — from the year alone — so a career already
+    ///      in progress keeps the field and the groups it was promised.
+    #[test]
+    fn a_game_from_before_world_cup_seeding_keeps_the_old_draw() {
+        let mut old = game_with_seed(7);
+        old.legacy_world_cup_draw = true;
+        let mut other_seed = game_with_seed(99);
+        other_seed.legacy_world_cup_draw = true;
+
+        let was: Vec<u32> = {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(2030);
+            (0..8).map(|_| rng.random()).collect()
+        };
+        let settled_was: Vec<u32> = {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(2030 ^ 0xF1FA);
+            (0..8).map(|_| rng.random()).collect()
+        };
+
+        for game in [&old, &other_seed] {
+            assert_eq!(world_cup_draws(game, WorldCupStream::Draw, 2030), was);
+            assert_eq!(
+                world_cup_draws(game, WorldCupStream::Settle, 2030),
+                settled_was
+            );
         }
     }
 

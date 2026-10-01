@@ -519,6 +519,11 @@ impl SaveManager {
                 // every time it is opened; the resave below keeps it from then on.
                 game.seed = ofm_core::seed::seed_for_unseeded_save(save_id);
             }
+            if save_format_version < 8 {
+                // A career already in progress keeps the World Cup draws it was promised; only
+                // a new game is drawn from its seed.
+                game.legacy_world_cup_draw = true;
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -2104,6 +2109,55 @@ mod tests {
             meta.save_format_version,
             meta_repo::CURRENT_SAVE_FORMAT_VERSION
         );
+    }
+
+    /// Given a save written before World Cups were drawn from the game's seed,
+    /// When it is loaded, twice,
+    /// Then it is marked to keep drawing them the old way, and the mark is in the file:
+    ///      the career in progress keeps the field and groups it was promised.
+    #[test]
+    fn loading_a_pre_v8_save_keeps_its_old_world_cup_draw() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm
+            .create_save(&sample_game(), "Pre World Cup Seed")
+            .unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 7;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let first = sm.load_game(&save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert!(first.legacy_world_cup_draw);
+        assert!(second.legacy_world_cup_draw);
+        let db = GameDatabase::open(&db_path).unwrap();
+        let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+        assert!(meta.legacy_world_cup_draw, "the mark was written back");
+        assert_eq!(
+            meta.save_format_version,
+            meta_repo::CURRENT_SAVE_FORMAT_VERSION
+        );
+    }
+
+    /// Given a save written after World Cups were seeded from the game,
+    /// When it is loaded,
+    /// Then it is not marked: a new game re-rolls its World Cups from its own seed.
+    #[test]
+    fn loading_a_current_format_save_is_not_marked_legacy() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm.create_save(&sample_game(), "New").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(!loaded.legacy_world_cup_draw);
     }
 
     /// The fallback is for saves that have no seed, not a reseed: a current-format

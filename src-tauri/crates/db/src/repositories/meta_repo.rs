@@ -44,6 +44,9 @@ pub struct GameMeta {
     /// signed and a seed is a full `u64`. 0 is a save from before games had one.
     #[serde(default)]
     pub seed: i64,
+    /// `Game::legacy_world_cup_draw`.
+    #[serde(default)]
+    pub legacy_world_cup_draw: bool,
 }
 
 fn default_vacant_team_days_json() -> String {
@@ -69,7 +72,9 @@ fn default_emitted_events_json() -> String {
 /// ledger is merely empty.
 /// v7 = the game has a seed (`Game::seed`); a pre-v7 save is given one derived
 /// from its save id on load, which must not happen to a v7 save.
-pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 7;
+/// v8 = World Cups are drawn from the game's seed; a pre-v8 save keeps drawing them from the
+/// cup year alone (`Game::legacy_world_cup_draw`), which a v8 save must not be marked as.
+pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 8;
 
 /// Baseline for a save that predates the version field entirely (reads as the
 /// pre-gate format, so it gets migrated and restamped to current on load).
@@ -96,8 +101,8 @@ fn default_package_lockfile_json() -> String {
 /// Insert or replace the singleton game_meta row.
 pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
     conn.execute(
-        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed)
-         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed, legacy_world_cup_draw)
+         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
         params![
             meta.save_id,
             meta.save_name,
@@ -120,6 +125,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
             meta.package_lockfile_json,
             meta.emitted_events_json,
             meta.seed,
+            meta.legacy_world_cup_draw,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -130,7 +136,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
 pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed
+            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed, legacy_world_cup_draw
              FROM game_meta WHERE id = 'singleton'",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -169,6 +175,7 @@ pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
                 // Always present once migrated, so an error here is a damaged save, not an
                 // old one: propagated, rather than read as "no seed" and silently reseeded.
                 seed: row.get(20)?,
+                legacy_world_cup_draw: row.get(21)?,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -214,6 +221,7 @@ mod tests {
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
             seed: 0,
+            legacy_world_cup_draw: false,
         };
 
         upsert_meta(db.conn(), &meta).unwrap();
@@ -262,6 +270,7 @@ mod tests {
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
             seed: 0,
+            legacy_world_cup_draw: false,
         };
         upsert_meta(db.conn(), &meta1).unwrap();
 
@@ -287,6 +296,7 @@ mod tests {
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
             seed: 0,
+            legacy_world_cup_draw: false,
         };
         upsert_meta(db.conn(), &meta2).unwrap();
 
@@ -325,6 +335,7 @@ mod tests {
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
             seed: 0,
+            legacy_world_cup_draw: false,
         };
 
         let result = upsert_meta(&conn, &meta);

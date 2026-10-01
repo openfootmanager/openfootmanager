@@ -137,6 +137,11 @@ pub struct Game {
     /// (tests), which is still a fixed seed and so still reproducible.
     #[serde(default)]
     pub seed: u64,
+    /// True for a career that began before World Cups were drawn from the game's seed: its
+    /// field and groups keep being drawn from the cup year alone, as they were, so a draw
+    /// already made is not contradicted by the next. Never set on a new game.
+    #[serde(default)]
+    pub legacy_world_cup_draw: bool,
 
     /// Append-only cash journal. `Clone` is a pointer bump; `post` copy-on-writes.
     /// Skipped on IPC serde. Persistence is incremental SQL, not Game JSON.
@@ -194,6 +199,7 @@ impl Game {
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
             seed: 0,
+            legacy_world_cup_draw: false,
             cash_journal: CashJournal::default(),
             cash_journal_dirty_ids: Vec::new(),
             squad_floor_top_ups: Vec::new(),
