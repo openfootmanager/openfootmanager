@@ -7,9 +7,12 @@
 //! floor without the emergency top-up ever firing, and that the world's
 //! population holds steady rather than draining.
 //!
-//! The world is seeded; the day is not yet (random events, injuries and the
-//! match engine draw from ambient randomness), so the proof is a property: it
-//! must hold on every seed, on every run of it. A seeded day is its own change.
+//! The world is generated from the seed, and the save is given the same seed, so
+//! the draws that go through `Game::rng_for` (the youth intake among them) differ
+//! from one seed to the next. A run is still not repeatable: generation mints
+//! club and player ids with `Uuid::new_v4`, and `rng_for` streams are keyed on
+//! them, and parts of the day still draw from ambient randomness. So the proof is
+//! a property: it must hold on every seed, on every run of it.
 
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
@@ -57,6 +60,9 @@ fn seeded_world(seed: u64) -> Game {
         world.staff,
         vec![],
     );
+    // The save's seed as well as the world's: without it every world would share
+    // seed 0, and every draw through `Game::rng_for` the one stream.
+    game.seed = seed;
     game.available_staff_market_last_activity_date = Some(start.format("%Y-%m-%d").to_string());
     repair_opening_youth_academies(&mut game);
     game.league = Some(ofm_core::schedule::generate_league(
