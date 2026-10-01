@@ -1,7 +1,449 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-30T21:01:13.008Z",
+  "updatedAt": "2026-10-01T19:42:34.291Z",
   "builds": [
+    {
+      "schemaVersion": 1,
+      "product": "Openfoot Manager",
+      "repository": "openfootmanager/openfootmanager",
+      "tag": "nightly-20261001-41656a9",
+      "version": "0.3.0-nightly.20261001+41656a9",
+      "commit": "41656a9b6275a8146688a5d941e91e970ccd3566",
+      "prerelease": true,
+      "publishedAt": "2026-10-01T19:42:05Z",
+      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261001+41656a9",
+      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261001-41656a9",
+      "assets": [
+        {
+          "id": 603986935,
+          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "label": "",
+          "size": 87456264,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "sha256": "c3eb3e3d38a987ebdb75b8c8b9aa6e7f6d4dc5c6586cb7cb264f4058a6734d90",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 603986883,
+          "name": "Openfoot.Manager_0.3.0_arm64.deb",
+          "label": "",
+          "size": 11800590,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_arm64.deb",
+          "sha256": "8ce174a686af55ebc1f60ad5a55d6617dd9fe1b383d1d4f6fffd05a75aff6ced",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 603986914,
+          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "label": "",
+          "size": 11800155,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "sha256": "b6fc1ef9f0b3c8ba2a3ba861be46587e9a4d32cb6f091f588be6a8a67784049d",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 604000982,
+          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
+          "label": "",
+          "size": 89680376,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_amd64.AppImage",
+          "sha256": "1a1454a15cd6b1b77cf9caff2b30f9a7e95f48f91eb9da984ec9c6f65c27fa28",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 604000923,
+          "name": "Openfoot.Manager_0.3.0_amd64.deb",
+          "label": "",
+          "size": 12208454,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_amd64.deb",
+          "sha256": "7c52c81f6755da9d75fd896745abf10cebe16c6c6b4c6818b26dee4ab9da1aac",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 604000965,
+          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "label": "",
+          "size": 12208694,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "sha256": "9b8686ba0038566574888634ac984888e18249712c4bbcc20c55d63005b56751",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 603986655,
+          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
+          "label": "",
+          "size": 10639206,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_aarch64.dmg",
+          "sha256": "c6de8e56510e34a11130abeb8133489ae4d1f6589e26917d58b87f53c22f40ee",
+          "platform": "macos",
+          "arch": "arm64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 603994052,
+          "name": "Openfoot.Manager_0.3.0_x64.dmg",
+          "label": "",
+          "size": 11694314,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_x64.dmg",
+          "sha256": "1e77cbcd487f1ac582aaa3286e2289dba84db593452520090d9b88eba1d68ead",
+          "platform": "macos",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 603991723,
+          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "label": "",
+          "size": 11268096,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "sha256": "c6758684a442a77abec96136dceedbbadd371dd7ea9cf902d9af7d5c325b85f6",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".msi"
+        },
+        {
+          "id": 603991743,
+          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
+          "label": "",
+          "size": 8525951,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/Openfoot.Manager_0.3.0_x64-setup.exe",
+          "sha256": "f2a2ee8593034c152d71011101efb3c54579a7cccd8797615d489feca87ab0eb",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".exe"
+        }
+      ],
+      "previousTag": "nightly-20260930-4c491c4",
+      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20260930-4c491c4...nightly-20261001-41656a9",
+      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261001-41656a9/nightly-checksums.txt",
+      "commitCount": 73,
+      "commits": [
+        {
+          "sha": "460416af",
+          "subject": "fix(packages): stabilize competition validation"
+        },
+        {
+          "sha": "3a829fa0",
+          "subject": "test(packages): cover stable validation and declared empty countries"
+        },
+        {
+          "sha": "8e1a23ab",
+          "subject": "ci: run required checks on merge_group so develop can use a merge queue"
+        },
+        {
+          "sha": "9d0b7208",
+          "subject": "fix(youth): the intake records each recruit's contract in his history"
+        },
+        {
+          "sha": "d06a5bac",
+          "subject": "docs(i18n): describe the real MCP error boundary and fix the ofm-cli path"
+        },
+        {
+          "sha": "0efaf76f",
+          "subject": "fix(seed): pin the generator by name and the save path by reading the file"
+        },
+        {
+          "sha": "efd9ead3",
+          "subject": "fix(db): a seed that cannot be read is a load error, not seed 0"
+        },
+        {
+          "sha": "97195344",
+          "subject": "feat(career): a new game keeps the seed its world was made from"
+        },
+        {
+          "sha": "693d491e",
+          "subject": "feat(generator): a generated world remembers the seed it was made from"
+        },
+        {
+          "sha": "2ae87e01",
+          "subject": "feat(game): a game has a seed, and it is saved"
+        },
+        {
+          "sha": "1f36cbde",
+          "subject": "fix(youth): a loaned academy player counts for the club that owns him"
+        },
+        {
+          "sha": "699d13ab",
+          "subject": "test: derive the loan-to-buy end date, record the release in the floor test, fix the zh-CN wage label"
+        },
+        {
+          "sha": "e7046474",
+          "subject": "test(contracts): the single-writer scan stops only at an inline test module"
+        },
+        {
+          "sha": "96736673",
+          "subject": "perf(transfers): the market works a buyer's wage bill out once, not per target"
+        },
+        {
+          "sha": "3792c47e",
+          "subject": "docs(youth): the intake's seed comment names #665"
+        },
+        {
+          "sha": "120b4f38",
+          "subject": "fix(i18n): the youth intake message reads right for one recruit"
+        },
+        {
+          "sha": "bada0cb8",
+          "subject": "refactor(generator): the youth-recruit family moves into generator/youth.rs"
+        },
+        {
+          "sha": "e0838031",
+          "subject": "fix(profile): a renewal or an opening contract is not a joining"
+        },
+        {
+          "sha": "9115afb6",
+          "subject": "test(transfers): the preview matches the deal, and the AI market skips a wage its board would refuse"
+        },
+        {
+          "sha": "381d4b92",
+          "subject": "fix(transfers): the bid preview shows the wage the buyer would pay"
+        },
+        {
+          "sha": "56871693",
+          "subject": "docs(game-systems): the intake runs after the season end's rebuild"
+        },
+        {
+          "sha": "bac6fc11",
+          "subject": "fix(youth): a recruit is not promoted to the senior squad on the day he joins"
+        },
+        {
+          "sha": "20e15520",
+          "subject": "docs(game-systems): a recruit's age is drawn at 15-17, some 14 by the July count"
+        },
+        {
+          "sha": "7372faa4",
+          "subject": "test(end-of-season): a season takes one youth intake however often advancing is asked for"
+        },
+        {
+          "sha": "dc1efacf",
+          "subject": "refactor(squad): one thinnest-first ordering for the floor and the intake"
+        },
+        {
+          "sha": "9f556780",
+          "subject": "docs(game-systems): the youth intake, and the one way a player enters the world"
+        },
+        {
+          "sha": "2466da33",
+          "subject": "refactor(catchup): one scoreline resolver for the catch-up and the fallback"
+        },
+        {
+          "sha": "592f261f",
+          "subject": "fix(turn): the scoreline fallback does not panic when there is nothing to settle"
+        },
+        {
+          "sha": "fc072c33",
+          "subject": "test(sim): a level league match nobody watches ends at full time"
+        },
+        {
+          "sha": "cdcde768",
+          "subject": "docs(roadmap): state the audit as facts, not as a task log"
+        },
+        {
+          "sha": "8928ef93",
+          "subject": "feat(youth): every club takes a youth intake at each season's end"
+        },
+        {
+          "sha": "bcaf4a1e",
+          "subject": "refactor(generator): a youth recruit's age and dice can be handed in"
+        },
+        {
+          "sha": "4a084c0e",
+          "subject": "feat(transfers): a buyer's standard wage goes through the one wage rule"
+        },
+        {
+          "sha": "1235e406",
+          "subject": "docs(roadmap): bring the #589 duplication audit into the repository"
+        },
+        {
+          "sha": "3919986b",
+          "subject": "docs(game-systems): an unwatched fixture is a live-engine session nobody watches"
+        },
+        {
+          "sha": "e5f60847",
+          "subject": "fix(engine): a second half and each extra-time half play every minute"
+        },
+        {
+          "sha": "9d768035",
+          "subject": "test(engine): pin the ration's dial rule instead of copying it"
+        },
+        {
+          "sha": "87d10631",
+          "subject": "test(squad): a club that signed a squad at kick-off may use its bench"
+        },
+        {
+          "sha": "cf8e1b27",
+          "subject": "docs(game-systems): describe the match day every fixture now has"
+        },
+        {
+          "sha": "b03b38b3",
+          "subject": "fix(engine/ai): react once to an incident, and to the right side's goal"
+        },
+        {
+          "sha": "d3522e9b",
+          "subject": "fix(engine): a period is played in full, whatever stoppage came before it"
+        },
+        {
+          "sha": "169e5182",
+          "subject": "test(ai-tactics): pin the scoring rate the form triggers were read at"
+        },
+        {
+          "sha": "5a8b3943",
+          "subject": "test(ai-tactics): a review is refused a dial past the ration"
+        },
+        {
+          "sha": "6cb78e24",
+          "subject": "refactor(engine): one answer to \"what's the score\" and \"who is in goal\""
+        },
+        {
+          "sha": "89bd1d64",
+          "subject": "refactor(ai-tactics): one copy of the under-priced-dial ration, owned by the engine"
+        },
+        {
+          "sha": "b0815a10",
+          "subject": "chore(engine): keep the match state's test hooks out of its public docs"
+        },
+        {
+          "sha": "5b73a7a6",
+          "subject": "fix(ai-tactics): re-read the form triggers off matches that have a bench"
+        },
+        {
+          "sha": "a3229281",
+          "subject": "feat(sim): one match path for every active competition"
+        },
+        {
+          "sha": "5461fc11",
+          "subject": "test(contracts): the single-writer guard refuses any change to a movement history"
+        },
+        {
+          "sha": "b1612fe3",
+          "subject": "refactor(contracts): one place decides which club holds a player's contract"
+        },
+        {
+          "sha": "7ddb88a7",
+          "subject": "refactor(contracts): remove the stored wage and contract-date fields"
+        },
+        {
+          "sha": "2607b073",
+          "subject": "docs(match-simulation): describe the manager the engine actually has"
+        },
+        {
+          "sha": "1b96bf76",
+          "subject": "feat(engine): a manager can change one instruction, not only the whole plan"
+        },
+        {
+          "sha": "7e122a1f",
+          "subject": "fix(engine): a side that loses its goalkeeper puts another one in goal"
+        },
+        {
+          "sha": "f443d6e1",
+          "subject": "fix(engine/ai): decide at checkpoints, not by lottery"
+        },
+        {
+          "sha": "876eadb5",
+          "subject": "fix(engine/ai): a player who has been taken off is not a substitute"
+        },
+        {
+          "sha": "c1c48202",
+          "subject": "perf(engine): give the AI manager a view of the match, not a copy of it"
+        },
+        {
+          "sha": "2abde59f",
+          "subject": "fix(contracts): tighten the single-writer guard, log refused entries"
+        },
+        {
+          "sha": "f1837a47",
+          "subject": "docs(i18n): say who the translation rule is for"
+        },
+        {
+          "sha": "d8b2f59e",
+          "subject": "fix(scouting): a scouted youth's signing goes in his contract history"
+        },
+        {
+          "sha": "073b5a07",
+          "subject": "test(contracts): loaned-out renewal, expiry during a loan, retired signing, old-save history"
+        },
+        {
+          "sha": "c390ff06",
+          "subject": "feat(profile): show a contract's terms on the movement history card"
+        },
+        {
+          "sha": "eba8d738",
+          "subject": "refactor(contracts): the contract is read from, and only written by, the ledger"
+        },
+        {
+          "sha": "a4e3f75b",
+          "subject": "feat(contracts): every contract route writes the ledger"
+        },
+        {
+          "sha": "c5008625",
+          "subject": "feat(contracts): a contract ledger on the movement history"
+        },
+        {
+          "sha": "a1329221",
+          "subject": "fix(competitions): validate resolved group fields before package export"
+        },
+        {
+          "sha": "3dcdb3a7",
+          "subject": "test(competitions): cover resolved group validation on pack"
+        },
+        {
+          "sha": "b66058ff",
+          "subject": "fix(competitions): validate playable group shapes after resolution"
+        },
+        {
+          "sha": "8412619d",
+          "subject": "style(competitions): simplify validation guard and test setup"
+        },
+        {
+          "sha": "d80f38a6",
+          "subject": "fix(competitions): guard malformed saved group sizes"
+        },
+        {
+          "sha": "aa8c1b32",
+          "subject": "fix(competitions): preserve authored group sizes across seasons"
+        },
+        {
+          "sha": "afe83805",
+          "subject": "test(competitions): cover authored group size lifecycle"
+        },
+        {
+          "sha": "f7cb7345",
+          "subject": "refactor(competitions): share participant resolution before validation"
+        }
+      ]
+    },
     {
       "schemaVersion": 1,
       "product": "Openfoot Manager",
