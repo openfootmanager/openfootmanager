@@ -574,13 +574,27 @@ than **three** (`MAX_INTAKE`). A keeper comes first when the academy has none; a
 thinnest groups. The plan says how many and where they play, with no randomness, so an academy
 cost can be attached to it later. No money moves today.
 
-`apply_youth_intake` then brings the planned youngsters in, drawn at 15–17 (a birth late in the
-year makes some 14 by the 1 July count), on a youth contract that starts that day, with a free
-shirt number. The draw is seeded from the club and the season, so a
-replayed season end takes in the same youngsters. It runs last in the season end's squad turnover,
-after aging, retirements and every AI club's rebuild, so the rebuild cannot promote a youngster on
-the day he joins. The player's club is told who joined
-(`be.msg.youthIntake`).
+`apply_youth_intake` then takes each club's intake (`take_youth_intake`, one club at a time). The
+youngsters are drawn at 15–17 (a birth late in the year makes some 14 by the 1 July count) from
+the save's own seed (`Game::rng_for("youth-intake/<club>", date)`), so a replayed season end takes
+in the same youngsters and two careers from one package do not. Each joins on a contract that
+starts that day, recorded in his history as a signing from no club, with a free shirt number. It
+runs last in the season end's squad turnover, after aging, retirements and every AI club's rebuild,
+so the rebuild cannot promote a youngster on the day he joins.
+
+**The board decides what a recruit is paid**, by the one wage rule every contract a club offers goes
+through, for the player's club and AI clubs alike (`contract_wage_policy::joining_wage_policy_verdict`,
+which counts a recruit's whole wage as new to the bill). He is offered what he asks, then the youth
+minimum of 500 a week; if the board will not pay even that, he is not taken, and neither is the rest
+of that club's plan. Nothing is created to fill the gap and no money moves. The player's club is told
+who joined, and when the board turned any away (`be.msg.youthIntake`).
+
+Measured on a three-nation pyramid of 80 clubs over five seasons and three seeds
+(`tests/youth_intake_wages_probe.rs`, ignored, run in release): the board turned away none of 1,942
+planned recruits. From the second season on, every club sits over its wage budget on the policy's
+25,000-a-week grace, which is allowed per decision, so a recruit at the minimum cannot be refused.
+`tests/squad_floor_seasons.rs` fails if a solvent AI club ever goes two season ends running without
+a youngster.
 
 Measured on a seeded compact world with a league: the world opens below the intake's equilibrium,
 grows for about a dozen seasons, and then holds at about a fifth above its opening size, with around
