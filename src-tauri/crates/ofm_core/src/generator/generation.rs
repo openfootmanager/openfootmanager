@@ -556,7 +556,7 @@ pub(super) fn generate_random_player_from_def(
     };
     let base_value = (approx_ovr as f64).powi(2) * 500.0;
     let market_value = (base_value * age_factor) as u64;
-    let wage = (market_value / 200).max(500) as u32;
+    let wage = (market_value / 200).max(crate::contracts::MINIMUM_DEFAULT_WAGE) as u32;
     let contract_years = if age <= 21 {
         rng.random_range(3..6)
     } else if age <= 27 {
@@ -1039,9 +1039,10 @@ pub(super) fn generate_player_from_def(
     // ends up with rather than the one the author replaced, and saturates because an
     // authored value can be far larger than any generated one.
     let market_value = def.value.unwrap_or(generated_value);
-    let wage = def
-        .wage
-        .unwrap_or_else(|| u32::try_from((market_value / 200).max(500)).unwrap_or(u32::MAX));
+    let wage = def.wage.unwrap_or_else(|| {
+        u32::try_from((market_value / 200).max(crate::contracts::MINIMUM_DEFAULT_WAGE))
+            .unwrap_or(u32::MAX)
+    });
     // Rolled whether or not a contract was authored, so a package that authors none
     // draws exactly the random numbers it always did and generates the same players.
     let contract_years = if age <= 27 {

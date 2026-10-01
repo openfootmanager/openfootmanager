@@ -120,9 +120,9 @@ pub fn take_youth_intake(game: &mut Game, team_id: &str, date: NaiveDate, season
     }
 }
 
-/// The least any player in the game is paid a week, and so what a recruit is
-/// offered when the board will not pay what he asks.
-const YOUTH_MINIMUM_WAGE: u32 = 500;
+/// What a recruit is offered when the board will not pay what he asks: the least
+/// any player in the game is paid a week.
+const YOUTH_MINIMUM_WAGE: u32 = crate::contracts::MINIMUM_DEFAULT_WAGE as u32;
 
 /// The wage the board lets `team` pay a recruit who asks `asking` a week: what
 /// he asks, else the youth minimum, else nothing — he is not taken. The board's
