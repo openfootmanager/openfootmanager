@@ -137,6 +137,25 @@ pub fn wage_policy_verdict(
     })
 }
 
+/// The same verdict for a player *joining* `team` who is not on its wage bill yet,
+/// though he may already be registered to it — a youngster taken into its academy.
+/// His whole wage is new to the bill. [`wage_policy_verdict`] takes a registered
+/// player's current wage off before adding the offer, which is right for a renewal
+/// and would let a newcomer pay for himself.
+pub(crate) fn joining_wage_policy_verdict(
+    game: &Game,
+    team: &Team,
+    player: &domain::player::Player,
+    offered_wage: u32,
+) -> WagePolicyVerdict {
+    let current_bill = calc_wages(game, &team.id);
+    let projected_bill =
+        current_bill + weekly_commitment_at_wage(player, &team.id, i64::from(offered_wage));
+    verdict_for_bills(team, current_bill, projected_bill, || {
+        crate::squad_floor::club_needs_him_for_the_floor(game, &team.id, player)
+    })
+}
+
 /// The same verdict for a club *buying* the player, who will then be on its books at
 /// the full `offered_wage`. A player already on loan at the buyer is counted at his
 /// loan share today and at the whole wage after the purchase, which

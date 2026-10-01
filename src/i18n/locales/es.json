@@ -3263,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Nuevos canteranos: {{team}}",
-        "body": "Míster, la nueva hornada se ha incorporado a la cantera: {{players}}."
+        "body": "Míster, la nueva hornada se ha incorporado a la cantera: {{players}}.",
+        "bodyPartlyRefused": "Míster, nuevos en la cantera esta temporada: {{players}}. La junta directiva no quiso asumir los salarios del resto de la hornada.",
+        "bodyAllRefused": "Míster, la junta directiva no quiso asumir los salarios de la nueva hornada, así que esta temporada nadie se ha incorporado a la cantera."
       },
       "squadCannotBeFilled": {
         "subject": "Nadie disponible: {{group}}",

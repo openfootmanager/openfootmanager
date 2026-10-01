@@ -3263,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Nouvelle promotion au centre de formation : {{team}}",
-        "body": "Coach, la nouvelle promotion a rejoint le centre de formation : {{players}}."
+        "body": "Coach, la nouvelle promotion a rejoint le centre de formation : {{players}}.",
+        "bodyPartlyRefused": "Coach, nouveaux au centre de formation cette saison : {{players}}. Le conseil d'administration n'a pas voulu prendre en charge les salaires du reste de la promotion.",
+        "bodyAllRefused": "Coach, le conseil d'administration n'a pas voulu prendre en charge les salaires de la nouvelle promotion : personne n'a rejoint le centre de formation cette saison."
       },
       "squadCannotBeFilled": {
         "subject": "Personne de disponible : {{group}}",

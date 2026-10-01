@@ -3263,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Youth Intake: {{team}}",
-        "body": "Boss, this season's youth intake has joined the academy: {{players}}."
+        "body": "Boss, this season's youth intake has joined the academy: {{players}}.",
+        "bodyPartlyRefused": "Boss, new in the academy this season: {{players}}. The board would not take on the wages of the rest of the intake.",
+        "bodyAllRefused": "Boss, the board would not take on the wages of this season's youth intake, so nobody joined the academy."
       },
       "squadCannotBeFilled": {
         "subject": "No One Available: {{group}}",
