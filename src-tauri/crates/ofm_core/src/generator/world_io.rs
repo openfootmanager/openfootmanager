@@ -116,12 +116,15 @@ fn manifest_shard_path(base: &Path, shard_ref: &str) -> PathBuf {
 /// Generate a random world and wrap it in a `WorldData`.
 /// `sources` decides where definition files are read from.
 pub fn generate_world_data(sources: &super::DefinitionSources) -> WorldData {
-    world_data_from_parts(super::generate_world(sources))
+    // The seed is drawn first and kept, rather than handing the generator an
+    // anonymous random stream: a game built from this world needs a seed to replay
+    // from, and there is nowhere to recover one after the fact.
+    generate_world_data_seeded(rand::random(), sources)
 }
 
 /// Deterministic variant of [`generate_world_data`]: same `seed` → identical world.
 pub fn generate_world_data_seeded(seed: u64, sources: &super::DefinitionSources) -> WorldData {
-    world_data_from_parts(super::generate_world_seeded(seed, sources))
+    world_data_from_parts(super::generate_world_seeded(seed, sources), Some(seed))
 }
 
 /// Deterministic generation with an explicit config — e.g. a small world for
@@ -132,11 +135,10 @@ pub fn generate_world_data_seeded_with(
     sources: &super::DefinitionSources,
 ) -> WorldData {
     use rand::SeedableRng;
-    world_data_from_parts(super::generate_world_with_rng(
-        rand::rngs::StdRng::seed_from_u64(seed),
-        config,
-        sources,
-    ))
+    world_data_from_parts(
+        super::generate_world_with_rng(rand::rngs::StdRng::seed_from_u64(seed), config, sources),
+        Some(seed),
+    )
 }
 
 fn world_data_from_parts(
@@ -145,6 +147,7 @@ fn world_data_from_parts(
         Vec<domain::player::Player>,
         Vec<domain::staff::Staff>,
     ),
+    generation_seed: Option<u64>,
 ) -> WorldData {
     crate::football_identity::upgrade_world_football_identities(
         &mut teams,
@@ -176,6 +179,7 @@ fn world_data_from_parts(
         metadata: super::definitions::WorldDataMetadata::default(),
         extra_translations: std::collections::HashMap::new(),
         build_notices: Vec::new(),
+        generation_seed,
     })
 }
 
@@ -272,6 +276,7 @@ fn load_world_from_manifest_path(
             }),
         extra_translations: std::collections::HashMap::new(),
         build_notices: Vec::new(),
+        generation_seed: None,
     }))
 }
 
@@ -581,6 +586,53 @@ mod tests {
         assert_eq!(
             world.metadata.kind,
             crate::generator::WorldDataKind::RosterBaseline
+        );
+    }
+
+    /// What a generated world is, ignoring the ids: player and team ids are still
+    /// minted unseeded, so two worlds of one seed differ in them and in nothing else.
+    fn fingerprint(world: &WorldData) -> (Vec<String>, Vec<String>) {
+        (
+            world.teams.iter().map(|team| team.name.clone()).collect(),
+            world
+                .players
+                .iter()
+                .map(|player| format!("{} {}", player.full_name, player.date_of_birth))
+                .collect(),
+        )
+    }
+
+    /// Given a world generated without being asked for a seed,
+    /// When it is asked which seed it came from,
+    /// Then it says, and generating from that seed gives the same world.
+    #[test]
+    fn a_random_world_remembers_the_seed_it_was_made_from() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let world = generate_world_data(&sources);
+
+        let seed = world
+            .generation_seed
+            .expect("a generated world keeps its seed");
+
+        let again = generate_world_data_seeded(seed, &sources);
+        assert_eq!(fingerprint(&world), fingerprint(&again));
+    }
+
+    /// Given a seed,
+    /// When a world is generated from it,
+    /// Then the world records that seed, and a different seed gives a different world.
+    #[test]
+    fn a_seeded_world_records_the_seed_it_was_given() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+
+        let one = generate_world_data_seeded(1, &sources);
+        let two = generate_world_data_seeded(2, &sources);
+
+        assert_eq!(one.generation_seed, Some(1));
+        assert_ne!(
+            fingerprint(&one),
+            fingerprint(&two),
+            "the seed must be what decides the world, or this proves nothing"
         );
     }
 

@@ -206,6 +206,51 @@ fn imported_roster_baseline_bootstrap_allows_ai_manager_seeding_without_imported
         .all(|team| team.manager_id.is_some()));
 }
 
+/// Given a world that was generated from a seed,
+/// When a new game is built from it,
+/// Then the game has that seed — one number says both how the world was made and
+///      how its days will go.
+#[test]
+fn a_new_game_keeps_the_seed_its_world_was_made_from() {
+    let mut world = make_imported_baseline_world_without_staff();
+    world.generation_seed = Some(0xA11C_E5ED_0000_0007);
+
+    let game = game_from(world);
+
+    assert_eq!(game.seed, 0xA11C_E5ED_0000_0007);
+}
+
+/// Given a world that was not generated here — an import, a package — so nothing
+///       gave it a seed,
+/// When a new game is built from it,
+/// Then the game draws one of its own, rather than starting on 0 like every other.
+#[test]
+fn a_world_without_a_seed_gives_its_game_one_of_its_own() {
+    let world = make_imported_baseline_world_without_staff();
+    assert_eq!(world.generation_seed, None);
+
+    let game = game_from(world);
+
+    assert_ne!(game.seed, 0);
+}
+
+fn game_from(world: ofm_core::generator::WorldData) -> ofm_core::game::Game {
+    let startup_options = StartupOptions {
+        start_year: 2032,
+        start_phase: StartPhase::SeasonStart,
+        history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+    };
+    let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+    let manager = domain::manager::Manager::new(
+        "mgr-user".to_string(),
+        "Alex".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    build_game_from_world_data(clock, manager, &startup_options, world).0
+}
+
 #[test]
 fn a_new_career_starts_with_own_choices_clear_and_rivals_identity_intact() {
     use domain::team::{PlayStyle, PlayerRole, TacticsPhaseSettings};
