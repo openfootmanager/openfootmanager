@@ -316,8 +316,7 @@ fn a_world_with_no_free_agents_and_no_academies_still_finishes_every_day() {
     let season_end = today.format("%Y-%m-%d").to_string();
     for newcomer in newcomers {
         assert!(
-            newcomer.contract_start.as_deref() == Some(season_end.as_str())
-                && newcomer.team_id.is_some(),
+            newcomer.contract_start() == Some(season_end.as_str()) && newcomer.team_id.is_some(),
             "{} was created, and not by the season end's intake",
             newcomer.id
         );

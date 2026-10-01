@@ -15,8 +15,9 @@
 use crate::game::Game;
 use crate::squad_floor::{group_index, thinnest_first};
 use chrono::{Datelike, NaiveDate};
+use domain::contract_ledger::ContractSource;
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
-use domain::player::{Player, Position, SquadRole};
+use domain::player::{Player, PlayerMovementKind, Position, SquadRole};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::HashMap;
@@ -85,7 +86,7 @@ pub fn apply_youth_intake(game: &mut Game, date: NaiveDate, season: u32) {
     let mut academies: HashMap<&str, Vec<&Player>> = HashMap::new();
     for player in &game.players {
         if player.squad_role == SquadRole::Youth
-            && let Some(team_id) = crate::contracts::contract_owner_team_id(player)
+            && let Some(team_id) = player.contract_club_id()
         {
             academies.entry(team_id).or_default().push(player);
         }
@@ -128,7 +129,6 @@ fn take_in(
         u64::from(season) ^ INTAKE_STREAM,
     );
     let mut rng = StdRng::seed_from_u64(seed);
-    let contract_start = date.format("%Y-%m-%d").to_string();
     let mut joined = Vec::with_capacity(plan.groups.len());
     for group in &plan.groups {
         let team = &game.teams[team_index];
@@ -140,7 +140,28 @@ fn take_in(
             date.year() as u32,
             &mut rng,
         );
-        recruit.contract_start = Some(contract_start.clone());
+        // Joining is a contract made mid-career, so it goes in his history, as a
+        // scouted youngster's signing does: on the terms he was generated with
+        // when they run past today, and on the club's standard terms otherwise.
+        let own_terms = recruit
+            .contract_end()
+            .and_then(crate::contracts::parse_contract_date)
+            .filter(|end| *end > date)
+            .map(|end| (recruit.wage(), end))
+            .filter(|(wage, _)| *wage > 0);
+        if let Some((wage, end)) =
+            own_terms.or_else(|| crate::contracts::standard_contract_terms(&recruit, team, date, 0))
+        {
+            crate::contracts::record_movement(
+                &mut recruit,
+                crate::contracts::contract_entry(
+                    PlayerMovementKind::FreeAgentSigning,
+                    date,
+                    team,
+                    crate::contracts::contract_record(date, end, wage, ContractSource::FreeAgent),
+                ),
+            );
+        }
         recruit.jersey_number = crate::roster::resolve_jersey_for(game, &recruit, team);
         joined.push(recruit.full_name.clone());
         game.players.push(recruit);
@@ -358,15 +379,27 @@ mod tests {
                 (14..=crate::roster::YOUTH_ACADEMY_MAX_AGE).contains(&age),
                 "a recruit of academy age, not {age}"
             );
-            assert_eq!(recruit.contract_start.as_deref(), Some("2027-05-30"));
+            assert_eq!(recruit.contract_start(), Some("2027-05-30"));
             assert!(
-                recruit
-                    .contract_end
-                    .as_deref()
-                    .is_some_and(|end| end > "2027-05-30"),
+                recruit.contract_end().is_some_and(|end| end > "2027-05-30"),
                 "a recruit holds a contract that runs past the day he joins"
             );
-            assert!(recruit.wage > 0);
+            assert!(recruit.wage() > 0);
+            // Joining is a contract made mid-career, recorded in his history as
+            // a signing from no club, for this club.
+            let entry = recruit
+                .movement_history
+                .last()
+                .expect("joining is in his history");
+            assert_eq!(
+                entry.kind,
+                domain::player::PlayerMovementKind::FreeAgentSigning
+            );
+            assert_eq!(entry.to_team_id.as_deref(), Some("rival"));
+            assert_eq!(
+                entry.contract.as_ref().map(|record| &record.source),
+                Some(&ContractSource::FreeAgent)
+            );
             assert!(!recruit.transfer_listed && !recruit.loan_listed);
             let shirt = recruit.jersey_number.expect("a recruit wears a shirt");
             assert!(
