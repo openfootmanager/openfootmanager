@@ -3262,7 +3262,9 @@
       },
       "youthIntake": {
         "subject": "Altyapıya Yeni Katılanlar: {{team}}",
-        "body": "Hocam, bu sezonun altyapı alımı tamamlandı: {{players}}."
+        "body": "Hocam, bu sezonun altyapı alımı tamamlandı: {{players}}.",
+        "bodyPartlyRefused": "Hocam, bu sezon altyapıya katılanlar: {{players}}. Yönetim Kurulu, alımın geri kalanının maaşlarını üstlenmek istemedi.",
+        "bodyAllRefused": "Hocam, Yönetim Kurulu bu sezonki altyapı alımının maaşlarını üstlenmek istemedi, bu yüzden altyapıya kimse katılmadı."
       },
       "squadCannotBeFilled": {
         "subject": "Uygun Oyuncu Yok: {{group}}",

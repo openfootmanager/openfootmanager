@@ -3262,7 +3262,9 @@
       },
       "youthIntake": {
         "subject": "Pemain Muda Baru: {{team}}",
-        "body": "Bos, pemain muda angkatan baru berikut telah bergabung dengan akademi: {{players}}."
+        "body": "Bos, pemain muda angkatan baru berikut telah bergabung dengan akademi: {{players}}.",
+        "bodyPartlyRefused": "Bos, pemain baru akademi musim ini: {{players}}. Dewan Direksi tidak mau menanggung gaji sisa angkatan ini.",
+        "bodyAllRefused": "Bos, Dewan Direksi tidak mau menanggung gaji angkatan baru musim ini, jadi tidak ada yang bergabung dengan akademi."
       },
       "squadCannotBeFilled": {
         "subject": "Tidak Ada yang Tersedia: {{group}}",

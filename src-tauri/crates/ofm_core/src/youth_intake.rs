@@ -18,6 +18,7 @@ use chrono::{Datelike, NaiveDate};
 use domain::contract_ledger::ContractSource;
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::player::{Player, PlayerMovementKind, Position, SquadRole};
+use domain::team::Team;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::HashMap;
@@ -103,22 +104,56 @@ pub fn apply_youth_intake(game: &mut Game, date: NaiveDate, season: u32) {
 
     let user_team_id = game.manager.team_id.clone();
     for (team_index, plan) in plans {
-        let joined = take_in(game, team_index, &plan, date, season);
+        let intake = take_in(game, team_index, &plan, date, season);
         if user_team_id.as_deref() == Some(game.teams[team_index].id.as_str()) {
-            tell_the_player(game, team_index, &joined, date, season);
+            tell_the_player(game, team_index, &intake, date, season);
+        } else if intake.refused > 0 {
+            log::info!(
+                "[youth_intake] the board at {} turned away {} of {} recruits on wages",
+                game.teams[team_index].id,
+                intake.refused,
+                plan.groups.len()
+            );
         }
     }
 }
 
-/// Bring `plan`'s youngsters into the academy of the club at `team_index`.
-/// Returns their names, in plan order.
+/// The least any player in the game is paid a week, and so what a recruit is
+/// offered when the board will not pay what he asks.
+const YOUTH_MINIMUM_WAGE: u32 = 500;
+
+/// The wage the board lets `team` pay a recruit who asks `asking` a week: what
+/// he asks, else the youth minimum, else nothing — he is not taken. The board's
+/// one wage rule decides, as for every contract a club offers, and a recruit is
+/// judged as a newcomer to the bill. No academy player holds up the squad floor,
+/// so the floor's waiver never applies.
+fn agreed_wage(game: &Game, team: &Team, recruit: &Player, asking: u32) -> Option<u32> {
+    [asking, YOUTH_MINIMUM_WAGE.min(asking)]
+        .into_iter()
+        .find(|&wage| {
+            crate::contract_wage_policy::joining_wage_policy_verdict(game, team, recruit, wage)
+                .permits()
+        })
+}
+
+/// What came of a club's intake: who joined, in plan order, and how many of the
+/// plan the board would not pay for.
+struct Intake {
+    joined: Vec<String>,
+    refused: usize,
+}
+
+/// Bring `plan`'s youngsters into the academy of the club at `team_index`, each
+/// on the wage the board agrees to. The first recruit the board will not pay
+/// even the youth minimum ends the club's intake: every later one would cost at
+/// least as much against the same bill.
 fn take_in(
     game: &mut Game,
     team_index: usize,
     plan: &IntakePlan,
     date: NaiveDate,
     season: u32,
-) -> Vec<String> {
+) -> Intake {
     // Seeded from the club and the season, so a replayed season end draws the
     // same youngsters whatever order the clubs come in (their ids are still
     // fresh). The seed knows nothing of the save: two careers from one package,
@@ -130,7 +165,7 @@ fn take_in(
     );
     let mut rng = StdRng::seed_from_u64(seed);
     let mut joined = Vec::with_capacity(plan.groups.len());
-    for group in &plan.groups {
+    for (taken, group) in plan.groups.iter().enumerate() {
         let team = &game.teams[team_index];
         let age = rng.random_range(INTAKE_AGES);
         let mut recruit = crate::generator::generate_youth_intake_recruit(
@@ -142,51 +177,63 @@ fn take_in(
         );
         // Joining is a contract made mid-career, so it goes in his history, as a
         // scouted youngster's signing does: on the terms he was generated with
-        // when they run past today, and on the club's standard terms otherwise.
+        // when they run past today, and on the club's standard terms otherwise —
+        // at the wage the board agrees to.
         let own_terms = recruit
             .contract_end()
             .and_then(crate::contracts::parse_contract_date)
             .filter(|end| *end > date)
             .map(|end| (recruit.wage(), end))
             .filter(|(wage, _)| *wage > 0);
-        if let Some((wage, end)) =
-            own_terms.or_else(|| crate::contracts::standard_contract_terms(&recruit, team, date, 0))
-        {
-            crate::contracts::record_movement(
-                &mut recruit,
-                crate::contracts::contract_entry(
-                    PlayerMovementKind::FreeAgentSigning,
-                    date,
-                    team,
-                    crate::contracts::contract_record(date, end, wage, ContractSource::FreeAgent),
-                ),
-            );
-        }
+        let Some((asking, end)) = own_terms
+            .or_else(|| crate::contracts::standard_contract_terms(&recruit, team, date, 0))
+        else {
+            continue;
+        };
+        let Some(wage) = agreed_wage(game, team, &recruit, asking) else {
+            return Intake {
+                joined,
+                refused: plan.groups.len() - taken,
+            };
+        };
+        crate::contracts::record_movement(
+            &mut recruit,
+            crate::contracts::contract_entry(
+                PlayerMovementKind::FreeAgentSigning,
+                date,
+                team,
+                crate::contracts::contract_record(date, end, wage, ContractSource::FreeAgent),
+            ),
+        );
         recruit.jersey_number = crate::roster::resolve_jersey_for(game, &recruit, team);
         joined.push(recruit.full_name.clone());
         game.players.push(recruit);
     }
-    joined
+    Intake { joined, refused: 0 }
 }
 
 /// Folded into the intake's seed so its stream is its own, not whichever other
 /// policy hashes a club id under the same season.
 const INTAKE_STREAM: u64 = 0x5955_4f55_5448; // "YOUTH"
 
+/// Tell the player who joined the academy, and that the board would not take on
+/// the rest when it turned any away.
 fn tell_the_player(
     game: &mut Game,
     team_index: usize,
-    joined: &[String],
+    intake: &Intake,
     date: NaiveDate,
     season: u32,
 ) {
-    if joined.is_empty() {
-        return;
-    }
+    let body_key = match (intake.joined.is_empty(), intake.refused) {
+        (_, 0) => "be.msg.youthIntake.body",
+        (false, _) => "be.msg.youthIntake.bodyPartlyRefused",
+        (true, _) => "be.msg.youthIntake.bodyAllRefused",
+    };
     let team = &game.teams[team_index];
     let mut params = HashMap::new();
     params.insert("team".to_string(), team.name.clone());
-    params.insert("players".to_string(), joined.join(", "));
+    params.insert("players".to_string(), intake.joined.join(", "));
     let message = InboxMessage::new(
         format!("youth_intake_{}_{season}", team.id),
         String::new(),
@@ -197,11 +244,7 @@ fn tell_the_player(
     .with_category(MessageCategory::ScoutReport)
     .with_priority(MessagePriority::Normal)
     .with_sender_role("")
-    .with_i18n(
-        "be.msg.youthIntake.subject",
-        "be.msg.youthIntake.body",
-        params,
-    )
+    .with_i18n("be.msg.youthIntake.subject", body_key, params)
     .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager");
     crate::inbox::emit(game, message);
 }
@@ -505,6 +548,152 @@ mod tests {
         };
         assert_eq!(groups("user"), vec![Position::Forward]);
         assert_eq!(groups("rival"), vec![Position::Goalkeeper]);
+    }
+
+    // -- the board and the wages ------------------------------------------------
+
+    /// Both clubs with empty academies, a weekly wage budget of `budget`, and
+    /// one senior paid `senior_wage` — the rest of the wage bill.
+    fn world_on_a_budget(budget: i64, senior_wage: u32) -> Game {
+        let mut game = world([0, 0, 0, 0], [0, 0, 0, 0]);
+        for team in &mut game.teams {
+            team.wage_budget = budget;
+        }
+        for club in ["user", "rival"] {
+            let mut senior = youngster(&format!("{club}-senior"), club, Position::Midfielder);
+            senior.squad_role = SquadRole::Senior;
+            senior.stage_wage(senior_wage);
+            game.players.push(senior);
+        }
+        game
+    }
+
+    /// A youngster registered to `club`'s academy, as a recruit is when the
+    /// board judges him.
+    fn a_recruit_of(club: &str) -> Player {
+        youngster("recruit", club, Position::Forward)
+    }
+
+    fn rival(game: &Game) -> &Team {
+        game.teams.iter().find(|team| team.id == "rival").unwrap()
+    }
+
+    /// Given a club the board lets spend, a recruit joins on the wage he asks.
+    #[test]
+    fn a_recruit_the_board_can_afford_joins_on_the_wage_he_asks() {
+        let game = world_on_a_budget(200_000, 1_000);
+        let recruit = a_recruit_of("rival");
+        assert_eq!(
+            agreed_wage(&game, rival(&game), &recruit, 3_000),
+            Some(3_000)
+        );
+    }
+
+    /// Given a club whose board would refuse a recruit's asking wage but not the
+    /// youth minimum, he joins on the minimum.
+    #[test]
+    fn a_recruit_the_board_refuses_at_his_wage_joins_on_the_youth_minimum() {
+        // A budget of 10,000 lets the bill reach 11,000: 9,000 + 3,000 is over,
+        // 9,000 + the minimum is not.
+        let game = world_on_a_budget(10_000, 9_000);
+        let recruit = a_recruit_of("rival");
+        assert_eq!(
+            agreed_wage(&game, rival(&game), &recruit, 3_000),
+            Some(YOUTH_MINIMUM_WAGE)
+        );
+    }
+
+    /// Given a club whose board would refuse even the youth minimum, the recruit
+    /// is not taken.
+    #[test]
+    fn a_recruit_the_board_refuses_even_at_the_minimum_is_not_taken() {
+        let game = world_on_a_budget(1_000, 1_000);
+        let recruit = a_recruit_of("rival");
+        assert_eq!(agreed_wage(&game, rival(&game), &recruit, 3_000), None);
+    }
+
+    /// Given a recruit registered to the club before the board judges him, his
+    /// own wage still counts as new to the bill — the renewal verdict takes a
+    /// registered player's wage off first, which would let him pay for himself.
+    #[test]
+    fn a_recruit_is_judged_as_a_newcomer_whose_wage_is_new_to_the_bill() {
+        let game = world_on_a_budget(1_000, 1_000);
+        let mut recruit = a_recruit_of("rival");
+        recruit.stage_wage(3_000);
+        assert_eq!(agreed_wage(&game, rival(&game), &recruit, 3_000), None);
+    }
+
+    /// Given a club with room on its bill for one youth minimum and no more,
+    /// when the season ends, then it takes one youngster: each recruit is judged
+    /// with the season's earlier ones already on the bill, and the rest of the
+    /// plan is not taken.
+    #[test]
+    fn each_recruit_is_judged_with_the_earlier_ones_on_the_bill() {
+        // A budget of 1,000 lets the bill reach 1,100: 500 + one recruit at no
+        // more than 600 fits, a second recruit does not.
+        let before = world_on_a_budget(1_000, 500);
+        let after = intake(&before);
+        assert_eq!(newcomers(&before, &after, "rival").len(), 1);
+    }
+
+    /// Given the player's club and an AI club on the same tight budget, they take
+    /// the same number of youngsters: one wage rule for every club.
+    #[test]
+    fn the_board_judges_the_players_club_as_it_judges_an_ai_club() {
+        let before = world_on_a_budget(1_000, 500);
+        let after = intake(&before);
+        assert_eq!(
+            newcomers(&before, &after, "user").len(),
+            newcomers(&before, &after, "rival").len()
+        );
+    }
+
+    /// Given clubs whose boards refuse every recruit, when the season ends, then
+    /// nobody joins, no money moves, and no one is created for anyone.
+    #[test]
+    fn a_refused_intake_creates_no_one_and_moves_no_money() {
+        let before = world_on_a_budget(1_000, 1_000);
+        let after = intake(&before);
+        assert_eq!(after.players.len(), before.players.len());
+        for (old, new) in before.teams.iter().zip(&after.teams) {
+            assert_eq!(old.finance, new.finance, "{} was given money", old.id);
+        }
+    }
+
+    fn intake_message(game: &Game) -> &InboxMessage {
+        let told: Vec<&InboxMessage> = game
+            .messages
+            .iter()
+            .filter(|message| message.subject_key.as_deref() == Some("be.msg.youthIntake.subject"))
+            .collect();
+        assert_eq!(told.len(), 1, "one intake message for the player's club");
+        told[0]
+    }
+
+    /// Given the player's club whose board turns some of its intake away, the
+    /// message names who joined and says the board would not take on the rest.
+    #[test]
+    fn the_player_is_told_when_the_board_turns_some_of_the_intake_away() {
+        let before = world_on_a_budget(1_000, 500);
+        let after = intake(&before);
+        let message = intake_message(&after);
+        assert_eq!(
+            message.body_key.as_deref(),
+            Some("be.msg.youthIntake.bodyPartlyRefused")
+        );
+        let joined = &newcomers(&before, &after, "user")[0].full_name;
+        assert!(message.i18n_params["players"].contains(joined.as_str()));
+    }
+
+    /// Given the player's club whose board turns all of its intake away, the
+    /// player is told nobody joined, and why.
+    #[test]
+    fn the_player_is_told_when_the_board_turns_the_whole_intake_away() {
+        let after = intake(&world_on_a_budget(1_000, 1_000));
+        assert_eq!(
+            intake_message(&after).body_key.as_deref(),
+            Some("be.msg.youthIntake.bodyAllRefused")
+        );
     }
 
     // -- the player's club -----------------------------------------------------
