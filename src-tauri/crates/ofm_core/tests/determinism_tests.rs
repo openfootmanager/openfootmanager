@@ -276,3 +276,26 @@ fn the_opening_seasons_international_friendlies_follow_the_seed() {
     assert_eq!(fixtures, founded_with(7));
     assert_ne!(fixtures, founded_with(8));
 }
+
+/// Play until the season is over, roll it over, and play on a while.
+fn play_through_a_rollover(game: Game) -> Game {
+    let mut game = play_to_the_rollover(game);
+    for _ in 0..60 {
+        turn::process_day(&mut game);
+    }
+    game
+}
+
+/// Given a world with a player in charge of a club, and a seed,
+/// When a whole season is played, rolled over, and the next one begun, twice,
+/// Then the two runs end in the same world — the people the rollover brings in (youth, the
+///      staff and manager markets, national squads) included, ids and all.
+#[test]
+fn a_whole_season_and_its_rollover_replay_the_same_way() {
+    let save = managed_world(1, 7);
+
+    let first = outcome(&play_through_a_rollover(save.clone()));
+    let second = outcome(&play_through_a_rollover(save));
+
+    assert!(first == second, "{}", first_difference(&first, &second));
+}
