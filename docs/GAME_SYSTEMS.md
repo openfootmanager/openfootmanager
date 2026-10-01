@@ -590,7 +590,7 @@ of that club's plan. Nothing is created to fill the gap and no money moves. The 
 who joined, and when the board turned any away (`be.msg.youthIntake`).
 
 Measured on a three-nation pyramid of 80 clubs over five seasons and three seeds
-(`tests/youth_intake_wages_probe.rs`, ignored, run in release): the board turned away none of 1,942
+(`tests/youth_intake_wages_probe.rs`, ignored, run in release): the board turned away none of 2,240
 planned recruits. From the second season on, every club sits over its wage budget on the policy's
 25,000-a-week grace, which is allowed per decision, so a recruit at the minimum cannot be refused.
 `tests/squad_floor_seasons.rs` fails if a solvent AI club ever goes two season ends running without
