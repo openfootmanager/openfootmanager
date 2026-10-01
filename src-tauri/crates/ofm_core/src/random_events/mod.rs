@@ -426,8 +426,7 @@ pub fn rival_interest_weight(
     player: &domain::player::Player,
     current_date: chrono::NaiveDate,
 ) -> u32 {
-    let contract_weight = match contract_warning_stage(player.contract_end.as_deref(), current_date)
-    {
+    let contract_weight = match contract_warning_stage(player.contract_end(), current_date) {
         Some(ContractWarningStage::FinalWeeks) => 16,
         Some(ContractWarningStage::ThreeMonths) => 12,
         Some(ContractWarningStage::SixMonths) => 8,

@@ -80,7 +80,7 @@ fn holds_up_the_floor(player: &Player, team_id: &str) -> bool {
 
 /// Senior players registered to `team_id`, per group, in
 /// [`MIN_PLAYERS_PER_GROUP`] order.
-fn senior_counts(game: &Game, team_id: &str) -> [usize; 4] {
+pub(crate) fn senior_counts(game: &Game, team_id: &str) -> [usize; 4] {
     let mut seniors = [0; 4];
     for player in &game.players {
         if holds_up_the_floor(player, team_id) {
@@ -171,7 +171,16 @@ pub(crate) fn departure_would_leave_short(game: &Game, player_id: &str) -> Optio
 /// This is also the one case in which the board's wage policy yields — see
 /// [`crate::contract_wage_policy::wage_policy_verdict`].
 pub(crate) fn club_needs_him_for_the_floor(game: &Game, team_id: &str, player: &Player) -> bool {
-    let mut seniors = senior_counts(game, team_id);
+    club_needs_him_given(senior_counts(game, team_id), team_id, player)
+}
+
+/// [`club_needs_him_for_the_floor`] for a caller that already has the club's senior
+/// counts (a sweep over many players for one club), so it need not scan the world again.
+pub(crate) fn club_needs_him_given(
+    mut seniors: [usize; 4],
+    team_id: &str,
+    player: &Player,
+) -> bool {
     if player.team_id.as_deref() == Some(team_id) {
         if player.squad_role != SquadRole::Senior {
             return false;
@@ -757,8 +766,8 @@ mod tests {
     fn free_agent(id: &str, position: Position, ovr: u8) -> Player {
         let mut agent = player(id, None, position);
         agent.ovr = ovr;
-        agent.contract_end = None;
-        agent.wage = 0;
+        agent.stage_contract_end(None);
+        agent.stage_wage(0);
         agent
     }
 
@@ -981,8 +990,8 @@ mod tests {
         assert_eq!(top_up.signed, vec!["good_keeper".to_string()]);
         let keeper = game.players.iter().find(|p| p.id == "good_keeper").unwrap();
         assert_eq!(keeper.team_id.as_deref(), Some("club"));
-        assert!(keeper.contract_end.is_some(), "signed without a contract");
-        assert!(keeper.wage > 0, "signed on no wage");
+        assert!(keeper.contract_end().is_some(), "signed without a contract");
+        assert!(keeper.wage() > 0, "signed on no wage");
         assert_eq!(team_of(&game, "forward"), None);
         assert_eq!(
             game.teams[0].finance, -1_000_000,

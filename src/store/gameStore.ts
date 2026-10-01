@@ -136,6 +136,7 @@ export type {
   CareerEntry,
   PlayerMovementEntry,
   PlayerMovementKind,
+  ReleaseReason,
   PlayerData,
   TransferOfferData,
   LoanOfferData,

@@ -210,7 +210,7 @@ pub fn calc_wages(game: &Game, team_id: &str) -> i64 {
 /// This club's share of `player.wage` this week (loan split, otherwise the
 /// employing club).
 pub fn player_weekly_wage_for_team(player: &domain::player::Player, team_id: &str) -> i64 {
-    weekly_share(player, team_id, i64::from(player.wage), false)
+    weekly_share(player, team_id, i64::from(player.wage()), false)
 }
 
 /// This club's weekly commitment if `player` were paid `wage` (loan split on
@@ -993,7 +993,7 @@ pub fn process_weekly_finances(game: &mut Game) {
                 player_weekly_wage_for_team(player, &loan.parent_team_id),
             );
         } else if let Some(team_id) = &player.team_id {
-            add_weekly_wage(&mut player_wages_by_team, team_id, i64::from(player.wage));
+            add_weekly_wage(&mut player_wages_by_team, team_id, i64::from(player.wage()));
         }
     }
     for staff_member in &game.staff {

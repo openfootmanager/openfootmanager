@@ -204,8 +204,8 @@ fn a_generated_world_opens_with_a_free_agent_pool_keepers_included() {
         assert_eq!(pool.len(), clubs, "{group:?} free agents");
         for agent in pool {
             assert!(!agent.retired);
-            assert_eq!(agent.contract_end, None);
-            assert_eq!(agent.wage, 0);
+            assert_eq!(agent.contract_end(), None);
+            assert_eq!(agent.wage(), 0);
         }
     }
 }

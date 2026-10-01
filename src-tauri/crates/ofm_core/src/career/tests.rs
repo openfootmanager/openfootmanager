@@ -49,11 +49,10 @@ fn assert_contracts_started_by_the_opening_date(game: &Game) {
     for player in game
         .players
         .iter()
-        .filter(|player| player.team_id.is_some() && player.contract_end.is_some())
+        .filter(|player| player.team_id.is_some() && player.contract_end().is_some())
     {
         let start = player
-            .contract_start
-            .as_deref()
+            .contract_start()
             .unwrap_or_else(|| panic!("{} was given no contract start", player.id));
         assert!(
             start <= opening.as_str(),
@@ -156,11 +155,28 @@ fn opening_a_brazilian_career_dates_no_contract_after_the_opening_date() {
         .players
         .iter()
         .find(|player| player.id == "br-a-p0")
-        .and_then(|player| player.contract_start.clone());
+        .and_then(|player| player.contract_start().map(str::to_string));
     assert_eq!(
         brazilian_start.as_deref(),
         Some("2031-12-15"),
         "the anchor was read after the clock moved, a year too early"
+    );
+    // The ledger says the same thing the start does: one initial contract, dated the
+    // opening day, starting on his club's anchor.
+    let brazilian = game.players.iter().find(|p| p.id == "br-a-p0").unwrap();
+    let initial: Vec<_> = brazilian
+        .movement_history
+        .iter()
+        .filter(|entry| entry.kind == domain::player::PlayerMovementKind::InitialContract)
+        .collect();
+    assert_eq!(initial.len(), 1);
+    assert_eq!(initial[0].date, "2031-12-15");
+    assert_eq!(
+        initial[0]
+            .contract
+            .as_ref()
+            .and_then(|c| c.start.as_deref()),
+        Some("2031-12-15")
     );
     assert_contracts_started_by_the_opening_date(&game);
 }

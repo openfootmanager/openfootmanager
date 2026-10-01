@@ -85,7 +85,7 @@ pub(crate) fn player_at(id: &str, team_id: &str, contract_end: &str) -> Player {
         },
     );
     player.team_id = Some(team_id.to_string());
-    player.contract_end = Some(contract_end.to_string());
+    player.stage_contract_end(Some(contract_end.to_string()));
     player
 }
 

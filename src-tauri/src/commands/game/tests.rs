@@ -262,7 +262,7 @@ fn beginning_a_career_seeds_the_ai_loan_market() {
             default_player_attributes(),
         );
         player.team_id = Some("team2".to_string());
-        player.contract_end = Some("2035-06-30".to_string());
+        player.stage_contract_end(Some("2035-06-30".to_string()));
         game.players.push(player);
     }
 

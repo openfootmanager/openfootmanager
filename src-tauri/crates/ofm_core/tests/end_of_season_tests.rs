@@ -1930,7 +1930,7 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
         .find(|player| player.id == "p1")
         .unwrap();
     veteran.date_of_birth = "1988-01-01".to_string();
-    veteran.contract_end = Some("2026-05-01".to_string());
+    veteran.stage_contract_end(Some("2026-05-01".to_string()));
     veteran.attributes.pace = 16;
     veteran.attributes.passing = 70;
 

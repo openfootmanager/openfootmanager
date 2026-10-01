@@ -197,7 +197,25 @@ export type PlayerMovementKind =
   | "loan_return"
   | "loan_to_buy"
   | "free_agent_signing"
-  | "released";
+  | "released"
+  | "renewal"
+  | "retired"
+  | "initial_contract";
+
+/** How a contract came to exist. Mirrors `ContractSource` in the domain crate. */
+export type ContractSource = "initial" | "legacy_migrated" | "renewal" | "free_agent" | "transfer";
+
+export type ReleaseReason = "expired" | "terminated";
+
+/** The terms of one agreement, carried by a ledger entry that makes a contract. */
+export interface ContractRecord {
+  /** `null` is an honest unknown (a save from before starts were recorded). */
+  start?: string | null;
+  end?: string | null;
+  /** Per week. */
+  weekly_wage: number;
+  source: ContractSource;
+}
 
 export interface PlayerMovementEntry {
   date: string;
@@ -208,6 +226,8 @@ export interface PlayerMovementEntry {
   to_team_name?: string | null;
   fee?: number | null;
   loan_end_date?: string | null;
+  contract?: ContractRecord | null;
+  release_reason?: ReleaseReason | null;
 }
 
 export interface ContractExitIntentData {

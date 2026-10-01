@@ -123,7 +123,7 @@ fn normalize_opening_contracts(
         .iter()
         .enumerate()
         .filter(|(_, player)| !authored_ids.contains(&player.id))
-        .filter(|(_, player)| player.contract_end.as_deref() == Some(first_summer.as_str()))
+        .filter(|(_, player)| player.contract_end() == Some(first_summer.as_str()))
         .map(|(index, _)| index)
         .collect();
 
@@ -133,7 +133,7 @@ fn normalize_opening_contracts(
         .into_iter()
         .skip(MAX_OPENING_EXPIRING_CONTRACTS)
     {
-        players[index].contract_end = Some(second_summer.clone());
+        players[index].stage_contract_end(Some(second_summer.clone()));
     }
 }
 
@@ -313,9 +313,9 @@ fn as_free_agent(mut player: Player) -> Player {
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
     // agreement with no employer and no expiry.
-    player.contract_start = None;
-    player.contract_end = None;
-    player.wage = 0;
+    player.stage_contract_start(None);
+    player.stage_contract_end(None);
+    player.stage_wage(0);
     player.transfer_listed = false;
     player.loan_listed = false;
     player
@@ -334,7 +334,7 @@ fn normalize_generated_team(
     // belongs to the squad that finished rather than the one that was built.
     crate::ai_roles::assign_squad_roles(team, players.iter());
 
-    let weekly_wage_bill: i64 = players.iter().map(|player| player.wage as i64).sum();
+    let weekly_wage_bill: i64 = players.iter().map(|player| player.wage() as i64).sum();
 
     team.wage_budget = normalized_wage_budget(weekly_wage_bill, team.reputation);
     floor_opening_cash(team, weekly_wage_bill);
@@ -518,7 +518,7 @@ fn floor_imported_world_opening_cash(world: &mut WorldData) {
                 .players
                 .iter()
                 .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                .map(|player| i64::from(player.wage))
+                .map(|player| i64::from(player.wage()))
                 .sum();
             (team.id.clone(), weekly_wage_bill)
         })
@@ -1621,8 +1621,7 @@ mod tests {
         assert_eq!(age, 21, "a 1940-born player is 21 in 1962");
 
         let contract_end_year: i32 = star
-            .contract_end
-            .as_deref()
+            .contract_end()
             .expect("authored player should get a contract")[0..4]
             .parse()
             .expect("contract end should start with a year");
@@ -1976,7 +1975,7 @@ mod tests {
 
             let expiring_next_summer = format!("{}-06-30", opening_year + 1);
             for player in players.iter_mut().take(6) {
-                player.contract_end = Some(expiring_next_summer.clone());
+                player.stage_contract_end(Some(expiring_next_summer.clone()));
             }
 
             normalize_generated_team(
@@ -1988,9 +1987,7 @@ mod tests {
 
             let still_expiring = players
                 .iter()
-                .filter(|player| {
-                    player.contract_end.as_deref() == Some(expiring_next_summer.as_str())
-                })
+                .filter(|player| player.contract_end() == Some(expiring_next_summer.as_str()))
                 .count();
             assert!(
                 still_expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
@@ -2029,7 +2026,7 @@ mod tests {
             let kept = players
                 .iter()
                 .filter(|player| player.match_name.starts_with("Authored"))
-                .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                .filter(|player| player.contract_end() == Some(first_summer.as_str()))
                 .count();
             assert_eq!(
                 kept,
@@ -2069,7 +2066,7 @@ mod tests {
 
             let expiring = players
                 .iter()
-                .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                .filter(|player| player.contract_end() == Some(first_summer.as_str()))
                 .count();
             assert!(
                 expiring <= MAX_OPENING_EXPIRING_CONTRACTS,
@@ -2088,9 +2085,10 @@ mod tests {
             player.team_id, None,
             "national-pool players belong to no club"
         );
-        assert_eq!(player.contract_end, None);
+        assert_eq!(player.contract_end(), None);
         assert_eq!(
-            player.contract_start, None,
+            player.contract_start(),
+            None,
             "an unattached player must not carry half an agreement: this one is built \
              from a club template, so the start has to be cleared with the end"
         );
@@ -2225,7 +2223,7 @@ mod tests {
                 let weekly_wages: i64 = players
                     .iter()
                     .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                    .map(|player| player.wage as i64)
+                    .map(|player| player.wage() as i64)
                     .sum();
                 let usage_percent = (weekly_wages * 100) / std::cmp::max(1, team.wage_budget);
 
@@ -2310,7 +2308,7 @@ mod tests {
                 let expiring_contracts = players
                     .iter()
                     .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                    .filter(|player| player.contract_end.as_deref() == Some(first_summer.as_str()))
+                    .filter(|player| player.contract_end() == Some(first_summer.as_str()))
                     .count();
 
                 assert!(
@@ -2987,10 +2985,10 @@ mod tests {
         let mut world = make_roster_baseline_world_without_staff();
         world.teams[0].finance = 1_000;
         world.players[0].team_id = Some("team-1".to_string());
-        world.players[0].wage = 5_000;
+        world.players[0].stage_wage(5_000);
         for player in world.players.iter_mut().skip(1) {
             if player.team_id.as_deref() == Some("team-1") {
-                player.wage = 0;
+                player.stage_wage(0);
             }
         }
 

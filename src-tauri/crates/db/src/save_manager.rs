@@ -1037,7 +1037,7 @@ mod tests {
     fn sample_game_with_ai_loan_candidates() -> Game {
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].contract_end = Some("2028-06-30".to_string());
+        game.players[0].stage_contract_end(Some("2028-06-30".to_string()));
         game.teams.push(Team::new(
             "team-002".to_string(),
             "Rivals FC".to_string(),
@@ -1055,7 +1055,7 @@ mod tests {
         ] {
             let mut player = make_opening_repair_player(id, Position::Midfielder, date_of_birth);
             player.team_id = Some("team-002".to_string());
-            player.contract_end = Some("2028-06-30".to_string());
+            player.stage_contract_end(Some("2028-06-30".to_string()));
             game.players.push(player);
         }
 
@@ -2067,7 +2067,7 @@ mod tests {
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].wage = 5_000;
+        game.players[0].stage_wage(5_000);
         game.teams[0].finance = 1_000;
         let save_id = sm.create_save(&game, "Pre Weekly Lock").unwrap();
         let db_path = saves_dir.join(format!("{save_id}.db"));
@@ -2108,7 +2108,7 @@ mod tests {
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].wage = 5_000;
+        game.players[0].stage_wage(5_000);
         game.teams[0].finance = 1_000;
         let save_id = sm.create_save(&game, "Current Format").unwrap();
 
@@ -2535,7 +2535,7 @@ mod tests {
                         "1998-01-01",
                     );
                     player.team_id = Some(team_id.to_string());
-                    player.contract_end = Some("2030-06-30".to_string());
+                    player.stage_contract_end(Some("2030-06-30".to_string()));
                     game.players.push(player);
                 }
             }
@@ -2551,9 +2551,14 @@ mod tests {
 
         for player in settled.players.iter_mut() {
             if player.id.starts_with("team-002-Goalkeeper") {
+                // Released: his contract ends, which is a movement, not an edit.
+                player
+                    .record_movement(domain::player::PlayerMovementEntry::new(
+                        "2026-07-01",
+                        domain::player::PlayerMovementKind::Released,
+                    ))
+                    .unwrap();
                 player.team_id = None;
-                player.contract_end = None;
-                player.wage = 0;
             }
         }
         sm.save_game(&settled, &save_id).unwrap();

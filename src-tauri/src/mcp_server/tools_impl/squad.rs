@@ -50,8 +50,8 @@ pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
             p.ovr,
             p.condition,
             p.morale,
-            p.wage,
-            p.contract_end.as_deref().unwrap_or("-"),
+            p.wage(),
+            p.contract_end().unwrap_or("-"),
         ));
     }
 

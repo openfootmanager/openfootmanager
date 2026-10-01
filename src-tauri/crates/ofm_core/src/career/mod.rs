@@ -10,7 +10,7 @@ mod tests;
 
 use domain::stats::StatsState;
 
-use crate::contracts::{club_season_anchors, stamp_opening_contract_starts};
+use crate::contracts::{club_season_anchors, record_opening_contracts};
 use crate::game::Game;
 use crate::player_identity::upgrade_game_player_identities;
 use crate::world::{
@@ -83,7 +83,7 @@ pub fn date_opening_contracts(game: &mut Game, align_clock_to: Option<&str>) {
     if let Some(team_id) = align_clock_to {
         align_clock_to_club_season(game, team_id);
     }
-    stamp_opening_contract_starts(game, &club_anchors);
+    record_opening_contracts(game, &club_anchors);
 }
 
 /// What the player asked to have simulated in full, on top of the chosen club's own

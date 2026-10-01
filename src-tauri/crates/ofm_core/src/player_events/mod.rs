@@ -45,8 +45,7 @@ pub fn generate_takeover_contract_review_message(game: &mut Game) {
             continue;
         }
 
-        let Some(stage) = contract_warning_stage(player.contract_end.as_deref(), current_date)
-        else {
+        let Some(stage) = contract_warning_stage(player.contract_end(), current_date) else {
             continue;
         };
 
@@ -104,8 +103,7 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
             continue;
         }
 
-        let Some(stage) = contract_warning_stage(player.contract_end.as_deref(), current_date)
-        else {
+        let Some(stage) = contract_warning_stage(player.contract_end(), current_date) else {
             continue;
         };
 
@@ -116,7 +114,10 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
         // The contract itself is in the key. Keyed on player and stage alone, a
         // renewal would inherit the old deal's stages from the ledger and the
         // player would never be warned about the new one.
-        let contract_end = player.contract_end.clone().unwrap_or_default();
+        let contract_end = player
+            .contract_end()
+            .map(str::to_string)
+            .unwrap_or_default();
         let msg_id = format!(
             "contract_concern_{}_{}_{}",
             player.id,
