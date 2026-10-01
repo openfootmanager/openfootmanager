@@ -983,3 +983,37 @@ fn a_youth_scouts_prospects_are_the_same_from_the_same_seed() {
     assert_eq!(report, youth_report_after_scouting(&save, 7));
     assert_ne!(report, youth_report_after_scouting(&save, 8));
 }
+
+/// Given the same save and the same order to a scout, given twice,
+/// When the assignment is created,
+/// Then it has the same id both times — what the scout later finds is keyed by it, and a
+///      replay starts from the same save, not from the same minted ids.
+#[test]
+fn a_scouting_assignment_has_an_id_made_from_what_it_is() {
+    let youth_id = || {
+        game_with_a_scout_abroad()
+            .youth_scouting_assignments
+            .first()
+            .expect("an assignment")
+            .id
+            .clone()
+    };
+    let player_id = || {
+        let mut game = make_game();
+        send_scout(&mut game, "scout1", "p2").unwrap();
+        game.scouting_assignments[0].id.clone()
+    };
+
+    assert_eq!(youth_id(), youth_id());
+    assert_eq!(player_id(), player_id());
+    let mut other = make_game();
+    start_youth_scouting(
+        &mut other,
+        "scout1",
+        YouthScoutingRegion::Domestic,
+        YouthScoutingObjective::HighPotential,
+        None,
+    )
+    .unwrap();
+    assert_ne!(youth_id(), other.youth_scouting_assignments[0].id);
+}

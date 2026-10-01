@@ -7,7 +7,6 @@ use domain::player::{Player, PlayerMovementKind, Position, SquadRole};
 use domain::staff::StaffRole;
 use rand::RngExt;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 const ERR_SCOUT_NOT_FOUND: &str = "be.error.scouting.scoutNotFound";
 const ERR_STAFF_MEMBER_NOT_SCOUT: &str = "be.error.scouting.staffMemberNotScout";
@@ -166,8 +165,10 @@ pub fn send_scout(game: &mut Game, scout_id: &str, player_id: &str) -> Result<()
     // Create assignment (2-5 days depending on scout quality)
     let days = assignment_days_for_player_scouting(scout.attributes.judging_ability);
 
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     game.scouting_assignments.push(ScoutingAssignment {
-        id: Uuid::new_v4().to_string(),
+        // Made from what the assignment is, so a replay of the save starts the same one.
+        id: crate::seed::derived_id(&["scouting", scout_id, player_id, &today]),
         scout_id: scout_id.to_string(),
         player_id: player_id.to_string(),
         days_remaining: days,
@@ -207,9 +208,11 @@ pub fn start_youth_scouting(
 
     let days =
         assignment_days_for_youth_scouting(scout.attributes.judging_potential, region, objective);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let search = format!("{region:?}/{objective:?}/{target_position:?}");
     game.youth_scouting_assignments
         .push(YouthScoutingAssignment {
-            id: Uuid::new_v4().to_string(),
+            id: crate::seed::derived_id(&["youth-scouting", scout_id, &search, &today]),
             scout_id: scout_id.to_string(),
             region,
             objective,

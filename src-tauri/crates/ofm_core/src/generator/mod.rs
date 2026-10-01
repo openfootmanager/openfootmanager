@@ -502,11 +502,22 @@ fn replace_available_staff_market(
     rng: &mut impl rand::Rng,
 ) {
     staff.retain(|staff_member| staff_member.team_id.is_some());
-    staff.extend(generate_standard_available_staff_for_teams(
-        teams,
-        opening_year,
-        rng,
-    ));
+    // The day's stream is the same however many times the market is refilled today, so a market
+    // bought out and refilled the same day would deal the ids it dealt before — to people now
+    // on a club's books. Deal again from the same stream until none repeats; it moves on each
+    // time, so this ends at once in practice, and the cap is only a backstop.
+    let taken: std::collections::HashSet<String> = staff
+        .iter()
+        .map(|staff_member| staff_member.id.clone())
+        .collect();
+    let mut batch = generate_standard_available_staff_for_teams(teams, opening_year, rng);
+    for _ in 0..8 {
+        if batch.iter().all(|member| !taken.contains(&member.id)) {
+            break;
+        }
+        batch = generate_standard_available_staff_for_teams(teams, opening_year, rng);
+    }
+    staff.extend(batch);
 }
 
 pub fn replenish_available_staff_market(
@@ -3171,6 +3182,42 @@ mod tests {
         game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
         process_available_staff_market(&mut game);
         market_staff(&game)
+    }
+
+    /// Given a market that is bought out on the day it was generated,
+    /// When it is regenerated the same day,
+    /// Then the new batch shares no id with the people just hired from the first — the day's
+    ///      stream is the same, so without a guard it would deal the same ids twice.
+    #[test]
+    fn a_market_emptied_and_refilled_on_one_day_deals_new_ids() {
+        let mut game = make_staff_market_game(vec![]);
+        game.seed = 7;
+        process_available_staff_market(&mut game);
+        let first_batch: std::collections::BTreeSet<String> = game
+            .staff
+            .iter()
+            .filter(|staff_member| staff_member.team_id.is_none())
+            .map(|staff_member| staff_member.id.clone())
+            .collect();
+        assert!(!first_batch.is_empty());
+        let club = game.teams[0].id.clone();
+        for staff_member in game
+            .staff
+            .iter_mut()
+            .filter(|s| first_batch.contains(&s.id))
+        {
+            staff_member.team_id = Some(club.clone());
+        }
+
+        process_available_staff_market(&mut game);
+
+        let ids: Vec<&String> = game
+            .staff
+            .iter()
+            .map(|staff_member| &staff_member.id)
+            .collect();
+        let distinct: std::collections::BTreeSet<&&String> = ids.iter().collect();
+        assert_eq!(distinct.len(), ids.len(), "two people share an id");
     }
 
     /// Given a save whose staff market is due to rotate,

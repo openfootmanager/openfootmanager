@@ -285,6 +285,9 @@ pub fn seed_knockout_round(
         let fixture_id = crate::seed::derived_id(&[
             "tie",
             &cup.id,
+            // The season too: a renewed cup keeps its id and often its pairings.
+            &cup.season.to_string(),
+            &start_date.to_rfc3339(),
             &round_index.to_string(),
             &pair[0],
             &pair[1],
@@ -594,6 +597,35 @@ pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture
 
 #[cfg(test)]
 mod tests {
+    /// Given a knockout cup that is renewed for the next season,
+    /// When its ties are drawn again between the same clubs,
+    /// Then no tie shares an id with last season's — match statistics and inbox items are keyed
+    ///      by fixture id, so a repeated id is a primary-key clash on the second season's save.
+    #[test]
+    fn a_renewed_cups_ties_do_not_reuse_last_seasons_ids() {
+        let teams: Vec<String> = (1..=8).map(|n| format!("team_{n}")).collect();
+        let start = chrono::Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut cup = generate_knockout_cup(
+            "Test Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+        let last_season: std::collections::BTreeSet<String> =
+            cup.fixtures.iter().map(|f| f.id.clone()).collect();
+        assert!(!last_season.is_empty());
+
+        regenerate_knockout_for_season(
+            &mut cup,
+            2027,
+            chrono::Utc.with_ymd_and_hms(2027, 8, 1, 0, 0, 0).unwrap(),
+        );
+
+        assert!(cup.fixtures.iter().all(|f| !last_season.contains(&f.id)));
+    }
+
     /// Given the same teams, dates and names,
     /// When a schedule is generated twice,
     /// Then every competition and fixture has the same id both times — so what orders a day's

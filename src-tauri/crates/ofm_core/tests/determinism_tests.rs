@@ -100,6 +100,19 @@ fn outcome(game: &Game) -> String {
     for team in &game.teams {
         lines.push(format!("{} finance{}", team.id, team.finance));
     }
+    // The people a rollover brings in: the staff market and the manager pool.
+    for staff_member in &game.staff {
+        lines.push(format!(
+            "staff {} {:?} {:?} {}",
+            staff_member.id, staff_member.team_id, staff_member.role, staff_member.last_name
+        ));
+    }
+    for manager in &game.managers {
+        lines.push(format!(
+            "manager {} {:?} {}",
+            manager.id, manager.team_id, manager.last_name
+        ));
+    }
     lines.join("\n")
 }
 
@@ -298,4 +311,46 @@ fn a_whole_season_and_its_rollover_replay_the_same_way() {
     let second = outcome(&play_through_a_rollover(save));
 
     assert!(first == second, "{}", first_difference(&first, &second));
+}
+
+/// Every fixture id in the world, club and international.
+fn every_fixture_id(game: &Game) -> std::collections::BTreeSet<String> {
+    game.competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .chain(
+            game.national_teams
+                .iter()
+                .flat_map(|team| team.fixtures.iter()),
+        )
+        .map(|fixture| fixture.id.clone())
+        .collect()
+}
+
+/// Given a world played through a season and its rollover,
+/// When the next season's schedule exists,
+/// Then none of its fixtures has the id of one from the season before — match statistics and
+///      inbox items are keyed by fixture id, so a repeat is a clash when the second season is
+///      saved.
+#[test]
+fn a_new_season_reuses_no_fixture_id_from_the_last() {
+    let mut game = managed_world(1, 7);
+    let first_season = every_fixture_id(&game);
+    game = play_to_the_rollover(game);
+    let second_season: std::collections::BTreeSet<String> = game
+        .competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.status == domain::league::FixtureStatus::Scheduled)
+        .map(|fixture| fixture.id.clone())
+        .collect();
+
+    assert!(!second_season.is_empty());
+    let reused: Vec<&String> = second_season.intersection(&first_season).collect();
+    assert!(
+        reused.is_empty(),
+        "{} ids repeat, e.g. {:?}",
+        reused.len(),
+        reused.first()
+    );
 }
