@@ -3264,7 +3264,9 @@
       },
       "youthIntake": {
         "subject": "Neuer Jugendjahrgang: {{team}}",
-        "body": "Boss, der neue Jugendjahrgang ist in unsere Jugend aufgenommen worden: {{players}}."
+        "body": "Boss, der neue Jugendjahrgang ist in unsere Jugend aufgenommen worden: {{players}}.",
+        "bodyPartlyRefused": "Boss, neu in unserer Jugend diese Saison: {{players}}. Die Gehälter für den Rest des Jahrgangs wollte der Vorstand nicht übernehmen.",
+        "bodyAllRefused": "Boss, der Vorstand wollte die Gehälter des neuen Jahrgangs nicht übernehmen, deshalb ist diese Saison niemand in unsere Jugend aufgenommen worden."
       },
       "squadCannotBeFilled": {
         "subject": "Niemand verfügbar: {{group}}",

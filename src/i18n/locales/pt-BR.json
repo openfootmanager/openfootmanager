@@ -3264,7 +3264,9 @@
       },
       "youthIntake": {
         "subject": "Novos garotos na base: {{team}}",
-        "body": "Chefe, a nova safra chegou às categorias de base: {{players}}."
+        "body": "Chefe, a nova safra chegou às categorias de base: {{players}}.",
+        "bodyPartlyRefused": "Chefe, novos na base nesta temporada: {{players}}. A diretoria não quis bancar os salários do restante da safra.",
+        "bodyAllRefused": "Chefe, a diretoria não quis bancar os salários da nova safra, então ninguém chegou à base nesta temporada."
       },
       "squadCannotBeFilled": {
         "subject": "Ninguém disponível: {{group}}",

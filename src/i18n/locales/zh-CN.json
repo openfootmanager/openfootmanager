@@ -3264,7 +3264,9 @@
       },
       "youthIntake": {
         "subject": "青训新人：{{team}}",
-        "body": "老板，本赛季的青训新人已加入青训营：{{players}}。"
+        "body": "老板，本赛季的青训新人已加入青训营：{{players}}。",
+        "bodyPartlyRefused": "老板，本赛季青训营新人：{{players}}。董事会不愿承担其余青训新人的薪水。",
+        "bodyAllRefused": "老板，董事会不愿承担本赛季青训新人的薪水，所以没有人加入青训营。"
       },
       "squadCannotBeFilled": {
         "subject": "无人可用：{{group}}",
