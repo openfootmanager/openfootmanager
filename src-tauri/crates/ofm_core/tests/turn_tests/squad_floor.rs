@@ -29,7 +29,9 @@ fn a_club_with_nobody_registered_signs_a_squad_before_kick_off() {
 
     let fixture = &game.league.as_ref().unwrap().fixtures[0];
     assert_eq!(fixture.status, FixtureStatus::Completed);
-    assert_eq!(fielded_count(&game, "team2"), 11);
+    // Eleven signed players started it; on the one match path a manager may
+    // have brought more of them on from the bench.
+    assert!(fielded_count(&game, "team2") >= 11);
     assert!(squad_shortfall(&game, "team2").is_empty());
 }
 

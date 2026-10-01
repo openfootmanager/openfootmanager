@@ -35,10 +35,7 @@
 //! the first twenty clubs the generator emits, and those are not a random
 //! sample of anything.
 
-use domain::team::{
-    CounterPressDuration, DefensiveLine, DefensiveShape, PitchWidth, PressingIntensity,
-    TacticsPhaseSettings,
-};
+use domain::team::{DefensiveLine, PressingIntensity, TacticsPhaseSettings};
 use ofm_core::game::Game;
 use ofm_core::{ai_tactics, generator, turn};
 
@@ -62,21 +59,6 @@ fn weeks() -> u32 {
 // ---------------------------------------------------------------------------
 // Measurement
 // ---------------------------------------------------------------------------
-
-fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
-    [
-        matches!(
-            settings.defensive_line,
-            DefensiveLine::VeryLow | DefensiveLine::Low
-        ),
-        settings.defensive_shape == DefensiveShape::Compact,
-        settings.width == PitchWidth::Narrow,
-        settings.counter_press_duration == CounterPressDuration::Long,
-    ]
-    .iter()
-    .filter(|taken| **taken)
-    .count()
-}
 
 fn line_depth(line: &DefensiveLine) -> u8 {
     match line {
@@ -153,7 +135,7 @@ fn report(title: &str, game: &Game) {
             .entry(format!("{:?}", team.play_style))
             .or_default();
         style.0 += 1;
-        rationed[under_priced_dials(&team.tactics_phase).min(4)] += 1;
+        rationed[ai_tactics::under_priced_dials(&team.tactics_phase).min(4)] += 1;
 
         let moved = differences(&blueprint, &team.tactics_phase);
         if moved.is_empty() {
@@ -310,7 +292,10 @@ fn report_readings(teams: &[domain::team::Team], players: &[domain::player::Play
 /// thresholds can be placed on the distribution a manager actually sees rather
 /// than on a round number. A trigger sitting near the median is not a bad run,
 /// it is Tuesday.
-fn report_form_windows(game: &Game) {
+/// Goals scored and conceded per game over every five-match window the
+/// season's completed fixtures give each club, each list sorted ascending.
+/// Every match is counted from both ends, so the two lists mirror each other.
+fn form_windows(game: &Game) -> (Vec<f64>, Vec<f64>) {
     use domain::league::FixtureStatus;
 
     let mut results: std::collections::HashMap<&str, Vec<(&str, f64, f64)>> = Default::default();
@@ -347,6 +332,11 @@ fn report_form_windows(game: &Game) {
     }
     scored.sort_by(|a, b| a.partial_cmp(b).unwrap());
     conceded.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    (scored, conceded)
+}
+
+fn report_form_windows(game: &Game) {
+    let (scored, conceded) = form_windows(game);
 
     println!();
     println!(
@@ -552,4 +542,36 @@ fn report_how_far_clubs_drift_from_their_blueprint() {
          the world was leaking and none was ever blunt."
     );
     println!();
+}
+
+/// The review's form triggers (`ai_tactics`'s `LEAKY` and `BLUNT`) are p85 of
+/// goals conceded and p15 of goals scored over this probe's five-match windows,
+/// read when a club scored about 2.52 a game. They are only right while that
+/// holds. This pins it, so an engine change that moves how many goals are
+/// scored fails here instead of silently mistuning the triggers — re-read the
+/// window table (`report_how_far_clubs_drift_from_their_blueprint`) and move
+/// the triggers with it, then move this band.
+///
+/// The band is wide on purpose: match results are not seeded, and single
+/// seasons have read anywhere from 2.37 to 2.66. The last two moves it exists
+/// to catch were 2.06 -> 2.29 and 2.29 -> 2.52.
+#[test]
+fn the_form_triggers_are_read_off_the_scoring_rate_they_were_calibrated_on() {
+    let world = generator::generate_world_seeded(
+        seed(),
+        &generator::definitions::DefinitionSources::embedded_only(),
+    );
+    let mut league = one_league(&world);
+    for _ in 0..(7 + 7 * weeks() as usize) {
+        turn::process_day(&mut league);
+    }
+
+    let (scored, _) = form_windows(&league);
+    assert!(!scored.is_empty(), "the probe season played no matches");
+    let per_game = scored.iter().sum::<f64>() / scored.len() as f64;
+    assert!(
+        (2.30..=2.75).contains(&per_game),
+        "clubs now score {per_game:.2} a game; the form triggers were calibrated at about \
+         2.52. Re-read the window table and move LEAKY / BLUNT with it."
+    );
 }

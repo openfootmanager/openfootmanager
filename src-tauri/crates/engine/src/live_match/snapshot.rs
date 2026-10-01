@@ -6,9 +6,30 @@ use super::{LiveMatchState, MatchPhase, MatchSnapshot, PenaltyShootoutSnapshot};
 // Snapshot generation — read-only view of match state for the UI
 // ---------------------------------------------------------------------------
 
+#[cfg(test)]
+thread_local! {
+    /// How many snapshots this thread has built.
+    ///
+    /// A snapshot is the *UI's* view: both teams cloned, both benches cloned,
+    /// every set-piece taker and the whole accumulated event log. The AI manager
+    /// used to build three of them per minute per side to read about eight
+    /// scalars, which is what `observation.rs` exists to stop. This counter is
+    /// what keeps it stopped — `observation.rs`'s tests assert that a decision
+    /// builds none.
+    ///
+    /// Thread-local rather than a global atomic, so a test counting on one
+    /// thread cannot be disturbed by `cargo test` running its siblings on the
+    /// others. The whole thing compiles out of any build that is not a test.
+    pub(crate) static SNAPSHOTS_BUILT: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
+
 impl LiveMatchState {
     /// Get a full snapshot of the current match state for the UI.
     pub fn snapshot(&self) -> MatchSnapshot {
+        #[cfg(test)]
+        SNAPSHOTS_BUILT.with(|built| built.set(built.get() + 1));
+
         let total_poss = self.home_possession_ticks + self.away_possession_ticks;
         let home_pct = if total_poss > 0 {
             self.home_possession_ticks as f64 / total_poss as f64 * 100.0
