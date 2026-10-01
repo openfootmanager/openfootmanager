@@ -2704,6 +2704,7 @@
         "unknownCountry": "Negara \"{{country}}\" tidak dikenal.",
         "groupConfigOnNonGroupFormat": "Pengaturan grup hanya berlaku untuk format grup-dan-gugur.",
         "groupSizeTooSmall": "Ukuran grup {{groupSize}} terlalu kecil (minimum 2).",
+        "invalidGroupQualification": "Pengaturan kelolosan grup tidak dapat dipenuhi dengan peserta ini.",
         "zeroLegs": "Sebuah kompetisi membutuhkan setidaknya satu leg.",
         "noParticipants": "Tidak ada peserta: berikan daftar eksplisit atau pemilih.",
         "bothParticipantSources": "Berikan daftar eksplisit atau pemilih, tidak keduanya.",

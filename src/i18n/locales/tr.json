@@ -2704,6 +2704,7 @@
         "unknownCountry": "Bilinmeyen ülke \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Grup ayarları yalnızca grup ve eleme formatına uygulanır.",
         "groupSizeTooSmall": "{{groupSize}} grup boyutu çok küçük (en az 2).",
+        "invalidGroupQualification": "Bu katılımcılarla gruplardan çıkma ayarları karşılanamaz.",
         "zeroLegs": "Bir turnuva en az bir maç ayağı gerektirir.",
         "noParticipants": "Katılımcı yok: açık bir liste veya bir seçici sağlayın.",
         "bothParticipantSources": "Açık bir liste veya bir seçici sağlayın, ikisini birden değil.",

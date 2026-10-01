@@ -372,7 +372,7 @@ pub(super) fn build_foundation_competition_plan(
                         format: FormatDef {
                             kind: CompetitionFormat::GroupAndKnockout,
                             legs: Some(1),
-                            group_size: Some(4),
+                            group_size: Some(domain::league::DEFAULT_GROUP_SIZE),
                             qualifiers_per_group: Some(2),
                             best_third_qualifiers: None,
                         },

@@ -188,11 +188,10 @@ const COMPETITION_DEFINITIONS_INVALID_ERROR: &str = "be.error.competitionDef.inv
 /// Reject a world whose embedded competition definitions don't validate, so a
 /// broken definition file never loads half-applied.
 fn validate_embedded_definitions(world: &WorldData) -> Result<(), String> {
-    if let Some(file) = &world.competition_definitions {
-        let ctx = super::competition_def::WorldValidationContext::from_world(world);
-        if !super::competition_def::validate_definitions(file, &ctx).is_empty() {
-            return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
-        }
+    if let Some(file) = &world.competition_definitions
+        && !super::competition_def::validate_definitions_for_world(file, world).is_empty()
+    {
+        return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
     }
     Ok(())
 }
@@ -926,5 +925,231 @@ mod tests {
             result.is_err(),
             "unreadable source dir should surface an error"
         );
+    }
+    fn group_world_json(entrants: usize, format: serde_json::Value, selector: bool) -> String {
+        let teams: Vec<domain::team::Team> = (0..entrants)
+            .map(|i| {
+                domain::team::Team::new(
+                    format!("club-{i}"),
+                    format!("Club {i}"),
+                    format!("C{i}"),
+                    "ENG".into(),
+                    "City".into(),
+                    "Ground".into(),
+                    1000,
+                )
+            })
+            .collect();
+        let participants = if selector {
+            serde_json::json!({"selector":{"kind":"topByReputation","country":"ENG","count":100}})
+        } else {
+            serde_json::json!({"explicit": teams.iter().map(|t| &t.id).collect::<Vec<_>>()})
+        };
+        serde_json::json!({"teams":teams, "competitionDefinitions":{"competitions":[{
+            "id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+            "format":format, "participants":participants
+        }]}})
+        .to_string()
+    }
+
+    #[test]
+    fn public_world_loader_honours_group_size_in_resolved_schedules() {
+        use chrono::TimeZone;
+        for (entrants, format, sizes, fixtures) in [
+            (
+                8,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                vec![2, 2, 2, 2],
+                8,
+            ),
+            (
+                8,
+                serde_json::json!({"kind":"GroupAndKnockout"}),
+                vec![4, 4],
+                24,
+            ),
+            (
+                7,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"bestThirdQualifiers":1}),
+                vec![2, 2, 3],
+                10,
+            ),
+            (
+                64,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                vec![2; 32],
+                64,
+            ),
+        ] {
+            let world = load_world_from_json(&group_world_json(entrants, format, false)).unwrap();
+            let definitions = world.competition_definitions.as_ref().unwrap();
+            let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+            let cup = super::super::resolve_definitions(definitions, &world, 2031, start).remove(0);
+            let mut actual: Vec<usize> = cup.groups.iter().map(|g| g.team_ids.len()).collect();
+            actual.sort();
+            assert_eq!(actual, sizes);
+            assert_eq!(cup.fixtures.len(), fixtures);
+            let group_ids: std::collections::HashSet<&String> =
+                cup.groups.iter().map(|g| &g.id).collect();
+            let group_names: std::collections::HashSet<&String> =
+                cup.groups.iter().map(|g| &g.name).collect();
+            assert_eq!(
+                group_ids.len(),
+                cup.groups.len(),
+                "group ids must be unique"
+            );
+            assert_eq!(
+                group_names.len(),
+                cup.groups.len(),
+                "group labels must be unique"
+            );
+            if entrants == 64 {
+                assert_eq!(cup.groups[25].name, "Z");
+                assert_eq!(cup.groups[26].name, "AA");
+                assert_eq!(cup.groups[31].name, "AF");
+            }
+            let mut ids: Vec<&String> = cup.groups.iter().flat_map(|g| &g.team_ids).collect();
+            ids.sort();
+            let mut expected: Vec<&String> = world.teams.iter().map(|t| &t.id).collect();
+            expected.sort();
+            assert_eq!(ids, expected, "every entrant is assigned exactly once");
+            assert!(cup.fixtures.iter().all(|f| {
+                cup.groups.iter().any(|g| {
+                    g.team_ids.contains(&f.home_team_id) && g.team_ids.contains(&f.away_team_id)
+                })
+            }));
+        }
+    }
+
+    #[test]
+    fn selector_cups_with_fewer_than_two_resolved_clubs_still_load_and_skip() {
+        use chrono::TimeZone;
+        for entrants in [0, 1] {
+            let json = group_world_json(
+                entrants,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                true,
+            );
+            let world = load_world_from_json(&json).expect("empty selectors remain skippable");
+            let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+            assert!(
+                super::super::resolve_definitions(
+                    world.competition_definitions.as_ref().unwrap(),
+                    &world,
+                    2031,
+                    start,
+                )
+                .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn package_group_qualification_uses_the_final_composed_field() {
+        use crate::generator::{CompetitionDefinition, DefinitionSources, TeamDef, WorldPackage};
+        let clubs = |range: std::ops::Range<usize>| -> Vec<TeamDef> {
+            range.map(|i| serde_json::from_value(serde_json::json!({
+                "id":format!("club-{i}"), "name":format!("Club {i}"), "city":"City", "country":"ENG",
+                "colors":{"primary":"#000000", "secondary":"#ffffff"}
+            })).unwrap()).collect()
+        };
+        let definition: CompetitionDefinition = serde_json::from_value(serde_json::json!({
+            "id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+            "format":{"kind":"GroupAndKnockout","groupSize":3,"qualifiersPerGroup":3},
+            "participants":{"selector":{"kind":"topByReputation","country":"ENG","count":100}}
+        }))
+        .unwrap();
+        let mut layer = WorldPackage::default();
+        layer.teams.extend(clubs(0..7));
+        layer.competitions.push(definition);
+        // Standalone authoring validation uses this layer's resolved field.
+        let errors = crate::generator::validate_package(&layer);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.code == "be.error.competitionDef.invalidGroupQualification"),
+            "standalone qualification must be checked before export: {errors:?}"
+        );
+        let sources = DefinitionSources::embedded_only();
+        assert!(
+            matches!(build_world_from_package(&layer, Some(2031), &sources),
+            Err(key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR)
+        );
+
+        let mut extension = WorldPackage::default();
+        extension.teams.extend(clubs(7..9));
+        let (merged, errors) = crate::generator::merge_world_packages(vec![layer, extension]);
+        assert!(
+            errors.is_empty(),
+            "the composed package is valid: {errors:?}"
+        );
+        let world = build_world_from_package(&merged, Some(2031), &sources).unwrap();
+        let errors = crate::generator::validate_definitions_for_world(
+            world.competition_definitions.as_ref().unwrap(),
+            &world,
+        );
+        assert!(
+            errors.is_empty(),
+            "qualification uses all nine final clubs: {errors:?}"
+        );
+    }
+
+    /// Three entrants at maximum size two would leave a lone club with no match.
+    #[test]
+    fn public_world_loader_rejects_singleton_groups() {
+        for selector in [false, true] {
+            let json = group_world_json(
+                3,
+                serde_json::json!({
+                    "kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":1
+                }),
+                selector,
+            );
+            assert!(matches!(load_world_from_json(&json),
+                Err(key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR));
+        }
+    }
+
+    #[test]
+    fn public_world_loader_rejects_incompatible_group_qualification() {
+        for selector in [false, true] {
+            for (entrants, format) in [
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":0}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":1}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":0}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":3}),
+                ),
+                (
+                    7,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"qualifiersPerGroup":3}),
+                ),
+                (
+                    7,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"bestThirdQualifiers":2}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"bestThirdQualifiers":1}),
+                ),
+            ] {
+                let result = load_world_from_json(&group_world_json(entrants, format, selector));
+                assert!(
+                    matches!(result, Err(ref key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR),
+                    "selector={selector}, entrants={entrants}: {:?}",
+                    result.as_ref().map(|_| "accepted")
+                );
+            }
+        }
     }
 }

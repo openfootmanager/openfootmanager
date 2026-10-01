@@ -2679,6 +2679,7 @@
         "unknownCountry": "Unbekanntes Land \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Gruppeneinstellungen gelten nur für ein Gruppen-und-K.-o.-Format.",
         "groupSizeTooSmall": "Gruppengröße {{groupSize}} ist zu klein (mindestens 2).",
+        "invalidGroupQualification": "Mit diesen Teilnehmern lassen sich die Einstellungen zur Gruppenqualifikation nicht erfüllen.",
         "zeroLegs": "Ein Wettbewerb braucht mindestens ein Spiel.",
         "noParticipants": "Keine Teilnehmer: Geben Sie eine explizite Liste oder einen Selektor an.",
         "bothParticipantSources": "Geben Sie entweder eine explizite Liste oder einen Selektor an, nicht beides.",

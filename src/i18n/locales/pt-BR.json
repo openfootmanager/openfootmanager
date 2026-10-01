@@ -2679,6 +2679,7 @@
         "unknownCountry": "País desconhecido \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "As configurações de grupo só se aplicam a um formato de grupos e mata-mata.",
         "groupSizeTooSmall": "O tamanho do grupo {{groupSize}} é pequeno demais (mínimo 2).",
+        "invalidGroupQualification": "Esses participantes não permitem cumprir as configurações de classificação dos grupos.",
         "zeroLegs": "Uma competição precisa de pelo menos um jogo.",
         "noParticipants": "Sem participantes: forneça uma lista explícita ou um seletor.",
         "bothParticipantSources": "Forneça uma lista explícita ou um seletor, não ambos.",
