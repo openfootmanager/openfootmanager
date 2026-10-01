@@ -43,6 +43,11 @@ use chrono::Datelike;
 use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
+#[cfg(test)]
+thread_local! {
+    // Count actual builder entries on this test thread, including validation.
+    static PACKAGE_WORLD_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
 const OPENING_YOUTH_ACADEMY_SIZE: usize = 3;
 use crate::roster::YOUTH_ACADEMY_MAX_AGE as OPENING_YOUTH_MAX_AGE;
 const AVAILABLE_STAFF_MARKET_ROTATION_DAYS: i64 = 30;
@@ -1217,6 +1222,8 @@ pub fn build_world_data_from_package(
     opening_year: Option<u32>,
     sources: &definitions::DefinitionSources,
 ) -> WorldData {
+    #[cfg(test)]
+    PACKAGE_WORLD_BUILDS.with(|count| count.set(count.get() + 1));
     let opening_year = opening_year
         .or_else(|| {
             package

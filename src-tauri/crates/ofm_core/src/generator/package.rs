@@ -4140,6 +4140,159 @@ colors:
     }
 
     #[test]
+    fn package_selector_exclusion_verdict_is_stable() {
+        // Given overlapping explicit and reputation selectors, their union can
+        // leave 2, 3 or 4 clubs for C. Three cannot form playable size-two groups.
+        let mut package = WorldPackage {
+            teams: (b'a'..=b'f')
+                .map(|id| {
+                    serde_json::from_value(serde_json::json!({
+                        "id": char::from(id).to_string(), "name": "Club", "city": "City",
+                        "country": "ENG", "reputationRange": [0, 1000],
+                        "colors": {"primary": "#000000", "secondary": "#ffffff"}
+                    }))
+                    .unwrap()
+                })
+                .collect(),
+            competitions: serde_json::from_value(serde_json::json!([
+                {"id":"a-cup", "name":"A", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"Knockout"}, "participants":{"explicit":["a", "b"]}},
+                {"id":"b-cup", "name":"B", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"Knockout"}, "participants":{"selector":{
+                     "kind":"topByReputation", "country":"ENG", "count":2}}},
+                {"id":"c-cup", "name":"C", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":2},
+                 "participants":{"selector":{"kind":"allInCountry", "country":"ENG",
+                     "excludeCompetitions":["a-cup", "b-cup"]}}}
+            ]))
+            .unwrap(),
+            ..Default::default()
+        };
+        for authored_range in [Some([0, 1000]), None] {
+            for team in &mut package.teams {
+                team.reputation_range = authored_range;
+            }
+            // When the same package is validated twice, repeatedly (also with
+            // omitted ranges), then the verdict cannot depend on a fresh roll.
+            let expected = validate_package(&package);
+            for _ in 0..32 {
+                let first = validate_package(&package);
+                let second = validate_package(&package);
+                assert_eq!(first, second, "two validations must give the same verdict");
+                assert_eq!(
+                    first, expected,
+                    "the verdict must remain stable across runs"
+                );
+            }
+            assert!(
+                expected.is_empty(),
+                "the midpoint field has four clubs: {expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn declared_clubless_country_keeps_its_optional_cup() {
+        use chrono::TimeZone;
+        // Given a custom country with no clubs, with or without an explicit
+        // region, its declaration must survive every validation boundary.
+        for confederation in ["custom-region", ""] {
+            let package = WorldPackage {
+                confederations: vec![ConfederationDef {
+                    id: "custom-region".into(),
+                    name: "Custom Region".into(),
+                }],
+                countries: vec![CountryDef {
+                    id: "ZZZ".into(),
+                    name: "Clubless Country".into(),
+                    confederation: confederation.into(),
+                }],
+                competitions: vec![serde_json::from_value(serde_json::json!({
+                    "id":"optional-cup", "name":"Optional Cup", "type":"Cup", "scope":"Domestic",
+                    "countryId":"ZZZ", "format":{"kind":"GroupAndKnockout", "groupSize":2},
+                    "participants":{"selector":{"kind":"allInCountry", "country":"ZZZ"}}
+                })).unwrap()],
+                ..Default::default()
+            };
+            // When package validation, world build and JSON reload run, then
+            // the declared country is known and its empty competition skips.
+            let errors = validate_package(&package);
+            assert!(
+                errors.is_empty(),
+                "a declared country is known even without clubs: {errors:?}"
+            );
+            let world =
+                crate::generator::build_world_from_package(&package, Some(2031), &embedded())
+                    .expect("the package builds");
+            let json = crate::generator::export_world_to_json(&world).unwrap();
+            let loaded = crate::generator::load_world_from_json(&json)
+                .expect("its declaration survives reload");
+            let ctx = crate::generator::WorldValidationContext::from_world(&loaded);
+            assert!(ctx.country_codes.contains("ZZZ"));
+            let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+            assert!(
+                crate::generator::resolve_definitions(
+                    loaded.competition_definitions.as_ref().unwrap(),
+                    &loaded,
+                    2031,
+                    start
+                )
+                .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_package_references_skip_validation_world_build() {
+        // Given a competition whose selectors would need a built world.
+        let mut package = WorldPackage {
+            teams: vec![
+                serde_json::from_value(serde_json::json!({
+                    "id":"club", "name":"Club", "city":"City", "country":"ENG",
+                    "colors":{"primary":"#000000", "secondary":"#ffffff"}
+                }))
+                .unwrap(),
+            ],
+            competitions: vec![
+                serde_json::from_value(serde_json::json!({
+                    "id":"cup", "name":"Cup", "type":"Cup", "scope":"Domestic",
+                    "format":{"kind":"Knockout"},
+                    "participants":{"selector":{"kind":"allInCountry", "country":"ENG"}}
+                }))
+                .unwrap(),
+            ],
+            ..Default::default()
+        };
+        super::super::PACKAGE_WORLD_BUILDS.with(|count| count.set(0));
+        assert!(validate_package(&package).is_empty());
+        super::super::PACKAGE_WORLD_BUILDS.with(|count| assert_eq!(count.get(), 1));
+        for (country, reputation, finance, expected) in [
+            ("ZZZ", None, None, UNKNOWN_COUNTRY),
+            ("ENG", Some([900, 300]), None, REVERSED_RANGE),
+            ("ENG", None, Some([-1, 100]), OUT_OF_RANGE),
+        ] {
+            package.teams[0].country = country.into();
+            package.teams[0].reputation_range = reputation;
+            package.teams[0].finance_range = finance;
+            super::super::PACKAGE_WORLD_BUILDS.with(|count| count.set(0));
+            // When cheap entity/reference checks fail, then report them without
+            // entering the actual production world builder.
+            let errors = validate_package(&package);
+            assert!(
+                errors.iter().any(|error| error.code == expected),
+                "{errors:?}"
+            );
+            super::super::PACKAGE_WORLD_BUILDS.with(|count| {
+                assert_eq!(
+                    count.get(),
+                    0,
+                    "invalid package must not build a validation world"
+                );
+            });
+        }
+    }
+
+    #[test]
     fn competition_reference_errors_surface_as_package_errors() {
         let dir = temp_package();
         write(
