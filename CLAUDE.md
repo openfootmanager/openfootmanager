@@ -280,6 +280,6 @@ Beyond the six rules, this codebase has a consistent voice. Match it.
   add production code beyond the Code quality ceiling; extract cohesive responsibilities first.
 - **Comments explain *why*.** The `time = "=0.3.51"` pin in `src-tauri/Cargo.toml` is the model:
   it says what broke, and what would let us remove the pin.
-- **Don't reinvent what exists.** Search `src/components/ui/index.ts`, `src/lib/`, and
-  `src/utils/` before writing a helper. The same goes for `ofm_core` — most game logic already
+- **Don't reinvent what exists.** Search `src/components/ui/index.ts`, `src/lib/`,
+  `src/utils/`, and `src/services/` before writing a helper. The same goes for `ofm_core` — most game logic already
   has a home.
