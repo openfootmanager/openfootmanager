@@ -2687,6 +2687,7 @@
         "fallbackTeamsFilled": "Yalnızca bir takım tanımlanmıştı. Oyunun oynanabilir olması için prosedürel rakipler otomatik olarak oluşturuldu."
       },
       "competitionDef": {
+        "invalidCalendar": "Geçersiz müsabaka takvimi: lig ailesini, seviyeyi, aşamayı ve kapanış tarihini kontrol edin.",
         "invalidEmbedded": "Bu dünyanın turnuva tanımları geçersiz ve yüklenemedi.",
         "invalidStandalone": "Seçilen turnuva tanım dosyası geçersiz.",
         "parseFailed": "Turnuva tanım dosyası JSON olarak okunamadı.",

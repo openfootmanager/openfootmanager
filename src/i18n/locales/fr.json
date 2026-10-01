@@ -2662,6 +2662,7 @@
         "unsupportedFormatVersion": "Ce paquet a été créé avec une version plus récente du jeu (format {{version}} ; cette version prend en charge {{supported}}). Mettez le jeu à jour pour l'ouvrir."
       },
       "competitionDef": {
+        "invalidCalendar": "Calendrier de compétition invalide : vérifiez la famille de divisions, le niveau, la phase et la date de clôture.",
         "invalidEmbedded": "Les définitions de compétitions de ce monde sont invalides et n'ont pas pu être chargées.",
         "invalidStandalone": "Le fichier de définition de compétitions sélectionné est invalide.",
         "parseFailed": "Le fichier de définition de compétitions n'a pas pu être lu en tant que JSON.",

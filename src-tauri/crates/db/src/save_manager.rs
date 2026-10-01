@@ -475,7 +475,8 @@ impl SaveManager {
         let db = GameDatabase::open_save(&db_path).map_err(|error| error.i18n_key())?;
         let mut game = GamePersistenceReader::read_game(&db)
             .map_err(|_| crate::save_load_error::SaveLoadError::MissingData.i18n_key())?;
-        let mut needs_resave = false;
+        let mut needs_resave =
+            crate::repositories::competition_repo::needs_calendar_backfill(db.conn())?;
 
         // Save-format gate: reject saves from a newer build whose format this
         // build can't understand, and flag older saves so the migrations below
@@ -3070,5 +3071,53 @@ mod tests {
 
         let loaded_again = sm.load_game(&save_id).unwrap();
         assert_eq!(loaded_again.cash_journal.len(), loaded.cash_journal.len());
+    }
+    #[test]
+    fn migrated_calendar_is_resaved_by_its_own_flag() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves).unwrap();
+        let game = sample_game_with_league();
+        let id = manager.create_save(&game, "Calendar").unwrap();
+        manager.load_game(&id).unwrap();
+        let path = saves.join(format!("{id}.db"));
+        {
+            let db = GameDatabase::open_save(&path).unwrap();
+            db.conn()
+                .execute("UPDATE competitions SET calendar_json = NULL", [])
+                .unwrap();
+        }
+        let loaded = manager.load_game(&id).unwrap();
+        assert!(!loaded.competitions.is_empty());
+        let db = GameDatabase::open_save(&path).unwrap();
+        let stored: String = db
+            .conn()
+            .query_row("SELECT calendar_json FROM competitions LIMIT 1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert!(!stored.is_empty());
+        // Observe real writes: comparing identical JSON would miss an unnecessary resave.
+        db.conn().execute_batch("CREATE TABLE calendar_write_probe (writes INTEGER NOT NULL); INSERT INTO calendar_write_probe VALUES (0); CREATE TRIGGER calendar_insert_probe AFTER INSERT ON competitions BEGIN UPDATE calendar_write_probe SET writes = writes + 1; END;").unwrap();
+        drop(db);
+        manager.load_game(&id).unwrap();
+        let db = GameDatabase::open_save(&path).unwrap();
+        let writes: i64 = db
+            .conn()
+            .query_row("SELECT writes FROM calendar_write_probe", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            writes, 0,
+            "settled second load must not resave calendar metadata"
+        );
+        let next: String = db
+            .conn()
+            .query_row("SELECT calendar_json FROM competitions LIMIT 1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(stored, next);
     }
 }

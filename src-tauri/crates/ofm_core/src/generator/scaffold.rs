@@ -336,6 +336,10 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
             "berths": [],
             "seasonStartMonth": 8,
             "seasonStartDay": 1,
+            "calendar": {
+                "division": { "familyId": format!("{slug}-family"), "tier": 1, "phase": "annual" },
+                "windowEnd": null
+            },
             "nameKey": null,
             "logo": null,
         }),
@@ -634,6 +638,14 @@ mod tests {
             season_start_day: Some(1),
             name_key: Some("competition.sample".into()),
             logo: Some("assets/images/sample.png".into()),
+            calendar: Some(domain::competition_calendar::SeasonCalendar {
+                division: Some(domain::competition_calendar::DivisionIdentity {
+                    family_id: "sample-league".into(),
+                    tier: 1,
+                    phase: domain::competition_calendar::SeasonPhase::Annual,
+                }),
+                window_end: Some(domain::competition_calendar::CalendarDate { month: 6, day: 30 }),
+            }),
         };
 
         let mut competition_value = serde_json::to_value(&competition).unwrap();

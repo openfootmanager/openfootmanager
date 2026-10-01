@@ -2687,6 +2687,7 @@
         "fallbackTeamsFilled": "Byl definován pouze jeden tým. Aby byla hra hratelná, byli automaticky vygenerováni procedurální soupeři."
       },
       "competitionDef": {
+        "invalidCalendar": "Neplatný kalendář soutěže: zkontrolujte skupinu divizí, úroveň, fázi a datum ukončení.",
         "invalidEmbedded": "Definice soutěží tohoto světa jsou neplatné a nepodařilo se je načíst.",
         "invalidStandalone": "Vybraný soubor s definicí soutěže je neplatný.",
         "parseFailed": "Soubor s definicí soutěže se nepodařilo načíst jako JSON.",
