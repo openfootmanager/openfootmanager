@@ -588,8 +588,9 @@ mod tests {
         );
     }
 
-    /// What a generated world is, ignoring the ids: player and team ids are still
-    /// minted unseeded, so two worlds of one seed differ in them and in nothing else.
+    /// What a generated world is: names and birth dates. Ids are left out because this was
+    /// written when they were minted at random; they are seeded now, and
+    /// `a_seed_regenerates_the_same_world_ids_included` is the test that holds them to it.
     fn fingerprint(world: &WorldData) -> (Vec<String>, Vec<String>) {
         (
             world.teams.iter().map(|team| team.name.clone()).collect(),

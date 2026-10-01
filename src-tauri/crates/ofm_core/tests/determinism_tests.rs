@@ -1,10 +1,9 @@
 //! A game's days can be replayed: the same seed and the same inputs give the same world.
 //!
 //! What is compared is a projection of the world — results, tables, players' bodies and
-//! clubs' money — and not the whole `Game`: ids minted with `Uuid::new_v4` (inbox
-//! messages, news) are a separate source of difference from the dice, and this
-//! file is about the dice. A world is built once and cloned for each run, because two
-//! generations from one seed still mint different ids. The world is dated for the current year, because a world
+//! clubs' money — and not the whole `Game`: ids still minted with `Uuid::new_v4` (inbox
+//! messages, news, bids) are a separate matter from the dice, and this file is about
+//! the dice. A world is built once and cloned for each run. The world is dated for the current year, because a world
 //! generated for one year and played on another's clock releases every player.
 
 use ofm_core::clock::GameClock;
@@ -72,9 +71,10 @@ fn outcome(game: &Game) -> String {
     for competition in &game.competitions {
         for fixture in &competition.fixtures {
             if let Some(result) = &fixture.result {
-                // Not the fixture id: it is a `Uuid::new_v4` from when the schedule was built.
+                // Fixture ids are derived from what the fixture is, so they are compared too.
                 lines.push(format!(
-                    "result {} {} {}-{} {}-{}",
+                    "result {} {} {} {}-{} {}-{}",
+                    fixture.id,
                     competition.name,
                     fixture.date,
                     fixture.home_team_id,
