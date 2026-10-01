@@ -43,6 +43,7 @@ use chrono::Datelike;
 use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
+const DEFAULT_TEAM_REPUTATION_RANGE: [u32; 2] = [300, 900];
 #[cfg(test)]
 thread_local! {
     // Count actual builder entries on this test thread, including validation.
@@ -735,7 +736,9 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         tdef.stadium_name.clone()
     };
 
-    let rep_range = tdef.reputation_range.unwrap_or([300, 900]);
+    let rep_range = tdef
+        .reputation_range
+        .unwrap_or(DEFAULT_TEAM_REPUTATION_RANGE);
     let fin_range = tdef.finance_range.unwrap_or([500_000, 10_000_000]);
 
     let mut team = domain::team::Team::new(
@@ -1076,12 +1079,20 @@ fn regions_from_package(
         .map(|country| (country.id.as_str(), country.confederation.as_str()))
         .collect();
 
-    for team in teams {
-        let code = if team.football_nation.is_empty() {
-            team.country.as_str()
-        } else {
-            team.football_nation.as_str()
-        };
+    // Declared countries remain part of the world even when they have no club.
+    // Carry them in the existing region catalog so export/load retains them.
+    for code in package
+        .countries
+        .iter()
+        .map(|country| country.id.as_str())
+        .chain(teams.iter().map(|team| {
+            if team.football_nation.is_empty() {
+                team.country.as_str()
+            } else {
+                team.football_nation.as_str()
+            }
+        }))
+    {
         let region = country_region
             .get(code)
             .copied()

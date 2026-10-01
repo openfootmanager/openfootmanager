@@ -1220,8 +1220,6 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         }
     }
 
-    errors.extend(validate_competition_references(package));
-
     // Check that every id in defaultActiveCompetitions exists as a competition
     // in the same package. Skipped for `patch` packages, which are expected to
     // reference competitions defined in the base database they supplement; those
@@ -1293,6 +1291,11 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         }
     }
 
+    // Resolve selectors only after the cheap reference and range checks pass.
+    // Invalid entities cannot form a useful validation world.
+    if errors.is_empty() {
+        errors.extend(validate_competition_references(package));
+    }
     errors
 }
 
@@ -1303,13 +1306,22 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         return Vec::new();
     }
 
-    // Reuse production construction so selector inputs (including reputation,
-    // exclusions and regional membership) match the game loader's inputs.
-    let world = super::build_world_data_from_package(
+    // Reuse production construction for country and regional membership;
+    // project reputation below for a stable authoring check.
+    let mut world = super::build_world_data_from_package(
         package,
         None,
         &super::DefinitionSources::embedded_only(),
     );
+    // Only selector inputs need a fixed projection here. Game construction
+    // keeps sampling ranges, but a package's authoring verdict must not roll
+    // fresh reputations and change exclusion-chain membership on every run.
+    for (team, definition) in world.teams.iter_mut().zip(&package.teams) {
+        let [min, max] = definition
+            .reputation_range
+            .unwrap_or(super::DEFAULT_TEAM_REPUTATION_RANGE);
+        team.reputation = min.midpoint(max);
+    }
     let file = super::CompetitionDefinitionFile {
         format_version: super::SUPPORTED_DEFINITION_FORMAT_VERSION,
         competitions: package.competitions.clone(),

@@ -219,6 +219,12 @@ impl<'a> WorldValidationContext<'a> {
                 }
             })
             .collect();
+        country_codes.extend(
+            world
+                .regions
+                .iter()
+                .flat_map(|region| region.country_codes.iter().map(String::as_str)),
+        );
         // Include builtin nations so competition selectors that reference them
         // pass validation here, matching what validate_competition_references
         // uses at build/install time. `all_nations()`, not the World Cup pool:
