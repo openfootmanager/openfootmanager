@@ -3247,6 +3247,10 @@
         "subject": "Ingaggi d'emergenza: {{team}}",
         "body": "Mister, non avevamo abbastanza giocatori per schierare una squadra, quindi prima del calcio d'inizio ho portato in prima squadra questi giocatori, prima dal settore giovanile e poi tra gli svincolati: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Nuovi ragazzi nel vivaio: {{team}}",
+        "body": "Mister, la nuova leva è entrata nel settore giovanile: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "Nessuno disponibile: {{group}}",
         "body": "Mister, non siamo riusciti a completare la rosa e non c'era nessuno da portare in squadra. {{group}}: {{have}} dei {{floor}} che un club deve mantenere, e né il nostro settore giovanile né il mercato degli svincolati hanno qualcuno per colmare il vuoto.",

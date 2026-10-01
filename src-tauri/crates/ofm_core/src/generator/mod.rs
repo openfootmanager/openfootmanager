@@ -7,6 +7,7 @@ mod generation;
 pub mod package;
 pub mod scaffold;
 pub mod world_io;
+mod youth;
 
 pub use clubs::WorldGenConfig;
 pub use competition_def::*;
@@ -26,6 +27,8 @@ pub use scaffold::{
     slugify,
 };
 pub use world_io::*;
+pub(crate) use youth::generate_youth_intake_recruit;
+pub use youth::{generate_youth_academy_recruit, generate_youth_academy_recruit_with_nationality};
 
 use domain::league::{CompetitionFormat, CompetitionScope};
 use domain::player::{Player, Position};
@@ -277,58 +280,6 @@ pub fn repair_opening_youth_academies(game: &mut crate::game::Game) -> bool {
     repaired
 }
 
-/// Generate a youth prospect who is joining **now**.
-///
-/// `current_year` is the year the recruit arrives, not the year the world opened:
-/// a prospect scouted five seasons into a career is fifteen in *that* season. The
-/// two coincide only for the opening intake, which is why the distinction is
-/// worth naming — a call site that passed the world's opening year here would
-/// quietly produce a squad of players five years too old.
-pub fn generate_youth_academy_recruit(
-    team: &Team,
-    target_position: Option<&Position>,
-    current_year: u32,
-) -> Player {
-    generate_youth_academy_recruit_with_nationality(team, target_position, None, current_year)
-}
-
-/// As [`generate_youth_academy_recruit`], with the prospect's nationality forced
-/// rather than drawn from the club's country. See there for `current_year`.
-pub fn generate_youth_academy_recruit_with_nationality(
-    team: &Team,
-    target_position: Option<&Position>,
-    nationality_override: Option<&str>,
-    current_year: u32,
-) -> Player {
-    use domain::player::SquadRole;
-
-    let mut rng = rand::rng();
-    let names_def = default_names_definition();
-    let country_codes = generation::nationality_distribution();
-    let nationality = nationality_override
-        .map(generation::canonicalize_generated_nationality)
-        .unwrap_or_else(|| {
-            // `team_local_nationality`, not `team.country`: a club carries both a
-            // location and a football identity, and where they differ the
-            // football identity is the one a youth intake should draw on.
-            pick_nationality_from_def(team_local_nationality(team), country_codes, &mut rng)
-        });
-    let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
-    let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
-    let mut player = generate_random_player_from_def(
-        &team.id,
-        slot_index,
-        &nationality,
-        current_year,
-        &names_def,
-        &mut rng,
-    );
-    player.squad_role = SquadRole::Youth;
-    player.transfer_listed = false;
-    player.loan_listed = false;
-    player
-}
-
 /// Generate a senior free-agent player for a national squad. `squad_slot`
 /// follows the standard squad layout (GK 0-1, DEF 2-8, MID 9-15, FWD 16-21)
 /// and drives the position; the player belongs to no club and holds no
@@ -348,6 +299,7 @@ pub fn generate_national_team_player(
         slot,
         &nationality,
         opening_year,
+        None,
         &names_def,
         &mut rng,
     );
@@ -805,6 +757,7 @@ fn build_club(
             slot,
             &nationality,
             opening_year,
+            None,
             names_def,
             rng,
         );
@@ -846,6 +799,7 @@ fn build_club(
         youth_keeper_slot,
         &nationality,
         opening_year,
+        None,
         names_def,
         rng,
     );
@@ -887,6 +841,7 @@ fn generate_opening_free_agents(
                 senior_slot_for(&group),
                 nationality,
                 opening_year,
+                None,
                 names_def,
                 rng,
             );

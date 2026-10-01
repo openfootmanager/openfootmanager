@@ -545,17 +545,28 @@ pub(crate) fn restore_minimum_squad(game: &mut Game, team_id: &str) -> TopUp {
     top_up
 }
 
-/// The club's position groups, the one with least to spare over its minimum
-/// first — where an extra senior helps most. Ties keep [`MIN_PLAYERS_PER_GROUP`]
-/// order.
+/// The club's position groups by [`thinnest_first`] against the floor: any
+/// still below its minimum first, deepest first, then the one with least to
+/// spare — where an extra senior helps most.
 pub(crate) fn groups_thinnest_first(game: &Game, team_id: &str) -> Vec<Position> {
-    let seniors = senior_counts(game, team_id);
-    let mut groups: Vec<(usize, Position)> = MIN_PLAYERS_PER_GROUP
+    thinnest_first(
+        senior_counts(game, team_id),
+        MIN_PLAYERS_PER_GROUP.map(|(_, floor)| floor),
+    )
+}
+
+/// The four position groups ordered by how far `have` stands above `target`,
+/// per group in [`MIN_PLAYERS_PER_GROUP`] order: the furthest below first,
+/// then the least to spare. Ties keep that order. The one statement of
+/// "thinnest first" — the floor asks it against its minimum, the youth intake
+/// against the academy it aims for.
+pub(crate) fn thinnest_first(have: [usize; 4], target: [usize; 4]) -> Vec<Position> {
+    let mut groups: Vec<(i64, Position)> = MIN_PLAYERS_PER_GROUP
         .iter()
         .enumerate()
-        .map(|(index, (group, floor))| (seniors[index].saturating_sub(*floor), group.clone()))
+        .map(|(index, (group, _))| (have[index] as i64 - target[index] as i64, group.clone()))
         .collect();
-    groups.sort_by_key(|(spare, _)| *spare);
+    groups.sort_by_key(|(margin, _)| *margin);
     groups.into_iter().map(|(_, group)| group).collect()
 }
 
@@ -1005,6 +1016,22 @@ mod tests {
         assert_eq!(game.players.len(), players_before, "a player was created");
         assert!(top_up.brought_in().is_empty());
         assert_eq!(top_up.unfilled, squad_shortfall(&game, "club"));
+    }
+
+    /// Given groups below their target by different amounts, and two with the
+    /// same room to spare, the ordering puts the deepest shortfall first, then
+    /// the least to spare, and keeps group order on a tie.
+    #[test]
+    fn the_thinnest_group_is_the_one_furthest_below_its_target() {
+        assert_eq!(
+            thinnest_first([1, 1, 5, 3], [2, 4, 4, 2]),
+            vec![
+                Position::Defender,
+                Position::Goalkeeper,
+                Position::Midfielder,
+                Position::Forward,
+            ]
+        );
     }
 
     /// Given fourteen seniors at 2/4/6/2 and academy players in defence,

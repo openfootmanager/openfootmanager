@@ -3247,6 +3247,10 @@
         "subject": "Fichajes de urgencia: {{team}}",
         "body": "Míster, no teníamos jugadores suficientes para presentar un equipo, así que antes del saque inicial incorporé a la primera plantilla a estos jugadores, primero de la cantera y después agentes libres: {{players}}."
       },
+      "youthIntake": {
+        "subject": "Nuevos canteranos: {{team}}",
+        "body": "Míster, la nueva hornada se ha incorporado a la cantera: {{players}}."
+      },
       "squadCannotBeFilled": {
         "subject": "Nadie disponible: {{group}}",
         "body": "Míster, no pudimos completar la plantilla y no había nadie a quien incorporar. {{group}}: {{have}} de los {{floor}} que un club debe mantener, y ni nuestra cantera ni el mercado de agentes libres tienen a nadie para cubrir el hueco.",
