@@ -431,6 +431,7 @@ fn embedded_competition_definitions_replace_the_auto_built_competitions() {
             season_start_day: None,
             name_key: None,
             logo: None,
+            calendar: None,
         }],
     });
     let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();

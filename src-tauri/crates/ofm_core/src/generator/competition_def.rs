@@ -101,6 +101,11 @@ pub struct FormatDef {
 }
 
 impl FormatDef {
+    /// Ordinary-table leg resolution, also used by its retained metadata.
+    pub(crate) fn league_table_legs(&self) -> u8 {
+        self.legs.unwrap_or(2)
+    }
+
     /// The effective authored shape, shared by validation and construction.
     fn group_stage_config(&self) -> crate::group_stage::GroupStageConfig {
         let defaults = crate::group_stage::GroupStageConfig::default();
@@ -1052,8 +1057,8 @@ fn build_competition(
                 team_ids,
                 season_start,
                 fixture_competition,
-                def.format.legs.unwrap_or(2),
-                crate::calendar_identity::LEAGUE_MATCHDAY_GAP_DAYS.into(),
+                def.format.league_table_legs(),
+                crate::schedule::LEAGUE_MATCHDAY_GAP_DAYS.into(),
             );
             league
         }

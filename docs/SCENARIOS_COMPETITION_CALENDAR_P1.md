@@ -6,7 +6,7 @@ on its own calendar.
 
 Refs #654. This first slice records identity and calendar specification; it does not activate
 independent renewal, change fixture dates, resolve rest conflicts, or claim the season skip fixed.
-Every scenario below is written before implementation and becomes a named test. AI and managed
+Each scenario below maps to a named test, checked with red regressions and targeted mutations. AI and managed
 competitions share the definition/resolver and persistence routes. Baseline guard scenarios are
 mutation-checked. The approved never-affiliated retirement calendar remains a later P6b concern.
 
@@ -29,3 +29,7 @@ mutation-checked. The approved never-affiliated retirement calendar remains a la
 | corrupt_calendar_metadata_is_not_silently_discarded | Malformed new calendar JSON | SQLite load runs | Load fails through its existing translated error contract rather than pretending metadata never existed |
 | generated_annual_calendar_declares_tiers_without_split_phase | Generated English tiers | The world competition plan is built | Each ordinary tier has an explicit family/tier and annual role, keeps August 1 and receives no invented split-season end |
 | every_template_offers_every_field_its_definition_serializes | The CLI competition scaffold and the populated definition schema | The existing schema contract test runs | The scaffold exposes the new calendar field rather than hiding it from authors |
+| regenerated_edition_keeps_calendar_identity_and_updates_label_basis | An authored edition with legacy counter 5 and verified 2030 provenance | Each existing league/knockout/group-cup regeneration writer stamps counter 6, year 2031 or an unrepresentable label | Its basis reflects the new verified counter/year, calendar year or unresolved state and definition identity, phase/window and original ordinary-table specification survive; existing scheduling policy is unchanged |
+| unrepresentable_edition_label_does_not_invent_calendar_provenance | Zero or an unrepresentable season label | Explicit construction runs | The label and fixture clock survive while the edition basis remains unresolved, without inventing a legacy anchor |
+| the_annotated_schema_documents_every_field_the_template_scaffolds | The updated competition scaffold | The existing annotated CLI schema contract runs | Its calendar declaration is documented |
+| the_schema_reference_documents_every_field_the_template_scaffolds | The updated competition scaffold | The existing package reference contract runs | Calendar fields, defaults and grouping constraints are documented |

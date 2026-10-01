@@ -5,8 +5,6 @@ use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use domain::competition_calendar::{CalendarMetadata, EditionBasis, SeasonPhase};
 use domain::league::{CompetitionFormat, CompetitionScope, FixtureCompetition, League};
 
-pub(crate) const LEAGUE_MATCHDAY_GAP_DAYS: u32 = 7;
-
 pub(crate) fn invalid_definition_calendar(def: &CompetitionDefinition) -> bool {
     let Some(calendar) = &def.calendar else {
         return false;
@@ -32,6 +30,31 @@ fn calendar_year(season: u32) -> bool {
     (1000..=9999).contains(&season)
 }
 
+fn ordinal_counter(season: u32) -> bool {
+    (1..1000).contains(&season)
+}
+
+fn generated_edition_basis(season: u32, opener_year: i32) -> EditionBasis {
+    if calendar_year(season) {
+        EditionBasis::CalendarYear
+    } else if ordinal_counter(season) {
+        EditionBasis::LegacyOrdinal {
+            first_season: season,
+            opener_year,
+        }
+    } else {
+        EditionBasis::Unresolved
+    }
+}
+
+/// Existing writers can convert a saved counter to a calendar-year label. Record
+/// their positive generation event without altering their scheduling decisions.
+pub(crate) fn record_regenerated_calendar(league: &mut League, start: DateTime<Utc>) {
+    if let Some(calendar) = &mut league.calendar {
+        calendar.edition_basis = generated_edition_basis(league.season, start.year());
+    }
+}
+
 pub(crate) fn attach_definition_calendar(
     league: &mut League,
     def: &CompetitionDefinition,
@@ -39,20 +62,11 @@ pub(crate) fn attach_definition_calendar(
 ) {
     league.calendar = Some(CalendarMetadata {
         definition_id: def.id.clone(),
-        edition_basis: if calendar_year(league.season) {
-            EditionBasis::CalendarYear
-        } else if league.season > 0 {
-            EditionBasis::LegacyOrdinal {
-                first_season: league.season,
-                opener_year: start.year(),
-            }
-        } else {
-            EditionBasis::Unresolved
-        },
+        edition_basis: generated_edition_basis(league.season, start.year()),
         league_legs: (def.format.kind == CompetitionFormat::LeagueTable)
-            .then(|| def.format.legs.unwrap_or(2)),
+            .then(|| def.format.league_table_legs()),
         matchday_gap_days: (def.format.kind == CompetitionFormat::LeagueTable)
-            .then_some(LEAGUE_MATCHDAY_GAP_DAYS),
+            .then_some(crate::schedule::LEAGUE_MATCHDAY_GAP_DAYS),
         season: def.calendar.clone().unwrap_or_default(),
     });
 }
@@ -78,7 +92,7 @@ pub fn backfill_competition_calendar(league: &mut League) -> bool {
 }
 
 fn verified_ordinal_basis(league: &League) -> Option<EditionBasis> {
-    if league.season == 0 || league.season >= 1000 {
+    if !ordinal_counter(league.season) {
         return None;
     }
     let dates = league
@@ -316,5 +330,71 @@ mod tests {
             serde_json::to_value(&leagues[0]).unwrap()["calendar"],
             metadata()
         );
+    }
+
+    #[test]
+    fn regenerated_edition_keeps_calendar_identity_and_updates_label_basis() {
+        let mut bases = Vec::new();
+        let mut expected = Vec::new();
+        for kind in ["LeagueTable", "Knockout", "GroupAndKnockout"] {
+            for season in [6, 2031, u32::MAX] {
+                let mut def = definition(kind);
+                if kind != "LeagueTable" {
+                    def.calendar = None;
+                    def.r#type = domain::league::CompetitionType::Cup;
+                }
+                let start = Utc.with_ymd_and_hms(2030, 2, 1, 0, 0, 0).unwrap();
+                let mut league = build_explicit_competition(&def, 5, start).unwrap();
+                let before = serde_json::to_value(&league).unwrap()["calendar"].clone();
+                assert_eq!(
+                    before["edition_basis"],
+                    json!({"kind":"legacyOrdinal","first_season":5,"opener_year":2030})
+                );
+                let next = Utc.with_ymd_and_hms(2031, 2, 1, 0, 0, 0).unwrap();
+                match kind {
+                    "LeagueTable" => {
+                        crate::schedule::regenerate_league_for_season(&mut league, season, next)
+                    }
+                    "Knockout" => {
+                        crate::schedule::regenerate_knockout_for_season(&mut league, season, next)
+                    }
+                    _ => crate::group_stage::regenerate_for_season(&mut league, season, next),
+                }
+                let after = serde_json::to_value(&league).unwrap()["calendar"].clone();
+                assert_eq!(league.season, season);
+                bases.push((kind, season, after["edition_basis"].clone()));
+                expected.push((
+                    kind,
+                    season,
+                    match season {
+                        6 => json!({"kind":"legacyOrdinal","first_season":6,"opener_year":2031}),
+                        2031 => json!({"kind":"calendarYear"}),
+                        _ => json!({"kind":"unresolved"}),
+                    },
+                ));
+                for key in [
+                    "definition_id",
+                    "league_legs",
+                    "matchday_gap_days",
+                    "season",
+                ] {
+                    assert_eq!(after[key], before[key], "{kind}: {key}");
+                }
+            }
+        }
+        assert_eq!(bases, expected);
+    }
+
+    #[test]
+    fn unrepresentable_edition_label_does_not_invent_calendar_provenance() {
+        for season in [0, u32::MAX] {
+            let league = build(&definition("LeagueTable"), season);
+            assert_eq!(league.season, season);
+            assert_eq!(league.fixtures[0].date, "2033-02-01");
+            assert_eq!(
+                serde_json::to_value(league).unwrap()["calendar"]["edition_basis"],
+                json!({"kind":"unresolved"})
+            );
+        }
     }
 }

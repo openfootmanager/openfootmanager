@@ -1015,6 +1015,7 @@ mod tests {
             season_start_day: None,
             name_key: None,
             logo: None,
+            calendar: None,
         }];
 
         let staff = vec![StaffDef {
