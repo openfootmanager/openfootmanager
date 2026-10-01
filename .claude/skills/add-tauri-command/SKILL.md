@@ -106,9 +106,10 @@ message.
 
 Use `/write-tests` (programme PR 2) before implementation. Test wrapper equivalence at the
 public adapter seam: Tauri/service arguments, errors and returned state match the shared function;
-an MCP counterpart delegates to it too. Do not stop at helper-only tests. Test failure atomicity
-and read persisted changes through a fresh reader. Run `--lib --features mcp` for the MCP route
-and use `ofm-test-reviewer` for observed fix-removal evidence.
+where an MCP counterpart exists, verify it delegates to that seam too. Do not stop at helper-only
+tests. Test failure atomicity and read persisted changes through a fresh reader. For an existing
+MCP counterpart, run `--lib --features mcp`; UI-only commands need no invented MCP route.
+Use `ofm-test-reviewer` for observed fix-removal evidence.
 
 ## 6. Update the docs
 

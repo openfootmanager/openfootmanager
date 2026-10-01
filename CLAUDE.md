@@ -142,7 +142,7 @@ counts. The maintainer manages the required-approval setting.
 | Parameters | <= 7 (`clippy::too_many_arguments`) | <= 7 (`complexity/useMaxParams`) | CI (Rust, existing suppressions reviewed until PR 3); review until PR 7 (frontend) |
 | File length | <= 1,500 lines up to the first `#[cfg(test)]` | <= 1,000 lines, test files excluded | review until PR 5 (Rust), PR 8 (frontend) |
 | Tauri command | <= 50 lines, delegates to an `_internal` fn that the MCP tool shares | - | review until PR 4 |
-| Test files | integration test file <= 3,000 lines; a vitest file <= 1,000 | | review until PR 5 (Rust), PR 8 (frontend) |
+| Test files | integration test file <= 3,000 lines | a vitest file <= 1,000 | review until PR 5 (Rust), PR 8 (frontend) |
 
 Extract cohesive operations, not arbitrary chunks that only satisfy a line limit. Do not shorten
 names, delete useful comments, or weaken tests to meet a limit. A limit that is not yet machine-

@@ -84,11 +84,14 @@ Stale counts are how this document rots.
 
 ## Verify
 
+Finish with `/preflight` for the full default and MCP gate set. These scoped commands use the
+same lockfile and warning policy; they do not replace the full preflight.
+
 ```bash
-cargo build --manifest-path src-tauri/Cargo.toml --features mcp
-cargo clippy --manifest-path src-tauri/Cargo.toml --features mcp --all-targets
-cargo test --manifest-path src-tauri/Cargo.toml --workspace
-cargo test --manifest-path src-tauri/Cargo.toml --lib --features mcp
+cargo build --locked --manifest-path src-tauri/Cargo.toml --features mcp
+cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace
+cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features mcp
 ```
 
 The `mcp` feature is not compiled by default, so a normal `cargo check` will **not** catch a
