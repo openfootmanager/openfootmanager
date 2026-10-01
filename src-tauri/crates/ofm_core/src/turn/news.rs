@@ -276,8 +276,7 @@ fn rumour_candidates(game: &Game) -> Vec<(String, String, String, String)> {
             }
             let high_value = p.market_value >= 800_000;
             let short_contract = p
-                .contract_end
-                .as_deref()
+                .contract_end()
                 .and_then(|end| chrono::NaiveDate::parse_from_str(end, "%Y-%m-%d").ok())
                 .map(|end| {
                     let days = (end - current_date).num_days();

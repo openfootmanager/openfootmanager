@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Nízká důvěra, slabá morálka nebo tlak na smlouvu nutí jejich stranu k tvrdému přístupu. Další slabá nabídka by mohla dveře definitivně zavřít.",
     "renewalFeedbackAcceptedHeadline": "Nabídka se jim líbila a jednání se posunula rychle.",
     "renewalFeedbackAcceptedDetail": "Nabídka byla dost blízko jejich očekáváním, takže jednání zůstala konstruktivní.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Přijali. Smlouva posouvá mzdové náklady nad politiku představenstva, ale představenstvo ji povolilo: bez tohoto hráče by kádr klesl pod minimum, které musí klub udržet.",
     "renewalFeedbackAcceptedLateHeadline": "Nabídku přijali, ale už jim docházela trpělivost.",
     "renewalFeedbackAcceptedLateDetail": "Dohodu se vám podařilo uzavřít až po tvrdé výměně názorů. Jejich strana byla blízko k odchodu od vyjednávání.",
     "renewalFeedbackBlockedHeadline": "K rozhovorům se zatím nechtějí vracet.",
@@ -1666,6 +1667,19 @@
     "movementLoanToBuy": "Hostování s opcí",
     "movementFreeAgentSigning": "Volný hráč",
     "movementReleased": "Uvolněn",
+    "movementRenewal": "Prodloužení",
+    "movementRetired": "Ukončil kariéru",
+    "movementInitialContract": "Úvodní smlouva",
+    "movementReleasedExpired": "Smlouva vypršela",
+    "movementReleasedTerminated": "Smlouva rozvázána",
+    "movementContractRange": "Smlouva od {{start}} do {{end}}",
+    "movementContractUntil": "Smlouva do {{end}}",
+    "movementContractFrom": "Smlouva od {{start}}",
+    "movementWage": "Plat {{wage}}/týd",
+    "movementDateUnknown": "Datum neznámé",
+    "movementLegacyContract": "Z uložené hry před historií smluv",
+    "movementRenewedWith": "Prodloužení v klubu {{club}}",
+    "movementAtClub": "V klubu {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Příchod do {{to}}",
     "movementFrom": "Odchod z {{from}}",
@@ -2552,6 +2566,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",
+        "wouldLeaveSeniorsShort": "Tento hráč nemůže odejít: klubu by v A-týmu zůstalo méně než {{floor}} hráčů, což je minimum, které musí klub udržet."
+      },
       "noActiveGameSession": "Žádná aktivní herní relace",
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
@@ -3232,6 +3250,26 @@
         "subject": "{{player}} podepisuje smlouvu s týmem {{team}}",
         "body": "Hráč {{player}} se připojil k týmu {{team}} jako volný hráč a podepsal smlouvu na {{years}} let."
       },
+      "squadBelowFloor": {
+        "subject": "Kádr pod minimem: {{group}}",
+        "body": "Šéfe, chybí nám hráči. {{group}}: registrováno {{have}}, přitom klub jich musí mít alespoň {{floor}}. Před dalším zápasem prosím doplňte kádr — pokud při výkopu nebudeme moci postavit tým, budu muset povýšit hráče z akademie nebo podepsat volné hráče, aby se zápas mohl odehrát.",
+        "totalSubject": "Kádr pod minimální velikostí",
+        "totalBody": "Šéfe, v A-týmu nám zbývá jen {{have}} hráčů, přitom klub jich musí mít alespoň {{floor}}, aby obstál. Před dalším zápasem prosím doplňte kádr — pokud při výkopu nebudeme moci postavit tým, budu muset povýšit hráče z akademie nebo podepsat volné hráče, aby se zápas mohl odehrát."
+      },
+      "squadToppedUp": {
+        "subject": "Nouzové posily: {{team}}",
+        "body": "Šéfe, neměli jsme dost hráčů, abychom postavili tým, a tak jsem před výkopem přesunul do A-týmu tyto hráče, nejprve z akademie a pak z volných hráčů: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Nový ročník akademie: {{team}}",
+        "body": "Šéfe, do akademie přišel nový ročník: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Nikdo k dispozici: {{group}}",
+        "body": "Šéfe, nepodařilo se nám doplnit kádr a nebylo koho přivést. {{group}}: {{have}} z {{floor}}, které musí klub udržet, a ani naše akademie, ani trh volných hráčů nemá nikoho, kdo by mezeru zaplnil.",
+        "totalSubject": "Nikdo k dispozici pro doplnění kádru",
+        "totalBody": "Šéfe, v A-týmu nám zbývá jen {{have}} hráčů, méně než {{floor}}, které musí klub udržet, a ani naše akademie, ani trh volných hráčů nemá nikoho, kdo by mezeru zaplnil."
+      },
       "delegatedRenewals": {
         "subject": "Zpráva asistenta — Prodloužení smluv",
         "body": "Šéfe, prošel jsem náš seznam smluv k prodloužení v klubu {{team}}. Dokončeno: {{successes}}, stále se jedná: {{stalled}}, selhalo: {{failures}}.",
@@ -3243,6 +3281,7 @@
         "notes": {
           "managerBlocked": "Řekl jste mi, abych jednání o nové smlouvě zatím znovu neotvíral.",
           "completed": "Tento případ se mi podařil uzavřít, aniž byste musel zasahovat.",
+          "completedToKeepSquadFloor": "Hotovo, nad rámec mzdové politiky představenstva. Představenstvo to povolilo, protože bez tohoto hráče bychom klesli pod minimální kádr.",
           "beyondLimits": "Jeho strana požaduje přibližně {{wage}}/týdně na {{years}} let, což přesahuje limity mého pověření.",
           "boardWagePolicy": "Mzdová politika představenstva toto prodloužení blokuje. Během naší nápravy udržujte týdenní platy blízko částky {{budget}}.",
           "prefersManager": "Byli by ochotni naslouchat, ale stále požadují kolem {{wage}}/týdně na {{years}} let a raději by jednali přímo s vámi.",

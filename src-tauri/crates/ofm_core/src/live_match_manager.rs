@@ -18,7 +18,8 @@ use domain::manager::Manager;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{
-    LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchSnapshot, MinuteResult, Side,
+    LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchReport, MatchSnapshot,
+    MinuteResult, Side,
 };
 
 const LIVE_MATCH_NO_LEAGUE_ERROR: &str = "be.error.liveMatch.noLeague";
@@ -243,6 +244,41 @@ impl LiveMatchSession {
 // Helper: build a LiveMatchSession from the Game state
 // ---------------------------------------------------------------------------
 
+/// Make both sides of a fixture in `game.league` fit to kick off: a club short
+/// of the squad floor signs free agents first (see
+/// [`crate::squad_floor::ready_for_kick_off`]). Every path that plays a club
+/// fixture goes through this before building the teams — the unwatched path
+/// directly, the player's own matches through [`kick_off_live_match`] — so no
+/// match starts with a side that cannot be fielded.
+pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
+    let Some((home_team_id, away_team_id)) = game.league.as_ref().and_then(|league| {
+        league
+            .fixtures
+            .get(fixture_index)
+            .map(|fixture| (fixture.home_team_id.clone(), fixture.away_team_id.clone()))
+    }) else {
+        return;
+    };
+    crate::squad_floor::ready_for_kick_off(game, &home_team_id);
+    crate::squad_floor::ready_for_kick_off(game, &away_team_id);
+}
+
+/// Kick off a fixture in `game.league` as a live session: both squads made fit
+/// to play first, then the session built.
+///
+/// The entry point for starting a real match. [`create_live_match`] only reads
+/// the game, so it cannot sign anyone; calling it directly skips the kick-off
+/// top-up, which is only right for a caller that has already done it.
+pub fn kick_off_live_match(
+    game: &mut Game,
+    fixture_index: usize,
+    mode: MatchMode,
+    allows_extra_time: bool,
+) -> Result<LiveMatchSession, String> {
+    prepare_kick_off(game, fixture_index);
+    create_live_match(game, fixture_index, mode, allows_extra_time)
+}
+
 /// Create a live match session for a specific fixture.
 pub fn create_live_match(
     game: &Game,
@@ -370,6 +406,53 @@ pub fn create_live_match(
         user_side,
         ai_home,
         ai_away,
+    })
+}
+
+/// What a fixture nobody watched produced, with the two clubs it belongs to so
+/// the caller can apply it without re-reading the fixture.
+#[derive(Debug)]
+pub struct UnwatchedFixture {
+    pub report: MatchReport,
+    pub home_team_id: String,
+    pub away_team_id: String,
+    /// The user's league round as it stood before this fixture was played, for
+    /// the round digest — see [`crate::matchday::user_league_round_context`].
+    pub league_round_context: Option<(u32, Vec<StandingEntry>)>,
+}
+
+/// Play a fixture nobody is watching, start to finish.
+///
+/// The same session the player's own match runs on, with one difference: no side
+/// belongs to the user. `create_live_match` reads the user's club off
+/// `game.manager`, which is the right answer while the player is sitting through
+/// the match and exactly the wrong one here — it would leave one dugout empty,
+/// and the empty one would always be the player's. A match nobody watches has an
+/// AI manager on both touchlines.
+///
+/// The one way a fixture in `game.league` is played without anyone watching:
+/// the matchday loop plays every other fixture of the day through it, and
+/// [`crate::matchday::play_user_matchday_with_capture`] the player's own when
+/// they delegate. It kicks off through the squad floor's gate
+/// ([`kick_off_live_match`]) and decides extra time by the one predicate,
+/// [`crate::matchday::fixture_allows_extra_time`], so no caller can pass the
+/// wrong answer (#601). An `Err` is a side nobody could field.
+pub fn play_unwatched_fixture(
+    game: &mut Game,
+    fixture_index: usize,
+) -> Result<UnwatchedFixture, String> {
+    let allows_extra_time = crate::matchday::fixture_allows_extra_time(game, fixture_index);
+    let mut session =
+        kick_off_live_match(game, fixture_index, MatchMode::Instant, allows_extra_time)?;
+    session.user_side = None;
+    let league_round_context = session.league_round_context.clone();
+    session.run_to_completion();
+
+    Ok(UnwatchedFixture {
+        home_team_id: session.home_team_id.clone(),
+        away_team_id: session.away_team_id.clone(),
+        report: session.match_state.into_report(),
+        league_round_context,
     })
 }
 

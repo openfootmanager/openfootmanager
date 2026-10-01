@@ -273,7 +273,7 @@ pub fn transfer_market_browse(
         .filter(|p| {
             // Filter by max price (use estimated value/wage)
             if let Some(max) = max_price {
-                (p.wage as u64 * 52) <= max // Rough annual cost estimate
+                (p.wage() as u64 * 52) <= max // Rough annual cost estimate
             } else {
                 true
             }
@@ -308,7 +308,7 @@ pub fn transfer_market_browse(
             p.ovr,
             team_name,
             listed,
-            p.wage,
+            p.wage(),
         ));
     }
     if players.len() > 30 {

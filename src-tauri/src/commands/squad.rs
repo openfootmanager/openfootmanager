@@ -303,7 +303,7 @@ pub fn set_player_squad_role_internal(
         if matches!(target_role, domain::player::SquadRole::Youth) {
             let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
                 .ok_or("be.error.invalidDateOfBirth".to_string())?;
-            if age > 21 {
+            if age > ofm_core::roster::YOUTH_ACADEMY_MAX_AGE {
                 return Err("be.error.youthAcademyOverage".to_string());
             }
         }

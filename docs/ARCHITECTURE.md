@@ -110,8 +110,8 @@ Self-contained simulation engine, deliberately **decoupled from `domain`**. Defi
 
 See [MATCH_SIMULATION.md](MATCH_SIMULATION.md) for full details.
 
-- **`engine.rs`** — Instant full-match simulation (`simulate()`, `simulate_with_rng()`)
-- **`live_match.rs`** — Step-by-step `LiveMatchState` with phase management, commands, substitutions
+- **`engine.rs`** — Instant full-match simulation (`simulate()`, `simulate_with_rng()`). Reached only by the tools now — `sim-bench` and the `sim_lab` command — since every fixture in an actively simulated competition goes through `live_match`
+- **`live_match.rs`** — Step-by-step `LiveMatchState` with phase management, commands, substitutions. The path every match in an active competition takes, watched or not. Dormant competitions and national-team fixtures use their own cheaper models
 - **`ai.rs`** — AI manager decisions (`AiProfile`, `ai_decide()`)
 - **`types.rs`** — Engine-specific data types and `MatchConfig`
 - **`event.rs`** — `MatchEvent` + `EventType` (22 variants)

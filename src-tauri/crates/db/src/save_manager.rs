@@ -513,6 +513,12 @@ impl SaveManager {
                 // suppress every World Cup the *previous* career had seen.
                 ofm_core::inbox::seed_ledger_from_save(&mut game);
             }
+            if save_format_version < 7 {
+                // A save from before games had a seed. Derived from the save's own
+                // id rather than drawn, so the same old save is the same game
+                // every time it is opened; the resave below keeps it from then on.
+                game.seed = ofm_core::seed::seed_for_unseeded_save(save_id);
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -583,6 +589,14 @@ impl SaveManager {
                 "[save_manager] backfilled opening youth academy players for save {}",
                 save_id
             );
+            needs_resave = true;
+        }
+
+        // A save written before the squad floor was enforced can open with
+        // clubs already short of it. Before the stranded-fixture repair below:
+        // that one scores fixtures from the squads, so it reads them repaired.
+        if ofm_core::squad_floor::repair_squads_on_load(&mut game) {
+            info!("[save_manager] brought short squads up to the floor in save {save_id}");
             needs_resave = true;
         }
 
@@ -1029,7 +1043,7 @@ mod tests {
     fn sample_game_with_ai_loan_candidates() -> Game {
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].contract_end = Some("2028-06-30".to_string());
+        game.players[0].stage_contract_end(Some("2028-06-30".to_string()));
         game.teams.push(Team::new(
             "team-002".to_string(),
             "Rivals FC".to_string(),
@@ -1047,7 +1061,7 @@ mod tests {
         ] {
             let mut player = make_opening_repair_player(id, Position::Midfielder, date_of_birth);
             player.team_id = Some("team-002".to_string());
-            player.contract_end = Some("2028-06-30".to_string());
+            player.stage_contract_end(Some("2028-06-30".to_string()));
             game.players.push(player);
         }
 
@@ -2052,6 +2066,62 @@ mod tests {
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
     }
 
+    /// Given a save written before games had a seed,
+    /// When it is loaded, twice,
+    /// Then it has a seed — the same one both times, derived from the save, so
+    ///      an old career replays the same days however often it is opened.
+    #[test]
+    fn loading_a_pre_v7_save_gives_it_one_stable_seed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.seed = 0;
+        let save_id = sm.create_save(&game, "Pre Seed").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 6;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let first = sm.load_game(&save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(first.seed, ofm_core::seed::seed_for_unseeded_save(&save_id));
+        assert_ne!(first.seed, 0);
+        assert_eq!(second.seed, first.seed);
+
+        // And it was written back: the derivation is deterministic, so the two loads
+        // above agree whether or not anything was stored. Only the file can say the
+        // seed is now a stored one rather than a recomputed one.
+        let db = GameDatabase::open(&db_path).unwrap();
+        let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+        assert_eq!(meta.seed as u64, first.seed);
+        assert_eq!(
+            meta.save_format_version,
+            meta_repo::CURRENT_SAVE_FORMAT_VERSION
+        );
+    }
+
+    /// The fallback is for saves that have no seed, not a reseed: a current-format
+    /// save keeps the one it was given, or every load would change the game.
+    #[test]
+    fn loading_a_current_format_save_keeps_its_seed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.seed = 0xC0FF_EE00_1234_5678;
+        let save_id = sm.create_save(&game, "Seeded").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.seed, 0xC0FF_EE00_1234_5678);
+    }
+
     #[test]
     fn loading_a_pre_v6_save_floors_cash_to_sixteen_weeks_of_wages() {
         let dir = tempfile::tempdir().unwrap();
@@ -2059,7 +2129,7 @@ mod tests {
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].wage = 5_000;
+        game.players[0].stage_wage(5_000);
         game.teams[0].finance = 1_000;
         let save_id = sm.create_save(&game, "Pre Weekly Lock").unwrap();
         let db_path = saves_dir.join(format!("{save_id}.db"));
@@ -2100,7 +2170,7 @@ mod tests {
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
         game.players[0].team_id = Some("team-001".to_string());
-        game.players[0].wage = 5_000;
+        game.players[0].stage_wage(5_000);
         game.teams[0].finance = 1_000;
         let save_id = sm.create_save(&game, "Current Format").unwrap();
 
@@ -2130,9 +2200,11 @@ mod tests {
 
         let loaded = sm.load_game(&save_id).unwrap();
 
+        // Only the seed is under test: the sample club is below the squad floor,
+        // so loading it rightly warns about that, and that warning is ledgered.
         assert!(
-            loaded.emitted_events.is_empty(),
-            "a current-format save must keep its empty ledger, got {:?}",
+            !loaded.emitted_events.contains("world_cup_champion_2030"),
+            "a current-format save must not be seeded from its world history, got {:?}",
             loaded.emitted_events
         );
     }
@@ -2487,6 +2559,88 @@ mod tests {
         let starting_xi_ids: Vec<String> = serde_json::from_str(&starting_xi_json).unwrap();
 
         assert_eq!(starting_xi_ids, team.starting_xi_ids);
+    }
+
+    /// Given a save whose every other repair has already been written back,
+    /// and an AI club that has since lost both its keepers to free agency,
+    /// when the save is loaded, then the club signs two keepers back and the
+    /// signings are in the `.db` — read from the file, because a reload would
+    /// simply repair the world again. The first load settles every other
+    /// load-time repair, so nothing but the squad floor can be what rewrote the
+    /// file the second time.
+    #[test]
+    fn test_load_game_brings_a_short_ai_club_up_to_the_squad_floor_and_saves_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_opening_save_without_youth_academy();
+        game.teams.push(Team::new(
+            "team-002".to_string(),
+            "Keeperless Town".to_string(),
+            "KPT".to_string(),
+            "GB".to_string(),
+            "Leeds".to_string(),
+            "Town Ground".to_string(),
+            10_000,
+        ));
+        // Both clubs sound: 2/5/5/3, fifteen seniors.
+        for team_id in ["team-001", "team-002"] {
+            for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+                .into_iter()
+                .zip([2, 5, 5, 3])
+            {
+                for index in 0..count {
+                    let mut player = make_opening_repair_player(
+                        &format!("{team_id}-{group:?}-{index}"),
+                        group.clone(),
+                        "1998-01-01",
+                    );
+                    player.team_id = Some(team_id.to_string());
+                    player.stage_contract_end(Some("2030-06-30".to_string()));
+                    game.players.push(player);
+                }
+            }
+        }
+        // Seeded and normalised up front: AI managers seeded during a load are
+        // re-normalised by the identity upgrade on every later load, which
+        // would rewrite the file for a reason of its own and hide whether the
+        // floor repair asked for the write.
+        ofm_core::ai_hiring::seed_ai_managers(&mut game);
+        ofm_core::football_identity::upgrade_game_football_identities(&mut game);
+        let save_id = sm.create_save(&game, "Floor Career").unwrap();
+        let mut settled = sm.load_game(&save_id).unwrap();
+
+        for player in settled.players.iter_mut() {
+            if player.id.starts_with("team-002-Goalkeeper") {
+                // Released: his contract ends, which is a movement, not an edit.
+                player
+                    .record_movement(domain::player::PlayerMovementEntry::new(
+                        "2026-07-01",
+                        domain::player::PlayerMovementKind::Released,
+                    ))
+                    .unwrap();
+                player.team_id = None;
+            }
+        }
+        sm.save_game(&settled, &save_id).unwrap();
+        let db_path = saves_dir.join(format!("{}.db", save_id));
+        let db = GameDatabase::open(&db_path).unwrap();
+        let before = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(
+            !ofm_core::squad_floor::squad_shortfall(&before, "team-002").is_empty(),
+            "the fixture must reach the file short of keepers"
+        );
+        drop(db);
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open(&db_path).unwrap();
+        let persisted = GamePersistenceReader::read_game(&db).unwrap();
+        assert!(
+            ofm_core::squad_floor::squad_shortfall(&persisted, "team-002").is_empty(),
+            "the repaired squad was not written back"
+        );
     }
 
     #[test]

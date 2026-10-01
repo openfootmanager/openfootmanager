@@ -131,6 +131,12 @@ pub struct Game {
     /// Records which `.ofm` packages were used to build this save.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub package_lockfile: Vec<crate::generator::PackageLock>,
+    /// The one seed every random choice on the day path is derived from, through
+    /// [`Game::rng_for`]. It is the seed the world was generated from, so a career
+    /// can be replayed from its start; `0` only for a game that was never given one
+    /// (tests), which is still a fixed seed and so still reproducible.
+    #[serde(default)]
+    pub seed: u64,
 
     /// Append-only cash journal. `Clone` is a pointer bump; `post` copy-on-writes.
     /// Skipped on IPC serde. Persistence is incremental SQL, not Game JSON.
@@ -141,6 +147,13 @@ pub struct Game {
     /// `persist_active_game`.
     #[serde(skip)]
     pub cash_journal_dirty_ids: Vec<String>,
+    /// Every emergency squad top-up this session made
+    /// ([`crate::squad_floor::restore_minimum_squad`]). A diagnostic, not game
+    /// state: never saved or sent over IPC, so a loaded game starts it empty.
+    /// Ordinary squad planning should leave it empty for AI clubs; tests and
+    /// the season harness read it to check that it does.
+    #[serde(skip)]
+    pub squad_floor_top_ups: Vec<crate::squad_floor::SquadFloorTopUp>,
 }
 
 impl Game {
@@ -180,8 +193,10 @@ impl Game {
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
+            seed: 0,
             cash_journal: CashJournal::default(),
             cash_journal_dirty_ids: Vec::new(),
+            squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);
@@ -328,6 +343,17 @@ impl Game {
             .filter(|competition| competition.country_id.as_deref() == Some(country_code))
             .find_map(|competition| competition.region_id.clone())
             .unwrap_or_else(|| crate::nations::region_for_code(country_code).to_string())
+    }
+
+    /// A club's display name, or its id when no club has it — the fallback
+    /// every inbox message, news item and result row wants, so a dangling id
+    /// still says something rather than nothing.
+    pub fn team_name_or_id(&self, team_id: &str) -> String {
+        self.teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .map(|team| team.name.clone())
+            .unwrap_or_else(|| team_id.to_string())
     }
 
     /// Whether a competition falls within the player's active simulation scope.

@@ -1,4 +1,5 @@
 mod helpers;
+mod observation;
 mod penalty;
 mod simulation;
 mod snapshot;
@@ -9,9 +10,13 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
+pub(crate) use observation::AiObservation;
+
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
-use crate::types::{MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TeamData, Zone};
+use crate::types::{
+    MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TacticalDial, TeamData, Zone,
+};
 
 // ---------------------------------------------------------------------------
 // MatchPhase — tracks where we are in the match lifecycle
@@ -76,6 +81,11 @@ pub enum MatchCommand {
         side: Side,
         player_id: String,
         role: PlayerRole,
+    },
+    /// Turn one of the nine tactical dials, leaving the other eight alone.
+    ChangeTacticalDial {
+        side: Side,
+        dial: TacticalDial,
     },
 }
 
@@ -234,6 +244,10 @@ pub struct LiveMatchState {
     second_half_stoppage: u8,
     et_first_half_stoppage: u8,
     et_second_half_stoppage: u8,
+    /// The minute the period being played kicked off. The clock runs on through
+    /// stoppage, so a period's end is measured from here rather than from a
+    /// fixed minute: see `check_phase_end`.
+    period_started_at: u8,
 
     // Per-minute stamina depletion tracking (player_id → current effective condition)
     player_conditions: HashMap<String, f64>,
@@ -290,6 +304,7 @@ impl LiveMatchState {
             second_half_stoppage: 0,
             et_first_half_stoppage: 0,
             et_second_half_stoppage: 0,
+            period_started_at: 0,
             player_conditions,
             penalty_state: PenaltyShootoutState::default(),
             recent_zones: VecDeque::with_capacity(10),
@@ -355,6 +370,10 @@ impl LiveMatchState {
                 }
                 self.do_pre_match_swap(side, &player_off_id, &player_on_id)
             }
+            MatchCommand::ChangeTacticalDial { side, dial } => {
+                dial.set_on(&mut self.team_mut(side).tactics);
+                Ok(())
+            }
             MatchCommand::ChangePlayerRole {
                 side,
                 player_id,
@@ -410,15 +429,6 @@ impl LiveMatchState {
         self.current_minute
     }
 
-    /// Rolling window of the last ≤10 ball_zone values (oldest first).
-    ///
-    /// Crate-private and iterator-shaped: only the AI reads this, and only to
-    /// count zones. Handing out the `VecDeque` published a container choice
-    /// that nothing outside the engine has any business depending on.
-    pub(crate) fn recent_zones(&self) -> impl Iterator<Item = Zone> + '_ {
-        self.recent_zones.iter().copied()
-    }
-
     /// Get the bench for a side
     pub fn bench(&self, side: Side) -> &[PlayerData] {
         match side {
@@ -429,8 +439,20 @@ impl LiveMatchState {
 
     /// Simulate a red card for a player (adds to sent_off set).
     /// Primarily used for testing substitution guards.
+    #[doc(hidden)]
     pub fn test_send_off(&mut self, player_id: &str) {
         self.sent_off.insert(player_id.to_string());
+    }
+
+    /// Put a scoreline on the board without playing the match that produced it.
+    ///
+    /// For tests about what a manager does when he is two down with twenty
+    /// minutes left. Reaching that position by simulation would make the test
+    /// about the seed rather than about the decision.
+    #[doc(hidden)]
+    pub fn test_set_score(&mut self, home: u8, away: u8) {
+        self.home_score = home;
+        self.away_score = away;
     }
 }
 

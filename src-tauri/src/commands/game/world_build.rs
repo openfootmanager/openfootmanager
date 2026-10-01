@@ -64,10 +64,16 @@ pub(super) fn build_game_from_world_data(
         world_history,
         metadata,
         extra_translations,
+        generation_seed,
         ..
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    // The world's own seed when it was generated from one; a world nothing seeded
+    // (an import, a package) gets a fresh one, so that no two careers share the
+    // default 0. Either way it is stored on the game, which is the one place the
+    // day's dice come from.
+    game.seed = generation_seed.unwrap_or_else(rand::random);
     if game
         .staff
         .iter()
@@ -86,7 +92,7 @@ pub(super) fn build_game_from_world_data(
         defined_competitions
     };
 
-    match metadata.kind {
+    let (mut game, stats) = match metadata.kind {
         ofm_core::generator::WorldDataKind::HistoricalSnapshot => {
             game.managers.extend(
                 managers
@@ -119,5 +125,9 @@ pub(super) fn build_game_from_world_data(
             apply_generated_past_history(&mut game, startup_options);
             (game, StatsState::default())
         }
-    }
+    };
+    // Once the competitions are in place, so "does the player's club play
+    // today" has an answer. A package can leave a club thin.
+    ofm_core::squad_floor::repair_squads_on_load(&mut game);
+    (game, stats)
 }

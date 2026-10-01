@@ -14,7 +14,7 @@ pub fn set_contract_exit_intent(
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let player = &mut game.players[player_index];
 
-    if player.contract_end.is_none() {
+    if player.contract_end().is_none() {
         return Err(ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT.to_string());
     }
 
@@ -64,7 +64,7 @@ pub fn preview_contract_termination(
 ) -> Result<ContractTerminationPreview, String> {
     let player = owned_player(game, player_id)?;
 
-    if player.contract_end.is_none() {
+    if player.contract_end().is_none() {
         return Err(ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT.to_string());
     }
 
@@ -90,9 +90,13 @@ pub fn terminate_contract_now(
     if !preview.squad_safety.can_field_matchday_squad {
         return Err(ERR_TERMINATION_WOULD_LEAVE_MATCHDAY_SQUAD_SHORT.to_string());
     }
+    // The matchday check above asks about today's fitness; the floor asks
+    // whether the club has the players to register a side at all.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
 
     let player_index = owned_player_index(game, player_id)?;
-    let team_id = contract_owner_team_id(&game.players[player_index])
+    let team_id = game.players[player_index]
+        .contract_club_id()
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string())?
         .to_string();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
@@ -147,12 +151,12 @@ pub fn has_let_expire_intent(player: &Player) -> bool {
 }
 
 pub(crate) fn termination_severance_cost(player: &Player, current_date: NaiveDate) -> i64 {
-    let remaining_days = contract_days_remaining(player.contract_end.as_deref(), current_date)
+    let remaining_days = contract_days_remaining(player.contract_end(), current_date)
         .unwrap_or(0)
         .max(0);
     let remaining_weeks = (remaining_days + 6) / 7;
 
-    remaining_weeks * i64::from(player.wage)
+    remaining_weeks * i64::from(player.wage())
 }
 
 pub(crate) fn contract_terminated_message(

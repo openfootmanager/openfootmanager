@@ -42,8 +42,7 @@ pub fn process_contract_expiries(game: &mut Game) {
         .iter()
         .enumerate()
         .filter_map(|(index, player)| {
-            let days_remaining =
-                contract_days_remaining(player.contract_end.as_deref(), current_date)?;
+            let days_remaining = contract_days_remaining(player.contract_end(), current_date)?;
             if player.team_id.is_some() && days_remaining <= 0 {
                 Some(index)
             } else {
@@ -70,10 +69,8 @@ pub(crate) fn release_player_contract(
     let player_id = game.players[player_index].id.clone();
     let player_name = game.players[player_index].match_name.clone();
     let team_id = game.players[player_index]
-        .active_loan
-        .as_ref()
-        .map(|loan| loan.parent_team_id.clone())
-        .or_else(|| game.players[player_index].team_id.clone());
+        .contract_club_id()
+        .map(str::to_string);
 
     let Some(team_id) = team_id.as_deref() else {
         return;
@@ -94,24 +91,24 @@ pub(crate) fn release_player_contract(
     let player = &mut game.players[player_index];
     player.team_id = None;
     player.active_loan = None;
-    player.contract_start = None;
-    player.contract_end = None;
-    player.wage = 0;
     player.transfer_listed = false;
     player.loan_listed = false;
     player.transfer_offers.clear();
     player.loan_offers.clear();
     player.morale_core.renewal_state = None;
-    player.movement_history.push(PlayerMovementEntry {
-        date: today.clone(),
-        kind: PlayerMovementKind::Released,
-        from_team_id: Some(team_id.to_string()),
-        from_team_name: Some(team_name.clone()),
-        to_team_id: None,
-        to_team_name: None,
-        fee: None,
-        loan_end_date: None,
-    });
+    // Recording the release is what ends the contract: the dates and the wage follow it.
+    record_movement(
+        player,
+        PlayerMovementEntry {
+            from_team_id: Some(team_id.to_string()),
+            from_team_name: Some(team_name.clone()),
+            release_reason: Some(match reason {
+                ContractReleaseReason::Expired => ReleaseReason::Expired,
+                ContractReleaseReason::ManagerTermination { .. } => ReleaseReason::Terminated,
+            }),
+            ..PlayerMovementEntry::new(today.clone(), PlayerMovementKind::Released)
+        },
+    );
 
     let message = match reason {
         ContractReleaseReason::Expired => {

@@ -16,9 +16,7 @@ pub(crate) fn incoming_interest_score(
         score += 30;
     }
 
-    if let Some(days_remaining) =
-        contract_days_remaining(current_date, player.contract_end.as_deref())
-    {
+    if let Some(days_remaining) = contract_days_remaining(current_date, player.contract_end()) {
         if days_remaining <= 60 {
             score += 40;
         } else if days_remaining <= 180 {
@@ -46,9 +44,7 @@ pub(crate) fn suggested_incoming_fee(
 ) -> u64 {
     let mut multiplier: f64 = if player.transfer_listed { 0.9 } else { 1.0 };
 
-    if let Some(days_remaining) =
-        contract_days_remaining(current_date, player.contract_end.as_deref())
-    {
+    if let Some(days_remaining) = contract_days_remaining(current_date, player.contract_end()) {
         if days_remaining <= 60 {
             multiplier -= 0.15;
         } else if days_remaining <= 180 {
@@ -271,8 +267,13 @@ pub fn project_transfer_bid_financial_impact(
         .find(|team| team.id == user_team_id)
         .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
 
+    // What he would be paid at this club: the contract the transfer would give him, not
+    // the one he is on. Falls back to his current wage only if the terms cannot be worked
+    // out, since the preview is informational.
+    let incoming_wage = buyers_standard_terms(game, player, &team.id)
+        .map_or_else(|_| i64::from(player.wage()), |(_, wage, _)| i64::from(wage));
     let annual_wage_bill_before = calc_wages(game, &team.id);
-    let annual_wage_bill_after = annual_wage_bill_before + player.wage as i64;
+    let annual_wage_bill_after = annual_wage_bill_before + incoming_wage;
     let projected_wage_budget_usage_pct = if team.wage_budget > 0 {
         ((annual_wage_bill_after as f64 / team.wage_budget as f64) * 100.0).round() as i64
     } else {
@@ -305,7 +306,7 @@ pub fn project_transfer_bid_financial_impact(
         current_weekly_wage_spend: annual_wage_bill_before,
         projected_weekly_wage_spend: annual_wage_bill_after,
         weekly_wage_budget: team.wage_budget,
-        incoming_player_weekly_wage: i64::from(player.wage),
+        incoming_player_weekly_wage: incoming_wage,
         projected_wage_budget_usage_pct,
         exceeds_transfer_budget: transfer_budget_after < 0,
         exceeds_finance: finance_after < 0,
@@ -408,6 +409,10 @@ pub fn make_transfer_bid(
     let (tension, patience) = transfer_negotiation_metrics(round, stalled, respected_signal);
 
     if fee >= adjusted_threshold {
+        // Before the offer is marked agreed: refusing after would leave it agreed
+        // with the player still at his club.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+        ensure_buyer_can_pay_standard_wage(game, player_id, &user_team_id)?;
         if register_immediately {
             ensure_transfer_cash_postable(game, &user_team_id, &owner_team_id, fee)?;
         }
@@ -607,6 +612,12 @@ pub fn respond_to_offer(
         .ok_or("be.error.teamNotFound")?;
     let openness_score = player_move_openness_score(current_date, player, owner_team, buyer_team);
 
+    if accept {
+        // Before the offer is marked agreed: refusing after would leave it agreed
+        // with the player still at his club.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+        ensure_buyer_can_pay_standard_wage(game, player_id, &from_team_id)?;
+    }
     if accept && register_immediately {
         ensure_transfer_cash_postable(game, &from_team_id, &user_team_id, fee)?;
     }
@@ -720,6 +731,12 @@ pub fn counter_offer(
         ((counter_ceiling as f64) * if round >= 3 && stalled { 1.03 } else { 1.08 }).round() as u64;
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
 
+    if accepted {
+        // Before the offer is marked agreed: refusing after would leave it agreed
+        // with the player still at his club.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+        ensure_buyer_can_pay_standard_wage(game, player_id, &buyer_team_id)?;
+    }
     if accepted && register_immediately {
         ensure_transfer_cash_postable(game, &buyer_team_id, &user_team_id, requested_fee)?;
     }

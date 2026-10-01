@@ -11,7 +11,7 @@
 //! drifted, and the divergence was invisible for months because the user's own table stayed right.
 
 use crate::game::Game;
-use crate::live_match_manager::{self, MatchMode};
+use crate::live_match_manager;
 use domain::league::StandingEntry;
 use domain::stats::StatsState;
 use engine::report::MatchReport;
@@ -106,11 +106,12 @@ where
 {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-    // The mirror is swapped in before the session is built, because `create_live_match` reads the
-    // fixture out of it. So a failure to build the session has to put it back: an empty squad is a
-    // handled `Err`, `update_game` mutates the live game in place, and an early return would leave
-    // the player's game pointing at another competition entirely — with no match played to explain
-    // why their fixture list changed.
+    // The mirror is swapped in before the session is built, because the kick-off gate and
+    // `create_live_match` both read the fixture out of it. So a failure to kick off has to put it
+    // back: an empty squad nobody can fill is a handled `Err`, `update_game` mutates the live game
+    // in place, and an early return would leave the player's game pointing at another competition
+    // entirely — with no match played to explain why their fixture list changed. Players the gate
+    // brought in before the refusal stay: the club needed them either way.
     let mirror_before_the_swap = game.league.clone();
     if let Some(competition_index) = competition_index {
         // `None` means "the mirror already holds the fixture" — a save written before `competitions`
@@ -124,26 +125,19 @@ where
         game.league = Some(competition);
     }
 
-    let allows_extra_time = fixture_allows_extra_time(game, fixture_index);
-    let mut session = match live_match_manager::create_live_match(
-        game,
-        fixture_index,
-        MatchMode::Instant,
-        allows_extra_time,
-    ) {
-        Ok(session) => session,
+    let played = match live_match_manager::play_unwatched_fixture(game, fixture_index) {
+        Ok(played) => played,
         Err(error) => {
             game.league = mirror_before_the_swap;
             return Err(error);
         }
     };
-    session.user_side = None;
-    let league_round_context = session.league_round_context.clone();
-    session.run_to_completion();
-
-    let home_team_id = session.home_team_id.clone();
-    let away_team_id = session.away_team_id.clone();
-    let report = session.match_state.into_report();
+    let live_match_manager::UnwatchedFixture {
+        report,
+        home_team_id,
+        away_team_id,
+        league_round_context,
+    } = played;
 
     crate::turn::simulate_other_matches_with_capture(game, &today, Some(fixture_index), on_capture);
 

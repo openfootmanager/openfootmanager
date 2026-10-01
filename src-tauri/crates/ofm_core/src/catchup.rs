@@ -29,11 +29,66 @@ pub(crate) fn club_strength(players: &[Player], club_id: &str) -> f64 {
     total as f64 / count as f64
 }
 
+/// Settle one fixture of `competition` by scoreline alone: a score drawn from
+/// the two clubs' strength, a shootout if a knockout tie is level, and the
+/// result applied to the fixture, the table and any bracket. How the dormant
+/// tier plays every fixture, and how an active one is settled when a side
+/// cannot be fielded at all.
+pub(crate) fn resolve_fixture_by_scoreline(
+    players: &[Player],
+    competition: &mut League,
+    fixture_index: usize,
+    rng: &mut impl rand::Rng,
+) {
+    resolve_fixture_with_strengths(
+        competition,
+        fixture_index,
+        |team_id| club_strength(players, team_id),
+        rng,
+    );
+}
+
+/// [`resolve_fixture_by_scoreline`], with each club's strength read from
+/// `strength_of` rather than recounted from the players: the one resolver,
+/// for a caller that settles many fixtures and has the strengths to hand.
+fn resolve_fixture_with_strengths(
+    competition: &mut League,
+    fixture_index: usize,
+    strength_of: impl Fn(&str) -> f64,
+    rng: &mut impl rand::Rng,
+) {
+    let Some(fixture) = competition.fixtures.get(fixture_index) else {
+        return;
+    };
+    let (fixture_id, home_team_id, away_team_id) = (
+        fixture.id.clone(),
+        fixture.home_team_id.clone(),
+        fixture.away_team_id.clone(),
+    );
+    let home_strength = strength_of(&home_team_id);
+    let away_strength = strength_of(&away_team_id);
+    let (home_goals, away_goals) =
+        crate::national_team::simulate_scoreline(home_strength, away_strength, rng);
+    // Level knockout ties are settled by a simulated shootout so the bracket
+    // advances with a real winner instead of defaulting to home.
+    let penalties = (home_goals == away_goals && competition.is_knockout_fixture(&fixture_id))
+        .then(|| crate::national_team::simulate_shootout(home_strength, away_strength, rng));
+    apply_simulated_result(
+        competition,
+        fixture_index,
+        &home_team_id,
+        &away_team_id,
+        home_goals,
+        away_goals,
+        penalties,
+    );
+}
+
 /// Apply a pre-computed scoreline to a fixture, updating standings and
-/// advancing group/knockout state. Shared by the catch-up and dormant paths.
+/// advancing group/knockout state. The last step of the one scoreline resolver.
 /// `penalties` carries a simulated shootout score for level knockout ties so
 /// the round advances with a real winner instead of defaulting to home.
-pub(crate) fn apply_simulated_result(
+fn apply_simulated_result(
     competition: &mut League,
     fixture_index: usize,
     home_team_id: &str,
@@ -98,7 +153,7 @@ pub fn simulate_past_fixtures(
         .map(|id| (id.clone(), club_strength(players, id)))
         .collect();
 
-    let due: Vec<(usize, String, String, String)> = competition
+    let due: Vec<usize> = competition
         .fixtures
         .iter()
         .enumerate()
@@ -108,34 +163,16 @@ pub fn simulate_past_fixtures(
                     .map(|d| d < cutoff_date)
                     .unwrap_or(false)
         })
-        .map(|(i, f)| {
-            (
-                i,
-                f.id.clone(),
-                f.home_team_id.clone(),
-                f.away_team_id.clone(),
-            )
-        })
+        .map(|(i, _)| i)
         .collect();
 
     let resolved = due.len();
-    for (idx, fixture_id, home_id, away_id) in due {
-        let home_strength = strengths.get(&home_id).copied().unwrap_or(50.0);
-        let away_strength = strengths.get(&away_id).copied().unwrap_or(50.0);
-        let (home_goals, away_goals) =
-            crate::national_team::simulate_scoreline(home_strength, away_strength, &mut rng);
-        let penalties = (home_goals == away_goals && competition.is_knockout_fixture(&fixture_id))
-            .then(|| {
-                crate::national_team::simulate_shootout(home_strength, away_strength, &mut rng)
-            });
-        apply_simulated_result(
+    for idx in due {
+        resolve_fixture_with_strengths(
             competition,
             idx,
-            &home_id,
-            &away_id,
-            home_goals,
-            away_goals,
-            penalties,
+            |team_id| strengths.get(team_id).copied().unwrap_or(50.0),
+            &mut rng,
         );
     }
 

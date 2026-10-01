@@ -61,15 +61,12 @@ pub struct Player {
     pub potential: u8,
 
     // Contract & value
-    /// Start of the current agreement ("YYYY-MM-DD").
-    ///
-    /// Defaulted rather than required because saves written before contracts had
-    /// a start know only when the deal ends. `None` is an honest unknown there
-    /// and is shown as one; it must not be read as "expired".
-    #[serde(default)]
-    pub contract_start: Option<String>,
-    pub contract_end: Option<String>,
-    pub wage: u32, // weekly wage
+    //
+    // A player's contract is not a field. It is the latest entry in `movement_history`
+    // (see `contract_ledger`): read it with `wage()`, `contract_start()` and
+    // `contract_end()`, and change it by recording a movement. The ledger still writes
+    // `wage`, `contract_start` and `contract_end` when a player is serialized, so the
+    // frontend and the save columns keep the shape they always had.
     pub market_value: u64,
 
     // Season stats
@@ -77,8 +74,11 @@ pub struct Player {
 
     // Career history
     pub career: Vec<CareerEntry>,
-    #[serde(default)]
-    pub movement_history: Vec<PlayerMovementEntry>,
+    /// Every move and every contract. Flattened so the wire and the saves keep their
+    /// keys: it reads and writes `movement_history`, `wage`, `contract_start` and
+    /// `contract_end` itself.
+    #[serde(flatten)]
+    pub movement_history: crate::contract_ledger::MovementLedger,
 
     // Individual training focus override (takes priority over group and team default)
     #[serde(default)]
@@ -532,6 +532,12 @@ pub enum PlayerMovementKind {
     LoanToBuy,
     FreeAgentSigning,
     Released,
+    /// A new agreement with the club he is already at.
+    Renewal,
+    Retired,
+    /// The contract in force when a career opened, or made from a save that
+    /// predates the ledger.
+    InitialContract,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -550,6 +556,31 @@ pub struct PlayerMovementEntry {
     pub fee: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub loan_end_date: Option<String>,
+    /// Present when this entry establishes a contract. See `contract_ledger`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract: Option<crate::contract_ledger::ContractRecord>,
+    /// Present on a `Released` entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_reason: Option<crate::contract_ledger::ReleaseReason>,
+}
+
+impl PlayerMovementEntry {
+    /// An entry with nothing but its date and kind; the rest is filled by struct
+    /// update at the call site, so a new optional field does not touch every caller.
+    pub fn new(date: impl Into<String>, kind: PlayerMovementKind) -> Self {
+        Self {
+            date: date.into(),
+            kind,
+            from_team_id: None,
+            from_team_name: None,
+            to_team_id: None,
+            to_team_name: None,
+            fee: None,
+            loan_end_date: None,
+            contract: None,
+            release_reason: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -795,13 +826,10 @@ impl Player {
             traits,
             ovr: 0,
             potential: 0,
-            contract_start: None,
-            contract_end: None,
-            wage: 0,
             market_value: 0,
             stats: PlayerSeasonStats::default(),
             career: Vec::new(),
-            movement_history: Vec::new(),
+            movement_history: Default::default(),
             training_focus: None,
             transfer_listed: false,
             loan_listed: false,

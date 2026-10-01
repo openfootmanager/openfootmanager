@@ -6,6 +6,7 @@ pub(crate) mod squad;
 
 use crate::board_objectives;
 use crate::game::Game;
+use crate::live_match_manager;
 use crate::player_events;
 use crate::random_events;
 use crate::scouting;
@@ -165,6 +166,10 @@ fn run_training_ground(game: &mut Game) {
 /// exact date match, everything it skipped was skipped permanently. Sharing the tail means a step
 /// can no longer be in one ending and not the other.
 fn process_day_common(game: &mut Game, today: &str) {
+    // AI clubs decide on their running-down contracts first, so a renewal made
+    // on the day a contract ends lands before the expiry that would release him.
+    let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
+    crate::ai_contracts::apply_ai_contract_decisions(game, weekday_num);
     crate::contracts::process_contract_expiries(game);
 
     // Weekly financial processing (wages, matchday income, warnings)
@@ -182,6 +187,10 @@ fn process_day_common(game: &mut Game, today: &str) {
     transfers::process_pending_transfer_registrations(game);
     transfers::process_pending_loan_registrations(game);
     transfers::generate_incoming_transfer_offers(game);
+    // After every step above that can take a player away from a club — expiry,
+    // registrations and the AI market — and the loan returns that opened the day.
+    crate::ai_contracts::apply_ai_squad_planning(game, weekday_num);
+    crate::squad_floor::keep_squads_at_the_floor(game);
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
 
@@ -347,7 +356,7 @@ mod tests {
             attrs,
         );
         player.team_id = Some("team1".to_string());
-        player.wage = 1_000;
+        player.stage_wage(1_000);
         player
     }
 
@@ -396,6 +405,28 @@ mod tests {
         finish_live_match_day(&mut game);
 
         assert_eq!(game.teams[0].finance, initial_finance - 1_200);
+    }
+
+    /// Given a fixture that cannot be played live and no competition in the
+    /// legacy slot to settle it in, when the match is simulated, then the day
+    /// goes on: the fallback that exists so a day always finishes does not
+    /// itself panic.
+    #[test]
+    fn a_fixture_with_no_competition_to_settle_it_in_does_not_stop_the_day() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 16, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let mut game = Game::new(clock, manager, vec![make_team()], vec![], vec![], vec![]);
+        assert!(game.league.is_none());
+
+        super::simulate_single_match_with_capture(&mut game, 0, &mut |_| {});
+
+        assert!(game.league.is_none());
     }
 }
 
@@ -449,37 +480,47 @@ fn simulate_single_match_with_capture<F>(game: &mut Game, idx: usize, on_capture
 where
     F: FnMut(StatsState),
 {
-    let (home_team_id, away_team_id, is_knockout) = {
-        let league = game.league.as_ref().unwrap();
-        let f = &league.fixtures[idx];
-        (
-            f.home_team_id.clone(),
-            f.away_team_id.clone(),
-            league.is_knockout_fixture(&f.id),
-        )
-    };
-
-    // The same builder the live path uses, so both answer "who is playing" the
-    // same way: eleven players in slot order, chosen by the user's saved XI or
-    // the AI's selection policy, fit ones first and the walking wounded only to
-    // make up a shortfall. The bench is discarded — `engine::simulate`
-    // is a one-shot with no command loop, so nobody can come off it. That means
-    // no substitutions in an instant match, which is a real gap and a later
-    // slice's job; what matters here is that reserves are no longer credited
-    // with minutes, appearances and match wear for a game they never played.
-    let (home_data, _home_bench) = squad::build_team_with_bench(game, &home_team_id);
-    let (away_data, _away_bench) = squad::build_team_with_bench(game, &away_team_id);
-    let config = engine::MatchConfig::default();
-    let mut report = engine::simulate(&home_data, &away_data, &config);
-    // A level knockout tie must produce a winner: resolve it with a simulated
-    // shootout so the home side no longer advances by default on a draw.
-    if is_knockout && report.home_goals == report.away_goals {
-        let home_strength = squad::shootout_strength(&home_data);
-        let away_strength = squad::shootout_strength(&away_data);
-        let (home_pens, away_pens) =
-            crate::national_team::simulate_shootout(home_strength, away_strength, &mut rand::rng());
-        report.home_penalties = Some(home_pens);
-        report.away_penalties = Some(away_pens);
+    // One match path. Every fixture in an active competition is played by the
+    // engine the player watches: eleven starters, a real bench, and a manager on
+    // both touchlines reading the game at the same checkpoints. It used to be
+    // `engine::simulate`, a one-shot with no command loop — so no substitution
+    // and no tactical change was possible in any match but the player's own.
+    // Extra time, and the engine's own shootout, follow the one knockout
+    // predicate inside `play_unwatched_fixture`.
+    match live_match_manager::play_unwatched_fixture(game, idx) {
+        Ok(played) => apply_match_report_with_capture(
+            game,
+            idx,
+            &played.home_team_id,
+            &played.away_team_id,
+            &played.report,
+            on_capture,
+        ),
+        // A side nobody could field, after the kick-off gate found no academy
+        // player and no free agent: the world has run out of players, which
+        // ordinary squad management exists to prevent. The day still finishes —
+        // the fixture is settled by scoreline, as the dormant tier settles every
+        // fixture, rather than left scheduled in the past.
+        Err(error) => {
+            log::error!(
+                "[turn] fixture {idx} could not be played live ({error}); settled by scoreline"
+            );
+            // The day's sweep puts the competition in the legacy slot before it
+            // gets here. Were it ever missing there would be no fixture to
+            // settle either, so the day goes on without it rather than
+            // panicking on the one path that exists so a day always finishes.
+            let Some(league) = game.league.as_mut() else {
+                log::error!(
+                    "[turn] fixture {idx} has no competition in the legacy slot to settle it in"
+                );
+                return;
+            };
+            crate::catchup::resolve_fixture_by_scoreline(
+                &game.players,
+                league,
+                idx,
+                &mut rand::rng(),
+            );
+        }
     }
-    apply_match_report_with_capture(game, idx, &home_team_id, &away_team_id, &report, on_capture);
 }

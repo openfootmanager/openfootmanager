@@ -470,6 +470,12 @@ pub struct WorldData {
     /// league creation). Not persisted to save files; cleared on load.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub build_notices: Vec<String>,
+    /// The seed this world was generated from, when it was generated here. Runtime
+    /// only — never written into a world file, which describes a world and not how
+    /// it came about — and absent for an imported world, which is given a fresh seed
+    /// when a game is built from it. [`crate::game::Game::seed`] starts from this.
+    #[serde(skip)]
+    pub generation_seed: Option<u64>,
 }
 
 /// Lightweight metadata shown in the UI when listing available databases.

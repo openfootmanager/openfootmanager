@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "La poca confianza, la baja moral o la presión contractual están endureciendo su postura. Otra oferta floja podría cerrar la puerta.",
     "renewalFeedbackAcceptedHeadline": "La propuesta les convenció y se movieron rápido.",
     "renewalFeedbackAcceptedDetail": "La oferta quedó lo bastante cerca de lo que buscaban, así que la negociación se mantuvo constructiva.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Aceptaron. El acuerdo lleva la masa salarial por encima de la política de la directiva, pero la directiva lo autorizó: sin este jugador la plantilla quedaría por debajo del mínimo que un club debe mantener.",
     "renewalFeedbackAcceptedLateHeadline": "Aceptaron, pero ya quedaba poca paciencia.",
     "renewalFeedbackAcceptedLateDetail": "Cerraste el acuerdo después de una conversación más dura. Su entorno estuvo cerca de levantarse de la mesa.",
     "renewalFeedbackBlockedHeadline": "No van a reabrir la conversación por ahora.",
@@ -1665,6 +1666,19 @@
     "movementLoanToBuy": "Cesión con compra",
     "movementFreeAgentSigning": "Agente libre",
     "movementReleased": "Liberado",
+    "movementRenewal": "Renovación",
+    "movementRetired": "Retirado",
+    "movementInitialContract": "Contrato inicial",
+    "movementReleasedExpired": "Contrato vencido",
+    "movementReleasedTerminated": "Contrato rescindido",
+    "movementContractRange": "Contrato del {{start}} al {{end}}",
+    "movementContractUntil": "Contrato hasta el {{end}}",
+    "movementContractFrom": "Contrato desde el {{start}}",
+    "movementWage": "Salario {{wage}}/sem",
+    "movementDateUnknown": "Fecha desconocida",
+    "movementLegacyContract": "De una partida guardada antes del historial de contratos",
+    "movementRenewedWith": "Renovó con {{club}}",
+    "movementAtClub": "En {{club}}",
     "movementFromTo": "De {{from}} a {{to}}",
     "movementTo": "Llegó a {{to}}",
     "movementFrom": "Salió de {{from}}",
@@ -2552,6 +2566,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",
+        "wouldLeaveSeniorsShort": "Este jugador no puede salir: el club se quedaría con menos de {{floor}} jugadores en la primera plantilla, el mínimo que un club debe mantener."
+      },
       "noActiveGameSession": "No hay una sesión de juego activa",
       "noActiveSaveSession": "No hay una sesión de guardado activa",
       "saveNotFound": "No se encontró la partida guardada '{{saveId}}'.",
@@ -3232,6 +3250,26 @@
         "subject": "{{player}} ficha por {{team}}",
         "body": "{{player}} se ha unido a {{team}} como agente libre con un contrato de {{years}} año(s)."
       },
+      "squadBelowFloor": {
+        "subject": "Plantilla por debajo del mínimo: {{group}}",
+        "body": "Míster, nos faltan jugadores. {{group}}: {{have}} inscritos, y un club debe tener al menos {{floor}}. Trae a más antes de nuestro próximo partido; si no podemos presentar un equipo en el saque inicial, tendré que subir jugadores de la cantera o fichar agentes libres para que el partido pueda jugarse.",
+        "totalSubject": "Plantilla por debajo del tamaño mínimo",
+        "totalBody": "Míster, nos quedan solo {{have}} jugadores en la primera plantilla, y un club debe tener al menos {{floor}} para sostenerse. Trae a más antes de nuestro próximo partido; si no podemos presentar un equipo en el saque inicial, tendré que subir jugadores de la cantera o fichar agentes libres para que el partido pueda jugarse."
+      },
+      "squadToppedUp": {
+        "subject": "Fichajes de urgencia: {{team}}",
+        "body": "Míster, no teníamos jugadores suficientes para presentar un equipo, así que antes del saque inicial incorporé a la primera plantilla a estos jugadores, primero de la cantera y después agentes libres: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Nuevos canteranos: {{team}}",
+        "body": "Míster, la nueva hornada se ha incorporado a la cantera: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Nadie disponible: {{group}}",
+        "body": "Míster, no pudimos completar la plantilla y no había nadie a quien incorporar. {{group}}: {{have}} de los {{floor}} que un club debe mantener, y ni nuestra cantera ni el mercado de agentes libres tienen a nadie para cubrir el hueco.",
+        "totalSubject": "Nadie disponible para completar la plantilla",
+        "totalBody": "Míster, nos quedan solo {{have}} jugadores en la primera plantilla, menos de los {{floor}} que un club debe mantener, y ni nuestra cantera ni el mercado de agentes libres tienen a nadie para cubrir el hueco."
+      },
       "delegatedRenewals": {
         "subject": "Informe del asistente — Renovaciones",
         "body": "Míster, revisé nuestra lista de renovaciones en {{team}}. {{successes}} cerradas, {{stalled}} aún pendientes y {{failures}} fallidas.",
@@ -3243,6 +3281,7 @@
         "notes": {
           "managerBlocked": "Me dijiste que todavía no reabriera las conversaciones contractuales.",
           "completed": "Pude cerrar esta sin que tuvieras que intervenir.",
+          "completedToKeepSquadFloor": "Hecho, por encima de la política salarial de la directiva. La directiva lo autorizó porque sin este jugador quedaríamos por debajo de la plantilla mínima.",
           "beyondLimits": "Su entorno pide alrededor de {{wage}}/semana por {{years}} años, fuera de los límites de delegación.",
           "boardWagePolicy": "La política salarial de la directiva bloquea esta renovación. Mantén los salarios semanales cerca de {{budget}} mientras nos recuperamos.",
           "prefersManager": "Escucharían, pero siguen pidiendo unos {{wage}}/semana por {{years}} años y prefieren hablar contigo directamente.",

@@ -801,6 +801,18 @@ fn notify_user_division_change(
 
 /// Process end-of-season: record history, compute awards, reset stats, generate next season.
 /// Returns a summary struct for the frontend to display.
+/// What a season's end does to squads: players age and some retire, every AI
+/// club rebuilds before the new season rather than on its next review day — a
+/// summer's retirements can take several players from one club at once — and
+/// then every club takes its youth intake. The intake comes last so the rebuild
+/// cannot promote a youngster on the day he joins: academy promotion goes by
+/// rating, and nothing else would stop a fifteen-year-old being picked.
+pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
+    crate::aging::apply_seasonal_aging(game, date, season);
+    crate::ai_contracts::plan_every_ai_squad(game);
+    crate::youth_intake::apply_youth_intake(game, date, season);
+}
+
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // The summary, board review, and manager career must reflect the division
     // the user's club actually contests — not whichever competition happens to
@@ -1000,7 +1012,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         }
     }
 
-    crate::aging::apply_seasonal_aging(game, game.clock.current_date.date_naive(), season);
+    apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
     for player in game.players.iter_mut() {
         // Reset stats for next season
