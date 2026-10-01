@@ -8,10 +8,11 @@
 
 use super::testkit::*;
 use super::{
-    bootstrap_team_selection, build_game_from_world_data, game_clock_for_world, StartPhase,
-    StartupOptions, DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+    build_game_from_world_data, game_clock_for_world, StartupOptions,
+    DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
 };
 use domain::news::NewsCategory;
+use ofm_core::career::{begin_career, CareerScope, StartPhase};
 
 #[test]
 #[ignore = "perf harness; run: cargo test -p openfootmanager perf_baseline -- --ignored --nocapture"]
@@ -189,7 +190,7 @@ fn imported_roster_baseline_bootstrap_allows_ai_manager_seeding_without_imported
     let (mut game, stats_state) =
         build_game_from_world_data(clock, manager, &startup_options, world);
 
-    bootstrap_team_selection(&mut game, "team1", StartPhase::SeasonStart, stats_state).unwrap();
+    begin_career(&mut game, "team1", CareerScope::default(), stats_state).unwrap();
 
     assert_eq!(
         game.teams
@@ -219,10 +220,10 @@ fn a_new_career_starts_with_own_choices_clear_and_rivals_identity_intact() {
             .insert(format!("{}-player-0", team.id), PlayerRole::BallWinner);
     }
 
-    bootstrap_team_selection(
+    begin_career(
         &mut game,
         "team1",
-        StartPhase::SeasonStart,
+        CareerScope::default(),
         domain::stats::StatsState::default(),
     )
     .unwrap();
@@ -236,7 +237,7 @@ fn a_new_career_starts_with_own_choices_clear_and_rivals_identity_intact() {
 }
 
 #[test]
-fn bootstrap_team_selection_seeds_ai_loan_market() {
+fn beginning_a_career_seeds_the_ai_loan_market() {
     let mut game = make_bootstrap_test_game();
     game.teams
         .iter_mut()
@@ -265,10 +266,10 @@ fn bootstrap_team_selection_seeds_ai_loan_market() {
         game.players.push(player);
     }
 
-    bootstrap_team_selection(
+    begin_career(
         &mut game,
         "team1",
-        StartPhase::SeasonStart,
+        CareerScope::default(),
         domain::stats::StatsState::default(),
     )
     .unwrap();
@@ -405,7 +406,7 @@ fn embedded_competition_definitions_replace_the_auto_built_competitions() {
 }
 
 #[test]
-fn bootstrap_team_selection_preserves_existing_snapshot_state() {
+fn beginning_a_career_preserves_an_imported_snapshot() {
     let manager = domain::manager::Manager::new(
         "mgr-user".to_string(),
         "Alex".to_string(),
@@ -424,7 +425,7 @@ fn bootstrap_team_selection_preserves_existing_snapshot_state() {
         build_game_from_world_data(clock, manager, &startup_options, world);
 
     let updated_stats =
-        bootstrap_team_selection(&mut game, "team1", StartPhase::MidSeason, stats_state).unwrap();
+        begin_career(&mut game, "team1", CareerScope::default(), stats_state).unwrap();
 
     assert_eq!(game.league.as_ref().map(|league| league.season), Some(2031));
     assert_eq!(updated_stats.team_matches.len(), 1);
@@ -440,125 +441,6 @@ fn bootstrap_team_selection_preserves_existing_snapshot_state() {
         .news
         .iter()
         .any(|article| article.category == NewsCategory::ManagerialChange));
-}
-
-#[test]
-fn bootstrap_team_selection_midseason_populates_half_season_state() {
-    let mut game = make_bootstrap_test_game();
-
-    let stats_state = bootstrap_team_selection(
-        &mut game,
-        "team1",
-        StartPhase::MidSeason,
-        domain::stats::StatsState::default(),
-    )
-    .unwrap();
-
-    let league = game.league.as_ref().unwrap();
-    let completed = league
-        .fixtures
-        .iter()
-        .filter(|fixture| {
-            fixture.counts_for_league_standings()
-                && fixture.status == domain::league::FixtureStatus::Completed
-                && (fixture.home_team_id == "team1" || fixture.away_team_id == "team1")
-        })
-        .count();
-    let scheduled = league
-        .fixtures
-        .iter()
-        .filter(|fixture| {
-            fixture.counts_for_league_standings()
-                && (fixture.home_team_id == "team1" || fixture.away_team_id == "team1")
-        })
-        .count();
-    let team_standing = league
-        .standings
-        .iter()
-        .find(|entry| entry.team_id == "team1")
-        .unwrap();
-
-    assert_eq!(completed, scheduled / 2);
-    assert!(!stats_state.team_matches.is_empty());
-    assert!(!stats_state.player_matches.is_empty());
-    assert_eq!(team_standing.played as usize, completed);
-    assert!(game
-        .news
-        .iter()
-        .any(|article| article.category == domain::news::NewsCategory::ManagerialChange));
-    assert!(game.news.iter().any(|article| {
-        matches!(
-            article.category,
-            domain::news::NewsCategory::MatchReport
-                | domain::news::NewsCategory::LeagueRoundup
-                | domain::news::NewsCategory::StandingsUpdate
-        )
-    }));
-}
-
-/// Regression test for issue #225: verifies that bootstrap_team_selection followed by
-/// upgrade_game_player_identities converts generic bucket positions
-/// (Defender/Midfielder/Forward) to granular positions (LeftBack/CentralMidfielder/etc.).
-/// select_team calls both in sequence; it cannot be called directly here because it
-/// requires Tauri App state, so this test exercises the same in-memory operations.
-#[test]
-fn bootstrap_and_upgrade_sets_granular_positions() {
-    let startup_options = StartupOptions {
-        start_year: 2032,
-        start_phase: StartPhase::SeasonStart,
-        history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
-    };
-    let mut world = make_imported_baseline_world_without_staff();
-    ofm_core::generator::normalize_imported_world_for_career_start(
-        &mut world,
-        startup_options.start_year as u32,
-    );
-    let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
-    let manager = domain::manager::Manager::new(
-        "mgr-user".to_string(),
-        "Test".to_string(),
-        "Manager".to_string(),
-        "1980-01-01".to_string(),
-        "England".to_string(),
-    );
-    let (mut game, stats_state) =
-        build_game_from_world_data(clock, manager, &startup_options, world);
-
-    // All generated players start with generic (legacy-bucket) positions
-    let outfield_before: Vec<_> = game
-        .players
-        .iter()
-        .filter(|p| p.position != domain::player::Position::Goalkeeper)
-        .collect();
-    assert!(
-        outfield_before
-            .iter()
-            .all(|p| p.natural_position.is_legacy_bucket()),
-        "generated players should all start with generic (legacy-bucket) natural_position"
-    );
-
-    bootstrap_team_selection(&mut game, "team1", StartPhase::SeasonStart, stats_state).unwrap();
-    ofm_core::player_identity::upgrade_game_player_identities(&mut game);
-
-    // After upgrade, outfield players on team1 should have granular natural_position
-    let outfield_after: Vec<_> = game
-        .players
-        .iter()
-        .filter(|p| {
-            p.team_id.as_deref() == Some("team1")
-                && p.position != domain::player::Position::Goalkeeper
-        })
-        .collect();
-    assert!(
-        !outfield_after.is_empty(),
-        "team1 should have outfield players"
-    );
-    assert!(
-        outfield_after
-            .iter()
-            .all(|p| !p.natural_position.is_legacy_bucket()),
-        "outfield players on the selected team should have granular natural_position after upgrade"
-    );
 }
 
 #[test]

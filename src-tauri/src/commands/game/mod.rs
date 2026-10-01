@@ -27,12 +27,12 @@ mod world_load;
 // through, so it needs a real path anyway.
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::bootstrap_game_for_mcp;
-pub(crate) use bootstrap::{bootstrap_team_selection, create_new_save};
+pub(crate) use bootstrap::create_new_save;
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+pub(crate) use ofm_core::career::{begin_career, CareerScope};
 use ofm_core::world::*;
 use startup::*;
-pub(crate) use startup::{start_phase_for_game, StartPhase};
 use world_build::*;
 use world_load::*;
 // Public, unlike the others: these are `#[tauri::command]`s and the types in
@@ -197,38 +197,12 @@ pub async fn select_team(
     let current_stats_state = state
         .get_stats_state(|stats| stats.clone())
         .unwrap_or_default();
-    ensure_multi_competition_foundations(&mut game);
-
-    // Hemisphere fix: when the player picks SeasonStart for a southern-
-    // hemisphere (or other non-August-start) club, align the game clock to
-    // that club's actual season-start date and rebuild competitions from that
-    // anchor so the player arrives at the beginning of their season, not July.
-    if start_phase_for_game(&game) == StartPhase::SeasonStart {
-        if let Some(actual_start) = team_season_anchor(&game, &team_id) {
-            if actual_start < game.clock.current_date {
-                game.clock.current_date = actual_start;
-                game.clock.start_date = actual_start;
-                rebuild_competitions_for_management_date(&mut game, actual_start);
-                game.national_teams.clear();
-                ensure_multi_competition_foundations(&mut game);
-            }
-        }
-    }
-
-    let (resolved_region_ids, resolved_competition_ids) =
-        resolve_simulation_scope(&game, &team_id, active_region_ids, active_competition_ids)?;
-    game.active_region_ids = resolved_region_ids;
-    game.active_competition_ids = resolved_competition_ids;
-
-    let start_phase = start_phase_for_game(&game);
-    let stats_state =
-        bootstrap_team_selection(&mut game, &team_id, start_phase, current_stats_state)?;
-
-    // Upgrade generic (legacy-bucket) positions to granular on new-game creation
-    // so the frontend sees the same granular positions immediately, rather than
-    // only after the first save/reload cycle (where load_game applies this same
-    // upgrade).
-    ofm_core::player_identity::upgrade_game_player_identities(&mut game);
+    // `game` is a copy of the active game, so a refusal leaves the session untouched.
+    let scope = CareerScope {
+        regions: active_region_ids,
+        competitions: active_competition_ids,
+    };
+    let stats_state = begin_career(&mut game, &team_id, scope, current_stats_state)?;
 
     // Save to new per-save DB
     let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);

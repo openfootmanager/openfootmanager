@@ -90,6 +90,9 @@ pub fn terminate_contract_now(
     if !preview.squad_safety.can_field_matchday_squad {
         return Err(ERR_TERMINATION_WOULD_LEAVE_MATCHDAY_SQUAD_SHORT.to_string());
     }
+    // The matchday check above asks about today's fitness; the floor asks
+    // whether the club has the players to register a side at all.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
 
     let player_index = owned_player_index(game, player_id)?;
     let team_id = contract_owner_team_id(&game.players[player_index])

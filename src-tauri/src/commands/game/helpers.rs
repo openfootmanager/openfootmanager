@@ -54,20 +54,6 @@ pub(super) fn require_active_stats_state(state: &StateManager) -> Result<StatsSt
         .ok_or("be.error.noActiveStatsSession".to_string())
 }
 
-/// Stored on the generated league as its locale-neutral `name`, and shown only
-/// when a client cannot resolve [`DEFAULT_LEAGUE_NAME_KEY`].
-pub(super) const DEFAULT_LEAGUE_NAME: &str = "Premier Division";
-
-/// What the UI actually displays, via `League::name_key` and the `league`
-/// message param. Mirrors `division_tier_name` / `division_tier_name_key`.
-pub(super) const DEFAULT_LEAGUE_NAME_KEY: &str = "tournaments.competitions.premierDivision";
-
-/// The date format for backend-generated dates handed to the frontend: an
-/// unambiguous, locale-neutral ISO day. `src/lib/dateFormatting.ts` renders it
-/// in the player's own locale — a `%B` month name here would be English
-/// whatever language they picked.
-pub(super) const ISO_DATE_FORMAT: &str = "%Y-%m-%d";
-
 /// The name a new career's save file gets, as a translation key plus the
 /// manager's name — the same `key?param=value` convention
 /// [`first_package_error_message`] uses, resolved by `src/utils/backendI18n.ts`.

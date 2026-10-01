@@ -601,6 +601,36 @@ mod tests {
         player
     }
 
+    /// Squad depth for both clubs, so one player leaving never takes either
+    /// below the squad floor — these tests are about the command, not the
+    /// floor. Inert: no wage and no market value, so no budget moves for it.
+    fn give_both_clubs_squad_depth(game: &mut Game) {
+        for team_id in ["team-1", "team-2"] {
+            // One more than the minimum in every group, sixteen in all.
+            let depth = [3, 5, 5, 3];
+            for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+                .into_iter()
+                .zip(depth)
+            {
+                for index in 0..count {
+                    let mut player = Player::new(
+                        format!("depth-{team_id}-{group:?}-{index}"),
+                        format!("Depth {index}"),
+                        format!("Depth {group:?} {index}"),
+                        "1996-01-01".to_string(),
+                        "England".to_string(),
+                        group.clone(),
+                        default_attrs(),
+                    );
+                    player.team_id = Some(team_id.to_string());
+                    player.contract_end = Some("2031-06-30".to_string());
+                    player.market_value = 0;
+                    game.players.push(player);
+                }
+            }
+        }
+    }
+
     fn make_game() -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
         let mut manager = Manager::new(
@@ -621,6 +651,7 @@ mod tests {
             vec![],
         );
         game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        give_both_clubs_squad_depth(&mut game);
         game
     }
 
@@ -665,6 +696,7 @@ mod tests {
         game.season_context.transfer_window.status = TransferWindowStatus::Open;
         game.teams[0].reputation = 700;
         game.teams[1].reputation = 350;
+        give_both_clubs_squad_depth(&mut game);
         game
     }
 

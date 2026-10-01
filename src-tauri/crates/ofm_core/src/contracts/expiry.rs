@@ -94,6 +94,7 @@ pub(crate) fn release_player_contract(
     let player = &mut game.players[player_index];
     player.team_id = None;
     player.active_loan = None;
+    player.contract_start = None;
     player.contract_end = None;
     player.wage = 0;
     player.transfer_listed = false;

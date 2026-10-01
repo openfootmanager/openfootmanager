@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "La poca confianza, la baja moral o la presión contractual están endureciendo su postura. Otra oferta floja podría cerrar la puerta.",
     "renewalFeedbackAcceptedHeadline": "La propuesta les convenció y se movieron rápido.",
     "renewalFeedbackAcceptedDetail": "La oferta quedó lo bastante cerca de lo que buscaban, así que la negociación se mantuvo constructiva.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Aceptaron. El acuerdo lleva la masa salarial por encima de la política de la directiva, pero la directiva lo autorizó: sin este jugador la plantilla quedaría por debajo del mínimo que un club debe mantener.",
     "renewalFeedbackAcceptedLateHeadline": "Aceptaron, pero ya quedaba poca paciencia.",
     "renewalFeedbackAcceptedLateDetail": "Cerraste el acuerdo después de una conversación más dura. Su entorno estuvo cerca de levantarse de la mesa.",
     "renewalFeedbackBlockedHeadline": "No van a reabrir la conversación por ahora.",
@@ -2552,6 +2553,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",
+        "wouldLeaveSeniorsShort": "Este jugador no puede salir: el club se quedaría con menos de {{floor}} jugadores en la primera plantilla, el mínimo que un club debe mantener."
+      },
       "noActiveGameSession": "No hay una sesión de juego activa",
       "noActiveSaveSession": "No hay una sesión de guardado activa",
       "saveNotFound": "No se encontró la partida guardada '{{saveId}}'.",
@@ -2583,6 +2588,7 @@
       "liveMatch": {
         "noLeague": "No hay datos de liga disponibles para este partido.",
         "fixtureNotFound": "No se pudo encontrar el partido seleccionado.",
+        "fixtureNotScheduled": "Este partido ya no está programado y no se puede disputar.",
         "emptySquad": "Uno de los equipos no tiene jugadores disponibles, así que el partido no puede jugarse.",
         "maxSubstitutionsReached": "Se alcanzó el máximo de sustituciones",
         "preMatchSwapTooLate": "Los cambios previos al partido solo se permiten antes del saque inicial",
@@ -2632,6 +2638,14 @@
         "potentialBelowOverall": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a su media de {{ability}}. El techo de un jugador no puede quedar por debajo de su capacidad actual.",
         "potentialBelowAttributes": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a los {{ability}} que dan sus atributos. El techo de un jugador no puede quedar por debajo de su capacidad actual.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" tiene un potencial de {{potential}}, inferior a la capacidad predeterminada de {{ability}} que se usa cuando no se indica ni media ni atributos.",
+        "invalidDate": "\"{{entity}}\" tiene un {{field}} de \"{{value}}\", que no es una fecha real. Usa el formato AAAA-MM-DD.",
+        "contractEndAndLength": "\"{{entity}}\" tiene a la vez contractEnd y contractLength. Indica solo uno de los dos: expresan lo mismo de dos formas.",
+        "contractLengthOutOfRange": "\"{{entity}}\" tiene un contractLength de {{length}}. Un contrato dura de 1 a {{max}} años.",
+        "contractEndNotAfterStart": "\"{{entity}}\" tiene un contrato que termina ({{end}}) el mismo día en que empieza ({{start}}) o antes.",
+        "playerFieldOutOfRange": "\"{{entity}}\" tiene un {{field}} fuera de rango. Debe estar entre {{min}} y {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" incluye {{position}} como posición alternativa. Una alternativa debe ser una posición concreta, distinta de la del propio jugador y aparecer una sola vez.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" indica pierna mala o posiciones alternativas, pero {{position}} es un grupo general, así que el juego las recalcularía a partir de los atributos del jugador y descartaría lo que escribiste. Dale una posición concreta, como CentralMidfielder o Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" tiene una entrada de carrera (fila {{row}}) sin nombre de club.",
         "unsupportedFormatVersion": "Este paquete se creó con una versión más reciente del juego (formato {{version}}; esta versión admite {{supported}}). Actualiza el juego para abrirlo."
       },
       "competitionDef": {
@@ -2839,22 +2853,6 @@
         "randomDescription": "Liga generada aleatoriamente con {{teamCount}} equipos por toda Europa",
         "exportedName": "Mundo Exportado",
         "exportedDescription": "Mundo con {{teamCount}} equipos exportado desde una partida guardada"
-      },
-      "welcome": {
-        "subject0": "Bienvenido a {{team}}",
-        "subject1": "Nueva Era en {{team}}",
-        "subject2": "{{team}} Espera Tu Liderazgo",
-        "body0": "La junta directiva de {{team}} está encantada de darle la bienvenida como nuevo entrenador.\n\nTenemos grandes esperanzas en su gestión y creemos que puede llevar a este club a la gloria. Su primera tarea será revisar la plantilla y preparar un plan táctico para la próxima temporada.\n\nLe deseamos la mejor de las suertes.",
-        "body1": "En nombre de toda la familia {{team}}, estamos encantados de anunciar su nombramiento como entrenador.\n\nLos aficionados están ansiosos por ver su visión para el equipo. Tómese su tiempo para evaluar la plantilla, revisar nuestra posición financiera y definir su enfoque táctico.\n\nLa junta le respalda.",
-        "body2": "¡Bienvenido a {{team}}! Los aficionados y el personal están emocionados por el futuro bajo su dirección.\n\nLe recomendamos que comience revisando las fortalezas y debilidades de su plantilla, y luego configure su formación y régimen de entrenamiento preferidos.\n\nLa próxima temporada será una verdadera prueba — háganos sentir orgullosos.",
-        "actionReview": "Revisar Plantilla",
-        "actionThank": "Agradecer a la Junta"
-      },
-      "schedule": {
-        "subject": "Calendario de Temporada Publicado",
-        "body0": "El calendario de la {{league}} ha sido publicado. La temporada comienza el {{start}}.\n\nRevise la lista de partidos y asegúrese de que su plantilla esté lista para los desafíos que se avecinan. La preparación pretemporada será crucial.",
-        "body1": "¡Lista de partidos confirmada! La temporada de la {{league}} comienza el {{start}}.\n\nEstudie cuidadosamente los primeros partidos — un buen comienzo puede marcar el tono de toda la campaña. Asegúrese de que sus jugadores clave estén en forma.",
-        "actionView": "Ver Calendario"
       },
       "preMatch": {
         "subject": "Próximo: vs {{opponent}} ({{venue}})",
@@ -3240,6 +3238,22 @@
         "subject": "{{player}} ficha por {{team}}",
         "body": "{{player}} se ha unido a {{team}} como agente libre con un contrato de {{years}} año(s)."
       },
+      "squadBelowFloor": {
+        "subject": "Plantilla por debajo del mínimo: {{group}}",
+        "body": "Míster, nos faltan jugadores. {{group}}: {{have}} inscritos, y un club debe tener al menos {{floor}}. Trae a más antes de nuestro próximo partido; si no podemos presentar un equipo en el saque inicial, tendré que subir jugadores de la cantera o fichar agentes libres para que el partido pueda jugarse.",
+        "totalSubject": "Plantilla por debajo del tamaño mínimo",
+        "totalBody": "Míster, nos quedan solo {{have}} jugadores en la primera plantilla, y un club debe tener al menos {{floor}} para sostenerse. Trae a más antes de nuestro próximo partido; si no podemos presentar un equipo en el saque inicial, tendré que subir jugadores de la cantera o fichar agentes libres para que el partido pueda jugarse."
+      },
+      "squadToppedUp": {
+        "subject": "Fichajes de urgencia: {{team}}",
+        "body": "Míster, no teníamos jugadores suficientes para presentar un equipo, así que antes del saque inicial incorporé a la primera plantilla a estos jugadores, primero de la cantera y después agentes libres: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Nadie disponible: {{group}}",
+        "body": "Míster, no pudimos completar la plantilla y no había nadie a quien incorporar. {{group}}: {{have}} de los {{floor}} que un club debe mantener, y ni nuestra cantera ni el mercado de agentes libres tienen a nadie para cubrir el hueco.",
+        "totalSubject": "Nadie disponible para completar la plantilla",
+        "totalBody": "Míster, nos quedan solo {{have}} jugadores en la primera plantilla, menos de los {{floor}} que un club debe mantener, y ni nuestra cantera ni el mercado de agentes libres tienen a nadie para cubrir el hueco."
+      },
       "delegatedRenewals": {
         "subject": "Informe del asistente — Renovaciones",
         "body": "Míster, revisé nuestra lista de renovaciones en {{team}}. {{successes}} cerradas, {{stalled}} aún pendientes y {{failures}} fallidas.",
@@ -3251,6 +3265,7 @@
         "notes": {
           "managerBlocked": "Me dijiste que todavía no reabriera las conversaciones contractuales.",
           "completed": "Pude cerrar esta sin que tuvieras que intervenir.",
+          "completedToKeepSquadFloor": "Hecho, por encima de la política salarial de la directiva. La directiva lo autorizó porque sin este jugador quedaríamos por debajo de la plantilla mínima.",
           "beyondLimits": "Su entorno pide alrededor de {{wage}}/semana por {{years}} años, fuera de los límites de delegación.",
           "boardWagePolicy": "La política salarial de la directiva bloquea esta renovación. Mantén los salarios semanales cerca de {{budget}} mientras nos recuperamos.",
           "prefersManager": "Escucharían, pero siguen pidiendo unos {{wage}}/semana por {{years}} años y prefieren hablar contigo directamente.",
@@ -3856,6 +3871,23 @@
     "playerFoot": "Pie Preferido",
     "playerDateOfBirth": "Fecha de nacimiento",
     "playerAge": "Edad",
+    "playerAgeHelp": "Se usa cuando no hay fecha de nacimiento: el jugador tiene esta edad el día en que empieza la carrera, sea cual sea el año.",
+    "playerContractSection": "Contrato",
+    "playerContractStart": "Inicio del contrato",
+    "playerContractEnd": "Fin del contrato",
+    "playerContractLength": "Duración del contrato (años)",
+    "playerContractLengthHelp": "Alternativa a la fecha de fin. Se cuenta desde la fecha de inicio si existe; si no, desde el año en que empieza la carrera, así el jugador nunca está ya sin contrato. Indica una fecha de fin o una duración, no ambas.",
+    "playerWageHelp": "Por semana. Si lo dejas en blanco, se calcula a partir del valor del jugador.",
+    "playerStatusSection": "Estado",
+    "playerAlternatePositions": "Posiciones alternativas",
+    "playerAlternatePositionsHelp": "Otras posiciones que puede jugar. Solo con una posición concreta como Striker: un grupo general como Forward las calcula a partir de los atributos.",
+    "playerCareerSection": "Historial de carrera",
+    "careerEntryRow": "Entrada de carrera",
+    "careerEntryClubName": "Nombre del club",
+    "careerEntryPackageTeam": "Club de este paquete",
+    "careerEntryNoPackageTeam": "No está en este paquete",
+    "addCareerEntry": "Añadir temporada",
+    "removeCareerEntry": "Quitar temporada",
     "playerOverall": "Global (1–99)",
     "playerPotential": "Potencial (1–99)",
     "playerPotentialHelp": "Hasta dónde puede llegar este jugador. Déjalo en blanco y el motor genera un techo a partir de su capacidad y su edad. No puede ser inferior a su capacidad actual, y un jugador que ya lo ha alcanzado deja de mejorar.",

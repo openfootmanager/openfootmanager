@@ -85,6 +85,8 @@ describe("useAdvanceTime", (): void => {
     mockedInvoke.mockResolvedValueOnce({
       action: "live_match",
       fixture_index: 7,
+      competition_id: "cup1",
+      fixture_id: "cup-fix7",
       mode: "live",
       snapshot,
     });
@@ -103,6 +105,8 @@ describe("useAdvanceTime", (): void => {
     expect(navigateMock).toHaveBeenCalledWith("/match", {
       state: {
         fixtureIndex: 7,
+        competitionId: "cup1",
+        fixtureId: "cup-fix7",
         mode: "live",
         snapshot,
       },

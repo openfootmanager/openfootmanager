@@ -17,6 +17,7 @@ use domain::league::CompetitionScope;
 use domain::player::{PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
+use super::authored_player::authored_player_errors;
 use super::{CompetitionDefinition, NamePool, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,69 @@ pub struct PlayerDef {
     /// If true, the player belongs to the club's youth / academy squad rather than the first team.
     #[serde(default, skip_serializing_if = "is_false")]
     pub youth: bool,
+    /// When the current contract began (`"YYYY-MM-DD"`).
+    ///
+    /// Leave it out and the start is given when a career opens, from the club's own
+    /// season. An author's start is kept exactly as written, even one after the
+    /// career's opening date for a deal that has not begun.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_start: Option<String>,
+    /// When the current contract ends (`"YYYY-MM-DD"`). Correct for the period it
+    /// was written for and nonsense outside it, so a package meant to be played in
+    /// any era wants `contractLength` instead. Give one or the other, not both.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_end: Option<String>,
+    /// How long the contract runs, in whole years, as an alternative to
+    /// `contractEnd`. Counted from `contractStart` when there is one, otherwise from
+    /// the year the career opens in, so the same package works in any era.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_length: Option<u32>,
+    /// Weekly wage, in the game's money. Sized from the player's value when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wage: Option<u32>,
+    /// Market value, in the game's money. Sized from ability and age when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<u64>,
+    /// Weak-foot skill, 1 to 5. Only kept for a player with a specific `position`:
+    /// a general group (`Midfielder`, `Forward`, …) has it re-inferred when a career opens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weak_foot: Option<u8>,
+    /// Other positions the player can cover. Same restriction as `weakFoot`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternate_positions: Vec<Position>,
+    /// Match sharpness, 0 to 100. Rolled in a realistic band when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<u8>,
+    /// Morale, 0 to 100. Rolled in a realistic band when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub morale: Option<u8>,
+    /// Clubs the player has played for before. The club is a free-text name, so a
+    /// spell at a club the package does not define is fine; `teamId` is optional and
+    /// checked against the package's teams when it is given.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub career_history: Vec<PlayerCareerEntryDef>,
+}
+
+/// One spell in a player's authored career history.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayerCareerEntryDef {
+    /// The calendar year the season began in.
+    #[serde(default)]
+    pub season: u32,
+    /// A team defined in this package. Leave it out for a club the package does not
+    /// define; the name below is kept either way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team_id: Option<String>,
+    /// The club's name as it should read on the player's profile.
+    #[serde(default)]
+    pub team_name: String,
+    #[serde(default)]
+    pub appearances: u32,
+    #[serde(default)]
+    pub goals: u32,
+    #[serde(default)]
+    pub assists: u32,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -376,7 +440,9 @@ const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
 const WORLD_EXPORT_NOT_PACKAGE: &str = "be.error.package.worldExportNotPackage";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
 const UNKNOWN_COUNTRY: &str = "be.error.package.unknownCountry";
-const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
+// `pub(super)`: the rules for an authored player's extra fields live in their own
+// module and name a team by this same key rather than a second one.
+pub(super) const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
 const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
 const UNKNOWN_REGION: &str = "be.error.package.unknownRegion";
 const REVERSED_RANGE: &str = "be.error.package.reversedRange";
@@ -408,7 +474,7 @@ pub struct PackageError {
 }
 
 impl PackageError {
-    fn new(code: &str, file: &str) -> Self {
+    pub(super) fn new(code: &str, file: &str) -> Self {
         Self {
             code: code.to_string(),
             file: file.to_string(),
@@ -416,7 +482,7 @@ impl PackageError {
         }
     }
 
-    fn with(mut self, key: &str, value: impl Into<String>) -> Self {
+    pub(super) fn with(mut self, key: &str, value: impl Into<String>) -> Self {
         self.params.push((key.to_string(), value.into()));
         self
     }
@@ -1129,6 +1195,11 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         errors.extend(player_potential_errors(
             player,
             &package.source_at("player", index),
+        ));
+        errors.extend(authored_player_errors(
+            player,
+            &package.source_at("player", index),
+            &team_ids,
         ));
     }
 
@@ -3954,7 +4025,11 @@ colors:
             vec!["zed-fc", "zed-utd"],
             "stable authored ids are kept"
         );
-        assert_eq!(world.players.len(), 44, "22 players per club are generated");
+        assert_eq!(
+            world.players.len(),
+            46,
+            "22 players and an academy keeper per club are generated"
+        );
 
         let galaxy = world
             .regions

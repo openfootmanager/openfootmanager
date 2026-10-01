@@ -184,7 +184,54 @@ fn make_game_with_player(
         vec![],
     );
     game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    give_every_club_squad_depth(&mut game);
     game
+}
+
+/// Squad depth for every club in `game`, so that one player leaving never takes
+/// a club below the squad floor. These tests are about the deal, not about the
+/// floor — `squad_floor_*` below covers that — and a one-player club is below
+/// the floor before any deal is struck. Safe to call again after adding clubs.
+/// The depth is inert on purpose: no wage,
+/// no market value and a long contract, so it neither draws bids nor moves a
+/// budget.
+fn give_every_club_squad_depth(game: &mut Game) {
+    let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+    for team_id in team_ids {
+        // A senior more than the minimum in every group, sixteen in all: one
+        // player leaving never takes the club below the fifteen-senior floor.
+        let depth = [3, 5, 5, 3];
+        for ((group, _), count) in ofm_core::squad_floor::MIN_PLAYERS_PER_GROUP
+            .into_iter()
+            .zip(depth)
+        {
+            for index in 0..count {
+                let id = format!("depth-{team_id}-{group:?}-{index}");
+                if game.players.iter().any(|player| player.id == id) {
+                    continue;
+                }
+                let mut player = Player::new(
+                    id.clone(),
+                    id.clone(),
+                    id,
+                    "1996-01-01".to_string(),
+                    "England".to_string(),
+                    group.clone(),
+                    PlayerAttributes {
+                        handling: 30,
+                        reflexes: 30,
+                        ..default_attrs()
+                    },
+                );
+                player.team_id = Some(team_id.clone());
+                player.contract_end = Some("2031-06-30".to_string());
+                player.wage = 0;
+                player.market_value = 0;
+                player.morale = 70;
+                game.players.push(player);
+            }
+        }
+    }
 }
 
 fn attach_transfer_log_league(game: &mut Game) {
@@ -317,6 +364,50 @@ fn incoming_transfer_offers_do_not_arrive_when_window_is_closed() {
         .unwrap();
     assert!(player.transfer_offers.is_empty());
     assert!(game.messages.is_empty());
+}
+
+/// Joining a new club is signing a new contract. It starts on the day the move
+/// happens, which for a bid made with the window closed is the day it registers and
+/// not the day of the bid, and it must not keep the selling club's start date.
+#[test]
+fn a_permanent_transfer_starts_a_new_contract_on_the_day_it_registers() {
+    let mut player = make_player("player-new-contract");
+    player.contract_start = Some("2019-07-01".to_string());
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    make_transfer_bid(&mut game, "player-new-contract", 2_000_000)
+        .expect("an accepted closed-window bid schedules registration");
+
+    let scheduled = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-new-contract")
+        .unwrap();
+    assert_eq!(
+        scheduled.contract_start.as_deref(),
+        Some("2019-07-01"),
+        "until the move registers the player is still on the selling club's contract"
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let registered = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-new-contract")
+        .unwrap();
+    assert_eq!(registered.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        registered.contract_start.as_deref(),
+        Some("2027-01-01"),
+        "the new contract starts the day the transfer registers, not on the bid date \
+         or the selling club's start"
+    );
 }
 
 #[test]
@@ -1086,6 +1177,10 @@ fn loan_buy_option_can_be_exercised_from_active_user_loan() {
     player.potential = 74;
     player.stats.appearances = 0;
     player.wage = 520_000;
+    // The parent club's contract, signed long before the loan. A loan must leave it
+    // alone and buying the player must replace it, so a value that a `None` start
+    // could not distinguish from "set by the buy".
+    player.contract_start = Some("2019-07-01".to_string());
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
     attach_transfer_log_league(&mut game);
@@ -1122,6 +1217,12 @@ fn loan_buy_option_can_be_exercised_from_active_user_loan() {
             && entry.fee.is_none()
             && entry.loan_end_date.as_deref() == Some("2027-01-01")
     }));
+    // Out on loan the player is still the parent club's, on the parent's contract.
+    assert_eq!(
+        player.contract_start.as_deref(),
+        Some("2019-07-01"),
+        "a loan must not touch the parent club's contract"
+    );
 
     let buyer_finance_before = game
         .teams
@@ -1146,6 +1247,13 @@ fn loan_buy_option_can_be_exercised_from_active_user_loan() {
         .unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-1"));
     assert!(player.active_loan.is_none());
+    // Buying the player is a new agreement with the buying club, dated the day it is
+    // done, not the parent club's 2019 contract carried across.
+    assert_eq!(
+        player.contract_start,
+        Some(game.clock.current_date.format("%Y-%m-%d").to_string()),
+        "a loan-to-buy starts a new contract on the day of the purchase"
+    );
     assert!(player.movement_history.iter().any(|entry| {
         entry.kind == PlayerMovementKind::LoanStart
             && entry.from_team_name.as_deref() == Some("Seller FC")
@@ -2097,6 +2205,7 @@ fn ai_clubs_complete_transfer_between_themselves_without_inbox_message() {
         .push(make_ai_team("team-3", "Seller FC", 3_000_000, 1_000_000));
     game.teams[1].finance = 6_000_000;
     game.teams[1].transfer_budget = 3_000_000;
+    give_every_club_squad_depth(&mut game);
     attach_transfer_log_league(&mut game);
 
     evaluate_transfer_market(&mut game);
@@ -2153,6 +2262,7 @@ fn ai_market_limits_completed_ai_transfers_per_day() {
         .push(make_ai_team("team-5", "Buyer C", 6_000_000, 3_000_000));
     game.teams[1].finance = 6_000_000;
     game.teams[1].transfer_budget = 3_000_000;
+    give_every_club_squad_depth(&mut game);
     attach_transfer_log_league(&mut game);
 
     evaluate_transfer_market(&mut game);
@@ -3826,4 +3936,225 @@ fn a_transfer_between_clubs_outside_every_competition_is_still_kept() {
         "a completed transfer must be kept in a competition log, which is what the save reads, \
          not in the mirror the next sync overwrites"
     );
+}
+
+/// Take `team_id` down to exactly the minimum in forwards: the fixture's own
+/// forward plus one depth forward. Any forward leaving now leaves it short.
+fn leave_club_at_the_forward_floor(game: &mut Game, team_id: &str) {
+    let spares = [
+        format!("depth-{team_id}-Forward-1"),
+        format!("depth-{team_id}-Forward-2"),
+    ];
+    game.players.retain(|player| !spares.contains(&player.id));
+}
+
+const WOULD_LEAVE_SHORT_OF_FORWARDS: &str =
+    "be.error.squadFloor.wouldLeaveShort?group=common.positionGroups.Forward";
+
+/// The bid is refused before the offer is recorded as agreed: the command layer
+/// mutates the live game in place, so a refusal after that point would leave an
+/// agreed offer on a player who never moved.
+#[test]
+fn squad_floor_a_bid_that_would_leave_the_seller_short_is_refused_before_anything_is_agreed() {
+    let player = make_player("player-floor-bid");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    leave_club_at_the_forward_floor(&mut game, "team-2");
+
+    let result = make_transfer_bid(&mut game, "player-floor-bid", 2_000_000);
+
+    assert_eq!(result.err().as_deref(), Some(WOULD_LEAVE_SHORT_OF_FORWARDS));
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-floor-bid")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert!(
+        player.transfer_offers.iter().all(|offer| !matches!(
+            offer.status,
+            TransferOfferStatus::Accepted | TransferOfferStatus::PendingRegistration
+        )),
+        "a refused bid left an agreed offer behind: {:?}",
+        player.transfer_offers
+    );
+}
+
+/// An agreement struck while the seller had players to spare, falling due
+/// after it has lost them, lapses instead of taking the club below the floor.
+#[test]
+fn squad_floor_a_scheduled_sale_lapses_if_the_seller_has_since_reached_the_floor() {
+    let player = make_player("player-floor-scheduled");
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+    make_transfer_bid(&mut game, "player-floor-scheduled", 2_000_000)
+        .expect("the seller had depth when the deal was agreed");
+
+    leave_club_at_the_forward_floor(&mut game, "team-2");
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-floor-scheduled")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::Withdrawn
+    );
+    assert!(
+        player
+            .movement_history
+            .iter()
+            .all(|entry| entry.kind != PlayerMovementKind::PermanentTransfer),
+        "the refused sale was half-applied"
+    );
+}
+
+#[test]
+fn squad_floor_the_player_cannot_accept_a_sale_that_leaves_their_own_squad_short() {
+    let mut player = make_user_player("player-floor-own-sale");
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-floor", 1_500_000));
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    leave_club_at_the_forward_floor(&mut game, "team-1");
+
+    let result = respond_to_offer(&mut game, "player-floor-own-sale", "offer-floor", true);
+
+    assert_eq!(result.err().as_deref(), Some(WOULD_LEAVE_SHORT_OF_FORWARDS));
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-floor-own-sale")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::Pending
+    );
+}
+
+#[test]
+fn squad_floor_a_loan_that_would_leave_the_parent_club_short_is_refused() {
+    let mut player = make_player("player-floor-loan");
+    player.loan_listed = true;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    leave_club_at_the_forward_floor(&mut game, "team-2");
+
+    let result = make_loan_offer(&mut game, "player-floor-loan", "2027-01-01", 100, None);
+
+    assert_eq!(result.err().as_deref(), Some(WOULD_LEAVE_SHORT_OF_FORWARDS));
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-floor-loan")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert!(player.active_loan.is_none());
+    assert!(player.loan_offers.iter().all(|offer| {
+        offer.status != LoanOfferStatus::Accepted
+            && offer.status != LoanOfferStatus::PendingRegistration
+    }));
+}
+
+/// Given the player's club at its forward minimum and an offer id nobody made,
+/// when the manager accepts it, the answer is that the offer is not pending —
+/// the floor is only asked about a departure that could actually happen.
+#[test]
+fn squad_floor_a_stale_loan_offer_is_refused_as_stale_even_at_the_floor() {
+    let mut player = make_user_player("player-stale-loan");
+    player.loan_listed = true;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    leave_club_at_the_forward_floor(&mut game, "team-1");
+
+    let result = respond_to_loan_offer(&mut game, "player-stale-loan", "no-such-offer", true);
+
+    assert_eq!(
+        result.err().as_deref(),
+        Some("be.error.transfers.offerNotPending")
+    );
+}
+
+/// Given an AI club of seventeen seniors and a buyer with money to burn, when
+/// the buyer bids big for every one of them, then two sales go through and
+/// every later one is refused: the club keeps fifteen, whoever it sells.
+#[test]
+fn squad_floor_a_club_that_sells_aggressively_never_goes_below_fifteen() {
+    let player = make_player("player-sell-all");
+    let mut game = make_game_with_player(player, vec![], 1_000_000_000, 1_000_000_000);
+    let seller_seniors = |game: &Game| {
+        game.players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team-2"))
+            .count()
+    };
+    assert_eq!(seller_seniors(&game), 17);
+    let targets: Vec<String> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team-2"))
+        .map(|p| p.id.clone())
+        .collect();
+
+    let mut sold = 0;
+    let mut refused = 0;
+    for target in targets {
+        match make_transfer_bid(&mut game, &target, 50_000_000) {
+            Ok(outcome) if outcome.decision == TransferNegotiationDecision::Accepted => sold += 1,
+            Ok(_) => {}
+            Err(error) if error.starts_with("be.error.squadFloor.") => refused += 1,
+            Err(error) => panic!("unexpected refusal: {error}"),
+        }
+    }
+
+    assert_eq!(sold, 2);
+    assert_eq!(refused, 15);
+    assert_eq!(seller_seniors(&game), 15);
+}
+
+/// The best target on the market belongs to a club at the floor in his group,
+/// the second best to a club with depth. The buyer signs the second: it does
+/// not sell the first club short, and it does not spend its one approach of
+/// the day on a sale that was always going to be refused.
+#[test]
+fn squad_floor_ai_buyers_pass_over_a_player_whose_club_cannot_sell_him() {
+    let mut floor_bound = make_player("player-floor-ai");
+    floor_bound.team_id = Some("team-3".to_string());
+    floor_bound.contract_end = Some("2026-09-01".to_string());
+    floor_bound.market_value = 1_200_000;
+    floor_bound.transfer_listed = true;
+    let mut available = make_player("player-floor-ai-alt");
+    available.team_id = Some("team-4".to_string());
+    available.contract_end = Some("2026-09-01".to_string());
+    available.market_value = 1_000_000;
+    available.transfer_listed = true;
+
+    let mut game = make_game_with_player(floor_bound, vec![], 5_000_000, 2_000_000);
+    game.players.push(available);
+    // Neither selling club can afford to buy, so team-2 is the only buyer.
+    game.teams
+        .push(make_ai_team("team-3", "Seller FC", 3_000_000, 0));
+    game.teams
+        .push(make_ai_team("team-4", "Other Seller", 3_000_000, 0));
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    give_every_club_squad_depth(&mut game);
+    leave_club_at_the_forward_floor(&mut game, "team-3");
+    attach_transfer_log_league(&mut game);
+
+    evaluate_transfer_market(&mut game);
+
+    let team_of = |id: &str| {
+        game.players
+            .iter()
+            .find(|player| player.id == id)
+            .and_then(|player| player.team_id.clone())
+    };
+    assert_eq!(team_of("player-floor-ai").as_deref(), Some("team-3"));
+    assert_eq!(team_of("player-floor-ai-alt").as_deref(), Some("team-2"));
 }

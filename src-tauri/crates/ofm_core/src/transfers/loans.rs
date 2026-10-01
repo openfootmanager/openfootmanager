@@ -517,6 +517,8 @@ pub fn make_loan_offer(
 
     if accepted {
         validate_loan_borrower_affordability(game, &user_team_id, player, wage_contribution_pct)?;
+        // Before the offer is marked agreed, like every other refusal here.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
     }
 
     let status = if accepted {
@@ -608,6 +610,11 @@ pub fn respond_to_loan_offer(
         .iter()
         .find(|offer| offer.id == offer_id && offer.status == LoanOfferStatus::Pending)
         .ok_or(ERR_OFFER_NOT_PENDING)?;
+    // After the offer is known to be real — a stale one is refused as stale —
+    // and before anything is recorded as agreed.
+    if accept {
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
+    }
 
     let from_team_id = offer.from_team_id.clone();
     let wage_contribution_pct = offer.wage_contribution_pct;
@@ -767,6 +774,8 @@ pub fn counter_loan_offer(
     let offer_id_string = offer.id.clone();
 
     if accepted {
+        // Before the offer is marked agreed, like every other refusal here.
+        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
         if let Some(player) = game
             .players
             .iter_mut()
@@ -992,6 +1001,9 @@ pub(crate) fn complete_loan_buy_option_transfer(
         .find(|player| player.id == player_id)
     {
         player.team_id = Some(buying_team_id.to_string());
+        // Buying the player is a new agreement with the buying club from today. While
+        // on loan the contract stayed the parent club's, so this is the moment it changes.
+        player.contract_start = Some(today.clone());
         player.transfer_listed = false;
         player.loan_listed = false;
         player.active_loan = None;
@@ -1391,9 +1403,9 @@ pub fn process_loan_returns(game: &mut Game) {
         let movement_context = loan_snapshot.as_ref().map(|loan| {
             (
                 loan.loan_team_id.clone(),
-                team_name_or_id(game, &loan.loan_team_id),
+                game.team_name_or_id(&loan.loan_team_id),
                 loan.parent_team_id.clone(),
-                team_name_or_id(game, &loan.parent_team_id),
+                game.team_name_or_id(&loan.parent_team_id),
                 loan.end_date.clone(),
             )
         });

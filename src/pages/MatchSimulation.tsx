@@ -25,6 +25,8 @@ import PenaltyShootoutScreen from "../components/match/PenaltyShootoutScreen";
 
 interface MatchRouteState {
   fixtureIndex?: number;
+  competitionId?: string;
+  fixtureId?: string;
   mode?: string;
   snapshot?: MatchSnapshot;
 }
@@ -125,7 +127,11 @@ export default function MatchSimulation() {
         return;
       } catch (snapshotError) {
         console.warn("[MatchSimulation] fetchSnapshot:failed", snapshotError);
-        if (typeof routeState?.fixtureIndex !== "number") {
+        if (
+          typeof routeState?.fixtureIndex !== "number" ||
+          !routeState.competitionId ||
+          !routeState.fixtureId
+        ) {
           console.error("Failed to get match snapshot:", snapshotError);
           navigate("/dashboard");
           return;
@@ -147,15 +153,14 @@ export default function MatchSimulation() {
           const allowsExtraTime =
             routeState?.snapshot?.allows_extra_time ??
             competitionsWithET.includes(fixture?.competition ?? "");
-          // Identify the fixture by its teams so the backend can resolve it
-          // across all competitions — the raw index may point into a cup while
-          // game.league mirrors the domestic league after a restart.
+          // The raw index may point into a cup while game.league mirrors the
+          // domestic league after a restart. Use stable fixture identity.
           const restoredSnapshot = await invoke<MatchSnapshot>("start_live_match", {
             allowsExtraTime,
             fixtureIndex: routeState.fixtureIndex,
+            competitionId: routeState.competitionId,
+            fixtureId: routeState.fixtureId,
             mode: matchMode,
-            homeTeamId: routeState?.snapshot?.home_team?.id ?? null,
-            awayTeamId: routeState?.snapshot?.away_team?.id ?? null,
           });
 
           console.info("[MatchSimulation] restoreLiveMatch:success", {

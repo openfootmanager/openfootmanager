@@ -634,11 +634,11 @@ fn manage_international_calendar(
         }
         crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
-    crate::schedule::append_south_american_preseason_friendlies(
+    crate::schedule::append_preseason_friendlies(
         &mut game.competitions,
         &reserved_dates,
+        game.clock.current_date,
     );
-    crate::schedule::append_other_preseason_friendlies(&mut game.competitions, &reserved_dates);
 
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the
@@ -801,6 +801,14 @@ fn notify_user_division_change(
 
 /// Process end-of-season: record history, compute awards, reset stats, generate next season.
 /// Returns a summary struct for the frontend to display.
+/// What a season's end does to squads: players age and some retire, then
+/// every AI club rebuilds before the new season rather than on its next review
+/// day — a summer's retirements can take several players from one club at once.
+pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
+    crate::aging::apply_seasonal_aging(game, date, season);
+    crate::ai_contracts::plan_every_ai_squad(game);
+}
+
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // The summary, board review, and manager career must reflect the division
     // the user's club actually contests — not whichever competition happens to
@@ -1000,7 +1008,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         }
     }
 
-    crate::aging::apply_seasonal_aging(game, game.clock.current_date.date_naive(), season);
+    apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
     for player in game.players.iter_mut() {
         // Reset stats for next season
@@ -1215,6 +1223,27 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     summary
 }
 
+/// Roll a finished season over: the one sequence behind the player's "advance
+/// to next season" button and behind the season harness.
+///
+/// Refuses, touching nothing, unless [`is_season_complete`]. Then the rollover
+/// proper, then the firing check. The order matters:
+/// [`process_end_of_season`] re-evaluates the board's objectives and can drop
+/// the manager's satisfaction, so a sacking it causes has to be decided here
+/// rather than left for the next day's turn.
+///
+/// Whether the manager lost the job is readable from `game.manager.team_id`
+/// afterwards; the summary describes the season that just ended either way.
+pub fn advance_to_next_season(game: &mut Game) -> Result<EndOfSeasonSummary, String> {
+    if !is_season_complete(game) {
+        return Err("be.error.seasonNotComplete".to_string());
+    }
+
+    let summary = process_end_of_season(game);
+    crate::firing::check_manager_firing(game);
+    Ok(summary)
+}
+
 // ---------------------------------------------------------------------------
 // Retiree conversion
 // ---------------------------------------------------------------------------
@@ -1350,4 +1379,184 @@ pub struct EndOfSeasonSummary {
     pub poty_rating: f64,
     pub total_teams: u32,
     pub season_awards: crate::season_awards::SeasonAwards,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::GameClock;
+    use chrono::TimeZone;
+    use domain::league::FixtureCompetition;
+
+    fn at(year: i32, month: u32, day: u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(year, month, day, 12, 0, 0).unwrap()
+    }
+
+    fn calendar_game(now: DateTime<Utc>) -> Game {
+        let manager = Manager::new(
+            "mgr".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "ENG".into(),
+        );
+        Game::new(GameClock::new(now), manager, vec![], vec![], vec![], vec![])
+    }
+
+    fn add_division(game: &mut Game, id: &str, region: &str, start: DateTime<Utc>) {
+        let teams: Vec<String> = (0..8).map(|i| format!("{id}-{i}")).collect();
+        let mut division = crate::schedule::generate_league(id, start.year() as u32, &teams, start);
+        division.id = id.into();
+        division.region_id = Some(region.into());
+        division.scope = CompetitionScope::Domestic;
+        division.season_start_month = start.month() as u8;
+        division.season_start_day = start.day() as u8;
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        for fixture in &mut division.fixtures {
+            fixture.competition_id = id.into();
+            if fixture.date < today {
+                fixture.status = FixtureStatus::Completed;
+                fixture.result = Some(domain::league::MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    ..Default::default()
+                });
+            }
+        }
+        game.competitions.push(division);
+    }
+
+    fn initialize_rollover_calendar(game: &mut Game) {
+        let now = game.clock.current_date;
+        manage_international_calendar(
+            game,
+            now + Duration::days(28),
+            now + Duration::days(2),
+            false,
+            None,
+        );
+    }
+
+    fn assert_no_past_scheduled_fixtures(game: &Game) {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        assert!(
+            game.competitions
+                .iter()
+                .flat_map(|c| &c.fixtures)
+                .all(|f| { f.status != FixtureStatus::Scheduled || f.date >= today }),
+            "no Scheduled fixture may predate the clock"
+        );
+    }
+
+    fn retained_division_receives_no_friendlies(
+        id: &str,
+        now: DateTime<Utc>,
+        start: DateTime<Utc>,
+    ) {
+        let mut game = calendar_game(now);
+        add_division(&mut game, id, "south-america", start);
+        assert!(season_has_started(&game.competitions[0]));
+        assert!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .any(|f| f.status == FixtureStatus::Scheduled)
+        );
+        let count = game.competitions[0].fixtures.len();
+
+        initialize_rollover_calendar(&mut game);
+
+        assert_no_past_scheduled_fixtures(&game);
+        assert_eq!(
+            game.competitions[0].fixtures.len(),
+            count,
+            "{id} retains its schedule"
+        );
+        assert!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .all(|f| { f.competition != FixtureCompetition::Friendly }),
+            "a retained {id} receives no preseason friendlies"
+        );
+    }
+
+    fn regenerated_division_receives_future_friendlies(
+        id: &str,
+        region: &str,
+        now: DateTime<Utc>,
+        next_start: DateTime<Utc>,
+        expected: usize,
+    ) {
+        let mut game = calendar_game(now);
+        add_division(
+            &mut game,
+            id,
+            region,
+            next_start.with_year(next_start.year() - 1).unwrap(),
+        );
+        assert!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .all(|f| f.status == FixtureStatus::Completed)
+        );
+        crate::schedule::regenerate_league_for_season(
+            &mut game.competitions[0],
+            next_start.year() as u32,
+            next_start,
+        );
+        assert_eq!(game.competitions[0].season, next_start.year() as u32);
+        assert!(
+            game.competitions[0]
+                .standings
+                .iter()
+                .all(|row| row.played == 0)
+        );
+
+        initialize_rollover_calendar(&mut game);
+
+        assert_no_past_scheduled_fixtures(&game);
+        assert_eq!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .filter(|f| { f.competition == FixtureCompetition::Friendly })
+                .count(),
+            expected,
+            "{id} keeps all remaining preseason slots"
+        );
+    }
+
+    #[test]
+    fn preseason_rollover_retains_midseason_apertura() {
+        retained_division_receives_no_friendlies("ar-d1-apertura", at(2035, 4, 18), at(2035, 2, 1));
+    }
+
+    #[test]
+    fn preseason_rollover_regenerates_future_european_division() {
+        regenerated_division_receives_future_friendlies(
+            "eng-d1",
+            "europe",
+            at(2035, 4, 18),
+            at(2035, 8, 1),
+            16,
+        );
+    }
+
+    #[test]
+    fn preseason_rollover_retains_midseason_clausura() {
+        retained_division_receives_no_friendlies("ar-d1-clausura", at(2035, 9, 18), at(2035, 7, 1));
+    }
+
+    #[test]
+    fn preseason_rollover_regenerates_next_season_clausura() {
+        regenerated_division_receives_future_friendlies(
+            "ar-d1-clausura",
+            "south-america",
+            at(2035, 6, 18),
+            at(2035, 7, 1),
+            4,
+        );
+    }
 }

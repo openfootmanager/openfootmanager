@@ -9,11 +9,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{TimeZone, Utc};
-use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType, League};
+use domain::league::{CompetitionFormat, League};
 use domain::manager::Manager;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
+use ofm_core::world::ladder::{division_sizes, ladder_violations};
 use ofm_core::world::{
     ensure_multi_competition_foundations, resolve_simulation_scope, start_date_for_year,
 };
@@ -84,100 +85,15 @@ fn production_world(start_year: i32, user_team: &str) -> Game {
     game
 }
 
-/// (nation, club id) for every club in the world.
-fn team_list(game: &Game) -> Vec<(String, String)> {
-    game.teams
-        .iter()
-        .map(|team| (team.football_nation.clone(), team.id.clone()))
-        .collect()
-}
-
 fn roster(competition: &League) -> BTreeSet<String> {
     competition.participant_ids.iter().cloned().collect()
 }
 
-/// Every club in exactly one of its country's league tables, every division
-/// still its authored size, and a split-season country's two halves still
-/// running over the same clubs.
+/// The ladder rule lives in `ofm_core::world::ladder`, where the season harness
+/// asks it too; this only turns its answer into a failed assertion.
 fn assert_one_league_per_club(game: &Game, sizes: &BTreeMap<String, usize>, label: &str) {
-    let mut clubs_by_nation: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    for team in &team_list(game) {
-        clubs_by_nation
-            .entry(team.0.clone())
-            .or_default()
-            .insert(team.1.clone());
-    }
-    let mut by_country: BTreeMap<String, Vec<&League>> = BTreeMap::new();
-    for competition in &game.competitions {
-        if competition.rules.format != CompetitionFormat::LeagueTable
-            || competition.kind != CompetitionType::League
-            || competition.scope != CompetitionScope::Domestic
-        {
-            continue;
-        }
-        if let Some(country) = &competition.country_id {
-            by_country
-                .entry(country.clone())
-                .or_default()
-                .push(competition);
-        }
-    }
-    // Iterating only the countries that still have competitions means a
-    // country whose leagues vanished is never checked — the test passed
-    // with both Argentine leagues deleted after every rollover. Compare the
-    // key sets first, so a disappearing country is itself a failure.
-    let represented: BTreeSet<&String> = by_country.keys().collect();
-    let expected: BTreeSet<&String> = clubs_by_nation.keys().collect();
-    assert_eq!(
-        represented, expected,
-        "{label}: every nation must still have at least one league table"
-    );
-
-    for (country, leagues) in by_country {
-        let mut union: BTreeSet<String> = BTreeSet::new();
-        let split_season = ofm_core::nations::is_split_season_country(&country);
-        for league in &leagues {
-            let clubs = roster(league);
-            assert_eq!(
-                clubs.len(),
-                league.participant_ids.len(),
-                "{label}: {} lists a club twice: {:?}",
-                league.id,
-                league.participant_ids
-            );
-            assert_eq!(
-                league.participant_ids.len(),
-                sizes[&league.id],
-                "{label}: {} changed size",
-                league.id
-            );
-            if !split_season {
-                assert!(
-                    union.is_disjoint(&clubs),
-                    "{label}: {} shares clubs with another {country} league",
-                    league.id
-                );
-            }
-            union.extend(clubs);
-        }
-        if split_season {
-            // Both halves are the same division played twice, so they must
-            // hold identical rosters rather than disjoint ones.
-            let first = roster(leagues[0]);
-            for league in &leagues[1..] {
-                assert_eq!(
-                    roster(league),
-                    first,
-                    "{label}: {country} halves drifted apart at {}",
-                    league.id
-                );
-            }
-        }
-        assert_eq!(
-            union, clubs_by_nation[&country],
-            "{label}: every {country} club must be in exactly one league table"
-        );
-    }
+    let violations = ladder_violations(game, sizes);
+    assert!(violations.is_empty(), "{label}: {violations:#?}");
 }
 
 #[test]
@@ -187,11 +103,7 @@ fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
         resolve_simulation_scope(&game, "eng-00", None, None).expect("a valid scope");
     game.active_region_ids = regions;
     game.active_competition_ids = competitions;
-    let sizes: BTreeMap<String, usize> = game
-        .competitions
-        .iter()
-        .map(|competition| (competition.id.clone(), competition.participant_ids.len()))
-        .collect();
+    let sizes = division_sizes(&game);
     let mut previous: BTreeMap<String, BTreeSet<String>> = game
         .competitions
         .iter()
@@ -229,16 +141,6 @@ fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
 
         let label = format!("rollover {rollover}");
         assert_one_league_per_club(&game, &sizes, &label);
-
-        // Every domestic division that existed at kickoff must still exist.
-        // Size and disjointness assertions say nothing about a league that
-        // is simply gone.
-        for id in sizes.keys() {
-            assert!(
-                game.competitions.iter().any(|c| c.id == *id),
-                "{label}: competition {id} disappeared"
-            );
-        }
 
         // The user's own division has to stay in simulation scope, or the
         // day loop cannot see their fixtures and runs their match against

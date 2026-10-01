@@ -1,7 +1,7 @@
 use crate::contract_wage_policy::{
-    project_contract_offer_financial_impact,
+    WagePolicyVerdict, project_contract_offer_financial_impact,
     project_renewal_financial_impact as project_renewal_financial_impact_service,
-    renewal_wage_policy_allows, renewal_wage_policy_error_message,
+    renewal_wage_policy_error_message, wage_policy_verdict,
 };
 use crate::delegated_renewals::delegate_renewals as delegate_renewals_service;
 use crate::game::Game;
@@ -21,6 +21,7 @@ mod consts;
 mod expiry;
 mod free_agent;
 mod helpers;
+mod opening;
 mod renewals;
 mod termination;
 
@@ -29,6 +30,7 @@ pub(crate) use self::helpers::*;
 // `pub` so the public entry points stay resolvable as `ofm_core::contracts::*`.
 pub use self::expiry::*;
 pub use self::free_agent::*;
+pub use self::opening::*;
 pub use self::renewals::*;
 pub use self::termination::*;
 

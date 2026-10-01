@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Nízká důvěra, slabá morálka nebo tlak na smlouvu nutí jejich stranu k tvrdému přístupu. Další slabá nabídka by mohla dveře definitivně zavřít.",
     "renewalFeedbackAcceptedHeadline": "Nabídka se jim líbila a jednání se posunula rychle.",
     "renewalFeedbackAcceptedDetail": "Nabídka byla dost blízko jejich očekáváním, takže jednání zůstala konstruktivní.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Přijali. Smlouva posouvá mzdové náklady nad politiku představenstva, ale představenstvo ji povolilo: bez tohoto hráče by kádr klesl pod minimum, které musí klub udržet.",
     "renewalFeedbackAcceptedLateHeadline": "Nabídku přijali, ale už jim docházela trpělivost.",
     "renewalFeedbackAcceptedLateDetail": "Dohodu se vám podařilo uzavřít až po tvrdé výměně názorů. Jejich strana byla blízko k odchodu od vyjednávání.",
     "renewalFeedbackBlockedHeadline": "K rozhovorům se zatím nechtějí vracet.",
@@ -2552,6 +2553,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",
+        "wouldLeaveSeniorsShort": "Tento hráč nemůže odejít: klubu by v A-týmu zůstalo méně než {{floor}} hráčů, což je minimum, které musí klub udržet."
+      },
       "noActiveGameSession": "Žádná aktivní herní relace",
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
@@ -2600,6 +2605,7 @@
       "liveMatch": {
         "noLeague": "Pro tento zápas nejsou k dispozici žádná data o lize.",
         "fixtureNotFound": "Vybrané utkání nebylo nalezeno.",
+        "fixtureNotScheduled": "Tento zápas již není naplánován a nelze ho odehrát.",
         "emptySquad": "Jeden z týmů nemá k dispozici žádné hráče, takže zápas nelze odehrát.",
         "maxSubstitutionsReached": "Bylo dosaženo maximálního počtu střídání",
         "preMatchSwapTooLate": "Předzápasové změny v sestavě jsou povoleny pouze před výkopem",
@@ -2649,6 +2655,14 @@
         "potentialBelowOverall": "„{{entity}}“ má potenciál {{potential}}, což je méně než jeho celkové hodnocení {{ability}}. Strop hráče nemůže být pod jeho současnou úrovní.",
         "potentialBelowAttributes": "„{{entity}}“ má potenciál {{potential}}, což je méně než celkové hodnocení {{ability}}, které vychází z jeho atributů. Strop hráče nemůže být pod jeho současnou úrovní.",
         "potentialBelowDefaultAbility": "„{{entity}}“ má potenciál {{potential}}, což je méně než výchozí úroveň {{ability}} použitá, když není zadáno celkové hodnocení ani atributy.",
+        "invalidDate": "„{{entity}}“ má v poli {{field}} hodnotu „{{value}}“, což není skutečné datum. Použijte formát RRRR-MM-DD.",
+        "contractEndAndLength": "„{{entity}}“ má zadané contractEnd i contractLength. Uveďte jen jedno z nich: říkají totéž dvěma způsoby.",
+        "contractLengthOutOfRange": "„{{entity}}“ má contractLength {{length}}. Smlouva trvá od 1 do {{max}} let.",
+        "contractEndNotAfterStart": "Smlouva „{{entity}}“ končí ({{end}}) v den, kdy začíná ({{start}}), nebo dříve.",
+        "playerFieldOutOfRange": "„{{entity}}“ má hodnotu {{field}} mimo povolený rozsah. Musí být mezi {{min}} a {{max}}.",
+        "alternatePositionInvalid": "„{{entity}}“ uvádí jako alternativní pozici {{position}}. Alternativa musí být konkrétní pozice, odlišná od pozice samotného hráče a uvedená jen jednou.",
+        "identityNeedsSpecificPosition": "„{{entity}}“ má slabší nohu nebo alternativní pozice, ale {{position}} je obecná skupina, takže by je hra přepočítala z atributů hráče a zahodila to, co jste napsali. Zadejte hráči konkrétní pozici, například CentralMidfielder nebo Striker.",
+        "careerEntryNeedsClub": "„{{entity}}“ má záznam kariéry (řádek {{row}}) bez názvu klubu.",
         "unsupportedFormatVersion": "Tento balíček byl vytvořen v novější verzi hry (formát {{version}}; tato verze podporuje {{supported}}). Pro otevření hru aktualizujte."
       },
       "conflict": {
@@ -2839,22 +2853,6 @@
         "randomDescription": "Náhodně vygenerovaná liga s {{teamCount}} týmy napříč Evropou",
         "exportedName": "Exportovaný svět",
         "exportedDescription": "Svět s {{teamCount}} týmy exportovaný z uložené hry"
-      },
-      "welcome": {
-        "subject0": "Vítejte v týmu {{team}}",
-        "subject1": "Nová éra v týmu {{team}}",
-        "subject2": "{{team}} čeká na vaše vedení",
-        "body0": "Představenstvo klubu {{team}} vás s potěšením vítá jako nového manažera.\n\nDo vašeho působení vkládáme velké naděje a věříme, že dokážete tento klub dovést ke slávě. Vaším prvním úkolem bude zhodnotit kádr a připravit taktický plán na nadcházející sezónu.\n\nPřejeme vám hodně štěstí.",
-        "body1": "Jménem celé rodiny {{team}} s nadšením oznamujeme vaše jmenování do funkce manažera.\n\nFanoušci se už nemohou dočkat, až uvidí vaši vizi. Věnujte prosím čas posouzení kádru, kontrole naší finanční situace a nastavení taktického přístupu.\n\nPředstavenstvo stojí za vámi.",
-        "body2": "Vítejte v týmu {{team}}! Fanoušci i zaměstnanci jsou nadšeni z budoucnosti pod vaším vedením.\n\nDoporučujeme začít analýzou silných a slabých stránek vašeho kádru, a poté nastavit preferované rozestavení a tréninkový režim.\n\nNadcházející sezónu prověří skutečná zkouška — buďme na vás hrdí.",
-        "actionReview": "Zkontrolovat kádr",
-        "actionThank": "Poděkovat představenstvu"
-      },
-      "schedule": {
-        "subject": "Rozpis sezóny byl zveřejněn",
-        "body0": "Rozpis soutěže {{league}} byl zveřejněn. Sezóna odstartuje {{start}}.\n\nProhlédněte si seznam zápasů a ujistěte se, že je váš kádr připraven na nadcházející výzvy. Předsezónní příprava bude klíčová.",
-        "body1": "Seznam zápasů potvrzen! Sezóna soutěže {{league}} začíná {{start}}.\n\nPečlivě si prostudujte úvodní utkání — silný start může udávat tón celé kampani. Ujistěte se, že jsou vaši klíčoví hráči v zápasové kondici.",
-        "actionView": "Zobrazit zápasy"
       },
       "preMatch": {
         "subject": "Nadcházející zápas: vs {{opponent}} ({{venue}})",
@@ -3240,6 +3238,22 @@
         "subject": "{{player}} podepisuje smlouvu s týmem {{team}}",
         "body": "Hráč {{player}} se připojil k týmu {{team}} jako volný hráč a podepsal smlouvu na {{years}} let."
       },
+      "squadBelowFloor": {
+        "subject": "Kádr pod minimem: {{group}}",
+        "body": "Šéfe, chybí nám hráči. {{group}}: registrováno {{have}}, přitom klub jich musí mít alespoň {{floor}}. Před dalším zápasem prosím doplňte kádr — pokud při výkopu nebudeme moci postavit tým, budu muset povýšit hráče z akademie nebo podepsat volné hráče, aby se zápas mohl odehrát.",
+        "totalSubject": "Kádr pod minimální velikostí",
+        "totalBody": "Šéfe, v A-týmu nám zbývá jen {{have}} hráčů, přitom klub jich musí mít alespoň {{floor}}, aby obstál. Před dalším zápasem prosím doplňte kádr — pokud při výkopu nebudeme moci postavit tým, budu muset povýšit hráče z akademie nebo podepsat volné hráče, aby se zápas mohl odehrát."
+      },
+      "squadToppedUp": {
+        "subject": "Nouzové posily: {{team}}",
+        "body": "Šéfe, neměli jsme dost hráčů, abychom postavili tým, a tak jsem před výkopem přesunul do A-týmu tyto hráče, nejprve z akademie a pak z volných hráčů: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Nikdo k dispozici: {{group}}",
+        "body": "Šéfe, nepodařilo se nám doplnit kádr a nebylo koho přivést. {{group}}: {{have}} z {{floor}}, které musí klub udržet, a ani naše akademie, ani trh volných hráčů nemá nikoho, kdo by mezeru zaplnil.",
+        "totalSubject": "Nikdo k dispozici pro doplnění kádru",
+        "totalBody": "Šéfe, v A-týmu nám zbývá jen {{have}} hráčů, méně než {{floor}}, které musí klub udržet, a ani naše akademie, ani trh volných hráčů nemá nikoho, kdo by mezeru zaplnil."
+      },
       "delegatedRenewals": {
         "subject": "Zpráva asistenta — Prodloužení smluv",
         "body": "Šéfe, prošel jsem náš seznam smluv k prodloužení v klubu {{team}}. Dokončeno: {{successes}}, stále se jedná: {{stalled}}, selhalo: {{failures}}.",
@@ -3251,6 +3265,7 @@
         "notes": {
           "managerBlocked": "Řekl jste mi, abych jednání o nové smlouvě zatím znovu neotvíral.",
           "completed": "Tento případ se mi podařil uzavřít, aniž byste musel zasahovat.",
+          "completedToKeepSquadFloor": "Hotovo, nad rámec mzdové politiky představenstva. Představenstvo to povolilo, protože bez tohoto hráče bychom klesli pod minimální kádr.",
           "beyondLimits": "Jeho strana požaduje přibližně {{wage}}/týdně na {{years}} let, což přesahuje limity mého pověření.",
           "boardWagePolicy": "Mzdová politika představenstva toto prodloužení blokuje. Během naší nápravy udržujte týdenní platy blízko částky {{budget}}.",
           "prefersManager": "Byli by ochotni naslouchat, ale stále požadují kolem {{wage}}/týdně na {{years}} let a raději by jednali přímo s vámi.",
@@ -3856,6 +3871,23 @@
     "playerFoot": "Preferovaná noha",
     "playerDateOfBirth": "Datum narození",
     "playerAge": "Věk",
+    "playerAgeHelp": "Používá se, když chybí datum narození: hráči je tolik let v den zahájení kariéry, ať je to kterýkoli rok.",
+    "playerContractSection": "Smlouva",
+    "playerContractStart": "Začátek smlouvy",
+    "playerContractEnd": "Konec smlouvy",
+    "playerContractLength": "Délka smlouvy (roky)",
+    "playerContractLengthHelp": "Alternativa ke konečnému datu. Počítá se od data začátku, pokud existuje, jinak od roku zahájení kariéry, takže hráč nikdy není hned bez smlouvy. Zadejte konečné datum nebo délku, ne obojí.",
+    "playerWageHelp": "Za týden. Pokud pole necháte prázdné, dopočítá se z hodnoty hráče.",
+    "playerStatusSection": "Stav",
+    "playerAlternatePositions": "Alternativní posty",
+    "playerAlternatePositionsHelp": "Další posty, na kterých hráč může hrát. Jen u konkrétního postu, jako je Striker: obecná skupina jako Forward je odvodí z atributů.",
+    "playerCareerSection": "Kariérní historie",
+    "careerEntryRow": "Kariérní záznam",
+    "careerEntryClubName": "Název klubu",
+    "careerEntryPackageTeam": "Klub z tohoto balíčku",
+    "careerEntryNoPackageTeam": "Není v tomto balíčku",
+    "addCareerEntry": "Přidat sezónu",
+    "removeCareerEntry": "Odebrat sezónu",
     "playerOverall": "Celkové hodnocení (1–99)",
     "playerPotential": "Potenciál (1–99)",
     "playerPotentialHelp": "Kam až tento hráč může dojít. Nechte prázdné a engine vylosuje strop podle jeho úrovně a věku. Nesmí být pod současnou úrovní a hráč, který ho dosáhl, se přestane zlepšovat.",

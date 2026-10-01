@@ -13,9 +13,10 @@ use domain::league::{CompetitionScope, League};
 use domain::national_team::NationalTeam;
 
 pub mod foundations;
+pub mod ladder;
 mod plan;
 #[cfg(test)]
-mod test_fixtures;
+pub(crate) mod test_fixtures;
 
 pub use foundations::*;
 

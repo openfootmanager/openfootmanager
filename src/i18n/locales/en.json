@@ -1614,6 +1614,7 @@
     "renewalFeedbackTenseDetail": "Low trust, low morale, or contract pressure are making the camp push hard. Another weak offer could shut the door.",
     "renewalFeedbackAcceptedHeadline": "They liked the package and moved quickly.",
     "renewalFeedbackAcceptedDetail": "The offer landed close enough to their expectations, so the talks stayed constructive.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "They accepted. The deal takes the wage bill past the board's policy, but the board allowed it: without this player the squad would fall below the minimum a club must keep.",
     "renewalFeedbackAcceptedLateHeadline": "They accepted, but there was not much patience left.",
     "renewalFeedbackAcceptedLateDetail": "You got the deal done after a tougher exchange. Their side were close to walking away from the discussion.",
     "renewalFeedbackBlockedHeadline": "They are not reopening the conversation yet.",
@@ -2552,6 +2553,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
+        "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
+      },
       "noActiveGameSession": "No active game session",
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
@@ -2600,6 +2605,7 @@
       "liveMatch": {
         "noLeague": "No league data is available for this match.",
         "fixtureNotFound": "The selected fixture could not be found.",
+        "fixtureNotScheduled": "This fixture is no longer scheduled and cannot be played.",
         "emptySquad": "One of the teams has no available players, so the match cannot be played.",
         "maxSubstitutionsReached": "Maximum substitutions reached",
         "preMatchSwapTooLate": "Pre-match swaps are only allowed before kick-off",
@@ -2649,6 +2655,14 @@
         "potentialBelowOverall": "\"{{entity}}\" has a potential of {{potential}}, below their overall of {{ability}}. A player's ceiling cannot sit under their current ability.",
         "potentialBelowAttributes": "\"{{entity}}\" has a potential of {{potential}}, below the {{ability}} their attributes work out to. A player's ceiling cannot sit under their current ability.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" has a potential of {{potential}}, below the default ability of {{ability}} used when neither overall nor attributes is given.",
+        "invalidDate": "\"{{entity}}\" has a {{field}} of \"{{value}}\", which is not a real date. Use the form YYYY-MM-DD.",
+        "contractEndAndLength": "\"{{entity}}\" has both a contractEnd and a contractLength. Give one or the other: they say the same thing two ways.",
+        "contractLengthOutOfRange": "\"{{entity}}\" has a contractLength of {{length}}. A contract runs from 1 to {{max}} years.",
+        "contractEndNotAfterStart": "\"{{entity}}\" has a contract that ends ({{end}}) on or before the day it starts ({{start}}).",
+        "playerFieldOutOfRange": "\"{{entity}}\" has a {{field}} outside its range. It must be between {{min}} and {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" lists {{position}} as an alternate position. An alternate must be a specific position, different from the player's own, and listed only once.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" has a weak foot or alternate positions, but {{position}} is a general group, so the game would re-work them from the player's attributes and discard what you wrote. Give the player a specific position, such as CentralMidfielder or Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" has a career entry (row {{row}}) with no club name.",
         "unsupportedFormatVersion": "This package was made with a newer version of the game (format {{version}}; this build supports {{supported}}). Update the game to open it."
       },
       "conflict": {
@@ -2839,22 +2853,6 @@
         "randomDescription": "Randomly generated league with {{teamCount}} teams across Europe",
         "exportedName": "Exported World",
         "exportedDescription": "World with {{teamCount}} teams exported from saved game"
-      },
-      "welcome": {
-        "subject0": "Welcome to {{team}}",
-        "subject1": "New Era at {{team}}",
-        "subject2": "{{team}} Awaits Your Leadership",
-        "body0": "The board of directors at {{team}} is delighted to welcome you as the new manager.\n\nWe have high hopes for your tenure and believe you can lead this club to glory. Your first task will be to review the squad and prepare a tactical plan for the upcoming season.\n\nWe wish you the best of luck.",
-        "body1": "On behalf of the entire {{team}} family, we are thrilled to announce your appointment as manager.\n\nThe fans are eager to see your vision for the team. Please take time to assess the squad, review our financial position, and set your tactical approach.\n\nThe board stands behind you.",
-        "body2": "Welcome to {{team}}! The supporters and staff are excited about the future under your guidance.\n\nWe recommend you start by reviewing your squad's strengths and weaknesses, then set up your preferred formation and training regime.\n\nThe upcoming season will be a true test — make us proud.",
-        "actionReview": "Review Squad",
-        "actionThank": "Thank the Board"
-      },
-      "schedule": {
-        "subject": "Season Schedule Released",
-        "body0": "The {{league}} schedule has been released. The season kicks off on {{start}}.\n\nReview the fixture list and ensure your squad is ready for the challenges ahead. Pre-season preparation will be crucial.",
-        "body1": "Fixture list confirmed! The {{league}} season begins on {{start}}.\n\nStudy the opening fixtures carefully — a strong start can set the tone for the whole campaign. Make sure your key players are match-fit.",
-        "actionView": "View Fixtures"
       },
       "preMatch": {
         "subject": "Upcoming: vs {{opponent}} ({{venue}})",
@@ -3240,6 +3238,22 @@
         "subject": "{{player}} Signs for {{team}}",
         "body": "{{player}} has joined {{team}} as a free agent on a {{years}}-year contract."
       },
+      "squadBelowFloor": {
+        "subject": "Squad Below the Minimum: {{group}}",
+        "body": "Boss, we are short of players. {{group}}: {{have}} registered, and a club must keep at least {{floor}}. Please bring more in before our next match — if we cannot field a side at kick-off, I will have to bring players up from the academy or sign free agents so the match can go ahead.",
+        "totalSubject": "Squad Below the Minimum Size",
+        "totalBody": "Boss, we are down to {{have}} senior players, and a club must keep at least {{floor}} to stay sound. Please bring more in before our next match — if we cannot field a side at kick-off, I will have to bring players up from the academy or sign free agents so the match can go ahead."
+      },
+      "squadToppedUp": {
+        "subject": "Emergency Signings: {{team}}",
+        "body": "Boss, we did not have enough players to field a side, so before kick-off I brought these players into the first-team squad, from the academy first and then the free-agent market: {{players}}."
+      },
+      "squadCannotBeFilled": {
+        "subject": "No One Available: {{group}}",
+        "body": "Boss, we could not field a full squad and there was nobody to bring in. {{group}}: {{have}} of the {{floor}} a club must keep, and neither our academy nor the free-agent market has anyone to fill the gap.",
+        "totalSubject": "No One Available to Complete the Squad",
+        "totalBody": "Boss, we are down to {{have}} senior players, below the {{floor}} a club must keep, and neither our academy nor the free-agent market has anyone to fill the gap."
+      },
       "delegatedRenewals": {
         "subject": "Assistant Report — Contract Renewals",
         "body": "Boss, I went through our renewal list at {{team}}. {{successes}} completed, {{stalled}} still pending, {{failures}} failed.",
@@ -3251,6 +3265,7 @@
         "notes": {
           "managerBlocked": "You told me not to reopen contract talks yet.",
           "completed": "I was able to close this one without needing you to step in.",
+          "completedToKeepSquadFloor": "Done, over the board's wage policy. The board allowed it because without this player we would fall below the minimum squad.",
           "beyondLimits": "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
           "boardWagePolicy": "Board wage policy blocks this renewal. Keep weekly wages near {{budget}} while we recover.",
           "prefersManager": "They would listen, but they still want about {{wage}}/wk for {{years}} years and prefer to hear from you directly.",
@@ -3856,6 +3871,23 @@
     "playerFoot": "Preferred Foot",
     "playerDateOfBirth": "Date of Birth",
     "playerAge": "Age",
+    "playerAgeHelp": "Used when no date of birth is given: the player is this old on the day a career opens, in whatever year that is.",
+    "playerContractSection": "Contract",
+    "playerContractStart": "Contract start",
+    "playerContractEnd": "Contract end",
+    "playerContractLength": "Contract length (years)",
+    "playerContractLengthHelp": "An alternative to an end date. Counted from the start date if there is one, otherwise from the year the career opens, so the player is never already out of contract. Give an end date or a length, not both.",
+    "playerWageHelp": "Per week. Leave blank and it is worked out from the player's value.",
+    "playerStatusSection": "Status",
+    "playerAlternatePositions": "Alternate positions",
+    "playerAlternatePositionsHelp": "Other positions this player can play. Only for a specific position such as Striker: a general group like Forward has them worked out from the attributes.",
+    "playerCareerSection": "Career history",
+    "careerEntryRow": "Career entry",
+    "careerEntryClubName": "Club name",
+    "careerEntryPackageTeam": "Club in this package",
+    "careerEntryNoPackageTeam": "Not in this package",
+    "addCareerEntry": "Add season",
+    "removeCareerEntry": "Remove season",
     "playerOverall": "Overall (1–99)",
     "playerPotential": "Potential (1–99)",
     "playerPotentialHelp": "How good this player can become. Leave blank and the engine rolls a ceiling from their ability and age. It cannot be below their current ability, and a player who has reached it stops improving.",

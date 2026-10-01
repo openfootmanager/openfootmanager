@@ -13,7 +13,7 @@ use std::collections::HashSet;
 
 use crate::game::Game;
 
-use domain::league::StandingEntry;
+use domain::league::{FixtureStatus, StandingEntry};
 use domain::manager::Manager;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
@@ -35,7 +35,11 @@ fn phase_needs_manager(phase: MatchPhase) -> bool {
         MatchPhase::HalfTime | MatchPhase::ExtraTimeHalfTime | MatchPhase::PenaltyShootout
     )
 }
-const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
+/// Shared with [`crate::matchday`], which refuses a competition index that names no competition
+/// rather than quietly playing the fixture out of whatever the legacy mirror holds. One key, so
+/// the two refusals cannot drift into saying different things about the same failure.
+pub(crate) const LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR: &str = "be.error.liveMatch.fixtureNotFound";
+const LIVE_MATCH_FIXTURE_NOT_SCHEDULED_ERROR: &str = "be.error.liveMatch.fixtureNotScheduled";
 /// A side with nobody available cannot play. Refused here rather than handed to
 /// the engine, which has no way to resolve a pass, a shot or a goalkeeper.
 const LIVE_MATCH_EMPTY_SQUAD_ERROR: &str = "be.error.liveMatch.emptySquad";
@@ -122,6 +126,8 @@ pub struct LiveMatchSession {
     /// `competition_id` — NOT necessarily into `game.league`, which
     /// `sync_legacy_league` resets to the user's domestic league.
     pub fixture_index: usize,
+    /// Stable identity of the selected fixture, checked again before finish.
+    pub fixture_id: String,
     /// Id of the competition (league or cup) this fixture belongs to; the
     /// finish path uses it to apply the report to the right competition.
     pub competition_id: String,
@@ -237,21 +243,39 @@ impl LiveMatchSession {
 // Helper: build a LiveMatchSession from the Game state
 // ---------------------------------------------------------------------------
 
-/// The user's own league round as it stands right now: the matchday of its fixture due today, and
-/// its table before that round is played.
-///
-/// Deliberately the user's competition rather than the one being played: on a cup day the digest
-/// still describes the league round, and a knockout cup has no table to take a baseline from.
-fn user_league_round_context(game: &Game) -> Option<(u32, Vec<StandingEntry>)> {
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let league = game.user_competition()?;
-    let matchday = league
-        .fixtures
-        .iter()
-        .find(|fixture| fixture.date == today)
-        .map(|fixture| fixture.matchday)?;
+/// Make both sides of a fixture in `game.league` fit to kick off: a club short
+/// of the squad floor signs free agents first (see
+/// [`crate::squad_floor::ready_for_kick_off`]). Every path that plays a club
+/// fixture goes through this before building the teams — the unwatched path
+/// directly, the player's own matches through [`kick_off_live_match`] — so no
+/// match starts with a side that cannot be fielded.
+pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
+    let Some((home_team_id, away_team_id)) = game.league.as_ref().and_then(|league| {
+        league
+            .fixtures
+            .get(fixture_index)
+            .map(|fixture| (fixture.home_team_id.clone(), fixture.away_team_id.clone()))
+    }) else {
+        return;
+    };
+    crate::squad_floor::ready_for_kick_off(game, &home_team_id);
+    crate::squad_floor::ready_for_kick_off(game, &away_team_id);
+}
 
-    Some((matchday, league.standings.clone()))
+/// Kick off a fixture in `game.league` as a live session: both squads made fit
+/// to play first, then the session built.
+///
+/// The entry point for starting a real match. [`create_live_match`] only reads
+/// the game, so it cannot sign anyone; calling it directly skips the kick-off
+/// top-up, which is only right for a caller that has already done it.
+pub fn kick_off_live_match(
+    game: &mut Game,
+    fixture_index: usize,
+    mode: MatchMode,
+    allows_extra_time: bool,
+) -> Result<LiveMatchSession, String> {
+    prepare_kick_off(game, fixture_index);
+    create_live_match(game, fixture_index, mode, allows_extra_time)
 }
 
 /// Create a live match session for a specific fixture.
@@ -266,6 +290,9 @@ pub fn create_live_match(
         .fixtures
         .get(fixture_index)
         .ok_or(LIVE_MATCH_FIXTURE_NOT_FOUND_ERROR)?;
+    if fixture.status != FixtureStatus::Scheduled {
+        return Err(LIVE_MATCH_FIXTURE_NOT_SCHEDULED_ERROR.to_string());
+    }
 
     let home_team_id = fixture.home_team_id.clone();
     let away_team_id = fixture.away_team_id.clone();
@@ -368,10 +395,11 @@ pub fn create_live_match(
         rng: StdRng::from_rng(&mut rand::rng()),
         mode,
         fixture_index,
+        fixture_id: fixture.id.clone(),
         competition_id: league.id.clone(),
         round_matchday: fixture.matchday,
         round_previous_standings: league.standings.clone(),
-        league_round_context: user_league_round_context(game),
+        league_round_context: crate::matchday::user_league_round_context(game),
         home_team_id,
         away_team_id,
         user_side,
@@ -417,4 +445,43 @@ fn derive_personality(rep: u32, manager: Option<&Manager>) -> AiPersonality {
     }
 
     AiPersonality::Pragmatist
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MatchMode, create_live_match};
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{Fixture, FixtureStatus, League};
+    use domain::manager::Manager;
+
+    #[test]
+    fn create_live_match_refuses_completed_fixture_directly() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "manager".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        game.league = Some(League {
+            id: "league".to_string(),
+            fixtures: vec![Fixture {
+                id: "already-played".to_string(),
+                home_team_id: "home".to_string(),
+                away_team_id: "away".to_string(),
+                status: FixtureStatus::Completed,
+                ..Fixture::default()
+            }],
+            ..League::default()
+        });
+
+        let error = create_live_match(&game, 0, MatchMode::Instant, false)
+            .err()
+            .expect("the core entry point must reject a completed fixture");
+        assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
+    }
 }

@@ -284,6 +284,11 @@ export interface PlayerData {
   team_id: string | null;
   retired: boolean;
   squad_role?: PlayerSquadRole;
+  /**
+   * When the current contract began. Absent or null means unknown, not expired:
+   * a save from before the field existed knows only when the deal ends.
+   */
+  contract_start?: string | null;
   contract_end: string | null;
   wage: number;
   market_value: number;

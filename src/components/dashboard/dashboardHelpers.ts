@@ -1,7 +1,7 @@
 import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import { formatVal } from "../../lib/helpers";
 import { getAllFixturesAcrossCompetitions } from "../../lib/fixtures";
-import { getTeamFinanceSnapshot } from "../../lib/finance";
+import type { TeamFinanceSnapshotData } from "../../services/financeService";
 import { buildStartingXIIds } from "../squad/SquadTab.helpers";
 import { isMessageVisible } from "../../utils/newsVisibility";
 
@@ -18,6 +18,14 @@ export interface DashboardSearchResults {
 }
 
 type DashboardAlertTranslator = (key: string, options?: Record<string, unknown>) => string;
+type DashboardFinanceVerdict = Pick<
+  TeamFinanceSnapshotData,
+  | "cashRunwayWeeks"
+  | "currentlyInDebt"
+  | "runwayStatus"
+  | "wageBudgetStatus"
+  | "wageBudgetUsagePercent"
+>;
 
 export function getTodayMatchFixture(gameState: GameStateData): FixtureData | null {
   const fixtures = getAllFixturesAcrossCompetitions(gameState);
@@ -82,16 +90,11 @@ export function getDashboardAlerts(
   gameState: GameStateData,
   hasMatchToday: boolean,
   t: DashboardAlertTranslator,
+  financeSnapshot?: DashboardFinanceVerdict | null,
 ): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id);
   const roster = myTeam ? gameState.players.filter((player) => player.team_id === myTeam.id) : [];
-  const teamStaff = myTeam
-    ? gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id)
-    : [];
-  const financeSnapshot = myTeam
-    ? getTeamFinanceSnapshot(myTeam, gameState.players, teamStaff)
-    : null;
   const exhaustedCount = roster.filter((player) => player.condition < 25).length;
   const urgentUnreadCount = gameState.messages.filter((message) => {
     return (
@@ -153,7 +156,7 @@ export function getDashboardAlerts(
   }
 
   if (myTeam && financeSnapshot) {
-    if (myTeam.finance < 0 || financeSnapshot.runwayStatus === "critical") {
+    if (financeSnapshot.currentlyInDebt || financeSnapshot.runwayStatus === "critical") {
       alerts.push({
         id: "finance_crisis",
         text: t("dashboard.alerts.financeCrisis", {

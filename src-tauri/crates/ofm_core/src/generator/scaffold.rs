@@ -257,6 +257,20 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
                 // without implying both must be filled in.
                 "attributes": null,
                 "photo": null,
+                // Contract: give `contractEnd` or `contractLength`, not both. Null
+                // leaves the engine's roll in charge, as for every field below.
+                "contractStart": null,
+                "contractEnd": null,
+                "contractLength": null,
+                "wage": null,
+                "value": null,
+                // Kept only for a specific `position`; a general group has both
+                // re-inferred when a career opens.
+                "weakFoot": null,
+                "alternatePositions": [],
+                "condition": null,
+                "morale": null,
+                "careerHistory": [],
             })
         }
         EntityKind::Staff => {
@@ -415,9 +429,11 @@ mod tests {
     use super::*;
     use crate::generator::competition_def::{CompetitionDefinition, FormatDef, ParticipantSpec};
     use crate::generator::definitions::{NamePool, NamesDefinition, TeamColorsDef, TeamDef};
-    use crate::generator::package::{ConfederationDef, CountryDef, PlayerDef, StaffDef};
+    use crate::generator::package::{
+        ConfederationDef, CountryDef, PlayerCareerEntryDef, PlayerDef, StaffDef,
+    };
     use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType};
-    use domain::player::PlayerAttributes;
+    use domain::player::{PlayerAttributes, Position};
     use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
     /// Top-level keys a value serializes to.
@@ -529,6 +545,26 @@ mod tests {
             photo: Some("assets/images/sample.png".into()),
             footedness: Some("Right".into()),
             youth: true,
+            // `contractEnd` and `contractLength` are mutually exclusive, and the
+            // package validator refuses both. Both are populated here only so the
+            // fixture learns that each key exists; this instance is never validated.
+            contract_start: Some("2024-07-01".into()),
+            contract_end: Some("2028-06-30".into()),
+            contract_length: Some(3),
+            wage: Some(10_000),
+            value: Some(5_000_000),
+            weak_foot: Some(3),
+            alternate_positions: vec![Position::LeftWinger],
+            condition: Some(90),
+            morale: Some(70),
+            career_history: vec![PlayerCareerEntryDef {
+                season: 2020,
+                team_id: Some("club-id".into()),
+                team_name: "Sample FC".into(),
+                appearances: 30,
+                goals: 10,
+                assists: 5,
+            }],
         };
 
         let staff = StaffDef {

@@ -232,11 +232,11 @@ fn ensure_international_windows(game: &mut Game) {
         }
         crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
-    crate::schedule::append_south_american_preseason_friendlies(
+    crate::schedule::append_preseason_friendlies(
         &mut game.competitions,
         &reserved_dates,
+        game.clock.current_date,
     );
-    crate::schedule::append_other_preseason_friendlies(&mut game.competitions, &reserved_dates);
 }
 
 pub fn resolve_simulation_scope(
@@ -324,6 +324,94 @@ mod tests {
     use chrono::TimeZone;
     use domain::league::{CompetitionScope, CompetitionType, FixtureCompetition};
     use domain::manager::Manager;
+
+    #[test]
+    fn preseason_opening_in_started_division_creates_no_past_scheduled_fixtures() {
+        // This pins the combined no-stranded-fixture invariant: either the
+        // opener guard or the friendly-date filter alone prevents past fixtures
+        // here. The partway-through-preseason test isolates the date filter.
+        let now = Utc.with_ymd_and_hms(2033, 7, 1, 12, 0, 0).unwrap();
+        let teams = [("BR", 8), ("AR", 4), ("ENG", 4)]
+            .into_iter()
+            .flat_map(|(nation, count)| {
+                (0..count).map(move |index| {
+                    nation_team(&format!("{nation}-{index}"), nation, 1000 - index)
+                })
+            })
+            .collect();
+        let mut game = Game::new(
+            GameClock::new(now),
+            manager_for("ENG-0"),
+            teams,
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        ensure_multi_competition_foundations_with(&mut game, 4);
+
+        for id in ["br-d1", "br-d2", "ar-d1-apertura"] {
+            let division = game.competitions.iter().find(|c| c.id == id).unwrap();
+            assert!(
+                division.fixtures.iter().any(|f| {
+                    f.competition == FixtureCompetition::League
+                        && f.status == domain::league::FixtureStatus::Completed
+                }),
+                "{id} has already begun"
+            );
+            assert!(
+                division.fixtures.iter().all(|f| {
+                    f.date.as_str() >= "2033-07-01"
+                        || f.status != domain::league::FixtureStatus::Scheduled
+                }),
+                "{id} must have no scheduled fixture before the clock"
+            );
+            assert!(
+                division
+                    .fixtures
+                    .iter()
+                    .all(|f| { f.competition != FixtureCompetition::Friendly }),
+                "{id} is already past preseason"
+            );
+        }
+        let upcoming = game.competitions.iter().find(|c| c.id == "eng-d1").unwrap();
+        assert!(
+            upcoming
+                .fixtures
+                .iter()
+                .any(|f| { f.competition == FixtureCompetition::Friendly }),
+            "a future division still gets its preseason"
+        );
+    }
+
+    #[test]
+    fn preseason_loaded_calendar_repeated_setup_is_idempotent() {
+        let mut game = scope_test_game();
+        game.clock = GameClock::new(Utc.with_ymd_and_hms(2033, 7, 1, 12, 0, 0).unwrap());
+        ensure_multi_competition_foundations_with(&mut game, 4);
+        assert!(game.competitions.iter().any(|c| {
+            c.fixtures
+                .iter()
+                .any(|f| f.competition == FixtureCompetition::Friendly)
+        }));
+        let before = serde_json::to_value(&game.competitions).unwrap();
+        let mut loaded: Game = serde_json::from_slice(&serde_json::to_vec(&game).unwrap()).unwrap();
+
+        for _ in 0..2 {
+            ensure_multi_competition_foundations_with(&mut loaded, 4);
+            assert_eq!(serde_json::to_value(&loaded.competitions).unwrap(), before);
+            assert!(
+                loaded
+                    .competitions
+                    .iter()
+                    .flat_map(|c| &c.fixtures)
+                    .all(|f| {
+                        f.status != domain::league::FixtureStatus::Scheduled
+                            || f.date.as_str() >= "2033-07-01"
+                    })
+            );
+        }
+    }
 
     #[test]
     fn world_cup_summer_career_stages_and_surfaces_the_tournament() {
@@ -690,7 +778,11 @@ mod tests {
             vec![],
         );
         game.competitions = build_foundation_competitions(&game, TOP_DIVISION_SIZE);
-        crate::schedule::append_south_american_preseason_friendlies(&mut game.competitions, &[]);
+        crate::schedule::append_preseason_friendlies(
+            &mut game.competitions,
+            &[],
+            game.clock.current_date,
+        );
 
         let serie_a = game
             .competitions

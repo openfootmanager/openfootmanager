@@ -61,6 +61,13 @@ pub struct Player {
     pub potential: u8,
 
     // Contract & value
+    /// Start of the current agreement ("YYYY-MM-DD").
+    ///
+    /// Defaulted rather than required because saves written before contracts had
+    /// a start know only when the deal ends. `None` is an honest unknown there
+    /// and is shown as one; it must not be read as "expired".
+    #[serde(default)]
+    pub contract_start: Option<String>,
     pub contract_end: Option<String>,
     pub wage: u32, // weekly wage
     pub market_value: u64,
@@ -319,6 +326,12 @@ pub struct PlayerAttributes {
 fn default_attr() -> u8 {
     50
 }
+
+/// The range a weak-foot skill is held to. `Player::weak_foot` is a bare `u8`, so
+/// nothing in the type stops a 0 or a 200; the rating clamps to this, and package
+/// validation refuses a value outside it, from the one definition.
+pub const WEAK_FOOT_MIN: u8 = 1;
+pub const WEAK_FOOT_MAX: u8 = 5;
 
 fn default_weak_foot() -> u8 {
     2
@@ -782,6 +795,7 @@ impl Player {
             traits,
             ovr: 0,
             potential: 0,
+            contract_start: None,
             contract_end: None,
             wage: 0,
             market_value: 0,
