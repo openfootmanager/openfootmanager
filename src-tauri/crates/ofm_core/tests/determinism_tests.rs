@@ -214,23 +214,29 @@ fn international_fixtures(game: &Game) -> Vec<String> {
 /// When a whole season is played and rolled over, twice,
 /// Then the rollover schedules the same international windows — which nations meet, and when.
 ///
-/// Only the fixtures, not the whole world: a rollover also brings in new players, whose ids
-/// are `Uuid::new_v4` and whose creation still draws from the operating system. That is the
-/// next slice of seeding, and this is the part of the rollover that is already settled.
+/// Rolled over until a season's windows hold friendlies rather than a World Cup campaign: which
+/// rollover that is depends on the year the world was dated for, which is the current year, so
+/// this plays on (a bounded number of times) instead of assuming one.
 #[test]
 fn a_rollover_schedules_the_same_international_windows() {
     let save = managed_world(1, 7);
+    let until_friendlies = |mut game: Game| {
+        for _ in 0..4 {
+            game = play_to_the_rollover(game);
+            let fixtures = international_fixtures(&game);
+            if !fixtures.is_empty() {
+                return fixtures;
+            }
+        }
+        Vec::new()
+    };
 
-    // Two rollovers: the first of a generated world goes into a World Cup summer, and a
-    // neutral season is where the friendlies are drawn.
-    let twice =
-        |game: Game| international_fixtures(&play_to_the_rollover(play_to_the_rollover(game)));
-    let first = twice(save.clone());
-    let second = twice(save);
+    let first = until_friendlies(save.clone());
+    let second = until_friendlies(save);
 
     assert!(
         !first.is_empty(),
-        "the rollover scheduled no international fixtures"
+        "no rollover in four seasons scheduled international fixtures"
     );
     assert_eq!(first, second);
 }

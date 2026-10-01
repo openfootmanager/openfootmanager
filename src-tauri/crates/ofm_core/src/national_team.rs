@@ -85,6 +85,9 @@ pub fn schedule_national_team_friendlies(
     if eligible.len() < 2 {
         return;
     }
+    // In id order, not vector order: a save reloads national teams by name, so the order they
+    // are held in is not the order they were made in, and the shuffle below must not depend on it.
+    eligible.sort_by(|a, b| national_teams[*a].id.cmp(&national_teams[*b].id));
 
     for (window_index, date) in window_dates.iter().enumerate() {
         shuffle(&mut eligible, rng);
@@ -611,6 +614,38 @@ mod tests {
             f.competition == FixtureCompetition::InternationalNation
                 && f.status == FixtureStatus::Scheduled
         }));
+    }
+
+    /// Given the same national teams held in two different orders — a save reloads them by name,
+    ///       a new game has them in the order they were made —
+    /// When the friendlies are scheduled from the same stream,
+    /// Then the same pairings are drawn on the same dates.
+    #[test]
+    fn friendlies_do_not_depend_on_the_order_the_teams_are_held_in() {
+        let teams = |ids: &[&str]| -> Vec<NationalTeam> {
+            ids.iter()
+                .map(|id| make_national_team(id, &id.to_uppercase(), &["p1"]))
+                .collect()
+        };
+        let ids = [
+            "nt-a", "nt-b", "nt-c", "nt-d", "nt-e", "nt-f", "nt-g", "nt-h",
+        ];
+        let mut reversed = ids;
+        reversed.reverse();
+        let windows: Vec<String> = (1..=5).map(|n| format!("2026-09-{:02}", n)).collect();
+        let pairings = |mut held: Vec<NationalTeam>| {
+            let mut rng = StdRng::seed_from_u64(9);
+            schedule_national_team_friendlies(&mut held, &windows, &mut rng);
+            let mut out: Vec<String> = held
+                .iter()
+                .flat_map(|team| team.fixtures.iter())
+                .map(|f| format!("{} {}-{}", f.date, f.home_team_id, f.away_team_id))
+                .collect();
+            out.sort();
+            out
+        };
+
+        assert_eq!(pairings(teams(&ids)), pairings(teams(&reversed)));
     }
 
     #[test]

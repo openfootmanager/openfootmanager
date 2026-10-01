@@ -695,6 +695,10 @@ impl SaveManager {
         game.youth_scouting_assignments.clear();
         game.board_objectives.clear();
 
+        // A new career is a new game: its World Cups are drawn from its own seed, whatever the
+        // save it began from did.
+        game.legacy_world_cup_draw = false;
+
         // Reset clock to start date
         game.clock.current_date = game.clock.start_date;
 
@@ -2239,6 +2243,28 @@ mod tests {
             meta.save_format_version,
             meta_repo::CURRENT_SAVE_FORMAT_VERSION
         );
+    }
+
+    /// Given a career begun from an old save (a new game from a save),
+    /// When it is loaded for that purpose,
+    /// Then it is a new game, drawn from its own seed: the mark that keeps an old career's World
+    ///      Cup draws is not carried into the new one.
+    #[test]
+    fn a_new_game_from_an_old_save_is_not_marked_legacy() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm.create_save(&sample_game(), "Old").unwrap();
+        {
+            let db = GameDatabase::open(&saves_dir.join(format!("{save_id}.db"))).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 7;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let fresh = sm.new_game_from_save(&save_id).unwrap();
+
+        assert!(!fresh.legacy_world_cup_draw);
     }
 
     /// Given a save written after World Cups were seeded from the game,

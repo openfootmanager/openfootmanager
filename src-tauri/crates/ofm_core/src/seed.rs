@@ -79,6 +79,12 @@ impl Game {
     }
 }
 
+/// A generator from a bare `u64`, for callers handed only a number (a team talk's seed). The
+/// same algorithm as [`Game::rng_for`], so nothing on the day path depends on `StdRng`.
+pub fn rng_from_u64(seed: u64) -> ChaCha12Rng {
+    ChaCha12Rng::seed_from_u64(seed)
+}
+
 /// [`Game::rng_for`] for a seed that is not (yet) on a game: a world being built into one.
 pub fn rng_for_seed(seed: u64, tag: &str, date: &str) -> ChaCha12Rng {
     let per_purpose = stable_hash(tag.as_bytes(), seed);
@@ -306,14 +312,29 @@ mod tests {
         let mut other_seed = game_with_seed(99);
         other_seed.legacy_world_cup_draw = true;
 
-        let was: Vec<u32> = {
-            let mut rng = rand::rngs::StdRng::seed_from_u64(2030);
-            (0..8).map(|_| rng.random()).collect()
-        };
-        let settled_was: Vec<u32> = {
-            let mut rng = rand::rngs::StdRng::seed_from_u64(2030 ^ 0xF1FA);
-            (0..8).map(|_| rng.random()).collect()
-        };
+        // Literals, not a fresh `StdRng` beside the code under test: the old stream is what an
+        // old career was already promised, so a rand release that changes `StdRng` must fail
+        // here rather than agree with itself.
+        let was: Vec<u32> = vec![
+            3_416_862_163,
+            4_267_835_022,
+            546_248_139,
+            3_256_190_217,
+            1_177_078_885,
+            2_748_810_605,
+            2_160_771_163,
+            158_851_240,
+        ];
+        let settled_was: Vec<u32> = vec![
+            3_164_313_946,
+            1_821_143_978,
+            3_350_856_357,
+            3_999_985_304,
+            2_445_285_721,
+            1_569_008_997,
+            695_840_959,
+            1_886_828_200,
+        ];
 
         for game in [&old, &other_seed] {
             assert_eq!(world_cup_draws(game, WorldCupStream::Draw, 2030), was);
