@@ -95,8 +95,8 @@ Six rules. Each one has something that enforces it — if you break one, somethi
 
    | Surface | Why |
    |---|---|
-   | MCP tool output (`src-tauri/src/mcp_server/tools_impl/`) | The reader is an AI agent, not a player. Note the split already in that code: *errors* use `be.error.*` keys because they surface in the UI, while the markdown reports do not. |
-   | `ofm-cli` output and its scaffold templates | A modder at a terminal, not a player in the game. |
+   | MCP tool output (`src-tauri/src/mcp_server/tools_impl/`) | The reader is an AI agent, not a player. Its errors are rendered for the agent by `tools.rs::err_result`, so a private MCP error may be plain English or a key. The exception: an MCP function that propagates an error from a shared `application::` service which also backs a Tauri command must keep the `be.error.*` key, because the UI shows it on that path. |
+   | `src-tauri/crates/ofm-cli/` output and its scaffold templates | A modder at a terminal, not a player in the game. |
    | `docs/`, including `docs/modding/` | Developer and modder documentation. |
    | Code comments, log lines, panic messages | Nobody ships these to a player. |
 

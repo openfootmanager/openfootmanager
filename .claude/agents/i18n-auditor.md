@@ -25,14 +25,16 @@ are **English on purpose**, and flagging them is a false positive:
 | Surface | Reader |
 |---|---|
 | `src-tauri/src/mcp_server/` tool output, including markdown reports | An AI agent playing the game |
-| `crates/ofm-cli/` output and its scaffold templates | A modder at a terminal |
+| `src-tauri/crates/ofm-cli/` output and its scaffold templates | A modder at a terminal |
 | `docs/`, including `docs/modding/` | Developers and modders |
 | Code comments, `log::` lines, panic messages | Nobody ships these to a player |
 
-The distinction inside one file can be real: `mcp_server/tools_impl/live_match.rs` returns
-`be.error.liveMatch.*` keys from its `Err` arms, because those reach the UI, and plain English in the
-markdown report body, because only an agent reads it. That is correct as it stands — it was reported
-as a defect on #479 and on #437 (the CLI scaffold) and closed both times.
+The boundary inside the MCP server: its own private errors (for example the press-conference `Err`
+values in `mcp_server/tools_impl/live_match.rs`) are rendered for the agent by `tools.rs::err_result`
+and never reach the UI, so they are not a finding either way. An MCP function that propagates an
+error from a shared `application::` service which also backs a Tauri command (for example
+`application::live_match::*`) must keep the `be.error.*` key, because the UI shows that error on the
+Tauri path. Reported as a defect on #479 and #437 (the CLI scaffold) and closed both times.
 
 A backend error returned from a **Tauri command** is always in scope: the UI shows it.
 

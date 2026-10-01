@@ -161,8 +161,11 @@ Conventions:
 
   That means every error returned from a Tauri command, because the UI shows it. It does **not**
   mean the MCP server's tool output: an AI agent is the only reader of those markdown reports, and
-  they stay English. `tools_impl/live_match.rs` shows the split — `be.error.liveMatch.*` for the
-  `Err` arms that reach the UI, plain English for the report body. Same for `ofm-cli`, whose reader
+  they stay English. The boundary: an MCP function that
+  propagates an error from a shared `application::` service which also backs a Tauri command (as
+  `tools_impl/live_match.rs` does with `application::live_match::*`) must keep the `be.error.*` key,
+  because the UI shows it. Errors private to the MCP module go to the agent via `tools.rs::err_result`
+  and may be English. Same for `ofm-cli`, whose reader
   is a modder at a terminal. Root [`../CLAUDE.md`](../CLAUDE.md) rule 2 has the full table.
 - Public API is a promise. Keep helpers private until a second caller exists.
 - Large files get split into a `mod.rs` shell plus submodules — `ofm_core/generator/`,

@@ -19,9 +19,10 @@ the UI, or a backend error the UI surfaces — this skill applies and the string
 
 If the only reader is an **AI agent** (the MCP server's tool output) or a **modder at a terminal**
 (`ofm-cli` output and its scaffold templates, `docs/`), it stays **English** and this skill does not
-apply. `src-tauri/src/mcp_server/tools_impl/live_match.rs` is the worked example of the split: its
-`Err` arms return `be.error.liveMatch.*` keys because those reach the UI, while the markdown report
-body an agent reads is plain English.
+apply. The boundary inside the MCP server: its own private errors reach only the agent, through
+`tools.rs::err_result`. But an MCP function that propagates an error from a shared `application::`
+service which also backs a Tauri command (such as `application::live_match::*`) must keep the
+`be.error.*` key, because the UI shows that error on the Tauri path.
 
 Getting this wrong in the cautious direction is not free — a key no player will ever see still costs
 twelve translations and a row in every locale file, forever. Root `CLAUDE.md` rule 2 has the table;

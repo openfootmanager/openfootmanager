@@ -24,10 +24,10 @@ Tauri command tests live in the `openfootmanager_lib` lib target — use
 
 1. **TDD.** Failing test first. Rust tests in a `#[cfg(test)]` module in the same file; frontend
    tests co-located as `*.test.ts(x)`.
-2. **Every locale.** Every user-facing string is translated into all of
+2. **Every locale.** Every string a player can read is translated into all of
    `SUPPORTED_LANGUAGES` (`src/i18n/index.ts`, one file each in `src/i18n/locales/`).
    English-only changes fail
-   `src/i18n/localeCoverage.test.ts`. Rust emits translation *keys*, never English prose.
+   `src/i18n/localeCoverage.test.ts`. Backend text a player sees (a Tauri command's error) is a translation *key*, never English prose. MCP tool output, `src-tauri/crates/ofm-cli/` and `docs/` are read by agents and modders, not players, and stay English.
 3. **`engine` never imports `domain`.** The match engine keeps its own mirror types on purpose;
    `ofm_core/turn/` is the only bridge. See `docs/ARCHITECTURE.md` §"Engine Isolation".
 4. **`#[serde(default)]` on every new serialized field.** Old saves must keep loading. Fields
