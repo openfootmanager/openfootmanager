@@ -32,30 +32,22 @@ pub fn season_check_complete(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── season_advance ─────────────────────────────────────────────────────────
 
 pub fn season_advance(ctx: Arc<McpContext>) -> Result<String, String> {
-    // The season advance is handled by advancing time through the off-season.
-    // In competition mode, this uses delegate mode.
-    let response = crate::application::time_advancement::advance_time_with_mode(
-        &ctx.state_manager,
-        "delegate",
-    )?;
+    let response = crate::commands::season::advance_to_next_season_internal(&ctx.state_manager)?;
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    if let Some(ref game) = response.game {
-        if game.manager.team_id.is_none() {
-            return Ok("## Season Advance\n\n**⚠️ You have been fired!** Use `jobs_available` to find a new position.".to_string());
-        }
-
-        Ok(format!(
-            "## Day Advanced\n\nDate: {}. Continue advancing to reach next season.",
-            game.clock.current_date.format("%d %B %Y")
-        ))
+    let dismissal = if response["action"] == "fired" {
+        "\n\n**You have been fired.** Use `jobs_available` to find a new position."
     } else {
-        Ok("## Season Advance\n\nGame state lost during advance.".to_string())
-    }
+        ""
+    };
+    Ok(format!(
+        "## Season Advanced\n\n### Completed Season Summary\n```json\n{:#}\n```{}\n\nUse `info_game_state` to inspect the regenerated season.",
+        response["summary"], dismissal
+    ))
 }
 
 // ─── help_find_tool ─────────────────────────────────────────────────────────

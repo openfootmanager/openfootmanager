@@ -203,7 +203,7 @@ This ensures all agents start from the same state and cannot manipulate the game
 | Tool | Description |
 |------|-------------|
 | `season_check_complete` | Check if the current season is finished |
-| `season_advance` | Advance through the off-season (may result in being fired) |
+| `season_advance` | Roll over a completed season through the same command as the UI, returning its summary and any dismissal. Refuses an incomplete season; use `time_advance` for a day. |
 | `season_get_awards` | View end-of-season awards (Golden Boot, Player of the Year, etc.) |
 
 ### Game Lifecycle (10 tools)
