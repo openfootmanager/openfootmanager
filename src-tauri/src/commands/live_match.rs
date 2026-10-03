@@ -81,6 +81,27 @@ pub fn apply_team_talk_internal(
     apply_team_talk_service(game, tone, context, seed)
 }
 
+/// Shared command path for GUI restoration and MCP match starts.
+/// The application service derives extra-time eligibility from the selected fixture;
+/// `allows_extra_time` is retained only for existing callers' compatibility.
+pub fn start_live_match_internal(
+    state: &StateManager,
+    fixture_index: usize,
+    mode: &str,
+    allows_extra_time: bool,
+    competition_id: Option<&str>,
+    fixture_id: Option<&str>,
+) -> Result<engine::MatchSnapshot, String> {
+    start_live_match_service(
+        state,
+        fixture_index,
+        mode,
+        allows_extra_time,
+        competition_id,
+        fixture_id,
+    )
+}
+
 /// Start a live match for a given fixture.
 /// mode: "live" | "spectator" | "instant"
 #[tauri::command]
@@ -95,7 +116,7 @@ pub fn start_live_match(
     if competition_id.is_none() || fixture_id.is_none() {
         return Err("be.error.liveMatch.fixtureNotFound".to_string());
     }
-    start_live_match_service(
+    start_live_match_internal(
         &state,
         fixture_index,
         &mode,
@@ -929,6 +950,168 @@ mod tests {
             report.total_minutes >= 90,
             "persisted report must describe a full match, got {} minutes",
             report.total_minutes
+        );
+    }
+
+    /// Given a league fixture tied at regulation time, when a caller requests extra time,
+    /// then the fixture ends as a draw without extra time or a shootout.
+    #[test]
+    fn a_drawn_league_match_ignores_a_callers_extra_time_request() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.seed = 1;
+        state.set_game(game);
+        super::start_live_match_internal(
+            &state,
+            0,
+            "spectator",
+            true,
+            Some("league1"),
+            Some("fix1"),
+        )
+        .expect("start league fixture");
+        let mut session = state.take_live_match().unwrap();
+        advance_to_regulation_end(&mut session);
+        let regulation = session.snapshot();
+        assert_eq!(
+            regulation.home_score, regulation.away_score,
+            "seeded regulation draw"
+        );
+        let remainder = session.run_to_completion();
+        assert!(
+            remainder
+                .iter()
+                .all(|minute| minute.phase == engine::MatchPhase::Finished),
+            "a league draw must finish without entering extra time"
+        );
+        assert_eq!(session.snapshot().home_score, session.snapshot().away_score);
+        assert!(session.snapshot().penalty_shootout.is_none());
+    }
+
+    fn advance_to_regulation_end(session: &mut live_match_manager::LiveMatchSession) {
+        for _ in 0..200 {
+            if session.snapshot().phase == engine::MatchPhase::FullTime {
+                return;
+            }
+            session.step();
+        }
+        panic!("the fixture must reach regulation full time");
+    }
+
+    /// Given a cup tie between the league fixture's clubs and a domestic mirror,
+    /// when the tie is selected by stable identity with extra time disabled by the caller,
+    /// then its regulation draw continues to extra time and yields one winner in that cup.
+    #[test]
+    fn a_knockout_draw_uses_its_own_competition_despite_a_callers_flag() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.seed = 1;
+        let mut cup = make_knockout_cup("2025-06-15");
+        cup.fixtures[0].away_team_id = "team2".to_string();
+        game.competitions.push(cup);
+        state.set_game(game);
+        super::start_live_match_internal(
+            &state,
+            1,
+            "spectator",
+            false,
+            Some("cup1"),
+            Some("cupfix1"),
+        )
+        .expect("stable identity selects the cup, not the raw league index");
+        let mut session = state.take_live_match().unwrap();
+        assert_eq!(session.competition_id, "cup1");
+        assert_eq!(session.fixture_id, "cupfix1");
+        advance_to_regulation_end(&mut session);
+        assert_eq!(session.snapshot().home_score, session.snapshot().away_score);
+        let remainder = session.run_to_completion();
+        assert!(
+            remainder
+                .iter()
+                .any(|minute| minute.phase == engine::MatchPhase::ExtraTimeFirstHalf),
+            "a knockout draw must enter extra time"
+        );
+        let final_score = session.snapshot();
+        assert!(
+            final_score.home_score != final_score.away_score
+                || final_score
+                    .penalty_shootout
+                    .as_ref()
+                    .is_some_and(|shootout| shootout.home_scored != shootout.away_scored),
+            "the tie must produce one winner"
+        );
+    }
+
+    /// Given a league or knockout fixture and any supported match mode,
+    /// when it starts with a contradictory caller flag, then fixture rules decide eligibility.
+    #[test]
+    fn live_spectator_and_instant_use_the_same_fixture_eligibility() {
+        for mode in ["live", "spectator", "instant"] {
+            for knockout in [false, true] {
+                for stable_identity in [false, true] {
+                    let state = StateManager::new();
+                    let mut game = make_game_with_round();
+                    if knockout {
+                        let cup = make_knockout_cup("2025-06-15");
+                        if !stable_identity {
+                            game.league = Some(cup.clone());
+                        }
+                        game.competitions.push(cup);
+                    }
+                    state.set_game(game);
+                    let (competition, fixture) = if !stable_identity {
+                        (None, None)
+                    } else if knockout {
+                        (Some("cup1"), Some("cupfix1"))
+                    } else {
+                        (Some("league1"), Some("fix1"))
+                    };
+                    let snapshot = super::start_live_match_internal(
+                        &state,
+                        0,
+                        mode,
+                        !knockout,
+                        competition,
+                        fixture,
+                    )
+                    .expect("fixture starts");
+                    assert_eq!(
+                        snapshot.allows_extra_time, knockout,
+                        "mode {mode}, stable identity {stable_identity}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Given a serialized career with a cup fixture and a domestic mirror,
+    /// when loaded and started by the saved competition/fixture identity,
+    /// then the cup's extra-time eligibility survives loading.
+    #[test]
+    fn a_loaded_cup_fixture_keeps_its_extra_time_eligibility() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.competitions.push(make_knockout_cup("2025-06-15"));
+        let loaded = serde_json::from_value(serde_json::to_value(game).unwrap()).unwrap();
+        state.set_game(loaded);
+        let snapshot = super::start_live_match_internal(
+            &state,
+            0,
+            "live",
+            false,
+            Some("cup1"),
+            Some("cupfix1"),
+        )
+        .expect("loaded cup fixture starts");
+        assert!(
+            snapshot.allows_extra_time,
+            "the loaded cup must allow a decider"
+        );
+        assert_eq!(
+            state
+                .with_live_match(|session| session.fixture_id.clone())
+                .as_deref(),
+            Some("cupfix1")
         );
     }
 

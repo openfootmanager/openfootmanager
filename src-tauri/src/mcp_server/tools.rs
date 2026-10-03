@@ -1553,7 +1553,17 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 (
                     "allows_extra_time",
                     "boolean",
-                    "Allow extra time if draw (default: true)"
+                    "Compatibility parameter; ignored. The fixture determines extra time."
+                ),
+                (
+                    "competition_id",
+                    "string",
+                    "Optional stable competition ID; supply with fixture_id to select a cup"
+                ),
+                (
+                    "fixture_id",
+                    "string",
+                    "Optional stable fixture ID; supply with competition_id"
                 ),
             ],
             &["fixture_index", "mode"]
@@ -1570,7 +1580,16 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             let allows_extra_time = extract_bool_param(args, "allows_extra_time");
-            match tools_impl::live_match::match_start(ctx, fixture_index, mode, allows_extra_time) {
+            let competition_id = extract_string_param(args, "competition_id");
+            let fixture_id = extract_string_param(args, "fixture_id");
+            match tools_impl::live_match::match_start(
+                ctx,
+                fixture_index,
+                mode,
+                allows_extra_time,
+                competition_id,
+                fixture_id,
+            ) {
                 Ok(text) => Ok(text_result(text)),
                 Err(e) => Ok(err_result(&e)),
             }

@@ -229,7 +229,7 @@ These tools allow agents to play matches interactively instead of delegating the
 
 | Tool | Description |
 |------|-------------|
-| `match_start` | Start a live match for a fixture (mode: live, spectator, instant) |
+| `match_start` | Start a live match (live, spectator, instant). Optional `competition_id` + `fixture_id` select an exact fixture, including a cup; otherwise `fixture_index` selects the current league mirror. Extra time follows fixture rules; `allows_extra_time` is ignored. |
 | `match_step` | Advance the live match by N minutes |
 | `match_command` | Apply a tactical command (substitution, formation change, etc.) |
 | `match_snapshot` | Get current match state without advancing time |

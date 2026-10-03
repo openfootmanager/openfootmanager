@@ -172,13 +172,13 @@ pub fn start_live_match_with_identity(
     state: &StateManager,
     fixture_index: usize,
     mode: &str,
-    allows_extra_time: bool,
+    _allows_extra_time: bool,
     competition_id: Option<&str>,
     fixture_id: Option<&str>,
 ) -> Result<engine::MatchSnapshot, String> {
     info!(
-        "[cmd] start_live_match: fixture={}, mode={}, extra_time={}, competition={:?}, fixture_id={:?}",
-        fixture_index, mode, allows_extra_time, competition_id, fixture_id
+        "[cmd] start_live_match: fixture={}, mode={}, competition={:?}, fixture_id={:?}",
+        fixture_index, mode, competition_id, fixture_id
     );
     let match_mode = match mode {
         "spectator" => MatchMode::Spectator,
@@ -256,6 +256,10 @@ pub fn start_live_match_with_identity(
                 return Err("be.error.liveMatch.fixtureNotFound".to_string());
             }
 
+            // A caller's flag cannot turn a league draw into a knockout result or suppress
+            // a cup decider. Resolve identity first so the shared rule reads this fixture's
+            // competition, including cup restores while the domestic league is mirrored.
+            let allows_extra_time = ofm_core::matchday::fixture_allows_extra_time(game, fixture_index);
             let session = live_match_manager::kick_off_live_match(
                 game,
                 fixture_index,

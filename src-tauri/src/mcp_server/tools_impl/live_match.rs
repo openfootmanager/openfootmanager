@@ -25,17 +25,19 @@ pub fn match_start(
     fixture_index: u32,
     mode: String,
     allows_extra_time: Option<bool>,
+    competition_id: Option<String>,
+    fixture_id: Option<String>,
 ) -> Result<String, String> {
     let fixture_idx = fixture_index as usize;
-    let allows_et = allows_extra_time.unwrap_or(true);
+    let allows_et = allows_extra_time.unwrap_or(false);
 
-    let snapshot = crate::application::live_match::start_live_match(
+    let snapshot = crate::commands::live_match::start_live_match_internal(
         &ctx.state_manager,
         fixture_idx,
         &mode,
         allows_et,
-        None,
-        None,
+        competition_id.as_deref(),
+        fixture_id.as_deref(),
     )?;
 
     {
