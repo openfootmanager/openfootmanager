@@ -337,7 +337,10 @@ pub fn run() {
             commands::report::collect_diagnostics,
             commands::report::export_report_bundle,
             commands::report::redact_report_fields,
-            commands::report::suggested_report_file_name
+            commands::report::suggested_report_file_name,
+            commands::report::report_upload_available,
+            commands::report::upload_report_bundle,
+            commands::report::list_submitted_reports
         ])
         .run(tauri::generate_context!());
 

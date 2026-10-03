@@ -1,8 +1,10 @@
-//! The bug-report commands: describe this machine, and pack the evidence.
+//! The bug-report commands: describe this machine, pack the evidence, and — only when the player
+//! agrees on the preview — send it.
 //!
-//! Neither command sends anything. Slice 3 of #569 ends at a file on disk that the player chooses
-//! the location of; the upload is slice 4, and the GitHub form is the path that needs no server at
-//! all.
+//! The export (slice 3 of #569) ends at a file on disk that the player chooses the location of.
+//! The upload (slice 4) builds the same bundle privately and posts it to the relay described in
+//! `docs/api/bug-reports.md`. The GitHub form is the path that needs no server at all, and stays
+//! the fallback whenever the upload is declined, unavailable, or fails.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -12,12 +14,15 @@ use tauri::{Manager, State};
 
 use crate::crash;
 use crate::report::bundle::{self, BundleInputs, BundleSummary};
+use crate::report::history::{self, SubmittedReport};
+use crate::report::http::UreqTransport;
 use crate::report::redact::Redactor;
+use crate::report::relay::{self, RelayEndpoint, Transport};
+use crate::report::REPORT_BUNDLE_FAILED;
 // The key itself lives at the crate root, where the other holders of this lock already read it
 // from. Spelling it out again here is how two copies of a translation key drift apart.
 use crate::{SaveManagerState, SAVE_MANAGER_UNAVAILABLE_ERROR};
 
-const REPORT_BUNDLE_FAILED: &str = "be.error.report.bundleFailed";
 const REPORT_SAVE_MISSING: &str = "be.error.report.saveMissing";
 
 /// One log file the report would carry.
@@ -327,6 +332,160 @@ fn write_report_bundle(
     Ok(summary)
 }
 
+/// Where to send reports, at runtime, when a build or a tester wants somewhere else.
+///
+/// The same name is read at **build** time for the compiled-in default (`option_env!` below), so
+/// a release pipeline sets it once and a tester can point one install at staging without a
+/// rebuild. Neither is set in a plain checkout, and then the upload is simply not offered: no
+/// relay address is invented here, because a guessed domain in a shipped binary sends players'
+/// logs to whoever owns it.
+const RELAY_URL_VARIABLE: &str = "OFM_BUG_REPORT_RELAY_URL";
+
+fn relay_endpoint() -> Option<RelayEndpoint> {
+    RelayEndpoint::resolve(
+        std::env::var(RELAY_URL_VARIABLE).ok().as_deref(),
+        option_env!("OFM_BUG_REPORT_RELAY_URL"),
+    )
+}
+
+/// Whether this build can send a report at all, so the preview does not offer what cannot work.
+#[tauri::command]
+pub fn report_upload_available() -> bool {
+    relay_endpoint().is_some()
+}
+
+/// What the player is shown once the relay has accepted a report.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct UploadReceipt {
+    pub code: String,
+    /// Whether the code also made it into `reports.json`.
+    ///
+    /// The upload succeeded either way — the relay has the report — so failing to write the list
+    /// must not turn into an error. But a player who is not told has no reason to note the code
+    /// down, and then has nothing to quote when they ask for their report to be removed.
+    pub recorded: bool,
+}
+
+/// Consent first, then a relay to send to — and nothing is built until both hold.
+fn upload_preconditions(
+    consent: bool,
+    endpoint: Option<RelayEndpoint>,
+) -> Result<RelayEndpoint, String> {
+    if !consent {
+        return Err(relay::UPLOAD_CONSENT_REQUIRED.to_owned());
+    }
+    endpoint.ok_or_else(|| relay::UPLOAD_NOT_CONFIGURED.to_owned())
+}
+
+/// Send a bundle that already exists, and remember the code that comes back.
+fn send_and_record(
+    transport: &dyn Transport,
+    endpoint: &RelayEndpoint,
+    zip_path: &Path,
+    include_save: bool,
+    reports_path: Option<&Path>,
+    submitted_at: String,
+) -> Result<UploadReceipt, String> {
+    let code = relay::submit(transport, endpoint, zip_path, include_save)?;
+    let entry = SubmittedReport {
+        code: code.clone(),
+        submitted_at,
+        included_save: include_save,
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+    };
+    let recorded = match reports_path {
+        Some(path) => history::record(path, &entry)
+            .inspect_err(|error| {
+                log::error!("[report] report {code} was sent but not recorded: {error}");
+            })
+            .is_ok(),
+        None => false,
+    };
+    Ok(UploadReceipt { code, recorded })
+}
+
+/// Build the report bundle privately and send it to the relay, with the player's consent.
+///
+/// `consent` is the tick on the preview screen, passed through rather than assumed: the envelope
+/// asserts it to the relay, and this is the last place that can refuse to make that assertion
+/// on the player's behalf. `include_save` is likewise the player's own choice and is never
+/// dropped to make a bundle fit — a bundle too large for the relay is an error the player answers.
+///
+/// The bundle lives in a private scratch directory only for the length of the request. On any
+/// failure the player is offered the GitHub form, which exports a bundle where they choose.
+#[tauri::command]
+pub async fn upload_report_bundle(
+    app_handle: tauri::AppHandle,
+    state: State<'_, Arc<StateManager>>,
+    save_manager: State<'_, Arc<SaveManagerState>>,
+    previous_crash: State<'_, crash::PreviousCrash>,
+    report_text: String,
+    include_save: bool,
+    consent: bool,
+) -> Result<UploadReceipt, String> {
+    let endpoint = upload_preconditions(consent, relay_endpoint())?;
+    let state = state.inner().clone();
+    let save_manager = save_manager.inner().clone();
+    let crash_json = previous_crash.as_json();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let scratch_root = app_handle
+            .path()
+            .app_cache_dir()
+            .unwrap_or_else(|_| std::env::temp_dir());
+        let scratch = std::fs::create_dir_all(&scratch_root)
+            .and_then(|()| {
+                tempfile::Builder::new()
+                    .prefix("ofm-upload-")
+                    .tempdir_in(&scratch_root)
+            })
+            .map_err(|error| {
+                log::error!("[report] could not prepare the upload: {error}");
+                REPORT_BUNDLE_FAILED.to_owned()
+            })?;
+        let zip_path = scratch.path().join("report.zip");
+        write_report_bundle(
+            &app_handle,
+            &state,
+            &save_manager,
+            crash_json,
+            &zip_path.to_string_lossy(),
+            &report_text,
+            include_save,
+        )?;
+
+        let reports_path = app_handle
+            .path()
+            .app_data_dir()
+            .ok()
+            .map(|dir| history::reports_file_in(&dir));
+        send_and_record(
+            UreqTransport::shared(),
+            &endpoint,
+            &zip_path,
+            include_save,
+            reports_path.as_deref(),
+            chrono::Utc::now().to_rfc3339(),
+        )
+        // `scratch` drops here, and the bundle with it.
+    })
+    .await
+    .map_err(|error| {
+        log::error!("[report] the upload task did not run: {error}");
+        REPORT_BUNDLE_FAILED.to_owned()
+    })?
+}
+
+/// The reports this install has sent, newest first, for the list in Settings → Help.
+#[tauri::command]
+pub fn list_submitted_reports(app_handle: tauri::AppHandle) -> Vec<SubmittedReport> {
+    app_handle
+        .path()
+        .app_data_dir()
+        .map(|dir| history::load(&history::reports_file_in(&dir)))
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -341,6 +500,160 @@ mod tests {
         SaveManagerState(Mutex::new(
             SaveManager::init(&dir.join("saves")).expect("a save manager"),
         ))
+    }
+
+    /// Answers every request with one canned result and counts the requests.
+    struct CannedRelay {
+        answer: Result<relay::RelayResponse, relay::TransportFailure>,
+        requests: std::cell::Cell<usize>,
+    }
+
+    impl CannedRelay {
+        fn answering(status: u16, body: &str) -> Self {
+            Self {
+                answer: Ok(relay::RelayResponse {
+                    status,
+                    body: body.as_bytes().to_vec(),
+                }),
+                requests: std::cell::Cell::new(0),
+            }
+        }
+    }
+
+    impl Transport for CannedRelay {
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: Vec<u8>,
+        ) -> Result<relay::RelayResponse, relay::TransportFailure> {
+            self.requests.set(self.requests.get() + 1);
+            self.answer.clone()
+        }
+    }
+
+    fn test_endpoint() -> RelayEndpoint {
+        RelayEndpoint::from_base_url("https://reports.example.test").expect("endpoint")
+    }
+
+    fn small_zip(dir: &Path) -> PathBuf {
+        let path = dir.join("report.zip");
+        std::fs::write(&path, b"PK").expect("zip");
+        path
+    }
+
+    /// Given a player who has not ticked the consent box,
+    /// when an upload is requested — even with a relay configured,
+    /// then it is refused before anything is built or sent.
+    #[test]
+    fn an_upload_without_consent_is_refused() {
+        assert_eq!(
+            upload_preconditions(false, Some(test_endpoint())),
+            Err(relay::UPLOAD_CONSENT_REQUIRED.to_owned())
+        );
+    }
+
+    /// Given a build with no relay address,
+    /// when a consented upload is requested,
+    /// then it is refused as not configured, so the player is sent to the GitHub form.
+    #[test]
+    fn an_upload_with_no_relay_configured_is_refused() {
+        assert_eq!(
+            upload_preconditions(true, None),
+            Err(relay::UPLOAD_NOT_CONFIGURED.to_owned())
+        );
+        assert_eq!(
+            upload_preconditions(true, Some(test_endpoint())),
+            Ok(test_endpoint())
+        );
+    }
+
+    /// Given a relay that accepts the report,
+    /// when it is sent,
+    /// then the code comes back and is recorded in reports.json with the save choice and date.
+    #[test]
+    fn an_accepted_report_is_recorded_with_its_code() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let relay = CannedRelay::answering(201, r#"{"code":"7K2M9Q4R"}"#);
+
+        let receipt = send_and_record(
+            &relay,
+            &test_endpoint(),
+            &small_zip(dir.path()),
+            true,
+            Some(&reports),
+            "2026-10-03T12:00:00+00:00".to_owned(),
+        );
+
+        assert_eq!(
+            receipt,
+            Ok(UploadReceipt {
+                code: "7K2M9Q4R".to_owned(),
+                recorded: true
+            })
+        );
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "7K2M9Q4R");
+        assert!(listed[0].included_save);
+        assert_eq!(listed[0].submitted_at, "2026-10-03T12:00:00+00:00");
+        assert_eq!(listed[0].app_version, env!("CARGO_PKG_VERSION"));
+    }
+
+    /// Given a relay that refuses the report,
+    /// when it is sent,
+    /// then the player gets the translated reason and nothing is recorded.
+    #[test]
+    fn a_refused_report_records_nothing() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let relay = CannedRelay::answering(
+            429,
+            r#"{"error":{"code":"rate_limited","message":"Slow down."}}"#,
+        );
+
+        let receipt = send_and_record(
+            &relay,
+            &test_endpoint(),
+            &small_zip(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-03T12:00:00+00:00".to_owned(),
+        );
+
+        assert_eq!(receipt, Err(relay::UPLOAD_RATE_LIMITED.to_owned()));
+        assert!(history::load(&reports).is_empty());
+        assert_eq!(relay.requests.get(), 1);
+    }
+
+    /// Given a relay that accepts the report but a reports file that cannot be written,
+    /// when it is sent,
+    /// then the upload still succeeds with its code, marked as not recorded so the player is
+    /// told to note it down.
+    #[test]
+    fn an_accepted_report_that_cannot_be_recorded_still_returns_its_code() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        // A directory where the file should be: every write to it fails.
+        let reports = history::reports_file_in(dir.path());
+        std::fs::create_dir_all(&reports).expect("blocking dir");
+        let relay = CannedRelay::answering(201, r#"{"code":"7K2M9Q4R"}"#);
+
+        let receipt = send_and_record(
+            &relay,
+            &test_endpoint(),
+            &small_zip(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-03T12:00:00+00:00".to_owned(),
+        );
+
+        assert_eq!(
+            receipt,
+            Ok(UploadReceipt {
+                code: "7K2M9Q4R".to_owned(),
+                recorded: false
+            })
+        );
     }
 
     #[test]
