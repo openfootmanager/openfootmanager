@@ -178,7 +178,7 @@ export function useTacticsLibrary({
   }
 
   async function applyTacticSelection(nextTactic: TacticsLibraryEntry): Promise<void> {
-    const isPreset = nextTactic.id.startsWith("preset:");
+    const isPreset = nextTactic.type === "preset";
 
     // A preset is a whole setup: the backend sets its formation, play style and
     // phase blueprint together (#365). Custom tactics only carry a formation and
@@ -193,7 +193,7 @@ export function useTacticsLibrary({
     setActiveTacticId(nextTactic.id);
     setDraftTacticName(nextTactic.name);
 
-    if (nextTactic.id.startsWith("preset:")) {
+    if (isPreset) {
       setPresetAnchorId(nextTactic.id.replace("preset:", ""));
     }
   }

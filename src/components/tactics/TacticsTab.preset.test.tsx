@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TacticsTab from "./TacticsTab";
+import { saveCustomTactics } from "./TacticsCustomTactics.helpers";
 
 /**
  * #365 — picking a tactic preset asks the backend for the whole preset
@@ -200,6 +201,48 @@ describe("TacticsTab preset selection", () => {
       expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
     });
   });
+
+  /** Given the active Balanced preset, when it is picked again from the list,
+   * then the preset command is still requested to restore its blueprint. */
+  it("requests a blueprint reset when the active preset is picked again", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      }),
+    );
+  });
+
+  /** Given a saved custom tactic (including one with a preset-like ID),
+   * when it is loaded and picked, then its type keeps the preset reset off. */
+  it.each(["custom:saved", "preset:imported-custom"])(
+    "keeps the blueprint when selecting saved custom tactic %s",
+    async (id) => {
+      saveCustomTactics(backend, [
+        {
+          id,
+          type: "custom",
+          name: "Saved custom",
+          description: "Custom setup",
+          formation: "3-4-3",
+          playStyle: "HighPress",
+        },
+      ]);
+      fakeBackend();
+      render(<ControlledTacticsTab />);
+      fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+      fireEvent.click(screen.getByRole("option", { name: /Saved custom/ }));
+      await waitFor(() =>
+        expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", { playStyle: "HighPress" }),
+      );
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", { formation: "3-4-3" });
+      expect(commandsCalled()).not.toContain("apply_tactic_preset");
+    },
+  );
 
   /**
    * Given a manager on the Balanced Control preset
