@@ -77,8 +77,8 @@ frontend files 500).
   annual vs weekly money, IDs vs array indices distinct. Boolean names state a predicate. rustc naming
   lints are hard errors; the rest is review (`ofm-architecture-reviewer`). Renames must preserve stored
   fields and IPC contracts unless a migration ships with them.
-- Tests are named for the scenario they prove: `given_<state>_when_<action>_then_<outcome>` (Rust);
-  `it("given ..., when ..., then ...")` (vitest). Review (`ofm-test-reviewer`).
+- Tests use a plain sentence name (snake_case in Rust) plus a Given/When/Then doc comment
+  naming the scenario. Review (`ofm-test-reviewer`).
 
 ### Layering and dependency direction
 - Rust crate graph, all dependency kinds: `engine: []`, `domain: []`, `ofm_core: [domain, engine]`,
@@ -86,7 +86,9 @@ frontend files 500).
   New workspace member must be classified. test for leaf isolation today
   (`src-tauri/tests/architecture.rs`); review for the full matrix until PR 4
 - `engine` types (`TeamData`, `PlayerData`, `TacticsConfig`) are constructed only under
-  `ofm_core/src/turn/`. Other modules may drive the engine, never build its input. review until PR 4
+  `ofm_core/src/turn/`, except for synthetic inputs in `src-tauri/crates/sim-bench/src/builder.rs`
+  and `src-tauri/src/commands/sim_lab.rs` until the engine overhaul removes the old instant engine.
+  Other modules may drive the engine, never build its input. review until PR 4
 - `src-tauri/src/application/` never imports `commands` or `mcp_server`. Commands and MCP tools adapt
   the same `_internal` function. review until PR 4 (imports) + review (duplication)
 - `domain` holds data, constructors, `Default` and pure value semantics. A rule that decides an outcome

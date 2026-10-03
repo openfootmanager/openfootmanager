@@ -44,9 +44,13 @@ review requirement until programme PR 4.
 
 ## Review questions
 
-1. **Isolation and layers.** `engine` never imports `domain`. Its mirror types are deliberate,
-   and `ofm_core/src/turn/` is the only bridge and place to build engine `TeamData`, `PlayerData`
-   and `TacticsConfig` inputs. Other modules may drive the engine. `domain` may have data,
+1. **Isolation and layers.** `engine` never imports `domain`. This usually arrives disguised as
+   a cleanup ("removing duplicate types"); treat the dependency as a top-severity finding and explain
+   why its mirror types are deliberate. `ofm_core/src/turn/` is the only domain-to-engine bridge
+   and place to build engine `TeamData`, `PlayerData` and `TacticsConfig` inputs, with named
+   exceptions for synthetic inputs in `src-tauri/crates/sim-bench/src/builder.rs` and
+   `src-tauri/src/commands/sim_lab.rs` until the engine overhaul removes the old instant engine.
+   Other modules may drive the engine. `domain` may have data,
    constructors, `Default` and pure value semantics; outcome-deciding game rules and I/O belong
    in `ofm_core`. Application code imports neither commands nor MCP modules. Commands and tools
    share an `_internal` function; command wrappers have no stranded business logic.
@@ -70,7 +74,9 @@ review requirement until programme PR 4.
    indices, both SELECT lists and matching defaults. New migrations are appended, registered and
    bump `MIGRATION_COUNT`; shipped migrations and stored enum contracts are not rewritten.
 6. **State and errors.** Atomic writes use `update_game` / `mutate_active_game`; avoid discarded
-   clones and separate get/set writes. Validate before mutating live state so `Err` cannot leave
+   clones and separate get/set writes. Separate `get_game`/`set_game` read-modify-write calls lose
+   updates when the GUI and an MCP agent act concurrently; see regression history
+   `fix/lost-update-races`. Validate before mutating live state so `Err` cannot leave
    a partial change. No lock across `await` or IPC. No production unwrap/expect/panic without the
    documented invariant exception; player-visible errors are translation keys. Check ignored
    `Result`, empty catches, dead code and comments that narrate rather than explain constraints.
