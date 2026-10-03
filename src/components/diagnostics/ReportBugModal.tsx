@@ -541,7 +541,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               <>
                 <div className="h-px bg-gray-200 dark:bg-navy-600 my-1.5" />
                 {/* The same external-label pattern as the save box above, for the same reason. */}
-                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-primary-50 dark:bg-navy-700 border border-primary-200 dark:border-primary-700">
+                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600">
                   <Checkbox
                     id="report-consent"
                     checked={consent}
