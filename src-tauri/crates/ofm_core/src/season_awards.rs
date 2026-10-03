@@ -304,7 +304,10 @@ fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
     // Player of the Year — best avg rating, min 5 appearances
     let player_of_year = top_awards(
         &contexts,
-        |context| context.player.stats.appearances >= 5 && context.player.stats.avg_rating > 0.0,
+        |context| {
+            context.player.stats.appearances >= 5
+                && crate::match_rating::is_rated(context.player.stats.avg_rating)
+        },
         |context| context.player.stats.avg_rating as f64,
     );
 
@@ -330,7 +333,7 @@ fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
         |context| {
             context.age <= 21
                 && context.player.stats.appearances >= 3
-                && context.player.stats.avg_rating > 0.0
+                && crate::match_rating::is_rated(context.player.stats.avg_rating)
         },
         |context| context.player.stats.avg_rating as f64,
     );
@@ -883,5 +886,83 @@ mod tests {
                 .iter()
                 .all(|entry| entry.player_id != "defender")
         );
+    }
+    /// Given unrated player seasons, when world and division awards are computed,
+    /// then both rating awards are absent and counting awards survive.
+    #[test]
+    fn unrated_seasons_keep_counting_awards_without_rating_awards() {
+        let players = vec![
+            make_player(
+                "scorer",
+                "Scorer",
+                Some("team1"),
+                Position::Forward,
+                "2006-01-01",
+                PlayerSeasonStats {
+                    appearances: 10,
+                    goals: 4,
+                    assists: 3,
+                    ..Default::default()
+                },
+            ),
+            make_player(
+                "keeper",
+                "Keeper",
+                Some("team1"),
+                Position::Goalkeeper,
+                "1995-01-01",
+                PlayerSeasonStats {
+                    appearances: 10,
+                    clean_sheets: 5,
+                    ..Default::default()
+                },
+            ),
+        ];
+        let game = make_game(players, vec![make_team("team1", "One FC")]);
+        let division = League {
+            standings: vec![domain::league::StandingEntry::new("team1".to_string())],
+            ..Default::default()
+        };
+        for awards in [
+            compute_season_awards(&game),
+            compute_division_season_awards(&game, &division),
+        ] {
+            assert!(awards.player_of_year.is_empty());
+            assert!(awards.young_player.is_empty());
+            assert_eq!(awards.golden_boot[0].player_id, "scorer");
+            assert_eq!(awards.assist_king[0].player_id, "scorer");
+            assert_eq!(awards.clean_sheet_king[0].player_id, "keeper");
+            assert_eq!(awards.most_appearances.len(), 2);
+        }
+    }
+
+    /// Given a non-finite imported average, when world or division awards are computed,
+    /// then the unavailable rating cannot win either rating award.
+    #[test]
+    fn non_finite_unrated_averages_cannot_win_rating_awards() {
+        let player = make_player(
+            "invalid",
+            "Invalid",
+            Some("team1"),
+            Position::Forward,
+            "2006-01-01",
+            PlayerSeasonStats {
+                appearances: 10,
+                avg_rating: f32::INFINITY,
+                ..Default::default()
+            },
+        );
+        let game = make_game(vec![player], vec![make_team("team1", "One FC")]);
+        let division = League {
+            standings: vec![domain::league::StandingEntry::new("team1".to_string())],
+            ..Default::default()
+        };
+        for awards in [
+            compute_season_awards(&game),
+            compute_division_season_awards(&game, &division),
+        ] {
+            assert!(awards.player_of_year.is_empty());
+            assert!(awards.young_player.is_empty());
+        }
     }
 }

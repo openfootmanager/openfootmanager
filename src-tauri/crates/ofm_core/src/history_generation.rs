@@ -286,12 +286,6 @@ fn upsert_manager_history(game: &mut Game, standings: &[StandingEntry]) {
     }
 }
 
-fn base_rating(player: &Player, position_bonus: f32, season: u32) -> f32 {
-    let ovr_bonus = (player.ovr.saturating_sub(55) as f32) / 18.0;
-    let variation = deterministic_u32((&player.id, season, "rating"), 30) as f32 / 100.0;
-    (6.1 + position_bonus + ovr_bonus + variation).clamp(6.0, 9.6)
-}
-
 fn synthesize_player_season(
     player: &Player,
     matches_played: u32,
@@ -302,7 +296,7 @@ fn synthesize_player_season(
     let minutes_played = appearances.saturating_mul(90);
     let group_position = player.position.to_group_position();
 
-    let (goals, assists, clean_sheets, shots, passes_completed, tackles_won, interceptions, rating) =
+    let (goals, assists, clean_sheets, shots, passes_completed, tackles_won, interceptions) =
         match group_position {
             Position::Goalkeeper => {
                 let clean_sheets =
@@ -315,7 +309,6 @@ fn synthesize_player_season(
                     appearances.saturating_mul(18),
                     appearances / 2,
                     appearances,
-                    base_rating(player, 0.2, season),
                 )
             }
             Position::Defender => {
@@ -329,7 +322,6 @@ fn synthesize_player_season(
                     appearances.saturating_mul(26),
                     appearances.saturating_mul(3),
                     appearances.saturating_mul(2),
-                    base_rating(player, 0.1, season),
                 )
             }
             Position::Midfielder => (
@@ -340,7 +332,6 @@ fn synthesize_player_season(
                 appearances.saturating_mul(32),
                 appearances.saturating_mul(2),
                 appearances.saturating_mul(2),
-                base_rating(player, 0.25, season),
             ),
             Position::Forward => (
                 appearances / 3 + deterministic_u32((&player.id, season, "goals"), 8),
@@ -350,7 +341,6 @@ fn synthesize_player_season(
                 appearances.saturating_mul(18),
                 appearances,
                 appearances / 2,
-                base_rating(player, 0.35, season),
             ),
             _ => unreachable!(),
         };
@@ -366,7 +356,8 @@ fn synthesize_player_season(
         clean_sheets,
         yellow_cards: deterministic_u32((&player.id, season, "yellow"), 5),
         red_cards: deterministic_u32((&player.id, season, "red"), 2),
-        avg_rating: rating,
+        // Historical counts are synthesized, but no match ratings were recorded.
+        avg_rating: 0.0,
         minutes_played,
         shots,
         shots_on_target,
@@ -968,5 +959,40 @@ mod tests {
             serialized_history_snapshot(&left),
             serialized_history_snapshot(&right)
         );
+    }
+    /// Given generated history for every position group, when stats are synthesized,
+    /// then no match rating is invented.
+    #[test]
+    fn synthesized_player_seasons_are_unrated_in_every_position_group() {
+        for position in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Forward,
+        ] {
+            let player = make_player("team-1", 0, position, 80);
+            let stats = super::synthesize_player_season(&player, 38, 2031);
+            assert_eq!(stats.avg_rating, 0.0);
+            assert!(stats.appearances > 0);
+        }
+    }
+
+    /// Given backfilled adult and young careers, when history is generated,
+    /// then rating winners are absent while count-based awards and career rows remain.
+    #[test]
+    fn generated_unrated_history_has_no_player_of_year_winners() {
+        let mut game = make_game();
+        game.players.last_mut().unwrap().date_of_birth = "2010-01-01".to_string();
+        generate_past_world_history(&mut game, 2032, 3);
+        assert_eq!(game.world_history.season_awards.len(), 3);
+        for awards in &game.world_history.season_awards {
+            assert!(awards.player_of_year.is_none());
+            assert!(awards.young_player.is_none());
+            assert!(awards.golden_boot.is_some());
+            assert!(awards.assist_king.is_some());
+            assert!(awards.clean_sheet_king.is_some());
+            assert!(awards.most_appearances.is_some());
+        }
+        assert!(game.players.iter().any(|player| !player.career.is_empty()));
     }
 }
