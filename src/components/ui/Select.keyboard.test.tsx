@@ -167,18 +167,23 @@ describe("Select highlight when the options change under an open list", () => {
 
   /**
    * Given an open list with option C highlighted
-   * When C is removed from the options
-   * Then aria-activedescendant points at an option that still exists
+   * When C is removed from the options and the user presses Enter
+   * Then nothing points at the removed option, nothing is committed,
+   *      and the list closes
    */
-  it("never points aria-activedescendant at a removed option", () => {
-    const { rerender } = renderSelect([
-      <option key="a" value="a">
-        A
-      </option>,
-      <option key="c" value="c">
-        C
-      </option>,
-    ]);
+  it("closes instead of committing when the highlighted option was removed", () => {
+    const onChange = vi.fn();
+    const { rerender } = renderSelect(
+      [
+        <option key="a" value="a">
+          A
+        </option>,
+        <option key="c" value="c">
+          C
+        </option>,
+      ],
+      onChange,
+    );
     fireEvent.keyDown(pick(), { key: "Enter" });
     fireEvent.keyDown(pick(), { key: "ArrowDown" });
     expect(pick().getAttribute("aria-activedescendant")).toBe(
@@ -186,16 +191,47 @@ describe("Select highlight when the options change under an open list", () => {
     );
 
     rerender(
-      <Select value="a" aria-label="Pick" onChange={vi.fn()}>
+      <Select value="a" aria-label="Pick" onChange={onChange}>
         <option value="a">A</option>
       </Select>,
     );
+    expect(pick()).not.toHaveAttribute("aria-activedescendant");
 
-    const activeId = pick().getAttribute("aria-activedescendant");
-    expect(activeId).not.toBeNull();
-    expect(document.getElementById(activeId as string)).toBe(
-      screen.getByRole("option", { name: "A" }),
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given two optgroups that each offer the value "europe"
+   * When the user arrows onto the second one
+   * Then only the second option is the active descendant and Enter commits "europe"
+   */
+  it("tells equal values in two optgroups apart", () => {
+    const onChange = vi.fn();
+    render(
+      <Select value="x" aria-label="Pick" onChange={onChange}>
+        <option value="x">None</option>
+        <optgroup label="Built-in">
+          <option value="europe">Europe</option>
+        </optgroup>
+        <optgroup label="Package">
+          <option value="europe">Europe (package)</option>
+        </optgroup>
+      </Select>,
     );
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    fireEvent.keyDown(pick(), { key: "End" });
+
+    const [builtIn, packaged] = [
+      screen.getByRole("option", { name: "Europe" }),
+      screen.getByRole("option", { name: "Europe (package)" }),
+    ];
+    expect(builtIn.id).not.toBe(packaged.id);
+    expect(pick().getAttribute("aria-activedescendant")).toBe(packaged.id);
+
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 
   /**

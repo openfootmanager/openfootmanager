@@ -66,11 +66,13 @@ interface NativeOptionProps {
   children?: ReactNode;
 }
 
+/**
+ * The highlight, or -1 when the option it pointed at is gone or disabled.
+ * Deliberately not a fallback to another option: Enter would then commit
+ * something the user never highlighted.
+ */
 function resolveActiveIndex(options: SelectOption[], wanted: number): number {
-  if (options[wanted] && !options[wanted].disabled) {
-    return wanted;
-  }
-  return options.findIndex((option) => !option.disabled);
+  return options[wanted] && !options[wanted].disabled ? wanted : -1;
 }
 
 export function Select({
@@ -307,9 +309,10 @@ export function Select({
       return;
     }
 
-    setActiveIndex(
-      options.findIndex((option) => option.value === selectedValue && !option.disabled),
+    const committedIndex = options.findIndex(
+      (option) => option.value === selectedValue && !option.disabled,
     );
+    setActiveIndex(committedIndex >= 0 ? committedIndex : options.findIndex((o) => !o.disabled));
     setIsOpen(true);
   };
 
