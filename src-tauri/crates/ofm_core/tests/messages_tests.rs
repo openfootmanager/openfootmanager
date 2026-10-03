@@ -303,7 +303,7 @@ fn transfer_message_millions() {
     );
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("€5.5M")
+        Some("5500000")
     );
     assert_eq!(
         msg.sender_key.as_deref(),
@@ -320,14 +320,14 @@ fn transfer_message_thousands() {
     let msg = messages::transfer_complete_message("Young Player", 250_000, "2025-08-01");
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("€250K")
+        Some("250000")
     );
 }
 
 #[test]
 fn transfer_message_small_fee() {
     let msg = messages::transfer_complete_message("Free Agent", 500, "2025-08-01");
-    assert_eq!(msg.i18n_params.get("fee").map(String::as_str), Some("€500"));
+    assert_eq!(msg.i18n_params.get("fee").map(String::as_str), Some("500"));
 }
 
 #[test]

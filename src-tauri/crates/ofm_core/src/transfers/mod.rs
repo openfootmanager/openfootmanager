@@ -28,6 +28,7 @@ mod execution;
 mod lifecycle;
 mod loans;
 mod market;
+mod notifications;
 mod registration;
 
 pub use bids::*;
@@ -36,6 +37,7 @@ pub use execution::*;
 use lifecycle::*;
 pub use loans::*;
 pub use market::*;
+use notifications::*;
 use registration::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

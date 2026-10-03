@@ -3366,7 +3366,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Selesai: {{player}}",
-        "body": "Transfer {{player}} telah selesai dengan biaya {{fee}}.\n\nPemain telah bergabung dengan skuad dan tersedia untuk dipilih."
+        "body": "Transfer {{player}} telah selesai dengan biaya {{fee}}.\n\nPemain telah bergabung dengan skuad dan tersedia untuk dipilih.",
+        "bodySold": "Transfer {{player}} ke {{buyer}} telah selesai dengan biaya {{fee}}. Pemain telah meninggalkan skuad dan bergabung dengan {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfer disepakati: {{player}}",
+        "body": "Transfer {{player}} dari {{seller}} ke {{buyer}} telah disepakati dengan biaya {{fee}}. Pendaftaran dijadwalkan pada {{start}}."
       },
       "transferOffer": {
         "subject": "Tawaran Masuk untuk {{player}}",
@@ -3377,6 +3382,11 @@
         "subject": "Minat Transfer pada {{player}}",
         "body": "Klub dengan tawaran aktif untuk {{player}}: {{n}}. Pertanyaan terbaru: {{team}} ({{fee}}). Tinjau tawaran di tab Transfer untuk merespons.",
         "actionReview": "Tinjau Tawaran"
+      },
+      "loanAgreed": {
+        "subject": "Pinjaman disepakati: {{player}}",
+        "bodyWithOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Opsi pembelian: {{fee}}.",
+        "bodyNoOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Tanpa opsi pembelian."
       },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",

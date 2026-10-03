@@ -84,10 +84,7 @@ pub fn board_expectations_message(team_name: &str, team_id: &str, date: &str) ->
 }
 
 pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> InboxMessage {
-    let fee_display =
-        crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
-            .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee));
-
+    // Keep the exact base amount for the shared frontend currency formatter.
     let id = format!("transfer_{}", uuid::Uuid::new_v4());
     InboxMessage::new(
         id,
@@ -104,7 +101,7 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
         "be.msg.transferComplete.body",
         HashMap::from([
             ("player".to_string(), player_name.to_string()),
-            ("fee".to_string(), fee_display),
+            ("fee".to_string(), fee.to_string()),
         ]),
     )
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
