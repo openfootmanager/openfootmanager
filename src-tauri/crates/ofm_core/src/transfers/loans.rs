@@ -168,7 +168,7 @@ pub(crate) fn default_loan_end_date(
     let end_date = match player.contract_end() {
         Some(contract_end) => {
             let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").ok()?;
-            let latest_loan_end_date = contract_end_date - Duration::days(1);
+            let latest_loan_end_date = contract_end_date;
             if latest_loan_end_date < minimum_end_date {
                 return None;
             }
@@ -340,7 +340,7 @@ pub(crate) fn validate_loan_end_before_contract(
     let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d")
         .map_err(|_| ERR_INVALID_LOAN_END_DATE.to_string())?;
 
-    if loan_end_date >= contract_end_date {
+    if loan_end_date > contract_end_date {
         return Err(ERR_INVALID_LOAN_END_DATE.to_string());
     }
 

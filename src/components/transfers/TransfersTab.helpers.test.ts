@@ -161,6 +161,55 @@ describe("TransfersTab.helpers", () => {
     expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2026-11-15")).toBe("three_months");
   });
 
+  // Given one year left on a contract, when choosing a year-long loan,
+  // then the preset ending on the contract date remains available.
+  it("allows a twelve month loan ending on the contract date", () => {
+    const options = buildLoanPeriodOptions("2026-08-01", "2027-08-01");
+
+    expect(options.find((option) => option.id === "twelve_months")).toMatchObject({
+      endDate: "2027-08-01",
+      disabled: false,
+      disabledReasonKey: null,
+    });
+  });
+
+  // Given a contract ending this season, when choosing the season-end loan,
+  // then the matching preset is available and becomes the default in January.
+  it("allows a season end loan ending on the contract date", () => {
+    const options = buildLoanPeriodOptions("2027-01-01", "2027-06-30");
+
+    expect(options.find((option) => option.id === "end_of_season")).toMatchObject({
+      disabled: false,
+      disabledReasonKey: null,
+    });
+    expect(getDefaultLoanPeriodId("2027-01-01", "2027-06-30")).toBe("end_of_season");
+  });
+
+  // Given an incoming offer ending with the contract, when resuming its counter,
+  // then its unmatched current period remains selectable.
+  it("allows an incoming loan period ending on the contract date", () => {
+    const options = buildLoanPeriodOptions("2026-08-01", "2027-01-28", "2027-01-28");
+
+    expect(options[0]).toMatchObject({
+      id: "current_offer",
+      disabled: false,
+      disabledReasonKey: null,
+    });
+  });
+
+  // Given a matching contract date outside the permitted loan duration,
+  // when presenting the current offer, then duration rules still block it.
+  it("keeps duration limits for loans ending on the contract date", () => {
+    for (const endDate of ["2026-08-30", "2027-08-07"]) {
+      const options = buildLoanPeriodOptions("2026-08-01", endDate, endDate);
+      expect(options[0]).toMatchObject({
+        id: "current_offer",
+        disabled: true,
+        disabledReasonKey: "transfers.loanPeriodUnavailableRules",
+      });
+    }
+  });
+
   it("preserves unmatched incoming loan offer dates as counter periods", () => {
     const options = buildLoanPeriodOptions("2026-08-01T12:00:00Z", "2028-06-30", "2027-01-28");
 
