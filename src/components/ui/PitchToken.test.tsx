@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { i18nReady } from "../../i18n";
@@ -64,13 +64,14 @@ describe("PitchToken condition bar", () => {
   /**
    * Given a 74% condition player adapted to the slot
    * When the token renders
-   * Then hovering (title) and screen readers (text) get both signals in words
+   * Then hovering (tooltip) and screen readers (description) get both signals in words
    */
   it("spells out condition and fit in words", () => {
     renderToken(74, "adapted");
 
-    expect(screen.getByTitle("Condition 74% · Adapted fit")).toBeInTheDocument();
     expect(screen.getByText("Condition 74% · Adapted fit")).toHaveClass("sr-only");
+    fireEvent.mouseEnter(screen.getByText("Rossi"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Condition 74% · Adapted fit");
   });
 
   /**
@@ -81,7 +82,8 @@ describe("PitchToken condition bar", () => {
   it("omits the fit when there is none to state", () => {
     renderToken(80, "empty");
 
-    expect(screen.getByTitle("Condition 80%")).toBeInTheDocument();
+    fireEvent.mouseEnter(screen.getByText("Rossi"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Condition 80%");
   });
 
   /**
