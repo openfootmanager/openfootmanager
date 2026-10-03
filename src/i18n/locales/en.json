@@ -2607,7 +2607,8 @@
           "rejected": "The report server did not accept this report.",
           "serverError": "The report server ran into a problem and could not take the report.",
           "unreachable": "The report server could not be reached, so nothing was sent. Check your internet connection.",
-          "unconfirmed": "The connection was lost before the server answered. Your report may have arrived — sending it again could create a duplicate."
+          "unconfirmed": "The connection was lost before the server answered. Your report may have arrived — sending it again could create a duplicate.",
+          "prepareFailed": "The report could not be prepared for sending. You can still save it and use the GitHub form."
         }
       },
       "saveDeleteFailed": "Failed to delete the save file.",
@@ -4203,7 +4204,7 @@
     "previewIntroUpload": "Everything below, and nothing else. Nothing leaves this machine until you press Send or save the file yourself.",
     "consentLabel": "Send these files to the OpenFoot Manager team",
     "consentDesc": "I have reviewed the list above and agree to upload it. No account is needed.",
-    "send": "Send report",
+    "send": "Send",
     "saveAndOpenInstead": "Save the file and use GitHub instead",
     "nothingSentYetUpload": "Nothing leaves this machine until you press Send. Prefer GitHub? Save the file and attach it to the form yourself — that needs a GitHub account.",
     "uploadFailedFallback": "You can still send it through GitHub: save the file and attach it to the form.",
@@ -4213,6 +4214,8 @@
     "referenceCode": "Your reference code",
     "referenceCodeHint": "Quote this code if you want to ask about your report or have it deleted. It is not a password — nobody can use it to see your report.",
     "referenceCodeSaved": "You can find it again under Settings → Help → Your reports.",
-    "notRecorded": "This code could not be added to your list of reports. Please write it down."
+    "notRecorded": "This code could not be added to your list of reports. Please write it down.",
+    "copyCode": "Copy code",
+    "codeCopied": "Copied"
   }
 }

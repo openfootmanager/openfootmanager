@@ -9,7 +9,3 @@ pub mod history;
 pub mod http;
 pub mod redact;
 pub mod relay;
-
-/// The bundle could not be written or read back. Shared by the export and the upload, which both
-/// build the same file, so the two cannot drift into different words for the same failure.
-pub const REPORT_BUNDLE_FAILED: &str = "be.error.report.bundleFailed";

@@ -2760,7 +2760,8 @@
           "rejected": "El servidor de informes no aceptó este informe.",
           "serverError": "El servidor de informes tuvo un problema y no pudo recibir el informe.",
           "unreachable": "No se pudo contactar con el servidor de informes, así que no se envió nada. Comprueba tu conexión a internet.",
-          "unconfirmed": "La conexión se perdió antes de que respondiera el servidor. Puede que tu informe haya llegado: enviarlo otra vez podría crear un duplicado."
+          "unconfirmed": "La conexión se perdió antes de que respondiera el servidor. Puede que tu informe haya llegado: enviarlo otra vez podría crear un duplicado.",
+          "prepareFailed": "No se pudo preparar el informe para enviarlo. Aún puedes guardarlo y usar el formulario de GitHub."
         }
       },
       "saveDeleteFailed": "No se pudo eliminar el archivo de guardado.",
@@ -4200,19 +4201,21 @@
     "review": "Revisar qué se envía",
     "saveAndOpen": "Guardar el archivo y abrir GitHub",
     "working": "Trabajando…",
-    "previewIntroUpload": "Todo lo de abajo, y nada más. Nada sale de este equipo hasta que pulses Enviar o guardes tú el archivo.",
+    "previewIntroUpload": "Todo lo de abajo, y nada más. Nada sale de este ordenador hasta que pulses Enviar o guardes tú el archivo.",
     "consentLabel": "Enviar estos archivos al equipo de OpenFoot Manager",
     "consentDesc": "He revisado la lista de arriba y acepto subirla. No hace falta ninguna cuenta.",
-    "send": "Enviar informe",
+    "send": "Enviar",
     "saveAndOpenInstead": "Guardar el archivo y usar GitHub",
-    "nothingSentYetUpload": "Nada sale de este equipo hasta que pulses Enviar. ¿Prefieres GitHub? Guarda el archivo y adjúntalo tú al formulario; para eso necesitas una cuenta de GitHub.",
+    "nothingSentYetUpload": "Nada sale de este ordenador hasta que pulses Enviar. ¿Prefieres GitHub? Guarda el archivo y adjúntalo tú al formulario; para eso necesitas una cuenta de GitHub.",
     "uploadFailedFallback": "Aún puedes enviarlo a través de GitHub: guarda el archivo y adjúntalo al formulario.",
     "tooLargeUntickSave": "Si desmarcas tu partida guardada, el informe será mucho más pequeño.",
     "sentTitle": "Informe enviado",
     "sentIntro": "Gracias. Tu informe está en la bandeja privada de los responsables del juego.",
     "referenceCode": "Tu código de referencia",
     "referenceCodeHint": "Indica este código si quieres preguntar por tu informe o pedir que se borre. No es una contraseña: nadie puede usarlo para ver tu informe.",
-    "referenceCodeSaved": "Puedes volver a encontrarlo en Ajustes → Ayuda → Tus informes.",
-    "notRecorded": "No se pudo añadir este código a tu lista de informes. Por favor, anótalo."
+    "referenceCodeSaved": "Puedes volver a encontrarlo en Configuración → Ayuda → Tus informes.",
+    "notRecorded": "No se pudo añadir este código a tu lista de informes. Por favor, anótalo.",
+    "copyCode": "Copiar código",
+    "codeCopied": "Copiado"
   }
 }

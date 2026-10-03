@@ -18,11 +18,11 @@ use crate::report::history::{self, SubmittedReport};
 use crate::report::http::UreqTransport;
 use crate::report::redact::Redactor;
 use crate::report::relay::{self, RelayEndpoint, Transport};
-use crate::report::REPORT_BUNDLE_FAILED;
 // The key itself lives at the crate root, where the other holders of this lock already read it
 // from. Spelling it out again here is how two copies of a translation key drift apart.
 use crate::{SaveManagerState, SAVE_MANAGER_UNAVAILABLE_ERROR};
 
+const REPORT_BUNDLE_FAILED: &str = "be.error.report.bundleFailed";
 const REPORT_SAVE_MISSING: &str = "be.error.report.saveMissing";
 
 /// One log file the report would carry.
@@ -377,6 +377,18 @@ fn upload_preconditions(
     endpoint.ok_or_else(|| relay::UPLOAD_NOT_CONFIGURED.to_owned())
 }
 
+/// The export's errors, reworded for the upload where they would mislead.
+///
+/// `bundleFailed` tells the player to check the folder they chose; an upload never asks for one.
+/// Everything else — a missing save, the save manager — means the same on both paths.
+fn as_upload_error(key: String) -> String {
+    if key == REPORT_BUNDLE_FAILED {
+        relay::UPLOAD_PREPARE_FAILED.to_owned()
+    } else {
+        key
+    }
+}
+
 /// Send a bundle that already exists, and remember the code that comes back.
 fn send_and_record(
     transport: &dyn Transport,
@@ -441,7 +453,7 @@ pub async fn upload_report_bundle(
             })
             .map_err(|error| {
                 log::error!("[report] could not prepare the upload: {error}");
-                REPORT_BUNDLE_FAILED.to_owned()
+                relay::UPLOAD_PREPARE_FAILED.to_owned()
             })?;
         let zip_path = scratch.path().join("report.zip");
         write_report_bundle(
@@ -452,7 +464,8 @@ pub async fn upload_report_bundle(
             &zip_path.to_string_lossy(),
             &report_text,
             include_save,
-        )?;
+        )
+        .map_err(as_upload_error)?;
 
         let reports_path = app_handle
             .path()
@@ -472,7 +485,7 @@ pub async fn upload_report_bundle(
     .await
     .map_err(|error| {
         log::error!("[report] the upload task did not run: {error}");
-        REPORT_BUNDLE_FAILED.to_owned()
+        relay::UPLOAD_PREPARE_FAILED.to_owned()
     })?
 }
 
@@ -564,6 +577,21 @@ mod tests {
         assert_eq!(
             upload_preconditions(true, Some(test_endpoint())),
             Ok(test_endpoint())
+        );
+    }
+
+    /// Given a bundle that could not be written for an upload,
+    /// when the error reaches the player,
+    /// then it does not talk about a folder they never chose — but a missing save still says so.
+    #[test]
+    fn an_upload_never_blames_a_folder_the_player_did_not_choose() {
+        assert_eq!(
+            as_upload_error(REPORT_BUNDLE_FAILED.to_owned()),
+            relay::UPLOAD_PREPARE_FAILED
+        );
+        assert_eq!(
+            as_upload_error(REPORT_SAVE_MISSING.to_owned()),
+            REPORT_SAVE_MISSING
         );
     }
 

@@ -2760,7 +2760,8 @@
           "rejected": "Le serveur de rapports n'a pas accepté ce rapport.",
           "serverError": "Le serveur de rapports a rencontré un problème et n'a pas pu recevoir le rapport.",
           "unreachable": "Le serveur de rapports est injoignable, rien n'a donc été envoyé. Vérifiez votre connexion internet.",
-          "unconfirmed": "La connexion a été perdue avant la réponse du serveur. Votre rapport est peut-être arrivé — le renvoyer pourrait créer un doublon."
+          "unconfirmed": "La connexion a été perdue avant la réponse du serveur. Votre rapport est peut-être arrivé — le renvoyer pourrait créer un doublon.",
+          "prepareFailed": "Le rapport n'a pas pu être préparé pour l'envoi. Vous pouvez toujours l'enregistrer et utiliser le formulaire GitHub."
         }
       },
       "saveDeleteFailed": "Impossible de supprimer le fichier de sauvegarde.",
@@ -4203,7 +4204,7 @@
     "previewIntroUpload": "Tout ce qui suit, et rien d'autre. Rien ne quitte cet ordinateur avant que vous n'appuyiez sur Envoyer ou n'enregistriez le fichier vous-même.",
     "consentLabel": "Envoyer ces fichiers à l'équipe d'OpenFoot Manager",
     "consentDesc": "J'ai vérifié la liste ci-dessus et j'accepte de l'envoyer. Aucun compte n'est nécessaire.",
-    "send": "Envoyer le rapport",
+    "send": "Envoyer",
     "saveAndOpenInstead": "Enregistrer le fichier et passer par GitHub",
     "nothingSentYetUpload": "Rien ne quitte cet ordinateur avant que vous n'appuyiez sur Envoyer. Vous préférez GitHub ? Enregistrez le fichier et joignez-le vous-même au formulaire — il faut alors un compte GitHub.",
     "uploadFailedFallback": "Vous pouvez toujours l'envoyer via GitHub : enregistrez le fichier et joignez-le au formulaire.",
@@ -4213,6 +4214,8 @@
     "referenceCode": "Votre code de référence",
     "referenceCodeHint": "Indiquez ce code si vous voulez poser une question sur votre rapport ou le faire supprimer. Ce n'est pas un mot de passe — personne ne peut s'en servir pour voir votre rapport.",
     "referenceCodeSaved": "Vous le retrouverez dans Paramètres → Aide → Vos rapports.",
-    "notRecorded": "Ce code n'a pas pu être ajouté à votre liste de rapports. Notez-le, s'il vous plaît."
+    "notRecorded": "Ce code n'a pas pu être ajouté à votre liste de rapports. Notez-le, s'il vous plaît.",
+    "copyCode": "Copier le code",
+    "codeCopied": "Copié"
   }
 }

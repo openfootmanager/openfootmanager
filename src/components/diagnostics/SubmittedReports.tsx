@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { formatDate } from "../../lib/dateFormatting";
 import { logError } from "../../lib/logger";
 import { type SubmittedReport, listSubmittedReports } from "../../services/reportService";
+import { Badge } from "../ui";
+import { ReferenceCode } from "./ReferenceCode";
 
 interface SubmittedReportsProps {
   /** Changed by the parent after a report may have been sent, so a new code shows up at once. */
@@ -54,20 +56,21 @@ export function SubmittedReports({ refreshKey }: SubmittedReportsProps) {
         <ul className="mt-2 flex flex-col gap-1">
           {reports.map((report) => (
             <li
-              key={report.code}
+              // The code alone is not a safe key: a damaged entry defaults it to "".
+              key={`${report.code}-${report.submitted_at}`}
               className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600"
             >
-              {/* `select-all`: the code exists to be quoted, so one click should take all of it. */}
-              <code className="select-all font-mono text-sm tracking-widest text-gray-900 dark:text-gray-100">
-                {report.code}
-              </code>
-              <span className="text-xs text-gray-600 dark:text-gray-400">
+              <ReferenceCode code={report.code} />
+              <time
+                dateTime={report.submitted_at}
+                className="text-xs text-gray-600 dark:text-gray-400"
+              >
                 {formatDate(report.submitted_at, i18n.language)}
-              </span>
+              </time>
               {report.included_save && (
-                <span className="ml-auto text-[10px] font-heading font-bold uppercase tracking-wider text-accent-700 dark:text-accent-400">
+                <Badge variant="accent" className="ml-auto">
                   {t("settings.reportIncludedSave")}
-                </span>
+                </Badge>
               )}
             </li>
           ))}

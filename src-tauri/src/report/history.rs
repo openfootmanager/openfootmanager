@@ -85,7 +85,8 @@ pub fn record(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
         }
     };
     file.reports.push(report.clone());
-    write(path, &file)
+    // Atomically: a write cut short must not leave a truncated list where the codes used to be.
+    crate::atomic_file::write_json(path, &file)
 }
 
 enum Unreadable {
@@ -112,23 +113,6 @@ fn set_aside_name(path: &Path) -> PathBuf {
         chrono::Utc::now().format("%Y%m%dT%H%M%S%.3fZ")
     ));
     path.with_file_name(name)
-}
-
-/// Beside the target and then renamed, as `crash::write_record` does: a write cut short must not
-/// leave a truncated list where the player's codes used to be.
-fn write(path: &Path, file: &ReportsFile) -> std::io::Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_string_pretty(file)
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
-    let mut scratch_name = path.file_name().unwrap_or_default().to_owned();
-    scratch_name.push(".part");
-    let scratch = path.with_file_name(scratch_name);
-    std::fs::write(&scratch, json)?;
-    std::fs::rename(&scratch, path).inspect_err(|_| {
-        let _ = std::fs::remove_file(&scratch);
-    })
 }
 
 #[cfg(test)]

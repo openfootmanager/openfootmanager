@@ -2760,7 +2760,8 @@
           "rejected": "O servidor de relatórios não aceitou este relatório.",
           "serverError": "O servidor de relatórios teve um problema e não conseguiu receber o relatório.",
           "unreachable": "Não foi possível alcançar o servidor de relatórios, então nada foi enviado. Verifique sua conexão com a internet.",
-          "unconfirmed": "A conexão caiu antes de o servidor responder. Seu relatório pode ter chegado — enviá-lo de novo pode criar uma duplicata."
+          "unconfirmed": "A conexão caiu antes de o servidor responder. Seu relatório pode ter chegado — enviá-lo de novo pode criar uma duplicata.",
+          "prepareFailed": "Não foi possível preparar o relatório para envio. Você ainda pode salvá-lo e usar o formulário do GitHub."
         }
       },
       "saveDeleteFailed": "Falha ao excluir o arquivo de save.",
@@ -4203,7 +4204,7 @@
     "previewIntroUpload": "Tudo o que está abaixo, e nada mais. Nada sai deste computador até você clicar em Enviar ou salvar o arquivo você mesmo.",
     "consentLabel": "Enviar estes arquivos para a equipe do OpenFoot Manager",
     "consentDesc": "Revisei a lista acima e concordo em enviá-la. Não é preciso ter conta.",
-    "send": "Enviar relatório",
+    "send": "Enviar",
     "saveAndOpenInstead": "Salvar o arquivo e usar o GitHub",
     "nothingSentYetUpload": "Nada sai deste computador até você clicar em Enviar. Prefere o GitHub? Salve o arquivo e anexe você mesmo ao formulário — isso exige uma conta no GitHub.",
     "uploadFailedFallback": "Você ainda pode enviá-lo pelo GitHub: salve o arquivo e anexe ao formulário.",
@@ -4213,6 +4214,8 @@
     "referenceCode": "Seu código de referência",
     "referenceCodeHint": "Informe este código se quiser perguntar sobre o seu relatório ou pedir que ele seja apagado. Não é uma senha — ninguém pode usá-lo para ver o seu relatório.",
     "referenceCodeSaved": "Você pode encontrá-lo de novo em Configurações → Ajuda → Seus relatórios.",
-    "notRecorded": "Não foi possível adicionar este código à sua lista de relatórios. Anote-o, por favor."
+    "notRecorded": "Não foi possível adicionar este código à sua lista de relatórios. Anote-o, por favor.",
+    "copyCode": "Copiar código",
+    "codeCopied": "Copiado"
   }
 }

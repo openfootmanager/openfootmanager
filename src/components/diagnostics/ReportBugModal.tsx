@@ -22,6 +22,7 @@ import {
 import { useGameStore } from "../../store/gameStore";
 import { resolveBackendError } from "../../utils/backendI18n";
 import { Button, Checkbox } from "../ui";
+import { ReferenceCode } from "./ReferenceCode";
 import {
   EMPTY_DRAFT,
   type Frequency,
@@ -591,10 +592,9 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
             <p className="text-[11px] font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {t("reportBug.referenceCode")}
             </p>
-            {/* `select-all`: the code is for quoting, so one click should take all of it. */}
-            <code className="block select-all px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-xl font-mono tracking-widest text-gray-900 dark:text-gray-100">
-              {receipt.code}
-            </code>
+            <div className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600">
+              <ReferenceCode code={receipt.code} size="lg" />
+            </div>
             <p className="text-xs text-gray-600 dark:text-gray-400">
               {t("reportBug.referenceCodeHint")}
             </p>
@@ -603,7 +603,11 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
                 {t("reportBug.referenceCodeSaved")}
               </p>
             ) : (
-              <p role="alert" className="text-xs text-accent-700 dark:text-accent-400">
+              <p
+                role="alert"
+                className="flex items-start gap-1.5 text-xs text-accent-700 dark:text-accent-400"
+              >
+                <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
                 {t("reportBug.notRecorded")}
               </p>
             )}

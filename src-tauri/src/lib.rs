@@ -1,4 +1,5 @@
 mod application;
+mod atomic_file;
 mod commands;
 mod crash;
 mod platform;

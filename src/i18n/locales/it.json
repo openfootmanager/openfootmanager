@@ -2760,7 +2760,8 @@
           "rejected": "Il server delle segnalazioni non ha accettato questa segnalazione.",
           "serverError": "Il server delle segnalazioni ha avuto un problema e non ha potuto ricevere la segnalazione.",
           "unreachable": "Non è stato possibile raggiungere il server delle segnalazioni, quindi non è stato inviato nulla. Controlla la tua connessione a internet.",
-          "unconfirmed": "La connessione si è interrotta prima che il server rispondesse. La tua segnalazione potrebbe essere arrivata: inviarla di nuovo potrebbe creare un duplicato."
+          "unconfirmed": "La connessione si è interrotta prima che il server rispondesse. La tua segnalazione potrebbe essere arrivata: inviarla di nuovo potrebbe creare un duplicato.",
+          "prepareFailed": "Non è stato possibile preparare la segnalazione per l'invio. Puoi comunque salvarla e usare il modulo di GitHub."
         }
       },
       "saveDeleteFailed": "Impossibile eliminare il file di salvataggio.",
@@ -4203,7 +4204,7 @@
     "previewIntroUpload": "Tutto ciò che è qui sotto, e nient'altro. Nulla lascia questo computer finché non premi Invia o salvi tu il file.",
     "consentLabel": "Invia questi file al team di OpenFoot Manager",
     "consentDesc": "Ho controllato l'elenco qui sopra e accetto di caricarlo. Non serve alcun account.",
-    "send": "Invia segnalazione",
+    "send": "Invia",
     "saveAndOpenInstead": "Salva il file e usa GitHub",
     "nothingSentYetUpload": "Nulla lascia questo computer finché non premi Invia. Preferisci GitHub? Salva il file e allegalo tu al modulo: serve un account GitHub.",
     "uploadFailedFallback": "Puoi comunque inviarla tramite GitHub: salva il file e allegalo al modulo.",
@@ -4213,6 +4214,8 @@
     "referenceCode": "Il tuo codice di riferimento",
     "referenceCodeHint": "Indica questo codice se vuoi chiedere della tua segnalazione o farla cancellare. Non è una password: nessuno può usarlo per vedere la tua segnalazione.",
     "referenceCodeSaved": "Puoi ritrovarlo in Impostazioni → Aiuto → Le tue segnalazioni.",
-    "notRecorded": "Non è stato possibile aggiungere questo codice al tuo elenco di segnalazioni. Annotalo, per favore."
+    "notRecorded": "Non è stato possibile aggiungere questo codice al tuo elenco di segnalazioni. Annotalo, per favore.",
+    "copyCode": "Copia codice",
+    "codeCopied": "Copiato"
   }
 }

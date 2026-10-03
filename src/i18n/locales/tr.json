@@ -2607,7 +2607,8 @@
           "rejected": "Rapor sunucusu bu raporu kabul etmedi.",
           "serverError": "Rapor sunucusunda bir sorun oluştu ve rapor alınamadı.",
           "unreachable": "Rapor sunucusuna ulaşılamadı, bu yüzden hiçbir şey gönderilmedi. İnternet bağlantını kontrol et.",
-          "unconfirmed": "Sunucu yanıt vermeden bağlantı koptu. Raporun ulaşmış olabilir — yeniden göndermek bir kopya oluşturabilir."
+          "unconfirmed": "Sunucu yanıt vermeden bağlantı koptu. Raporun ulaşmış olabilir — yeniden göndermek bir kopya oluşturabilir.",
+          "prepareFailed": "Rapor gönderim için hazırlanamadı. Yine de kaydedip GitHub formunu kullanabilirsin."
         }
       },
       "saveDeleteFailed": "Kayıt dosyası silinemedi.",
@@ -4203,7 +4204,7 @@
     "previewIntroUpload": "Aşağıdakilerin hepsi, başka hiçbir şey değil. Gönder'e basana ya da dosyayı kendin kaydedene kadar hiçbir şey bu bilgisayardan çıkmaz.",
     "consentLabel": "Bu dosyaları OpenFoot Manager ekibine gönder",
     "consentDesc": "Yukarıdaki listeyi inceledim ve yüklenmesini kabul ediyorum. Hesap gerekmez.",
-    "send": "Raporu gönder",
+    "send": "Gönder",
     "saveAndOpenInstead": "Bunun yerine dosyayı kaydet ve GitHub'ı kullan",
     "nothingSentYetUpload": "Gönder'e basana kadar hiçbir şey bu bilgisayardan çıkmaz. GitHub'ı mı tercih edersin? Dosyayı kaydet ve forma kendin ekle — bunun için bir GitHub hesabı gerekir.",
     "uploadFailedFallback": "Yine de GitHub üzerinden gönderebilirsin: dosyayı kaydet ve forma ekle.",
@@ -4213,6 +4214,8 @@
     "referenceCode": "Referans kodun",
     "referenceCodeHint": "Raporun hakkında soru sormak ya da silinmesini istemek için bu kodu belirt. Bu bir şifre değildir — kimse onunla raporunu göremez.",
     "referenceCodeSaved": "Ona yeniden Ayarlar → Yardım → Raporların bölümünden ulaşabilirsin.",
-    "notRecorded": "Bu kod rapor listene eklenemedi. Lütfen bir yere not et."
+    "notRecorded": "Bu kod rapor listene eklenemedi. Lütfen bir yere not et.",
+    "copyCode": "Kodu kopyala",
+    "codeCopied": "Kopyalandı"
   }
 }

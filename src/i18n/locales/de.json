@@ -2760,7 +2760,8 @@
           "rejected": "Der Berichtsserver hat diesen Bericht nicht angenommen.",
           "serverError": "Beim Berichtsserver ist ein Fehler aufgetreten; er konnte den Bericht nicht annehmen.",
           "unreachable": "Der Berichtsserver war nicht erreichbar, es wurde also nichts gesendet. Prüfe deine Internetverbindung.",
-          "unconfirmed": "Die Verbindung brach ab, bevor der Server antwortete. Dein Bericht ist vielleicht angekommen — erneutes Senden könnte ein Duplikat erzeugen."
+          "unconfirmed": "Die Verbindung brach ab, bevor der Server antwortete. Dein Bericht ist vielleicht angekommen — erneutes Senden könnte ein Duplikat erzeugen.",
+          "prepareFailed": "Der Bericht konnte nicht zum Senden vorbereitet werden. Du kannst ihn trotzdem speichern und das GitHub-Formular nutzen."
         }
       },
       "saveDeleteFailed": "Die Speicherstandsdatei konnte nicht gelöscht werden.",
@@ -4203,7 +4204,7 @@
     "previewIntroUpload": "Alles Folgende und sonst nichts. Nichts verlässt diesen Rechner, bevor du auf Senden drückst oder die Datei selbst speicherst.",
     "consentLabel": "Diese Dateien an das OpenFoot-Manager-Team senden",
     "consentDesc": "Ich habe die Liste oben geprüft und bin mit dem Hochladen einverstanden. Kein Konto nötig.",
-    "send": "Bericht senden",
+    "send": "Senden",
     "saveAndOpenInstead": "Stattdessen Datei speichern und GitHub nutzen",
     "nothingSentYetUpload": "Nichts verlässt diesen Rechner, bevor du auf Senden drückst. Lieber GitHub? Speichere die Datei und hänge sie selbst an das Formular an — dafür brauchst du ein GitHub-Konto.",
     "uploadFailedFallback": "Du kannst ihn trotzdem über GitHub senden: Speichere die Datei und hänge sie an das Formular an.",
@@ -4213,6 +4214,8 @@
     "referenceCode": "Dein Referenzcode",
     "referenceCodeHint": "Nenne diesen Code, wenn du nach deinem Bericht fragen oder ihn löschen lassen willst. Er ist kein Passwort — niemand kann damit deinen Bericht einsehen.",
     "referenceCodeSaved": "Du findest ihn jederzeit unter Einstellungen → Hilfe → Deine Berichte.",
-    "notRecorded": "Dieser Code konnte nicht in deine Berichtsliste aufgenommen werden. Bitte schreib ihn dir auf."
+    "notRecorded": "Dieser Code konnte nicht in deine Berichtsliste aufgenommen werden. Bitte schreib ihn dir auf.",
+    "copyCode": "Code kopieren",
+    "codeCopied": "Kopiert"
   }
 }

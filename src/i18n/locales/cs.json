@@ -2607,7 +2607,8 @@
           "rejected": "Server pro hlášení toto hlášení nepřijal.",
           "serverError": "Server pro hlášení narazil na problém a hlášení nemohl přijmout.",
           "unreachable": "Server pro hlášení se nepodařilo zastihnout, takže nic nebylo odesláno. Zkontrolujte připojení k internetu.",
-          "unconfirmed": "Spojení se přerušilo dřív, než server odpověděl. Vaše hlášení možná dorazilo — opětovné odeslání by mohlo vytvořit duplikát."
+          "unconfirmed": "Spojení se přerušilo dřív, než server odpověděl. Vaše hlášení možná dorazilo — opětovné odeslání by mohlo vytvořit duplikát.",
+          "prepareFailed": "Hlášení se nepodařilo připravit k odeslání. Stále ho můžete uložit a použít formulář na GitHubu."
         }
       },
       "saveDeleteFailed": "Nepodařilo se smazat soubor uložené pozice.",
@@ -4202,8 +4203,8 @@
     "working": "Pracuji…",
     "previewIntroUpload": "Vše níže a nic jiného. Nic neopustí tento počítač, dokud nestisknete Odeslat nebo si soubor sami neuložíte.",
     "consentLabel": "Odeslat tyto soubory týmu OpenFoot Manager",
-    "consentDesc": "Prohlédl(a) jsem si seznam výše a souhlasím s jeho nahráním. Účet není potřeba.",
-    "send": "Odeslat hlášení",
+    "consentDesc": "Seznam výše mám zkontrolovaný a souhlasím s jeho nahráním. Účet není potřeba.",
+    "send": "Odeslat",
     "saveAndOpenInstead": "Místo toho uložit soubor a použít GitHub",
     "nothingSentYetUpload": "Nic neopustí tento počítač, dokud nestisknete Odeslat. Dáváte přednost GitHubu? Uložte soubor a přiložte ho k formuláři sami — k tomu potřebujete účet na GitHubu.",
     "uploadFailedFallback": "Stále ho můžete poslat přes GitHub: uložte soubor a přiložte ho k formuláři.",
@@ -4213,6 +4214,8 @@
     "referenceCode": "Váš referenční kód",
     "referenceCodeHint": "Uveďte tento kód, pokud se chcete na hlášení zeptat nebo ho nechat smazat. Není to heslo — nikdo s ním vaše hlášení neuvidí.",
     "referenceCodeSaved": "Najdete ho znovu v Nastavení → Nápověda → Vaše hlášení.",
-    "notRecorded": "Tento kód se nepodařilo přidat do seznamu vašich hlášení. Zapište si ho, prosím."
+    "notRecorded": "Tento kód se nepodařilo přidat do seznamu vašich hlášení. Zapište si ho, prosím.",
+    "copyCode": "Zkopírovat kód",
+    "codeCopied": "Zkopírováno"
   }
 }

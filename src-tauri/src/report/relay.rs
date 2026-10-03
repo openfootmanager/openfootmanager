@@ -10,20 +10,21 @@ use std::path::Path;
 
 use base64::Engine as _;
 
-use super::REPORT_BUNDLE_FAILED;
-
 /// The relay refuses a decoded ZIP above this, inclusive (`BUG_REPORT_MAX_BUNDLE_BYTES`).
 ///
 /// Checked against the file's size on disk, before a byte of it is read: a bundle the relay will
 /// refuse is not worth allocating, encoding and sending first. Base64 makes 16 MiB about 22.4 MiB,
 /// which sits under the 24 MiB request ceiling, so the request ceiling needs no check of its own.
-pub const MAX_BUNDLE_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_BUNDLE_BYTES: u64 = 16 * 1024 * 1024;
 
 /// The endpoint, relative to the relay's base URL.
 const REPORTS_PATH: &str = "/api/v1/reports";
 
 // What the player is told, by translation key. The relay's `error.message` is English written for
 // a developer; the contract says to translate by `error.code`, and a player never sees the other.
+/// The bundle could not be built or read back for sending. Not the export's `bundleFailed`, whose
+/// words are about a folder the player chose — the upload never asks for one.
+pub const UPLOAD_PREPARE_FAILED: &str = "be.error.report.upload.prepareFailed";
 pub const UPLOAD_CONSENT_REQUIRED: &str = "be.error.report.upload.consentRequired";
 pub const UPLOAD_NOT_CONFIGURED: &str = "be.error.report.upload.notConfigured";
 pub const UPLOAD_TOO_LARGE: &str = "be.error.report.upload.tooLarge";
@@ -81,7 +82,7 @@ impl RelayEndpoint {
         }
     }
 
-    pub fn reports_url(&self) -> &str {
+    fn reports_url(&self) -> &str {
         &self.reports_url
     }
 }
@@ -90,7 +91,7 @@ impl RelayEndpoint {
 ///
 /// `consent.upload` is always `true` because nothing reaches this function without it — the
 /// command refuses first. It is a statement the client makes, and this is the only place it can.
-pub fn envelope(zip: &[u8], include_save: bool) -> String {
+fn envelope(zip: &[u8], include_save: bool) -> String {
     serde_json::json!({
         "schema_version": 1,
         "consent": { "upload": true, "include_save": include_save },
@@ -110,13 +111,13 @@ pub struct RelayResponse {
 }
 
 /// Eight Crockford Base32 characters, upper case — the only shape of code the relay issues.
-pub fn is_reference_code(candidate: &str) -> bool {
+fn is_reference_code(candidate: &str) -> bool {
     const CROCKFORD: &str = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
     candidate.len() == 8 && candidate.chars().all(|c| CROCKFORD.contains(c))
 }
 
 /// The reference code on success, or the translation key for what to tell the player.
-pub fn interpret(response: &RelayResponse) -> Result<String, &'static str> {
+fn interpret(response: &RelayResponse) -> Result<String, &'static str> {
     let body: Option<serde_json::Value> = serde_json::from_slice(&response.body).ok();
 
     if (200..300).contains(&response.status) {
@@ -188,7 +189,7 @@ pub fn submit(
     let bytes = std::fs::metadata(zip_path)
         .map_err(|error| {
             log::error!("[report] could not read the bundle to upload: {error}");
-            REPORT_BUNDLE_FAILED
+            UPLOAD_PREPARE_FAILED
         })?
         .len();
     // Before reading it. The save is never dropped to make it fit: the player chose it, and
@@ -199,7 +200,7 @@ pub fn submit(
     }
     let zip = std::fs::read(zip_path).map_err(|error| {
         log::error!("[report] could not read the bundle to upload: {error}");
-        REPORT_BUNDLE_FAILED
+        UPLOAD_PREPARE_FAILED
     })?;
 
     let response = transport
@@ -535,6 +536,26 @@ mod tests {
             submit(&transport, &endpoint(), &zip, false),
             Err(UPLOAD_UNCONFIRMED)
         );
+    }
+
+    /// Given a bundle file that is not there to read,
+    /// when it is submitted,
+    /// then the player is told the report could not be prepared, and nothing is sent.
+    #[test]
+    fn a_bundle_that_cannot_be_read_is_not_sent() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let transport = FakeTransport::answering(Ok(response(201, r#"{"code":"7K2M9Q4R"}"#)));
+
+        assert_eq!(
+            submit(
+                &transport,
+                &endpoint(),
+                &dir.path().join("missing.zip"),
+                false
+            ),
+            Err(UPLOAD_PREPARE_FAILED)
+        );
+        assert!(transport.sent.borrow().is_empty());
     }
 
     /// Given a relay that cannot be reached at all,

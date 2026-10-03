@@ -2760,7 +2760,8 @@
           "rejected": "报告服务器未接受此报告。",
           "serverError": "报告服务器出现问题，无法接收此报告。",
           "unreachable": "无法连接到报告服务器，因此没有发送任何内容。请检查你的网络连接。",
-          "unconfirmed": "服务器响应之前连接已中断。你的报告可能已经送达 —— 再次发送可能会产生重复报告。"
+          "unconfirmed": "服务器响应之前连接已中断。你的报告可能已经送达 —— 再次发送可能会产生重复报告。",
+          "prepareFailed": "无法准备要发送的报告。你仍然可以保存报告并使用 GitHub 表单。"
         }
       },
       "saveDeleteFailed": "无法删除存档文件。",
@@ -4203,7 +4204,7 @@
     "previewIntroUpload": "仅包含以下内容，别无其他。在你点击“发送”或自行保存文件之前，任何内容都不会离开这台电脑。",
     "consentLabel": "将这些文件发送给 OpenFoot Manager 团队",
     "consentDesc": "我已查看上面的列表并同意上传。无需注册账号。",
-    "send": "发送报告",
+    "send": "发送",
     "saveAndOpenInstead": "改为保存文件并使用 GitHub",
     "nothingSentYetUpload": "在你点击“发送”之前，任何内容都不会离开这台电脑。更想用 GitHub？保存文件并自行附加到表单中 —— 这需要 GitHub 账号。",
     "uploadFailedFallback": "你仍然可以通过 GitHub 发送：保存文件并将其附加到表单中。",
@@ -4213,6 +4214,8 @@
     "referenceCode": "你的参考编号",
     "referenceCodeHint": "如果你想询问报告的情况或要求删除报告，请提供此编号。它不是密码 —— 任何人都无法用它查看你的报告。",
     "referenceCodeSaved": "你可以在 设置 → 帮助 → 你的报告 中再次找到它。",
-    "notRecorded": "无法将此编号添加到你的报告列表中，请把它记下来。"
+    "notRecorded": "无法将此编号添加到你的报告列表中，请把它记下来。",
+    "copyCode": "复制编号",
+    "codeCopied": "已复制"
   }
 }
