@@ -205,13 +205,9 @@ pub fn simulate_past_fixtures(
 /// nothing. Sixty-four rounds is past any real bracket (a 64-team cup is six).
 const MAX_REPAIR_PASSES: usize = 64;
 
-/// Whether `date` (a `%Y-%m-%d` fixture date) has already passed. An unparseable date is *not*
-/// treated as past: rewriting a fixture whose date cannot even be read is the more destructive of
-/// the two mistakes.
-fn is_in_the_past(date: &str, today: NaiveDate) -> bool {
-    NaiveDate::parse_from_str(date, "%Y-%m-%d")
-        .map(|parsed| parsed < today)
-        .unwrap_or(false)
+/// The last day that counts as "already passed" when `today` is the clock's day.
+fn yesterday(today: NaiveDate) -> NaiveDate {
+    today.pred_opt().unwrap_or(today)
 }
 
 /// National-team football, which the club match engine never simulates — the same test
@@ -224,9 +220,7 @@ fn stranded_in(competition: &League, today: NaiveDate) -> usize {
     competition
         .fixtures
         .iter()
-        .filter(|fixture| {
-            fixture.status == FixtureStatus::Scheduled && is_in_the_past(&fixture.date, today)
-        })
+        .filter(|fixture| crate::matchday::is_stranded(fixture, yesterday(today)))
         .count()
 }
 
@@ -234,25 +228,7 @@ fn stranded_in(competition: &League, today: NaiveDate) -> usize {
 /// live on `game.national_teams` rather than in `competitions` at all. Leaving the latter out of the
 /// count is how they stayed stranded — the early return saw nothing to do.
 fn count_stranded(game: &Game, today: NaiveDate) -> usize {
-    let in_competitions: usize = game
-        .competitions
-        .iter()
-        .map(|competition| stranded_in(competition, today))
-        .sum();
-    let in_national_teams: usize = game
-        .national_teams
-        .iter()
-        .map(|team| {
-            team.fixtures
-                .iter()
-                .filter(|fixture| {
-                    fixture.status == FixtureStatus::Scheduled
-                        && is_in_the_past(&fixture.date, today)
-                })
-                .count()
-        })
-        .sum();
-    in_competitions + in_national_teams
+    crate::matchday::stranded_fixtures(game, yesterday(today)).len()
 }
 
 /// The past dates on which a national-team fixture is still `Scheduled`, oldest first.
@@ -271,9 +247,7 @@ fn stranded_international_dates(game: &Game, today: NaiveDate) -> Vec<String> {
                 .iter()
                 .flat_map(|team| team.fixtures.iter()),
         )
-        .filter(|fixture| {
-            fixture.status == FixtureStatus::Scheduled && is_in_the_past(&fixture.date, today)
-        })
+        .filter(|fixture| crate::matchday::is_stranded(fixture, yesterday(today)))
         .map(|fixture| fixture.date.clone())
         .collect();
     dates.sort();

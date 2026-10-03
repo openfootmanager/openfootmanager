@@ -12,7 +12,8 @@
 
 use crate::game::Game;
 use crate::live_match_manager;
-use domain::league::StandingEntry;
+use chrono::NaiveDate;
+use domain::league::{Fixture, FixtureStatus, StandingEntry};
 use domain::stats::StatsState;
 use engine::report::MatchReport;
 
@@ -311,4 +312,52 @@ mod tests {
             "the mirror is a staging slot here, not this club's league"
         );
     }
+}
+
+/// Whether `fixture` is still `Scheduled` although its day is `on_or_before` or earlier — a
+/// match nobody played, and nothing will: every "due today" check matches on the date alone.
+///
+/// An unreadable date is *not* stranded. Rewriting a fixture whose date cannot even be read is
+/// the more destructive of the two mistakes.
+pub fn is_stranded(fixture: &Fixture, on_or_before: NaiveDate) -> bool {
+    fixture.status == FixtureStatus::Scheduled
+        && NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+            .is_ok_and(|date| date <= on_or_before)
+}
+
+/// A fixture [`stranded_fixtures`] found, and where it lives.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StrandedFixture {
+    /// The id of the competition, or of the national team, that holds the fixture.
+    pub owner: String,
+    pub fixture_id: String,
+    /// The `%Y-%m-%d` day it was due.
+    pub date: String,
+}
+
+/// Every fixture in the game still `Scheduled` though dated `on_or_before` or earlier: club
+/// competitions *and* the window fixtures held by national teams, not only the user's league.
+///
+/// The one definition of the rule. The core tests, the load-time repair and the season harness
+/// all ask this rather than restating it, so they cannot drift into disagreeing about what a
+/// stranded fixture is.
+pub fn stranded_fixtures(game: &Game, on_or_before: NaiveDate) -> Vec<StrandedFixture> {
+    let club = game.competitions.iter().flat_map(|competition| {
+        competition
+            .fixtures
+            .iter()
+            .map(move |f| (&competition.id, f))
+    });
+    let national = game
+        .national_teams
+        .iter()
+        .flat_map(|team| team.fixtures.iter().map(move |f| (&team.id, f)));
+    club.chain(national)
+        .filter(|(_, fixture)| is_stranded(fixture, on_or_before))
+        .map(|(owner, fixture)| StrandedFixture {
+            owner: owner.clone(),
+            fixture_id: fixture.id.clone(),
+            date: fixture.date.clone(),
+        })
+        .collect()
 }
