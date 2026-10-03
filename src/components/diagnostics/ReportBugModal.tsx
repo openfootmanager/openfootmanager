@@ -23,6 +23,7 @@ import { useGameStore } from "../../store/gameStore";
 import { resolveBackendError } from "../../utils/backendI18n";
 import { Button, Checkbox } from "../ui";
 import { ReferenceCode } from "./ReferenceCode";
+import { useDialogKeyboard } from "./useDialogKeyboard";
 import {
   EMPTY_DRAFT,
   type Frequency,
@@ -123,47 +124,8 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
     onClose();
   }, [busy, onClose]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        requestClose();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const dialog = dialogRef.current;
-      if (dialog === null) return;
-
-      // `aria-modal` is a promise to assistive technology, not something the browser enforces: the
-      // page behind the overlay stays fully tabbable. Without this, Tab walks out of the dialog
-      // into controls the player cannot see, and the export they started is still running.
-      const focusable = dialog.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement;
-      const outside = !dialog.contains(active);
-
-      if (!event.shiftKey && (active === last || outside)) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && (active === first || outside)) {
-        event.preventDefault();
-        last.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [requestClose]);
-
-  // A dialog that never takes focus is one a keyboard user cannot reach: `aria-modal` alone leaves
-  // focus on the button behind the overlay. Whatever had focus when the dialog opened gets it back
-  // when it closes.
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    return () => previouslyFocused?.focus?.();
-  }, []);
+  // While the export runs, Escape is refused like the close button — see `requestClose`.
+  useDialogKeyboard(dialogRef, requestClose);
 
   // On every step, not only the first. Each step replaces the whole body of the dialog, including
   // the button that was just pressed, so focus fell to `<body>`: the new title was never announced,
