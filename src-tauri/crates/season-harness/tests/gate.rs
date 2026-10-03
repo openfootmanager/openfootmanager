@@ -7,6 +7,7 @@
 //! `SEEDS` only with a measurement beside the change.
 
 use season_harness::driver::{DayPath, HarnessError, RunOptions, run_seasons};
+use season_harness::fingerprint::{fingerprint, first_difference};
 use season_harness::invariants::Invariants;
 use season_harness::worlds::WorldSpec;
 
@@ -221,4 +222,46 @@ fn a_season_that_will_not_finish_stops_the_run_and_names_what_is_unfinished() {
         }
         other => panic!("expected a stall, got {other}"),
     }
+}
+
+/// Given a generated world and a seed,
+/// When it is built twice and played through a season and its rollover, once on each copy,
+/// Then the two end in the same world — results, tables, ids, bodies, money, staff and
+///      managers — so a draw that escapes the game's seed fails the gate on the day it is added.
+#[test]
+fn the_same_seed_plays_the_same_seasons() {
+    let play = || {
+        let mut game = WorldSpec::gate(1).build().expect("the world builds");
+        let mut invariants = Invariants::new(&game);
+        // The invariants are not under test here: only that the two runs agree.
+        let _ = run_seasons(&mut game, RunOptions::seasons(1), &mut invariants);
+        fingerprint(&game)
+    };
+
+    let first = play();
+    let second = play();
+
+    assert!(first == second, "{}", first_difference(&first, &second));
+}
+
+/// The control: another seed is another world, or the test above could not tell a seeded
+/// run from one that ignores its seed.
+#[test]
+fn another_seed_plays_other_seasons() {
+    let play = |seed: u64| {
+        let mut game = WorldSpec::gate(seed).build().expect("the world builds");
+        let mut invariants = Invariants::new(&game);
+        let _ = run_seasons(&mut game, RunOptions::seasons(1), &mut invariants);
+        fingerprint(&game)
+    };
+
+    assert_ne!(play(1), play(2));
+}
+
+/// Given a world generated from a seed,
+/// When a career begins in it,
+/// Then the game carries that seed: the day's dice are drawn from it, so a run is the seed's run.
+#[test]
+fn the_game_carries_the_seed_its_world_was_made_from() {
+    assert_eq!(WorldSpec::gate(41).build().expect("builds").seed, 41);
 }

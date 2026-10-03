@@ -57,6 +57,9 @@ impl WorldSpec {
         // a 2033 game with every contract a few years expired.
         config.opening_year = u32::try_from(self.start_year).ok();
         let world = generate_world_data_seeded_with(self.seed, &config, &sources);
+        // What the app does when it builds a game from a generated world: the world's seed is
+        // the game's, so the day's dice are the seed's too.
+        let game_seed = world.generation_seed.unwrap_or(self.seed);
 
         let start = start_date_for_year(self.start_year)?;
         let manager = Manager::new(
@@ -74,6 +77,7 @@ impl WorldSpec {
             world.staff,
             vec![],
         );
+        game.seed = game_seed;
         game.available_staff_market_last_activity_date = Some(start.format("%Y-%m-%d").to_string());
         repair_opening_youth_academies(&mut game);
 

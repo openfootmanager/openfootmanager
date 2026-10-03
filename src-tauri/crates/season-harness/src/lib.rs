@@ -15,8 +15,10 @@
 //!
 //! * [`worlds`] builds the world a run plays in.
 //! * [`driver`] is the loop, and the only place that advances the game.
+//! * [`fingerprint`] reduces a world to what a replay must reproduce.
 //! * [`invariants`] are the rules, held to after every day and every rollover.
 
 pub mod driver;
+pub mod fingerprint;
 pub mod invariants;
 pub mod worlds;
