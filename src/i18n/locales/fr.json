@@ -3366,7 +3366,12 @@
       },
       "transferComplete": {
         "subject": "Transfert conclu : {{player}}",
-        "body": "Le transfert de {{player}} a été finalisé pour un montant de {{fee}}.\n\nLe joueur a rejoint l'effectif et est désormais disponible pour la sélection."
+        "body": "Le transfert de {{player}} a été finalisé pour un montant de {{fee}}.\n\nLe joueur a rejoint l'effectif et est désormais disponible pour la sélection.",
+        "bodySold": "Le transfert de {{player}} à {{buyer}} a été finalisé pour {{fee}}. Le joueur a quitté l’effectif et rejoint {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfert convenu : {{player}}",
+        "body": "Le transfert de {{player}} de {{seller}} à {{buyer}} a été convenu pour {{fee}}. L’enregistrement est prévu le {{start}}."
       },
       "transferOffer": {
         "subject": "Offre reçue pour {{player}}",
@@ -3377,6 +3382,11 @@
         "subject": "Intérêt de transfert pour {{player}}",
         "body": "Clubs avec des offres actives pour {{player}} : {{n}}. Dernière demande : {{team}} ({{fee}}). Consultez les offres dans l’onglet Transferts pour répondre.",
         "actionReview": "Voir les offres"
+      },
+      "loanAgreed": {
+        "subject": "Prêt convenu : {{player}}",
+        "bodyWithOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Option d’achat : {{fee}}.",
+        "bodyNoOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Aucune option d’achat."
       },
       "loanOffer": {
         "subject": "Offre de prêt pour {{player}}",

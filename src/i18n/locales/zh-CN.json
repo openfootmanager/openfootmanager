@@ -3366,7 +3366,12 @@
       },
       "transferComplete": {
         "subject": "转会完成：{{player}}",
-        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。"
+        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。",
+        "bodySold": "{{player}}转会至{{buyer}}已完成，转会费为{{fee}}。该球员已离开球队并加入{{buyer}}。"
+      },
+      "transferAgreed": {
+        "subject": "转会已达成：{{player}}",
+        "body": "{{player}}从{{seller}}转会至{{buyer}}的协议已达成，转会费为{{fee}}。预计于{{start}}注册。"
       },
       "transferOffer": {
         "subject": "收到对{{player}}的报价",
@@ -3377,6 +3382,11 @@
         "subject": "对 {{player}} 的转会兴趣",
         "body": "对 {{player}} 提出有效报价的俱乐部：{{n}}。最新询问：{{team}}（{{fee}}）。请在转会标签页查看报价并回应。",
         "actionReview": "查看报价"
+      },
+      "loanAgreed": {
+        "subject": "租借已达成：{{player}}",
+        "bodyWithOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。买断选项：{{fee}}。",
+        "bodyNoOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。无买断选项。"
       },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",

@@ -441,19 +441,10 @@ pub fn make_transfer_bid(
         if register_immediately {
             execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
             finalize_successful_transfer_offer(game, player_id, &offer_id)?;
-
-            let player_name = game
-                .players
-                .iter()
-                .find(|p| p.id == player_id)
-                .map(|p| p.full_name.clone())
-                .unwrap_or_default();
-
-            let msg = crate::messages::transfer_complete_message(&player_name, fee, &date);
-            game.messages.push(msg);
         } else {
             reserve_player_for_pending_transfer(game, player_id, &offer_id)?;
         }
+        notify_transfer_agreement(game, player_id, &offer_id, &owner_team_id);
 
         return Ok(transfer_outcome(
             TransferNegotiationDecision::Accepted,
@@ -653,6 +644,7 @@ pub fn respond_to_offer(
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
+        notify_transfer_agreement(game, player_id, offer_id, &user_team_id);
     } else if let Some(player) = game
         .players
         .iter_mut()
@@ -788,6 +780,7 @@ pub fn counter_offer(
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
+        notify_transfer_agreement(game, player_id, offer_id, &user_team_id);
         return Ok(transfer_outcome(
             TransferNegotiationDecision::Accepted,
             None,
@@ -870,4 +863,132 @@ pub fn counter_offer(
             &[("fee", round_transfer_fee(counter_ceiling).to_string())],
         ),
     ))
+}
+
+#[cfg(test)]
+mod acceptance_tests {
+    use super::super::tests::{acceptance_game, assert_acceptance_notice, incoming_transfer};
+    use super::*;
+
+    fn bid(deferred: bool) {
+        let mut game = acceptance_game("team2", deferred);
+        let outcome = make_transfer_bid(&mut game, "player-award", 2_000_001).unwrap();
+        assert_eq!(outcome.decision, TransferNegotiationDecision::Accepted);
+        let message = assert_acceptance_notice(
+            &game,
+            if deferred {
+                "be.msg.transferAgreed.body"
+            } else {
+                "be.msg.transferComplete.body"
+            },
+            if deferred { "2026-07-02" } else { "" },
+        );
+        assert_eq!(message.i18n_params["fee"], "2000001");
+        assert_eq!(
+            game.players[0].team_id.as_deref(),
+            Some(if deferred { "team2" } else { "team1" })
+        );
+    }
+    /// Given an open window, when a bid is accepted, then the buyer receives one completed-transfer notice.
+    #[test]
+    fn an_immediate_bid_notifies_the_buyer() {
+        bid(false);
+    }
+    /// Given a closed window, when a bid is accepted, then the buyer receives the registration date.
+    #[test]
+    fn a_deferred_bid_notifies_the_buyer_of_registration() {
+        bid(true);
+    }
+
+    fn incoming(deferred: bool, counter: bool) {
+        let mut game = acceptance_game("team1", deferred);
+        let id = incoming_transfer(&mut game);
+        if counter {
+            assert_eq!(
+                counter_offer(&mut game, "player-award", &id, 650_001)
+                    .unwrap()
+                    .decision,
+                TransferNegotiationDecision::Accepted
+            );
+        } else {
+            respond_to_offer(&mut game, "player-award", &id, true).unwrap();
+        }
+        let message = assert_acceptance_notice(
+            &game,
+            if deferred {
+                "be.msg.transferAgreed.body"
+            } else {
+                "be.msg.transferComplete.bodySold"
+            },
+            if deferred { "2026-07-02" } else { "" },
+        );
+        assert_eq!(
+            message.i18n_params["fee"],
+            if counter { "650001" } else { "600000" }
+        );
+        assert_eq!(message.i18n_params["buyer"], "Beta FC");
+    }
+    /// Given an incoming bid in an open window, when accepted, then the seller is told the player left.
+    #[test]
+    fn accepting_an_immediate_sale_notifies_the_seller() {
+        incoming(false, false);
+    }
+    /// Given an incoming bid in a closed window, when accepted, then the seller receives the registration date.
+    #[test]
+    fn accepting_a_deferred_sale_notifies_the_seller() {
+        incoming(true, false);
+    }
+    /// Given an incoming bid, when an immediate counter is accepted, then the seller receives the final fee.
+    #[test]
+    fn an_accepted_immediate_counter_notifies_the_seller() {
+        incoming(false, true);
+    }
+    /// Given a closed window, when a counter is accepted, then the seller receives the final fee and date.
+    #[test]
+    fn an_accepted_deferred_counter_notifies_the_seller() {
+        incoming(true, true);
+    }
+
+    /// Given an incoming bid, when declined, then no agreement notice is sent.
+    #[test]
+    fn a_declined_transfer_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_transfer(&mut game);
+        respond_to_offer(&mut game, "player-award", &id, false).unwrap();
+        assert!(game.messages.is_empty());
+    }
+    /// Given an unaffordable bid, when submitted, then no agreement notice is sent.
+    #[test]
+    fn a_failed_transfer_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team2", false);
+        assert!(make_transfer_bid(&mut game, "player-award", 6_000_000).is_err());
+        assert!(game.messages.is_empty());
+    }
+    /// Given a counter within the negotiation window, when talks continue, then no agreement notice is sent.
+    #[test]
+    fn a_transfer_counter_that_keeps_talking_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_transfer(&mut game);
+        assert_eq!(
+            counter_offer(&mut game, "player-award", &id, 750_000)
+                .unwrap()
+                .decision,
+            TransferNegotiationDecision::CounterOffer
+        );
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given an offer above the buyer's ceiling, when rejected, then no agreement notice is sent.
+    #[test]
+    fn a_rejected_transfer_counter_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_transfer(&mut game);
+        assert_eq!(
+            counter_offer(&mut game, "player-award", &id, 4_000_000)
+                .unwrap()
+                .decision,
+            TransferNegotiationDecision::Rejected
+        );
+        assert!(game.messages.is_empty());
+    }
 }
