@@ -132,9 +132,15 @@ fn expand_to_rng(mut word: u64, chain_salt: u64) -> ChaCha12Rng {
 /// of a day's fixtures can depend on. It has the shape of a v4 UUID, so everything that treats
 /// ids as opaque strings is unaffected.
 pub fn derived_id(parts: &[&str]) -> String {
-    let joined = parts.join("\u{1f}");
-    let high = stable_hash(joined.as_bytes(), DERIVED_ID_SALT);
-    let low = stable_hash(joined.as_bytes(), high);
+    // Each part is written with its length, so no part can run into the next whatever it
+    // contains: ("a|b", "c") and ("a", "b|c") are different bytes.
+    let mut joined: Vec<u8> = Vec::new();
+    for part in parts {
+        joined.extend_from_slice(&(part.len() as u64).to_le_bytes());
+        joined.extend_from_slice(part.as_bytes());
+    }
+    let high = stable_hash(&joined, DERIVED_ID_SALT);
+    let low = stable_hash(&joined, high);
     let mut bytes = [0u8; 16];
     bytes[..8].copy_from_slice(&high.to_le_bytes());
     bytes[8..].copy_from_slice(&low.to_le_bytes());
@@ -278,6 +284,11 @@ mod tests {
             derived_id(&["fixture", "league-1", "3", "2032-09-01", "b", "a"])
         );
         assert_ne!(derived_id(&["ab", "c"]), derived_id(&["a", "bc"]));
+        // A part that contains the separator must not run into its neighbour.
+        assert_ne!(
+            derived_id(&["a\u{1f}b", "c"]),
+            derived_id(&["a", "b\u{1f}c"])
+        );
         assert_eq!(id.len(), 36, "it is shaped like a UUID: {id}");
     }
 

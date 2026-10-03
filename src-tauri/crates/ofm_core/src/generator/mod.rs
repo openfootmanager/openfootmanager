@@ -502,22 +502,11 @@ fn replace_available_staff_market(
     rng: &mut impl rand::Rng,
 ) {
     staff.retain(|staff_member| staff_member.team_id.is_some());
-    // The day's stream is the same however many times the market is refilled today, so a market
-    // bought out and refilled the same day would deal the ids it dealt before — to people now
-    // on a club's books. Deal again from the same stream until none repeats; it moves on each
-    // time, so this ends at once in practice, and the cap is only a backstop.
-    let taken: std::collections::HashSet<String> = staff
-        .iter()
-        .map(|staff_member| staff_member.id.clone())
-        .collect();
-    let mut batch = generate_standard_available_staff_for_teams(teams, opening_year, rng);
-    for _ in 0..8 {
-        if batch.iter().all(|member| !taken.contains(&member.id)) {
-            break;
-        }
-        batch = generate_standard_available_staff_for_teams(teams, opening_year, rng);
-    }
-    staff.extend(batch);
+    staff.extend(generate_standard_available_staff_for_teams(
+        teams,
+        opening_year,
+        rng,
+    ));
 }
 
 pub fn replenish_available_staff_market(
@@ -576,7 +565,11 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let current_year = game.clock.current_date.year() as u32;
     let available_count = available_staff_count(&game.staff);
-    let mut rng = game.rng_today("staff-market");
+    // The number of people on the books is part of the stream's name. A market bought out and
+    // refilled on one day would otherwise deal the same ids again, to people now on a club's
+    // books; each batch hired adds to that number, so each refill is a stream of its own, with
+    // no limit on how many a day can have.
+    let mut rng = game.rng_today(&format!("staff-market/{}", game.staff.len()));
 
     if available_count == 0 {
         replace_available_staff_market(&mut game.staff, &game.teams, current_year, &mut rng);
@@ -3216,6 +3209,26 @@ mod tests {
             .iter()
             .map(|staff_member| &staff_member.id)
             .collect();
+        let distinct: std::collections::BTreeSet<&&String> = ids.iter().collect();
+        assert_eq!(distinct.len(), ids.len(), "two people share an id");
+    }
+
+    /// Given a market bought out and refilled again and again on one day,
+    /// When it is refilled twenty times,
+    /// Then no two people ever share an id — however many batches the day has dealt.
+    #[test]
+    fn a_market_refilled_twenty_times_in_one_day_never_repeats_an_id() {
+        let mut game = make_staff_market_game(vec![]);
+        game.seed = 7;
+        let club = game.teams[0].id.clone();
+        for _ in 0..20 {
+            process_available_staff_market(&mut game);
+            for staff_member in game.staff.iter_mut().filter(|s| s.team_id.is_none()) {
+                staff_member.team_id = Some(club.clone());
+            }
+        }
+
+        let ids: Vec<&String> = game.staff.iter().map(|s| &s.id).collect();
         let distinct: std::collections::BTreeSet<&&String> = ids.iter().collect();
         assert_eq!(distinct.len(), ids.len(), "two people share an id");
     }
