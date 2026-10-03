@@ -9,6 +9,7 @@ import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
 import { formatAppVersion } from "../lib/appVersion";
 import { SegmentedControl, Section, SettingRow, Toggle } from "./Settings.components";
 import { ReportBugModal } from "../components/diagnostics/ReportBugModal";
+import { SubmittedReports } from "../components/diagnostics/SubmittedReports";
 import {
   ArrowLeft,
   Monitor,
@@ -45,6 +46,8 @@ export default function Settings() {
   const { theme, toggleTheme } = useTheme();
   const [confirmClear, setConfirmClear] = useState(false);
   const [reportingBug, setReportingBug] = useState(false);
+  // Bumped whenever the report dialog closes, so a code it just received is listed straight away.
+  const [reportsRefresh, setReportsRefresh] = useState(0);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [exportPath, setExportPath] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
@@ -383,6 +386,7 @@ export default function Settings() {
               {t("settings.report")}
             </button>
           </SettingRow>
+          <SubmittedReports refreshKey={reportsRefresh} />
         </Section>
 
         {/* ─── About ─── */}
@@ -403,7 +407,14 @@ export default function Settings() {
         </Section>
       </div>
 
-      {reportingBug && <ReportBugModal onClose={() => setReportingBug(false)} />}
+      {reportingBug && (
+        <ReportBugModal
+          onClose={() => {
+            setReportingBug(false);
+            setReportsRefresh((count) => count + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { AlertTriangle, Bug, Check, Eye, FileText, Package, X } from "lucide-react";
+import { AlertTriangle, Bug, Check, Eye, FileText, Package, Send, X } from "lucide-react";
 
 import { formatAppVersion } from "../../lib/appVersion";
 import { buildBugReportUrl } from "../../lib/issueUrl";
@@ -11,10 +11,13 @@ import {
   type BundleSummary,
   type DiagnosticsReport,
   type LogFileSummary,
+  type UploadReceipt,
   collectDiagnostics,
   exportReportBundle,
   redactReportFields,
+  reportUploadAvailable,
   suggestedReportFileName,
+  uploadReportBundle,
 } from "../../services/reportService";
 import { useGameStore } from "../../store/gameStore";
 import { resolveBackendError } from "../../utils/backendI18n";
@@ -39,20 +42,26 @@ interface ReportBugModalProps {
   onClose: () => void;
 }
 
-/**
- * Report a bug without leaving the game.
- *
- * Three steps, and the middle one is the point: the player sees every file and field that is about
- * to leave their machine, with sizes, before anything is written. Nothing here uploads — the bundle
- * is saved where they choose and the GitHub form opens with the text already filled in. That path
- * needs no server, which is why it is also the permanent fallback once one exists.
- */
 /** Ties an invalid field to the one error message the step shows. */
 const REQUIRED_ERROR_ID = "report-required-error";
 
+/** The relay's answer when the bundle is over its ceiling; the one failure with a remedy here. */
+const UPLOAD_TOO_LARGE = "be.error.report.upload.tooLarge";
+
+/**
+ * Report a bug without leaving the game.
+ *
+ * Describe, then preview, and the preview is the point: the player sees every file and field that
+ * is about to leave their machine, with sizes, before anything is written or sent. When this build
+ * has a relay, the preview is also the consent screen — Send uploads only after an explicit tick,
+ * and the code that comes back is shown. Saving the bundle and opening the prefilled GitHub form
+ * needs no server, so it stays: the only path without a relay, the choice for a player who
+ * declines, and the fallback whenever an upload fails.
+ */
+
 export function ReportBugModal({ onClose }: ReportBugModalProps) {
   const { t, i18n } = useTranslation();
-  const [step, setStep] = useState<"describe" | "preview" | "done">("describe");
+  const [step, setStep] = useState<"describe" | "preview" | "done" | "sent">("describe");
   const [draft, setDraft] = useState<ReportDraft>(EMPTY_DRAFT);
   const [showErrors, setShowErrors] = useState(false);
   const [includeSave, setIncludeSave] = useState(false);
@@ -61,8 +70,32 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [browserFailed, setBrowserFailed] = useState(false);
+  // `null` until the backend answers, and treated as "no" until then: offering Send for a build
+  // that cannot upload is a dead button on the consent screen.
+  const [uploadAvailable, setUploadAvailable] = useState<boolean | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [receipt, setReceipt] = useState<UploadReceipt | null>(null);
+  // The raw key, kept beside the translated text: the remedy offered depends on which failure it
+  // was, and the translated sentence cannot be matched on.
+  const [uploadFailureKey, setUploadFailureKey] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void reportUploadAvailable()
+      .then((available) => {
+        if (!cancelled) setUploadAvailable(available);
+      })
+      .catch((error: unknown) => {
+        // Fails closed to the GitHub path, which needs nothing from the backend to be honest.
+        logError(`[report] could not tell whether uploads are available: ${String(error)}`);
+        if (!cancelled) setUploadAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,6 +193,52 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
   // does. The export reads `get_save_id()` — the value behind this flag — so the two agree.
   const canAttachSave = diagnostics?.has_active_save === true;
 
+  const canUpload = uploadAvailable === true;
+  // Consent is to a list of files, so it cannot be given before that list has been read and shown.
+  const canConsent = diagnostics !== null && !busy;
+
+  // Agreeing to send one bundle is not agreeing to send another. Anything that changes what would
+  // be sent takes the tick away, and the player gives it again for what they now see.
+  const changeIncludeSave = (checked: boolean) => {
+    setIncludeSave(checked);
+    setConsent(false);
+  };
+  useEffect(() => {
+    setConsent(false);
+  }, [diagnostics]);
+
+  const reportText = () =>
+    composeReportText(
+      draft,
+      {
+        whatHappened: t("reportBug.whatHappened"),
+        expected: t("reportBug.expected"),
+        steps: t("reportBug.steps"),
+        frequencyLabel: t("reportBug.frequencyLabel"),
+        frequency: t(`reportBug.frequency.${draft.frequency}`),
+        career: t("reportBug.gameContext"),
+      },
+      careerLine,
+    );
+
+  const handleUpload = async () => {
+    if (!consent) return;
+    setBusy(true);
+    setFailure(null);
+    setUploadFailureKey(null);
+    try {
+      const sent = await uploadReportBundle(reportText(), canAttachSave && includeSave, consent);
+      setReceipt(sent);
+      setStep("sent");
+    } catch (error: unknown) {
+      logError(`[report] upload failed: ${String(error)}`);
+      setUploadFailureKey(String(error));
+      setFailure(resolveBackendError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleContinue = () => {
     if (missing.length > 0) {
       setShowErrors(true);
@@ -169,9 +248,17 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
     setStep("preview");
   };
 
+  const handleBack = () => {
+    setConsent(false);
+    setFailure(null);
+    setUploadFailureKey(null);
+    setStep("describe");
+  };
+
   const handleSubmit = async () => {
     setBusy(true);
     setFailure(null);
+    setUploadFailureKey(null);
     try {
       const defaultPath = await suggestedReportFileName();
       const chosen = await save({
@@ -181,22 +268,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
       // The dialog returns null when the player backs out; that is not a failure.
       if (typeof chosen !== "string") return;
 
-      const written = await exportReportBundle(
-        chosen,
-        composeReportText(
-          draft,
-          {
-            whatHappened: t("reportBug.whatHappened"),
-            expected: t("reportBug.expected"),
-            steps: t("reportBug.steps"),
-            frequencyLabel: t("reportBug.frequencyLabel"),
-            frequency: t(`reportBug.frequency.${draft.frequency}`),
-            career: t("reportBug.gameContext"),
-          },
-          careerLine,
-        ),
-        canAttachSave && includeSave,
-      );
+      const written = await exportReportBundle(chosen, reportText(), canAttachSave && includeSave);
       setSummary(written);
 
       // Two outcomes, reported separately on purpose. Once the bundle exists the player has a
@@ -323,7 +395,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
       >
         <div className="flex items-start gap-3 mb-5">
           <span className="text-primary-600 dark:text-primary-400 shrink-0 mt-0.5">
-            {step === "done" ? (
+            {step === "done" || step === "sent" ? (
               <Check className="w-5 h-5" />
             ) : step === "preview" ? (
               <Eye className="w-5 h-5" />
@@ -341,7 +413,9 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               {t(`reportBug.${step}Title`)}
             </h2>
             <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-              {t(`reportBug.${step}Intro`)}
+              {step === "preview" && canUpload
+                ? t("reportBug.previewIntroUpload")
+                : t(`reportBug.${step}Intro`)}
             </p>
           </div>
           <button
@@ -438,7 +512,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
                 id="report-include-save"
                 checked={canAttachSave && includeSave}
                 disabled={!canAttachSave || busy}
-                onChange={(event) => setIncludeSave(event.target.checked)}
+                onChange={(event) => changeIncludeSave(event.target.checked)}
               />
               <div className="flex-1 min-w-0">
                 <label
@@ -462,12 +536,75 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               )}
             </div>
 
+            {canUpload && (
+              <>
+                <div className="h-px bg-gray-200 dark:bg-navy-600 my-1.5" />
+                {/* The same external-label pattern as the save box above, for the same reason. */}
+                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-primary-50 dark:bg-navy-700 border border-primary-200 dark:border-primary-700">
+                  <Checkbox
+                    id="report-consent"
+                    checked={consent}
+                    disabled={!canConsent}
+                    aria-describedby="report-consent-desc"
+                    onChange={(event) => setConsent(event.target.checked)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <label
+                      htmlFor="report-consent"
+                      className={`block text-[13px] font-medium text-gray-800 dark:text-gray-200 ${
+                        canConsent ? "cursor-pointer" : "cursor-not-allowed"
+                      }`}
+                    >
+                      {t("reportBug.consentLabel")}
+                    </label>
+                    <p
+                      id="report-consent-desc"
+                      className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5"
+                    >
+                      {t("reportBug.consentDesc")}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+
             <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-2">
-              {t("reportBug.nothingSentYet")}
+              {canUpload ? t("reportBug.nothingSentYetUpload") : t("reportBug.nothingSentYet")}
             </p>
             {failure && (
-              <p role="alert" className="text-xs text-red-600 dark:text-red-400">
-                {failure}
+              <div
+                role="alert"
+                className="flex flex-col gap-1 text-xs text-red-600 dark:text-red-400"
+              >
+                <p>{failure}</p>
+                {uploadFailureKey === UPLOAD_TOO_LARGE && canAttachSave && includeSave && (
+                  <p>{t("reportBug.tooLargeUntickSave")}</p>
+                )}
+                {uploadFailureKey !== null && <p>{t("reportBug.uploadFailedFallback")}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === "sent" && receipt && (
+          <div className="flex flex-col gap-3">
+            <p className="text-[11px] font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              {t("reportBug.referenceCode")}
+            </p>
+            {/* `select-all`: the code is for quoting, so one click should take all of it. */}
+            <code className="block select-all px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-xl font-mono tracking-widest text-gray-900 dark:text-gray-100">
+              {receipt.code}
+            </code>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              {t("reportBug.referenceCodeHint")}
+            </p>
+            {receipt.recorded ? (
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {t("reportBug.referenceCodeSaved")}
+              </p>
+            ) : (
+              <p role="alert" className="text-xs text-accent-700 dark:text-accent-400">
+                {t("reportBug.notRecorded")}
               </p>
             )}
           </div>
@@ -508,7 +645,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               </Button>
             </>
           )}
-          {step === "preview" && (
+          {step === "preview" && !canUpload && (
             <>
               <Button
                 className="flex-1"
@@ -519,12 +656,41 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
               >
                 {busy ? t("reportBug.working") : t("reportBug.saveAndOpen")}
               </Button>
-              <Button variant="outline" disabled={busy} onClick={() => setStep("describe")}>
+              <Button variant="outline" disabled={busy} onClick={handleBack}>
                 {t("common.back")}
               </Button>
             </>
           )}
-          {step === "done" && (
+          {step === "preview" && canUpload && (
+            <div className="flex flex-col gap-2 w-full">
+              <Button
+                className="w-full"
+                disabled={busy || !consent}
+                icon={<Send className="w-4 h-4" />}
+                onClick={() => {
+                  void handleUpload();
+                }}
+              >
+                {busy ? t("reportBug.working") : t("reportBug.send")}
+              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  disabled={busy}
+                  onClick={() => {
+                    void handleSubmit();
+                  }}
+                >
+                  {t("reportBug.saveAndOpenInstead")}
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={handleBack}>
+                  {t("common.back")}
+                </Button>
+              </div>
+            </div>
+          )}
+          {(step === "done" || step === "sent") && (
             <Button className="flex-1" onClick={onClose}>
               {t("common.close")}
             </Button>

@@ -1827,7 +1827,11 @@
     "help": "Bantuan",
     "reportBug": "Laporkan bug",
     "reportBugDesc": "Kirimkan apa yang salah; log kamu dilampirkan otomatis.",
-    "report": "Laporkan"
+    "report": "Laporkan",
+    "yourReports": "Laporanmu",
+    "yourReportsDesc": "Kode referensi laporan yang sudah kamu kirim. Sebutkan salah satunya untuk menanyakan laporan atau meminta laporan dihapus.",
+    "noReports": "Kamu belum mengirim laporan apa pun.",
+    "reportIncludedSave": "Dengan berkas simpanan"
   },
   "preMatch": {
     "formationFit": "Kecocokan Formasi",
@@ -2593,7 +2597,18 @@
       "saveManagerUnavailable": "Data penyimpanan untuk sementara tidak tersedia.",
       "report": {
         "bundleFailed": "Berkas laporan tidak bisa ditulis. Periksa apakah kamu bisa menulis ke folder yang dipilih.",
-        "saveMissing": "Berkas simpananmu tidak ditemukan, jadi tidak ada yang ditulis. Hapus centang pada simpanan lalu coba lagi, atau muat ulang kariermu dulu."
+        "saveMissing": "Berkas simpananmu tidak ditemukan, jadi tidak ada yang ditulis. Hapus centang pada simpanan lalu coba lagi, atau muat ulang kariermu dulu.",
+        "upload": {
+          "consentRequired": "Centang kotaknya dulu untuk menyetujui pengiriman berkas-berkas ini.",
+          "notConfigured": "Versi game ini tidak bisa mengirim laporan secara langsung. Pakai formulir GitHub saja.",
+          "tooLarge": "Laporannya terlalu besar untuk dikirim langsung.",
+          "rateLimited": "Terlalu banyak laporan dikirim dari koneksimu baru-baru ini. Tunggu sebentar sebelum mencoba lagi.",
+          "busy": "Server laporan sedang tidak tersedia untuk sementara. Coba lagi nanti.",
+          "rejected": "Server laporan tidak menerima laporan ini.",
+          "serverError": "Server laporan mengalami masalah dan tidak bisa menerima laporan.",
+          "unreachable": "Server laporan tidak bisa dihubungi, jadi tidak ada yang terkirim. Periksa koneksi internetmu.",
+          "unconfirmed": "Koneksi terputus sebelum server menjawab. Laporanmu mungkin sudah sampai — mengirimnya lagi bisa membuat duplikat."
+        }
       },
       "saveDeleteFailed": "Gagal menghapus berkas penyimpanan.",
       "settings": {
@@ -4176,14 +4191,28 @@
     "itemCrashDesc": "Disertakan karena ada yang macet pada sesi terakhirmu.",
     "optionalHeading": "Tambahkan kalau mau — mati secara bawaan",
     "includeSave": "Berkas simpananku",
-      "includeSaveDesc": "Memungkinkan kami memutar ulang situasi persis yang kamu alami.",
+    "includeSaveDesc": "Memungkinkan kami memutar ulang situasi persis yang kamu alami.",
     "includeSaveNoCareer": "Tidak ada karier yang terbuka, jadi tidak ada yang bisa dilampirkan.",
     "nothingSentYet": "Tidak ada yang disimpan atau dibuka sampai kamu menekan tombol di bawah. Mengirim formulir butuh akun GitHub — berkasnya tetap milikmu.",
     "savedTo": "Berkas laporanmu disimpan di sini:",
     "dragItIn": "Seret ke formulir GitHub di peramban, lalu kirim. Selesai.",
-      "browserDidNotOpen": "Peramban tidak terbuka. Berkas di atas sudah tersimpan — lampirkan ke issue baru di GitHub saat sempat.",
+    "browserDidNotOpen": "Peramban tidak terbuka. Berkas di atas sudah tersimpan — lampirkan ke issue baru di GitHub saat sempat.",
     "review": "Tinjau yang akan dikirim",
     "saveAndOpen": "Simpan berkas dan buka GitHub",
-    "working": "Sedang bekerja…"
+    "working": "Sedang bekerja…",
+    "previewIntroUpload": "Semua yang di bawah ini, dan tidak ada yang lain. Tidak ada yang keluar dari komputer ini sampai kamu menekan Kirim atau menyimpan berkasnya sendiri.",
+    "consentLabel": "Kirim berkas-berkas ini ke tim OpenFoot Manager",
+    "consentDesc": "Saya sudah memeriksa daftar di atas dan setuju untuk mengunggahnya. Tidak perlu akun.",
+    "send": "Kirim laporan",
+    "saveAndOpenInstead": "Simpan berkas dan pakai GitHub saja",
+    "nothingSentYetUpload": "Tidak ada yang keluar dari komputer ini sampai kamu menekan Kirim. Lebih suka GitHub? Simpan berkasnya dan lampirkan sendiri ke formulir — itu butuh akun GitHub.",
+    "uploadFailedFallback": "Kamu masih bisa mengirimnya lewat GitHub: simpan berkasnya dan lampirkan ke formulir.",
+    "tooLargeUntickSave": "Membatalkan centang berkas simpananmu akan membuat laporan jauh lebih kecil.",
+    "sentTitle": "Laporan terkirim",
+    "sentIntro": "Terima kasih. Laporanmu sudah ada di kotak masuk pribadi para pengelola.",
+    "referenceCode": "Kode referensimu",
+    "referenceCodeHint": "Sebutkan kode ini jika kamu ingin menanyakan laporanmu atau meminta laporan dihapus. Ini bukan kata sandi — tidak ada yang bisa memakainya untuk melihat laporanmu.",
+    "referenceCodeSaved": "Kamu bisa menemukannya lagi di Pengaturan → Bantuan → Laporanmu.",
+    "notRecorded": "Kode ini tidak bisa ditambahkan ke daftar laporanmu. Tolong catat kode ini."
   }
 }

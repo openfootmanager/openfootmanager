@@ -1846,7 +1846,11 @@
     "help": "Aiuto",
     "reportBug": "Segnala un bug",
     "reportBugDesc": "Raccontaci cosa è andato storto; i tuoi log vengono allegati in automatico.",
-    "report": "Segnala"
+    "report": "Segnala",
+    "yourReports": "Le tue segnalazioni",
+    "yourReportsDesc": "I codici di riferimento delle segnalazioni che hai inviato. Indicane uno per chiedere di una segnalazione o farla cancellare.",
+    "noReports": "Non hai ancora inviato nessuna segnalazione.",
+    "reportIncludedSave": "Con salvataggio"
   },
   "preMatch": {
     "formationFit": "Adattamento alla formazione",
@@ -2746,7 +2750,18 @@
       "saveManagerUnavailable": "I dati di salvataggio non sono temporaneamente disponibili.",
       "report": {
         "bundleFailed": "Non è stato possibile scrivere il file del report. Verifica di poter scrivere nella cartella scelta.",
-        "saveMissing": "Non è stato possibile trovare il tuo salvataggio, quindi non è stato scritto nulla. Togli la spunta al salvataggio e riprova, oppure ricarica prima la carriera."
+        "saveMissing": "Non è stato possibile trovare il tuo salvataggio, quindi non è stato scritto nulla. Togli la spunta al salvataggio e riprova, oppure ricarica prima la carriera.",
+        "upload": {
+          "consentRequired": "Prima spunta la casella per accettare l'invio di questi file.",
+          "notConfigured": "Questa versione del gioco non può inviare segnalazioni direttamente. Usa il modulo di GitHub.",
+          "tooLarge": "La segnalazione è troppo grande per essere inviata direttamente.",
+          "rateLimited": "Di recente sono state inviate troppe segnalazioni dalla tua connessione. Attendi un po' prima di riprovare.",
+          "busy": "Il server delle segnalazioni non è al momento disponibile. Riprova più tardi.",
+          "rejected": "Il server delle segnalazioni non ha accettato questa segnalazione.",
+          "serverError": "Il server delle segnalazioni ha avuto un problema e non ha potuto ricevere la segnalazione.",
+          "unreachable": "Non è stato possibile raggiungere il server delle segnalazioni, quindi non è stato inviato nulla. Controlla la tua connessione a internet.",
+          "unconfirmed": "La connessione si è interrotta prima che il server rispondesse. La tua segnalazione potrebbe essere arrivata: inviarla di nuovo potrebbe creare un duplicato."
+        }
       },
       "saveDeleteFailed": "Impossibile eliminare il file di salvataggio.",
       "settings": {
@@ -4176,14 +4191,28 @@
     "itemCrashDesc": "Incluso perché qualcosa si è bloccato durante la tua ultima sessione.",
     "optionalHeading": "Aggiungi se vuoi — disattivato di default",
     "includeSave": "Il mio salvataggio",
-      "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",
+    "includeSaveDesc": "Ci permette di riprodurre la situazione esatta in cui ti trovavi.",
     "includeSaveNoCareer": "Nessuna carriera aperta, quindi non c'è nulla da allegare.",
     "nothingSentYet": "Nulla viene salvato o aperto finché non premi il pulsante qui sotto. Inviare il modulo richiede un account GitHub: il file è tuo in ogni caso.",
     "savedTo": "Il file della segnalazione è stato salvato qui:",
     "dragItIn": "Trascinalo sul modulo GitHub nel browser e invialo. Tutto qui.",
-      "browserDidNotOpen": "Il browser non si è aperto. Il file qui sopra è salvato: allegalo a una nuova issue su GitHub quando puoi.",
+    "browserDidNotOpen": "Il browser non si è aperto. Il file qui sopra è salvato: allegalo a una nuova issue su GitHub quando puoi.",
     "review": "Controlla cosa viene inviato",
     "saveAndOpen": "Salva il file e apri GitHub",
-    "working": "In corso…"
+    "working": "In corso…",
+    "previewIntroUpload": "Tutto ciò che è qui sotto, e nient'altro. Nulla lascia questo computer finché non premi Invia o salvi tu il file.",
+    "consentLabel": "Invia questi file al team di OpenFoot Manager",
+    "consentDesc": "Ho controllato l'elenco qui sopra e accetto di caricarlo. Non serve alcun account.",
+    "send": "Invia segnalazione",
+    "saveAndOpenInstead": "Salva il file e usa GitHub",
+    "nothingSentYetUpload": "Nulla lascia questo computer finché non premi Invia. Preferisci GitHub? Salva il file e allegalo tu al modulo: serve un account GitHub.",
+    "uploadFailedFallback": "Puoi comunque inviarla tramite GitHub: salva il file e allegalo al modulo.",
+    "tooLargeUntickSave": "Togliendo la spunta al salvataggio la segnalazione diventerà molto più piccola.",
+    "sentTitle": "Segnalazione inviata",
+    "sentIntro": "Grazie. La tua segnalazione è nella casella privata dei responsabili del gioco.",
+    "referenceCode": "Il tuo codice di riferimento",
+    "referenceCodeHint": "Indica questo codice se vuoi chiedere della tua segnalazione o farla cancellare. Non è una password: nessuno può usarlo per vedere la tua segnalazione.",
+    "referenceCodeSaved": "Puoi ritrovarlo in Impostazioni → Aiuto → Le tue segnalazioni.",
+    "notRecorded": "Non è stato possibile aggiungere questo codice al tuo elenco di segnalazioni. Annotalo, per favore."
   }
 }
