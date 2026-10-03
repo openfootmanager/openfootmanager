@@ -330,11 +330,27 @@ mod tests {
             .unwrap();
         state.set_save_id(id.clone());
         live_match::finish_live_match(&state).unwrap();
+        let expected = state
+            .get_game(|game| {
+                serde_json::to_value(&game.league.as_ref().unwrap().fixtures[0]).unwrap()
+            })
+            .unwrap();
         util::persist_active_game(&state, &mut saves).unwrap();
         let game = saves.load_game(&id).unwrap();
         let fixture = &game.league.unwrap().fixtures[0];
         assert_eq!(fixture.status, FixtureStatus::Completed);
-        assert!(fixture.result.is_some());
+        assert_eq!(serde_json::to_value(fixture).unwrap(), expected);
+        assert!(
+            fixture
+                .result
+                .as_ref()
+                .unwrap()
+                .report
+                .as_ref()
+                .unwrap()
+                .total_minutes
+                >= 90
+        );
         assert!(state.with_live_match(|_| ()).is_none());
         drop(saves);
         std::fs::remove_dir_all(path).unwrap();
