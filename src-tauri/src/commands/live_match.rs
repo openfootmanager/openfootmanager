@@ -969,8 +969,9 @@ mod tests {
             .unwrap();
         assert_eq!(competition_fixture.status, FixtureStatus::Completed);
 
-        // Session restore: starting again must not re-simulate completed
-        // fixtures (simulate_other_matches only touches Scheduled ones).
+        // Reconstructing a session requires that no live session exists.
+        // Completed same-day fixtures must still not be re-simulated.
+        state.take_live_match().expect("clear transient session");
         crate::application::live_match::start_live_match(&state, 0, "spectator", false, None, None)
             .expect("restore live match");
         let restored_result = state

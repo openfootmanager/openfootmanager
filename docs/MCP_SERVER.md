@@ -484,3 +484,16 @@ src-tauri/src/mcp_server/
 │   └── help.rs      # Tool discovery helpers
 └── formatting.rs    # Error key → human-readable translation
 ```
+
+### Live-match refusal
+
+While a live-match session exists, `game_save`, `time_advance`,
+`time_skip_to_match_day`, `season_advance`, and a second `match_start` are refused
+with the backend key `be.error.liveMatch.inProgress`. Save-on-exit also refuses
+before clearing the game (`game_exit` and Tauri `exit_to_menu`). The game,
+fixtures, clock and existing session stay unchanged, and saving writes no files. Finish the
+current match with `match_finish` before saving or advancing. A completed
+snapshot still counts as a live session until `match_finish` applies its result.
+Autosave follows a successful day advance and therefore cannot run during the
+refused advance. This application rule also applies to the corresponding Tauri
+save, advance, skip, season and match commands.

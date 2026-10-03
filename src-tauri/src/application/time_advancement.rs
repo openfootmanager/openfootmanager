@@ -91,6 +91,7 @@ pub fn advance_time_with_mode(
     state: &StateManager,
     mode: &str,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
+    let _operation = super::live_session::idle_operation(state)?;
     info!("[cmd] advance_time_with_mode: mode={}", mode);
 
     // The whole day-start sequence runs under the game lock (update_game) so a

@@ -14,6 +14,7 @@ pub struct FinishLiveMatchResponse {
 }
 
 pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
+    let _operation = super::live_session::operation();
     info!("[cmd] finish_live_match");
     let mut session = state
         .take_live_match()
@@ -176,6 +177,7 @@ pub fn start_live_match_with_identity(
     competition_id: Option<&str>,
     fixture_id: Option<&str>,
 ) -> Result<engine::MatchSnapshot, String> {
+    let _operation = super::live_session::idle_operation(state)?;
     info!(
         "[cmd] start_live_match: fixture={}, mode={}, extra_time={}, competition={:?}, fixture_id={:?}",
         fixture_index, mode, allows_extra_time, competition_id, fixture_id
