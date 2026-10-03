@@ -12,6 +12,7 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
 mod berths;
+mod season_calendar;
 use berths::{
     apply_domestic_berth_promotion_relegation, apply_pyramid_promotion_relegation,
     resolve_domestic_berth_fields,
@@ -368,9 +369,9 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
 /// each competition's identity), and keep the legacy `league` slot in sync.
 ///
 /// `rollover_anchor` is the global trigger point (current date + 28 days). Each
-/// competition derives its own next-season start date from its stored
-/// `season_start_month`/`season_start_day` fields so that northern and southern
-/// hemisphere leagues renew on their respective calendars.
+/// competition advances its own edition and keeps its configured opener when
+/// it is still ahead. An overdue opener is postponed to this anchor rather than
+/// skipping the edition or generating unplayable past fixtures.
 fn regenerate_competitions_for_new_season(
     game: &mut Game,
     _next_season: u32,
@@ -491,18 +492,8 @@ fn regenerate_competitions_for_new_season(
             continue;
         }
 
-        // Each competition starts its next season on its own calendar date so
-        // northern and southern hemisphere leagues renew independently.
-        let comp_next_start = crate::generator::next_season_start(
-            rollover_anchor,
-            competition.season_start_month,
-            competition.season_start_day,
-        );
-        // Never behind the season just played. The next season is normally the
-        // calendar year of the competition's own next start date, but a save
-        // whose clock and competition seasons disagree could otherwise regress
-        // a competition stamped 2030 back to 2026 and replay years of history.
-        let comp_next_season = (comp_next_start.year() as u32).max(competition.season + 1);
+        let (comp_next_season, comp_next_start) =
+            season_calendar::next_edition(competition, &game.clock, rollover_anchor);
 
         match competition.rules.format {
             CompetitionFormat::LeagueTable => {
