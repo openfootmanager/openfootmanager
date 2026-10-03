@@ -27,10 +27,10 @@ test("stable publication requires the whole platform matrix to succeed", () => {
 });
 
 // Given all platforms pass, when finalization runs, then only the versioned stable draft is published.
-test("stable finalization publishes the package version without a prerelease flag", () => {
+test("stable finalization publishes the app version without a prerelease flag", () => {
   const finalize = workflow.split("\n  finalize-stable:")[1];
   assert.ok(finalize, "a finalization job must exist");
-  assert.match(finalize, /require\('\.\/package\.json'\)\.version/);
+  assert.match(finalize, /require\('\.\/src-tauri\/tauri\.conf\.json'\)\.version/);
   assert.match(finalize, /gh release edit "v\$release_version" --draft=false --prerelease=false/);
 });
 NODE

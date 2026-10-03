@@ -115,5 +115,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          release_version="$(node -p "require('./package.json').version")"
+          release_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
           gh release edit "v$release_version" --draft=false --prerelease=false
