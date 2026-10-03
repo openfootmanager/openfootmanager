@@ -21,6 +21,7 @@ interface UseTacticsLibraryArgs {
   initialPreset: TacticsPresetDefinition | null;
   onFormationChange: (nextFormation: string) => Promise<boolean>;
   onPlayStyleChange: (playStyle: string) => Promise<boolean>;
+  onApplyPreset: (formation: string, playStyle: string) => Promise<boolean>;
 }
 
 export function useTacticsLibrary({
@@ -30,6 +31,7 @@ export function useTacticsLibrary({
   initialPreset,
   onFormationChange,
   onPlayStyleChange,
+  onApplyPreset,
 }: UseTacticsLibraryArgs) {
   const { t } = useTranslation();
   const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>(() =>
@@ -167,19 +169,25 @@ export function useTacticsLibrary({
     };
   }
 
-  async function applyTacticSelection(nextTactic: TacticsLibraryEntry): Promise<void> {
-    if (formation !== nextTactic.formation) {
-      const didUpdateFormation = await onFormationChange(nextTactic.formation);
-      if (!didUpdateFormation) {
-        return;
-      }
+  async function applyFormationAndStyle(nextTactic: TacticsLibraryEntry): Promise<boolean> {
+    if (formation !== nextTactic.formation && !(await onFormationChange(nextTactic.formation))) {
+      return false;
     }
 
-    if (activePlayStyle !== nextTactic.playStyle) {
-      const didUpdatePlayStyle = await onPlayStyleChange(nextTactic.playStyle);
-      if (!didUpdatePlayStyle) {
-        return;
-      }
+    return activePlayStyle === nextTactic.playStyle || onPlayStyleChange(nextTactic.playStyle);
+  }
+
+  async function applyTacticSelection(nextTactic: TacticsLibraryEntry): Promise<void> {
+    const isPreset = nextTactic.id.startsWith("preset:");
+
+    // A preset is a whole setup: the backend sets its formation, play style and
+    // phase blueprint together (#365). Custom tactics only carry a formation and
+    // style, so they keep the separate calls and leave the manager's dials alone.
+    const didApply = isPreset
+      ? await onApplyPreset(nextTactic.formation, nextTactic.playStyle)
+      : await applyFormationAndStyle(nextTactic);
+    if (!didApply) {
+      return;
     }
 
     setActiveTacticId(nextTactic.id);
