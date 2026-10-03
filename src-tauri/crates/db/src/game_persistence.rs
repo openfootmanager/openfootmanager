@@ -372,6 +372,10 @@ impl GamePersistenceReader {
             squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
+        for competition in &mut game.competitions {
+            ofm_core::calendar_identity::backfill_competition_calendar(competition);
+        }
+        game.sync_legacy_league();
         // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done
         // here: this reads whatever is on disk, and "is the ledger empty?" is not
         // the same question as "was this save written before the ledger existed?".

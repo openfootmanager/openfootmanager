@@ -2662,6 +2662,7 @@
         "unsupportedFormatVersion": "Dieses Paket wurde mit einer neueren Version des Spiels erstellt (Format {{version}}; diese Version unterstützt {{supported}}). Aktualisiere das Spiel, um es zu öffnen."
       },
       "competitionDef": {
+        "invalidCalendar": "Ungültiger Wettbewerbskalender: Prüfe die Ligafamilie, die Spielklasse, die Phase und das Enddatum.",
         "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden.",
         "invalidStandalone": "Die ausgewählte Wettbewerbsdefinitionsdatei ist ungültig.",
         "parseFailed": "Die Wettbewerbsdefinitionsdatei konnte nicht als JSON gelesen werden.",

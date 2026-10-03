@@ -2662,6 +2662,7 @@
         "unsupportedFormatVersion": "Este pacote foi criado com uma versão mais recente do jogo (formato {{version}}; esta versão suporta {{supported}}). Atualize o jogo para o abrir."
       },
       "competitionDef": {
+        "invalidCalendar": "Calendário da competição inválido: verifique a família da divisão, o escalão, a fase e a data de encerramento.",
         "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
         "invalidStandalone": "O ficheiro de definição de competições selecionado é inválido.",
         "parseFailed": "Não foi possível ler o ficheiro de definição de competições como JSON.",

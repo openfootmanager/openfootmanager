@@ -1170,6 +1170,7 @@ fn build_fallback_competition(
             Some("be.competition.fallbackLeagueName".to_string())
         },
         logo: None,
+        calendar: None,
     }
 }
 

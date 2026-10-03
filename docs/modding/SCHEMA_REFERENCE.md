@@ -470,6 +470,11 @@ Competitions are the most complex entity. A competition defines a league, cup, o
 | `berths` | array | `[]` | Qualification spots this competition awards to other competitions. See [Berths](#berths). |
 | `seasonStartMonth` | integer (1–12) | `8` | Month the season begins. |
 | `seasonStartDay` | integer (1–31) | `1` | Day of the month the season begins. |
+| `calendar` | object | absent | Optional retained season specification; does not yet change scheduling or rollover. |
+| `calendar.division.familyId` | string | absent | Non-blank stable family shared by related tiers/phases. A division declaration requires a domestic league-table format and `countryId`. |
+| `calendar.division.tier` | positive integer | absent | Explicit tier within that family. Names and participant overlap never supply this identity. |
+| `calendar.division.phase` | enum | `"annual"` | `"annual"`, `"opening"` or `"closing"`. Opening/closing declarations require `windowEnd`. |
+| `calendar.windowEnd` | object | absent | Optional valid `{ "month": 6, "day": 30 }` end date. An end before the opener belongs to the following year. |
 | `nameKey` | string or null | `null` | i18n key for a translated competition name. |
 
 ### Competition Types

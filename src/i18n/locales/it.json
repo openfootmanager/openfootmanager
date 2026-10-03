@@ -2662,6 +2662,7 @@
         "unsupportedFormatVersion": "Questo pacchetto è stato creato con una versione più recente del gioco (formato {{version}}; questa versione supporta {{supported}}). Aggiorna il gioco per aprirlo."
       },
       "competitionDef": {
+        "invalidCalendar": "Calendario della competizione non valido: controlla la famiglia di divisioni, il livello, la fase e la data di chiusura.",
         "invalidEmbedded": "Le definizioni delle competizioni di questo mondo non sono valide e non è stato possibile caricarle.",
         "invalidStandalone": "Il file di definizione delle competizioni selezionato non è valido.",
         "parseFailed": "Impossibile leggere il file di definizione delle competizioni come JSON.",
