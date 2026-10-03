@@ -4,7 +4,7 @@
  * The app still accepts ISO alpha-2 codes for most countries, but also supports
  * football-specific identities where the sport diverges from ISO country data.
  */
-import countries from "i18n-iso-countries";
+import countries, { type LocaleData } from "i18n-iso-countries";
 import { hasFlag } from "country-flag-icons";
 import enLocale from "i18n-iso-countries/langs/en.json";
 import esLocale from "i18n-iso-countries/langs/es.json";
@@ -20,24 +20,33 @@ import idLocale from "i18n-iso-countries/langs/id.json";
 import type { SupportedLanguageCode } from "../i18n";
 
 /**
- * The language packs `i18n-iso-countries` ships, which is a different
- * vocabulary from the game's language codes (`zh`, not `zh-CN`; no `pt-BR`).
+ * The packs `i18n-iso-countries` ships for the languages the game offers: the
+ * one place a pack is named. `SupportedLocale` and the registration both come
+ * from here, so a pack cannot be listed without being registered, nor
+ * registered without being listed. The vocabulary differs from the game's
+ * language codes (`zh`, not `zh-CN`; no `pt-BR`).
  */
-const SUPPORTED_LOCALES = [
-  "en",
-  "es",
-  "pt",
-  "fr",
-  "de",
-  "it",
-  "ru",
-  "zh",
-  "tr",
-  "cs",
-  "id",
-] as const;
+export const COUNTRY_PACKS = {
+  en: enLocale,
+  es: esLocale,
+  pt: ptLocale,
+  fr: frLocale,
+  de: deLocale,
+  it: itLocale,
+  ru: ruLocale,
+  zh: zhLocale,
+  tr: trLocale,
+  id: idLocale,
+  cs: csLocale,
+} satisfies Record<string, LocaleData>;
 
-type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+type SupportedLocale = keyof typeof COUNTRY_PACKS;
+
+const SUPPORTED_LOCALES = Object.keys(COUNTRY_PACKS) as SupportedLocale[];
+
+for (const pack of Object.values(COUNTRY_PACKS)) {
+  countries.registerLocale(pack);
+}
 
 /**
  * Which country-name pack serves each language the game ships.
@@ -48,7 +57,7 @@ type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
  * the Portuguese pack: the library has no `pt-BR` one, and the football
  * identities below are written identically in both.
  */
-const LIBRARY_LOCALE_FOR_LANGUAGE: Record<SupportedLanguageCode, SupportedLocale> = {
+export const LIBRARY_LOCALE_FOR_LANGUAGE: Record<SupportedLanguageCode, SupportedLocale> = {
   en: "en",
   es: "es",
   pt: "pt",
@@ -62,24 +71,6 @@ const LIBRARY_LOCALE_FOR_LANGUAGE: Record<SupportedLanguageCode, SupportedLocale
   tr: "tr",
   id: "id",
 };
-
-const REGISTERED_LOCALES = [
-  enLocale,
-  esLocale,
-  ptLocale,
-  frLocale,
-  deLocale,
-  itLocale,
-  ruLocale,
-  zhLocale,
-  csLocale,
-  trLocale,
-  idLocale,
-];
-
-for (const locale of REGISTERED_LOCALES) {
-  countries.registerLocale(locale);
-}
 
 interface FootballIdentityDefinition {
   code: string;
@@ -217,7 +208,7 @@ function getBaseLocale(locale: string): SupportedLocale {
   if (exact) return LIBRARY_LOCALE_FOR_LANGUAGE[exact];
 
   const base = wanted.split("-")[0];
-  return (SUPPORTED_LOCALES as readonly string[]).includes(base) ? (base as SupportedLocale) : "en";
+  return (SUPPORTED_LOCALES as string[]).includes(base) ? (base as SupportedLocale) : "en";
 }
 
 function getFootballIdentity(code: string): FootballIdentityDefinition | undefined {
