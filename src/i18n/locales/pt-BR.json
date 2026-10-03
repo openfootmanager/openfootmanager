@@ -662,6 +662,8 @@
     "removeFromLoanList": "Remover da lista de empréstimos",
     "outOfPosition": "Fora de posição",
     "outOfPositionTooltip": "Jogando fora da função preferida do jogador",
+    "pitchTokenTooltip": "Condição {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condição {{condition}}%",
     "dragHint": "Arraste jogadores do banco para o campo ou troque titulares entre as vagas.",
     "benchDragHint": "Use a lista do banco para arrastar jogadores diretamente para o campo.",
     "dropPlayerHere": "Solte o jogador aqui",

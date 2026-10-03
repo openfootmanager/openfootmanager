@@ -662,6 +662,8 @@
     "removeFromLoanList": "从租借名单移除",
     "outOfPosition": "不对位",
     "outOfPositionTooltip": "球员正在其惯用角色之外的位置上场",
+    "pitchTokenTooltip": "状态 {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "状态 {{condition}}%",
     "dragHint": "将替补球员拖到球场上,或在位置间互换首发。",
     "benchDragHint": "使用替补列表将球员直接拖到球场上。",
     "dropPlayerHere": "将球员放在此处",
