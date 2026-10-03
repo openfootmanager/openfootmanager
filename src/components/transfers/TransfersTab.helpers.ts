@@ -79,7 +79,7 @@ function buildLoanPeriodOption(
 ): LoanPeriodOption {
   const loanDays = daysBetween(currentDate, endDate);
   const outsideLoanRules = loanDays < MIN_LOAN_DAYS || loanDays > MAX_LOAN_DAYS;
-  const afterContractEnd = contractEnd !== null && endDate.getTime() >= contractEnd.getTime();
+  const afterContractEnd = contractEnd !== null && endDate.getTime() > contractEnd.getTime();
 
   return {
     id,
