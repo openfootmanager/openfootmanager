@@ -259,6 +259,14 @@ pub fn generate_knockout_cup(
     cup
 }
 
+/// Byes that reduce an uneven knockout field to a power of two.
+/// Shared by bracket construction and completed-edition verification.
+pub(crate) fn knockout_bye_count(entrants: usize) -> Option<usize> {
+    entrants
+        .checked_next_power_of_two()
+        .map(|size| size - entrants)
+}
+
 /// Seed the next knockout round of `cup` from `team_ids` (strongest first —
 /// any byes for a non-power-of-two field go to the leading seeds).
 pub fn seed_knockout_round(
@@ -278,7 +286,7 @@ pub fn seed_knockout_round(
     // When the entrant count is not a power of two, the strongest seeds (which
     // the caller passes first) receive a bye into the next round so the bracket
     // converges to a power of two.
-    let byes = team_ids.len().next_power_of_two() - team_ids.len();
+    let byes = knockout_bye_count(team_ids.len()).expect("knockout entrant count is too large");
     let (bye_teams, playing_teams) = team_ids.split_at(byes);
 
     let mpd = cup.rules.knockout_matches_per_day.max(1) as usize;

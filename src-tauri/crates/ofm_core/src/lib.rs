@@ -12,6 +12,7 @@ pub mod career;
 pub mod catchup;
 pub mod clock;
 pub mod club;
+pub mod competition_completion;
 pub mod contract_wage_policy;
 pub mod contracts;
 pub mod currency;
