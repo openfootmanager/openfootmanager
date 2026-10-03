@@ -38,6 +38,7 @@ pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── game_save ──────────────────────────────────────────────────────────────
 
 pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
+    crate::application::live_session::ensure_idle(&ctx.state_manager)?;
     let save_id = ctx
         .state_manager
         .get_save_id()
