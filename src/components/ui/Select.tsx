@@ -66,13 +66,24 @@ interface NativeOptionProps {
   children?: ReactNode;
 }
 
+/** What the user highlighted: where, and which value sat there. */
+interface Highlight {
+  index: number;
+  value: string;
+}
+
 /**
- * The highlight, or -1 when the option it pointed at is gone or disabled.
- * Deliberately not a fallback to another option: Enter would then commit
- * something the user never highlighted.
+ * The highlight's index, or -1 when it no longer points at what the user
+ * highlighted: the option was removed, disabled, or the list was reordered so
+ * another option now sits at that index. Deliberately not a fallback to some
+ * other option: Enter would then commit something the user never highlighted.
  */
-function resolveActiveIndex(options: SelectOption[], wanted: number): number {
-  return options[wanted] && !options[wanted].disabled ? wanted : -1;
+function resolveActiveIndex(options: SelectOption[], wanted: Highlight | null): number {
+  if (!wanted) {
+    return -1;
+  }
+  const option = options[wanted.index];
+  return option && !option.disabled && option.value === wanted.value ? wanted.index : -1;
 }
 
 export function Select({
@@ -169,7 +180,7 @@ export function Select({
   const [isOpen, setIsOpen] = useState(false);
   // The highlighted option while the list is open. Separate from the committed
   // value: arrow keys move this, only Enter/Space/click commit.
-  const [wantedActiveIndex, setActiveIndex] = useState(-1);
+  const [highlight, setHighlight] = useState<Highlight | null>(null);
 
   const currentValue = controlledValue ?? uncontrolledValue;
   const selectedOption =
@@ -179,7 +190,7 @@ export function Select({
   // Revalidated on every render rather than trusted: `children` can change
   // while the list is open, and a removed or newly disabled highlight must not
   // stay active. Index, not value, so options sharing a value stay distinct.
-  const activeIndex = isOpen ? resolveActiveIndex(options, wantedActiveIndex) : -1;
+  const activeIndex = isOpen ? resolveActiveIndex(options, highlight) : -1;
 
   useEffect(() => {
     if (controlledValue !== undefined || options.length === 0) {
@@ -299,6 +310,9 @@ export function Select({
 
     setIsOpen(false);
   };
+
+  const setActiveIndex = (index: number) =>
+    setHighlight(index >= 0 ? { index, value: options[index].value } : null);
 
   const optionId = (index: number) => `${listboxId}-option-${index}`;
 

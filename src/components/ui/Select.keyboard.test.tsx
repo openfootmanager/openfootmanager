@@ -203,6 +203,43 @@ describe("Select highlight when the options change under an open list", () => {
   });
 
   /**
+   * Given an open list with B highlighted
+   * When the options are reordered so C now sits at B's old index, and Enter is pressed
+   * Then nothing is committed (not C, which the user never highlighted)
+   */
+  it("does not commit a different option after a reorder", () => {
+    const onChange = vi.fn();
+    const { rerender } = renderSelect(
+      [
+        <option key="a" value="a">
+          A
+        </option>,
+        <option key="b" value="b">
+          B
+        </option>,
+        <option key="c" value="c">
+          C
+        </option>,
+      ],
+      onChange,
+    );
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    fireEvent.keyDown(pick(), { key: "ArrowDown" });
+
+    rerender(
+      <Select value="a" aria-label="Pick" onChange={onChange}>
+        <option value="a">A</option>
+        <option value="c">C</option>
+        <option value="b">B</option>
+      </Select>,
+    );
+    expect(pick()).not.toHaveAttribute("aria-activedescendant");
+
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  /**
    * Given two optgroups that each offer the value "europe"
    * When the user arrows onto the second one
    * Then only the second option is the active descendant and Enter commits "europe"
@@ -265,7 +302,7 @@ describe("Select highlight when the options change under an open list", () => {
     );
     fireEvent.keyDown(pick(), { key: "Enter" });
 
-    expect(onChange).not.toHaveBeenCalledWith(expect.objectContaining({ target: { value: "c" } }));
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   /**
