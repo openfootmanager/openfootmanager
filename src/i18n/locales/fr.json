@@ -4221,5 +4221,11 @@
     "notRecorded": "Ce code n'a pas pu être ajouté à votre liste de rapports. Notez-le, s'il vous plaît.",
     "copyCode": "Copier le code",
     "codeCopied": "Copié"
+  },
+  "crashPrompt": {
+    "title": "Le jeu s'est fermé de façon inattendue",
+    "body": "Votre dernière session s'est terminée par un plantage. Le signaler nous aide à le corriger — vous verrez tout ce qui serait envoyé avant que quoi que ce soit ne quitte votre ordinateur.",
+    "report": "Le signaler",
+    "notNow": "Pas maintenant"
   }
 }

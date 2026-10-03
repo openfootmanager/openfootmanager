@@ -4221,5 +4221,11 @@
     "notRecorded": "This code could not be added to your list of reports. Please write it down.",
     "copyCode": "Copy code",
     "codeCopied": "Copied"
+  },
+  "crashPrompt": {
+    "title": "The game closed unexpectedly",
+    "body": "Your last session ended in a crash. Reporting it helps us fix it — you will see everything that would be sent before anything leaves your computer.",
+    "report": "Report it",
+    "notNow": "Not now"
   }
 }

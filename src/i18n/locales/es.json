@@ -4221,5 +4221,11 @@
     "notRecorded": "No se pudo añadir este código a tu lista de informes. Por favor, anótalo.",
     "copyCode": "Copiar código",
     "codeCopied": "Copiado"
+  },
+  "crashPrompt": {
+    "title": "El juego se cerró inesperadamente",
+    "body": "Tu última sesión terminó con un fallo. Informar de ello nos ayuda a arreglarlo: verás todo lo que se enviaría antes de que nada salga de tu ordenador.",
+    "report": "Informar",
+    "notNow": "Ahora no"
   }
 }

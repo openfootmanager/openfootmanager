@@ -11,6 +11,7 @@
 
 use std::panic::PanicHookInfo;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
@@ -167,6 +168,46 @@ impl PreviousCrash {
             .as_ref()
             .and_then(|record| serde_json::to_string_pretty(record).ok())
     }
+}
+
+/// What the launch prompt needs to say that the last session crashed — and nothing else.
+///
+/// No message, location or backtrace: those carry paths, and the prompt has no use for them. The
+/// full record still goes into the report bundle, redacted, if the player chooses to report.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CrashNotice {
+    pub occurred_at: String,
+    pub app_version: String,
+}
+
+/// Whether the player has answered the crash prompt during this launch.
+///
+/// Answered once — reported or not — it does not come back until the next crash: the file was
+/// cleared at startup, so the next launch has nothing to offer. Read and dismissed as two separate
+/// calls rather than one "take", because React runs effects twice in development, and a take
+/// consumed by the discarded first run would leave the prompt invisible to the one person
+/// checking that it works.
+#[derive(Debug, Default)]
+pub struct CrashPromptDismissed(AtomicBool);
+
+impl CrashPromptDismissed {
+    pub fn dismiss(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+}
+
+/// The crash to offer a report for, while there is one and the player has not answered.
+pub fn pending_notice(
+    previous: &PreviousCrash,
+    dismissed: &CrashPromptDismissed,
+) -> Option<CrashNotice> {
+    if dismissed.0.load(Ordering::SeqCst) {
+        return None;
+    }
+    previous.0.as_ref().map(|record| CrashNotice {
+        occurred_at: record.occurred_at.clone(),
+        app_version: record.app_version.clone(),
+    })
 }
 
 /// Report and clear a crash left by the previous launch.
@@ -337,6 +378,51 @@ mod tests {
             "the file should be cleared"
         );
         assert!(held.as_json().is_some(), "the record should survive it");
+    }
+
+    /// Given a crash held from the previous launch and a prompt not yet answered,
+    /// when the frontend asks whether to offer a report,
+    /// then it gets when it happened and which version it was — and asking again gives the same.
+    #[test]
+    fn a_held_crash_is_offered_until_the_player_answers() {
+        let record = sample();
+        let held = PreviousCrash(Some(record.clone()));
+        let dismissed = CrashPromptDismissed::default();
+
+        let expected = Some(CrashNotice {
+            occurred_at: record.occurred_at.clone(),
+            app_version: record.app_version.clone(),
+        });
+        assert_eq!(pending_notice(&held, &dismissed), expected);
+        assert_eq!(pending_notice(&held, &dismissed), expected);
+    }
+
+    /// Given a previous launch that ended cleanly,
+    /// when the frontend asks,
+    /// then there is nothing to offer.
+    #[test]
+    fn a_clean_previous_run_offers_nothing() {
+        assert_eq!(
+            pending_notice(&PreviousCrash(None), &CrashPromptDismissed::default()),
+            None
+        );
+    }
+
+    /// Given a crash the player has answered the prompt about,
+    /// when the frontend asks again during the same launch,
+    /// then nothing is offered — but the record is still held for the report bundle.
+    #[test]
+    fn an_answered_prompt_is_not_offered_again_but_the_record_stays() {
+        let held = PreviousCrash(Some(sample()));
+        let dismissed = CrashPromptDismissed::default();
+
+        dismissed.dismiss();
+
+        assert_eq!(pending_notice(&held, &dismissed), None);
+        assert!(
+            held.as_json().is_some(),
+            "the bundle still needs the record"
+        );
     }
 
     #[test]

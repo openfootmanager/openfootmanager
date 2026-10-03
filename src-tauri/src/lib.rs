@@ -75,6 +75,8 @@ pub fn run() {
             app.manage(crash::PreviousCrash(crash::take_previous_crash(
                 &app_data_dir,
             )));
+            // The launch prompt offering to report that crash, answered at most once per launch.
+            app.manage(crash::CrashPromptDismissed::default());
 
             let saves_dir = app_data_dir.join("saves");
             let mut save_manager = SaveManager::init(&saves_dir).map_err(std::io::Error::other)?;
@@ -341,7 +343,9 @@ pub fn run() {
             commands::report::suggested_report_file_name,
             commands::report::report_upload_available,
             commands::report::upload_report_bundle,
-            commands::report::list_submitted_reports
+            commands::report::list_submitted_reports,
+            commands::report::crash_notice,
+            commands::report::dismiss_crash_notice
         ])
         .run(tauri::generate_context!());
 

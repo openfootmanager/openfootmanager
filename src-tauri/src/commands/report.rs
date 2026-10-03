@@ -613,6 +613,21 @@ pub fn list_submitted_reports(app_handle: tauri::AppHandle) -> Vec<SubmittedRepo
         .unwrap_or_default()
 }
 
+/// The crash the last session ended in, if the player has not yet been asked about it this launch.
+#[tauri::command]
+pub fn crash_notice(
+    previous_crash: State<'_, crash::PreviousCrash>,
+    dismissed: State<'_, crash::CrashPromptDismissed>,
+) -> Option<crash::CrashNotice> {
+    crash::pending_notice(&previous_crash, &dismissed)
+}
+
+/// The player answered the crash prompt — either way — so it is not offered again this launch.
+#[tauri::command]
+pub fn dismiss_crash_notice(dismissed: State<'_, crash::CrashPromptDismissed>) {
+    dismissed.dismiss();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

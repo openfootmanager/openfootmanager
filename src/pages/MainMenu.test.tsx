@@ -126,6 +126,10 @@ vi.mock("../components/ui/ThemeToggle", () => ({
   ThemeToggle: () => <div data-testid="theme-toggle" />,
 }));
 
+// Tested on its own; here it would only add a backend call these tests do not expect.
+vi.mock("../components/diagnostics/CrashReportPrompt", () => ({
+  CrashReportPrompt: () => null,
+}));
 vi.mock("../components/menu/SavesList", () => ({
   default: ({
     saves,

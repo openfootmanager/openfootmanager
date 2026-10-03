@@ -4221,5 +4221,11 @@
     "notRecorded": "Tento kód se nepodařilo přidat do seznamu vašich hlášení. Zapište si ho, prosím.",
     "copyCode": "Zkopírovat kód",
     "codeCopied": "Zkopírováno"
+  },
+  "crashPrompt": {
+    "title": "Hra se neočekávaně ukončila",
+    "body": "Vaše poslední hraní skončilo pádem hry. Nahlášení nám pomůže chybu opravit — než cokoli opustí váš počítač, uvidíte vše, co by se odeslalo.",
+    "report": "Nahlásit",
+    "notNow": "Teď ne"
   }
 }

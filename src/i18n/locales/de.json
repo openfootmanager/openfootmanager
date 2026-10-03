@@ -4221,5 +4221,11 @@
     "notRecorded": "Dieser Code konnte nicht in deine Berichtsliste aufgenommen werden. Bitte schreib ihn dir auf.",
     "copyCode": "Code kopieren",
     "codeCopied": "Kopiert"
+  },
+  "crashPrompt": {
+    "title": "Das Spiel wurde unerwartet beendet",
+    "body": "Deine letzte Sitzung endete mit einem Absturz. Ihn zu melden hilft uns, ihn zu beheben — du siehst alles, was gesendet würde, bevor irgendetwas deinen Rechner verlässt.",
+    "report": "Melden",
+    "notNow": "Nicht jetzt"
   }
 }

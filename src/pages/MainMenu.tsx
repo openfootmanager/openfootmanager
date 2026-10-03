@@ -18,6 +18,7 @@ import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import { FolderOpen, Settings, PlusCircle, ChevronRight, Power, Package, Bug } from "lucide-react";
 import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "../lib/communityLinks";
 import { ReportBugModal } from "../components/diagnostics/ReportBugModal";
+import { CrashReportPrompt } from "../components/diagnostics/CrashReportPrompt";
 import { showError } from "../lib/errorDialog";
 
 function DiscordIcon({ className }: { className?: string }) {
@@ -908,6 +909,8 @@ export default function MainMenu() {
         {formatAppVersion()}
       </div>
 
+      {/* After a crash, the first screen of the next launch offers to report it, once. */}
+      <CrashReportPrompt onReport={() => setReportingBug(true)} />
       {reportingBug && <ReportBugModal onClose={() => setReportingBug(false)} />}
     </div>
   );

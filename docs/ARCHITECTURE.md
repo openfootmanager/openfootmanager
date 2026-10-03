@@ -232,6 +232,8 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `report_upload_available` | — | `bool` | Whether OFMHub takes reports right now: reads its `/bug-reports/config` (the kill switch). Debug builds honour `OFM_BUG_REPORT_URL` |
 | `upload_report_bundle` | report_text, fields, include_save, consent, screenshot_paths, package_paths | `UploadReceipt` | With consent, build the bundle privately and send it to OFMHub as multipart ([contract](api/bug-reports.md)); records the reference. Rejects with `{key, retry_after_seconds}` |
 | `list_submitted_reports` | — | `Vec<SubmittedReport>` | Reference codes from `reports.json`, newest first |
+| `crash_notice` | — | `Option<CrashNotice>` | When the last session crashed (time and version only), until the player answers the launch prompt |
+| `dismiss_crash_notice` | — | — | The launch crash prompt was answered; not offered again this launch |
 
 ---
 
