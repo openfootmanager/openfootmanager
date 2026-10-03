@@ -2245,6 +2245,129 @@ mod tests {
         );
     }
 
+    /// Twelve dormant leagues, each with one fixture today, held in an order that is not the
+    /// order the .db hands them back in (priority, season descending, then name).
+    fn game_with_dormant_leagues_today() -> Game {
+        let mut game = sample_game();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 9, 0, 0, 0).unwrap();
+        // No players: a free agent in the save would be signed by a short squad on load, and the
+        // reloaded game's clubs would no longer be the ones it is compared with.
+        game.players.clear();
+        let names = [
+            "Zulu", "Alpha", "Yankee", "Bravo", "Xray", "Charlie", "Whiskey", "Delta", "Victor",
+            "Echo", "Uniform", "Foxtrot",
+        ];
+        game.competitions.clear();
+        for (n, name) in names.iter().enumerate() {
+            let (home, away) = (format!("dh-{n}"), format!("da-{n}"));
+            for id in [&home, &away] {
+                game.teams.push(Team::new(
+                    id.clone(),
+                    format!("{id} FC"),
+                    id.to_uppercase(),
+                    "GB".to_string(),
+                    "Town".to_string(),
+                    "Ground".to_string(),
+                    20_000,
+                ));
+            }
+            let mut league = domain::league::League::new(
+                format!("dormant-{n}"),
+                (*name).to_string(),
+                2026,
+                &[home.clone(), away.clone()],
+            );
+            league.fixtures.push(domain::league::Fixture {
+                id: format!("df-{n}"),
+                competition_id: format!("dormant-{n}"),
+                matchday: 1,
+                date: "2026-09-09".to_string(),
+                home_team_id: home,
+                away_team_id: away,
+                competition: domain::league::FixtureCompetition::League,
+                status: domain::league::FixtureStatus::Scheduled,
+                result: None,
+            });
+            game.competitions.push(league);
+        }
+        // With no scope set every competition is simulated in full. One active competition with
+        // nothing to play today puts the twelve above outside it, which is what makes them dormant.
+        game.competitions.insert(
+            0,
+            domain::league::League::new(
+                "the-active-one".to_string(),
+                "Mike".to_string(),
+                2026,
+                &["team-001".to_string()],
+            ),
+        );
+        game.active_competition_ids = vec!["the-active-one".to_string()];
+        // The legacy mirror a save keeps of the user's league: a reload rebuilds it from the
+        // competitions, so the game it is compared with must start with the same one.
+        game.sync_legacy_league();
+        game
+    }
+
+    fn dormant_scores(game: &Game) -> std::collections::BTreeMap<String, (u8, u8)> {
+        game.competitions
+            .iter()
+            .filter(|competition| competition.id.starts_with("dormant-"))
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter_map(|fixture| {
+                let result = fixture.result.as_ref()?;
+                Some((
+                    format!("{}-{}", fixture.home_team_id, fixture.away_team_id),
+                    (result.home_goals, result.away_goals),
+                ))
+            })
+            .collect()
+    }
+
+    /// Given dormant leagues with a fixture each today,
+    /// When the game is saved and reloaded before the day is played — the .db hands competitions
+    ///      back ordered by priority, season and name, not as they were made —
+    /// Then the day plays out as it would have without the reload: each fixture has a stream of
+    ///      its own, so none depends on how many were settled before it.
+    #[test]
+    fn a_reload_before_a_dormant_matchday_does_not_change_its_results() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = game_with_dormant_leagues_today();
+        game.seed = 11;
+        let save_id = sm.create_save(&game, "Dormant").unwrap();
+        let mut reloaded = sm.load_game(&save_id).unwrap();
+        let order = |g: &Game| {
+            g.competitions
+                .iter()
+                .map(|c| c.id.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_ne!(
+            order(&game),
+            order(&reloaded),
+            "the reload must reorder the competitions or this proves nothing"
+        );
+
+        game.league = None;
+        reloaded.league = None;
+        ofm_core::turn::process_day(&mut game);
+        ofm_core::turn::process_day(&mut reloaded);
+
+        let scores = dormant_scores(&game);
+        assert_eq!(scores.len(), 12, "every dormant fixture was settled");
+        // The positive control: the twelve fixtures were not all settled by one stream, so
+        // equal results after a reload mean something.
+        assert!(
+            scores
+                .values()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                > 1,
+            "all twelve fixtures ended alike"
+        );
+        assert_eq!(scores, dormant_scores(&reloaded));
+    }
+
     /// Given a career begun from an old save (a new game from a save),
     /// When it is loaded for that purpose,
     /// Then it is a new game, drawn from its own seed: the mark that keeps an old career's World
