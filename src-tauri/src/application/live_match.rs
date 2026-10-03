@@ -151,23 +151,6 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     })
 }
 
-#[cfg(any(feature = "mcp", test))]
-pub fn start_live_match(
-    state: &StateManager,
-    fixture_index: usize,
-    mode: &str,
-    allows_extra_time: bool,
-    home_team_id: Option<&str>,
-    away_team_id: Option<&str>,
-) -> Result<engine::MatchSnapshot, String> {
-    if home_team_id.is_some() || away_team_id.is_some() {
-        // Team IDs cannot identify a fixture when two competitions pair the
-        // same clubs. Session restoration must supply stable identity.
-        return Err("be.error.liveMatch.fixtureNotFound".to_string());
-    }
-    start_live_match_with_identity(state, fixture_index, mode, allows_extra_time, None, None)
-}
-
 pub fn start_live_match_with_identity(
     state: &StateManager,
     fixture_index: usize,

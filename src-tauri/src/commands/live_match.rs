@@ -1123,7 +1123,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_round());
 
-        crate::application::live_match::start_live_match(&state, 0, "spectator", false, None, None)
+        super::start_live_match_internal(&state, 0, "spectator", false, None, None)
             .expect("start live match");
 
         let (user_fixture, other_fixture) = state
@@ -1154,7 +1154,7 @@ mod tests {
 
         // Session restore: starting again must not re-simulate completed
         // fixtures (simulate_other_matches only touches Scheduled ones).
-        crate::application::live_match::start_live_match(&state, 0, "spectator", false, None, None)
+        super::start_live_match_internal(&state, 0, "spectator", false, None, None)
             .expect("restore live match");
         let restored_result = state
             .get_game(|g| g.league.as_ref().unwrap().fixtures[1].result.clone())
@@ -1170,15 +1170,13 @@ mod tests {
         state.set_game(make_game_with_round());
 
         // MCP supplies only the raw fixture index, without team IDs.
-        crate::application::live_match::start_live_match(&state, 0, "instant", false, None, None)
+        super::start_live_match_internal(&state, 0, "instant", false, None, None)
             .expect("first start");
         finish_live_match_internal(&state).expect("first finish");
         let before = state.get_game(|game| game.clone()).unwrap();
 
-        let error = crate::application::live_match::start_live_match(
-            &state, 0, "instant", false, None, None,
-        )
-        .unwrap_err();
+        let error =
+            super::start_live_match_internal(&state, 0, "instant", false, None, None).unwrap_err();
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
         let after = state.get_game(|game| game.clone()).unwrap();
         assert_eq!(after.clock.current_date, before.clock.current_date);
@@ -1222,10 +1220,8 @@ mod tests {
         // must not be allowed to replay a fixture completed in the source of truth.
         state.set_game(game);
 
-        let error = crate::application::live_match::start_live_match(
-            &state, 0, "instant", false, None, None,
-        )
-        .expect_err("completed authoritative fixture must be rejected");
+        let error = super::start_live_match_internal(&state, 0, "instant", false, None, None)
+            .expect_err("completed authoritative fixture must be rejected");
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
     }
 
@@ -1237,7 +1233,7 @@ mod tests {
         game.competitions[0].fixtures[0].status = FixtureStatus::Completed;
         state.set_game(game);
 
-        let error = crate::application::live_match::start_live_match(
+        let error = super::start_live_match_internal(
             &state,
             1,
             "live",
@@ -1262,7 +1258,7 @@ mod tests {
 
         // The requested domestic fixture is done, but a cup tie between the
         // same clubs is still Scheduled. Team IDs alone cannot restore it.
-        let result = crate::application::live_match::start_live_match(
+        let result = super::start_live_match_internal(
             &state,
             0,
             "live",

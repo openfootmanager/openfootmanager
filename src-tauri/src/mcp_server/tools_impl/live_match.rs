@@ -45,9 +45,14 @@ pub fn match_start(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
+    let fixture_label = match (competition_id.as_deref(), fixture_id.as_deref()) {
+        (Some(competition), Some(fixture)) => format!("{competition}/{fixture}"),
+        _ => format!("Index {fixture_index}"),
+    };
+
     Ok(format!(
-        "## Live Match Started\n\n**Fixture Index**: {}\n**Mode**: {}\n**Minute**: {}\n**Score**: {} - {}\n\nUse `match_step` to advance, `match_command` to issue tactical commands, and `match_finish` to end.",
-        fixture_index, mode, snapshot.current_minute, snapshot.home_score, snapshot.away_score
+        "## Live Match Started\n\n**Fixture**: {}\n**Mode**: {}\n**Minute**: {}\n**Score**: {} - {}\n\nUse `match_step` to advance, `match_command` to issue tactical commands, and `match_finish` to end.",
+        fixture_label, mode, snapshot.current_minute, snapshot.home_score, snapshot.away_score
     ))
 }
 
