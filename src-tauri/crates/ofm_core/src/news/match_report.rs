@@ -91,7 +91,9 @@ pub fn match_report_article(
     away_scorers: &[(String, u32)],
     date: &str,
 ) -> NewsArticle {
-    let mut rng = rand::rng();
+    let mut rng = crate::seed::rng_from_key(&format!(
+        "news/match-report/{home_team_id}/{away_team_id}/{matchday}/{date}"
+    ));
     let is_league_fixture = matches!(competition, FixtureCompetition::League);
 
     let scorer_parts = scorer_parts(home_name, away_name, home_scorers, away_scorers);

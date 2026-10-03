@@ -780,7 +780,8 @@ fn build_scout_report(
     team_name: Option<&str>,
     date: &str,
 ) -> InboxMessage {
-    let mut rng = rand::rng();
+    // What the scout sees is part of the assignment, so two replays of the day agree.
+    let mut rng = crate::seed::rng_from_key(&format!("scout-report/{assignment_id}/{date}"));
 
     // Accuracy: higher judging = less noise on reported attributes
     let noise_range = if judging_ability >= 80 {
@@ -998,6 +999,46 @@ mod tests {
             reflexes: 20,
             aerial: 55,
         }
+    }
+
+    fn report_for(assignment: &str) -> String {
+        let message = build_scout_report(
+            assignment,
+            "Alex Scout",
+            "player-1",
+            "Jamie Prospect",
+            "ENG",
+            "2004-03-12",
+            "Midfielder",
+            &sample_attrs(),
+            74,
+            89,
+            67,
+            79,
+            50,
+            50,
+            Some("London FC"),
+            "2026-08-01",
+        );
+        serde_json::to_value(message).unwrap().to_string()
+    }
+
+    /// Given a scout assigned to a player,
+    /// When the report is written twice, for each of thirty assignments,
+    /// Then it reads the same both times — the scout's noise is part of the report, so a
+    ///      replayed day must not see different numbers — and the noise is not the same
+    ///      for every assignment.
+    #[test]
+    fn a_scout_report_reads_the_same_each_time() {
+        let ids: Vec<String> = (0..30).map(|n| format!("assignment-{n}")).collect();
+        for id in &ids {
+            assert_eq!(report_for(id), report_for(id), "{id}");
+        }
+        let distinct: std::collections::BTreeSet<String> = ids
+            .iter()
+            .map(|id| report_for(id).replace(id.as_str(), ""))
+            .collect();
+        assert!(distinct.len() > 1, "the scout's noise never varied");
     }
 
     #[test]

@@ -21,7 +21,7 @@ use super::fixtures::{make_game_with_match, make_squad, make_team};
 /// sweep. With only the user's fixture in it, the sweep is a no-op no matter what index it is told
 /// to skip — so a world that small cannot tell the session path from the sweep, and every assertion
 /// about "the user's match was played" passes either way.
-fn game_before_the_users_match() -> Game {
+pub(super) fn game_before_the_users_match() -> Game {
     let mut game = make_game_with_match();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 

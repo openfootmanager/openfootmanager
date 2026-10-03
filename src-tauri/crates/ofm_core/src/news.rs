@@ -174,7 +174,8 @@ pub fn league_roundup_article(
     results: &[(String, u8, String, u8)], // (home_name, home_goals, away_name, away_goals)
     date: &str,
 ) -> NewsArticle {
-    let mut rng = rand::rng();
+    let mut rng =
+        crate::seed::rng_from_key(&format!("news/roundup/{competition_id}/{matchday}/{date}"));
     let results_data = roundup_results_data(results);
     let biggest_winner = biggest_winner_name(results);
 
@@ -218,7 +219,9 @@ pub fn standings_update_article(
     top_teams: &[(String, u32, i16)], // (team_name, points, goal_diff)
     date: &str,
 ) -> NewsArticle {
-    let mut rng = rand::rng();
+    let mut rng = crate::seed::rng_from_key(&format!(
+        "news/standings/{competition_id}/{matchday}/{date}"
+    ));
 
     let leader = top_teams
         .first()
@@ -281,7 +284,8 @@ fn preview_contenders<'a>(team_names: &'a [String], rng: &mut impl Rng) -> (&'a 
 
 /// Generate a season preview article at the start of the season.
 pub fn season_preview_article(team_names: &[String], date: &str) -> NewsArticle {
-    let mut rng = rand::rng();
+    let mut rng =
+        crate::seed::rng_from_key(&format!("news/preview/{date}/{}", team_names.join(",")));
 
     let (favourite, dark_horse) = preview_contenders(team_names, &mut rng);
     let headline_idx = rng.random_range(0..3);
@@ -716,7 +720,7 @@ pub fn transfer_rumour_gossip_article(
     from_team_name: &str,
     date: &str,
 ) -> NewsArticle {
-    let mut rng = rand::rng();
+    let mut rng = crate::seed::rng_from_key(id);
     let headline_idx = rng.random_range(0..3);
     let body_idx = rng.random_range(0..3);
 
@@ -755,7 +759,7 @@ pub fn injury_news_article(
     days_out: u32,
     date: &str,
 ) -> NewsArticle {
-    let mut rng = rand::rng();
+    let mut rng = crate::seed::rng_from_key(id);
 
     let is_short = days_out <= 7;
     let weeks = days_out.div_ceil(7);
