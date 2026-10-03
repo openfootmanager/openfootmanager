@@ -15,6 +15,9 @@ use std::collections::{HashMap, HashSet};
 // Domain → Engine conversion with starting XI / bench split
 // ---------------------------------------------------------------------------
 
+// A healthy eleven plus seven reserves before admitting youth. Seniors are uncapped.
+const MATCH_DAY_POOL_TARGET: usize = 18;
+
 pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (name, formation, play_style, tactics, saved_xi_ids) = match team {
@@ -41,12 +44,25 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         ),
     };
 
-    // Collect all available (non-injured) players for this team
-    let available_players: Vec<&domain::player::Player> = game
+    // Youth only cover a shortage in the healthy senior pool, for both the
+    // user's saved XI and AI selection. A temporary call-up never promotes them.
+    let (mut available_players, mut youth_players): (
+        Vec<&domain::player::Player>,
+        Vec<&domain::player::Player>,
+    ) = game
         .players
         .iter()
         .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
-        .collect();
+        .partition(|p| p.squad_role == domain::player::SquadRole::Senior);
+    let youth_needed = MATCH_DAY_POOL_TARGET.saturating_sub(available_players.len());
+    if youth_needed > 0 {
+        youth_players.sort_by(|left, right| {
+            natural_ovr(right)
+                .total_cmp(&natural_ovr(left))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        available_players.extend(youth_players.into_iter().take(youth_needed));
+    }
     let player_roles = team.map(|t| &t.player_roles);
     // `deployed` is the granular slot the player occupies; `None` for the bench,
     // where the player's own position is used instead. The engine's coarse
