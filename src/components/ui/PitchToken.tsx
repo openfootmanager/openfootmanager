@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { KitPattern } from "../../store/types";
+import { condBgColor } from "../../lib/playerConditionDisplay";
 import { getPositionColor } from "../../lib/positionColors";
 import { PlayerAvatar } from "./PlayerAvatar";
 import JerseyIcon from "./JerseyIcon";
@@ -62,15 +64,18 @@ function fitRingClass(fitTone: PitchFitTone): string {
   }
 }
 
-function conditionFillClass(condition: number, fitTone: PitchFitTone): string {
-  // The fit tone caps the bar COLOUR (not its width): an out-of-position
-  // player shows a warning-coloured bar even when fully fresh, signalling
-  // reduced effectiveness in that slot.
-  const capped = Math.min(condition, fitTone === "out" ? 56 : fitTone === "adapted" ? 74 : 100);
-  if (capped >= 90) return "bg-success-400";
-  if (capped >= 75) return "bg-primary-300";
-  if (capped >= 60) return "bg-accent-300";
-  return "bg-red-400";
+/** The existing label for how a player fits the slot; `empty` has no verdict to state. */
+function fitLabelKey(fitTone: PitchFitTone): string | null {
+  switch (fitTone) {
+    case "exact":
+      return "squad.naturalFit";
+    case "adapted":
+      return "squad.adaptedFit";
+    case "out":
+      return "squad.outOfPosition";
+    default:
+      return null;
+  }
 }
 
 /**
@@ -96,6 +101,14 @@ export function PitchToken({
   markers,
   children,
 }: PitchTokenProps) {
+  const { t } = useTranslation();
+  const fitKey = fitLabelKey(fitTone);
+  // Each channel says one thing — ring: fit, bar: condition — and the words
+  // carry both, for hover and for screen readers (#330).
+  const summary = fitKey
+    ? t("squad.pitchTokenTooltip", { condition: Math.round(condition), fit: t(fitKey) })
+    : t("squad.pitchTokenConditionOnly", { condition: Math.round(condition) });
+
   return (
     <>
       {/* Avatar with overlaid badges */}
@@ -153,10 +166,12 @@ export function PitchToken({
 
       {children}
 
-      <div className="w-full">
+      <div className="w-full" title={summary}>
+        <span className="sr-only">{summary}</span>
         <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
           <div
-            className={`h-full rounded-full ${conditionFillClass(condition, fitTone)}`}
+            data-testid="pitch-token-condition-fill"
+            className={`h-full rounded-full ${condBgColor(condition)}`}
             style={{ width: `${Math.max(20, condition)}%` }}
           />
         </div>
