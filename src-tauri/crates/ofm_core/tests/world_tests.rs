@@ -96,6 +96,11 @@ fn assert_one_league_per_club(game: &Game, sizes: &BTreeMap<String, usize>, labe
     assert!(violations.is_empty(), "{label}: {violations:#?}");
 }
 
+/// A catch-up draws from a generator it is handed; these tests do not care which.
+fn game_seeded_rng(n: u64) -> impl rand::Rng {
+    ofm_core::seed::rng_for_seed(n, "world-tests", "2100-01-01")
+}
+
 #[test]
 fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
     let mut game = production_world(2035, "eng-00");
@@ -115,7 +120,8 @@ fn a_generated_world_promotes_and_relegates_for_three_seasons_running() {
         let far_future = Utc.with_ymd_and_hms(2100, 1, 1, 0, 0, 0).unwrap();
         let players = game.players.clone();
         for competition in game.competitions.iter_mut() {
-            ofm_core::catchup::simulate_past_fixtures(competition, &players, far_future);
+            let mut rng = game_seeded_rng(rollover);
+            ofm_core::catchup::simulate_past_fixtures(competition, &players, far_future, &mut rng);
         }
         let last_match_day = game
             .competitions
@@ -223,7 +229,8 @@ fn a_brazilian_career_promotes_and_relegates_every_season() {
         for _ in 0..40 {
             let players = game.players.clone();
             for competition in game.competitions.iter_mut() {
-                ofm_core::catchup::simulate_past_fixtures(competition, &players, cutoff);
+                let mut rng = game_seeded_rng(0);
+                ofm_core::catchup::simulate_past_fixtures(competition, &players, cutoff, &mut rng);
             }
             game.clock.current_date = cutoff;
             if ofm_core::end_of_season::is_season_complete(&game) {

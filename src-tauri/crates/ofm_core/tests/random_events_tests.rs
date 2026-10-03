@@ -1399,3 +1399,49 @@ fn unfit_players_get_more_training_injuries() {
         peak_injuries
     );
 }
+
+// ---------------------------------------------------------------------------
+// Random events come from the game's seed
+// ---------------------------------------------------------------------------
+
+/// What a year of daily checks left in the inbox. Not the message ids, which can carry
+/// a generated id: what was said and when.
+fn a_year_of_random_events(seed: u64) -> Vec<String> {
+    let mut game = make_game();
+    game.seed = seed;
+    for _ in 0..400 {
+        ofm_core::random_events::check_random_events(&mut game);
+        game.clock.advance_days(1);
+    }
+    game.messages
+        .iter()
+        .map(|message| {
+            format!(
+                "{} {:?} {:?}",
+                message.date, message.subject_key, message.body_key
+            )
+        })
+        .collect()
+}
+
+/// Given a club and a year of days,
+/// When the random events are checked each day, twice, from the same seed,
+/// Then the same things happen on the same days.
+#[test]
+fn random_events_fall_the_same_way_from_the_same_seed() {
+    assert_eq!(a_year_of_random_events(11), a_year_of_random_events(11));
+}
+
+/// The control: a year with no events at all could not tell a seeded generator from
+/// one that ignores its seed.
+#[test]
+fn the_seed_decides_which_random_events_happen() {
+    let years: std::collections::BTreeSet<Vec<String>> =
+        (0..20).map(a_year_of_random_events).collect();
+
+    assert!(years.len() > 1, "twenty seeds all gave the same year");
+    assert!(
+        years.iter().any(|year| !year.is_empty()),
+        "no seed produced a single event"
+    );
+}

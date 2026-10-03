@@ -494,6 +494,7 @@ mod tests {
                 package_lockfile_json: "[]".to_string(),
                 emitted_events_json: "[]".to_string(),
                 seed: 0,
+                legacy_world_cup_draw: false,
             },
         )
         .unwrap();
@@ -619,6 +620,7 @@ mod tests {
                 package_lockfile_json: "[]".to_string(),
                 emitted_events_json: "[]".to_string(),
                 seed: 0,
+                legacy_world_cup_draw: false,
             },
         )
         .unwrap();

@@ -54,6 +54,24 @@ pub fn finish_live_match_internal(state: &StateManager) -> Result<FinishLiveMatc
     finish_live_match_service(state)
 }
 
+/// The seed a team talk's morale swings are drawn from: the game's, for this tone and this
+/// moment of the match, so the same talk in the same spot replays the same way.
+/// The seed for a talk given in a named phase of the match (half-time, full-time): the same tone in the same score line is a different talk at each, and must not draw the
+/// same swings twice.
+pub(crate) fn team_talk_seed_in_phase(game: &Game, tone: &str, context: &str, phase: &str) -> u64 {
+    use rand::RngExt;
+    game.rng_today(&format!("team-talk/{tone}/{context}/{phase}"))
+        .random()
+}
+
+/// The phase the live match is in, as a tag for [`team_talk_seed_in_phase`]; empty when there
+/// is no live match.
+pub(crate) fn live_phase_tag(state: &ofm_core::state::StateManager) -> String {
+    state
+        .with_live_match(|session| format!("{:?}", session.match_state.phase()))
+        .unwrap_or_default()
+}
+
 pub fn apply_team_talk_internal(
     game: &mut Game,
     tone: &str,
@@ -131,10 +149,13 @@ pub fn apply_team_talk(
     context: String,
 ) -> Result<Vec<serde_json::Value>, String> {
     info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
-    let seed = rand::rng().random::<u64>();
     // apply_team_talk validates (team assigned) before mutating morale.
+    let phase = live_phase_tag(&state);
     state
-        .update_game(|game| apply_team_talk_internal(game, &tone, &context, seed))
+        .update_game(|game| {
+            let seed = team_talk_seed_in_phase(game, &tone, &context, &phase);
+            apply_team_talk_internal(game, &tone, &context, seed)
+        })
         .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
@@ -204,7 +225,7 @@ fn apply_press_conference(
 
     // Past this point nothing returns `Err` — see the note above.
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let mut rng = rand::rng();
+    let mut rng = game.rng_today("press-conference");
 
     // Build news article from press conference answers
     let mut quotes: Vec<String> = Vec::new();
@@ -560,6 +581,72 @@ mod tests {
             question_text: "How was the game?".to_string(),
             player_id: player_id.to_string(),
         }
+    }
+
+    fn morale_after_a_press_conference(seed: u64) -> Vec<u8> {
+        let mut game = game_after_a_match();
+        game.seed = seed;
+        apply_press_conference(
+            &mut game,
+            &[
+                press_answer("q1", "confident", ""),
+                press_answer("q2", "demanding", ""),
+            ],
+        )
+        .expect("press conference applied");
+        morale_snapshot(&game)
+    }
+
+    /// Given a club after a match,
+    /// When the same press conference is held twice from the same seed,
+    /// Then the squad's mood moves the same way both times, and the seed is what decides by
+    ///      how much.
+    #[test]
+    fn a_press_conference_moves_morale_the_same_way_from_the_same_seed() {
+        for seed in 0..20 {
+            assert_eq!(
+                morale_after_a_press_conference(seed),
+                morale_after_a_press_conference(seed),
+                "seed {seed}"
+            );
+        }
+        let outcomes: std::collections::BTreeSet<Vec<u8>> =
+            (0..40).map(morale_after_a_press_conference).collect();
+        assert!(outcomes.len() > 1, "forty seeds all moved the squad alike");
+    }
+
+    /// Given a game and a team talk,
+    /// When its seed is asked for twice,
+    /// Then it is the same; and another tone, another moment or another game's seed asks
+    ///      for another.
+    #[test]
+    fn a_team_talks_seed_comes_from_the_game() {
+        let mut game = game_after_a_match();
+        game.seed = 5;
+        let seed = super::team_talk_seed_in_phase(&game, "calm", "losing", "HalfTime");
+
+        assert_eq!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "losing", "HalfTime")
+        );
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "aggressive", "losing", "HalfTime")
+        );
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "winning", "HalfTime")
+        );
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "losing", "FullTime"),
+            "the same talk at half-time and at full-time is two talks"
+        );
+        game.seed = 6;
+        assert_ne!(
+            seed,
+            super::team_talk_seed_in_phase(&game, "calm", "losing", "HalfTime")
+        );
     }
 
     #[test]
