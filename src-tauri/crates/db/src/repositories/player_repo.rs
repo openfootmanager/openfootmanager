@@ -876,6 +876,7 @@ mod tests {
             date: "2026-08-01".to_string(),
             registration_date: None,
             closed_on: Some("2026-08-14".to_string()),
+            registration_failure_reason: None,
         });
         player.loan_offers.push(LoanOffer {
             id: "loan-offer-closed".to_string(),
@@ -1009,6 +1010,32 @@ mod tests {
                 .map(|loan| loan.development_reported_appearances),
             Some(4)
         );
+    }
+
+    /// Given a voided registration with a non-default reason, when saved to SQLite and loaded,
+    /// then the reason and closure date survive inside the existing offers JSON.
+    #[test]
+    fn a_failed_registration_reason_survives_sqlite_save_and_load() {
+        let db = test_db();
+        let mut player = sample_player("p-registration-failed", Some("team-a"));
+        player.transfer_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id":"failed-offer", "from_team_id":"team-b", "fee":800_000,
+                "wage_offered":0, "status":"Withdrawn", "date":"2026-06-01",
+                "registration_date":"2026-07-02", "closed_on":"2026-07-02",
+                "registration_failure_reason":"InsufficientFunds"
+            }))
+            .unwrap(),
+        );
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+        let offer = &stored.transfer_offers[0];
+        assert_eq!(
+            serde_json::to_value(offer).unwrap()["registration_failure_reason"],
+            "InsufficientFunds"
+        );
+        assert_eq!(offer.closed_on.as_deref(), Some("2026-07-02"));
     }
 
     #[test]

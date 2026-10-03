@@ -597,6 +597,7 @@ mod tests {
             date: "2026-08-01".to_string(),
             registration_date: None,
             closed_on: None,
+            registration_failure_reason: None,
         });
         player
     }

@@ -139,6 +139,7 @@ pub(crate) fn close_transfer_offer(
 ) {
     offer.status = status;
     offer.suggested_counter_fee = None;
+    offer.registration_failure_reason = None;
     offer.closed_on = Some(today.to_string());
 }
 /// Loan counterpart of [`close_transfer_offer`].

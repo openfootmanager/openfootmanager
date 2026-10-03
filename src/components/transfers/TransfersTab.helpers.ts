@@ -299,6 +299,7 @@ export function buildResumedCounterFeedback(
 export function getTransferOfferStatusLabel(
   t: Translate,
   status: TransferOfferData["status"] | LoanOfferData["status"],
+  registrationFailureReason?: TransferOfferData["registration_failure_reason"],
 ): string {
   switch (status) {
     case "Pending":
@@ -310,6 +311,11 @@ export function getTransferOfferStatusLabel(
     case "Rejected":
       return t("transfers.offerStatusRejected");
     case "Withdrawn":
+      if (registrationFailureReason) {
+        const key = `transfers.registrationFailure${registrationFailureReason}`;
+        const label = t(key);
+        return label === key ? t("transfers.registrationFailureRegistrationBlocked") : label;
+      }
       return t("transfers.offerStatusWithdrawn");
     default:
       return status;
