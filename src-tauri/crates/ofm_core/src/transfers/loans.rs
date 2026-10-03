@@ -1706,15 +1706,23 @@ mod tests {
         );
     }
 
-    /// Given a loan running to the contract date, when contract expiry and loan returns run,
-    /// then the player is released rather than restored to the parent club.
+    /// Given a loan running to the contract date, when the day's loan return precedes expiry,
+    /// then the returned player is released from the parent club on the same date.
     #[test]
-    fn a_contract_end_loan_does_not_restore_an_expired_player() {
+    fn a_contract_end_loan_returns_then_releases_the_player() {
         let mut game = contract_end_loan_game(false);
         super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
         game.clock.current_date = Utc.with_ymd_and_hms(2026, 4, 12, 12, 0, 0).unwrap();
-        crate::contracts::process_contract_expiries(&mut game);
         super::process_loan_returns(&mut game);
+        crate::contracts::process_contract_expiries(&mut game);
+        assert_eq!(
+            game.players[0]
+                .movement_history
+                .iter()
+                .filter(|entry| entry.kind == PlayerMovementKind::LoanReturn)
+                .count(),
+            1,
+        );
         assert!(game.players[0].team_id.is_none());
         assert!(game.players[0].active_loan.is_none());
         assert!(game.players[0].contract_end().is_none());
