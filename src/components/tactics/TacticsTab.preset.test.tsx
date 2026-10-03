@@ -217,8 +217,9 @@ describe("TacticsTab preset selection", () => {
     );
   });
 
-  /** Given a saved custom tactic (including one with a preset-like ID),
-   * when it is loaded and picked, then its type keeps the preset reset off. */
+  /** Given a saved custom tactic (including one with a preset-like ID), when it
+   * is picked and manually adjusted to a built-in setup, then its type keeps
+   * the preset reset off and preserves the active custom tactic. */
   it.each(["custom:saved", "preset:imported-custom"])(
     "keeps the blueprint when selecting saved custom tactic %s",
     async (id) => {
@@ -240,6 +241,21 @@ describe("TacticsTab preset selection", () => {
         expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", { playStyle: "HighPress" }),
       );
       expect(mockedInvoke).toHaveBeenCalledWith("set_formation", { formation: "3-4-3" });
+      expect(commandsCalled()).not.toContain("apply_tactic_preset");
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
+          "Saved custom",
+        ),
+      );
+      fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+      fireEvent.click(screen.getByRole("option", { name: /Balanced/ }));
+      fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
+      fireEvent.click(screen.getByRole("option", { name: "4-4-2" }));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
+          "Saved custom",
+        ),
+      );
       expect(commandsCalled()).not.toContain("apply_tactic_preset");
     },
   );

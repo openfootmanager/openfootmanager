@@ -131,11 +131,12 @@ export function useTacticsLibrary({
 
     const nextActivePresetId = `preset:${matchedPreset.id}`;
     setActiveTacticId((current) =>
-      current?.startsWith("custom:") || current === nextActivePresetId
+      tacticLibrary.find((entry) => entry.id === current)?.type === "custom" ||
+      current === nextActivePresetId
         ? current
         : nextActivePresetId,
     );
-  }, [matchedPreset, presetAnchorId]);
+  }, [matchedPreset, presetAnchorId, tacticLibrary]);
 
   useEffect(() => {
     if (!activeTactic) {
