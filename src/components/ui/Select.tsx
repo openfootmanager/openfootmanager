@@ -66,6 +66,13 @@ interface NativeOptionProps {
   children?: ReactNode;
 }
 
+function resolveActiveIndex(options: SelectOption[], wanted: number): number {
+  if (options[wanted] && !options[wanted].disabled) {
+    return wanted;
+  }
+  return options.findIndex((option) => !option.disabled);
+}
+
 export function Select({
   selectSize = "md",
   variant = "default",
@@ -160,13 +167,17 @@ export function Select({
   const [isOpen, setIsOpen] = useState(false);
   // The highlighted option while the list is open. Separate from the committed
   // value: arrow keys move this, only Enter/Space/click commit.
-  const [activeValue, setActiveValue] = useState<string | null>(null);
+  const [wantedActiveIndex, setActiveIndex] = useState(-1);
 
   const currentValue = controlledValue ?? uncontrolledValue;
   const selectedOption =
     options.find((option) => option.value === currentValue) ?? options[0] ?? null;
   const selectedValue = selectedOption?.value ?? "";
   const enabledOptions = options.filter((option) => !option.disabled);
+  // Revalidated on every render rather than trusted: `children` can change
+  // while the list is open, and a removed or newly disabled highlight must not
+  // stay active. Index, not value, so options sharing a value stay distinct.
+  const activeIndex = isOpen ? resolveActiveIndex(options, wantedActiveIndex) : -1;
 
   useEffect(() => {
     if (controlledValue !== undefined || options.length === 0) {
@@ -287,8 +298,7 @@ export function Select({
     setIsOpen(false);
   };
 
-  const optionId = (value: string) =>
-    `${listboxId}-option-${options.findIndex((o) => o.value === value)}`;
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
 
   // Opening highlights the committed option (or the first enabled one when the
   // committed option is disabled), as a native select does.
@@ -297,8 +307,9 @@ export function Select({
       return;
     }
 
-    const committedIsEnabled = enabledOptions.some((option) => option.value === selectedValue);
-    setActiveValue(committedIsEnabled ? selectedValue : (enabledOptions[0]?.value ?? null));
+    setActiveIndex(
+      options.findIndex((option) => option.value === selectedValue && !option.disabled),
+    );
     setIsOpen(true);
   };
 
@@ -322,15 +333,16 @@ export function Select({
       return;
     }
 
-    const lastIndex = enabledOptions.length - 1;
-    const currentIndex = enabledOptions.findIndex((option) => option.value === activeValue);
-    const nextIndex = {
+    const enabledIndexes = options.flatMap((option, index) => (option.disabled ? [] : [index]));
+    const lastPosition = enabledIndexes.length - 1;
+    const position = enabledIndexes.indexOf(activeIndex);
+    const nextPosition = {
       first: 0,
-      last: lastIndex,
-      next: Math.min(currentIndex + 1, lastIndex),
-      previous: Math.max(currentIndex - 1, 0),
+      last: lastPosition,
+      next: Math.min(position + 1, lastPosition),
+      previous: Math.max(position - 1, 0),
     }[target];
-    setActiveValue(enabledOptions[nextIndex].value);
+    setActiveIndex(enabledIndexes[nextPosition]);
   };
 
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -362,8 +374,8 @@ export function Select({
       case "Enter":
       case " ":
         event.preventDefault();
-        if (activeValue !== null) {
-          handleSelect(activeValue);
+        if (activeIndex >= 0) {
+          handleSelect(options[activeIndex].value);
         } else {
           setIsOpen(false);
         }
@@ -379,10 +391,10 @@ export function Select({
   };
 
   useEffect(() => {
-    if (isOpen && activeValue !== null) {
-      document.getElementById(optionId(activeValue))?.scrollIntoView?.({ block: "nearest" });
+    if (activeIndex >= 0) {
+      document.getElementById(optionId(activeIndex))?.scrollIntoView?.({ block: "nearest" });
     }
-  }, [isOpen, activeValue]);
+  }, [activeIndex]);
 
   const base =
     "rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -447,7 +459,7 @@ export function Select({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-controls={listboxId}
-        aria-activedescendant={isOpen && activeValue !== null ? optionId(activeValue) : undefined}
+        aria-activedescendant={activeIndex >= 0 ? optionId(activeIndex) : undefined}
         tabIndex={tabIndex}
         className={`${base} ${variants[variant]} ${sizes[selectSize]} ${leftPadding} ${rightPadding} ${fullWidth ? "w-full" : ""} ${className} flex items-center justify-between text-left`}
         style={style}
@@ -483,12 +495,13 @@ export function Select({
                 {groupedOptions.map((section, sectionIndex) => {
                   const rendered = section.options.map((option) => {
                     const isSelected = option.value === currentValue;
-                    const isActive = option.value === activeValue;
+                    const optionIndex = options.indexOf(option);
+                    const isActive = optionIndex === activeIndex;
 
                     return (
                       <button
                         key={option.value}
-                        id={optionId(option.value)}
+                        id={optionId(optionIndex)}
                         type="button"
                         role="option"
                         // DOM focus stays on the trigger; the highlight is
@@ -496,10 +509,10 @@ export function Select({
                         tabIndex={-1}
                         aria-selected={isSelected}
                         disabled={option.disabled}
-                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${isActive && !isSelected ? "bg-gray-50 dark:bg-navy-700" : ""} ${isActive ? "ring-2 ring-inset ring-primary-500/40" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${isActive && !isSelected ? "bg-gray-50 dark:bg-navy-700" : ""} ${isActive ? "ring-2 ring-inset ring-primary-500/40 dark:ring-primary-400/40" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
                         onMouseEnter={() => {
                           if (!option.disabled) {
-                            setActiveValue(option.value);
+                            setActiveIndex(optionIndex);
                           }
                         }}
                         onClick={(event) => {

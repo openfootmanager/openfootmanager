@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Select } from "./Select";
 
@@ -153,5 +153,102 @@ describe("Select keyboard model", () => {
 
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith("352");
+  });
+});
+
+describe("Select highlight when the options change under an open list", () => {
+  const renderSelect = (children: ReactNode, onChange = vi.fn()) =>
+    render(
+      <Select value="a" aria-label="Pick" onChange={onChange}>
+        {children}
+      </Select>,
+    );
+  const pick = () => screen.getByRole("combobox", { name: "Pick" });
+
+  /**
+   * Given an open list with option C highlighted
+   * When C is removed from the options
+   * Then aria-activedescendant points at an option that still exists
+   */
+  it("never points aria-activedescendant at a removed option", () => {
+    const { rerender } = renderSelect([
+      <option key="a" value="a">
+        A
+      </option>,
+      <option key="c" value="c">
+        C
+      </option>,
+    ]);
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    fireEvent.keyDown(pick(), { key: "ArrowDown" });
+    expect(pick().getAttribute("aria-activedescendant")).toBe(
+      screen.getByRole("option", { name: "C" }).id,
+    );
+
+    rerender(
+      <Select value="a" aria-label="Pick" onChange={vi.fn()}>
+        <option value="a">A</option>
+      </Select>,
+    );
+
+    const activeId = pick().getAttribute("aria-activedescendant");
+    expect(activeId).not.toBeNull();
+    expect(document.getElementById(activeId as string)).toBe(
+      screen.getByRole("option", { name: "A" }),
+    );
+  });
+
+  /**
+   * Given an open list with option C highlighted
+   * When C becomes disabled and the user presses Enter
+   * Then the disabled value is not committed
+   */
+  it("does not commit a highlighted option that became disabled", () => {
+    const onChange = vi.fn();
+    const { rerender } = renderSelect(
+      [
+        <option key="a" value="a">
+          A
+        </option>,
+        <option key="c" value="c">
+          C
+        </option>,
+      ],
+      onChange,
+    );
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    fireEvent.keyDown(pick(), { key: "ArrowDown" });
+
+    rerender(
+      <Select value="a" aria-label="Pick" onChange={onChange}>
+        <option value="a">A</option>
+        <option value="c" disabled>
+          C
+        </option>
+      </Select>,
+    );
+    fireEvent.keyDown(pick(), { key: "Enter" });
+
+    expect(onChange).not.toHaveBeenCalledWith(expect.objectContaining({ target: { value: "c" } }));
+  });
+
+  /**
+   * Given two options that share a value
+   * When the list is open
+   * Then each option has its own id
+   */
+  it("gives options with a duplicate value distinct ids", () => {
+    renderSelect([
+      <option key="1" value="a">
+        First
+      </option>,
+      <option key="2" value="a">
+        Second
+      </option>,
+    ]);
+    fireEvent.keyDown(pick(), { key: "Enter" });
+
+    const ids = screen.getAllByRole("option").map((option) => option.id);
+    expect(new Set(ids).size).toBe(2);
   });
 });
