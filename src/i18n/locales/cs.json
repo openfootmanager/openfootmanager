@@ -2704,6 +2704,7 @@
         "unknownCountry": "Neznámá země „{{country}}“.",
         "groupConfigOnNonGroupFormat": "Nastavení skupin se vztahuje pouze na formát se základními skupinami a vyřazovací fází.",
         "groupSizeTooSmall": "Velikost skupiny {{groupSize}} je příliš malá (minimum jsou 2).",
+        "invalidGroupQualification": "S těmito účastníky nelze splnit nastavení postupu ze skupin.",
         "zeroLegs": "Soutěž vyžaduje alespoň jeden zápas na kolo.",
         "noParticipants": "Žádní účastníci: zadejte explicitní seznam nebo selektor.",
         "bothParticipantSources": "Zadejte buď explicitní seznam, nebo selektor, nikoliv obojí.",
@@ -3262,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Nový ročník akademie: {{team}}",
-        "body": "Šéfe, do akademie přišel nový ročník: {{players}}."
+        "body": "Šéfe, do akademie přišel nový ročník: {{players}}.",
+        "bodyPartlyRefused": "Šéfe, nově v akademii tuto sezonu: {{players}}. Představenstvo odmítlo platit mzdy zbytku ročníku.",
+        "bodyAllRefused": "Šéfe, představenstvo odmítlo platit mzdy novému ročníku, a tak do akademie tuto sezonu nikdo nepřišel."
       },
       "squadCannotBeFilled": {
         "subject": "Nikdo k dispozici: {{group}}",

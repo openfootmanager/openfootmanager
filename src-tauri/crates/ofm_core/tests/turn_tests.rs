@@ -18,6 +18,8 @@ use ofm_core::game::Game;
 use ofm_core::turn;
 use std::collections::HashMap;
 
+#[path = "turn_tests/determinism.rs"]
+mod determinism;
 #[path = "turn_tests/fixtures.rs"]
 mod fixtures;
 #[path = "turn_tests/live_match_day.rs"]

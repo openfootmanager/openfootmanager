@@ -6,6 +6,7 @@ import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { condColor } from "../../lib/playerConditionDisplay";
+import { sortByPositionGroup } from "./SubPanel.helpers";
 
 export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]> = {
   Goalkeeper: [
@@ -401,7 +402,7 @@ export default function PreMatchLineup({
                 COND
               </span>
             </div>
-            {userBench.map((bp) => {
+            {sortByPositionGroup(userBench).map((bp) => {
               const posOvr = bp.ovr;
               const keyStats = POSITION_KEY_STATS[bp.position] || [];
               const canSwap = Boolean(selectedStarterId);

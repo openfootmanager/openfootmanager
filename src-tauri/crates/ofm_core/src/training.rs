@@ -285,7 +285,9 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
         weekday_num,
         year: current_year,
     };
-    let mut rng = rand::rng();
+    // One stream for the day's session: players are visited in the order of `game.players`,
+    // which is stable, and `process_training` runs once a day.
+    let mut rng = game.rng_today("training");
     for player in game.players.iter_mut() {
         let Some(plan) = player.team_id.as_deref().and_then(|id| plans.get(id)) else {
             continue;

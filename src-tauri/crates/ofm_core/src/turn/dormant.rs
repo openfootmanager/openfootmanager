@@ -5,7 +5,6 @@
 
 use crate::game::Game;
 use domain::league::FixtureStatus;
-use rand::Rng;
 
 /// Resolve every fixture due `today` in the dormant competition at
 /// `competition_index` with a scoreline-only model: update the fixture result
@@ -15,7 +14,6 @@ pub(super) fn simulate_dormant_competition_day(
     game: &mut Game,
     competition_index: usize,
     today: &str,
-    rng: &mut impl Rng,
 ) {
     let due: Vec<usize> = game.competitions[competition_index]
         .fixtures
@@ -26,11 +24,19 @@ pub(super) fn simulate_dormant_competition_day(
         .collect();
 
     for fixture_index in due {
+        // A stream per fixture, keyed by the competition and the two clubs: fixtures are not
+        // played in any order a save is bound to keep.
+        let fixture = &game.competitions[competition_index].fixtures[fixture_index];
+        let tag = format!(
+            "dormant/{}/{}/{}",
+            game.competitions[competition_index].id, fixture.home_team_id, fixture.away_team_id
+        );
+        let mut rng = game.rng_for(&tag, today);
         crate::catchup::resolve_fixture_by_scoreline(
             &game.players,
             &mut game.competitions[competition_index],
             fixture_index,
-            rng,
+            &mut rng,
         );
     }
 }
@@ -46,7 +52,6 @@ mod tests {
     };
     use domain::manager::Manager;
     use domain::team::Team;
-    use rand::{SeedableRng, rngs::StdRng};
 
     fn make_team(id: &str) -> Team {
         Team::new(
@@ -105,9 +110,8 @@ mod tests {
     fn dormant_competition_day_plays_due_fixtures_and_updates_standings() {
         let today = "2030-08-10";
         let mut game = make_dormant_game(today);
-        let mut rng = StdRng::seed_from_u64(7);
 
-        simulate_dormant_competition_day(&mut game, 0, today, &mut rng);
+        simulate_dormant_competition_day(&mut game, 0, today);
 
         let competition = &game.competitions[0];
         let fixture = &competition.fixtures[0];
@@ -144,9 +148,9 @@ mod tests {
                 bye_team_ids: Vec::new(),
                 completed: false,
             }];
-            let mut rng = StdRng::seed_from_u64(seed);
+            game.seed = seed;
 
-            simulate_dormant_competition_day(&mut game, 0, today, &mut rng);
+            simulate_dormant_competition_day(&mut game, 0, today);
 
             let result = game.competitions[0].fixtures[0]
                 .result
@@ -176,9 +180,8 @@ mod tests {
     #[test]
     fn dormant_competition_day_ignores_fixtures_on_other_dates() {
         let mut game = make_dormant_game("2030-08-10");
-        let mut rng = StdRng::seed_from_u64(1);
 
-        simulate_dormant_competition_day(&mut game, 0, "2030-08-11", &mut rng);
+        simulate_dormant_competition_day(&mut game, 0, "2030-08-11");
 
         assert_eq!(
             game.competitions[0].fixtures[0].status,

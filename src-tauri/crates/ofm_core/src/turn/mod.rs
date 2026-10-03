@@ -223,16 +223,16 @@ where
     // scoreline only, keeping the dormant world moving without the full engine.
     let dormant_competitions = dormant_competition_indices_due_today(game, today);
     if !dormant_competitions.is_empty() {
-        let mut rng = rand::rng();
         for competition_index in dormant_competitions {
-            dormant::simulate_dormant_competition_day(game, competition_index, today, &mut rng);
+            dormant::simulate_dormant_competition_day(game, competition_index, today);
         }
     }
 
     // National-team football: window friendlies and any running World Cup.
     // Both self-filter by date, so they are no-ops on other days.
-    crate::national_team::process_national_team_fixtures_due(game, today, &mut rand::rng());
-    crate::world_cup::process_world_cup_fixtures_due(game, today, &mut rand::rng());
+    crate::national_team::process_national_team_fixtures_due(game, today);
+    let mut world_cup_rng = game.rng_for("world-cup", today);
+    crate::world_cup::process_world_cup_fixtures_due(game, today, &mut world_cup_rng);
 }
 
 /// Process a single day advance.
@@ -509,6 +509,13 @@ where
             // gets here. Were it ever missing there would be no fixture to
             // settle either, so the day goes on without it rather than
             // panicking on the one path that exists so a day always finishes.
+            let clubs = game
+                .league
+                .as_ref()
+                .and_then(|league| league.fixtures.get(idx))
+                .map(|fixture| format!("{}/{}", fixture.home_team_id, fixture.away_team_id))
+                .unwrap_or_default();
+            let mut fallback_rng = game.rng_today(&format!("match/{clubs}"));
             let Some(league) = game.league.as_mut() else {
                 log::error!(
                     "[turn] fixture {idx} has no competition in the legacy slot to settle it in"
@@ -519,7 +526,7 @@ where
                 &game.players,
                 league,
                 idx,
-                &mut rand::rng(),
+                &mut fallback_rng,
             );
         }
     }

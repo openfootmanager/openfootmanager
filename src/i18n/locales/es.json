@@ -2679,6 +2679,7 @@
         "unknownCountry": "País desconocido \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Los ajustes de grupo solo se aplican a un formato de grupos y eliminatorias.",
         "groupSizeTooSmall": "El tamaño de grupo {{groupSize}} es demasiado pequeño (mínimo 2).",
+        "invalidGroupQualification": "Los participantes no permiten cumplir la configuración de clasificación de los grupos.",
         "zeroLegs": "Una competición necesita al menos una vuelta.",
         "noParticipants": "Sin participantes: proporciona una lista explícita o un selector.",
         "bothParticipantSources": "Proporciona una lista explícita o un selector, no ambos.",
@@ -3262,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Nuevos canteranos: {{team}}",
-        "body": "Míster, la nueva hornada se ha incorporado a la cantera: {{players}}."
+        "body": "Míster, la nueva hornada se ha incorporado a la cantera: {{players}}.",
+        "bodyPartlyRefused": "Míster, nuevos en la cantera esta temporada: {{players}}. La junta directiva no quiso asumir los salarios del resto de la hornada.",
+        "bodyAllRefused": "Míster, la junta directiva no quiso asumir los salarios de la nueva hornada, así que esta temporada nadie se ha incorporado a la cantera."
       },
       "squadCannotBeFilled": {
         "subject": "Nadie disponible: {{group}}",

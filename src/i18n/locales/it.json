@@ -2679,6 +2679,7 @@
         "unknownCountry": "Paese sconosciuto \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Le impostazioni dei gironi valgono solo per un formato a gironi ed eliminazione.",
         "groupSizeTooSmall": "La dimensione del girone {{groupSize}} è troppo piccola (minimo 2).",
+        "invalidGroupQualification": "Questi partecipanti non consentono di rispettare le impostazioni di qualificazione dei gironi.",
         "zeroLegs": "Una competizione necessita di almeno una gara.",
         "noParticipants": "Nessun partecipante: fornisci un elenco esplicito o un selettore.",
         "bothParticipantSources": "Fornisci un elenco esplicito oppure un selettore, non entrambi.",
@@ -3262,7 +3263,9 @@
       },
       "youthIntake": {
         "subject": "Nuovi ragazzi nel vivaio: {{team}}",
-        "body": "Mister, la nuova leva è entrata nel settore giovanile: {{players}}."
+        "body": "Mister, la nuova leva è entrata nel settore giovanile: {{players}}.",
+        "bodyPartlyRefused": "Mister, nuovi nel settore giovanile in questa stagione: {{players}}. Il consiglio di amministrazione non ha voluto accollarsi gli stipendi del resto della leva.",
+        "bodyAllRefused": "Mister, il consiglio di amministrazione non ha voluto accollarsi gli stipendi della nuova leva, quindi quest'anno nessuno è entrato nel settore giovanile."
       },
       "squadCannotBeFilled": {
         "subject": "Nessuno disponibile: {{group}}",

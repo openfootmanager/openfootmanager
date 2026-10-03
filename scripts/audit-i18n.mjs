@@ -1,16 +1,26 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, "src");
-const RUST_DIRS = [path.join(ROOT, "src-tauri", "src"), path.join(ROOT, "src-tauri", "crates")];
 const LOCALES_DIR = path.join(SRC_DIR, "i18n", "locales");
 
 const FRONTEND_EXTENSIONS = new Set([".ts", ".tsx"]);
 const FRONTEND_IGNORE_RE =
   /(?:\.test\.|\.spec\.|[\\/]i18n[\\/]locales[\\/]|node_modules|dist|src-tauri[\\/]target)/;
-const RUST_IGNORE_RE = /(?:[\\/]tests[\\/]|tests\.rs$|node_modules|dist|src-tauri[\\/]target)/;
+// English on purpose: the i18n rule covers only what a PLAYER reads (CLAUDE.md rule 2, the
+// out-of-scope table added in #661, and .claude/agents/i18n-auditor.md). MCP tool output is read
+// by an AI agent and the modder CLI by a modder at a terminal, so English prose candidates there
+// are noise. Excluding the whole mcp_server dir is right even though an MCP function that
+// propagates an error from a shared `application::` service keeps its `be.error.*` key: those
+// are translation keys, which this audit never reports anyway; it only looks for English prose.
+const PLAYERS_ONLY_OUT_OF_SCOPE_RE =
+  /src-tauri[\\/](?:src[\\/]mcp_server|crates[\\/]ofm-cli)(?:[\\/]|$)/;
+const RUST_IGNORE_RE = new RegExp(
+  `${/(?:[\\/]tests[\\/]|tests\.rs$|node_modules|dist|src-tauri[\\/]target)/.source}|${PLAYERS_ONLY_OUT_OF_SCOPE_RE.source}`,
+);
 const RUST_DATA_FILE_RE =
   /(?:src-tauri[\\/]crates[\\/]ofm_core[\\/]src[\\/]generator[\\/](?:data|definitions|generation|mod)\.rs$|src-tauri[\\/]crates[\\/]domain[\\/]src[\\/]identity\.rs$|src-tauri[\\/]crates[\\/]ofm_core[\\/]src[\\/]football_identity\.rs$)/;
 
@@ -298,8 +308,10 @@ function scanFrontend() {
   return files.flatMap((filePath) => scanFrontendFile(filePath));
 }
 
-function scanRust() {
-  const files = RUST_DIRS.flatMap((dir) =>
+// `root` is a parameter so the regression test can scan a fixture tree instead of the repo.
+export function scanRust(root = ROOT) {
+  const rustDirs = [path.join(root, "src-tauri", "src"), path.join(root, "src-tauri", "crates")];
+  const files = rustDirs.flatMap((dir) =>
     walkFiles(
       dir,
       (filePath) => path.extname(filePath) === ".rs" && !RUST_IGNORE_RE.test(filePath),
@@ -371,7 +383,7 @@ function scanRust() {
         if (/^\[(?:cmd|setup)\]/.test(text)) continue;
 
         findings.push({
-          file: path.relative(ROOT, filePath),
+          file: path.relative(root, filePath),
           line: index + 1,
           kind: "rust-string",
           text,
@@ -456,4 +468,7 @@ function main() {
   printFindingSection("Rust/backend hardcoded string candidates", scanRust());
 }
 
-main();
+// Only when run directly, so a test can import scanRust without printing the whole report.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main();
+}

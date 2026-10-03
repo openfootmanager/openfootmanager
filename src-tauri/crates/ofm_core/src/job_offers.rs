@@ -265,7 +265,7 @@ fn appoint_manager(game: &mut Game, new_team_id: &str, date: &str) -> Result<Str
 /// managers from any club within the reputation gap, and to employed managers
 /// only from clubs that are a step up (per `is_better_club`).
 pub fn check_job_offers(game: &mut Game) {
-    let mut rng = rand::rng();
+    let mut rng = game.rng_today("job-offers");
     let days = game.days_since_last_job_offer.unwrap_or(0);
 
     let threshold = if days == 0 {
@@ -479,7 +479,7 @@ pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
         10
     };
 
-    let mut rng = rand::rng();
+    let mut rng = game.rng_today(&format!("job-application/{team_id}"));
     let roll = rng.random_range(1..=100);
 
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
@@ -600,6 +600,60 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
     use domain::team::Team;
+
+    /// How many days pass between offers, and which offers come, for two months.
+    fn two_months_of_offers(seed: u64) -> Vec<String> {
+        let mut game = make_game(50, true);
+        game.seed = seed;
+        let mut days = Vec::new();
+        for _ in 0..60 {
+            check_job_offers(&mut game);
+            days.push(format!(
+                "{:?} {}",
+                game.days_since_last_job_offer,
+                game.messages.len()
+            ));
+            game.clock.advance_days(1);
+        }
+        days
+    }
+
+    /// Given a manager and two months of days,
+    /// When job offers are checked each day, twice, from the same seed,
+    /// Then the offers come on the same days.
+    #[test]
+    fn job_offers_come_on_the_same_days_from_the_same_seed() {
+        assert_eq!(two_months_of_offers(11), two_months_of_offers(11));
+    }
+
+    /// The control: the seed is what spaces the offers out.
+    #[test]
+    fn the_seed_decides_when_job_offers_come() {
+        let runs: std::collections::BTreeSet<Vec<String>> =
+            (0..20).map(two_months_of_offers).collect();
+
+        assert!(runs.len() > 1, "twenty seeds all spaced the offers alike");
+    }
+
+    /// Given an unemployed manager applying for a club a little below their reputation,
+    /// When they apply, twice, from the same seed,
+    /// Then the club gives the same answer.
+    #[test]
+    fn an_application_is_answered_the_same_way_from_the_same_seed() {
+        let answer = |seed: u64| {
+            let mut game = make_game(50, false);
+            game.seed = seed;
+            format!("{:?}", apply_for_job(&mut game, "team2"))
+        };
+
+        // Every seed, not one: a single seed would pass by chance nine times in ten, the
+        // club saying yes more often than no.
+        for seed in 0..100 {
+            assert_eq!(answer(seed), answer(seed), "seed {seed}");
+        }
+        let answers: std::collections::BTreeSet<String> = (0..100).map(answer).collect();
+        assert!(answers.len() > 1, "a hundred seeds all got the same answer");
+    }
 
     /// The dashboard trusts `season_context.season_complete` and disables
     /// Continue on it, while the rollover command recomputes the predicate and
