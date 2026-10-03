@@ -88,3 +88,11 @@ jobs:
           # badge as "Latest" and the page falls back to tag-name ordering.
           prerelease: false
           args: ${{ matrix.args }}
+
+      # #281. If this AppImage ships its own libwayland-client, WebKit shows a white window on any
+      # machine using Mesa with a newer libwayland. The details are in docs/LINUX_GRAPHICS.md.
+      # A stable release is published by the step above, so this can only turn the run red after
+      # the fact. The nightly, which stays a draft on failure, is the gate that stops it shipping.
+      - name: AppImage must not bundle libwayland-client (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm'
+        run: scripts/check-appimage-libs.sh src-tauri/target/release/bundle/appimage
