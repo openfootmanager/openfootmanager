@@ -565,11 +565,13 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let current_year = game.clock.current_date.year() as u32;
     let available_count = available_staff_count(&game.staff);
-    // The number of people on the books is part of the stream's name. A market bought out and
+    // The number of employed people is part of the stream's name. A market bought out and
     // refilled on one day would otherwise deal the same ids again, to people now on a club's
     // books; each batch hired adds to that number, so each refill is a stream of its own, with
     // no limit on how many a day can have.
-    let mut rng = game.rng_today(&format!("staff-market/{}", game.staff.len()));
+    // Candidates are discarded by a rotation, so they cannot identify the retained batch.
+    let employed_count = game.staff.len() - available_count;
+    let mut rng = game.rng_today(&format!("staff-market/{employed_count}"));
 
     if available_count == 0 {
         replace_available_staff_market(&mut game.staff, &game.teams, current_year, &mut rng);
@@ -3175,6 +3177,44 @@ mod tests {
         game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
         process_available_staff_market(&mut game);
         market_staff(&game)
+    }
+
+    /// Given a full staff market due to rotate and one already employed staff member,
+    /// When the market rotates, is bought out and refills on that same day,
+    /// Then every hired person keeps a distinct id and the new candidates have new ids.
+    #[test]
+    fn a_rotated_market_bought_out_and_refilled_on_one_day_deals_new_ids() {
+        let mut staff = vec![make_import_staff(
+            "employed",
+            Some("team-1"),
+            StaffRole::Coach,
+        )];
+        staff.extend(
+            (0..12)
+                .map(|index| make_import_staff(&format!("free-{index}"), None, StaffRole::Coach)),
+        );
+        let mut game = make_staff_market_game(staff);
+        game.seed = 7;
+        game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
+        let before_rotation = game.staff.len();
+
+        assert!(process_available_staff_market(&mut game));
+        assert_eq!(game.staff.len(), before_rotation);
+        let club = game.teams[0].id.clone();
+        for staff_member in game
+            .staff
+            .iter_mut()
+            .filter(|staff| staff.team_id.is_none())
+        {
+            staff_member.team_id = Some(club.clone());
+        }
+
+        assert!(process_available_staff_market(&mut game));
+
+        assert_eq!(available_staff_count(&game.staff), 12);
+        let ids: std::collections::BTreeSet<&String> =
+            game.staff.iter().map(|staff| &staff.id).collect();
+        assert_eq!(ids.len(), game.staff.len(), "two people share an id");
     }
 
     /// Given a market that is bought out on the day it was generated,
