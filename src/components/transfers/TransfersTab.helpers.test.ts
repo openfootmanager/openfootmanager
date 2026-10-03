@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import en from "../../i18n/locales/en.json";
 import type { PlayerData, TransferOfferData } from "../../store/gameStore";
 import {
   buildLoanPeriodOptions,
@@ -92,7 +93,54 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 const t = (key: string) => key;
 
+function translateEnglishOfferLabel(key: string): string {
+  const name = key.slice("transfers.".length) as keyof typeof en.transfers;
+  return en.transfers[name] ?? key;
+}
+
 describe("TransfersTab.helpers", () => {
+  // Given a funds-related registration void, when displaying it, then its label explains the funds failure.
+  it("labels an unaffordable registration with its funds reason", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "InsufficientFunds"),
+    ).toBe("Registration failed: insufficient buyer funds");
+  });
+
+  // Given a loan conflict, when displaying the voided transfer, then the label names the conflict.
+  it("labels a loan conflict as a registration failure", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "LoanConflict"),
+    ).toBe("Registration failed: loan conflict");
+  });
+
+  // Given an unavailable player, when displaying the voided transfer, then the label names that reason.
+  it("labels an unavailable player as a registration failure", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "PlayerUnavailable"),
+    ).toBe("Registration failed: player unavailable");
+  });
+
+  // Given a final execution refusal, when displaying the voided transfer, then it is shown as blocked registration.
+  it("labels a final refusal as blocked registration", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "RegistrationBlocked"),
+    ).toBe("Registration blocked");
+  });
+
+  // Given ordinary withdrawn talks without a registration reason, when displaying them, then the cooled-off label remains.
+  it("keeps the cooled-off label for ordinary or legacy withdrawals", () => {
+    expect(getTransferOfferStatusLabel((key) => key, "Withdrawn")).toBe(
+      "transfers.offerStatusWithdrawn",
+    );
+  });
+
+  // Given a successful offer, when displaying its status, then a stale reason cannot override acceptance.
+  it("keeps accepted offers labelled as accepted", () => {
+    expect(getTransferOfferStatusLabel((key) => key, "Accepted", "InsufficientFunds")).toBe(
+      "transfers.offerStatusAccepted",
+    );
+  });
+
   it("returns the pending outgoing offer for the user team", () => {
     const player = createPlayer({
       transfer_offers: [

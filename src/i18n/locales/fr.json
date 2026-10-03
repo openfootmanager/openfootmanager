@@ -1403,7 +1403,11 @@
     "transferFeedbackCounterHeadline": "Ils veulent plus avant de conclure.",
     "transferFeedbackCounterDetail": "L'offre était assez proche pour continuer à parler, mais leur camp vise plutôt un prix autour de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Ils ont fermé cette manche.",
-    "transferFeedbackRejectedDetail": "La proposition ne les a pas assez fait bouger. Il faudrait une somme plus forte, plus proche de {{fee}}, pour rouvrir des discussions sérieuses."
+    "transferFeedbackRejectedDetail": "La proposition ne les a pas assez fait bouger. Il faudrait une somme plus forte, plus proche de {{fee}}, pour rouvrir des discussions sérieuses.",
+    "registrationFailureInsufficientFunds": "Enregistrement échoué : fonds insuffisants de l'acheteur",
+    "registrationFailureLoanConflict": "Enregistrement échoué : conflit avec un prêt",
+    "registrationFailurePlayerUnavailable": "Enregistrement échoué : joueur indisponible",
+    "registrationFailureRegistrationBlocked": "Enregistrement bloqué"
   },
   "transferCentreWorld": {
     "title": "Centre des transferts",
@@ -3391,6 +3395,13 @@
       "loanBuyOptionExercised": {
         "subject": "Option d'achat levée : {{player}}",
         "body": "L'option d'achat de {{player}} a été levée pour {{fee}}. Le prêt devient un transfert définitif."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Échec de l'enregistrement du transfert : {{player}}",
+        "InsufficientFunds": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{date}}, car la trésorerie ou le budget transferts de l'acheteur ne couvre plus le montant. Aucune indemnité de transfert n'a été versée.",
+        "LoanConflict": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{date}}, car le joueur est prêté ou a un prêt convenu en attente d'enregistrement. Aucune indemnité de transfert n'a été versée.",
+        "PlayerUnavailable": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{date}}, car le joueur n'est plus disponible auprès d'un club vendeur. Aucune indemnité de transfert n'a été versée.",
+        "RegistrationBlocked": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{date}}, car une condition d'enregistrement n'est plus remplie. Aucune indemnité de transfert n'a été versée."
       }
     },
     "news": {
