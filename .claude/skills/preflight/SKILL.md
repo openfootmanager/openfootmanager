@@ -91,7 +91,6 @@ changes have no runtime red/green claim; verify links, identical instruction blo
 
 - Conventional commit, fresh develop base, PR target `develop`, linked issue where applicable.
 - AI-assisted disclosure box completed per `CONTRIBUTING.md`.
-- One **human** approval required to merge; an AI approval never counts. The maintainer manages settings.
 - Search every other open PR diff for uses of public items/fields/variants removed or changed here,
   and for removals of items this branch uses. Agree merge order with the owner on a collision.
   The second PR stays draft with `⛔ Merge after #<first>` as its body's first line. Once the first

@@ -129,9 +129,6 @@ These are merge requirements. A green linter does not prove architecture or test
 describe an unrun check as passing. **CI** = a required job goes red. **test** = a named test in the
 suite goes red. **review** = a read-only agent reports it and a human decides.
 
-Every PR requires **one human approval** to merge; an AI approval never
-counts. The maintainer manages the required-approval setting.
-
 ### Size and shape (new and changed production code; limits are ceilings, not targets)
 
 | Rule | Rust | Frontend | Enforced by |
