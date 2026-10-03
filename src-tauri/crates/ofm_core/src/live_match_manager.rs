@@ -6,8 +6,7 @@
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::build_team_with_bench;
 
-use rand::SeedableRng;
-use rand::rngs::StdRng;
+use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -121,7 +120,7 @@ pub enum MatchMode {
 
 pub struct LiveMatchSession {
     pub match_state: LiveMatchState,
-    pub rng: StdRng,
+    pub rng: ChaCha12Rng,
     pub mode: MatchMode,
     /// Index into the fixtures of the competition identified by
     /// `competition_id` — NOT necessarily into `game.league`, which
@@ -393,7 +392,8 @@ pub fn create_live_match(
 
     Ok(LiveMatchSession {
         match_state,
-        rng: StdRng::from_rng(&mut rand::rng()),
+        // The clubs tell this match from any other played today, as for a batch match.
+        rng: game.rng_today(&format!("match/{home_team_id}/{away_team_id}")),
         mode,
         fixture_index,
         fixture_id: fixture.id.clone(),

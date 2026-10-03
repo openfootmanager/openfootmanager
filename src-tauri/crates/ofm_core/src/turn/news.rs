@@ -315,7 +315,7 @@ fn weekly_rumour_articles(
     suffix: &str,
     date: &str,
 ) -> Vec<domain::news::NewsArticle> {
-    let mut rng = rand::rng();
+    let mut rng = game.rng_today(&format!("news/weekly-rumours/{suffix}"));
     let current_date = game.clock.current_date.date_naive();
     let existing_article_ids: HashSet<String> =
         game.news.iter().map(|article| article.id.clone()).collect();
