@@ -1,6 +1,8 @@
 ---
 name: write-tests
 description: Write scenario-driven tests for an OpenFoot Manager feature, bug fix or story, or characterize weakly covered behaviour before a refactor. Verify named red and green runs, fixture discrimination, state/persistence seams and regression effectiveness in a disposable copy.
+when_to_use: Writing tests for a feature, bug fix or story, or characterizing behaviour before a refactor.
+argument-hint: "[feature, bug or scenario to test]"
 allowed-tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 
@@ -32,9 +34,23 @@ before coding. Every applicable scenario gets one independently reported test; p
 with the same outcome, split different outcomes. Preserve scope and discuss unclear acceptance
 criteria rather than inventing a larger story.
 
-Rust names: `given_<state>_when_<action>_then_<outcome>` in a same-file `#[cfg(test)]` module.
-Frontend: co-located `*.test.ts(x)` with `it("given ..., when ..., then ...")`. Existing
-cross-crate tests belong at the owning integration layer. Command tests are in the root lib target.
+Use a plain sentence test name plus a Given/When/Then doc comment naming the scenario. Rust
+sentence names use snake_case in a same-file `#[cfg(test)]` module; frontend tests use a sentence
+in `it(...)` in co-located `*.test.ts(x)` files. For example:
+
+```rust
+/// Given a non-default budget, when the club is saved and reloaded, then the budget is preserved.
+#[test]
+fn a_saved_budget_survives_reload() { /* scenario assertions */ }
+```
+
+```typescript
+/** Given a rejected save, when the player submits, then the form shows the error. */
+it("shows the error when saving fails", () => { /* scenario assertions */ });
+```
+
+Existing cross-crate tests belong at the owning integration layer. Command tests are in the root
+lib target.
 
 ## 2. Fixtures and assertions that discriminate
 

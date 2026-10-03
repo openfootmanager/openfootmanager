@@ -104,7 +104,7 @@ Frontend: `src/services/<area>Service.test.ts`, mocking `@tauri-apps/api/core`. 
 tests show the shape. Cover the failure path — a command that returns `Err` must surface a usable
 message.
 
-Use `/write-tests` (programme PR 2) before implementation. Test wrapper equivalence at the
+Use `/write-tests` before implementation. Test wrapper equivalence at the
 public adapter seam: Tauri/service arguments, errors and returned state match the shared function;
 where an MCP counterpart exists, verify it delegates to that seam too. Do not stop at helper-only
 tests. Test failure atomicity and read persisted changes through a fresh reader. For an existing

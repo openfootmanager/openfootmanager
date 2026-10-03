@@ -97,7 +97,7 @@ Search canonical homes in `ofm_core`, `src/lib`, `src/utils`, `src/services` and
 
 ## Tests and reporting
 
-For test changes and every bug fix, use `ofm-test-reviewer` (available in programme PR 2).
+For test changes and every bug fix, use `ofm-test-reviewer`.
 Command tests are the `openfootmanager_lib` **lib** target: a zero-test `--bin` selection proves nothing.
 `i18n-auditor` and `ui-accessibility-reviewer` remain mandatory when their surfaces change.
 

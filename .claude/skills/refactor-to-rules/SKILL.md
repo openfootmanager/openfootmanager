@@ -1,6 +1,8 @@
 ---
 name: refactor-to-rules
 description: Decompose OpenFoot Manager code by responsibility when a quality gate is red, a reviewer requests a split or a refactor is authorized. Characterize behaviour first, preserve contracts and report scoped before/after diagnostics without raising limits or reformatting unrelated code.
+when_to_use: A quality gate or reviewer requests a responsibility split, or a behaviour-preserving refactor is authorized.
+argument-hint: "[file or unit to refactor and the rule it violates]"
 allowed-tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 

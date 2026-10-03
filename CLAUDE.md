@@ -231,6 +231,8 @@ Repeatable procedures. Invoke with the slash command, or let Claude pick one up 
 | `/add-domain-field` | Adding a field to a `domain` type that must survive save/load |
 | `/add-tauri-command` | Exposing new backend behaviour to the frontend over IPC |
 | `/add-mcp-tool` | Adding a tool to the MCP server used by AI agents playing the game |
+| `/write-tests` | Writing scenario tests for a feature or bug fix, or characterizing behaviour before a refactor |
+| `/refactor-to-rules` | Extracting responsibilities to meet quality rules while preserving behaviour |
 | `/preflight` | Before opening a PR — the full local verification gauntlet |
 
 ## Agents
@@ -243,6 +245,7 @@ Read-only reviewers. Point them at your diff before you open a PR.
 | `i18n-auditor` | Untranslated user-facing strings, missing locale keys, `INTENTIONAL_SAME.json` misuse |
 | `ui-accessibility-reviewer` | Hardcoded colours, missing `dark:` pairs, missing focus rings, unlabelled controls, keyboard traps |
 | `ofm-dedup-reviewer` | A helper reimplemented under a new name, a second copy of an ordering or mapping, a modal shell rebuilt from scratch |
+| `ofm-test-reviewer` | Regression effectiveness, discriminating fixtures, mock fidelity, test layers and scenario coverage |
 
 ---
 

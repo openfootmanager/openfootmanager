@@ -20,7 +20,9 @@ quality section for project rules. If a tool cannot run, report the limit; do no
 
 Read the supplied base/diff (default `upstream/develop...HEAD`), PR body or story, test files,
 production producers, callers and consumers. List each new/changed test and the production change
-it guards. Map every named Given/When/Then scenario to one independently reported test. Include
+it guards. Check that each test uses a plain sentence name (snake_case in Rust) plus a
+Given/When/Then doc comment naming the scenario; frontend `it(...)` names are sentences too.
+Map every named Given/When/Then scenario to one independently reported test. Include
 happy, edge, failure/abuse, user and AI routes where shared, and save/load; mark inapplicable routes
 with a reason. Multiple cases may share a parameterized scenario; unrelated outcomes need separate tests.
 Missing story scenarios are an explicit gap, not an invitation to guess their acceptance criteria.
