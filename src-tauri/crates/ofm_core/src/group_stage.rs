@@ -6,7 +6,6 @@ use domain::league::{
     CompetitionFormat, CompetitionRules, CompetitionScope, CompetitionType, FixtureCompetition,
     FixtureStatus, GroupState, League, StandingEntry,
 };
-use uuid::Uuid;
 
 /// Shape of a group stage at creation time.
 #[derive(Debug, Clone)]
@@ -140,7 +139,13 @@ pub fn generate_group_knockout_cup_with(
     scope: CompetitionScope,
     config: &GroupStageConfig,
 ) -> League {
-    let competition_id = Uuid::new_v4().to_string();
+    let competition_id = crate::seed::derived_id(&[
+        "group-cup",
+        name,
+        &season.to_string(),
+        &start_date.to_rfc3339(),
+        &team_ids.join(","),
+    ]);
     let group_states = seed_groups(&competition_id, team_ids, config.group_size);
     let groups: Vec<Vec<String>> = group_states
         .into_iter()
@@ -171,8 +176,14 @@ pub fn generate_group_knockout_cup_with_groups(
     scope: CompetitionScope,
     config: &GroupStageConfig,
 ) -> League {
-    let competition_id = Uuid::new_v4().to_string();
     let team_ids: Vec<String> = groups.iter().flatten().cloned().collect();
+    let competition_id = crate::seed::derived_id(&[
+        "group-cup",
+        name,
+        &season.to_string(),
+        &start_date.to_rfc3339(),
+        &team_ids.join(","),
+    ]);
     build_group_cup(
         competition_id,
         name,

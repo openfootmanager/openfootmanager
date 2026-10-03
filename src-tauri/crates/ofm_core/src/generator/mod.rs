@@ -38,6 +38,7 @@ use domain::team::TeamColors;
 use log::info;
 use rand::RngExt;
 use std::collections::HashSet;
+#[cfg(test)]
 use uuid::Uuid;
 
 use crate::finances::MIN_OPENING_RUNWAY_WEEKS;
@@ -294,8 +295,8 @@ pub fn generate_national_team_player(
     nationality: &str,
     squad_slot: usize,
     opening_year: u32,
+    rng: &mut impl rand::Rng,
 ) -> Player {
-    let mut rng = rand::rng();
     let names_def = default_names_definition();
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
@@ -307,7 +308,7 @@ pub fn generate_national_team_player(
         opening_year,
         None,
         &names_def,
-        &mut rng,
+        rng,
     );
     as_free_agent(player)
 }
@@ -375,8 +376,11 @@ fn create_staff_generator_context() -> (definitions::NamesDefinition, Vec<String
     (names_def, generation::nationality_distribution().clone())
 }
 
-fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool {
-    let mut rng = rand::rng();
+fn generate_missing_team_staff(
+    world: &mut WorldData,
+    opening_year: u32,
+    rng: &mut impl rand::Rng,
+) -> bool {
     let (names_def, country_codes) = create_staff_generator_context();
     let mut generated_staff = Vec::new();
     let roles = [
@@ -397,14 +401,14 @@ fn generate_missing_team_staff(world: &mut WorldData, opening_year: u32) -> bool
             }
 
             let nationality =
-                pick_nationality_from_def(team_local_nationality(team), &country_codes, &mut rng);
+                pick_nationality_from_def(team_local_nationality(team), &country_codes, rng);
             generated_staff.push(generate_random_staff_from_def(
                 &team.id,
                 role.clone(),
                 &nationality,
                 opening_year,
                 &names_def,
-                &mut rng,
+                rng,
             ));
         }
     }
@@ -450,8 +454,11 @@ pub(crate) fn generated_manager_for(
     generate_random_unemployed_manager(&nationality, names_def, opening_year, &mut rng)
 }
 
-fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32) -> Vec<Staff> {
-    let mut rng = rand::rng();
+fn generate_standard_available_staff_for_teams(
+    teams: &[Team],
+    opening_year: u32,
+    rng: &mut impl rand::Rng,
+) -> Vec<Staff> {
     let (names_def, country_codes) = create_staff_generator_context();
     let fallback_seed = teams
         .first()
@@ -468,14 +475,14 @@ fn generate_standard_available_staff_for_teams(teams: &[Team], opening_year: u32
                     .get(rng.random_range(0..teams.len().max(1)))
                     .map(team_local_nationality)
                     .unwrap_or(fallback_seed);
-                pick_nationality_from_def(seed_country, &country_codes, &mut rng)
+                pick_nationality_from_def(seed_country, &country_codes, &mut *rng)
             };
             generate_random_staff_unattached_from_def(
                 role,
                 &nationality,
                 opening_year,
                 &names_def,
-                &mut rng,
+                &mut *rng,
             )
         })
         .collect()
@@ -488,30 +495,57 @@ fn available_staff_count(staff: &[Staff]) -> usize {
         .count()
 }
 
-fn replace_available_staff_market(staff: &mut Vec<Staff>, teams: &[Team], opening_year: u32) {
+fn replace_available_staff_market(
+    staff: &mut Vec<Staff>,
+    teams: &[Team],
+    opening_year: u32,
+    rng: &mut impl rand::Rng,
+) {
     staff.retain(|staff_member| staff_member.team_id.is_some());
-    staff.extend(generate_standard_available_staff_for_teams(
-        teams,
-        opening_year,
-    ));
+    // The day's stream is the same however many times the market is refilled today, so a market
+    // bought out and refilled the same day would deal the ids it dealt before — to people now
+    // on a club's books. Deal again from the same stream until none repeats; it moves on each
+    // time, so this ends at once in practice, and the cap is only a backstop.
+    let taken: std::collections::HashSet<String> = staff
+        .iter()
+        .map(|staff_member| staff_member.id.clone())
+        .collect();
+    let mut batch = generate_standard_available_staff_for_teams(teams, opening_year, rng);
+    for _ in 0..8 {
+        if batch.iter().all(|member| !taken.contains(&member.id)) {
+            break;
+        }
+        batch = generate_standard_available_staff_for_teams(teams, opening_year, rng);
+    }
+    staff.extend(batch);
 }
 
 pub fn replenish_available_staff_market(
     staff: &mut Vec<Staff>,
     teams: &[Team],
     opening_year: u32,
+    rng: &mut impl rand::Rng,
 ) -> bool {
     if available_staff_count(staff) > 0 {
         return false;
     }
 
-    replace_available_staff_market(staff, teams, opening_year);
+    replace_available_staff_market(staff, teams, opening_year, rng);
     true
 }
 
 pub fn normalize_imported_world_for_career_start(world: &mut WorldData, opening_year: u32) {
-    generate_missing_team_staff(world, opening_year);
-    let _ = replenish_available_staff_market(&mut world.staff, &world.teams, opening_year);
+    // An imported world has no game yet, so the staff it is given are keyed by what the world is:
+    // importing the same world twice gives it the same backroom.
+    let mut rng = crate::seed::rng_from_key(&format!(
+        "import-staff/{}/{}/{}",
+        world.name,
+        world.teams.len(),
+        opening_year
+    ));
+    generate_missing_team_staff(world, opening_year, &mut rng);
+    let _ =
+        replenish_available_staff_market(&mut world.staff, &world.teams, opening_year, &mut rng);
     floor_imported_world_opening_cash(world);
 }
 
@@ -542,9 +576,10 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let current_year = game.clock.current_date.year() as u32;
     let available_count = available_staff_count(&game.staff);
+    let mut rng = game.rng_today("staff-market");
 
     if available_count == 0 {
-        replace_available_staff_market(&mut game.staff, &game.teams, current_year);
+        replace_available_staff_market(&mut game.staff, &game.teams, current_year, &mut rng);
         game.available_staff_market_last_activity_date = Some(today);
         return true;
     }
@@ -564,7 +599,7 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
         return false;
     }
 
-    replace_available_staff_market(&mut game.staff, &game.teams, current_year);
+    replace_available_staff_market(&mut game.staff, &game.teams, current_year, &mut rng);
     game.available_staff_market_last_activity_date = Some(today);
     true
 }
@@ -578,6 +613,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     // The market is topped up while a career runs, so new faces are aged against
     // the running clock rather than the year the world opened in.
     let market_year = game.clock.current_date.year() as u32;
+    let mut rng = game.rng_today("manager-scout-market");
     let team_count = game.teams.len();
     let floor = team_count * 2;
 
@@ -597,7 +633,6 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     if unemployed_mgr_count < floor {
         let needed = floor - unemployed_mgr_count;
         let (names_def, country_codes) = create_staff_generator_context();
-        let mut rng = rand::rng();
         for _ in 0..needed {
             let nationality = if country_codes.is_empty() {
                 "ENG".to_string()
@@ -625,7 +660,6 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     if unemployed_scout_count < floor {
         let needed = floor - unemployed_scout_count;
         let (names_def, country_codes) = create_staff_generator_context();
-        let mut rng = rand::rng();
         for _ in 0..needed {
             let nationality = if country_codes.is_empty() {
                 "ENG".to_string()
@@ -663,10 +697,10 @@ pub fn generate_world(
 }
 
 /// Build a club (without players) from a definition. Uses the definition's
-/// stable `id` when set (world packages); otherwise a fresh UUID.
+/// stable `id` when set (world packages); otherwise one drawn from `rng`.
 fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
     let team_id = if tdef.id.is_empty() {
-        Uuid::new_v4().to_string()
+        generation::seeded_id(rng)
     } else {
         tdef.id.clone()
     };
@@ -2128,7 +2162,7 @@ mod tests {
 
     #[test]
     fn generate_national_team_player_is_a_senior_free_agent() {
-        let player = generate_national_team_player("JP", 5, TEST_OPENING_YEAR);
+        let player = generate_national_team_player("JP", 5, TEST_OPENING_YEAR, &mut rand::rng());
 
         assert_eq!(player.nationality, "JP");
         assert_eq!(
@@ -2601,6 +2635,7 @@ mod tests {
                     None,
                     None,
                     TEST_OPENING_YEAR,
+                    &mut rand::rng(),
                 )
                 .nationality
             })
@@ -2633,6 +2668,7 @@ mod tests {
             None,
             Some("GB"),
             TEST_OPENING_YEAR,
+            &mut rand::rng(),
         );
 
         assert_eq!(player.nationality, "ENG");
@@ -2657,6 +2693,7 @@ mod tests {
                 Some(&Position::Goalkeeper),
                 None,
                 TEST_OPENING_YEAR,
+                &mut rand::rng(),
             );
             assert_eq!(
                 player.position,
@@ -2679,7 +2716,8 @@ mod tests {
         // past the youth cap (the youth-reserved slot would cap every player at it).
         let mut saw_senior_age = false;
         for _ in 0..64 {
-            let player = generate_national_team_player("GB", 1, TEST_OPENING_YEAR);
+            let player =
+                generate_national_team_player("GB", 1, TEST_OPENING_YEAR, &mut rand::rng());
             assert_eq!(
                 player.position,
                 Position::Goalkeeper,
@@ -3154,6 +3192,99 @@ mod tests {
         assert_eq!(
             game.available_staff_market_last_activity_date.as_deref(),
             Some("2026-08-01")
+        );
+    }
+
+    /// Everything that identifies the people a market brought in.
+    fn market_staff(game: &Game) -> Vec<String> {
+        let mut rows: Vec<String> = game
+            .staff
+            .iter()
+            .filter(|staff_member| staff_member.team_id.is_none())
+            .map(|staff_member| serde_json::to_value(staff_member).unwrap().to_string())
+            .collect();
+        rows.sort();
+        rows
+    }
+
+    fn market_after_a_rotation(seed: u64) -> Vec<String> {
+        let mut game =
+            make_staff_market_game(vec![make_import_staff("free-1", None, StaffRole::Coach)]);
+        game.seed = seed;
+        game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
+        process_available_staff_market(&mut game);
+        market_staff(&game)
+    }
+
+    /// Given a market that is bought out on the day it was generated,
+    /// When it is regenerated the same day,
+    /// Then the new batch shares no id with the people just hired from the first — the day's
+    ///      stream is the same, so without a guard it would deal the same ids twice.
+    #[test]
+    fn a_market_emptied_and_refilled_on_one_day_deals_new_ids() {
+        let mut game = make_staff_market_game(vec![]);
+        game.seed = 7;
+        process_available_staff_market(&mut game);
+        let first_batch: std::collections::BTreeSet<String> = game
+            .staff
+            .iter()
+            .filter(|staff_member| staff_member.team_id.is_none())
+            .map(|staff_member| staff_member.id.clone())
+            .collect();
+        assert!(!first_batch.is_empty());
+        let club = game.teams[0].id.clone();
+        for staff_member in game
+            .staff
+            .iter_mut()
+            .filter(|s| first_batch.contains(&s.id))
+        {
+            staff_member.team_id = Some(club.clone());
+        }
+
+        process_available_staff_market(&mut game);
+
+        let ids: Vec<&String> = game
+            .staff
+            .iter()
+            .map(|staff_member| &staff_member.id)
+            .collect();
+        let distinct: std::collections::BTreeSet<&&String> = ids.iter().collect();
+        assert_eq!(distinct.len(), ids.len(), "two people share an id");
+    }
+
+    /// Given a save whose staff market is due to rotate,
+    /// When the day is played twice from the same seed, and once from another,
+    /// Then the same people are on offer, ids and all, the first two times and not the third.
+    #[test]
+    fn the_staff_market_rotates_the_same_way_from_the_same_seed() {
+        assert_eq!(market_after_a_rotation(7), market_after_a_rotation(7));
+        assert_ne!(market_after_a_rotation(7), market_after_a_rotation(8));
+    }
+
+    fn unemployed_pool_after_a_season_end(seed: u64) -> (Vec<String>, Vec<String>) {
+        let mut game = make_staff_market_game(vec![]);
+        game.seed = seed;
+        replenish_manager_and_scout_market(&mut game);
+        let managers = game
+            .managers
+            .iter()
+            .map(|manager| serde_json::to_value(manager).unwrap().to_string())
+            .collect();
+        (managers, market_staff(&game))
+    }
+
+    /// Given a world short of unemployed managers and scouts,
+    /// When the season ends, twice from the same seed, and once from another,
+    /// Then the same candidates are brought in, and other ones from another seed.
+    #[test]
+    fn the_manager_and_scout_market_is_topped_up_the_same_way_from_the_same_seed() {
+        assert_eq!(
+            unemployed_pool_after_a_season_end(7),
+            unemployed_pool_after_a_season_end(7)
+        );
+        assert_ne!(
+            unemployed_pool_after_a_season_end(7),
+            unemployed_pool_after_a_season_end(8)
         );
     }
 }
