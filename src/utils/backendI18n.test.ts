@@ -393,8 +393,8 @@ describe("resolveAction", () => {
 
 describe("resolveMessage", () => {
   // Given a failed registration notice with the exact agreed fee, when resolved in the selected currency,
-  // then the fee is converted without compact rounding or leaking its raw numeric parameter.
-  it("renders an exact registration fee in the selected currency", () => {
+  // then the fee is converted without compact rounding and the registration day is localized.
+  it("renders an exact fee and a localized registration day", () => {
     useSettingsStore.setState({
       settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
       currency: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
@@ -408,16 +408,45 @@ describe("resolveMessage", () => {
           player: "Golden Boot",
           buyer: "Alpha FC",
           fee: "800001",
-          date: "2026-07-02",
+          start: "2026-07-02",
         },
       }),
     );
 
     expect(result.subject).toBe("Transfer registration failed: Golden Boot");
     expect(result.body).toContain("Golden Boot to Alpha FC for £688,001");
-    expect(result.body).toContain("2026-07-02");
+    expect(result.body).toContain("July 2, 2026");
+    expect(result.body).not.toContain("2026-07-02");
     expect(result.body).toContain("No transfer fee was paid.");
     expect(result.body).not.toContain("800001");
+  });
+
+  // Given a failed registration notice, when rendered in German, then its date follows the same locale as its text.
+  it("localizes the failed registration day in German", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, language: "de" },
+    });
+    try {
+      const result = resolveMessage(
+        makeMessage({
+          subject_key: "be.msg.transferRegistrationFailed.subject",
+          body_key: "be.msg.transferRegistrationFailed.InsufficientFunds",
+          i18n_params: {
+            player: "Golden Boot",
+            buyer: "Alpha FC",
+            fee: "800001",
+            start: "2026-07-02",
+          },
+        }),
+      );
+      expect(result.body).toContain("2. Juli 2026");
+      expect(result.body).toContain("€800.001");
+      expect(result.body).not.toContain("2026-07-02");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
   });
 
   it("resolves all translatable fields when keys exist", () => {

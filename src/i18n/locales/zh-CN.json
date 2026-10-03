@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "转会注册失败：{{player}}",
-        "InsufficientFunds": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{date}} 完成注册，因为买方的现金或转会预算已不足以支付转会费。此次转会未支付任何转会费。",
-        "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{date}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
-        "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{date}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
-        "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{date}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
+        "InsufficientFunds": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为买方的现金或转会预算已不足以支付转会费。此次转会未支付任何转会费。",
+        "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
+        "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
+        "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
       }
     },
     "news": {

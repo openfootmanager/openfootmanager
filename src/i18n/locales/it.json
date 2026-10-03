@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Registrazione del trasferimento fallita: {{player}}",
-        "InsufficientFunds": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{date}} perché il saldo o il budget trasferimenti del compratore non copre più la cifra. Non è stato pagato alcun importo per il trasferimento.",
-        "LoanConflict": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{date}} perché il giocatore è in prestito o ha un prestito concordato in attesa di registrazione. Non è stato pagato alcun importo per il trasferimento.",
-        "PlayerUnavailable": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{date}} perché il giocatore non è più disponibile presso un club venditore. Non è stato pagato alcun importo per il trasferimento.",
-        "RegistrationBlocked": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{date}} perché un requisito di registrazione non è più soddisfatto. Non è stato pagato alcun importo per il trasferimento."
+        "InsufficientFunds": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il saldo o il budget trasferimenti del compratore non copre più la cifra. Non è stato pagato alcun importo per il trasferimento.",
+        "LoanConflict": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore è in prestito o ha un prestito concordato in attesa di registrazione. Non è stato pagato alcun importo per il trasferimento.",
+        "PlayerUnavailable": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore non è più disponibile presso un club venditore. Non è stato pagato alcun importo per il trasferimento.",
+        "RegistrationBlocked": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché un requisito di registrazione non è più soddisfatto. Non è stato pagato alcun importo per il trasferimento."
       }
     },
     "news": {

@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Transfer tescili başarısız: {{player}}",
-        "InsufficientFunds": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{date}} tarihinde tescil edilemedi; alıcının nakdi veya transfer bütçesi artık bedeli karşılamıyor. Transfer bedeli ödenmedi.",
-        "LoanConflict": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{date}} tarihinde tescil edilemedi; oyuncu kiralık durumda veya tescil bekleyen bir kiralama anlaşması var. Transfer bedeli ödenmedi.",
-        "PlayerUnavailable": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{date}} tarihinde tescil edilemedi; oyuncu artık bir satıcı kulüpten transfer edilebilir durumda değil. Transfer bedeli ödenmedi.",
-        "RegistrationBlocked": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{date}} tarihinde tescil edilemedi; bir tescil koşulu artık sağlanmıyor. Transfer bedeli ödenmedi."
+        "InsufficientFunds": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; alıcının nakdi veya transfer bütçesi artık bedeli karşılamıyor. Transfer bedeli ödenmedi.",
+        "LoanConflict": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu kiralık durumda veya tescil bekleyen bir kiralama anlaşması var. Transfer bedeli ödenmedi.",
+        "PlayerUnavailable": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu artık bir satıcı kulüpten transfer edilebilir durumda değil. Transfer bedeli ödenmedi.",
+        "RegistrationBlocked": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; bir tescil koşulu artık sağlanmıyor. Transfer bedeli ödenmedi."
       }
     },
     "news": {

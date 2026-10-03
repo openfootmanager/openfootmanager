@@ -141,6 +141,13 @@ describe("TransfersTab.helpers", () => {
     );
   });
 
+  // Given an unknown backend failure reason, when displaying it, then a localized registration label replaces the raw key.
+  it("falls back to a localized label for an unknown registration reason", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "FutureReason"),
+    ).toBe("Registration blocked");
+  });
+
   it("returns the pending outgoing offer for the user team", () => {
     const player = createPlayer({
       transfer_offers: [

@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Transfer registration failed: {{player}}",
-        "InsufficientFunds": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{date}} because the buyer's cash or transfer budget no longer covers the fee. No transfer fee was paid.",
-        "LoanConflict": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{date}} because the player has an active loan or an agreed loan awaiting registration. No transfer fee was paid.",
-        "PlayerUnavailable": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{date}} because the player is no longer available from a selling club. No transfer fee was paid.",
-        "RegistrationBlocked": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{date}} because a registration requirement is no longer met. No transfer fee was paid."
+        "InsufficientFunds": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the buyer's cash or transfer budget no longer covers the fee. No transfer fee was paid.",
+        "LoanConflict": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player has an active loan or an agreed loan awaiting registration. No transfer fee was paid.",
+        "PlayerUnavailable": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player is no longer available from a selling club. No transfer fee was paid.",
+        "RegistrationBlocked": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because a registration requirement is no longer met. No transfer fee was paid."
       }
     },
     "news": {

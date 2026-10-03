@@ -312,7 +312,9 @@ export function getTransferOfferStatusLabel(
       return t("transfers.offerStatusRejected");
     case "Withdrawn":
       if (registrationFailureReason) {
-        return t(`transfers.registrationFailure${registrationFailureReason}`);
+        const key = `transfers.registrationFailure${registrationFailureReason}`;
+        const label = t(key);
+        return label === key ? t("transfers.registrationFailureRegistrationBlocked") : label;
       }
       return t("transfers.offerStatusWithdrawn");
     default:

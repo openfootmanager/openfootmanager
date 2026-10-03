@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Inscripción del fichaje fallida: {{player}}",
-        "InsufficientFunds": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{date}} porque el saldo o el presupuesto de fichajes del comprador ya no cubre el importe. No se pagó ninguna cantidad por el fichaje.",
-        "LoanConflict": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{date}} porque el jugador está cedido o tiene una cesión acordada pendiente de inscripción. No se pagó ninguna cantidad por el fichaje.",
-        "PlayerUnavailable": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{date}} porque el jugador ya no está disponible en un club vendedor. No se pagó ninguna cantidad por el fichaje.",
-        "RegistrationBlocked": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{date}} porque ya no se cumple un requisito de inscripción. No se pagó ninguna cantidad por el fichaje."
+        "InsufficientFunds": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque el saldo o el presupuesto de fichajes del comprador ya no cubre el importe. No se pagó ninguna cantidad por el fichaje.",
+        "LoanConflict": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque el jugador está cedido o tiene una cesión acordada pendiente de inscripción. No se pagó ninguna cantidad por el fichaje.",
+        "PlayerUnavailable": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque el jugador ya no está disponible en un club vendedor. No se pagó ninguna cantidad por el fichaje.",
+        "RegistrationBlocked": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque ya no se cumple un requisito de inscripción. No se pagó ninguna cantidad por el fichaje."
       }
     },
     "news": {

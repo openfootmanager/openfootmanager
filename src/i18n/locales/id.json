@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Registrasi transfer gagal: {{player}}",
-        "InsufficientFunds": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{date}} karena kas atau anggaran transfer pembeli tidak lagi mencukupi. Tidak ada biaya transfer yang dibayarkan.",
-        "LoanConflict": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{date}} karena pemain sedang dipinjamkan atau memiliki kesepakatan pinjaman yang menunggu registrasi. Tidak ada biaya transfer yang dibayarkan.",
-        "PlayerUnavailable": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{date}} karena pemain tidak lagi tersedia di klub penjual. Tidak ada biaya transfer yang dibayarkan.",
-        "RegistrationBlocked": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{date}} karena salah satu persyaratan registrasi tidak lagi terpenuhi. Tidak ada biaya transfer yang dibayarkan."
+        "InsufficientFunds": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena kas atau anggaran transfer pembeli tidak lagi mencukupi. Tidak ada biaya transfer yang dibayarkan.",
+        "LoanConflict": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain sedang dipinjamkan atau memiliki kesepakatan pinjaman yang menunggu registrasi. Tidak ada biaya transfer yang dibayarkan.",
+        "PlayerUnavailable": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain tidak lagi tersedia di klub penjual. Tidak ada biaya transfer yang dibayarkan.",
+        "RegistrationBlocked": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena salah satu persyaratan registrasi tidak lagi terpenuhi. Tidak ada biaya transfer yang dibayarkan."
       }
     },
     "news": {

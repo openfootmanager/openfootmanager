@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Registo da transferência falhado: {{player}}",
-        "InsufficientFunds": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{date}} porque o saldo ou o orçamento de transferências do comprador já não cobre o valor. Não foi paga qualquer verba pela transferência.",
-        "LoanConflict": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{date}} porque o jogador está emprestado ou tem um empréstimo acordado a aguardar registo. Não foi paga qualquer verba pela transferência.",
-        "PlayerUnavailable": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{date}} porque o jogador já não está disponível num clube vendedor. Não foi paga qualquer verba pela transferência.",
-        "RegistrationBlocked": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{date}} porque deixou de ser cumprido um requisito de registo. Não foi paga qualquer verba pela transferência."
+        "InsufficientFunds": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o saldo ou o orçamento de transferências do comprador já não cobre o valor. Não foi paga qualquer verba pela transferência.",
+        "LoanConflict": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o jogador está emprestado ou tem um empréstimo acordado a aguardar registo. Não foi paga qualquer verba pela transferência.",
+        "PlayerUnavailable": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o jogador já não está disponível num clube vendedor. Não foi paga qualquer verba pela transferência.",
+        "RegistrationBlocked": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque deixou de ser cumprido um requisito de registo. Não foi paga qualquer verba pela transferência."
       }
     },
     "news": {

@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Registro da transferência falhou: {{player}}",
-        "InsufficientFunds": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{date}} porque o saldo ou o orçamento de transferências do comprador já não cobre o valor. Nenhum valor foi pago pela transferência.",
-        "LoanConflict": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{date}} porque o jogador está emprestado ou tem um empréstimo acertado aguardando registro. Nenhum valor foi pago pela transferência.",
-        "PlayerUnavailable": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{date}} porque o jogador não está mais disponível em um clube vendedor. Nenhum valor foi pago pela transferência.",
-        "RegistrationBlocked": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{date}} porque um requisito de registro deixou de ser atendido. Nenhum valor foi pago pela transferência."
+        "InsufficientFunds": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{start}} porque o saldo ou o orçamento de transferências do comprador já não cobre o valor. Nenhum valor foi pago pela transferência.",
+        "LoanConflict": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{start}} porque o jogador está emprestado ou tem um empréstimo acertado aguardando registro. Nenhum valor foi pago pela transferência.",
+        "PlayerUnavailable": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{start}} porque o jogador não está mais disponível em um clube vendedor. Nenhum valor foi pago pela transferência.",
+        "RegistrationBlocked": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{start}} porque um requisito de registro deixou de ser atendido. Nenhum valor foi pago pela transferência."
       }
     },
     "news": {

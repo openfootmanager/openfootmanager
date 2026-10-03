@@ -848,6 +848,10 @@ mod tests {
         );
         assert_eq!(messages[0].i18n_params["player"], "Golden Boot");
         assert_eq!(
+            messages[0].i18n_params.get("start").map(String::as_str),
+            Some("2026-01-12")
+        );
+        assert_eq!(
             messages[0].i18n_params["buyer"],
             game.team_name_or_id(&offer.from_team_id)
         );

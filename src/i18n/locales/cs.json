@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Registrace přestupu selhala: {{player}}",
-        "InsufficientFunds": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{date}}, protože hotovost nebo přestupový rozpočet kupujícího již nepokrývá částku. Nebyla zaplacena žádná přestupová částka.",
-        "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{date}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
-        "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{date}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
-        "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{date}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
+        "InsufficientFunds": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hotovost nebo přestupový rozpočet kupujícího již nepokrývá částku. Nebyla zaplacena žádná přestupová částka.",
+        "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
+        "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
+        "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
       }
     },
     "news": {

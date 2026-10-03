@@ -3398,10 +3398,10 @@
       },
       "transferRegistrationFailed": {
         "subject": "Transferregistrierung gescheitert: {{player}}",
-        "InsufficientFunds": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{date}} nicht registriert werden, weil der Kontostand oder das Transferbudget des Käufers die Ablöse nicht mehr deckt. Es wurde keine Ablöse gezahlt.",
-        "LoanConflict": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{date}} nicht registriert werden, weil der Spieler verliehen ist oder eine vereinbarte Leihe auf die Registrierung wartet. Es wurde keine Ablöse gezahlt.",
-        "PlayerUnavailable": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{date}} nicht registriert werden, weil der Spieler bei keinem verkaufenden Verein mehr verfügbar ist. Es wurde keine Ablöse gezahlt.",
-        "RegistrationBlocked": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{date}} nicht registriert werden, weil eine Registrierungsvoraussetzung nicht mehr erfüllt ist. Es wurde keine Ablöse gezahlt."
+        "InsufficientFunds": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Kontostand oder das Transferbudget des Käufers die Ablöse nicht mehr deckt. Es wurde keine Ablöse gezahlt.",
+        "LoanConflict": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler verliehen ist oder eine vereinbarte Leihe auf die Registrierung wartet. Es wurde keine Ablöse gezahlt.",
+        "PlayerUnavailable": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler bei keinem verkaufenden Verein mehr verfügbar ist. Es wurde keine Ablöse gezahlt.",
+        "RegistrationBlocked": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil eine Registrierungsvoraussetzung nicht mehr erfüllt ist. Es wurde keine Ablöse gezahlt."
       }
     },
     "news": {
