@@ -172,7 +172,7 @@ pub fn check_player_events(game: &mut Game) {
 
     let mut new_messages: Vec<InboxMessage> = Vec::new();
 
-    let mut rng = rand::rng();
+    let mut rng = game.rng_today("player-events");
 
     // Global daily cap: at most 2 player-initiated messages per day
     let today_message_count = game

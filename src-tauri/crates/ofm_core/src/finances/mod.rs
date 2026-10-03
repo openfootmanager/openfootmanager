@@ -1106,7 +1106,8 @@ pub fn process_weekly_finances(game: &mut Game) {
                 .find(|team| team.id == team_id)
                 .map(|team| team.stadium_capacity)
                 .unwrap_or(0);
-            let mut rng = rand::rng();
+            // One gate per club per week, drawn from that club's own stream.
+            let mut rng = game.rng_today(&format!("finances/matchday/{team_id}"));
             let attendance_pct = rng.random_range(60..=92) as f64 / 100.0;
             let avg_ticket = rng.random_range(15..=25) as f64;
             let total_revenue =

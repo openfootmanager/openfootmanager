@@ -305,8 +305,10 @@ fn simulate_other_matches_settles_knockout_draws_with_shootout() {
     // the home team. The full-engine sim path must resolve level knockout
     // ties with a simulated shootout.
     let mut saw_draw = false;
-    for _attempt in 0..200 {
+    // Each attempt is a different game: one seed would be one outcome two hundred times.
+    for attempt in 0..200 {
         let mut game = make_game_with_match();
+        game.seed = attempt;
         {
             let league = game.league.as_mut().unwrap();
             league.fixtures[0].competition = FixtureCompetition::Cup;
@@ -368,8 +370,9 @@ fn a_level_league_match_nobody_watches_ends_at_full_time() {
     );
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let mut draws = 0;
-    for _attempt in 0..200 {
+    for attempt in 0..200 {
         let mut game = game.clone();
+        game.seed = attempt;
         turn::simulate_other_matches(&mut game, &today, None);
 
         let result = game.league.as_ref().unwrap().fixtures[0]

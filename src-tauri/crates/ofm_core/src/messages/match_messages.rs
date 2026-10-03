@@ -11,7 +11,9 @@ pub fn pre_match_message(
     match_date: &str,
     date: &str,
 ) -> InboxMessage {
-    let mut rng = rand::rng();
+    let mut rng = crate::seed::rng_from_key(&format!(
+        "message/pre-match/{opponent_id}/{matchday}/{match_date}"
+    ));
     let idx = rng.random_range(0..2);
     let venue_short = if is_home { "H" } else { "A" };
     let body_key = format!(
@@ -89,7 +91,9 @@ pub fn match_result_message(
         "Draw"
     };
 
-    let mut rng = rand::rng();
+    let mut rng = crate::seed::rng_from_key(&format!(
+        "message/match-result/{home_team_id}/{away_team_id}/{matchday}/{date}"
+    ));
     let body_key = format!(
         "be.msg.matchResult.body.{}{}",
         outcome.to_lowercase(),
