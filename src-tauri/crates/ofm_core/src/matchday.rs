@@ -338,9 +338,8 @@ pub struct StrandedFixture {
 /// Every fixture in the game still `Scheduled` though dated `on_or_before` or earlier: club
 /// competitions *and* the window fixtures held by national teams, not only the user's league.
 ///
-/// The one definition of the rule. The core tests, the load-time repair and the season harness
-/// all ask this rather than restating it, so they cannot drift into disagreeing about what a
-/// stranded fixture is.
+/// The core tests and load-time repair share this definition of a stranded fixture. The
+/// season harness can use the same query when its integration lands.
 pub fn stranded_fixtures(game: &Game, on_or_before: NaiveDate) -> Vec<StrandedFixture> {
     let club = game.competitions.iter().flat_map(|competition| {
         competition
