@@ -392,6 +392,34 @@ describe("resolveAction", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveMessage", () => {
+  // Given a failed registration notice with the exact agreed fee, when resolved in the selected currency,
+  // then the fee is converted without compact rounding or leaking its raw numeric parameter.
+  it("renders an exact registration fee in the selected currency", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+      currency: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+    });
+
+    const result = resolveMessage(
+      makeMessage({
+        subject_key: "be.msg.transferRegistrationFailed.subject",
+        body_key: "be.msg.transferRegistrationFailed.InsufficientFunds",
+        i18n_params: {
+          player: "Golden Boot",
+          buyer: "Alpha FC",
+          fee: "800001",
+          date: "2026-07-02",
+        },
+      }),
+    );
+
+    expect(result.subject).toBe("Transfer registration failed: Golden Boot");
+    expect(result.body).toContain("Golden Boot to Alpha FC for £688,001");
+    expect(result.body).toContain("2026-07-02");
+    expect(result.body).toContain("No transfer fee was paid.");
+    expect(result.body).not.toContain("800001");
+  });
+
   it("resolves all translatable fields when keys exist", () => {
     const msg = makeMessage({
       subject: "raw",
