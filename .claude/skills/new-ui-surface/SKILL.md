@@ -30,6 +30,12 @@ Also check before writing a helper:
 A new component belongs in `src/components/ui/` **only** if a second feature will use it.
 Otherwise put it in the feature folder (`src/components/squad/`, `src/components/transfers/`, …).
 
+Apply the root Code quality layer and size rules: frontend functions <= 200 lines/complexity 25
+(100/15 in shared directories), <= 7 parameters, production files <= 1,000. Shared libraries and
+services import no component/page, UI primitives import no feature/page, features import no page,
+and only services call `invoke`; type-only imports and re-exports count too. Backend policy is
+projected into the UI rather than recomputed here.
+
 ## 2. Design tokens
 
 Colours and fonts come from the `@theme` block in `src/App.css`. Nothing else defines them.
@@ -79,11 +85,16 @@ translation key in every locale. Use `/add-ui-string`; don't hand-roll it.
 - Zustand stores in `src/store/`. **Never mutate store state from a component** — copy, then set.
   (`fix/hometab-store-mutation` is the regression that made this a rule.)
 - Backend data flows through `src/services/*Service.ts`.
-- Derive, don't duplicate. If a value can be computed from the store, compute it.
+- Derive display state from the store; consume backend-owned game rules through services. Do not
+  recalculate backend policy in the component.
 
 ## 6. Test it
 
-Co-locate `Foo.test.tsx` next to `Foo.tsx`. Write it first.
+Use `/write-tests` for named GWT scenarios. Co-locate `Foo.test.tsx` next to
+`Foo.tsx`, write it first and watch it fail for the intended reason. Test through the component
+and service wiring; helper-only tests cannot prove that a handler calls the helper. A controlled
+component needs a stateful host that feeds `onChange` values back as props, not just `vi.fn()`.
+Test service rejection paths and resulting UI feedback, plus failure atomicity when applicable.
 
 ```ts
 // Query by role and accessible name. If this line fails, the component
@@ -94,7 +105,9 @@ const save = screen.getByRole("button", { name: /save/i });
 - Query by role/label, never by class or test id.
 - Pure logic goes in a `*.helpers.ts` file and gets unit-tested directly —
   `src/components/squad/SquadTab.helpers.ts` is the pattern.
-- Cover the keyboard path, not just the click path, for anything interactive.
+- Cover keyboard activation, focus visibility/return and semantic role/name for interactive controls.
+  A promoted Biome a11y rule is a syntax gate, not evidence that the actual keyboard flow works.
+- Use `ui-accessibility-reviewer`, `i18n-auditor`, and `ofm-test-reviewer` when their surfaces change.
 
 ```bash
 npm exec --no -- vitest run src/components/<area>
