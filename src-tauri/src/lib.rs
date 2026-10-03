@@ -56,6 +56,8 @@ pub fn run() {
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
+            platform::watch_web_processes(app);
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()

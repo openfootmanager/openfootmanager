@@ -3092,6 +3092,7 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
+ "webkit2gtk",
  "webp",
  "zip",
 ]
