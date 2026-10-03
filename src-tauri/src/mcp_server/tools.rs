@@ -1506,10 +1506,10 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
 
     // ─── New tools: game state, saves, worlds ────────────────────────────────
 
-    // info_game_state — raw JSON game state dump (disabled in Competition mode)
+    // info_game_state — raw JSON game state dump (available in competition mode)
     real_tool!(
         "info_game_state",
-        "Full game state as JSON (useful for programmatic access; disabled in competition mode)",
+        "Full game state as JSON (useful for programmatic access; available in competition mode)",
         tools_impl::info::info_game_state
     );
 
@@ -2079,6 +2079,47 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
+
+    /// Given the MCP docs, implementation comment and registered tool description,
+    /// when an agent reads them, then they agree that the state dump is available
+    /// in competition mode and name the five restricted setup tools.
+    #[test]
+    fn the_docs_match_the_competition_mode_decision() {
+        let docs = include_str!("../../../docs/MCP_SERVER.md");
+        let competition_docs = docs
+            .split("## Competition Mode\n")
+            .nth(1)
+            .expect("competition-mode documentation")
+            .split("\n---")
+            .next()
+            .unwrap();
+        let info_source = include_str!("tools_impl/info.rs");
+        let info_comment = info_source.split("pub fn info_game_state").next().unwrap();
+        for document in [competition_docs, info_comment] {
+            assert!(
+                document.contains("available in competition mode"),
+                "the docs and implementation comment must state the availability decision"
+            );
+            for tool in crate::mcp_server::config::McpMode::Competition.disabled_tools() {
+                assert!(document.contains(tool), "missing restricted tool {tool}");
+            }
+        }
+        let registration = source()
+            .split("// info_game_state")
+            .nth(1)
+            .unwrap()
+            .split("tools_impl::info::info_game_state")
+            .next()
+            .unwrap();
+        assert!(registration.contains("available in competition mode"));
+        assert!(!registration.contains("disabled"));
+        let description = registration
+            .lines()
+            .filter_map(first_string_literal)
+            .nth(1)
+            .expect("registered tool description");
+        assert!(description.contains("available in competition mode"));
+    }
 
     /// This module's own source. The router is built from closures capturing an
     /// `Arc<McpContext>`, which owns a `tauri::AppHandle`, so building a real router in a unit

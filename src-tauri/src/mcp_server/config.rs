@@ -302,12 +302,20 @@ mod tests {
         assert_eq!(config.manager_nationality.as_deref(), Some("England"));
     }
 
+    /// Given competition mode, when the mode restrictions are collected,
+    /// then exactly the five setup tools are hidden and the state dump remains available.
     #[test]
-    fn competition_mode_disabled_tools() {
-        assert!(McpMode::Competition.disabled_tools().contains(&"game_new"));
-        assert!(!McpMode::Competition
-            .disabled_tools()
-            .contains(&"info_game_state"));
+    fn the_five_restricted_tools_stay_hidden() {
+        assert_eq!(
+            McpMode::Competition.disabled_tools(),
+            [
+                "game_new",
+                "game_select_team",
+                "game_export_world",
+                "game_exit",
+                "game_load_save",
+            ]
+        );
         assert!(McpMode::Sandbox.disabled_tools().is_empty());
     }
 
