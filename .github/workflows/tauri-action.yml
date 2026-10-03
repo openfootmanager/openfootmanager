@@ -83,8 +83,37 @@ jobs:
           tagName: v__VERSION__
           releaseName: "Openfoot Manager v__VERSION__"
           releaseBody: "Download the installer for your platform below. For feedback and bug reports, please refer to the [Beta Testing Guide](https://github.com/openfootmanager/openfootmanager/blob/v__VERSION__/docs/BETA_TESTING_GUIDE.md)."
-          releaseDraft: false
+          releaseDraft: true
           # Stable releases must not be prereleases, or GitHub has no release to
           # badge as "Latest" and the page falls back to tag-name ordering.
           prerelease: false
           args: ${{ matrix.args }}
+
+      # #281. If this AppImage ships its own libwayland-client, WebKit shows a white window on any
+      # machine using Mesa with a newer libwayland. The details are in docs/LINUX_GRAPHICS.md.
+      # Keep the release a draft until every platform and both AppImage checks pass.
+      - name: AppImage must not bundle libwayland-client (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm'
+        run: scripts/check-appimage-libs.sh src-tauri/target/release/bundle/appimage
+
+  finalize-stable:
+    needs: publish-tauri
+    if: ${{ needs.publish-tauri.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: ${{ vars.RELEASE_ENVIRONMENT || 'release' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Publish the validated stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          release_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          gh release edit "v$release_version" --draft=false --prerelease=false

@@ -169,6 +169,14 @@ jobs:
           prerelease: true
           args: ${{ matrix.args }}
 
+      # #281. If this AppImage ships its own libwayland-client, WebKit shows a white window on any
+      # machine using Mesa with a newer libwayland (AMD, Intel, rolling distros). The details are
+      # in docs/LINUX_GRAPHICS.md. Failing here keeps this nightly a draft: `finalize-nightly`
+      # only publishes when every platform succeeded.
+      - name: AppImage must not bundle libwayland-client (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm'
+        run: scripts/check-appimage-libs.sh src-tauri/target/release/bundle/appimage
+
   # Nothing is ever deleted here: a failed build must not remove a previous good nightly. A
   # build that fails or is cancelled leaves a *draft*, which nobody sees, rather than replacing
   # the last known-good release the way the rolling tag used to.
