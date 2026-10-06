@@ -7,12 +7,29 @@ on:
       - release
 
 jobs:
+  check-release-state:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Refuse an already published stable version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/check-stable-release-state.sh
+
   # The same gauntlet a pull request has to pass, run against the commit that is about
   # to be published. Shipping a stable release untested is strictly worse than shipping
   # a nightly untested, and `release` is a branch no `pull_request` run ever covers.
   #
   # No `environment:` here on purpose — see the note in `nightly-tauri-action.yml`.
   verify:
+    needs: check-release-state
     uses: ./.github/workflows/build-check.yml
 
   publish-tauri:
