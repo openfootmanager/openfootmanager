@@ -1265,6 +1265,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Riwayat tawaran",
+    "viewOfferHistory": "Lihat riwayat tawaran",
+    "offerRecordedOn": "Tawaran tertanggal {{date}}.",
+    "loanOfferStartsOn": "Peminjaman dimulai pada {{date}}.",
+    "dealAlreadyAgreed": "Kepindahan pemain ini sudah disepakati dan menunggu pendaftaran.",
+    "dealOwnPlayer": "Pemain ini sudah menjadi milik klubmu.",
+    "dealActiveLoan": "Pemain ini sedang dipinjamkan.",
+    "dealRetired": "Pemain ini sudah pensiun.",
     "bidImpactWageBill": "Beban gaji mingguan {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Anggaran gaji mingguan {{budget}}",
     "bidImpactIncomingWage": "Gaji pemain masuk {{wage}} / minggu",

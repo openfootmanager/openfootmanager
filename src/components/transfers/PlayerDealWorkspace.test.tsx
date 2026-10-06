@@ -1,39 +1,24 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import PlayerDealWorkspace from "./PlayerDealWorkspace";
 
-vi.mock("react-i18next", () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      if (key === "common.back") return "Back";
-      if (key === "common.cancel") return "Cancel";
-      if (key === "common.freeAgent") return "Free Agent";
-      if (key === "common.ovr") return "OVR";
-      if (key === "common.value") return "Value";
-      if (key === "common.wage") return "Wage";
-      if (key === "common.currentWage") return "Current Wage";
-      if (key === "playerProfile.renewalWage") return "Offered Wage";
-      if (key === "finances.transferBudget") return "Transfer Budget";
-      if (key === "finances.wageBudget") return "Wage Budget";
-      if (key === "transfers.dealType") return "Deal Type";
-      if (key === "transfers.makeBid") return "Make Transfer Bid";
-      if (key === "transfers.makeLoanOffer") return "Make Loan Offer";
-      if (key === "transfers.offerContract") return "Offer Contract";
-      if (key === "transfers.dealTransferDescription") return "Open a transfer negotiation.";
-      if (key === "transfers.dealLoanDescription") return "Open a loan negotiation.";
-      if (key === "transfers.dealContractDescription") return "Offer a contract.";
-      if (key === "transfers.dealAvailableTransfer") return "Available for transfer.";
-      if (key === "transfers.dealUnavailableTransfer") return "Not available for transfer.";
-      if (key === "transfers.dealAvailableLoan") return "Available for loan.";
-      if (key === "transfers.dealUnavailableLoan") return "Not available for loan.";
-      if (key === "transfers.dealAvailableContract") return "Available on a free transfer.";
-      if (key === "transfers.dealUnavailableContract") return "Already contracted.";
-      return key;
-    },
-    i18n: { language: "en" },
-  }),
+import { createInstance } from "i18next";
+import en from "../../i18n/locales/en.json";
+import de from "../../i18n/locales/de.json";
+import type { LoanOfferData, TransferOfferData } from "../../store/gameStore";
+
+const translations = createInstance();
+await translations.init({
+  lng: "en",
+  resources: { en: { translation: en }, de: { translation: de } },
+  interpolation: { escapeValue: false },
+});
+
+vi.mock("react-i18next", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-i18next")>()),
+  useTranslation: () => ({ t: translations.t.bind(translations), i18n: translations }),
 }));
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -194,8 +179,8 @@ describe("PlayerDealWorkspace", () => {
     );
 
     // Subtitle describes the route; availability is only secondary metadata.
-    expect(screen.getByText("Open a transfer negotiation.")).toBeInTheDocument();
-    expect(screen.getByText("Available for transfer.")).toBeInTheDocument();
+    expect(screen.getByText("Permanent move with a transfer fee.")).toBeInTheDocument();
+    expect(screen.getByText("The club is open to a permanent sale.")).toBeInTheDocument();
   });
 
   it("shows the reason (not the description or metadata) for a disabled route (#305)", () => {
@@ -217,7 +202,335 @@ describe("PlayerDealWorkspace", () => {
 
     // The disabled (and unselected) transfer route shows its disabledReason as the
     // subtitle — not the route description, and with no availability metadata line.
-    expect(screen.getByText("Not available for transfer.")).toBeInTheDocument();
-    expect(screen.queryByText("Open a transfer negotiation.")).not.toBeInTheDocument();
+    expect(screen.getByText("Player is not transfer listed.")).toBeInTheDocument();
+    expect(screen.queryByText("Permanent move with a transfer fee.")).not.toBeInTheDocument();
   });
+});
+
+function transferOffer(overrides: Partial<TransferOfferData> = {}): TransferOfferData {
+  return {
+    id: "offer-1",
+    from_team_id: "team-1",
+    fee: 700001,
+    wage_offered: 12000,
+    last_manager_fee: null,
+    negotiation_round: 1,
+    suggested_counter_fee: null,
+    status: "PendingRegistration",
+    date: "2026-12-20",
+    registration_date: "2027-01-02",
+    ...overrides,
+  };
+}
+
+function loanOffer(overrides: Partial<LoanOfferData> = {}): LoanOfferData {
+  return {
+    id: "loan-1",
+    from_team_id: "team-1",
+    parent_team_id: "team-2",
+    start_date: "2027-01-02",
+    end_date: "2027-06-30",
+    wage_contribution_pct: 75,
+    buy_option_fee: 800001,
+    status: "PendingRegistration",
+    date: "2026-12-20",
+    ...overrides,
+  };
+}
+
+function workspace(
+  player: PlayerData,
+  overrides: Partial<React.ComponentProps<typeof PlayerDealWorkspace>> = {},
+) {
+  return (
+    <PlayerDealWorkspace
+      player={player}
+      teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC" })]}
+      myTeam={createTeam()}
+      weeklySuffix="/wk"
+      transferWindowBlocksRegistration={false}
+      transferWindowSummary="Window open"
+      loanNoticeDetail={null}
+      selectedKind="transfer"
+      onSelectKind={vi.fn()}
+      onClose={vi.fn()}
+      renderDealPanel={() => <div>Deal panel</div>}
+      {...overrides}
+    />
+  );
+}
+
+describe("saved player offers", () => {
+  /** Given a saved first-round rejection, when the workspace opens, then its fee, round, date and outcome are visible. */
+  it("shows a first round rejection from the saved offer", () => {
+    render(
+      workspace(
+        createPlayer({
+          transfer_offers: [transferOffer({ status: "Rejected", registration_date: null })],
+        }),
+      ),
+    );
+    const history = screen.getByRole("region", { name: "Offer history" });
+    expect(within(history).getByText("Rejected")).toBeInTheDocument();
+    expect(within(history).getByText("Round 1")).toBeInTheDocument();
+    expect(within(history).getByText("€700,001")).toBeInTheDocument();
+    expect(within(history).getByText("Offer dated December 20, 2026.")).toBeInTheDocument();
+    expect(screen.getByText("Deal panel")).toBeInTheDocument();
+  });
+
+  /** Given each persisted outcome, when a save is reloaded, then history presents the saved status independently. */
+  it.each([
+    ["Pending", "Live"],
+    ["PendingRegistration", "Pending registration"],
+    ["Accepted", "Accepted"],
+    ["Rejected", "Rejected"],
+    ["Withdrawn", "Talks cooled off"],
+  ] as const)("keeps the %s outcome visible after reload", (status, label) => {
+    const restored: PlayerData = JSON.parse(
+      JSON.stringify(createPlayer({ transfer_offers: [transferOffer({ status })] })),
+    );
+    render(workspace(restored));
+    expect(
+      within(screen.getByRole("region", { name: "Offer history" })).getByText(label),
+    ).toBeInTheDocument();
+  });
+
+  /** Given a future transfer agreement, when the window has no known opening, then the saved agreement remains visible and all new approaches are blocked. */
+  it("keeps a transfer agreement visible and blocks new approaches", () => {
+    render(
+      workspace(createPlayer({ loan_listed: true, transfer_offers: [transferOffer()] }), {
+        transferWindowBlocksRegistration: true,
+        transferWindowSummary: "Window closed",
+      }),
+    );
+    expect(screen.queryByText("Deal panel")).not.toBeInTheDocument();
+    const history = screen.getByRole("region", { name: "Offer history" });
+    expect(
+      within(history).getByText(
+        "The terms are accepted. Registration is scheduled for January 2, 2027.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(history).getByText("€700,001")).toBeInTheDocument();
+    for (const name of ["Make Transfer Bid", "Make Loan Offer", "Offer Contract"]) {
+      expect(screen.getByRole("button", { name })).toBeDisabled();
+    }
+  });
+
+  /** Given a deferred loan, when its workspace opens, then final loan dates, wage split and option are shown while further approaches are disabled. */
+  it("shows agreed loan terms while blocking another deal", () => {
+    render(
+      workspace(createPlayer({ loan_listed: true, loan_offers: [loanOffer()] }), {
+        selectedKind: "loan",
+      }),
+    );
+    const history = screen.getByRole("region", { name: "Offer history" });
+    expect(within(history).getByText("Loan 75% wages until June 30, 2027")).toBeInTheDocument();
+    expect(within(history).getByText("Loan starts on January 2, 2027.")).toBeInTheDocument();
+    expect(within(history).getByText("Option €800,001")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make Loan Offer" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();
+    expect(screen.queryByText("Deal panel")).not.toBeInTheDocument();
+  });
+
+  /** Given an agreement between other clubs, when this manager inspects the player, then new bids are blocked without showing unrelated negotiation records. */
+  it("blocks approaches to an agreed player without exposing other clubs offers", () => {
+    render(
+      workspace(createPlayer({ transfer_offers: [transferOffer({ from_team_id: "other-club" })] })),
+    );
+    expect(screen.getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();
+    expect(screen.queryByRole("region", { name: "Offer history" })).not.toBeInTheDocument();
+    expect(screen.queryByText("€700,001")).not.toBeInTheDocument();
+  });
+
+  /** Given an incoming offer for the manager's player, when its workspace is inspected, then the offer is shown but buying the manager's own player is unavailable. */
+  it("shows an incoming agreement for the current club", () => {
+    render(
+      workspace(
+        createPlayer({
+          team_id: "team-1",
+          transfer_offers: [transferOffer({ from_team_id: "team-2" })],
+        }),
+      ),
+    );
+    expect(
+      within(screen.getByRole("region", { name: "Offer history" })).getByText("Beta FC"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();
+  });
+
+  /** Given a parent club's player already away on loan, when the parent inspects the workspace, then the accepted loan remains in history and new deals are blocked. */
+  it("shows the parent clubs accepted loan after the player moves", () => {
+    render(
+      workspace(
+        createPlayer({
+          team_id: "team-2",
+          loan_listed: true,
+          loan_offers: [
+            loanOffer({ from_team_id: "team-2", parent_team_id: "team-1", status: "Accepted" }),
+          ],
+          active_loan: {
+            parent_team_id: "team-1",
+            loan_team_id: "team-2",
+            start_date: "2027-01-02",
+            end_date: "2027-06-30",
+            wage_contribution_pct: 75,
+          },
+        }),
+      ),
+    );
+    expect(
+      within(screen.getByRole("region", { name: "Offer history" })).getByText("Accepted"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Make Loan Offer" })).toBeDisabled();
+  });
+
+  /** Given an old completed transfer and a later listing at another club, when approached, then the historical acceptance does not block a new bid. */
+  it("allows another approach after a historical completed transfer", () => {
+    render(
+      workspace(
+        createPlayer({
+          transfer_offers: [transferOffer({ status: "Accepted", registration_date: null })],
+        }),
+      ),
+    );
+    expect(
+      within(screen.getByRole("region", { name: "Offer history" })).getByText("Accepted"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make Transfer Bid" })).toBeEnabled();
+    expect(screen.getByText("Deal panel")).toBeInTheDocument();
+  });
+
+  /** Given several persisted attempts, when opened, then every own offer is shown newest first and other clubs records are excluded. */
+  it("lists all saved attempts newest first", () => {
+    render(
+      workspace(
+        createPlayer({
+          transfer_offers: [
+            transferOffer({ id: "old", status: "Rejected", date: "2026-12-01", fee: 200001 }),
+            transferOffer({ id: "other", from_team_id: "other", status: "Rejected", fee: 400001 }),
+            transferOffer({
+              id: "recent",
+              status: "Pending",
+              date: "2026-12-20",
+              fee: 600001,
+              negotiation_round: 3,
+            }),
+          ],
+        }),
+      ),
+    );
+    const history = screen.getByRole("region", { name: "Offer history" });
+    const entries = within(history).getAllByRole("listitem");
+    expect(entries).toHaveLength(2);
+    expect(within(entries[0]).getByText("€600,001")).toBeInTheDocument();
+    expect(within(entries[0]).getByText("Round 3")).toBeInTheDocument();
+    expect(within(entries[1]).getByText("€200,001")).toBeInTheDocument();
+  });
+
+  /** Given a closed window and a rejected bid, when inspected, then history survives the route's unavailable state. */
+  it("shows history when the selected route is unavailable", () => {
+    render(
+      workspace(
+        createPlayer({
+          transfer_listed: false,
+          transfer_offers: [transferOffer({ status: "Rejected" })],
+        }),
+      ),
+    );
+    expect(
+      within(screen.getByRole("region", { name: "Offer history" })).getByText("Rejected"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Deal panel")).not.toBeInTheDocument();
+  });
+
+  /** Given a legacy player with no loan records, when opened, then the usual deal panel remains usable without an empty history section. */
+  it("keeps the approach panel usable for a player without offers", () => {
+    render(workspace(createPlayer()));
+    expect(screen.queryByRole("region", { name: "Offer history" })).not.toBeInTheDocument();
+    expect(screen.getByText("Deal panel")).toBeInTheDocument();
+  });
+
+  /** Given an own listed player without offers, when inspected, then none of the buy or loan routes can open. */
+  it("blocks buying the managers own listed player", () => {
+    render(workspace(createPlayer({ team_id: "team-1", loan_listed: true })));
+    expect(screen.getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Make Loan Offer" })).toBeDisabled();
+    expect(screen.queryByText("Deal panel")).not.toBeInTheDocument();
+  });
+
+  /** Given a retired listed player, when inspected, then no approach is available. */
+  it("blocks approaches to a retired player", () => {
+    render(workspace(createPlayer({ retired: true, team_id: null, loan_listed: true })));
+    for (const name of ["Make Transfer Bid", "Make Loan Offer", "Offer Contract"])
+      expect(screen.getByRole("button", { name })).toBeDisabled();
+  });
+
+  /** Given a refreshed player after acceptance, when the open workspace rerenders, then the persistent agreement replaces the bid form. */
+  it("updates the open workspace when the saved player changes", () => {
+    const { rerender } = render(workspace(createPlayer()));
+    expect(screen.getByText("Deal panel")).toBeInTheDocument();
+    rerender(workspace(createPlayer({ transfer_offers: [transferOffer()] })));
+    expect(screen.getByRole("region", { name: "Offer history" })).toBeInTheDocument();
+    expect(screen.queryByText("Deal panel")).not.toBeInTheDocument();
+  });
+
+  /** Given a focused workspace trigger, when the modal opens and Escape closes it, then focus moves inside and returns to that trigger. */
+  it("restores keyboard focus after Escape closes the workspace", () => {
+    const trigger = document.createElement("button");
+    document.body.append(trigger);
+    trigger.focus();
+    const onClose = vi.fn();
+    const { unmount } = render(workspace(createPlayer(), { onClose }));
+    expect(screen.getByRole("button", { name: "Back" })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
+
+  /** Given the workspace's last enabled control, when Tab or Shift Tab reaches an edge, then focus stays inside the dialog. */
+  it("keeps keyboard focus inside the workspace", () => {
+    render(workspace(createPlayer()));
+    const back = screen.getByRole("button", { name: "Back" });
+    const bid = screen.getByRole("button", { name: "Make Transfer Bid" });
+    bid.focus();
+    fireEvent.keyDown(bid, { key: "Tab" });
+    expect(back).toHaveFocus();
+    fireEvent.keyDown(back, { key: "Tab", shiftKey: true });
+    expect(bid).toHaveFocus();
+  });
+});
+
+/** Given the bid control has keyboard focus, when accepted data replaces the form, then focus stays inside and the new agreement is announced. */
+it("keeps focus inside when agreement data replaces the form", () => {
+  const renderDealPanel = () => <button type="button">Submit a deal</button>;
+  const { rerender } = render(workspace(createPlayer(), { renderDealPanel }));
+  screen.getByRole("button", { name: "Submit a deal" }).focus();
+  rerender(workspace(createPlayer({ transfer_offers: [transferOffer()] }), { renderDealPanel }));
+  expect(screen.getByRole("button", { name: "Back" })).toHaveFocus();
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "This player has an agreed move and is awaiting registration.",
+  );
+});
+
+/** Given a saved offer whose club no longer exists, when history renders, then the unknown-club fallback uses a translation. */
+it("translates a missing offer club", async () => {
+  await translations.changeLanguage("de");
+  render(
+    workspace(
+      createPlayer({
+        team_id: "team-1",
+        transfer_offers: [transferOffer({ from_team_id: "missing-club" })],
+      }),
+    ),
+  );
+  expect(
+    within(screen.getByRole("region", { name: "Angebotsverlauf" })).getByText("Unbekannt"),
+  ).toBeInTheDocument();
+});
+
+afterEach(async () => {
+  await translations.changeLanguage("en");
 });

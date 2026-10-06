@@ -1265,6 +1265,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "报价历史",
+    "viewOfferHistory": "查看报价历史",
+    "offerRecordedOn": "报价日期：{{date}}。",
+    "loanOfferStartsOn": "租借于{{date}}开始。",
+    "dealAlreadyAgreed": "这名球员已达成转会协议，正在等待注册。",
+    "dealOwnPlayer": "这名球员已属于你的俱乐部。",
+    "dealActiveLoan": "这名球员目前正在外租。",
+    "dealRetired": "这名球员已退役。",
     "bidImpactWageBill": "每周工资总额 {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "每周工资预算 {{budget}}",
     "bidImpactIncomingWage": "球员周薪 {{wage}}",

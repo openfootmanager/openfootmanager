@@ -1265,6 +1265,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Historie nabídek",
+    "viewOfferHistory": "Zobrazit historii nabídek",
+    "offerRecordedOn": "Nabídka ze dne {{date}}.",
+    "loanOfferStartsOn": "Hostování začíná {{date}}.",
+    "dealAlreadyAgreed": "Změna klubu tohoto hráče je dohodnutá a čeká na registraci.",
+    "dealOwnPlayer": "Tento hráč již patří vašemu klubu.",
+    "dealActiveLoan": "Tento hráč je momentálně na hostování.",
+    "dealRetired": "Tento hráč ukončil kariéru.",
     "bidImpactWageBill": "Týdenní mzdové náklady {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Týdenní mzdový rozpočet {{budget}}",
     "bidImpactIncomingWage": "Mzda hráče {{wage}} / týden",
