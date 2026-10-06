@@ -66,7 +66,8 @@ jobs:
     # Six slots each Sunday, one per job; a manual dispatch runs exactly the one it names. The
     # jobs find their slot from `strategy.job-index` and `strategy.job-total`, so this list is the
     # only place the weekly number is written down. `fail-fast: false` because each job is hours
-    # of independent work: one slot overrunning must not cancel the other five.
+    # of independent work: one slot overrunning must not cancel the other five. Nothing reads
+    # `matrix.job` itself; its values exist only to set how many jobs there are.
     strategy:
       fail-fast: false
       matrix:
