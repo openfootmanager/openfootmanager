@@ -49,7 +49,7 @@ export function TransferOfferRecord({ state, offer, player }: TransferOfferRecor
   return (
     <div key={offer.id} className="flex items-center gap-2">
       <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-        {getTeamName(gameState.teams, offer.from_team_id)}
+        {getTeamName(gameState.teams, offer.from_team_id, t("common.unknown"))}
       </span>
       <Badge variant={getTransferOfferBadgeVariant(offer.status)} size="sm">
         {formatVal(offer.fee)} — {getTransferOfferStatusLabel(t, offer.status)}
@@ -117,7 +117,7 @@ export function LoanOfferRecord({ state, offer, player }: LoanOfferRecordProps) 
   return (
     <div key={`loan-${offer.id}`} className="flex items-center gap-2">
       <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-        {getTeamName(gameState.teams, offer.from_team_id)}
+        {getTeamName(gameState.teams, offer.from_team_id, t("common.unknown"))}
       </span>
       <Badge variant={getTransferOfferBadgeVariant(offer.status)} size="sm">
         {t("transfers.loanOfferTerms", {

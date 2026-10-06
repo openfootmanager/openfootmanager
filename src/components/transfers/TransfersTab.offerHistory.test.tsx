@@ -1,15 +1,16 @@
 import type { GameStateData } from "../../store/gameStore";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createInstance } from "i18next";
 import en from "../../i18n/locales/en.json";
+import de from "../../i18n/locales/de.json";
 import TransfersTab from "./TransfersTab";
 import { invoke } from "@tauri-apps/api/core";
 
 const translations = createInstance();
 await translations.init({
   lng: "en",
-  resources: { en: { translation: en } },
+  resources: { en: { translation: en }, de: { translation: de } },
   interpolation: { escapeValue: false },
 });
 vi.mock("react-i18next", async (importOriginal) => ({
@@ -143,3 +144,58 @@ it.each(["transfer", "loan"] as const)(
     );
   },
 );
+
+/** Given a reloaded offer from a missing club, when the Offers table is read in German, then its club fallback is translated. */
+it.each(["transfer", "loan"] as const)(
+  "translates the %s offer club in the offers table",
+  async (kind) => {
+    await translations.changeLanguage("de");
+    const player = createPlayer({
+      transfer_offers:
+        kind === "transfer"
+          ? [
+              {
+                id: "missing-transfer",
+                from_team_id: "missing-club",
+                fee: 700001,
+                wage_offered: 0,
+                last_manager_fee: null,
+                negotiation_round: 1,
+                suggested_counter_fee: null,
+                status: "Rejected",
+                date: "2026-12-20",
+              },
+            ]
+          : [],
+      loan_offers:
+        kind === "loan"
+          ? [
+              {
+                id: "missing-loan",
+                from_team_id: "missing-club",
+                parent_team_id: "team-1",
+                start_date: "2027-01-02",
+                end_date: "2027-06-30",
+                wage_contribution_pct: 75,
+                status: "Rejected",
+                date: "2026-12-20",
+              },
+            ]
+          : [],
+    });
+    render(
+      <TransfersTab
+        gameState={createGameState([player])}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Angebote \(1\)/ }));
+    expect(screen.getByText("Unbekannt")).toBeInTheDocument();
+    expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
+  },
+);
+
+afterEach(async () => {
+  await translations.changeLanguage("en");
+});
