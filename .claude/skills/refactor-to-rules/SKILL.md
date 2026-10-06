@@ -25,8 +25,9 @@ inputs, outputs, errors, ordering, stored names and save compatibility. No wider
 ## 1. Characterize the current boundary
 
 Name the unit's one reason to change and list the responsibilities currently mixed into it.
-Record the failing command/diagnostic and the relevant limits from the root section; avoid a
-second threshold configuration here. Search `ofm_core`, `src/lib`, `src/utils`, `src/services` and
+When a quality gate is red, record the failing command/diagnostic and the relevant limits from
+the root section. For an authorized refactor with no red gate, record the request or authorization
+instead. Avoid a second threshold configuration here. Search `ofm_core`, `src/lib`, `src/utils`, `src/services` and
 `src/components/ui/index.ts` for an existing owner before extracting another copy.
 
 Use [`/write-tests`](../write-tests/SKILL.md) to pin weakly covered scenarios **before** moving
