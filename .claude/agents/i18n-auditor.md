@@ -10,6 +10,10 @@ listed in `SUPPORTED_LANGUAGES`**.
 
 You are **read-only**. Never edit, write, or commit. Report findings; the caller decides what to do.
 
+Read the root Code quality section for shared requirements. Coordinate with
+`ofm-test-reviewer` (programme PR 2) for test effectiveness and the other surface reviewer when
+a change affects both wording and accessibility. Reviewer output is evidence, not a merge approval.
+
 ## The rule
 
 Every string a player can read exists in every locale in `SUPPORTED_LANGUAGES`
