@@ -21,15 +21,15 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
   sim-bench        balance benchmark harness → engine
 ```
 
-- **`domain`** — structs and enums only. No game logic. Everything else may depend on it; it
-  depends on nothing here.
+- **`domain`** — data, constructors, `Default`, and pure value semantics. Outcome-deciding game
+  rules belong in `ofm_core`. It depends on nothing in this workspace.
 - **`engine`** — the match simulation. It **does not depend on `domain`**. It defines its own
   mirror types (`PlayerData`, `TeamData`, `Position`, `PlayStyle`) so it can be tested with
   synthetic data and evolved independently. `ofm_core/turn/` performs the conversion, and it is
   the *only* place that conversion is allowed to live.
 - **`ofm_core`** — game logic and the `StateManager`. Depends on `domain` and `engine`.
-- **`db`** — SQLite persistence. Depends on `domain` **and `ofm_core`** — persistence sits *above*
-  game logic in this workspace, which is a real layering inversion rather than the intended design.
+- **`db`** — SQLite persistence. Depends on `domain` **and `ofm_core`** — this is the approved
+  dependency direction to protect, not an edge to remove in a cleanup.
 
 > This section used to say `ofm_core` depends on `db`, and drew `engine` sitting on `domain`. Both
 > were wrong, and survived because the only thing checking the crate graph was a reviewer reading
@@ -151,10 +151,10 @@ Conventions:
   `scripts/check-toolchain-pin.sh` fails the build if they disagree. **Never write
   `cargo +<toolchain>` in a workflow** — it overrides the file, which is the one thing the pin
   cannot defend against, so the check rejects it outright.
-- `cargo clippy --workspace --all-targets` before every PR. Address warnings; don't `#[allow]`
-  them without a comment saying why.
-- `cargo fmt` your own files. (A repo-wide format sweep is pending — see the note in
-  `.github/workflows/build-check.yml`; keep your diff to code you actually touched.)
+- Run both default and `--features mcp` clippy passes with `--locked --workspace --all-targets
+  -- -D warnings` before every PR. No new `#[allow]`; follow the root Code quality suppression rule.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check` from the repository root
+  verifies formatting without changing files. The repo-wide sweep is complete.
 - Text a **player** will read is a **translation key**, never English prose. The frontend resolves
   keys via `src/utils/backendI18n.ts`; `scripts/audit-i18n.mjs` scans `src-tauri/` for literals that
   escaped. Adding a key means adding it to every locale file — use `/add-ui-string`.
@@ -169,7 +169,7 @@ Conventions:
   is a modder at a terminal. Root [`../CLAUDE.md`](../CLAUDE.md) rule 2 has the full table.
 - Public API is a promise. Keep helpers private until a second caller exists.
 - Large files get split into a `mod.rs` shell plus submodules — `ofm_core/generator/`,
-  `ofm_core/slices/`, and `ofm_core/turn/` show the shape. Before adding to a file already past
-  ~1500 lines, ask whether it should be decomposed first.
+  `ofm_core/slices/`, and `ofm_core/turn/` show the shape. The root Code quality section defines
+  exact production and test-file ceilings; extract responsibilities before adding over the cap.
 - Comments explain *why*. The `time = "=0.3.51"` pin in `Cargo.toml` is the model: it names the
   breakage and the condition for removing the pin.
