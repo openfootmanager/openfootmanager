@@ -4,7 +4,11 @@ import { formatDate } from "../../lib/dateFormatting";
 import { formatExactMoney, getTeamName } from "../../lib/helpers";
 import { getRelevantTransferOffers, getRelevantLoanOffers } from "./TransfersTab.model";
 import { Badge } from "../ui";
-import { getTransferOfferBadgeVariant, getTransferOfferStatusLabel } from "./TransfersTab.helpers";
+import {
+  getOfferNegotiationRound,
+  getTransferOfferBadgeVariant,
+  getTransferOfferStatusLabel,
+} from "./TransfersTab.helpers";
 
 type SavedOffer =
   | { kind: "transfer"; offer: TransferOfferData }
@@ -43,7 +47,11 @@ function SavedOfferEntry({ entry, teams }: { entry: SavedOffer; teams: TeamData[
         <Badge variant={getTransferOfferBadgeVariant(offer.status)} size="sm">
           {getTransferOfferStatusLabel(t, offer.status)}
         </Badge>
-        <span>{t("transfers.negotiationRound", { count: offer.negotiation_round ?? 1 })}</span>
+        <span>
+          {t("transfers.negotiationRound", {
+            count: getOfferNegotiationRound(offer.negotiation_round),
+          })}
+        </span>
       </div>
       <p className="mt-2 text-gray-600 dark:text-gray-300">
         {t("transfers.offerRecordedOn", { date: formatDate(offer.date, i18n.language) })}

@@ -534,3 +534,18 @@ it("translates a missing offer club", async () => {
 afterEach(async () => {
   await translations.changeLanguage("en");
 });
+
+/** Given a legacy saved offer with round zero, when history opens, then the first round uses the same normalization as the live negotiation panels. */
+it.each(["transfer", "loan"] as const)("shows the first round for a legacy %s offer", (kind) => {
+  render(
+    workspace(
+      createPlayer({
+        transfer_offers: kind === "transfer" ? [transferOffer({ negotiation_round: 0 })] : [],
+        loan_offers: kind === "loan" ? [loanOffer({ negotiation_round: 0 })] : [],
+      }),
+    ),
+  );
+  const history = screen.getByRole("region", { name: "Offer history" });
+  expect(within(history).getByText("Round 1")).toBeInTheDocument();
+  expect(within(history).queryByText("Round 0")).not.toBeInTheDocument();
+});

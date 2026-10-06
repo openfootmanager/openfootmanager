@@ -248,6 +248,10 @@ export function getOutgoingNegotiationOffer(
   );
 }
 
+export function getOfferNegotiationRound(round: number | null | undefined): number {
+  return Math.max(round || 1, 1);
+}
+
 export function buildResumedBidFeedback(
   offer: TransferOfferData | null,
 ): TransferNegotiationFeedbackData | null {
@@ -255,7 +259,7 @@ export function buildResumedBidFeedback(
     return null;
   }
 
-  const round = Math.max(offer.negotiation_round || 1, 1);
+  const round = getOfferNegotiationRound(offer.negotiation_round);
   const tension = Math.min(36 + (round - 1) * 16, 84);
   const patience = Math.max(82 - (round - 1) * 16, 30);
 
@@ -279,7 +283,7 @@ export function buildResumedCounterFeedback(
     return null;
   }
 
-  const round = Math.max(offer.negotiation_round || 1, 1);
+  const round = getOfferNegotiationRound(offer.negotiation_round);
   const tension = Math.min(40 + (round - 1) * 14, 86);
   const patience = Math.max(78 - (round - 1) * 14, 28);
 
