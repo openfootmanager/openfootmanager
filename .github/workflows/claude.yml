@@ -13,9 +13,11 @@ on:
 jobs:
   claude:
     # Public repo, maintainer's token: only OWNER/MEMBER/COLLABORATOR may trigger a run, on every
-    # event type. The '@claude' content checks are kept.
+    # event type. The '@claude' content checks are kept. Comments starting '@claude review' belong to
+    # claude-code-review.yml, so they are excluded here to avoid starting both workflows.
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
+        !startsWith(github.event.comment.body, '@claude review') &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
@@ -37,14 +39,16 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      # These jobs carry the maintainer's token, so the actions are pinned to commits, not tags
+      # (Dependabot can bump them).
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@86d88e619d8e6caf07b5c3944dd14f441c533718 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
