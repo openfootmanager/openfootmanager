@@ -72,23 +72,6 @@ const OPENING_FREE_AGENTS_PER_CLUB: [(Position, usize); 4] = [
     (Position::Forward, 1),
 ];
 
-fn standard_available_staff_roles() -> [StaffRole; 12] {
-    [
-        StaffRole::Coach,
-        StaffRole::Scout,
-        StaffRole::Physio,
-        StaffRole::Coach,
-        StaffRole::AssistantManager,
-        StaffRole::Scout,
-        StaffRole::Physio,
-        StaffRole::Coach,
-        StaffRole::Coach,
-        StaffRole::Physio,
-        StaffRole::Scout,
-        StaffRole::AssistantManager,
-    ]
-}
-
 fn target_wage_usage_percent(reputation: u32) -> i64 {
     if reputation >= 750 {
         95

@@ -8,6 +8,23 @@ use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
 use crate::player_rating::{generate_potential, refresh_player_derived};
 
+pub(super) fn standard_available_staff_roles() -> [StaffRole; 12] {
+    [
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::AssistantManager,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::Coach,
+        StaffRole::Physio,
+        StaffRole::Scout,
+        StaffRole::AssistantManager,
+    ]
+}
+
 // ---------------------------------------------------------------------------
 // Helper functions for world generation
 // ---------------------------------------------------------------------------
