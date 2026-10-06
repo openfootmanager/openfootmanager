@@ -66,6 +66,26 @@ interface NativeOptionProps {
   children?: ReactNode;
 }
 
+/** What the user highlighted: where, and which value sat there. */
+interface Highlight {
+  index: number;
+  value: string;
+}
+
+/**
+ * The highlight's index, or -1 when it no longer points at what the user
+ * highlighted: the option was removed, disabled, or the list was reordered so
+ * another option now sits at that index. Deliberately not a fallback to some
+ * other option: Enter would then commit something the user never highlighted.
+ */
+function resolveActiveIndex(options: SelectOption[], wanted: Highlight | null): number {
+  if (!wanted) {
+    return -1;
+  }
+  const option = options[wanted.index];
+  return option && !option.disabled && option.value === wanted.value ? wanted.index : -1;
+}
+
 export function Select({
   selectSize = "md",
   variant = "default",
@@ -158,12 +178,19 @@ export function Select({
     return options[0]?.value ?? "";
   });
   const [isOpen, setIsOpen] = useState(false);
+  // The highlighted option while the list is open. Separate from the committed
+  // value: arrow keys move this, only Enter/Space/click commit.
+  const [highlight, setHighlight] = useState<Highlight | null>(null);
 
   const currentValue = controlledValue ?? uncontrolledValue;
   const selectedOption =
     options.find((option) => option.value === currentValue) ?? options[0] ?? null;
   const selectedValue = selectedOption?.value ?? "";
   const enabledOptions = options.filter((option) => !option.disabled);
+  // Revalidated on every render rather than trusted: `children` can change
+  // while the list is open, and a removed or newly disabled highlight must not
+  // stay active. Index, not value, so options sharing a value stay distinct.
+  const activeIndex = isOpen ? resolveActiveIndex(options, highlight) : -1;
 
   useEffect(() => {
     if (controlledValue !== undefined || options.length === 0) {
@@ -284,48 +311,107 @@ export function Select({
     setIsOpen(false);
   };
 
-  const toggleOpen = () => {
+  const setActiveIndex = (index: number) =>
+    setHighlight(index >= 0 ? { index, value: options[index].value } : null);
+
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
+
+  // Opening highlights the committed option (or the first enabled one when the
+  // committed option is disabled), as a native select does.
+  const openList = () => {
     if (disabled || options.length === 0) {
       return;
     }
 
-    setIsOpen((open) => !open);
+    const committedIndex = options.findIndex(
+      (option) => option.value === selectedValue && !option.disabled,
+    );
+    setActiveIndex(committedIndex >= 0 ? committedIndex : options.findIndex((o) => !o.disabled));
+    setIsOpen(true);
   };
 
-  const moveSelection = (direction: 1 | -1) => {
+  const toggleOpen = () => {
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+
+    openList();
+  };
+
+  /**
+   * Moves the highlight only — committing is Enter, Space or a click. A screen
+   * reader follows it through `aria-activedescendant`, so browsing the list
+   * must not write the value (#568): each commit fires `onChange`, and callers
+   * like the formation picker persist on every change.
+   */
+  const moveActive = (target: "next" | "previous" | "first" | "last") => {
     if (enabledOptions.length === 0) {
       return;
     }
 
-    const currentIndex = enabledOptions.findIndex((option) => option.value === selectedValue);
-    const baseIndex = currentIndex >= 0 ? currentIndex : 0;
-    const nextIndex = (baseIndex + direction + enabledOptions.length) % enabledOptions.length;
-    handleSelect(enabledOptions[nextIndex].value);
+    const enabledIndexes = options.flatMap((option, index) => (option.disabled ? [] : [index]));
+    const lastPosition = enabledIndexes.length - 1;
+    const position = enabledIndexes.indexOf(activeIndex);
+    const nextPosition = {
+      first: 0,
+      last: lastPosition,
+      next: Math.min(position + 1, lastPosition),
+      previous: Math.max(position - 1, 0),
+    }[target];
+    setActiveIndex(enabledIndexes[nextPosition]);
   };
 
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      moveSelection(1);
+    if (!isOpen) {
+      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+        event.preventDefault();
+        openList();
+      }
       return;
     }
 
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      moveSelection(-1);
-      return;
-    }
-
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      setIsOpen(true);
-      return;
-    }
-
-    if (event.key === "Escape") {
-      setIsOpen(false);
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        moveActive("next");
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        moveActive("previous");
+        break;
+      case "Home":
+        event.preventDefault();
+        moveActive("first");
+        break;
+      case "End":
+        event.preventDefault();
+        moveActive("last");
+        break;
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        if (activeIndex >= 0) {
+          handleSelect(options[activeIndex].value);
+        } else {
+          setIsOpen(false);
+        }
+        break;
+      case "Escape":
+        event.preventDefault();
+        setIsOpen(false);
+        break;
+      case "Tab":
+        setIsOpen(false);
+        break;
     }
   };
+
+  useEffect(() => {
+    if (activeIndex >= 0) {
+      document.getElementById(optionId(activeIndex))?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [activeIndex]);
 
   const base =
     "rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -390,6 +476,7 @@ export function Select({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-controls={listboxId}
+        aria-activedescendant={activeIndex >= 0 ? optionId(activeIndex) : undefined}
         tabIndex={tabIndex}
         className={`${base} ${variants[variant]} ${sizes[selectSize]} ${leftPadding} ${rightPadding} ${fullWidth ? "w-full" : ""} ${className} flex items-center justify-between text-left`}
         style={style}
@@ -425,15 +512,26 @@ export function Select({
                 {groupedOptions.map((section, sectionIndex) => {
                   const rendered = section.options.map((option) => {
                     const isSelected = option.value === currentValue;
+                    const optionIndex = options.indexOf(option);
+                    const isActive = optionIndex === activeIndex;
 
                     return (
                       <button
                         key={option.value}
+                        id={optionId(optionIndex)}
                         type="button"
                         role="option"
+                        // DOM focus stays on the trigger; the highlight is
+                        // announced through its aria-activedescendant.
+                        tabIndex={-1}
                         aria-selected={isSelected}
                         disabled={option.disabled}
-                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${isActive && !isSelected ? "bg-gray-50 dark:bg-navy-700" : ""} ${isActive ? "ring-2 ring-inset ring-primary-500/40 dark:ring-primary-400/40" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        onMouseEnter={() => {
+                          if (!option.disabled) {
+                            setActiveIndex(optionIndex);
+                          }
+                        }}
                         onClick={(event) => {
                           event.stopPropagation();
                           if (!option.disabled) {
