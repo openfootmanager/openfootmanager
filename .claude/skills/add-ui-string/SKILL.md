@@ -12,14 +12,14 @@ Follow the root Code quality section; use `i18n-auditor` for translation review 
 `ui-accessibility-reviewer` for changed accessible names. `/write-tests` and `ofm-test-reviewer`
 (programme PR 2) provide scenario and regression evidence; locale coverage alone does not prove wiring.
 
-OpenFoot Manager ships in **12 locales**. A string that exists only in English is a broken
+OpenFoot Manager ships in **13 locales**. A string that exists only in English is a broken
 build, not a TODO. This is the project's most frequently violated rule, so follow the steps in
 order and finish with the tests.
 
 ## First: will a player read it?
 
 That is the test, and it is narrower than "a human will read it". If the answer is yes — anywhere in
-the UI, or a backend error the UI surfaces — this skill applies and the string needs all 12 locales.
+the UI, or a backend error the UI surfaces — this skill applies and the string needs all 13 locales.
 
 If the only reader is an **AI agent** (the MCP server's tool output) or a **modder at a terminal**
 (`ofm-cli` output and its scaffold templates, `docs/`), it stays **English** and this skill does not
@@ -29,10 +29,10 @@ service which also backs a Tauri command (such as `application::live_match::*`) 
 `be.error.*` key, because the UI shows that error on the Tauri path.
 
 Getting this wrong in the cautious direction is not free — a key no player will ever see still costs
-twelve translations and a row in every locale file, forever. Root `CLAUDE.md` rule 2 has the table;
+thirteen translations and a row in every locale file, forever. Root `CLAUDE.md` rule 2 has the table;
 if a surface is genuinely ambiguous, ask.
 
-## The 12 locales
+## The 13 locales
 
 Source of truth: `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`.
 
@@ -44,11 +44,12 @@ Source of truth: `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`.
 | `fr` | French | | `cs` | Czech |
 | `de` | German | | `tr` | Turkish |
 | `it` | Italian | | `id` | Indonesian |
+| | | | `vi` | Vietnamese |
 
 Files: `src/i18n/locales/<code>.json`.
 
 If `SUPPORTED_LANGUAGES` and this table ever disagree, `src/i18n/index.ts` wins — read it. It has
-grown before and will again: `id` was the twelfth, added in August 2026.
+grown before and will again: `id` was the twelfth, added in August 2026, and `vi` the thirteenth, in October 2026.
 
 This file and `src/CLAUDE.md` are the only two that state a count, because they are the only two
 that carry the list. The rest of the repository's docs say "every locale" on purpose: when `id`
@@ -88,9 +89,9 @@ fragments, because word order differs by language:
 Pluralisation uses i18next suffixes (`_one`, `_other`, and the extra forms `ru` and `cs` need).
 If a count is involved, check how an existing pluralised key in `en.json` is written and match it.
 
-### 3. Translate into the other 11 — properly
+### 3. Translate into the other 12 — properly
 
-Add the same key path to `cs`, `de`, `es`, `fr`, `id`, `it`, `pt`, `pt-BR`, `ru`, `tr`, `zh-CN`.
+Add the same key path to `cs`, `de`, `es`, `fr`, `id`, `it`, `pt`, `pt-BR`, `ru`, `tr`, `vi`, `zh-CN`.
 
 - **Keep every interpolation placeholder identical.** `{{player}}` stays `{{player}}`; only the
   surrounding text and the word order change.
@@ -192,7 +193,7 @@ is not a pass — the vitest gates are.
 ## Checklist
 
 - [ ] Key added to `src/i18n/locales/en.json`, in the right namespace
-- [ ] Real translations added to all 11 other locales
+- [ ] Real translations added to all 12 other locales
 - [ ] Interpolation placeholders identical across every locale
 - [ ] `pt` and `pt-BR` translated separately
 - [ ] Form of address matches the neighbouring keys, and no wording assumes the manager’s gender

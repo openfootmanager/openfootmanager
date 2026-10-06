@@ -7,7 +7,7 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules.
 
 ## 1. Internationalisation — the rule that breaks CI most often
 
-**Every string a player can read must exist in all 12 locales.** No exceptions, no "I'll add the
+**Every string a player can read must exist in all 13 locales.** No exceptions, no "I'll add the
 translations later."
 
 "A player can read it" is the whole test. Everything rendered in `src/` qualifies, including an
