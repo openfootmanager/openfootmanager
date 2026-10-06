@@ -47,6 +47,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
+          # Don't leave GITHUB_TOKEN in the checkout's git config, where the Claude step could read it.
+          persist-credentials: false
 
       - name: Run Claude Code Review
         id: claude-review
