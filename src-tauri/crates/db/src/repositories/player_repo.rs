@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use domain::player::{Footedness, Player, PlayerAttributes, PlayerMedia, Position, SquadRole};
 use domain::team::TrainingFocus;
 use rusqlite::{Connection, params};
@@ -131,14 +133,69 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             p.contract_start(),
         ],
     )
-    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    .map_err(|error| {
+        // The player sees only the key, so the log is the one place the real
+        // cause can survive. #498 spent months as "save stops working" because
+        // this used to be dropped.
+        log::error!(
+            "[player_repo] writing player {} (team {:?}, jersey {:?}) failed: {error}",
+            p.id,
+            p.team_id,
+            p.jersey_number
+        );
+        GAME_PERSISTENCE_WRITE_ERROR.to_string()
+    })?;
     Ok(())
 }
 
 /// Insert or replace multiple players.
+///
+/// Shirt numbers are unique per club (`idx_players_team_jersey`), and SQLite
+/// checks that index after every row rather than at commit. So a roster that
+/// is valid as a whole can still collide halfway through being written: a
+/// newcomer who takes #16 is written while the leaver's stored row still holds
+/// it, and a swap collides whichever player is written first (#498). The fix
+/// is to clear the stored number of every player here whose club or number
+/// changed, then write the real values.
+///
+/// Only rows in `players` are cleared, so a partial roster never wipes anyone
+/// else's number, and two players who really do claim one shirt still fail.
+/// The caller holds the transaction (`write_game_to_connection`), so a failure
+/// leaves no row half-cleared.
 pub fn upsert_players(conn: &Connection, players: &[Player]) -> Result<(), String> {
+    vacate_changed_shirts(conn, players)?;
     for p in players {
         upsert_player(conn, p)?;
+    }
+    Ok(())
+}
+
+fn vacate_changed_shirts(conn: &Connection, players: &[Player]) -> Result<(), String> {
+    let write_failed = |error: rusqlite::Error| {
+        log::error!("[player_repo] clearing changed shirt numbers failed: {error}");
+        GAME_PERSISTENCE_WRITE_ERROR.to_string()
+    };
+    let mut stored_shirts = conn
+        .prepare("SELECT id, team_id, jersey_number FROM players WHERE jersey_number IS NOT NULL")
+        .map_err(write_failed)?;
+    let stored: HashMap<String, (Option<String>, i64)> = stored_shirts
+        .query_map([], |row| Ok((row.get(0)?, (row.get(1)?, row.get(2)?))))
+        .map_err(write_failed)?
+        .collect::<Result<_, _>>()
+        .map_err(write_failed)?;
+
+    let mut vacate = conn
+        .prepare("UPDATE players SET jersey_number = NULL WHERE id = ?1")
+        .map_err(write_failed)?;
+    for player in players {
+        let Some((stored_team, stored_jersey)) = stored.get(&player.id) else {
+            continue;
+        };
+        let unchanged = *stored_team == player.team_id
+            && Some(*stored_jersey) == player.jersey_number.map(i64::from);
+        if !unchanged {
+            vacate.execute(params![player.id]).map_err(write_failed)?;
+        }
     }
     Ok(())
 }
@@ -1097,6 +1154,91 @@ mod tests {
             ids.contains("p-original"),
             "original #6 wearer must still exist in the DB"
         );
+    }
+
+    fn stored_shirt(conn: &Connection, id: &str) -> (Option<String>, Option<u8>) {
+        let player = load_all_players(conn)
+            .unwrap()
+            .into_iter()
+            .find(|player| player.id == id)
+            .unwrap_or_else(|| panic!("{id} is missing from the DB"));
+        (player.team_id, player.jersey_number)
+    }
+
+    /// #498. Given a leaver wearing #16 at club Y and a newcomer wearing #16 at
+    /// club X, both saved; when, on the same day, the leaver moves on to Z and
+    /// the newcomer arrives at Y keeping #16, and the newcomer comes first in
+    /// the roster; then the roster still saves, with each player at his new
+    /// club in his own shirt. Memory never holds two #16s at Y. Only a
+    /// row-by-row write could, mid-transaction.
+    #[test]
+    fn a_shirt_handed_from_a_leaver_to_a_newcomer_on_the_same_day_still_saves() {
+        let db = test_db();
+        let mut newcomer = sample_player("p-newcomer", Some("team-x"));
+        newcomer.jersey_number = Some(16);
+        let mut leaver = sample_player("p-leaver", Some("team-y"));
+        leaver.jersey_number = Some(16);
+        upsert_players(db.conn(), &[newcomer.clone(), leaver.clone()]).unwrap();
+
+        newcomer.team_id = Some("team-y".to_string());
+        leaver.team_id = Some("team-z".to_string());
+        let result = upsert_players(db.conn(), &[newcomer, leaver]);
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            stored_shirt(db.conn(), "p-newcomer"),
+            (Some("team-y".to_string()), Some(16))
+        );
+        assert_eq!(
+            stored_shirt(db.conn(), "p-leaver"),
+            (Some("team-z".to_string()), Some(16))
+        );
+    }
+
+    /// Given two squadmates saved in #6 and #7; when they swap numbers; then the
+    /// roster still saves with the numbers swapped. A swap is a cycle, so no
+    /// write order alone can save it.
+    #[test]
+    fn two_squadmates_swapping_shirt_numbers_still_saves() {
+        let db = test_db();
+        let mut first = sample_player("p-first", Some("team-y"));
+        first.jersey_number = Some(6);
+        let mut second = sample_player("p-second", Some("team-y"));
+        second.jersey_number = Some(7);
+        upsert_players(db.conn(), &[first.clone(), second.clone()]).unwrap();
+
+        first.jersey_number = Some(7);
+        second.jersey_number = Some(6);
+        let result = upsert_players(db.conn(), &[first, second]);
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            stored_shirt(db.conn(), "p-first"),
+            (Some("team-y".to_string()), Some(7))
+        );
+        assert_eq!(
+            stored_shirt(db.conn(), "p-second"),
+            (Some("team-y".to_string()), Some(6))
+        );
+    }
+
+    /// Given two squadmates saved in #6 and #7; when the roster says both wear
+    /// #6; then the save still fails loudly rather than letting one row win.
+    /// Vacating the shirts of moved players must not weaken the invariant for
+    /// a real duplicate.
+    #[test]
+    fn two_players_claiming_one_shirt_at_one_club_still_fail_to_save() {
+        let db = test_db();
+        let mut holder = sample_player("p-holder", Some("team-y"));
+        holder.jersey_number = Some(6);
+        let mut claimant = sample_player("p-claimant", Some("team-y"));
+        claimant.jersey_number = Some(7);
+        upsert_players(db.conn(), &[holder.clone(), claimant.clone()]).unwrap();
+
+        claimant.jersey_number = Some(6);
+        let result = upsert_players(db.conn(), &[claimant, holder]);
+
+        assert_eq!(result, Err(GAME_PERSISTENCE_WRITE_ERROR.to_string()));
     }
 
     #[test]
