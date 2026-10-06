@@ -9,10 +9,16 @@
 @import "@fontsource/inter/latin-ext-500.css";
 @import "@fontsource/inter/latin-ext-600.css";
 @import "@fontsource/inter/latin-ext-700.css";
+@import "@fontsource/inter/vietnamese-400.css";
+@import "@fontsource/inter/vietnamese-500.css";
+@import "@fontsource/inter/vietnamese-600.css";
+@import "@fontsource/inter/vietnamese-700.css";
 @import "@fontsource/barlow-condensed/latin-600.css";
 @import "@fontsource/barlow-condensed/latin-700.css";
 @import "@fontsource/barlow-condensed/latin-ext-600.css";
 @import "@fontsource/barlow-condensed/latin-ext-700.css";
+@import "@fontsource/barlow-condensed/vietnamese-600.css";
+@import "@fontsource/barlow-condensed/vietnamese-700.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

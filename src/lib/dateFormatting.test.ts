@@ -21,6 +21,7 @@ describe("getLocale", () => {
     cs: "cs-CZ",
     tr: "tr-TR",
     id: "id-ID",
+    vi: "vi-VN",
   };
 
   it("maps every language the game ships", () => {

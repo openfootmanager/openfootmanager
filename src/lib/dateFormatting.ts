@@ -27,6 +27,7 @@ const LANG_LOCALE: Record<SupportedLanguageCode, string> = {
   cs: "cs-CZ",
   tr: "tr-TR",
   id: "id-ID",
+  vi: "vi-VN",
 };
 
 export function getLocale(lang?: string): string {
