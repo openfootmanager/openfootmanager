@@ -18,8 +18,10 @@ pub fn generate_league(
     let n = team_ids.len();
     assert!(n >= 2);
 
-    let league_id =
-        crate::seed::derived_id(&["league", name, &season.to_string(), &team_ids.join(",")]);
+    let season_key = season.to_string();
+    let mut id_parts = vec!["league", name, &season_key];
+    id_parts.extend(team_ids.iter().map(String::as_str));
+    let league_id = crate::seed::derived_id(&id_parts);
     let mut league = League::new(league_id, name.to_string(), season, team_ids);
     append_round_robin_fixtures(&mut league, team_ids, start_date);
     league
@@ -223,13 +225,11 @@ pub fn generate_knockout_cup(
     kind: CompetitionType,
     scope: CompetitionScope,
 ) -> League {
-    let competition_id = crate::seed::derived_id(&[
-        "knockout",
-        name,
-        &season.to_string(),
-        &start_date.to_rfc3339(),
-        &team_ids.join(","),
-    ]);
+    let season_key = season.to_string();
+    let start_key = start_date.to_rfc3339();
+    let mut id_parts = vec!["knockout", name, &season_key, &start_key];
+    id_parts.extend(team_ids.iter().map(String::as_str));
+    let competition_id = crate::seed::derived_id(&id_parts);
     let mut cup = League::new(competition_id.clone(), name.to_string(), season, team_ids);
     cup.kind = kind.clone();
     cup.scope = scope;
@@ -597,6 +597,59 @@ pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture
 
 #[cfg(test)]
 mod tests {
+    /// Given distinct entrant lists whose comma-joined text is identical,
+    /// When leagues are generated for the same name, season and date,
+    /// Then their competition ids and fixture ids remain distinct.
+    #[test]
+    fn leagues_preserve_entrant_boundaries_inside_ids() {
+        let first = ["a,b", "c", "d", "e"].map(String::from);
+        let second = ["a", "b,c", "d", "e"].map(String::from);
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let first = generate_league("Test League", 2026, &first, start);
+        let second = generate_league("Test League", 2026, &second, start);
+
+        assert_ne!(first.id, second.id);
+        assert!(
+            first
+                .fixtures
+                .iter()
+                .all(|fixture| second.fixtures.iter().all(|other| fixture.id != other.id))
+        );
+    }
+
+    /// Given distinct entrant lists whose comma-joined text is identical,
+    /// When knockout cups are generated with a common d/e tie,
+    /// Then neither the competition nor that tie shares an id.
+    #[test]
+    fn knockout_cups_preserve_entrant_boundaries_inside_ids() {
+        let first = ["a,b", "c", "d", "e"].map(String::from);
+        let second = ["a", "b,c", "d", "e"].map(String::from);
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let cup = |teams: &[String]| {
+            generate_knockout_cup(
+                "Test Cup",
+                2026,
+                teams,
+                start,
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+        let tie = |cup: &League| {
+            cup.fixtures
+                .iter()
+                .find(|f| f.home_team_id == "d" && f.away_team_id == "e")
+                .unwrap()
+                .id
+                .clone()
+        };
+
+        assert_ne!(tie(&first), tie(&second));
+        assert_ne!(first.id, second.id);
+    }
+
     /// Given a knockout cup that is renewed for the next season,
     /// When its ties are drawn again between the same clubs,
     /// Then no tie shares an id with last season's — match statistics and inbox items are keyed
