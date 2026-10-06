@@ -115,6 +115,15 @@ codegen-units = 1
 # debuginfo alone gets most of the size win and keeps function names in the trace.
 strip = "debuginfo"
 
+# Used only by `.github/workflows/mutation-tests.yml`, which rebuilds one crate once per mutant.
+# Debuginfo is part of every one of those rebuilds and nobody reads a mutant's backtrace; without
+# it, and with incremental compilation on, an `ofm_core` mutant's build on a hosted runner went
+# from 90 s to 16 s (4 Oct and 6 Oct 2026). The optimisation levels are left as `test` has them. Lowering them would trade build
+# time for test time in a suite full of simulations, and nobody has measured which way that goes.
+[profile.mutants]
+inherits = "test"
+debug = "none"
+
 [features]
 mcp = ["dep:rmcp", "dep:axum", "dep:tokio"]
 # Forwards to `db/save-snapshots`. Enable with `tauri dev -f save-snapshots`
