@@ -639,7 +639,7 @@ export interface LeagueData {
     definition_id: string;
     edition_basis:
       | { kind: "calendarYear" }
-      | { kind: "legacyOrdinal"; first_season: number; opener_year: number }
+      | { kind: "legacyOrdinal"; season_at_opener: number; opener_year: number }
       | { kind: "unresolved" };
     league_legs: number | null;
     matchday_gap_days: number | null;

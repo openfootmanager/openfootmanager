@@ -470,7 +470,7 @@ Competitions are the most complex entity. A competition defines a league, cup, o
 | `berths` | array | `[]` | Qualification spots this competition awards to other competitions. See [Berths](#berths). |
 | `seasonStartMonth` | integer (1–12) | `8` | Month the season begins. |
 | `seasonStartDay` | integer (1–31) | `1` | Day of the month the season begins. |
-| `calendar` | object | absent | Optional retained season specification; does not yet change scheduling or rollover. |
+| `calendar` | object or null | `null` in scaffolds | Optional retained season specification; does not yet change scheduling or rollover. Scaffolds leave grouping undeclared so format, scope and country can be changed in the Package Editor, which has no calendar control. Use the annotated `ofm-cli schema competition` shape to opt in. |
 | `calendar.division.familyId` | string | absent | Non-blank stable family shared by related tiers/phases. A division declaration requires a domestic league-table format and `countryId`. |
 | `calendar.division.tier` | positive integer | absent | Explicit tier within that family. Names and participant overlap never supply this identity. |
 | `calendar.division.phase` | enum | `"annual"` | `"annual"`, `"opening"` or `"closing"`. Opening/closing declarations require `windowEnd`. |

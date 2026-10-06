@@ -48,8 +48,9 @@ pub struct SeasonCalendar {
 pub enum EditionBasis {
     CalendarYear,
     LegacyOrdinal {
-        #[serde(default)]
-        first_season: u32,
+        /// The saved season counter at `opener_year`, refreshed when this edition is generated.
+        #[serde(default, alias = "first_season")]
+        season_at_opener: u32,
         #[serde(default)]
         opener_year: i32,
     },
@@ -72,4 +73,51 @@ pub struct CalendarMetadata {
     pub matchday_gap_days: Option<u32>,
     #[serde(default)]
     pub season: SeasonCalendar,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EditionBasis;
+    use serde_json::json;
+
+    /// Given tip JSON, when loaded and saved, then the old counter gets its precise name.
+    #[test]
+    fn legacy_ordinal_field_loads_and_writes_its_meaning() {
+        let basis: EditionBasis = serde_json::from_value(json!({
+            "kind": "legacyOrdinal", "first_season": 6, "opener_year": 2031
+        }))
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(basis).unwrap(),
+            json!({
+                "kind": "legacyOrdinal", "season_at_opener": 6, "opener_year": 2031
+            })
+        );
+    }
+
+    /// Given the renamed field, when loaded and saved, then its counter and defaults survive.
+    #[test]
+    fn season_at_opener_round_trips_without_losing_the_counter() {
+        let raw = json!({"kind": "legacyOrdinal", "season_at_opener": 6, "opener_year": 2031});
+        let basis: EditionBasis = serde_json::from_value(raw.clone()).unwrap();
+        assert_eq!(serde_json::to_value(basis).unwrap(), raw);
+        let missing: EditionBasis =
+            serde_json::from_value(json!({"kind": "legacyOrdinal"})).unwrap();
+        assert_eq!(
+            serde_json::to_value(missing).unwrap(),
+            json!({
+                "kind": "legacyOrdinal", "season_at_opener": 0, "opener_year": 0
+            })
+        );
+    }
+    /// Given ambiguous or malformed counters, when loaded, then deserialization rejects them.
+    #[test]
+    fn conflicting_or_invalid_ordinal_counters_are_rejected() {
+        for raw in [
+            json!({"kind": "legacyOrdinal", "first_season": 6, "season_at_opener": 7, "opener_year": 2031}),
+            json!({"kind": "legacyOrdinal", "season_at_opener": "six", "opener_year": 2031}),
+        ] {
+            assert!(serde_json::from_value::<EditionBasis>(raw).is_err());
+        }
+    }
 }

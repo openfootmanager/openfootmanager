@@ -39,7 +39,7 @@ fn generated_edition_basis(season: u32, opener_year: i32) -> EditionBasis {
         EditionBasis::CalendarYear
     } else if ordinal_counter(season) {
         EditionBasis::LegacyOrdinal {
-            first_season: season,
+            season_at_opener: season,
             opener_year,
         }
     } else {
@@ -120,7 +120,7 @@ fn verified_ordinal_basis(league: &League) -> Option<EditionBasis> {
     )
     .date_naive();
     (opener == authored).then_some(EditionBasis::LegacyOrdinal {
-        first_season: league.season,
+        season_at_opener: league.season,
         opener_year: opener.year(),
     })
 }
@@ -348,7 +348,7 @@ mod tests {
                 let before = serde_json::to_value(&league).unwrap()["calendar"].clone();
                 assert_eq!(
                     before["edition_basis"],
-                    json!({"kind":"legacyOrdinal","first_season":5,"opener_year":2030})
+                    json!({"kind":"legacyOrdinal","season_at_opener":5,"opener_year":2030})
                 );
                 let next = Utc.with_ymd_and_hms(2031, 2, 1, 0, 0, 0).unwrap();
                 match kind {
@@ -367,7 +367,9 @@ mod tests {
                     kind,
                     season,
                     match season {
-                        6 => json!({"kind":"legacyOrdinal","first_season":6,"opener_year":2031}),
+                        6 => {
+                            json!({"kind":"legacyOrdinal","season_at_opener":6,"opener_year":2031})
+                        }
                         2031 => json!({"kind":"calendarYear"}),
                         _ => json!({"kind":"unresolved"}),
                     },

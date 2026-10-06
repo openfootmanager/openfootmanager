@@ -424,6 +424,58 @@ mod tests {
             assert_eq!(value["calendar"]["season"]["division"]["phase"], "closing");
         }
     }
+    /// Given tip-era SQLite JSON, when loaded and replaced, then the ordinal survives the rename.
+    #[test]
+    fn sqlite_tip_ordinal_alias_survives_reload_and_replacement() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let original = calendar_sample();
+        let fixtures = serde_json::to_value(&original.fixtures).unwrap();
+        let mut calendar = serde_json::to_value(&original.calendar).unwrap();
+        calendar["edition_basis"] = serde_json::json!({
+            "kind": "legacyOrdinal", "first_season": 6, "opener_year": 2031
+        });
+        replace_competitions(db.conn(), &[original]).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE competitions SET calendar_json = ?1",
+                [calendar.to_string()],
+            )
+            .unwrap();
+
+        let loaded = load_competitions(db.conn()).unwrap();
+        let expected = serde_json::json!({
+            "kind": "legacyOrdinal", "season_at_opener": 6, "opener_year": 2031
+        });
+        assert_eq!(
+            serde_json::to_value(&loaded[0].calendar).unwrap()["edition_basis"],
+            expected
+        );
+        replace_competitions(db.conn(), &loaded).unwrap();
+        let stored: String = db
+            .conn()
+            .query_row("SELECT calendar_json FROM competitions", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&stored).unwrap()["edition_basis"],
+            expected
+        );
+        let reloaded = load_competitions(db.conn()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&reloaded[0].calendar).unwrap()["edition_basis"],
+            expected
+        );
+        assert_eq!(
+            serde_json::to_value(&reloaded[0].fixtures).unwrap(),
+            fixtures
+        );
+        assert_eq!(
+            reloaded[0].calendar.as_ref().unwrap().definition_id,
+            "authored"
+        );
+    }
+
     fn legacy_division(season: u32, date: &str) -> League {
         let mut league = League::new(
             "legacy".into(),
@@ -465,7 +517,7 @@ mod tests {
             let value = serde_json::to_value(&loaded[0]).unwrap();
             assert_eq!(
                 value["calendar"]["edition_basis"],
-                serde_json::json!({"kind":"legacyOrdinal","first_season":5,"opener_year":year})
+                serde_json::json!({"kind":"legacyOrdinal","season_at_opener":5,"opener_year":year})
             );
             assert_eq!(loaded[0].season, 5);
             assert_eq!(serde_json::to_value(&loaded[0].fixtures).unwrap(), fixtures);

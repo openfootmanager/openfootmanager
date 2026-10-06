@@ -298,8 +298,8 @@ const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside comp
   },
   "seasonStartMonth": 8,  // optional: 1-12 (default 8 = August)
   "seasonStartDay": 1,    // optional: 1-31 (default 1)
-  "calendar": {          // optional: retained specification; does not change scheduling yet
-    "division": {        // optional: domestic table with a countryId
+  "calendar": {          // optional: scaffold defaults to null; opt in via this reference shape
+    "division": {        // optional: only Domestic LeagueTable with a countryId
       "familyId": "eng-league", // non-blank family, shared by paired phases/tiers
       "tier": 1,         // positive tier number
       "phase": "annual"  // "annual" (default) | "opening" | "closing"

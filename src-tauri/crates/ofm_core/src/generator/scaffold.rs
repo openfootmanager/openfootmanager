@@ -336,10 +336,9 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
             "berths": [],
             "seasonStartMonth": 8,
             "seasonStartDay": 1,
-            "calendar": {
-                "division": { "familyId": format!("{slug}-family"), "tier": 1, "phase": "annual" },
-                "windowEnd": null
-            },
+            // The editor has no calendar control; grouping must remain opt-in
+            // so changing format, scope or country needs no hidden-field repair.
+            "calendar": null,
             "nameKey": null,
             "logo": null,
         }),
@@ -439,6 +438,48 @@ mod tests {
     use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType};
     use domain::player::{PlayerAttributes, Position};
     use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
+
+    fn validate_edited_scaffold(raw: Value) {
+        let definition: CompetitionDefinition = serde_json::from_value(raw).unwrap();
+        let file = crate::generator::CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![definition],
+        };
+        let context = crate::generator::WorldValidationContext {
+            country_codes: ["ENG"].into(),
+            team_ids: Default::default(),
+            region_ids: Default::default(),
+        };
+        let errors = crate::generator::validate_definitions(&file, &context);
+        assert!(
+            errors.is_empty(),
+            "edited scaffold must validate: {errors:?}"
+        );
+    }
+
+    /// Given a shared scaffold, when its format becomes Knockout, then validation passes.
+    #[test]
+    fn a_scaffolded_competition_can_change_to_knockout() {
+        let mut raw = entity_template(EntityKind::Competition, Some("Sample Cup"));
+        raw["format"]["kind"] = json!("Knockout");
+        validate_edited_scaffold(raw);
+    }
+
+    /// Given a shared scaffold, when its scope becomes Continental, then validation passes.
+    #[test]
+    fn a_scaffolded_competition_can_change_to_continental() {
+        let mut raw = entity_template(EntityKind::Competition, Some("Sample League"));
+        raw["scope"] = json!("Continental");
+        validate_edited_scaffold(raw);
+    }
+
+    /// Given a shared scaffold, when its country is cleared, then validation passes.
+    #[test]
+    fn a_scaffolded_competition_can_clear_its_country() {
+        let mut raw = entity_template(EntityKind::Competition, Some("Sample League"));
+        raw["countryId"] = Value::Null;
+        validate_edited_scaffold(raw);
+    }
 
     /// Top-level keys a value serializes to.
     fn keys(value: &Value) -> Vec<String> {

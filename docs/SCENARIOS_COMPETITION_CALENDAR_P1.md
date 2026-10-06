@@ -34,3 +34,24 @@ mutation-checked. The approved never-affiliated retirement calendar remains a la
 | the_annotated_schema_documents_every_field_the_template_scaffolds | The updated competition scaffold | The existing annotated CLI schema contract runs | Its calendar declaration is documented |
 | the_schema_reference_documents_every_field_the_template_scaffolds | The updated competition scaffold | The existing package reference contract runs | Calendar fields, defaults and grouping constraints are documented |
 | calendar_v048_upgrades_a_seeded_v047_save_without_reinterpreting_it | A v047 database with save format 8, either World Cup draw flag, and competition data | Calendar migration v048 runs and runs again | Schema becomes 48, the calendar column is added once, and format, draw policy and competition identity remain intact |
+
+## Review follow-up: editable scaffolds and counter provenance
+
+The CLI competition scaffold, which the Package Editor consumes, must leave optional calendar
+grouping undeclared so authors can
+change format, scope or country through existing controls. The ordinal basis records the season
+counter at its verified opener year, not the family's first season. Older tip saves keep loading.
+
+| Named scenario | Given | When | Then |
+| --- | --- | --- | --- |
+| a_scaffolded_competition_can_change_to_knockout | A competition from the shared scaffold | Its format changes to Knockout and shared definition validation runs | Validation passes without hidden calendar edits |
+| a_scaffolded_competition_can_change_to_continental | A competition from the shared scaffold | Its scope changes to Continental and shared definition validation runs | Validation passes without hidden calendar edits |
+| a_scaffolded_competition_can_clear_its_country | A competition from the shared scaffold | Its optional country is cleared and shared definition validation runs | Validation passes without hidden calendar edits |
+| legacy_ordinal_field_loads_and_writes_its_meaning | Tip-era JSON with first_season 6 and opener_year 2031 | EditionBasis deserializes and serializes | The counter survives as season_at_opener 6; first_season is no longer emitted |
+| season_at_opener_round_trips_without_losing_the_counter | JSON with season_at_opener 6 and opener_year 2031 | EditionBasis loads and saves | Both values survive and missing counter/year still default |
+| conflicting_or_invalid_ordinal_counters_are_rejected | JSON with both counter names or a non-numeric season_at_opener | EditionBasis deserialization runs | The ambiguous or malformed counter is rejected rather than silently discarded |
+| sqlite_tip_ordinal_alias_survives_reload_and_replacement | SQLite calendar JSON written at the old tip using first_season | A fresh reader loads it, then replacement writes and reloads it | Counter, identity and fixtures survive; disk now uses season_at_opener |
+
+Existing invalid_calendar_definition_is_rejected_before_building and corrupt_calendar_metadata_is_not_silently_discarded
+continue to cover invalid authored calendars and malformed saves. Regeneration, AI/user construction,
+backfill and migration scenarios above retain their coverage with the corrected field name.
