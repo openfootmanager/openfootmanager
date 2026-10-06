@@ -6,6 +6,11 @@ on:
     branches:
       - release
 
+# Serialize every stable entry point through finalization, including dispatches on other refs.
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+
 jobs:
   check-release-state:
     runs-on: ubuntu-latest
@@ -21,7 +26,7 @@ jobs:
       - name: Refuse an already published stable version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash scripts/check-stable-release-state.sh
+        run: bash scripts/check-release-state.sh
 
   # The same gauntlet a pull request has to pass, run against the commit that is about
   # to be published. Shipping a stable release untested is strictly worse than shipping
@@ -82,6 +87,13 @@ jobs:
       - name: install frontend dependencies
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
         run: npm ci
+
+      # Individual matrix-job retries reuse successful dependencies, so the early check alone
+      # cannot protect their uploads after a previous run published the release.
+      - name: Refuse a published stable version before upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/check-release-state.sh
 
       - uses: tauri-apps/tauri-action@v0
         env:

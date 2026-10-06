@@ -55,7 +55,7 @@ fi
 
 # Captured rather than piped into `grep -q`: with pipefail, a match that stops grep early reads
 # as a failed pipeline, and the check would invert.
-bundled="$(find "$appdir" -name 'libwayland-client.so*' -print)"
+bundled="$(find -H "$appdir" -name 'libwayland-client.so*' -print)"
 
 if [ -n "$bundled" ]; then
     echo "check-appimage-libs: the AppImage bundles libwayland-client, which breaks Mesa's EGL on newer hosts (#281):" >&2

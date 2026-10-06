@@ -78,6 +78,16 @@ expect 0 "$(appdir clean usr/lib/libgtk-3.so.0 usr/lib/libwebkit2gtk-4.1.so.0)" 
 expect 1 "$(appdir client usr/lib/libwayland-client.so.0)" \
     "a bundled libwayland-client fails: the library behind #281"
 
+# Given a symlink to a bad extracted AppDir, when checked, then the bundled client still fails.
+linked_bad="$(appdir linked-bad usr/lib/libwayland-client.so.0)"
+ln -s "$linked_bad" "$scratch/bad-link"
+expect 1 "$scratch/bad-link" "a symlinked AppDir cannot hide a bundled client"
+
+# Given a symlink to a clean extracted AppDir, when checked, then the accepted alias still passes.
+linked_clean="$(appdir linked-clean usr/lib/libgtk-3.so.0)"
+ln -s "$linked_clean" "$scratch/clean-link"
+expect 0 "$scratch/clean-link" "a symlinked clean AppDir passes"
+
 # tauri-bundler 2.10 still bundles these three. Mesa's EGL driver resolves against all of them
 # without a missing symbol, and the app starts on Fedora 44's Mesa with them present, so
 # rejecting them would fail every release over libraries that do no harm.

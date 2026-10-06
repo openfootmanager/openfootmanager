@@ -162,8 +162,8 @@ So glvnd could not load the Mesa driver at all, WebKit could not create an EGL d
 web process aborted. NVIDIA's proprietary EGL driver does not need those symbols, which is why the
 NVIDIA machine this document was measured on never showed it.
 
-No environment variable fixes it. `OFM_GPU_PROFILE=safe`, `WEBKIT_DISABLE_COMPOSITING_MODE=1` and
-`LIBGL_ALWAYS_SOFTWARE=1` all fail the same way, because each still creates the EGL display.
+The renderer settings `OFM_GPU_PROFILE=safe`, `WEBKIT_DISABLE_COMPOSITING_MODE=1` and
+`LIBGL_ALWAYS_SOFTWARE=1` do not fix it: each still creates the EGL display and fails the same way.
 `GDK_BACKEND` could not even be tried: the old AppImage's launcher overwrote it with `x11`.
 
 **Fix.** `@tauri-apps/cli` 2.12 (tauri-bundler 2.10, upstream
