@@ -178,7 +178,12 @@ pub fn start_live_match_with_identity(
     let (snapshot, session) = state
         .update_game(|game| {
             start_selected_fixture(
-                game, fixture_index, match_mode, competition_id, fixture_id, &mut captures,
+                game,
+                fixture_index,
+                match_mode,
+                competition_id,
+                fixture_id,
+                &mut captures,
             )
         })
         .ok_or("be.error.noActiveGameSession")??;
@@ -204,8 +209,8 @@ fn resolve_fixture_for_start(
     match (competition_id, fixture_id) {
         (Some(competition_id), Some(fixture_id)) => {
             let competition = game
-            .competitions
-            .iter()
+                .competitions
+                .iter()
                 .find(|competition| competition.id == competition_id)
                 .cloned();
             if let Some(competition) = competition {
@@ -237,10 +242,7 @@ fn resolve_fixture_for_start(
         _ => return Err("be.error.liveMatch.fixtureNotFound".to_string()),
     }
 
-    let league = game
-        .league
-        .as_ref()
-        .ok_or("be.error.liveMatch.noLeague")?;
+    let league = game.league.as_ref().ok_or("be.error.liveMatch.noLeague")?;
     let fixture = league
         .fixtures
         .get(fixture_index)
@@ -278,17 +280,13 @@ fn start_selected_fixture(
     // a cup decider. Resolve identity first so the shared rule reads this fixture's
     // competition, including cup restores while the domestic league is mirrored.
     let allows_extra_time = ofm_core::matchday::fixture_allows_extra_time(game, fixture_index);
-    let session = live_match_manager::kick_off_live_match(
-        game,
-        fixture_index,
-        match_mode,
-        allows_extra_time,
-    )
-    .inspect_err(|_| {
-        if swapped_league {
-            game.sync_legacy_league();
-        }
-    })?;
+    let session =
+        live_match_manager::kick_off_live_match(game, fixture_index, match_mode, allows_extra_time)
+            .inspect_err(|_| {
+                if swapped_league {
+                    game.sync_legacy_league();
+                }
+            })?;
     let snapshot = session.snapshot();
     info!(
         "[cmd] start_live_match: created fixture={}, phase={:?}, home_team={}, away_team={}, home_players={}, away_players={}",

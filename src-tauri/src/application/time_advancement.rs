@@ -120,7 +120,13 @@ fn advance_day_in_mode(
     game: &mut Game,
     mode: &str,
     captures: &mut Vec<domain::stats::StatsState>,
-) -> Result<(AdvanceTimeWithModeResponse, Option<live_match_manager::LiveMatchSession>), String> {
+) -> Result<
+    (
+        AdvanceTimeWithModeResponse,
+        Option<live_match_manager::LiveMatchSession>,
+    ),
+    String,
+> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let round_context = ofm_core::matchday::user_league_round_context(game);
     let user_fixture = scheduled_user_fixture_index(game, &today);
@@ -137,7 +143,10 @@ fn advance_day_in_mode(
             advance_delegated_matchday(game, fixture, &today, round_context, captures)
                 .map(|response| (response, None))
         }
-        _ => Ok((advance_simulated_day(game, mode, &today, round_context, captures), None)),
+        _ => Ok((
+            advance_simulated_day(game, mode, &today, round_context, captures),
+            None,
+        )),
     }
 }
 
@@ -148,7 +157,13 @@ fn advance_live_matchday(
     today: &str,
     round_context: Option<LeagueRoundContext>,
     captures: &mut Vec<domain::stats::StatsState>,
-) -> Result<(AdvanceTimeWithModeResponse, live_match_manager::LiveMatchSession), String> {
+) -> Result<
+    (
+        AdvanceTimeWithModeResponse,
+        live_match_manager::LiveMatchSession,
+    ),
+    String,
+> {
     let (competition_index, index) = fixture;
     // Same hazard as the delegate path: the mirror is swapped before the session is
     // built, and the kick-off can refuse — an empty squad nobody can fill is a
@@ -169,18 +184,14 @@ fn advance_live_matchday(
         MatchMode::Spectator
     };
     let allows_extra_time = ofm_core::matchday::fixture_allows_extra_time(game, index);
-    let session = match live_match_manager::kick_off_live_match(
-        game,
-        index,
-        match_mode,
-        allows_extra_time,
-    ) {
-        Ok(session) => session,
-        Err(error) => {
-            game.league = mirror_before_the_swap;
-            return Err(error);
-        }
-    };
+    let session =
+        match live_match_manager::kick_off_live_match(game, index, match_mode, allows_extra_time) {
+            Ok(session) => session,
+            Err(error) => {
+                game.league = mirror_before_the_swap;
+                return Err(error);
+            }
+        };
     let snapshot = session.snapshot();
     let competition_id = session.competition_id.clone();
     let fixture_id = session.fixture_id.clone();
@@ -192,36 +203,35 @@ fn advance_live_matchday(
         snapshot.away_team.name
     );
 
-    ofm_core::turn::simulate_other_matches_with_capture(
-        game,
-        today,
-        Some(index),
-        &mut |capture| captures.push(capture),
-    );
+    ofm_core::turn::simulate_other_matches_with_capture(game, today, Some(index), &mut |capture| {
+        captures.push(capture)
+    });
     if let Some(competition_index) = competition_index {
         if let Some(updated_competition) = game.league.take() {
             game.competitions[competition_index] = updated_competition;
             game.sync_legacy_league();
         }
     }
-    let round_summary =
-        round_context
-            .as_ref()
-            .and_then(|(matchday, previous_standings)| {
-                build_round_summary_dto(game, *matchday, previous_standings)
-            });
+    let round_summary = round_context
+        .as_ref()
+        .and_then(|(matchday, previous_standings)| {
+            build_round_summary_dto(game, *matchday, previous_standings)
+        });
 
-    Ok((AdvanceTimeWithModeResponse {
-        action: "live_match".to_string(),
-        game: None,
-        snapshot: Some(snapshot),
-        fixture_index: Some(index),
-        competition_id: Some(competition_id),
-        fixture_id: Some(fixture_id),
-        mode: Some(mode.to_string()),
-        round_summary,
-        results: Vec::new(),
-    }, session))
+    Ok((
+        AdvanceTimeWithModeResponse {
+            action: "live_match".to_string(),
+            game: None,
+            snapshot: Some(snapshot),
+            fixture_index: Some(index),
+            competition_id: Some(competition_id),
+            fixture_id: Some(fixture_id),
+            mode: Some(mode.to_string()),
+            round_summary,
+            results: Vec::new(),
+        },
+        session,
+    ))
 }
 
 fn advance_delegated_matchday(
@@ -247,12 +257,11 @@ fn advance_delegated_matchday(
     // The baseline comes from the session, captured before the round was played;
     // reading the table now would report every delta as zero. Built after the day
     // so it describes the round the response is carrying.
-    let round_summary = outcome
-        .league_round_context
-        .or(round_context)
-        .and_then(|(matchday, previous_standings)| {
+    let round_summary = outcome.league_round_context.or(round_context).and_then(
+        |(matchday, previous_standings)| {
             build_round_summary_dto(game, matchday, &previous_standings)
-        });
+        },
+    );
 
     Ok(advanced_day_response(game, today, round_summary))
 }
@@ -271,12 +280,11 @@ fn advance_simulated_day(
     ofm_core::turn::process_day_with_capture(game, &mut |capture| {
         captures.push(capture);
     });
-    let round_summary =
-        round_context
-            .as_ref()
-            .and_then(|(matchday, previous_standings)| {
-                build_round_summary_dto(game, *matchday, previous_standings)
-            });
+    let round_summary = round_context
+        .as_ref()
+        .and_then(|(matchday, previous_standings)| {
+            build_round_summary_dto(game, *matchday, previous_standings)
+        });
 
     advanced_day_response(game, today, round_summary)
 }
