@@ -41,11 +41,14 @@ jobs:
       - name: Check Rust toolchain pins agree
         run: ./scripts/check-toolchain-pin.sh
 
-      # Here because it needs nothing but bash, like the two above. The planner it tests only runs
-      # in the weekly mutation job, so without this a slip in it would take a week, and a run
-      # several hours long, to show up.
+      # Here because they need nothing but bash, like the two above. The scripts they test only
+      # run in the weekly mutation job, so without these a slip in either would take a week, and
+      # a run several hours long, to show up.
       - name: Check the mutation-testing slot planner
         run: ./scripts/mutation-slot.test.sh
+
+      - name: Check the mutation-testing exit-status check
+        run: ./scripts/mutation-outcome.test.sh
 
   # Also its own job, and for the same reason: `cargo fmt --check` compiles nothing, so it can
   # answer in well under a minute rather than sitting behind `backend`'s twenty. Finding out

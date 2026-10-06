@@ -167,14 +167,13 @@ jobs:
           echo "label=${crate}-${shard/\//of}" >> "$GITHUB_OUTPUT"
           echo "Mutating $crate, shard $shard"
 
-      # Surviving mutants are the *output*, not a failure — a red tick on a weekly job nobody can
-      # act on today is how a scheduled job becomes invisible. cargo-mutants exits 2 for exactly
-      # that case, so that one status is swallowed and nothing else is: a bare `|| true` would
-      # have turned a missing tool or a compilation failure into a green job with no report,
-      # which is the same silent-pass shape this whole programme exists to stop.
+      # Surviving mutants are the *output*, not a failure. Which exit statuses mean "the run did
+      # its job" is decided by `scripts/mutation-outcome.sh`, which says why for each one and is
+      # tested in build-check — that check has been wrong three times, most recently over exit 3
+      # (a timed-out mutant), which failed a 140-mutant run on 6 Oct 2026 after it had finished.
       #
-      # Two traps, both sprung on this job's first scheduled run (27 Sep 2026), which tested 495
-      # mutants of `db` over 2h 27m and then threw the results away:
+      # Two traps here, both sprung on this job's first scheduled run (27 Sep 2026), which tested
+      # 495 mutants of `db` over 2h 27m and then threw the results away:
       #
       #   * Actions runs every `run:` block under `bash -e`. A `set -uo pipefail` does not turn
       #     `-e` off, so the moment cargo-mutants exited 2 the step died — the line meant to accept
@@ -189,8 +188,8 @@ jobs:
       # cancel the whole job and the upload would never happen.
       #
       # Every mutant rebuilds the crate under test, and for `ofm_core` that rebuild was 90 of the
-      # 115 seconds a mutant cost on 4 Oct 2026. Two settings bring it down, measured on the same
-      # mutants locally (~165 s each, then ~70 s with the first, then ~40 s with both):
+      # 115 seconds a mutant cost on 4 Oct 2026. Two settings bring it down. On a hosted runner
+      # (6 Oct 2026, 140 mutants) an `ofm_core` mutant then cost 34 s: 16 s to build, 18 s to test.
       #
       #   * `CARGO_INCREMENTAL=1`. rust-cache exports `CARGO_INCREMENTAL=0` for the whole job,
       #     which is right for a one-shot CI build and wrong for this one: cargo-mutants rebuilds
@@ -215,18 +214,7 @@ jobs:
             --in-place --no-shuffle --timeout 300 \
             --output mutants-out || status=$?
 
-          # 0 = nothing survived, 2 = some mutants survived. Anything else is a real failure.
-          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
-            echo "cargo-mutants failed with status $status — this is a tool or build failure," >&2
-            echo "not a surviving mutant." >&2
-            exit "$status"
-          fi
-
-          # And a run that produced no report produced nothing, whatever it exited with.
-          if [ ! -s mutants-out/mutants.out/outcomes.json ]; then
-            echo "cargo-mutants exited $status but wrote no mutants-out/mutants.out/outcomes.json." >&2
-            exit 1
-          fi
+          ./scripts/mutation-outcome.sh "$status" mutants-out/mutants.out/outcomes.json
 
       # `!cancelled()` rather than the default `success()`: a run that fails partway still leaves
       # whatever it measured on disk, and two hours of mutants are worth keeping even then. The
