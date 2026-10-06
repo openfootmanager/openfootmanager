@@ -29,8 +29,10 @@ set -euo pipefail
 #   domain    no measurement of its own yet. A leaf crate with nothing depending on it inside
 #             the package under test, so it is assumed no dearer than `db`.
 #   db        17.8 s, measured: 495 mutants in 2h 27m on 27 Sep 2026.
-#   engine    no CI measurement yet. Locally a mutant builds in ~2 s and tests in ~2.4 s, so
-#             15 s leaves the runner plenty of room for being slower than a workstation.
+#   engine    no CI measurement yet. Locally a mutant builds in ~2 s and tests in ~2.4 s, but a
+#             workstation figure is exactly what went wrong for `ofm_core`, so it is planned at
+#             the same 20 s as its neighbours until a slot measures it. At 15 s its shards were
+#             big enough that a `db`-like 17.8 s would have used 85% of the step.
 #   ofm_core  34.2 s, measured: 140 mutants on 6 Oct 2026 (16.4 s to build, 17.7 s to test,
 #             one 300 s timeout included), with the `mutants` profile and incremental builds.
 #             Before those two changes it was 115 s (4 Oct 2026). 40 s leaves room for a slot
@@ -38,7 +40,7 @@ set -euo pipefail
 declare -A SECONDS_PER_MUTANT=(
     [domain]=20
     [db]=20
-    [engine]=15
+    [engine]=20
     [ofm_core]=40
 )
 
@@ -114,7 +116,6 @@ case "$command" in
         is_count "$job" || die "'$job' is not a job number"
         is_count "$jobs" || die "'$jobs' is not a number of jobs"
         week=$((10#$week)) job=$((10#$job)) jobs=$((10#$jobs))
-        [ "$jobs" -gt 0 ] || die "a week needs at least one job"
         [ "$job" -lt "$jobs" ] || die "job $job does not exist in a week of $jobs jobs"
 
         read_counts "$@"

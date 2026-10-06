@@ -29,7 +29,7 @@ name: mutation-tests
 # computed every run from the live mutant counts and a per-crate cost, by
 # `scripts/mutation-slot.sh` — the costs live there, with where each one came from, and that is
 # the file to change when a run overruns. Six slots run in parallel each Sunday, so the rotation
-# (32 slots at the counts above) comes round about every six weeks.
+# (33 slots at the counts above) comes round about every six weeks.
 
 on:
   schedule:

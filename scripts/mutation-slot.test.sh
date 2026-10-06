@@ -64,18 +64,19 @@ echo "mutation-slot.test: the rotation"
 
 rotation="$("$script" rotation "${counts[@]}")"
 slot_total="$(printf '%s\n' "$rotation" | wc -l)"
-if [ "$slot_total" -eq 32 ]; then
-    record 1 "today's counts make a 32-slot rotation" ""
+if [ "$slot_total" -eq 33 ]; then
+    record 1 "today's counts make a 33-slot rotation" ""
 else
-    record 0 "today's counts make a 32-slot rotation" "got $slot_total slots:
+    record 0 "today's counts make a 33-slot rotation" "got $slot_total slots:
 $rotation"
 fi
 
-first_lines="$(printf '%s\n' "$rotation" | head -n 5)"
+first_lines="$(printf '%s\n' "$rotation" | head -n 6)"
 want_first='domain 0/1
 db 0/1
-engine 0/2
-engine 1/2
+engine 0/3
+engine 1/3
+engine 2/3
 ofm_core 0/28'
 if [ "$first_lines" = "$want_first" ]; then
     record 1 "crates come in a fixed order, each shard of a crate in turn" ""
@@ -111,6 +112,9 @@ expect_rejected "a job number outside the week's jobs" -- pick 0 2 2 "${small[@]
 # "2+1" and "367+0" rather than a word: bash arithmetic already rejects a word, so a word would
 # pass whether or not the script checks. These two are the ones it would quietly evaluate.
 expect_rejected "a week that is not a plain number" -- pick 2+1 0 2 "${small[@]}"
+expect_rejected "a job number that is not a plain number" -- pick 0 0+1 2 "${small[@]}"
+expect_rejected "a number of jobs that is not a plain number" -- pick 0 0 2+0 "${small[@]}"
+expect_rejected "a week with no jobs in it" -- pick 0 0 0 "${small[@]}"
 
 echo "mutation-slot.test: a manual run of one crate"
 
