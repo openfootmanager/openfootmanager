@@ -1069,3 +1069,57 @@ fn multiple_teams_processed_independently() {
     assert_eq!(game.teams[0].finance, initial_t1 - t1_wages);
     assert_eq!(game.teams[1].finance, initial_t2 - t2_wages);
 }
+
+// ---------------------------------------------------------------------------
+// Matchday income comes from the game's seed
+// ---------------------------------------------------------------------------
+
+fn finance_after_a_home_week(seed: u64) -> i64 {
+    let mut game = make_monday_game();
+    game.seed = seed;
+    game.league = Some(League {
+        id: "l1".to_string(),
+        name: "Test League".to_string(),
+        season: 1,
+        fixtures: vec![Fixture {
+            id: "f1".to_string(),
+            matchday: 1,
+            date: "2025-06-14".to_string(),
+            home_team_id: "team1".to_string(),
+            away_team_id: "team2".to_string(),
+            competition: FixtureCompetition::League,
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 2,
+                away_goals: 1,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Default::default()
+        }],
+        standings: vec![StandingEntry::new("team1".to_string())],
+        ..Default::default()
+    });
+
+    finances::process_weekly_finances(&mut game);
+    game.teams[0].finance
+}
+
+/// Given a club that played at home this week,
+/// When the week's finances are processed twice from the same seed,
+/// Then the gate is the same both times.
+#[test]
+fn matchday_income_is_the_same_from_the_same_seed() {
+    assert_eq!(finance_after_a_home_week(11), finance_after_a_home_week(11));
+}
+
+/// The control: attendance and ticket price are what the seed decides.
+#[test]
+fn the_seed_decides_the_gate() {
+    let takings: std::collections::BTreeSet<i64> = (0..40).map(finance_after_a_home_week).collect();
+
+    assert!(takings.len() > 1, "forty seeds all drew the same crowd");
+}

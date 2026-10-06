@@ -14,14 +14,14 @@ use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::national_team::NationalTeam;
 use domain::news::{NewsArticle, NewsCategory};
 use domain::world_history::{WorldCupChampionRecord, WorldCupHostRecord};
-use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::{Rng, RngExt, SeedableRng};
+use rand::{Rng, RngExt};
 
 use crate::game::Game;
 use crate::group_stage::GroupStageConfig;
 use crate::nations;
 use crate::schedule::round_robin_matchdays;
+use crate::seed::WorldCupStream;
 
 /// A World Cup format preset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -494,7 +494,7 @@ pub fn schedule_world_cup_with_field(
 
     // FIFA draw: pots seeded by world ranking (host into Pot 1), one team per
     // confederation per group except UEFA (≤2). Deterministic per cup year.
-    let mut draw_rng = StdRng::seed_from_u64(year as u64);
+    let mut draw_rng = game.world_cup_rng(WorldCupStream::Draw, year);
     let group_ids: Vec<Vec<String>> =
         draw_world_cup_groups(game, &field, host_code.as_deref(), &pools, &mut draw_rng)
             .iter()
@@ -1614,7 +1614,7 @@ pub fn qualified_field_from_game(
     let playoff_winners = match decided_playoff_winners(game, year) {
         Some(winners) => winners,
         None => {
-            let mut rng = StdRng::seed_from_u64(u64::from(year) ^ 0xF1FA);
+            let mut rng = game.world_cup_rng(WorldCupStream::Settle, year as i32);
             let winners = resolve_inter_confed_playoff(game, &outcome.playoff_entrants, &mut rng);
             announce_inter_confed_playoff(game, year, &winners);
             winners
@@ -2311,6 +2311,44 @@ mod tests {
             qualifying.fixtures.iter().all(|f| block.contains(&f.date)),
             "qualifying matches must stay inside the window span blocks"
         );
+    }
+
+    /// The groups drawn from one fixed field, so that what is compared is the draw and not
+    /// the field: an empty world synthesises its national teams at random.
+    fn groups_drawn_for(seed: u64, legacy: bool) -> Vec<Vec<String>> {
+        let field: Vec<String> = [
+            "ar", "au", "at", "be", "bo", "br", "ca", "cl", "cn", "co", "cr", "hr", "cz", "dk",
+            "ec", "eg", "eng", "fr", "de", "gh", "gr", "ir", "it", "jp", "kr", "mx", "ma", "nl",
+            "nz", "ng", "no", "pa", "py", "pe", "pl", "pt", "qa", "ro", "sa", "sn", "rs", "es",
+            "se", "ch", "tn", "tr", "us", "uy",
+        ]
+        .iter()
+        .map(|code| code.to_uppercase())
+        .collect();
+        let mut game = empty_game();
+        game.seed = seed;
+        game.legacy_world_cup_draw = legacy;
+        let mut rng = game.world_cup_rng(WorldCupStream::Draw, 2026);
+        draw_world_cup_groups(&game, &field, None, &BTreeMap::new(), &mut rng)
+    }
+
+    /// Given new games, and the same cup year,
+    /// When the finals are drawn, twice in one game and once in another,
+    /// Then one game draws the same groups both times, and another game draws other ones.
+    #[test]
+    fn a_new_games_world_cup_draw_follows_its_seed() {
+        assert_eq!(groups_drawn_for(7, false), groups_drawn_for(7, false));
+        assert_ne!(groups_drawn_for(7, false), groups_drawn_for(8, false));
+    }
+
+    /// Given a career from before World Cups were seeded from the game,
+    /// When the finals are drawn, whatever the game's seed,
+    /// Then the groups are the ones the cup year alone gives — the draw it was promised — and
+    ///      not the ones a new game would draw.
+    #[test]
+    fn a_career_from_before_seeding_keeps_the_groups_it_was_promised() {
+        assert_eq!(groups_drawn_for(7, true), groups_drawn_for(99, true));
+        assert_ne!(groups_drawn_for(7, true), groups_drawn_for(7, false));
     }
 
     #[test]

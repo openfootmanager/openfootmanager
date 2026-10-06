@@ -89,7 +89,7 @@ pub fn check_random_events(game: &mut Game) {
     // Borrowed, not cloned — the ledger is never pruned, so it only grows.
     let existing_ids = &game.emitted_events;
 
-    let mut rng = rand::rng();
+    let mut rng = game.rng_today("random-events");
     let mut new_messages: Vec<InboxMessage> = Vec::new();
 
     // --- 1. Sponsor offer (1% chance per day) ---
@@ -190,7 +190,7 @@ pub fn check_random_events(game: &mut Game) {
                                     &player_name,
                                     actual_team_id,
                                     &team_name,
-                                    days as u32,
+                                    days,
                                     &date_str,
                                 ));
                             }

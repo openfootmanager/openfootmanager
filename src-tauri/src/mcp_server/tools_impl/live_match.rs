@@ -25,17 +25,19 @@ pub fn match_start(
     fixture_index: u32,
     mode: String,
     allows_extra_time: Option<bool>,
+    competition_id: Option<String>,
+    fixture_id: Option<String>,
 ) -> Result<String, String> {
     let fixture_idx = fixture_index as usize;
-    let allows_et = allows_extra_time.unwrap_or(true);
+    let allows_et = allows_extra_time.unwrap_or(false);
 
-    let snapshot = crate::application::live_match::start_live_match(
+    let snapshot = crate::commands::live_match::start_live_match_internal(
         &ctx.state_manager,
         fixture_idx,
         &mode,
         allows_et,
-        None,
-        None,
+        competition_id.as_deref(),
+        fixture_id.as_deref(),
     )?;
 
     {
@@ -43,9 +45,14 @@ pub fn match_start(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
+    let fixture_label = match (competition_id.as_deref(), fixture_id.as_deref()) {
+        (Some(competition), Some(fixture)) => format!("{competition}/{fixture}"),
+        _ => format!("Index {fixture_index}"),
+    };
+
     Ok(format!(
-        "## Live Match Started\n\n**Fixture Index**: {}\n**Mode**: {}\n**Minute**: {}\n**Score**: {} - {}\n\nUse `match_step` to advance, `match_command` to issue tactical commands, and `match_finish` to end.",
-        fixture_index, mode, snapshot.current_minute, snapshot.home_score, snapshot.away_score
+        "## Live Match Started\n\n**Fixture**: {}\n**Mode**: {}\n**Minute**: {}\n**Score**: {} - {}\n\nUse `match_step` to advance, `match_command` to issue tactical commands, and `match_finish` to end.",
+        fixture_label, mode, snapshot.current_minute, snapshot.home_score, snapshot.away_score
     ))
 }
 
@@ -165,12 +172,14 @@ pub fn match_team_talk(
     tone: String,
     context: String,
 ) -> Result<String, String> {
-    let seed = rand::random::<u64>();
     // Resolves the manager's team before the loop that adjusts morale, so an
     // error path never leaves a half-applied team talk behind.
+    let phase = crate::commands::live_match::live_phase_tag(&ctx.state_manager);
     let results = ctx
         .state_manager
         .update_game(|game| {
+            let seed =
+                crate::commands::live_match::team_talk_seed_in_phase(game, &tone, &context, &phase);
             crate::commands::live_match::apply_team_talk_internal(game, &tone, &context, seed)
         })
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
