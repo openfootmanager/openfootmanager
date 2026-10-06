@@ -83,6 +83,14 @@ test("an existing draft permits a retry", () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
+// Given prerelease and build metadata, when the draft is checked, then its complete tag is preserved.
+test("a version with prerelease and build metadata uses its exact release tag", () => {
+  const version = "0.4.0-rc.1+build.7";
+  const result = checkRelease(200, '{"draft":true}', 0, { version });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.args.includes(`repos/fixture/project/releases/tags/v${version}\n`));
+});
+
 // Given an already public version, when dispatch or a same-version push runs, then it refuses uploads.
 test("an already published release stops the workflow", () => {
   const result = checkRelease(200, '{"draft":false}', 0);

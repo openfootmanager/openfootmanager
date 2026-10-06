@@ -15,7 +15,7 @@ function refuse(message) {
 const repository = process.env.GITHUB_REPOSITORY;
 const version = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8")).version;
 if (!repository || !/^[\w.-]+\/[\w.-]+$/.test(repository) ||
-    typeof version !== "string" || !/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(version)) {
+    typeof version !== "string" || !/^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/.test(version)) {
   refuse("Invalid repository or Tauri release version");
 }
 const tag = `v${version}`;
