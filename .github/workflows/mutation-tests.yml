@@ -217,6 +217,41 @@ jobs:
 
           ./scripts/mutation-outcome.sh "$status" mutants-out/mutants.out/outcomes.json
 
+      # A slot that passes is green with its findings inside the artifact, and nobody downloads
+      # an artifact from a green run. The survivors and timeouts go on the run's summary page
+      # instead, where they are read. `!cancelled()` for the same reason as the upload below.
+      - name: Summarise the survivors
+        if: ${{ !cancelled() }}
+        env:
+          MUTATION_CRATE: ${{ steps.crate.outputs.name }}
+          MUTATION_SHARD: ${{ steps.crate.outputs.shard }}
+        run: |
+          set -uo pipefail
+          report=mutants-out/mutants.out
+          lines_in() {
+            if [ -f "$report/$1.txt" ]; then wc -l < "$report/$1.txt"; else echo 0; fi
+          }
+          {
+            echo "## Mutants: $MUTATION_CRATE, shard $MUTATION_SHARD"
+            echo ""
+            if [ ! -d "$report" ]; then
+              echo "No report: the run stopped before cargo-mutants wrote one."
+            else
+              echo "| caught | missed | timeout | unviable |"
+              echo "|---|---|---|---|"
+              echo "| $(lines_in caught) | $(lines_in missed) | $(lines_in timeout) | $(lines_in unviable) |"
+              for kind in missed timeout; do
+                if [ "$(lines_in "$kind")" -gt 0 ]; then
+                  echo ""
+                  echo "### $kind"
+                  echo '```text'
+                  cat "$report/$kind.txt"
+                  echo '```'
+                fi
+              done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # `!cancelled()` rather than the default `success()`: a run that fails partway still leaves
       # whatever it measured on disk, and two hours of mutants are worth keeping even then. The
       # first scheduled run lost its entire report to exactly that default.
