@@ -31,15 +31,15 @@ set -euo pipefail
 #   db        17.8 s, measured: 495 mutants in 2h 27m on 27 Sep 2026.
 #   engine    no CI measurement yet. Locally a mutant builds in ~2 s and tests in ~2.4 s, so
 #             15 s leaves the runner plenty of room for being slower than a workstation.
-#   ofm_core  measured 4 Oct 2026 at 90 s to build and 25 s to test (mean of 141 mutants), with
-#             debuginfo on and incremental compilation off. The mutation step now builds with
-#             neither, which took local builds from ~165 s to ~40 s; 60 s keeps a margin until a
-#             scheduled run measures the new figure.
+#   ofm_core  34.2 s, measured: 140 mutants on 6 Oct 2026 (16.4 s to build, 17.7 s to test,
+#             one 300 s timeout included), with the `mutants` profile and incremental builds.
+#             Before those two changes it was 115 s (4 Oct 2026). 40 s leaves room for a slot
+#             that draws more timeouts than that sample did.
 declare -A SECONDS_PER_MUTANT=(
     [domain]=20
     [db]=20
     [engine]=15
-    [ofm_core]=60
+    [ofm_core]=40
 )
 
 # The order slots run in. Fixed, so the rotation is the same whatever order the counts arrive in.

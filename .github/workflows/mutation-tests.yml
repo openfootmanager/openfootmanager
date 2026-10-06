@@ -20,7 +20,8 @@ name: mutation-tests
 #   domain      367 mutants
 #   db          488 mutants    17.8 s each, measured (27 Sep 2026: 2h 27m)
 #   engine    1,547 mutants    ~4.5 s each on a workstation; not yet measured here
-#   ofm_core  8,360 mutants    ~115 s each, measured (4 Oct 2026), before the build changes below
+#   ofm_core  8,360 mutants    34.2 s each, measured (6 Oct 2026); 115 s before the build changes
+#                              in the mutate step below
 #
 # This used to be one fixed slot a week, with `ofm_core` split 13 ways on the strength of the
 # `db` figure. `ofm_core`'s mutants turned out to cost six times as much, so its slots needed
@@ -28,7 +29,7 @@ name: mutation-tests
 # computed every run from the live mutant counts and a per-crate cost, by
 # `scripts/mutation-slot.sh` — the costs live there, with where each one came from, and that is
 # the file to change when a run overruns. Six slots run in parallel each Sunday, so the rotation
-# (46 slots at the counts above) comes round about every eight weeks.
+# (32 slots at the counts above) comes round about every six weeks.
 
 on:
   schedule:

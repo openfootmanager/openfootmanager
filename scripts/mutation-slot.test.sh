@@ -64,10 +64,10 @@ echo "mutation-slot.test: the rotation"
 
 rotation="$("$script" rotation "${counts[@]}")"
 slot_total="$(printf '%s\n' "$rotation" | wc -l)"
-if [ "$slot_total" -eq 46 ]; then
-    record 1 "today's counts make a 46-slot rotation" ""
+if [ "$slot_total" -eq 32 ]; then
+    record 1 "today's counts make a 32-slot rotation" ""
 else
-    record 0 "today's counts make a 46-slot rotation" "got $slot_total slots:
+    record 0 "today's counts make a 32-slot rotation" "got $slot_total slots:
 $rotation"
 fi
 
@@ -76,7 +76,7 @@ want_first='domain 0/1
 db 0/1
 engine 0/2
 engine 1/2
-ofm_core 0/42'
+ofm_core 0/28'
 if [ "$first_lines" = "$want_first" ]; then
     record 1 "crates come in a fixed order, each shard of a crate in turn" ""
 else
@@ -87,16 +87,16 @@ fi
 expect_output "$rotation" "the order of the arguments does not change the rotation" -- \
     rotation ofm_core=8360 engine=1547 db=488 domain=367
 
-# 60 seconds a mutant and a 12,000-second budget: 200 mutants fill a slot exactly, 201 do not.
+# 40 seconds a mutant and a 12,000-second budget: 300 mutants fill a slot exactly, 301 do not.
 expect_output "ofm_core 0/1" "a crate that exactly fills one slot gets one" -- \
-    first ofm_core domain=1 db=1 engine=1 ofm_core=200
+    first ofm_core domain=1 db=1 engine=1 ofm_core=300
 expect_output "ofm_core 0/2" "one mutant over the budget is a second slot, not an overrun" -- \
-    first ofm_core domain=1 db=1 engine=1 ofm_core=201
+    first ofm_core domain=1 db=1 engine=1 ofm_core=301
 
 echo "mutation-slot.test: picking a week's slots"
 
 # With these counts the rotation is: domain 0/1, db 0/1, engine 0/1, ofm_core 0/3, 1/3, 2/3.
-small=(domain=1 db=1 engine=1 ofm_core=600)
+small=(domain=1 db=1 engine=1 ofm_core=900)
 
 expect_output "domain 0/1" "week 0, job 0 is the first slot" -- pick 0 0 2 "${small[@]}"
 expect_output "db 0/1" "the jobs of one week take consecutive slots" -- pick 0 1 2 "${small[@]}"
@@ -114,7 +114,7 @@ expect_rejected "a week that is not a plain number" -- pick 2+1 0 2 "${small[@]}
 
 echo "mutation-slot.test: a manual run of one crate"
 
-expect_output "ofm_core 0/42" "a named crate starts at its own first shard" -- \
+expect_output "ofm_core 0/28" "a named crate starts at its own first shard" -- \
     first ofm_core "${counts[@]}"
 expect_output "domain 0/1" "a small crate is a single shard" -- first domain "${counts[@]}"
 expect_rejected "a crate that is not in the rotation" -- first ofm-cli "${counts[@]}"
