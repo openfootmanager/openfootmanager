@@ -106,8 +106,11 @@ jobs:
       # see `scripts/mutation-slot.sh` for why. `--list` only parses the source, so this costs
       # seconds. A listing that fails stops the step here under `-e`; one that prints nothing
       # counts as zero, which the script refuses rather than quietly planning without that crate.
-      # The rotation shifts when a count crosses a shard boundary. That moves later slots by one
-      # or two places, which is the price of slots that fit.
+      # The rotation shifts when a count crosses a shard boundary. That is no real loss of
+      # coverage: cargo-mutants deals mutants to shards by their position in the list, so any
+      # commit that adds or removes one mutant already reshuffles every shard of that crate, and a
+      # fixed table never promised each mutant a turn either. The rotation guarantees each slot
+      # *of the code as it stands that week* is a fair sample — and that it finishes.
       - name: Choose this week's slot
         id: crate
         env:
@@ -117,20 +120,25 @@ jobs:
           JOB_TOTAL: ${{ strategy.job-total }}
         run: |
           set -euo pipefail
-          counts=()
-          for listed in domain db engine ofm_core; do
-            count="$(cargo mutants --manifest-path src-tauri/Cargo.toml --package "$listed" --list | wc -l)"
-            counts+=("$listed=$count")
-          done
-          echo "Mutant counts: ${counts[*]}"
+          count_mutants() {
+            counts=()
+            for listed in domain db engine ofm_core; do
+              count="$(cargo mutants --manifest-path src-tauri/Cargo.toml --package "$listed" --list | wc -l)"
+              counts+=("$listed=$count")
+            done
+            echo "Mutant counts: ${counts[*]}"
+          }
 
           # `slot=` on its own line: a failure inside `read <<< "$(…)"` is not one `-e` sees, so
           # the planner refusing its input would otherwise surface later as "Invalid crate: ".
+          # A manual run that names its shard needs no counts, so it does not list anything.
           if [ -n "$INPUT_CRATE" ] && [ -n "$INPUT_SHARD" ]; then
             slot="$INPUT_CRATE $INPUT_SHARD"
           elif [ -n "$INPUT_CRATE" ]; then
+            count_mutants
             slot="$(./scripts/mutation-slot.sh first "$INPUT_CRATE" "${counts[@]}")"
           else
+            count_mutants
             week=$(( $(date -u +%s) / 604800 ))
             slot="$(./scripts/mutation-slot.sh pick "$week" "$JOB_INDEX" "$JOB_TOTAL" "${counts[@]}")"
           fi
