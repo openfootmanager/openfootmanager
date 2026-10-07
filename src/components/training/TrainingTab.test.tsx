@@ -252,4 +252,37 @@ describe("TrainingTab", () => {
       expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
     });
   });
+  // Given backend-selected youth, when Training opens, then the called-up row
+  // and his fatigue contribute to first-team training; excluded youth stay hidden.
+  it("shows called-up youth in Training using backend eligibility", async () => {
+    const state = createGameState(true);
+    state.teams[0].training_groups = [
+      { id: "recovery", name: "Recovery", focus: "Recovery", player_ids: [] },
+    ];
+    state.players = [
+      createPlayer({ id: "senior", full_name: "Senior Player", condition: 80 }),
+      createPlayer({
+        id: "called",
+        full_name: "Called Youth",
+        match_name: "Called Youth",
+        condition: 10,
+        squad_role: "Youth",
+        match_day_eligible: true,
+      }),
+      createPlayer({
+        id: "excluded",
+        full_name: "Excluded Youth",
+        match_name: "Excluded Youth",
+        squad_role: "Youth",
+        match_day_eligible: false,
+      }),
+    ];
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "get_squad" ? state.players : state,
+    );
+    render(<TrainingTab gameState={state} />);
+    expect(await screen.findByRole("row", { name: /Called Youth/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /Excluded Youth/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Warning advice 45/)).toBeInTheDocument();
+  });
 });
