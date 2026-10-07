@@ -2616,6 +2616,7 @@
       "managedTeamNotFound": "Managed team not found",
       "unknownFacilityType": "Unknown facility type",
       "liveMatch": {
+        "inProgress": "A match is in progress. Finish it before saving, advancing time or starting another match.",
         "noLeague": "No league data is available for this match.",
         "fixtureNotFound": "The selected fixture could not be found.",
         "fixtureNotScheduled": "This fixture is no longer scheduled and cannot be played.",

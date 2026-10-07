@@ -2616,6 +2616,7 @@
       "managedTeamNotFound": "Spravovaný tým nebyl nalezen",
       "unknownFacilityType": "Neznámý typ zázemí",
       "liveMatch": {
+        "inProgress": "Probíhá zápas. Před uložením, posunem času nebo zahájením dalšího zápasu jej dokončete.",
         "noLeague": "Pro tento zápas nejsou k dispozici žádná data o lize.",
         "fixtureNotFound": "Vybrané utkání nebylo nalezeno.",
         "fixtureNotScheduled": "Tento zápas již není naplánován a nelze ho odehrát.",
