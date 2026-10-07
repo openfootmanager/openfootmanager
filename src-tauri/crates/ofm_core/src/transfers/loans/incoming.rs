@@ -37,23 +37,23 @@ impl LoanCounterEvaluation {
     }
 }
 
-fn incoming_offer<'a>(
-    game: &'a Game,
+fn owned_player<'a>(
+    players: &'a [Player],
     user_team_id: &str,
     player_id: &str,
-    offer_id: &str,
-) -> Result<(&'a Player, &'a LoanOffer), String> {
-    let player = game
-        .players
+) -> Result<&'a Player, String> {
+    players
         .iter()
         .find(|player| player.id == player_id && player.team_id.as_deref() == Some(user_team_id))
-        .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
-    let offer = player
+        .ok_or_else(|| ERR_PLAYER_NOT_OWNED_BY_USER.to_string())
+}
+
+fn pending_offer<'a>(player: &'a Player, offer_id: &str) -> Result<&'a LoanOffer, String> {
+    player
         .loan_offers
         .iter()
         .find(|offer| offer.id == offer_id && offer.status == LoanOfferStatus::Pending)
-        .ok_or(ERR_OFFER_NOT_PENDING)?;
-    Ok((player, offer))
+        .ok_or_else(|| ERR_OFFER_NOT_PENDING.to_string())
 }
 
 fn offer_mut<'a>(
@@ -115,15 +115,11 @@ pub fn respond_to_loan_offer(
         .clone()
         .ok_or("be.error.noTeamAssigned")?;
     // Preserve ownership/active-loan validation before checking whether the offer is live.
-    let player = game
-        .players
-        .iter()
-        .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
-        .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
+    let player = owned_player(&game.players, &user_team_id, player_id)?;
     if accept && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
-    let (player, offer) = incoming_offer(game, &user_team_id, player_id, offer_id)?;
+    let offer = pending_offer(player, offer_id)?;
     if accept {
         crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
     }
@@ -317,16 +313,12 @@ pub fn counter_loan_offer(
         .clone()
         .ok_or("be.error.noTeamAssigned")?;
     // Preserve the original contract/reservation error order before resolving a pending offer.
-    let player = game
-        .players
-        .iter()
-        .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
-        .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
+    let player = owned_player(&game.players, &user_team_id, player_id)?;
     if player_has_pending_registration(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
     validate_loan_end_before_contract(player, parsed_end_date)?;
-    let (player, offer) = incoming_offer(game, &user_team_id, player_id, offer_id)?;
+    let offer = pending_offer(player, offer_id)?;
     validate_counter_improves(offer, &user_team_id, &terms)?;
     let borrower = game
         .teams
