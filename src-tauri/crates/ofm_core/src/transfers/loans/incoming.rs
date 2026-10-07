@@ -394,7 +394,7 @@ mod tests {
             suggested_end_date: None,
             suggested_buy_option_fee: None,
             status: LoanOfferStatus::Pending,
-            date: "2026-01-12".to_string(),
+            date: "2026-01-10".to_string(),
             closed_on: None,
         });
         // The parent retains one more senior in each group than the floor after departure;
@@ -484,7 +484,7 @@ mod tests {
         let offer = &game.players[0].loan_offers[0];
         assert_eq!(offer.last_manager_wage_contribution_pct, Some(75));
         assert_eq!(offer.negotiation_round, 2);
-        assert_eq!(offer.date, "2026-01-12");
+        assert_eq!(offer.date, "2026-01-10");
         assert_eq!(calc_wages(&game, "team2"), 75_000);
     }
 
