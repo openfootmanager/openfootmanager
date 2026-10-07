@@ -36,11 +36,10 @@ impl Game {
     /// dependency bump: `rng_for_is_pinned_to_its_first_draws` fails first if that
     /// stops being true.
     ///
-    /// What this makes repeatable is *a save*: the same save, played with the same
-    /// inputs, gives the same days. It does not make a *seed* regenerate a game,
-    /// because world generation still mints ids with `Uuid::new_v4`, and tags carry
-    /// ids — two worlds generated from one seed have different ids and so different
-    /// streams.
+    /// A save replays: the same save, played with the same inputs, gives the same days. So does
+    /// a seed: a world generated from one has the same ids all the way down, and the
+    /// schedules built on it derive theirs from what they are made of ([`derived_id`]), so
+    /// the tags that carry ids are the same in two runs.
     pub fn rng_for(&self, tag: &str, date: &str) -> ChaCha12Rng {
         rng_for_seed(self.seed, tag, date)
     }
@@ -126,6 +125,32 @@ fn expand_to_rng(mut word: u64, chain_salt: u64) -> ChaCha12Rng {
     }
     ChaCha12Rng::from_seed(key)
 }
+
+/// An id for something built from other things, derived from them: the same parts always give
+/// the same id, and different parts give different ones. For schedules and competitions, which
+/// are built from teams and dates with no generator or game in reach, and whose ids the order
+/// of a day's fixtures can depend on. It has the shape of a v4 UUID, so everything that treats
+/// ids as opaque strings is unaffected.
+pub fn derived_id(parts: &[&str]) -> String {
+    // Each part is written with its length, so no part can run into the next whatever it
+    // contains: ("a|b", "c") and ("a", "b|c") are different bytes.
+    let mut joined: Vec<u8> = Vec::new();
+    for part in parts {
+        joined.extend_from_slice(&(part.len() as u64).to_le_bytes());
+        joined.extend_from_slice(part.as_bytes());
+    }
+    let high = stable_hash(&joined, DERIVED_ID_SALT);
+    let low = stable_hash(&joined, high);
+    let mut bytes = [0u8; 16];
+    bytes[..8].copy_from_slice(&high.to_le_bytes());
+    bytes[8..].copy_from_slice(&low.to_le_bytes());
+    uuid::Builder::from_random_bytes(bytes)
+        .into_uuid()
+        .to_string()
+}
+
+/// Keeps a derived id from being the same number as any other use of `stable_hash`.
+const DERIVED_ID_SALT: u64 = 0x1d1d_1d1d_5eed_0003;
 
 /// Which of `count` phrasings a message is written in, chosen from what the message is.
 ///
@@ -241,6 +266,30 @@ mod tests {
             draws(rng_from_key("news/roundup/eng-d1/4/2032-09-01")),
             draws(rng_from_key("news/roundup/eng-d1/5/2032-09-08"))
         );
+    }
+
+    /// Given the parts something is built from,
+    /// When an id is derived from them, twice,
+    /// Then it is the same, and other parts give another.
+    #[test]
+    fn a_derived_id_is_the_same_for_the_same_parts_and_another_for_others() {
+        let id = derived_id(&["fixture", "league-1", "3", "2032-09-01", "a", "b"]);
+
+        assert_eq!(
+            id,
+            derived_id(&["fixture", "league-1", "3", "2032-09-01", "a", "b"])
+        );
+        assert_ne!(
+            id,
+            derived_id(&["fixture", "league-1", "3", "2032-09-01", "b", "a"])
+        );
+        assert_ne!(derived_id(&["ab", "c"]), derived_id(&["a", "bc"]));
+        // A part that contains the separator must not run into its neighbour.
+        assert_ne!(
+            derived_id(&["a\u{1f}b", "c"]),
+            derived_id(&["a", "b\u{1f}c"])
+        );
+        assert_eq!(id.len(), 36, "it is shaped like a UUID: {id}");
     }
 
     /// Given a message key and some phrasings,

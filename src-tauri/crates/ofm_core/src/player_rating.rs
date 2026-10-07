@@ -46,7 +46,9 @@ pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
     // 2. Compute potential if not yet set (initial generation or legacy saves)
     let age = player_age(&player.date_of_birth, current_year);
     let potential = if player.potential == 0 {
-        generate_potential(ovr, age)
+        // A player with no potential yet (a legacy save, a hand-built player): drawn from
+        // the player's own id, so the same player gets the same ceiling every time.
+        generate_potential(ovr, age, &mut crate::seed::rng_from_key(&player.id))
     } else {
         // Keep existing potential; clamp so it is always >= ovr
         player.potential.max(ovr)
@@ -78,8 +80,7 @@ pub fn qualifies_for_wonderkid(age: u32, potential: u8, ovr: u8) -> bool {
 /// Generate a potential rating for a newly-created player based on current OVR and age.
 /// Returns a value in [1, 99] that is always >= `ovr`.
 /// The lower bound of 1 (via `ovr.max(1)`) ensures potential is never 0 even when `ovr` is 0.
-pub fn generate_potential(ovr: u8, age: u32) -> u8 {
-    let mut rng = rand::rng();
+pub fn generate_potential(ovr: u8, age: u32, rng: &mut impl rand::Rng) -> u8 {
     let bonus: u8 = match age {
         ..=18 => rng.random_range(15u8..=30),
         19..=20 => rng.random_range(8u8..=22),
