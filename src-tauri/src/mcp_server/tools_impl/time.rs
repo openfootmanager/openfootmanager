@@ -160,6 +160,7 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── time_skip_to_match_day ─────────────────────────────────────────────────
 
 pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<String, String> {
+    crate::application::live_session::ensure_idle(&ctx.state_manager)?;
     let game = require_game(&ctx.state_manager)?;
     let league = require_league(&game)?;
     let team_id = game

@@ -1152,8 +1152,9 @@ mod tests {
             .unwrap();
         assert_eq!(competition_fixture.status, FixtureStatus::Completed);
 
-        // Session restore: starting again must not re-simulate completed
-        // fixtures (simulate_other_matches only touches Scheduled ones).
+        // Reconstructing a session requires that no live session exists.
+        // Completed same-day fixtures must still not be re-simulated.
+        state.take_live_match().expect("clear transient session");
         super::start_live_match_internal(&state, 0, "spectator", false, None, None)
             .expect("restore live match");
         let restored_result = state
@@ -1568,5 +1569,658 @@ mod tests {
         let second = apply_team_talk_internal(&mut game, "motivational", "losing", 13).unwrap();
 
         assert!(delta_for(&second, "t1_mid0") <= delta_for(&first, "t1_mid0"));
+    }
+}
+
+#[cfg(test)]
+mod live_session_tests {
+    use crate::{
+        application::{live_match, time_advancement},
+        commands::{season, time, util},
+    };
+    use chrono::{TimeZone, Utc};
+    use domain::league::{Fixture, FixtureCompetition, FixtureStatus};
+    use domain::manager::Manager;
+    use domain::player::{Player, PlayerAttributes, Position};
+    use domain::team::Team;
+    use ofm_core::{clock::GameClock, game::Game, state::StateManager};
+    use serde_json::Value;
+
+    const KEY: &str = "be.error.liveMatch.inProgress";
+    fn default_attrs() -> PlayerAttributes {
+        PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 60,
+            reflexes: 60,
+            aerial: 60,
+        }
+    }
+
+    fn make_player(id: &str, name: &str, team_id: &str, position: Position) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            name.to_string(),
+            name.to_string(),
+            "2000-01-01".to_string(),
+            "England".to_string(),
+            position,
+            default_attrs(),
+        );
+        player.team_id = Some(team_id.to_string());
+        player
+    }
+
+    fn make_game(roster_size: usize) -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr1".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+
+        let players: Vec<Player> = (1..=roster_size)
+            .map(|idx| {
+                let position = if idx == 1 {
+                    Position::Goalkeeper
+                } else if idx <= 5 {
+                    Position::Defender
+                } else if idx <= 9 {
+                    Position::Midfielder
+                } else {
+                    Position::Forward
+                };
+
+                make_player(
+                    &format!("p{}", idx),
+                    &format!("Player {}", idx),
+                    "team1",
+                    position,
+                )
+            })
+            .collect();
+
+        let mut team = Team::new(
+            "team1".to_string(),
+            "Test FC".to_string(),
+            "TST".to_string(),
+            "England".to_string(),
+            "Testville".to_string(),
+            "Test Ground".to_string(),
+            20_000,
+        );
+        team.starting_xi_ids = players
+            .iter()
+            .take(11)
+            .map(|player| player.id.clone())
+            .collect();
+
+        Game::new(clock, manager, vec![team], players, vec![], vec![])
+    }
+
+    fn make_game_with_matchday() -> Game {
+        let mut game = make_game(22);
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let mut opponent_team = Team::new(
+            "team2".to_string(),
+            "Rival FC".to_string(),
+            "RIV".to_string(),
+            "England".to_string(),
+            "Rivaltown".to_string(),
+            "Rival Ground".to_string(),
+            21_000,
+        );
+        opponent_team.starting_xi_ids = game
+            .players
+            .iter()
+            .skip(11)
+            .take(11)
+            .map(|p| p.id.clone())
+            .collect();
+        game.teams.push(opponent_team);
+
+        for player in game.players.iter_mut().skip(11) {
+            player.team_id = Some("team2".to_string());
+        }
+
+        game.teams[0].starting_xi_ids =
+            game.players.iter().take(11).map(|p| p.id.clone()).collect();
+        game.league = Some(domain::league::League {
+            id: "league-1".to_string(),
+            name: "League".to_string(),
+            season: 2025,
+            fixtures: vec![Fixture {
+                id: "fixture-1".to_string(),
+                competition_id: "league-1".to_string(),
+                matchday: 1,
+                date: today,
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            }],
+            standings: vec![
+                domain::league::StandingEntry::new("team1".to_string()),
+                domain::league::StandingEntry::new("team2".to_string()),
+            ],
+            transfer_log: vec![],
+            transfer_rumours: vec![],
+            ..domain::league::League::default()
+        });
+        game.competitions = game.league.iter().cloned().collect();
+        game
+    }
+
+    fn state_at_minute_thirty() -> StateManager {
+        let state = StateManager::new();
+        state.set_game(make_game_with_matchday());
+        live_match::start_live_match_with_identity(&state, 0, "spectator", false, None, None)
+            .unwrap();
+        live_match::step_live_match(&state, 30).unwrap();
+        let minute = live_match::get_match_snapshot(&state)
+            .unwrap()
+            .current_minute;
+        if minute < 30 {
+            live_match::step_live_match(&state, u16::from(30 - minute)).unwrap();
+        }
+        assert_eq!(
+            live_match::get_match_snapshot(&state)
+                .unwrap()
+                .current_minute,
+            30
+        );
+        state
+    }
+
+    fn checkpoint(state: &StateManager) -> Value {
+        serde_json::json!({
+            "game": state.get_game(|game| serde_json::to_value(game).unwrap()),
+            "stats": state.get_stats_state(|stats| serde_json::to_value(stats).unwrap()),
+            "snapshot": live_match::get_match_snapshot(state).unwrap(),
+            "identity": state.with_live_match(|session| (session.competition_id.clone(), session.fixture_id.clone(), session.fixture_index)),
+            "save_id": state.get_save_id(),
+        })
+    }
+
+    macro_rules! refused_advance {
+        ($name:ident, $operation:expr) => {
+            /// Given a live session at minute 30, when this date route is requested,
+            /// then the live-match key is returned and game, stats and session are unchanged.
+            #[test]
+            fn $name() {
+                let state = state_at_minute_thirty();
+                let before = checkpoint(&state);
+                assert_eq!(($operation)(&state).err().as_deref(), Some(KEY));
+                assert_eq!(checkpoint(&state), before);
+            }
+        };
+    }
+    refused_advance!(
+        plain_advancing_during_a_live_match_is_refused,
+        time::advance_time_internal
+    );
+    refused_advance!(mode_advancing_during_a_live_match_is_refused, |s| {
+        time_advancement::advance_time_with_mode(s, "delegate")
+    });
+    refused_advance!(live_mode_advancing_during_a_live_match_is_refused, |s| {
+        time_advancement::advance_time_with_mode(s, "live")
+    });
+    refused_advance!(
+        skipping_during_a_live_match_is_refused,
+        time::skip_to_match_day_internal
+    );
+    refused_advance!(
+        one_day_advancing_during_a_live_match_is_refused,
+        time::advance_one_day_internal
+    );
+    refused_advance!(
+        event_advancing_during_a_live_match_is_refused,
+        time::advance_to_next_event_internal
+    );
+    refused_advance!(
+        season_advancing_during_a_live_match_is_refused,
+        season::advance_to_next_season_internal
+    );
+
+    /// Given a live session, when another match is started, then the first session is unchanged.
+    #[test]
+    fn starting_a_second_match_is_refused() {
+        let state = state_at_minute_thirty();
+        let before = checkpoint(&state);
+        assert_eq!(
+            live_match::start_live_match_with_identity(&state, 0, "live", false, None, None)
+                .err()
+                .as_deref(),
+            Some(KEY)
+        );
+        assert_eq!(checkpoint(&state), before);
+    }
+
+    fn save_directory() -> std::path::PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path =
+            std::env::temp_dir().join(format!("ofm-live-save-{}-{unique}", std::process::id()));
+        std::fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    fn file_bytes(
+        path: &std::path::Path,
+    ) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+        let mut files = std::collections::BTreeMap::new();
+        for entry in std::fs::read_dir(path).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                files.extend(file_bytes(&path));
+            } else {
+                files.insert(path.clone(), std::fs::read(path).unwrap());
+            }
+        }
+        files
+    }
+
+    /// Given a live session at minute 30, when save is requested, then no file changes and the session continues.
+    #[test]
+    fn saving_during_a_live_match_is_refused() {
+        let state = state_at_minute_thirty();
+        let path = save_directory();
+        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let id = saves
+            .create_save(&state.get_game(Clone::clone).unwrap(), "Live refusal")
+            .unwrap();
+        state.set_save_id(id);
+        state.update_game(|game| game.teams[0].finance += 1234);
+        let before = checkpoint(&state);
+        let files = file_bytes(&path);
+        let result = util::persist_active_game(&state, &mut saves);
+        assert_eq!(result.err().as_deref(), Some(KEY));
+        assert_eq!(file_bytes(&path), files);
+        assert_eq!(checkpoint(&state), before);
+        assert!(live_match::step_live_match(&state, 1).is_ok());
+        drop(saves);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    /// Given a session completed through finish, when saving, then the persisted fixture holds the full result.
+    #[test]
+    fn saving_after_the_match_finishes_works() {
+        let state = state_at_minute_thirty();
+        let path = save_directory();
+        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let id = saves
+            .create_save(&state.get_game(Clone::clone).unwrap(), "Finished match")
+            .unwrap();
+        state.set_save_id(id.clone());
+        live_match::finish_live_match(&state).unwrap();
+        let expected = state
+            .get_game(|game| {
+                serde_json::to_value(&game.league.as_ref().unwrap().fixtures[0]).unwrap()
+            })
+            .unwrap();
+        util::persist_active_game(&state, &mut saves).unwrap();
+        let game = saves.load_game(&id).unwrap();
+        let fixture = &game.league.unwrap().fixtures[0];
+        assert_eq!(fixture.status, FixtureStatus::Completed);
+        assert_eq!(serde_json::to_value(fixture).unwrap(), expected);
+        assert!(
+            fixture
+                .result
+                .as_ref()
+                .unwrap()
+                .report
+                .as_ref()
+                .unwrap()
+                .total_minutes
+                >= 90
+        );
+        assert!(state.with_live_match(|_| ()).is_none());
+        drop(saves);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    /// Given a match started in career A, when a saved career B replaces A and is saved,
+    /// then saving succeeds and A's session cannot finish or alter B's fixtures.
+    #[test]
+    fn loading_another_career_during_a_match_allows_saving() {
+        let state = state_at_minute_thirty();
+        let old_stats = domain::stats::StatsState {
+            player_matches: vec![],
+            team_matches: vec![domain::stats::TeamMatchStatsRecord {
+                fixture_id: "previous-a".to_string(),
+                season: 2025,
+                matchday: 0,
+                date: "2025-06-14".to_string(),
+                competition: FixtureCompetition::League,
+                team_id: "team1".to_string(),
+                opponent_team_id: "team2".to_string(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                goals_for: 1,
+                goals_against: 0,
+                possession_pct: 55,
+                shots: 8,
+                shots_on_target: 4,
+                passes_completed: 300,
+                passes_attempted: 350,
+                tackles_won: 9,
+                interceptions: 5,
+                fouls_committed: 3,
+                yellow_cards: 1,
+                red_cards: 0,
+            }],
+        };
+        let mut other_stats = old_stats.clone();
+        other_stats.team_matches[0].fixture_id = "previous-b".to_string();
+        other_stats.team_matches[0].goals_for = 4;
+        state.set_stats_state(old_stats);
+        let path = save_directory();
+        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let mut other = make_game_with_matchday();
+        other.manager.id = "career-b".to_string();
+        other.manager_id = other.manager.id.clone();
+        let id = saves
+            .create_save_with_stats(&other, &other_stats, "Career B")
+            .unwrap();
+        let loaded = saves.load_game(&id).unwrap();
+        crate::application::career::install_career(
+            &state,
+            loaded,
+            saves.load_stats_state(&id).unwrap(),
+            Some(id.clone()),
+        );
+        state.update_game(|game| game.teams[0].finance += 1234);
+        util::persist_active_game(&state, &mut saves).unwrap();
+        let expected = state
+            .get_game(|game| serde_json::to_value(game).unwrap())
+            .unwrap();
+        assert_eq!(
+            live_match::finish_live_match(&state).err().as_deref(),
+            Some("be.error.noActiveLiveMatch")
+        );
+        assert_eq!(
+            state
+                .get_game(|game| serde_json::to_value(game).unwrap())
+                .unwrap(),
+            expected
+        );
+        drop(saves);
+        let mut reader = db::save_manager::SaveManager::init(&path).unwrap();
+        let restored = reader.load_game(&id).unwrap();
+        assert_eq!(
+            reader.load_stats_state(&id).unwrap().team_matches,
+            other_stats.team_matches
+        );
+        assert_eq!(restored.manager.id, "career-b");
+        assert_eq!(restored.teams[0].finance, other.teams[0].finance + 1234);
+        assert_eq!(
+            restored.league.unwrap().fixtures[0].status,
+            FixtureStatus::Scheduled
+        );
+        drop(reader);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    /// Given a live match and an old save identity, when a new unsaved career is installed,
+    /// then both the old session and save identity are discarded.
+    #[test]
+    fn creating_an_unsaved_career_discards_the_previous_session() {
+        let state = state_at_minute_thirty();
+        state.set_save_id("previous-save".to_string());
+        crate::application::career::install_career(
+            &state,
+            make_game_with_matchday(),
+            Default::default(),
+            None,
+        );
+        assert!(state.with_live_match(|_| ()).is_none());
+        assert!(state.get_save_id().is_none());
+        assert_eq!(
+            live_match::finish_live_match(&state).err().as_deref(),
+            Some("be.error.noActiveLiveMatch")
+        );
+    }
+
+    /// Given an in-flight lifecycle operation, when another caller replaces the career,
+    /// then replacement queues until the operation releases the shared lock.
+    #[test]
+    fn career_replacement_waits_for_an_in_flight_operation() {
+        let state = std::sync::Arc::new(state_at_minute_thirty());
+        let operation = crate::application::live_session::operation();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let other = state.clone();
+        let handle = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            crate::application::career::install_career(
+                &other,
+                make_game_with_matchday(),
+                Default::default(),
+                None,
+            );
+            done_tx.send(()).unwrap();
+        });
+        started_rx.recv().unwrap();
+        let queued = matches!(
+            done_rx.recv_timeout(std::time::Duration::from_secs(1)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        );
+        drop(operation);
+        handle.join().unwrap();
+        assert!(
+            queued,
+            "career replacement must wait for the current start/finish/save/advance operation"
+        );
+    }
+    /// Given an idle saved career with changed finances, when returning to the menu,
+    /// then the changes reach a fresh save reader before the active state is cleared.
+    #[test]
+    fn exiting_saves_before_clearing_the_career() {
+        let state = StateManager::new();
+        let game = make_game_with_matchday();
+        let expected = game.teams[0].finance + 4321;
+        let path = save_directory();
+        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let id = saves.create_save(&game, "Exit career").unwrap();
+        state.set_game(game);
+        state.set_stats_state(Default::default());
+        state.set_save_id(id.clone());
+        state.update_game(|game| game.teams[0].finance = expected);
+        assert!(crate::application::saving::exit_to_menu(&state, &mut saves).unwrap());
+        assert!(state.get_game(|_| ()).is_none());
+        assert!(state.get_stats_state(|_| ()).is_none());
+        assert!(state.get_save_id().is_none());
+        drop(saves);
+        let mut reader = db::save_manager::SaveManager::init(&path).unwrap();
+        assert_eq!(reader.load_game(&id).unwrap().teams[0].finance, expected);
+        drop(reader);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    /// Given a career whose save cannot be written, when returning to the menu,
+    /// then the error leaves the career and its save identity intact.
+    #[test]
+    fn a_failed_exit_keeps_the_career() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_matchday());
+        state.set_save_id("missing-save".to_string());
+        let expected = state
+            .get_game(|game| serde_json::to_value(game).unwrap())
+            .unwrap();
+        let path = save_directory();
+        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        assert!(crate::application::saving::exit_to_menu(&state, &mut saves).is_err());
+        assert_eq!(
+            state
+                .get_game(|game| serde_json::to_value(game).unwrap())
+                .unwrap(),
+            expected
+        );
+        assert_eq!(state.get_save_id().as_deref(), Some("missing-save"));
+        drop(saves);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    /// Given an unsaved live career, when returning to the menu,
+    /// then the same live-session gate refuses and retains the career and session.
+    #[test]
+    fn exiting_an_unsaved_live_career_is_refused() {
+        let state = state_at_minute_thirty();
+        let before = checkpoint(&state);
+        let path = save_directory();
+        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        assert_eq!(
+            crate::application::saving::exit_to_menu(&state, &mut saves)
+                .err()
+                .as_deref(),
+            Some("be.error.liveMatch.inProgress")
+        );
+        assert_eq!(checkpoint(&state), before);
+        drop(saves);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    /// Given an exit blocked while clearing stats, when a match starts concurrently,
+    /// then start queues until the entire exit has cleared the career.
+    #[test]
+    fn exiting_holds_the_operation_until_the_career_is_cleared() {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_game_with_matchday());
+        state.set_stats_state(Default::default());
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let stats_state = state.clone();
+        let stats_lock = std::thread::spawn(move || {
+            stats_state.get_stats_state(|_| {
+                locked_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+            });
+        });
+        locked_rx.recv().unwrap();
+        let exit_state = state.clone();
+        let exit = std::thread::spawn(move || {
+            let path = save_directory();
+            let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+            let result = crate::application::saving::exit_to_menu(&exit_state, &mut saves);
+            drop(saves);
+            std::fs::remove_dir_all(path).unwrap();
+            result
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while state.get_game(|_| ()).is_some() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let clearing = state.get_game(|_| ()).is_none();
+        let start_state = state.clone();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let start = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            let result = live_match::start_live_match_with_identity(
+                &start_state,
+                0,
+                "spectator",
+                false,
+                None,
+                None,
+            );
+            done_tx.send(()).unwrap();
+            result
+        });
+        started_rx.recv().unwrap();
+        let queued = matches!(
+            done_rx.recv_timeout(std::time::Duration::from_secs(1)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        );
+        release_tx.send(()).unwrap();
+        stats_lock.join().unwrap();
+        assert!(!exit.join().unwrap().unwrap());
+        assert_eq!(
+            start.join().unwrap().err().as_deref(),
+            Some("be.error.noActiveGameSession")
+        );
+        assert!(clearing, "exit must reach the blocked clear");
+        assert!(queued, "start must wait until exit finishes clearing stats");
+    }
+
+    /// Given one scheduled fixture and two callers released together, when both start,
+    /// then exactly one starts and the other is refused without replacing the session.
+    #[test]
+    fn concurrent_match_starts_keep_the_first_session() {
+        let state = std::sync::Arc::new(StateManager::new());
+        state.set_game(make_game_with_matchday());
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+        let handles: Vec<_> = (0..2)
+            .map(|_| {
+                let state = state.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    live_match::start_live_match_with_identity(
+                        &state,
+                        0,
+                        "spectator",
+                        false,
+                        None,
+                        None,
+                    )
+                })
+            })
+            .collect();
+        barrier.wait();
+        let outcomes: Vec<_> = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect();
+        assert_eq!(outcomes.iter().filter(|result| result.is_ok()).count(), 1);
+        assert_eq!(
+            outcomes
+                .iter()
+                .find_map(|result| result.as_ref().err())
+                .unwrap(),
+            KEY
+        );
+        assert_eq!(
+            live_match::get_match_snapshot(&state)
+                .unwrap()
+                .current_minute,
+            0
+        );
+    }
+
+    /// Given a full-time snapshot whose result has not yet been applied, when advancing,
+    /// then the session still blocks the clock until finish is called.
+    #[test]
+    fn a_finished_snapshot_still_blocks_advancement_until_finish() {
+        let state = state_at_minute_thirty();
+        state
+            .with_live_match(|session| session.run_to_completion())
+            .unwrap();
+        let before = checkpoint(&state);
+        assert_eq!(
+            time::advance_time_internal(&state).err().as_deref(),
+            Some(KEY)
+        );
+        assert_eq!(checkpoint(&state), before);
     }
 }

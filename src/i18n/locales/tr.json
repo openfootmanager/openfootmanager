@@ -2616,6 +2616,7 @@
       "managedTeamNotFound": "Yönetilen takım bulunamadı",
       "unknownFacilityType": "Bilinmeyen tesis türü",
       "liveMatch": {
+        "inProgress": "Bir maç devam ediyor. Kaydetmeden, zamanı ilerletmeden veya başka bir maç başlatmadan önce bu maçı bitirin.",
         "noLeague": "Bu maç için lig verisi mevcut değil.",
         "fixtureNotFound": "Seçilen maç bulunamadı.",
         "fixtureNotScheduled": "Bu maç artık fikstürde yer almıyor ve oynanamaz.",
