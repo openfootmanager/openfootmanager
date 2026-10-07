@@ -90,6 +90,9 @@ tempfile = "3"
 # WebKitGTK exposes child-process termination; reuse the version Tauri already links.
 webkit2gtk = { version = "2.0", features = ["v2_20"] }
 
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+gtk = "0.18"
+
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own
 # crates and fully optimizing dependencies keeps incremental compiles fast while

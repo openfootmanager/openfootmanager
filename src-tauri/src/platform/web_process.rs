@@ -10,22 +10,17 @@ pub fn watch_web_processes(app: &tauri::App) {
     for (label, window) in app.webview_windows() {
         let signal_label = label.clone();
         if let Err(error) = window.with_webview(move |view| {
-            register_termination_observer(signal_label, |callback| {
-                view.inner()
-                    .connect_web_process_terminated(move |_, reason| callback(reason));
-            });
+            watch_webview(signal_label, &view.inner());
         }) {
             log::error!(target: LOG_TARGET, "[web-process] Could not observe WebKit webview '{label}': {error}");
         }
     }
 }
 
-type TerminationCallback = Box<dyn Fn(WebProcessTerminationReason)>;
-
-fn register_termination_observer(label: String, connect: impl FnOnce(TerminationCallback)) {
-    connect(Box::new(move |reason| {
+fn watch_webview(label: String, view: &webkit2gtk::WebView) {
+    view.connect_web_process_terminated(move |_, reason| {
         log_web_process_termination(&label, reason);
-    }));
+    });
 }
 
 fn log_web_process_termination(label: &str, reason: WebProcessTerminationReason) {
@@ -90,19 +85,57 @@ mod tests {
         assert_logged_records(label, reason);
     }
 
-    /// Given a webview signal connector, when its registered termination callback fires,
-    /// then that callback reaches the application logger at Error with its window and reason.
+    /// Given the production observer on a real WebKit view, when its native termination
+    /// signal fires, then the application logger records its window and reason at Error.
     #[test]
-    fn a_registered_web_process_termination_callback_reaches_the_logger() {
+    fn a_native_webkit_termination_signal_reaches_the_logger() {
+        const CHILD: &str = "OFM_NATIVE_WEBKIT_SIGNAL_TEST";
+        const SUCCESS: &str = "native WebKit termination reached the logger";
+        // GTK owns a main thread. A fresh process and private display isolate it from the
+        // parallel test harness and make this regression run on headless CI too.
+        if std::env::var_os(CHILD).is_none() {
+            let output = std::process::Command::new("xvfb-run")
+                .arg("--auto-servernum")
+                .arg(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "platform::web_process::tests::a_native_webkit_termination_signal_reaches_the_logger",
+                    "--nocapture",
+                ])
+                .env(CHILD, "1")
+                .env("GDK_BACKEND", "x11")
+                .env("GSETTINGS_BACKEND", "memory")
+                .output()
+                .expect("the native signal regression requires xvfb-run");
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(output.status.success(), "{stdout}\n{stderr}");
+            assert!(
+                stdout.contains(SUCCESS),
+                "native signal test did not run: {stdout}"
+            );
+            return;
+        }
+
+        use std::io::Write;
+        use webkit2gtk::glib::prelude::ObjectExt;
+        gtk::init().expect("the isolated display must initialize GTK");
         initialize_capture_logger();
-        let mut callback = None;
-        register_termination_observer("registered-window".to_string(), |registered| {
-            callback = Some(registered);
-        });
-        callback.expect("a termination observer must be registered")(
-            WebProcessTerminationReason::Crashed,
+        let view = webkit2gtk::WebView::new();
+        watch_webview("native-signal-window".to_string(), &view);
+        view.emit_by_name::<()>(
+            "web-process-terminated",
+            &[&WebProcessTerminationReason::ExceededMemoryLimit],
         );
-        assert_logged_records("registered-window", WebProcessTerminationReason::Crashed);
+        assert_logged_records(
+            "native-signal-window",
+            WebProcessTerminationReason::ExceededMemoryLimit,
+        );
+        drop(view);
+        println!("{SUCCESS}");
+        std::io::stdout().flush().unwrap();
+        // Run process teardown on GTK's initializing thread, rather than libtest's main.
+        std::process::exit(0);
     }
 
     /// Given WebKit crashes, when its termination is observed, then the label and cause are logged at Error.

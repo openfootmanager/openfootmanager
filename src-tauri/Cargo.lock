@@ -3076,6 +3076,7 @@ dependencies = [
  "db",
  "domain",
  "engine",
+ "gtk",
  "image",
  "log",
  "ofm_core",
