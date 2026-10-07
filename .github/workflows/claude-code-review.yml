@@ -64,7 +64,18 @@ jobs:
           plugins: 'code-review@claude-code-plugins'
           # The action also reads CLAUDE.md, which carries the repo's Code quality rules.
           prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number || github.event.issue.number }}'
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # --allowedTools is a whitelist: with only the inline-comment tool, the plugin cannot run
+          # `gh pr view` / `gh pr diff` (its steps 1 and 3), nor launch its subagents, nor post its
+          # summary, so it ends after two turns having posted nothing (run 37561981084). This is the
+          # plugin's own allowed-tools list (plugins/code-review/commands/code-review.md) plus the
+          # subagent and read tools it needs. Read-only except `gh pr comment` and the inline
+          # comment tool, the only writes. No git, no `gh api`, no broad Bash.
+          claude_args: >-
+            --allowedTools
+            "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr list:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Task,Agent,TodoWrite,Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment"
+          # TEMPORARY: print the full transcript so the next run shows what the review did. Remove
+          # once a review has been verified to post (it can echo tool output into the public log).
+          show_full_output: true
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
