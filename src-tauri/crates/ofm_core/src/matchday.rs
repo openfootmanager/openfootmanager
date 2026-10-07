@@ -341,7 +341,7 @@ pub struct StrandedFixture {
 /// The core tests and load-time repair share this definition of a stranded fixture. The
 /// season harness can use the same query when its integration lands.
 pub fn stranded_fixtures(game: &Game, on_or_before: NaiveDate) -> Vec<StrandedFixture> {
-    let club = game.competitions.iter().flat_map(|competition| {
+    let club = game.competitions_in_play().iter().flat_map(|competition| {
         competition
             .fixtures
             .iter()
@@ -363,7 +363,7 @@ pub fn stranded_fixtures(game: &Game, on_or_before: NaiveDate) -> Vec<StrandedFi
 
 #[cfg(test)]
 mod stranded_tests {
-    use super::stranded_fixtures;
+    use super::{StrandedFixture, stranded_fixtures};
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{NaiveDate, TimeZone, Utc};
@@ -424,6 +424,29 @@ mod stranded_tests {
         assert_eq!(stranded[0].fixture_id, "old");
         assert_eq!(stranded[0].owner, "mine");
         assert_eq!(stranded[0].date, "2030-09-09");
+    }
+
+    /// Given an empty competition list and an overdue fixture in the legacy league,
+    /// When the shared query checks for stranded fixtures,
+    /// Then it returns that fixture with its legacy owner and date.
+    #[test]
+    fn the_legacy_league_is_checked_for_stranded_fixtures() {
+        let mut game = game_with(vec![fixture(
+            "legacy-old",
+            "2030-09-09",
+            FixtureStatus::Scheduled,
+        )]);
+        game.league = game.competitions.pop();
+        assert!(game.competitions.is_empty());
+
+        assert_eq!(
+            stranded_fixtures(&game, day("2030-09-10")),
+            vec![StrandedFixture {
+                owner: "mine".to_string(),
+                fixture_id: "legacy-old".to_string(),
+                date: "2030-09-09".to_string(),
+            }]
+        );
     }
 
     /// Given Completed fixtures and Scheduled fixtures dated tomorrow,
