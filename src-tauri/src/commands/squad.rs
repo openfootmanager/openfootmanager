@@ -27,23 +27,70 @@ fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option
     Some(age)
 }
 
+/// Sets the user's formation and drops roles the new shape no longer admits.
+fn apply_formation(game: &mut Game, formation: &str) -> Result<(), String> {
+    let team_id = user_team_id(game)?;
+
+    // Note: `player.position` is intentionally NOT mutated here. A player's
+    // stored position is their natural position; the position they are
+    // *deployed* in is derived on demand from the formation + starting XI
+    // (see `player_rating::deployed_position`). The previous stat-ranked
+    // bucket overwrite corrupted role validation and match simulation
+    // (issue #257).
+    let team = user_team_mut(game)?;
+    team.formation = formation.to_string();
+
+    reconcile_player_roles(game, &team_id);
+
+    Ok(())
+}
+
+fn parse_play_style(play_style: &str) -> domain::team::PlayStyle {
+    match play_style {
+        "Attacking" => domain::team::PlayStyle::Attacking,
+        "Defensive" => domain::team::PlayStyle::Defensive,
+        "Possession" => domain::team::PlayStyle::Possession,
+        "Counter" => domain::team::PlayStyle::Counter,
+        "HighPress" => domain::team::PlayStyle::HighPress,
+        _ => domain::team::PlayStyle::Balanced,
+    }
+}
+
 pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<Game, String> {
+    mutate_active_game(state, |game| apply_formation(game, formation))
+}
+
+/// Picks a tactic preset: its formation and play style, and the phase blueprint
+/// that style implies (`blueprint_for`, the same one AI clubs take the field with).
+///
+/// Distinct from `set_play_style_internal` on purpose: tweaking the style alone
+/// must not wipe dials a manager tuned by hand, but choosing a whole preset is
+/// a request for that preset's setup (#365).
+pub fn apply_tactic_preset_internal(
+    state: &StateManager,
+    formation: &str,
+    play_style: &str,
+) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let team_id = user_team_id(game)?;
+        apply_formation(game, formation)?;
 
-        // Note: `player.position` is intentionally NOT mutated here. A player's
-        // stored position is their natural position; the position they are
-        // *deployed* in is derived on demand from the formation + starting XI
-        // (see `player_rating::deployed_position`). The previous stat-ranked
-        // bucket overwrite corrupted role validation and match simulation
-        // (issue #257).
+        let style = parse_play_style(play_style);
         let team = user_team_mut(game)?;
-        team.formation = formation.to_string();
-
-        reconcile_player_roles(game, &team_id);
+        team.tactics_phase = ofm_core::ai_tactics::blueprint_for(&style);
+        team.play_style = style;
 
         Ok(())
     })
+}
+
+#[tauri::command]
+pub fn apply_tactic_preset(
+    state: State<'_, Arc<StateManager>>,
+    formation: String,
+    play_style: String,
+) -> Result<Game, String> {
+    info!("[cmd] apply_tactic_preset: {} / {}", formation, play_style);
+    apply_tactic_preset_internal(&state, &formation, &play_style)
 }
 
 pub fn set_starting_xi_internal(
@@ -91,17 +138,8 @@ pub fn set_play_style(
 
 pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
     mutate_active_game(state, |game| {
-        let style = match play_style {
-            "Attacking" => domain::team::PlayStyle::Attacking,
-            "Defensive" => domain::team::PlayStyle::Defensive,
-            "Possession" => domain::team::PlayStyle::Possession,
-            "Counter" => domain::team::PlayStyle::Counter,
-            "HighPress" => domain::team::PlayStyle::HighPress,
-            _ => domain::team::PlayStyle::Balanced,
-        };
-
         let team = user_team_mut(game)?;
-        team.play_style = style;
+        team.play_style = parse_play_style(play_style);
 
         Ok(())
     })
@@ -640,7 +678,8 @@ pub fn set_tactics_phase(
 #[cfg(test)]
 mod tests {
     use super::{
-        set_formation_internal, set_player_role_internal, set_player_squad_role_internal,
+        apply_tactic_preset_internal, set_formation_internal, set_play_style_internal,
+        set_player_role_internal, set_player_squad_role_internal,
         set_player_training_focus_internal,
     };
     use chrono::{TimeZone, Utc};
@@ -648,6 +687,8 @@ mod tests {
     use domain::player::{Player, PlayerAttributes, Position, SquadRole};
     use domain::team::Team;
     use domain::team::TrainingFocus;
+    use domain::team::{PitchWidth, PlayStyle, Tempo};
+    use ofm_core::ai_tactics::blueprint_for;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
     use ofm_core::state::StateManager;
@@ -754,6 +795,101 @@ mod tests {
 
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         assert_ne!(stored.teams[0].formation, "4-3-3");
+    }
+
+    /// A club whose manager has hand-tuned two dials away from its style's blueprint.
+    fn state_with_custom_dials() -> StateManager {
+        let state = StateManager::new();
+        let mut game = make_game(make_player("1998-01-01"));
+        game.teams[0].play_style = PlayStyle::Balanced;
+        game.teams[0].tactics_phase.width = PitchWidth::Wide;
+        game.teams[0].tactics_phase.tempo = Tempo::Patient;
+        state.set_game(game);
+        state
+    }
+
+    fn stored_team(state: &StateManager) -> Team {
+        state
+            .get_game(|game| game.teams[0].clone())
+            .expect("stored game")
+    }
+
+    /// Given a manager with custom dials
+    /// When they pick a tactic preset
+    /// Then formation and play style change and the phase blueprint becomes that
+    ///      style's blueprint
+    #[test]
+    fn apply_tactic_preset_resets_the_blueprint_to_the_presets_style() {
+        let state = state_with_custom_dials();
+
+        apply_tactic_preset_internal(&state, "3-4-3", "Defensive").expect("preset applies");
+
+        let team = stored_team(&state);
+        assert_eq!(team.formation, "3-4-3");
+        assert_eq!(team.play_style, PlayStyle::Defensive);
+        assert_eq!(team.tactics_phase, blueprint_for(&PlayStyle::Defensive));
+    }
+
+    /// Given a manager with custom dials
+    /// When they change the play style alone
+    /// Then the custom dials are kept
+    #[test]
+    fn changing_the_play_style_alone_keeps_the_custom_dials() {
+        let state = state_with_custom_dials();
+
+        set_play_style_internal(&state, "Defensive").expect("style applies");
+
+        let team = stored_team(&state);
+        assert_eq!(team.play_style, PlayStyle::Defensive);
+        assert_eq!(team.tactics_phase.width, PitchWidth::Wide);
+        assert_eq!(team.tactics_phase.tempo, Tempo::Patient);
+    }
+
+    /// Given a manager whose club already plays the preset's style with custom dials
+    /// When they pick that same preset again
+    /// Then the dials return to the preset's blueprint
+    #[test]
+    fn re_picking_the_active_preset_restores_its_blueprint() {
+        let state = state_with_custom_dials();
+
+        apply_tactic_preset_internal(&state, "4-4-2", "Balanced").expect("preset applies");
+
+        assert_eq!(
+            stored_team(&state).tactics_phase,
+            blueprint_for(&PlayStyle::Balanced)
+        );
+    }
+
+    /// Given a manager holding a club that does not exist
+    /// When a preset is applied
+    /// Then it reports the missing club and changes nothing
+    #[test]
+    fn apply_tactic_preset_reports_a_team_id_that_matches_no_club() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_dangling_team_id(make_player("1998-01-01")));
+
+        let result = apply_tactic_preset_internal(&state, "3-4-3", "Attacking");
+
+        assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
+        let team = stored_team(&state);
+        assert_ne!(team.formation, "3-4-3");
+        assert_eq!(team.tactics_phase, blueprint_for(&PlayStyle::Balanced));
+    }
+
+    /// Given an unemployed manager
+    /// When a preset is applied
+    /// Then it reports that no team is assigned
+    #[test]
+    fn apply_tactic_preset_reports_an_unemployed_manager() {
+        let state = StateManager::new();
+        let mut game = make_game(make_player("1998-01-01"));
+        game.manager.team_id = None;
+        state.set_game(game);
+
+        assert_eq!(
+            apply_tactic_preset_internal(&state, "3-4-3", "Attacking").err(),
+            Some("be.error.noTeamAssigned".into())
+        );
     }
 
     #[test]
