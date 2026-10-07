@@ -58,6 +58,11 @@ jobs:
           # The plugin's review agents are launched from the main session only; the cap stops
           # recursive delegation and spending.
           CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "1"
+          # Subagents otherwise start in the background, and in a headless CI run the main turn
+          # ends before they report (run 37564082511: "Async agent launched successfully", then
+          # "Waiting on the eligibility check before proceeding." and the job finished), so the
+          # review never happened. https://code.claude.com/docs/en/env-vars.md
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           # The OIDC exchange for the Claude GitHub App's token is rejected for pull_request_target
           # runs ("App token exchange failed: 401 Unauthorized - Invalid OIDC token", run
