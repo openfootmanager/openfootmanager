@@ -32,9 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
-      id-token: write
+      # pull-requests: write for the review's inline comments, issues: write for PR conversation
+      # comments. No id-token: the action never does the OIDC exchange (see github_token below).
+      pull-requests: write
+      issues: write
 
     steps:
       # These jobs carry the maintainer's token, so the actions are pinned to commits, not tags
@@ -54,6 +55,10 @@ jobs:
         id: claude-review
         uses: anthropics/claude-code-action@86d88e619d8e6caf07b5c3944dd14f441c533718 # v1
         with:
+          # The OIDC exchange for the Claude GitHub App's token is rejected for pull_request_target
+          # runs ("App token exchange failed: 401 Unauthorized - Invalid OIDC token", run
+          # 37559262567), so the run's own token is used; reviews then post as github-actions[bot].
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
