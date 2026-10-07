@@ -62,7 +62,7 @@ pub fn get_season_awards(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::advance_to_next_season_internal;
     use chrono::{TimeZone, Utc};
     use domain::league::{
@@ -75,7 +75,7 @@ mod tests {
     use ofm_core::game::{BoardObjective, Game, ObjectiveType};
     use ofm_core::state::StateManager;
 
-    fn completed_checkpoint() -> Game {
+    pub(crate) fn completed_checkpoint() -> Game {
         let mut manager = Manager::new(
             "manager".into(),
             "Test".into(),
@@ -296,11 +296,21 @@ mod tests {
     /// then both games are identical, including generated fixture identities.
     #[test]
     fn the_tool_and_the_command_agree() {
-        let checkpoint = serde_json::to_string(&completed_checkpoint()).unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let mut writer = db::save_manager::SaveManager::init(directory.path()).unwrap();
+        let save_id = writer
+            .create_save(&completed_checkpoint(), "Parity")
+            .unwrap();
+        drop(writer);
+        let mut first_reader = db::save_manager::SaveManager::init(directory.path()).unwrap();
+        let first = first_reader.load_game(&save_id).unwrap();
+        drop(first_reader);
+        let mut second_reader = db::save_manager::SaveManager::init(directory.path()).unwrap();
+        let second = second_reader.load_game(&save_id).unwrap();
         let command = StateManager::new();
         let tool = StateManager::new();
-        command.set_game(serde_json::from_str(&checkpoint).unwrap());
-        tool.set_game(serde_json::from_str(&checkpoint).unwrap());
+        command.set_game(first);
+        tool.set_game(second);
         let command_result = advance_to_next_season_internal(&command).unwrap();
         let tool_result = advance_to_next_season_internal(&tool).unwrap();
         let ids = |result: &serde_json::Value| {
