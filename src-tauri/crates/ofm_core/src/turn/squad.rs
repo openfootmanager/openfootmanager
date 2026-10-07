@@ -15,9 +15,6 @@ use std::collections::{HashMap, HashSet};
 // Domain → Engine conversion with starting XI / bench split
 // ---------------------------------------------------------------------------
 
-// A healthy eleven plus seven reserves before admitting youth. Seniors are uncapped.
-const MATCH_DAY_POOL_TARGET: usize = 18;
-
 pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (name, formation, play_style, tactics, saved_xi_ids) = match team {
@@ -44,25 +41,12 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         ),
     };
 
-    // Youth only cover a shortage in the healthy senior pool, for both the
-    // user's saved XI and AI selection. A temporary call-up never promotes them.
-    let (mut available_players, mut youth_players): (
-        Vec<&domain::player::Player>,
-        Vec<&domain::player::Player>,
-    ) = game
-        .players
+    let eligible = crate::match_day_eligibility::match_day_eligible_players(&game.players, team_id);
+    let available_players: Vec<_> = eligible
         .iter()
-        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
-        .partition(|p| p.squad_role == domain::player::SquadRole::Senior);
-    let youth_needed = MATCH_DAY_POOL_TARGET.saturating_sub(available_players.len());
-    if youth_needed > 0 {
-        youth_players.sort_by(|left, right| {
-            natural_ovr(right)
-                .total_cmp(&natural_ovr(left))
-                .then_with(|| left.id.cmp(&right.id))
-        });
-        available_players.extend(youth_players.into_iter().take(youth_needed));
-    }
+        .copied()
+        .filter(|p| p.injury.is_none())
+        .collect();
     let player_roles = team.map(|t| &t.player_roles);
     // `deployed` is the granular slot the player occupies; `None` for the bench,
     // where the player's own position is used instead. The engine's coarse
@@ -105,7 +89,7 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
     // (entry i plays formation slot i), so the list index is the deployed slot.
     let slots = formation_slots(&formation);
-    fill_from_the_treatment_room(game, team_id, &slots, &mut starting_players);
+    fill_from_the_treatment_room(&eligible, &slots, &mut starting_players);
     let used_ids: HashSet<String> = starting_players
         .iter()
         .map(|player| player.id.clone())
@@ -142,6 +126,18 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     (team_data, bench)
 }
 
+/// Persist the side the user's actual kickoff will field so the next save and
+/// the management views no longer retain an ineligible youth starter.
+pub(crate) fn reconcile_user_starting_xi(game: &mut Game, team_id: &str) {
+    if game.manager.team_id.as_deref() != Some(team_id) {
+        return;
+    }
+    let (side, _) = build_team_with_bench(game, team_id);
+    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+        team.starting_xi_ids = side.players.into_iter().map(|p| p.id).collect();
+    }
+}
+
 /// Make a short XI up to the number of slots the formation asks for, drawing on
 /// players who are carrying an injury.
 ///
@@ -159,8 +155,7 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
 /// broken save rather than an injury crisis, and papering over it here would
 /// only hide it.
 fn fill_from_the_treatment_room<'a>(
-    game: &'a Game,
-    team_id: &str,
+    eligible: &[&'a domain::player::Player],
     slots: &[DomainPosition],
     starting_players: &mut Vec<&'a domain::player::Player>,
 ) {
@@ -172,10 +167,9 @@ fn fill_from_the_treatment_room<'a>(
     let mut used: HashSet<&str> = starting_players.iter().map(|p| p.id.as_str()).collect();
     let already_named = starting_players.len();
     for slot in slots.iter().take(wanted).skip(already_named) {
-        let best = game
-            .players
+        let best = eligible
             .iter()
-            .filter(|p| p.team_id.as_deref() == Some(team_id))
+            .copied()
             .filter(|p| p.injury.is_some() && !used.contains(p.id.as_str()))
             .min_by(|left, right| {
                 let days = |p: &domain::player::Player| {
@@ -216,9 +210,11 @@ fn reseat_by_position(
             .iter()
             .enumerate()
             .max_by(|(_, left), (_, right)| {
-                positional_fit_for_assignment(left, slot)
-                    .partial_cmp(&positional_fit_for_assignment(right, slot))
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                compare_goalkeeper_fit(left, right, slot).then_with(|| {
+                    positional_fit_for_assignment(left, slot)
+                        .partial_cmp(&positional_fit_for_assignment(right, slot))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
             })
             .map(|(index, _)| index);
         if let Some(index) = best {
@@ -279,9 +275,11 @@ fn select_starting_xi<'a>(
             .copied()
             .filter(|player| !used_ids.contains(&player.id))
             .max_by(|left, right| {
-                effective_rating_for_assignment(left, slot)
-                    .partial_cmp(&effective_rating_for_assignment(right, slot))
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                compare_goalkeeper_fit(left, right, slot).then_with(|| {
+                    effective_rating_for_assignment(left, slot)
+                        .partial_cmp(&effective_rating_for_assignment(right, slot))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
             });
         if let Some(player) = best {
             used_ids.insert(player.id.clone());
@@ -300,6 +298,19 @@ fn select_starting_xi<'a>(
     chosen.into_iter().map(Option::unwrap).collect()
 }
 
+/// A natural keeper covers the goalkeeper slot before outfield rating matters.
+/// With no keeper available, retain the emergency outfielder fallback.
+fn compare_goalkeeper_fit(
+    left: &domain::player::Player,
+    right: &domain::player::Player,
+    slot: &DomainPosition,
+) -> std::cmp::Ordering {
+    let is_keeper = |player: &domain::player::Player| {
+        *slot == DomainPosition::Goalkeeper && player.natural_position == DomainPosition::Goalkeeper
+    };
+    is_keeper(left).cmp(&is_keeper(right))
+}
+
 fn auto_select_starting_xi<'a>(
     available_players: &[&'a domain::player::Player],
     formation: &str,
@@ -314,9 +325,11 @@ fn auto_select_starting_xi<'a>(
             .copied()
             .filter(|player| !used_ids.contains(&player.id))
             .max_by(|left, right| {
-                effective_rating_for_assignment(left, slot)
-                    .partial_cmp(&effective_rating_for_assignment(right, slot))
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                compare_goalkeeper_fit(left, right, slot).then_with(|| {
+                    effective_rating_for_assignment(left, slot)
+                        .partial_cmp(&effective_rating_for_assignment(right, slot))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
             });
 
         let Some(player) = best_player else {
@@ -457,10 +470,12 @@ pub(crate) fn first_choice_eleven<'a>(
             .copied()
             .filter(|player| !chosen.iter().any(|picked| picked.id == player.id))
             .max_by(|left, right| {
-                positional_fit_for_assignment(left, slot)
-                    .partial_cmp(&positional_fit_for_assignment(right, slot))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| right.id.cmp(&left.id))
+                compare_goalkeeper_fit(left, right, slot).then_with(|| {
+                    positional_fit_for_assignment(left, slot)
+                        .partial_cmp(&positional_fit_for_assignment(right, slot))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then_with(|| right.id.cmp(&left.id))
+                })
             });
         let Some(player) = best else {
             break;
@@ -809,11 +824,11 @@ pub fn auto_select_set_pieces(
 mod tests;
 
 #[cfg(test)]
-mod match_day_pool_tests {
+pub(crate) mod match_day_pool_tests {
     use super::tests::{attrs, club_whose_only_keeper_is_injured, mk, mk_pos};
     use super::*;
     use domain::player::Position as DomainPos;
-    fn match_day_game(is_user: bool, seniors: usize, youth: usize) -> Game {
+    pub(crate) fn match_day_game(is_user: bool, seniors: usize, youth: usize) -> Game {
         use domain::player::SquadRole;
         let mut game = club_whose_only_keeper_is_injured(is_user);
         game.players.clear();
@@ -905,12 +920,42 @@ mod match_day_pool_tests {
     #[test]
     fn a_saved_youth_starter_cannot_bypass_a_full_senior_pool() {
         let mut game = match_day_game(true, 18, 1);
-        game.teams[0].starting_xi_ids = std::iter::once("youth-00".into())
-            .chain((0..10).map(|i| format!("senior-{i:02}")))
+        game.teams[0].starting_xi_ids = (0..10)
+            .map(|i| format!("senior-{i:02}"))
+            .chain(std::iter::once("youth-00".into()))
             .collect();
-        let ids = match_day_ids(&game);
-        assert_eq!(ids.len(), 18);
-        assert!(!ids.contains("youth-00"));
+        game.league = Some(domain::league::League {
+            fixtures: vec![domain::league::Fixture {
+                home_team_id: "club".into(),
+                away_team_id: "club".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        // The public kickoff preparation must reconcile what the next save stores.
+        crate::live_match_manager::prepare_kick_off(&mut game, 0);
+        let (team, bench) = build_team_with_bench(&game, "club");
+        let starters: Vec<String> = team.players.iter().map(|p| p.id.clone()).collect();
+        assert_eq!(starters.len(), 11);
+        assert_eq!(starters.iter().collect::<HashSet<_>>().len(), 11);
+        assert_eq!(
+            &starters[..10],
+            &(0..10)
+                .map(|i| format!("senior-{i:02}"))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            starters[10], "senior-17",
+            "the best remaining senior replaces the youth in his slot"
+        );
+        assert!(
+            !starters
+                .iter()
+                .chain(bench.iter().map(|p| &p.id))
+                .any(|id| id == "youth-00")
+        );
+        let loaded: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        assert_eq!(loaded.teams[0].starting_xi_ids, starters);
     }
 
     /// Given fewer players than a full squad needs, when either manager builds it,
@@ -959,6 +1004,91 @@ mod match_day_pool_tests {
                     .filter(|p| p.id.starts_with("youth-"))
                     .all(|p| p.squad_role == domain::player::SquadRole::Youth)
             );
+        }
+    }
+    fn keeper_crisis(is_user: bool, seniors: usize) -> Game {
+        let mut game = match_day_game(is_user, seniors + 2, 3);
+        for i in 0..2 {
+            let p = &mut game.players[i];
+            p.position = DomainPos::Goalkeeper;
+            p.natural_position = DomainPos::Goalkeeper;
+            p.injury = Some(domain::player::Injury {
+                name: "knock".into(),
+                days_remaining: 5,
+            });
+        }
+        let keeper = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == "youth-00")
+            .unwrap();
+        keeper.position = DomainPos::Goalkeeper;
+        keeper.natural_position = DomainPos::Goalkeeper;
+        keeper.attributes = attrs(40);
+        game
+    }
+
+    /// Given injured senior keepers and a youth keeper below the numeric cut,
+    /// when the AI builds its squad, then the healthy youth keeper starts in goal.
+    #[test]
+    fn the_ai_calls_up_a_keeper_before_applying_the_pool_cap() {
+        for seniors in [17, 18, 22] {
+            let game = keeper_crisis(false, seniors);
+            let (team, bench) = build_team_with_bench(&game, "club");
+            assert_eq!(team.players[0].id, "youth-00");
+            assert_eq!(team.players.len(), 11);
+            assert_eq!(team.players.len() + bench.len(), seniors.max(17) + 1);
+            assert!(!match_day_ids(&game).contains("youth-02"));
+        }
+    }
+
+    /// Given injured senior keepers and a saved injured keeper, when the user
+    /// builds the squad, then the healthy youth keeper replaces him at slot zero.
+    #[test]
+    fn the_user_calls_up_a_keeper_before_applying_the_pool_cap() {
+        for seniors in [17, 18, 22] {
+            let mut game = keeper_crisis(true, seniors);
+            game.teams[0].starting_xi_ids = (0..11).map(|i| format!("senior-{i:02}")).collect();
+            let (team, bench) = build_team_with_bench(&game, "club");
+            assert_eq!(team.players[0].id, "youth-00");
+            assert_eq!(team.players.len(), 11);
+            assert_eq!(team.players.len() + bench.len(), seniors.max(17) + 1);
+        }
+    }
+
+    /// Given no saved XI and injured senior keepers, when the user auto-selects,
+    /// then the weak called-up keeper starts ahead of higher-rated outfielders.
+    #[test]
+    fn the_user_auto_selects_the_called_up_keeper_without_a_saved_eleven() {
+        let mut game = keeper_crisis(true, 18);
+        game.teams[0].starting_xi_ids.clear();
+        let (side, _) = build_team_with_bench(&game, "club");
+        assert_eq!(side.players.len(), 11);
+        assert_eq!(side.players[0].id, "youth-00");
+    }
+
+    /// Given ten healthy players including a weak youth keeper and an injured
+    /// outfielder, when either manager tops up the XI, then reseating keeps him in goal.
+    #[test]
+    fn treatment_room_reseating_keeps_the_called_up_keeper_in_goal() {
+        for is_user in [false, true] {
+            let mut game = match_day_game(is_user, 10, 1);
+            let injured = &mut game.players[0];
+            injured.position = DomainPos::CenterBack;
+            injured.natural_position = DomainPos::CenterBack;
+            injured.attributes = attrs(99);
+            injured.injury = Some(domain::player::Injury {
+                name: "knock".into(),
+                days_remaining: 5,
+            });
+            let keeper = game.players.last_mut().unwrap();
+            keeper.position = DomainPos::Goalkeeper;
+            keeper.natural_position = DomainPos::Goalkeeper;
+            keeper.attributes = attrs(40);
+            let (side, _) = build_team_with_bench(&game, "club");
+            assert_eq!(side.players.len(), 11);
+            assert!(side.players.iter().any(|p| p.id == "senior-00"));
+            assert_eq!(side.players[0].id, "youth-00");
         }
     }
 }
