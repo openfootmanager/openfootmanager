@@ -9,8 +9,9 @@ use std::sync::Arc;
 // ─── info_game_state ────────────────────────────────────────────────────────
 
 /// Return the full game state as JSON. This gives agents access to the raw
-/// structured data rather than formatted text. In Competition mode, this tool
-/// is disabled because it exposes detailed info about all teams/players.
+/// structured data rather than formatted text. It is available in competition mode
+/// by maintainer decision. Only game_new, game_select_team, game_export_world,
+/// game_exit and game_load_save are restricted by that mode.
 pub fn info_game_state(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
     serde_json::to_string_pretty(&game)
