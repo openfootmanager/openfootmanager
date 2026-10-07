@@ -960,10 +960,12 @@ mod tests {
         assert!(stored_player.active_loan.is_some());
     }
 
+    /// Given an affordable AI borrower, when its accepted counter passes through the command adapter, then the payload and stored game reflect the agreed loan.
     #[test]
     fn counter_loan_offer_internal_returns_payload_and_updates_state() {
         let state = StateManager::new();
         let mut game = make_game();
+        game.teams[1].wage_budget = 500_000;
         game.players[0].loan_listed = true;
         game.players[0].stage_wage(520_000);
         game.players[0].ovr = 68;
