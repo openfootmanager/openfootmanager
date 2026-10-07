@@ -1,10 +1,9 @@
 //! A game's days can be replayed: the same seed and the same inputs give the same world.
 //!
 //! What is compared is a projection of the world — results, tables, players' bodies and
-//! clubs' money — and not the whole `Game`: ids minted with `Uuid::new_v4` (inbox
-//! messages, news) are a separate source of difference from the dice, and this
-//! file is about the dice. A world is built once and cloned for each run, because two
-//! generations from one seed still mint different ids. The world is dated for the current year, because a world
+//! clubs' money — and not the whole `Game`: ids still minted with `Uuid::new_v4` (inbox
+//! messages, news, bids) are a separate matter from the dice, and this file is about
+//! the dice. A world is built once and cloned for each run. The world is dated for the current year, because a world
 //! generated for one year and played on another's clock releases every player.
 
 use ofm_core::clock::GameClock;
@@ -72,9 +71,10 @@ fn outcome(game: &Game) -> String {
     for competition in &game.competitions {
         for fixture in &competition.fixtures {
             if let Some(result) = &fixture.result {
-                // Not the fixture id: it is a `Uuid::new_v4` from when the schedule was built.
+                // Fixture ids are derived from what the fixture is, so they are compared too.
                 lines.push(format!(
-                    "result {} {} {}-{} {}-{}",
+                    "result {} {} {} {}-{} {}-{}",
+                    fixture.id,
                     competition.name,
                     fixture.date,
                     fixture.home_team_id,
@@ -99,6 +99,19 @@ fn outcome(game: &Game) -> String {
     }
     for team in &game.teams {
         lines.push(format!("{} finance{}", team.id, team.finance));
+    }
+    // The people a rollover brings in: the staff market and the manager pool.
+    for staff_member in &game.staff {
+        lines.push(format!(
+            "staff {} {:?} {:?} {}",
+            staff_member.id, staff_member.team_id, staff_member.role, staff_member.last_name
+        ));
+    }
+    for manager in &game.managers {
+        lines.push(format!(
+            "manager {} {:?} {}",
+            manager.id, manager.team_id, manager.last_name
+        ));
     }
     lines.join("\n")
 }
@@ -275,4 +288,69 @@ fn the_opening_seasons_international_friendlies_follow_the_seed() {
     assert!(!fixtures.is_empty(), "the opening season has friendlies");
     assert_eq!(fixtures, founded_with(7));
     assert_ne!(fixtures, founded_with(8));
+}
+
+/// Play until the season is over, roll it over, and play on a while.
+fn play_through_a_rollover(game: Game) -> Game {
+    let mut game = play_to_the_rollover(game);
+    for _ in 0..60 {
+        turn::process_day(&mut game);
+    }
+    game
+}
+
+/// Given a world with a player in charge of a club, and a seed,
+/// When a whole season is played, rolled over, and the next one begun, twice,
+/// Then the two runs end in the same world — the people the rollover brings in (youth, the
+///      staff and manager markets, national squads) included, ids and all.
+#[test]
+fn a_whole_season_and_its_rollover_replay_the_same_way() {
+    let save = managed_world(1, 7);
+
+    let first = outcome(&play_through_a_rollover(save.clone()));
+    let second = outcome(&play_through_a_rollover(save));
+
+    assert!(first == second, "{}", first_difference(&first, &second));
+}
+
+/// Every fixture id in the world, club and international.
+fn every_fixture_id(game: &Game) -> std::collections::BTreeSet<String> {
+    game.competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .chain(
+            game.national_teams
+                .iter()
+                .flat_map(|team| team.fixtures.iter()),
+        )
+        .map(|fixture| fixture.id.clone())
+        .collect()
+}
+
+/// Given a world played through a season and its rollover,
+/// When the next season's schedule exists,
+/// Then none of its fixtures has the id of one from the season before — match statistics and
+///      inbox items are keyed by fixture id, so a repeat is a clash when the second season is
+///      saved.
+#[test]
+fn a_new_season_reuses_no_fixture_id_from_the_last() {
+    let mut game = managed_world(1, 7);
+    let first_season = every_fixture_id(&game);
+    game = play_to_the_rollover(game);
+    let second_season: std::collections::BTreeSet<String> = game
+        .competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.status == domain::league::FixtureStatus::Scheduled)
+        .map(|fixture| fixture.id.clone())
+        .collect();
+
+    assert!(!second_season.is_empty());
+    let reused: Vec<&String> = second_season.intersection(&first_season).collect();
+    assert!(
+        reused.is_empty(),
+        "{} ids repeat, e.g. {:?}",
+        reused.len(),
+        reused.first()
+    );
 }

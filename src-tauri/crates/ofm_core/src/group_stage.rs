@@ -6,7 +6,6 @@ use domain::league::{
     CompetitionFormat, CompetitionRules, CompetitionScope, CompetitionType, FixtureCompetition,
     FixtureStatus, GroupState, League, StandingEntry,
 };
-use uuid::Uuid;
 
 /// Shape of a group stage at creation time.
 #[derive(Debug, Clone)]
@@ -140,7 +139,11 @@ pub fn generate_group_knockout_cup_with(
     scope: CompetitionScope,
     config: &GroupStageConfig,
 ) -> League {
-    let competition_id = Uuid::new_v4().to_string();
+    let season_key = season.to_string();
+    let start_key = start_date.to_rfc3339();
+    let mut id_parts = vec!["group-cup", name, &season_key, &start_key];
+    id_parts.extend(team_ids.iter().map(String::as_str));
+    let competition_id = crate::seed::derived_id(&id_parts);
     let group_states = seed_groups(&competition_id, team_ids, config.group_size);
     let groups: Vec<Vec<String>> = group_states
         .into_iter()
@@ -171,8 +174,18 @@ pub fn generate_group_knockout_cup_with_groups(
     scope: CompetitionScope,
     config: &GroupStageConfig,
 ) -> League {
-    let competition_id = Uuid::new_v4().to_string();
     let team_ids: Vec<String> = groups.iter().flatten().cloned().collect();
+    let season_key = season.to_string();
+    let start_key = start_date.to_rfc3339();
+    let group_sizes: Vec<String> = groups.iter().map(|group| group.len().to_string()).collect();
+    let mut id_parts = vec!["group-cup-with-groups", name, &season_key, &start_key];
+    // Length-prefixed entrants preserve ids containing separators; group sizes also
+    // preserve the draw's nested boundaries, including empty groups.
+    for (group, size) in groups.iter().zip(&group_sizes) {
+        id_parts.push(size.as_str());
+        id_parts.extend(group.iter().map(String::as_str));
+    }
+    let competition_id = crate::seed::derived_id(&id_parts);
     build_group_cup(
         competition_id,
         name,
@@ -442,6 +455,105 @@ mod tests {
             CompetitionType::ContinentalClub,
             CompetitionScope::Continental,
         )
+    }
+
+    /// Given distinct entrant lists whose comma-joined text is identical,
+    /// When snake-seeded group cups are generated for the same season and date,
+    /// Then their competition and fixture ids remain distinct.
+    #[test]
+    fn seeded_group_cups_preserve_entrant_boundaries_inside_ids() {
+        let first = ["a,b", "c", "d", "e"].map(String::from);
+        let second = ["a", "b,c", "d", "e"].map(String::from);
+        let cup = |teams: &[String]| {
+            generate_group_knockout_cup(
+                "Test Cup",
+                2026,
+                teams,
+                start(),
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+
+        assert_ne!(first.id, second.id);
+        assert!(
+            first
+                .fixtures
+                .iter()
+                .all(|fixture| second.fixtures.iter().all(|other| fixture.id != other.id))
+        );
+    }
+
+    /// Given explicit groups with distinct comma-containing entrant ids,
+    /// When group cups are generated for the same season and date,
+    /// Then their competition and fixture ids remain distinct.
+    #[test]
+    fn explicit_group_cups_preserve_entrant_boundaries_inside_ids() {
+        let first = vec![vec!["a,b".into(), "c".into(), "d".into(), "e".into()]];
+        let second = vec![vec!["a".into(), "b,c".into(), "d".into(), "e".into()]];
+        let cup = |groups: &[Vec<String>]| {
+            generate_group_knockout_cup_with_groups(
+                "Test Cup",
+                2026,
+                groups,
+                start(),
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+                &GroupStageConfig::default(),
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+
+        assert_ne!(first.id, second.id);
+        assert!(
+            first
+                .fixtures
+                .iter()
+                .all(|fixture| second.fixtures.iter().all(|other| fixture.id != other.id))
+        );
+    }
+
+    /// Given the same flattened entrants but different explicit group boundaries,
+    /// When group cups are generated with a common a/b group,
+    /// Then their competition ids and the common group's fixture ids remain distinct.
+    #[test]
+    fn explicit_group_cups_preserve_group_boundaries() {
+        let first = vec![
+            vec!["a".into(), "b".into()],
+            vec!["c".into(), "d".into()],
+            vec!["e".into(), "f".into()],
+        ];
+        let second = vec![
+            vec!["a".into(), "b".into()],
+            vec!["c".into(), "d".into(), "e".into(), "f".into()],
+        ];
+        let cup = |groups: &[Vec<String>]| {
+            generate_group_knockout_cup_with_groups(
+                "Test Cup",
+                2026,
+                groups,
+                start(),
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+                &GroupStageConfig::default(),
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+        let tie = |cup: &League| {
+            cup.fixtures
+                .iter()
+                .find(|f| f.home_team_id == "a" && f.away_team_id == "b")
+                .unwrap()
+                .id
+                .clone()
+        };
+
+        assert_ne!(tie(&first), tie(&second));
+        assert_ne!(first.id, second.id);
     }
 
     fn complete_fixture(league: &mut League, index: usize, home_goals: u8, away_goals: u8) {
