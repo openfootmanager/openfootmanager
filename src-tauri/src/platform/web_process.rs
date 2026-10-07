@@ -85,15 +85,17 @@ mod tests {
         assert_logged_records(label, reason);
     }
 
-    /// Given the production observer on a real WebKit view, when its native termination
-    /// signal fires, then the application logger records its window and reason at Error.
+    /// Given a managed Tauri webview window, when the production observer discovers it and
+    /// its native termination signal fires, then the logger records its window and reason at Error.
     #[test]
     fn a_native_webkit_termination_signal_reaches_the_logger() {
         const CHILD: &str = "OFM_NATIVE_WEBKIT_SIGNAL_TEST";
+        const PROFILE: &str = "OFM_NATIVE_WEBKIT_TEST_PROFILE";
         const SUCCESS: &str = "native WebKit termination reached the logger";
         // GTK owns a main thread. A fresh process and private display isolate it from the
         // parallel test harness and make this regression run on headless CI too.
         if std::env::var_os(CHILD).is_none() {
+            let isolated = tempfile::tempdir().unwrap();
             let output = std::process::Command::new("xvfb-run")
                 .arg("--auto-servernum")
                 .arg(std::env::current_exe().unwrap())
@@ -105,6 +107,10 @@ mod tests {
                 .env(CHILD, "1")
                 .env("GDK_BACKEND", "x11")
                 .env("GSETTINGS_BACKEND", "memory")
+                .env(PROFILE, isolated.path().join("webview"))
+                .env("XDG_CACHE_HOME", isolated.path().join("cache"))
+                .env("XDG_DATA_HOME", isolated.path().join("data"))
+                .env("XDG_CONFIG_HOME", isolated.path().join("config"))
                 .output()
                 .expect("the native signal regression requires xvfb-run");
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -121,17 +127,36 @@ mod tests {
         use webkit2gtk::glib::prelude::ObjectExt;
         gtk::init().expect("the isolated display must initialize GTK");
         initialize_capture_logger();
-        let view = webkit2gtk::WebView::new();
-        watch_webview("native-signal-window".to_string(), &view);
-        view.emit_by_name::<()>(
-            "web-process-terminated",
-            &[&WebProcessTerminationReason::ExceededMemoryLimit],
-        );
+        let mut context = tauri::generate_context!();
+        context.config_mut().app.windows.clear();
+        let app = tauri::Builder::default()
+            .any_thread()
+            .build(context)
+            .expect("the isolated Tauri app must initialize");
+        let window = tauri::WebviewWindowBuilder::new(
+            &app,
+            "native-signal-window",
+            tauri::WebviewUrl::External("about:blank".parse().unwrap()),
+        )
+        .visible(false)
+        .data_directory(std::env::var_os(PROFILE).unwrap().into())
+        .build()
+        .expect("the isolated app must manage a native webview window");
+        watch_web_processes(&app);
+        window
+            .with_webview(|view| {
+                view.inner().emit_by_name::<()>(
+                    "web-process-terminated",
+                    &[&WebProcessTerminationReason::ExceededMemoryLimit],
+                );
+            })
+            .expect("the managed window must expose its native view");
         assert_logged_records(
             "native-signal-window",
             WebProcessTerminationReason::ExceededMemoryLimit,
         );
-        drop(view);
+        drop(window);
+        drop(app);
         println!("{SUCCESS}");
         std::io::stdout().flush().unwrap();
         // Run process teardown on GTK's initializing thread, rather than libtest's main.
