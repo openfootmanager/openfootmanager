@@ -31,6 +31,17 @@ export async function setPlayerRole(
   });
 }
 
+/**
+ * Pick a whole tactic preset: formation, play style and the phase blueprint
+ * that style implies, in one atomic backend call.
+ */
+export async function applyTacticPreset(
+  formation: string,
+  playStyle: string,
+): Promise<GameStateData> {
+  return invoke<GameStateData>("apply_tactic_preset", { formation, playStyle });
+}
+
 export async function setTacticsPhase(
   patch: Partial<TacticsPhaseSettings>,
 ): Promise<GameStateData> {
