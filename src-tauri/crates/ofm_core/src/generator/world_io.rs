@@ -588,8 +588,9 @@ mod tests {
         );
     }
 
-    /// What a generated world is, ignoring the ids: player and team ids are still
-    /// minted unseeded, so two worlds of one seed differ in them and in nothing else.
+    /// What a generated world is: names and birth dates. Ids are left out because this was
+    /// written when they were minted at random; they are seeded now, and
+    /// `a_seed_regenerates_the_same_world_ids_included` is the test that holds them to it.
     fn fingerprint(world: &WorldData) -> (Vec<String>, Vec<String>) {
         (
             world.teams.iter().map(|team| team.name.clone()).collect(),
@@ -632,6 +633,57 @@ mod tests {
             fingerprint(&one),
             fingerprint(&two),
             "the seed must be what decides the world, or this proves nothing"
+        );
+    }
+
+    /// Given one seed,
+    /// When a world is generated from it twice,
+    /// Then it is the same world all the way down — the ids of its clubs, players and staff
+    ///      included, which are what the days of a game key their dice by.
+    #[test]
+    fn a_seed_regenerates_the_same_world_ids_included() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let config = crate::generator::WorldGenConfig::compact();
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = generate_world_data_seeded_with(5, &config, &sources);
+        let again = generate_world_data_seeded_with(5, &config, &sources);
+
+        for (a, b) in one.teams.iter().zip(&again.teams) {
+            assert_eq!(
+                serde_json::to_value(a).unwrap(),
+                serde_json::to_value(b).unwrap(),
+                "a club differs"
+            );
+        }
+        for (a, b) in one.players.iter().zip(&again.players) {
+            let (a, b) = (
+                serde_json::to_value(a).unwrap(),
+                serde_json::to_value(b).unwrap(),
+            );
+            let differing: Vec<(&String, &serde_json::Value, &serde_json::Value)> = a
+                .as_object()
+                .unwrap()
+                .iter()
+                .filter(|(key, value)| &b[key.as_str()] != *value)
+                .map(|(key, value)| (key, value, &b[key.as_str()]))
+                .collect();
+            assert!(differing.is_empty(), "a player differs in {differing:?}");
+        }
+        for (a, b) in one.staff.iter().zip(&again.staff) {
+            assert_eq!(
+                serde_json::to_value(a).unwrap(),
+                serde_json::to_value(b).unwrap(),
+                "a staff member differs"
+            );
+        }
+        assert!(
+            everything(&one) == everything(&again),
+            "the same seed gave different worlds"
         );
     }
 
