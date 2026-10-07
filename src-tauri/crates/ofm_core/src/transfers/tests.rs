@@ -48,7 +48,7 @@ fn sample_attributes() -> PlayerAttributes {
     }
 }
 
-fn make_game() -> Game {
+pub(super) fn make_game() -> Game {
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 1, 12, 12, 0, 0).unwrap());
     let mut manager = Manager::new(
         "mgr-user".to_string(),
