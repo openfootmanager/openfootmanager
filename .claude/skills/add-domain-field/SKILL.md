@@ -13,7 +13,15 @@ repositories in `src-tauri/crates/db/src/repositories/` use hand-written positio
 field that isn't in the column lists is silently dropped on every save/load round trip — with no
 error, no warning, and a passing test suite.
 
-Do all six steps.
+Start with `/write-tests` (programme PR 2): name the GWT scenarios and write the test cases first.
+Until that skill lands, follow the root Code quality Tests rules directly. Include a non-default SQL
+round-trip via a fresh reader and an old-save fixture with the new serialized field absent.
+Typed-field tests may need the field declaration and minimal constructor/struct-literal updates to
+compile; add only that scaffolding before observing RED. A compile error is not behavioural evidence.
+Observe the old-save incompatibility before adding its serde default, and the SQL round-trip failure
+before persistence and migration support. If existing serde behaviour already supplies the intended
+default, label that passing test characterization; do not invent a failure. Then complete all six
+steps below, including the required serde default before committing.
 
 ---
 
@@ -33,7 +41,8 @@ Use `#[serde(default = "default_youth_budget")]` with a function when zero, empt
 the wrong value for an old save. Think about what a save written *before* this feature existed
 should look like once loaded — that is what the default has to produce.
 
-Domain types hold data, not logic. Behaviour goes in `ofm_core`.
+Domain types may hold data, constructors, `Default` and pure value semantics. Outcome-deciding
+game rules and I/O belong in `ofm_core`; follow the root Code quality layering rules.
 
 ## 2. The repository — five edit sites
 
@@ -77,7 +86,9 @@ renumber an existing migration, because shipped saves have already run it.
 This is the step that catches the dropped-column bug, so write it before the repository edits.
 
 In `src-tauri/crates/db/`, extend the nearest existing round-trip test: build a value with the new
-field set to something **non-default**, save it, load it back, assert the field survived. A test
+field set to something **non-default**, save it, load it through a fresh reader, assert the field
+survived. Separately deserialize an old-save fixture without the field and assert its intended default.
+Run the named regression with only the fix removed in a disposable copy. A test
 that uses the default value passes even when the column is missing entirely.
 
 ```bash
@@ -111,6 +122,6 @@ cargo test --manifest-path src-tauri/Cargo.toml --workspace
 - [ ] **Both** SELECT lists updated, with `COALESCE` for the migrated column
 - [ ] `sql/vNNN_*.sql` added and registered in `migrations.rs`
 - [ ] `MIGRATION_COUNT` bumped
-- [ ] Round-trip test with a **non-default** value, written first
+- [ ] Non-default SQL round-trip and absent-field old-save default test, written first and seen failing
 - [ ] `cargo test --workspace` and `cargo clippy --workspace --all-targets` green
 - [ ] Frontend type updated; any new label translated into every locale

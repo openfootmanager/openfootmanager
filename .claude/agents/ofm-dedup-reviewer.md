@@ -18,7 +18,7 @@ mechanical.
 ## Look here before believing something is new
 
 - `src/components/ui/index.ts` — the UI primitives. Modal shells, badges, selects, pitch tokens.
-- `src/lib/` and `src/utils/` — shared helpers.
+- `src/lib/`, `src/utils/` and `src/services/` — shared helpers and IPC adapters.
 - `src/components/squad/SquadTab.helpers.ts` — 937 lines imported by dozens of files across ten feature
   folders. It is a shared library living in one tab's directory, so a "new" position or sorting
   helper is very often already in there.
@@ -44,14 +44,19 @@ mechanical.
 **A canonical version must also be *reachable*.** The MCP `user_team` helper is `pub(crate)`
 inside a module behind the `mcp` Cargo feature, so nothing in `src/commands/` could ever call it.
 An unreachable canonical is worse than none, because every reviewer assumes the problem is solved.
-If you point at an existing helper, check the new call site can actually use it.
+If you point at an existing helper, trace producer -> shared `_internal` seam -> writer -> consumer
+and check visibility, dependency direction and feature gates under both default and `mcp` builds.
+A reference in a feature-gated module is not proof of reuse from an always-built caller.
 
 **Say "this looks duplicated and is fine" when it is.** Three seventeen-arm matches over
 `Position` may be three different projections — short code, display name, sort key — which is
-correct design. An agent that cannot make that call gets ignored, and then it catches nothing.
+correct design. Engine/domain mirror types are deliberately separate; independent test oracles must
+not import the production computation for their expected values. Neither is duplication to consolidate.
 
 ## Output
 
 Findings as `file:line`, each naming the existing thing that should have been used and whether it
-is reachable from the new site. If you find nothing, say so plainly rather than manufacturing a
-finding.
+is reachable from the new site. List unresolved duplicates and their canonical homes for epic #589
+in the report and PR body; never file issues yourself. Apply the root Code quality rules and use
+`ofm-test-reviewer` for fixture/oracle concerns (added in programme PR 2). If you find nothing, say so
+plainly rather than manufacturing a finding.
