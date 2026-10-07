@@ -1814,15 +1814,11 @@ mod live_session_tests {
         assert_eq!(checkpoint(&state), before);
     }
 
-    fn save_directory() -> std::path::PathBuf {
-        let unique = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+    fn save_directory() -> tempfile::TempDir {
+        tempfile::Builder::new()
+            .prefix("ofm-live-save-")
+            .tempdir()
             .unwrap()
-            .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("ofm-live-save-{}-{unique}", std::process::id()));
-        std::fs::create_dir_all(&path).unwrap();
-        path
     }
 
     fn file_bytes(
@@ -1844,30 +1840,31 @@ mod live_session_tests {
     #[test]
     fn saving_during_a_live_match_is_refused() {
         let state = state_at_minute_thirty();
-        let path = save_directory();
-        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let directory = save_directory();
+        let path = directory.path();
+        let mut saves = db::save_manager::SaveManager::init(path).unwrap();
         let id = saves
             .create_save(&state.get_game(Clone::clone).unwrap(), "Live refusal")
             .unwrap();
         state.set_save_id(id);
         state.update_game(|game| game.teams[0].finance += 1234);
         let before = checkpoint(&state);
-        let files = file_bytes(&path);
+        let files = file_bytes(path);
         let result = util::persist_active_game(&state, &mut saves);
         assert_eq!(result.err().as_deref(), Some(KEY));
-        assert_eq!(file_bytes(&path), files);
+        assert_eq!(file_bytes(path), files);
         assert_eq!(checkpoint(&state), before);
         assert!(live_match::step_live_match(&state, 1).is_ok());
         drop(saves);
-        std::fs::remove_dir_all(path).unwrap();
     }
 
     /// Given a session completed through finish, when saving, then the persisted fixture holds the full result.
     #[test]
     fn saving_after_the_match_finishes_works() {
         let state = state_at_minute_thirty();
-        let path = save_directory();
-        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let directory = save_directory();
+        let path = directory.path();
+        let mut saves = db::save_manager::SaveManager::init(path).unwrap();
         let id = saves
             .create_save(&state.get_game(Clone::clone).unwrap(), "Finished match")
             .unwrap();
@@ -1896,7 +1893,6 @@ mod live_session_tests {
         );
         assert!(state.with_live_match(|_| ()).is_none());
         drop(saves);
-        std::fs::remove_dir_all(path).unwrap();
     }
 
     /// Given a match started in career A, when a saved career B replaces A and is saved,
@@ -1934,8 +1930,9 @@ mod live_session_tests {
         other_stats.team_matches[0].fixture_id = "previous-b".to_string();
         other_stats.team_matches[0].goals_for = 4;
         state.set_stats_state(old_stats);
-        let path = save_directory();
-        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let directory = save_directory();
+        let path = directory.path();
+        let mut saves = db::save_manager::SaveManager::init(path).unwrap();
         let mut other = make_game_with_matchday();
         other.manager.id = "career-b".to_string();
         other.manager_id = other.manager.id.clone();
@@ -1965,7 +1962,7 @@ mod live_session_tests {
             expected
         );
         drop(saves);
-        let mut reader = db::save_manager::SaveManager::init(&path).unwrap();
+        let mut reader = db::save_manager::SaveManager::init(path).unwrap();
         let restored = reader.load_game(&id).unwrap();
         assert_eq!(
             reader.load_stats_state(&id).unwrap().team_matches,
@@ -1978,7 +1975,6 @@ mod live_session_tests {
             FixtureStatus::Scheduled
         );
         drop(reader);
-        std::fs::remove_dir_all(path).unwrap();
     }
 
     /// Given a live match and an old save identity, when a new unsaved career is installed,
@@ -2039,8 +2035,9 @@ mod live_session_tests {
         let state = StateManager::new();
         let game = make_game_with_matchday();
         let expected = game.teams[0].finance + 4321;
-        let path = save_directory();
-        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let directory = save_directory();
+        let path = directory.path();
+        let mut saves = db::save_manager::SaveManager::init(path).unwrap();
         let id = saves.create_save(&game, "Exit career").unwrap();
         state.set_game(game);
         state.set_stats_state(Default::default());
@@ -2051,10 +2048,9 @@ mod live_session_tests {
         assert!(state.get_stats_state(|_| ()).is_none());
         assert!(state.get_save_id().is_none());
         drop(saves);
-        let mut reader = db::save_manager::SaveManager::init(&path).unwrap();
+        let mut reader = db::save_manager::SaveManager::init(path).unwrap();
         assert_eq!(reader.load_game(&id).unwrap().teams[0].finance, expected);
         drop(reader);
-        std::fs::remove_dir_all(path).unwrap();
     }
 
     /// Given a career whose save cannot be written, when returning to the menu,
@@ -2067,8 +2063,9 @@ mod live_session_tests {
         let expected = state
             .get_game(|game| serde_json::to_value(game).unwrap())
             .unwrap();
-        let path = save_directory();
-        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let directory = save_directory();
+        let path = directory.path();
+        let mut saves = db::save_manager::SaveManager::init(path).unwrap();
         assert!(crate::application::saving::exit_to_menu(&state, &mut saves).is_err());
         assert_eq!(
             state
@@ -2078,7 +2075,6 @@ mod live_session_tests {
         );
         assert_eq!(state.get_save_id().as_deref(), Some("missing-save"));
         drop(saves);
-        std::fs::remove_dir_all(path).unwrap();
     }
 
     /// Given an unsaved live career, when returning to the menu,
@@ -2087,8 +2083,9 @@ mod live_session_tests {
     fn exiting_an_unsaved_live_career_is_refused() {
         let state = state_at_minute_thirty();
         let before = checkpoint(&state);
-        let path = save_directory();
-        let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+        let directory = save_directory();
+        let path = directory.path();
+        let mut saves = db::save_manager::SaveManager::init(path).unwrap();
         assert_eq!(
             crate::application::saving::exit_to_menu(&state, &mut saves)
                 .err()
@@ -2097,7 +2094,6 @@ mod live_session_tests {
         );
         assert_eq!(checkpoint(&state), before);
         drop(saves);
-        std::fs::remove_dir_all(path).unwrap();
     }
 
     /// Given an exit blocked while clearing stats, when a match starts concurrently,
@@ -2119,11 +2115,11 @@ mod live_session_tests {
         locked_rx.recv().unwrap();
         let exit_state = state.clone();
         let exit = std::thread::spawn(move || {
-            let path = save_directory();
-            let mut saves = db::save_manager::SaveManager::init(&path).unwrap();
+            let directory = save_directory();
+            let path = directory.path();
+            let mut saves = db::save_manager::SaveManager::init(path).unwrap();
             let result = crate::application::saving::exit_to_menu(&exit_state, &mut saves);
             drop(saves);
-            std::fs::remove_dir_all(path).unwrap();
             result
         });
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
