@@ -1755,6 +1755,7 @@ fn incoming_loan_offer_does_not_block_permanent_transfer_interest() {
     );
 }
 
+/// Given an affordable AI borrower, when its incoming loan is accepted, then the player moves and both clubs retain the agreed wage split.
 #[test]
 fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
     let mut player = make_user_player("player-incoming-loan");
@@ -1781,6 +1782,7 @@ fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].wage_budget = 500_000;
     game.teams[0].starting_xi_ids = vec!["player-incoming-loan".to_string()];
 
     respond_to_loan_offer(&mut game, "player-incoming-loan", "loan-offer-1", true)
@@ -1812,6 +1814,7 @@ fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
     assert_eq!(calc_wages(&game, "team-2"), 390_000);
 }
 
+/// Given an affordable AI borrower and an acceptable counter, when terms settle, then the exact loan terms register immediately.
 #[test]
 fn countering_incoming_loan_offer_can_execute_accepted_terms() {
     let mut player = make_user_player("player-counter-loan-accepted");
@@ -1824,6 +1827,7 @@ fn countering_incoming_loan_offer_can_execute_accepted_terms() {
         .push(make_pending_incoming_loan_offer("loan-counter-1", 65, None));
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].wage_budget = 500_000;
     game.teams[1].finance = 6_000_000;
 
     let outcome = counter_loan_offer(
