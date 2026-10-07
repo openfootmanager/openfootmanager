@@ -226,6 +226,10 @@ Run all relevant tests before opening a Pull Request:
 npm test
 ```
 
+Local runs use at most two workers to avoid oversubscribing developer machines (#616). This also
+applies to `npm run preflight` and watch mode. CI retains Vitest's default pool. To measure another
+worker count explicitly, use `npm test -- --maxWorkers=3`; deadlines and retries are unchanged.
+
 ```bash
 cd src-tauri
 cargo test --locked --workspace

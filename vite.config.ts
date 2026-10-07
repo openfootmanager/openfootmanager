@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { env } from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vite";
@@ -135,6 +136,9 @@ export default defineConfig(async ({ command }) => ({
     };
   })(),
   test: {
+    // #616: unrestricted local pools oversubscribe shared developer machines. Two workers
+    // passed the measured full suite; keep CI defaults and explicit Vitest overrides available.
+    maxWorkers: env.CI && env.CI !== "false" ? undefined : 2,
     environment: "jsdom",
     globals: true,
     // The CI scripts under .github/scripts are plain Node modules; their tests opt into the node

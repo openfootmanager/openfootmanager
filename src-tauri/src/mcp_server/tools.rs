@@ -84,6 +84,43 @@ fn build_schema(
     )
 }
 
+fn match_start_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    let mut schema = (*build_schema(
+        &[
+            (
+                "fixture_index",
+                "integer",
+                "Index in the current league mirror; unused when stable IDs are supplied",
+            ),
+            ("mode", "string", "Match mode: live, spectator, or instant"),
+            (
+                "allows_extra_time",
+                "boolean",
+                "Compatibility parameter; ignored. The fixture determines extra time.",
+            ),
+            (
+                "competition_id",
+                "string",
+                "Optional stable competition ID; supply with fixture_id to select a cup",
+            ),
+            (
+                "fixture_id",
+                "string",
+                "Optional stable fixture ID; supply with competition_id",
+            ),
+        ],
+        &["mode"],
+    ))
+    .clone();
+    schema.insert(
+        "anyOf".to_string(),
+        serde_json::json!([
+            {"required":["fixture_index"]}, {"required":["competition_id", "fixture_id"]}
+        ]),
+    );
+    Arc::new(schema)
+}
+
 /// Helper to create a simple tool with no parameters.
 fn simple_tool(name: &'static str, description: &'static str) -> Tool {
     Tool::new(name, description, empty_input_schema())
@@ -181,6 +218,22 @@ fn require_u32_param(
 ) -> Result<u32, CallToolResult> {
     extract_u32_param(args, key)
         .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+}
+
+fn match_start_fixture_index(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+) -> Result<u32, CallToolResult> {
+    let index_is_supplied = args
+        .as_ref()
+        .is_some_and(|args| args.contains_key("fixture_index"));
+    let has_identity = extract_string_param(args, "competition_id").is_some()
+        && extract_string_param(args, "fixture_id").is_some();
+    if !index_is_supplied && has_identity {
+        // The application resolves the index from the exact identity under the game lock.
+        Ok(0)
+    } else {
+        require_u32_param(args, "fixture_index")
+    }
 }
 
 /// Extract a required bool parameter. Returns an error result if missing.
@@ -1506,10 +1559,10 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
 
     // ─── New tools: game state, saves, worlds ────────────────────────────────
 
-    // info_game_state — raw JSON game state dump (disabled in Competition mode)
+    // info_game_state — raw JSON game state dump (available in competition mode)
     real_tool!(
         "info_game_state",
-        "Full game state as JSON (useful for programmatic access; disabled in competition mode)",
+        "Full game state as JSON (useful for programmatic access; available in competition mode)",
         tools_impl::info::info_game_state
     );
 
@@ -1542,26 +1595,11 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     custom_tool!(
         "match_start",
         "Start a live match for a fixture",
-        build_schema(
-            &[
-                (
-                    "fixture_index",
-                    "integer",
-                    "Index of the fixture in the league fixture list"
-                ),
-                ("mode", "string", "Match mode: live, spectator, or instant"),
-                (
-                    "allows_extra_time",
-                    "boolean",
-                    "Allow extra time if draw (default: true)"
-                ),
-            ],
-            &["fixture_index", "mode"]
-        ),
+        match_start_schema(),
         ctx,
         args,
         {
-            let fixture_index = match require_u32_param(args, "fixture_index") {
+            let fixture_index = match match_start_fixture_index(args) {
                 Ok(v) => v,
                 Err(e) => return Ok(e),
             };
@@ -1570,7 +1608,16 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             let allows_extra_time = extract_bool_param(args, "allows_extra_time");
-            match tools_impl::live_match::match_start(ctx, fixture_index, mode, allows_extra_time) {
+            let competition_id = extract_string_param(args, "competition_id");
+            let fixture_id = extract_string_param(args, "fixture_id");
+            match tools_impl::live_match::match_start(
+                ctx,
+                fixture_index,
+                mode,
+                allows_extra_time,
+                competition_id,
+                fixture_id,
+            ) {
                 Ok(text) => Ok(text_result(text)),
                 Err(e) => Ok(err_result(&e)),
             }
@@ -2079,6 +2126,120 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
+
+    /// Given the MCP docs, implementation comment and registered tool description,
+    /// when an agent reads them, then they agree that the state dump is available
+    /// in competition mode and name the five restricted setup tools.
+    #[test]
+    fn the_docs_match_the_competition_mode_decision() {
+        let docs = include_str!("../../../docs/MCP_SERVER.md");
+        let competition_docs = docs
+            .split("## Competition Mode\n")
+            .nth(1)
+            .expect("competition-mode documentation")
+            .split("\n---")
+            .next()
+            .unwrap();
+        let info_source = include_str!("tools_impl/info.rs");
+        let info_comment = info_source.split("pub fn info_game_state").next().unwrap();
+        for document in [competition_docs, info_comment] {
+            assert!(
+                document.contains("available in competition mode"),
+                "the docs and implementation comment must state the availability decision"
+            );
+            for tool in crate::mcp_server::config::McpMode::Competition.disabled_tools() {
+                assert!(document.contains(tool), "missing restricted tool {tool}");
+            }
+        }
+        let registration = source()
+            .split("// info_game_state")
+            .nth(1)
+            .unwrap()
+            .split("tools_impl::info::info_game_state")
+            .next()
+            .unwrap();
+        assert!(registration.contains("available in competition mode"));
+        assert!(!registration.contains("disabled"));
+        let description = registration
+            .lines()
+            .filter_map(first_string_literal)
+            .nth(1)
+            .expect("registered tool description");
+        assert!(description.contains("available in competition mode"));
+    }
+
+    /// Given exact fixture identity without an index, when parsed for match_start,
+    /// then it reaches the shared application path with the unused index defaulted.
+    #[test]
+    fn exact_fixture_ids_need_no_index() {
+        let args = Some(
+            serde_json::json!({"competition_id":"cup", "fixture_id":"final"})
+                .as_object()
+                .unwrap()
+                .clone(),
+        );
+        assert_eq!(
+            match_start_fixture_index(&args).expect("exact identity needs no placeholder"),
+            0
+        );
+    }
+
+    /// Given index-based selection, when no index or an invalid index is supplied,
+    /// then it is refused; a valid index is preserved.
+    #[test]
+    fn index_selection_requires_a_valid_index() {
+        assert_eq!(
+            match_start_fixture_index(&Some(
+                serde_json::json!({"fixture_index":3})
+                    .as_object()
+                    .unwrap()
+                    .clone()
+            ))
+            .unwrap(),
+            3
+        );
+        assert!(match_start_fixture_index(&None).is_err());
+        for index in [
+            serde_json::json!(-1),
+            serde_json::json!(4294967296_u64),
+            serde_json::json!("0"),
+        ] {
+            let args = Some(
+                serde_json::json!({"fixture_index":index})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            );
+            assert!(match_start_fixture_index(&args).is_err());
+        }
+    }
+
+    /// Given exact identity and an explicitly invalid index, when parsed,
+    /// then the bad input is refused rather than silently replaced.
+    #[test]
+    fn an_invalid_supplied_index_is_not_replaced() {
+        let args = Some(
+            serde_json::json!({"competition_id":"cup", "fixture_id":"final", "fixture_index":-1})
+                .as_object()
+                .unwrap()
+                .clone(),
+        );
+        assert!(match_start_fixture_index(&args).is_err());
+    }
+
+    /// Given the live match schema, when its required selectors are read,
+    /// then mode is required and either an index or both identity fields select the fixture.
+    #[test]
+    fn the_match_start_schema_allows_either_selector() {
+        let schema = match_start_schema();
+        assert_eq!(schema.get("required"), Some(&serde_json::json!(["mode"])));
+        assert_eq!(
+            schema.get("anyOf"),
+            Some(&serde_json::json!([
+                {"required":["fixture_index"]}, {"required":["competition_id", "fixture_id"]}
+            ]))
+        );
+    }
 
     /// This module's own source. The router is built from closures capturing an
     /// `Arc<McpContext>`, which owns a `tauri::AppHandle`, so building a real router in a unit

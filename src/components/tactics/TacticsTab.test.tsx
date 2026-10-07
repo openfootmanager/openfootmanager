@@ -286,7 +286,7 @@ describe("TacticsTab", () => {
     );
   });
 
-  it("applies a preset by updating formation and play style", async () => {
+  it("applies a preset by asking the backend for the whole preset", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
@@ -295,10 +295,8 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByRole("option", { name: /high-press/i }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         formation: "3-4-3",
-      });
-      expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
         playStyle: "HighPress",
       });
     });
@@ -468,7 +466,7 @@ describe("TacticsTab", () => {
   it("does not mark a preset as active when applying it fails", async () => {
     const gameState = makeGameState();
     mockedInvoke.mockImplementation(async (command) => {
-      if (command === "set_formation") {
+      if (command === "apply_tactic_preset") {
         throw new Error("boom");
       }
 
@@ -491,8 +489,9 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByRole("option", { name: /high-press/i }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         formation: "3-4-3",
+        playStyle: "HighPress",
       });
     });
 

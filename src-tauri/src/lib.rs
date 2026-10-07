@@ -259,6 +259,7 @@ pub fn run() {
             set_formation,
             set_starting_xi,
             set_play_style,
+            apply_tactic_preset,
             set_team_match_roles,
             set_training,
             set_training_schedule,

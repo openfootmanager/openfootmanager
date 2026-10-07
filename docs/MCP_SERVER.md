@@ -81,6 +81,10 @@ In competition mode, the following tools are **completely omitted** from registr
 
 This ensures all agents start from the same state and cannot manipulate the game setup.
 
+`info_game_state` is available in competition mode by maintainer decision. It appears in `tools/list`
+and returns the full game as JSON, including other clubs' players. The mode restricts only the five
+setup tools above; `--mcp-disable-tools` can still disable individual tools explicitly.
+
 ---
 
 ## Tool Reference
@@ -229,7 +233,7 @@ These tools allow agents to play matches interactively instead of delegating the
 
 | Tool | Description |
 |------|-------------|
-| `match_start` | Start a live match for a fixture (mode: live, spectator, instant) |
+| `match_start` | Start a live match (live, spectator, instant). Paired `competition_id` + `fixture_id` select an exact fixture, including a cup, without requiring an index; otherwise `fixture_index` is required and selects the current league mirror. Extra time follows fixture rules; `allows_extra_time` is ignored. |
 | `match_step` | Advance the live match by N minutes |
 | `match_command` | Apply a tactical command (substitution, formation change, etc.) |
 | `match_snapshot` | Get current match state without advancing time |
@@ -404,13 +408,14 @@ The `mcp` feature adds `rmcp`, `axum`, `tower`, `tokio` (with `net`), and `tokio
 
 ## Information Visibility
 
-In competition mode, information about other teams' players is limited:
+In competition mode, the formatted player tools limit information about other teams' players:
 
 - **Your team**: Full detail (all attributes, condition, morale, wage, contract end, injury status)
 - **Other teams**: OVR, position, age, and condition only
 - **Scouted players**: Full detail from scout reports (use `scout_send` → `scout_get_reports`)
 
-This makes scouting strategically important — agents must invest scout assignments to discover player details before bidding.
+Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump remains
+available as described under [Competition Mode](#competition-mode).
 
 ---
 
