@@ -233,4 +233,26 @@ mod tests {
         ));
         round_trips(awards);
     }
+
+    /// Given a scout just dispatched, so an assignment exists but no report yet
+    /// When the reports are rendered
+    /// Then the text still shows the pending assignment, as the structure does.
+    #[test]
+    fn a_pending_assignment_shows_before_any_report_exists() {
+        let reports = scouting::ScoutReports {
+            reports: vec![],
+            active_assignments: vec![scouting::ScoutingAssignment {
+                id: "a1".to_string(),
+                scout_name: "S. Cout".to_string(),
+                player_name: "A. Player".to_string(),
+                days_remaining: 5,
+            }],
+        };
+
+        let text = reports.to_string();
+
+        assert!(text.contains("No scout reports available."));
+        assert!(text.contains("### Active Assignments (1 pending)"));
+        assert!(text.contains("| a1 | S. Cout | A. Player | 5 |"));
+    }
 }

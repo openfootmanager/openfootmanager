@@ -64,7 +64,7 @@ impl fmt::Display for GameSummary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let league = match &self.league {
             Some(league) => format!(
-                "**League Position**: {}st | **Points**: {} | **GD**: {:+}\n**Form**: {}",
+                "**League Position**: {} | **Points**: {} | **GD**: {:+}\n**Form**: {}",
                 league.position, league.points, league.goal_difference, league.form
             ),
             None => "**League**: No league yet (pre-season)".to_string(),
@@ -268,7 +268,8 @@ pub enum PlayerDetail {
     },
     Other {
         ovr: u8,
-        form: u8,
+        /// Shown to the agent as "Form".
+        condition: u8,
     },
 }
 
@@ -338,9 +339,9 @@ impl fmt::Display for PlayerProfile {
                 }
                 Ok(())
             }
-            PlayerDetail::Other { ovr, form } => write!(
+            PlayerDetail::Other { ovr, condition } => write!(
                 f,
-                "| OVR | {ovr} |\n| Form | {form} |\n\n*Use `scout_send` for detailed attributes.*"
+                "| OVR | {ovr} |\n| Form | {condition} |\n\n*Use `scout_send` for detailed attributes.*"
             ),
         }
     }

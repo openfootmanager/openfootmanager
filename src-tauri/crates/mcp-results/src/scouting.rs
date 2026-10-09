@@ -52,8 +52,19 @@ pub struct ScoutReports {
 impl fmt::Display for ScoutReports {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.reports.is_empty() {
-            return write!(f, "## Scout Reports\n\nNo scout reports available.");
+            write!(f, "## Scout Reports\n\nNo scout reports available.")?;
+        } else {
+            self.write_reports(f)?;
         }
+        if !self.active_assignments.is_empty() {
+            self.write_assignments(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl ScoutReports {
+    fn write_reports(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "## Scout Reports ({} reports)\n\n| ID | Player | Pos | Rating | Team | Read |\n|----|--------|-----|--------|------|------|\n",
@@ -74,19 +85,21 @@ impl fmt::Display for ScoutReports {
                 if report.read { "✓" } else { "●" },
             )?;
         }
-        if !self.active_assignments.is_empty() {
-            write!(
+        Ok(())
+    }
+
+    fn write_assignments(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "\n### Active Assignments ({} pending)\n\n| ID | Scout | Player | Days Left |\n|----|-------|--------|------------|\n",
+            self.active_assignments.len()
+        )?;
+        for a in &self.active_assignments {
+            writeln!(
                 f,
-                "\n### Active Assignments ({} pending)\n\n| ID | Scout | Player | Days Left |\n|----|-------|--------|------------|\n",
-                self.active_assignments.len()
+                "| {} | {} | {} | {} |",
+                a.id, a.scout_name, a.player_name, a.days_remaining
             )?;
-            for a in &self.active_assignments {
-                writeln!(
-                    f,
-                    "| {} | {} | {} | {} |",
-                    a.id, a.scout_name, a.player_name, a.days_remaining
-                )?;
-            }
         }
         Ok(())
     }

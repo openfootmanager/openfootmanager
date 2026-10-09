@@ -10,25 +10,11 @@ use mcp_results::info::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{
-    age_from_dob, format_position, require_game, require_league, serde_label, user_team,
+    age_from_dob, format_position, goal_difference, ranked, require_game, require_league,
+    serde_label, user_team,
 };
-use domain::league::{FixtureStatus, League, StandingEntry};
+use domain::league::{FixtureStatus, League};
 use std::sync::Arc;
-
-fn goal_difference(standing: &StandingEntry) -> i64 {
-    i64::from(standing.goals_for) - i64::from(standing.goals_against)
-}
-
-/// The table as the agent sees it: points, then goals scored.
-fn ranked(league: &League) -> Vec<StandingEntry> {
-    let mut standings = league.standings.clone();
-    standings.sort_by(|a, b| {
-        b.points
-            .cmp(&a.points)
-            .then_with(|| b.goals_for.cmp(&a.goals_for))
-    });
-    standings
-}
 
 fn result_letter(our_goals: u8, their_goals: u8) -> &'static str {
     match our_goals.cmp(&their_goals) {
@@ -378,7 +364,7 @@ pub fn info_player_profile(
         // Limited detail for other teams' players (competition mode)
         PlayerDetail::Other {
             ovr: player.ovr,
-            form: player.condition,
+            condition: player.condition,
         }
     };
 

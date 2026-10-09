@@ -278,7 +278,7 @@ impl fmt::Display for FreeAgentPreview {
         let weeks = |weeks: Option<i64>| weeks.map_or_else(|| "N/A".to_string(), |w| w.to_string());
         write!(
             f,
-            "## Free Agent Preview\n\n| Field | Value |\n|-------|-------|\n| Weekly Wage Offered | {}/wk |\n| Current Weekly Wage Bill | {} |\n| Projected Weekly Wage Bill | {} |\n| Weekly Wage Budget | {} |\n| Weekly Soft Cap | {} |\n| Cash Runway (weeks) | {} → {} |\n| Currently Over Budget | {} |\n| Policy Allows | {} |\n\nThis is a preview — no offer was made.",
+            "## Free Agent Preview\n\n| Field | Value |\n|-------|-------|\n| Weekly Wage Offered | {}/wk |\n| Current Weekly Wage Bill | {} |\n| Projected Weekly Wage Bill | {} |\n| Annual Wage Budget | {} |\n| Annual Soft Cap | {} |\n| Cash Runway (weeks) | {} → {} |\n| Currently Over Budget | {} |\n| Policy Allows | {} |\n\nThis is a preview — no offer was made.",
             self.weekly_wage,
             self.current_weekly_wage_spend,
             self.projected_weekly_wage_spend,

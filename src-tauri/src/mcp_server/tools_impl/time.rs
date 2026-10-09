@@ -5,7 +5,9 @@ use mcp_results::time::{
 };
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
+use crate::mcp_server::tools_impl::helpers::{
+    goal_difference, ranked, require_game, require_league,
+};
 use std::sync::{Arc, Mutex};
 
 // ─── time_advance ───────────────────────────────────────────────────────────
@@ -103,18 +105,13 @@ fn your_match_in(
 fn standings_update(game: &ofm_core::game::Game) -> Option<StandingsUpdate> {
     let league = game.league.as_ref()?;
     let team_id = game.manager.team_id.as_deref()?;
-    let mut standings = league.standings.clone();
-    standings.sort_by(|a, b| {
-        b.points
-            .cmp(&a.points)
-            .then_with(|| b.goals_for.cmp(&a.goals_for))
-    });
+    let standings = ranked(league);
     let position = standings.iter().position(|s| s.team_id == team_id)?;
     let standing = &standings[position];
     Some(StandingsUpdate {
         position: position + 1,
         points: standing.points,
-        goal_difference: i64::from(standing.goals_for) - i64::from(standing.goals_against),
+        goal_difference: goal_difference(standing),
     })
 }
 
