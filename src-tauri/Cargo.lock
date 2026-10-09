@@ -3076,6 +3076,7 @@ dependencies = [
  "db",
  "domain",
  "engine",
+ "gtk",
  "image",
  "log",
  "ofm_core",
@@ -3092,6 +3093,7 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
+ "webkit2gtk",
  "webp",
  "zip",
 ]

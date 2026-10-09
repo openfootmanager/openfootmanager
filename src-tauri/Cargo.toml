@@ -86,6 +86,13 @@ csv = "1"
 zip = { version = "2", features = ["deflate"] }
 tempfile = "3"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# WebKitGTK exposes child-process termination; reuse the version Tauri already links.
+webkit2gtk = { version = "2.0", features = ["v2_20"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+gtk = "0.18"
+
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own
 # crates and fully optimizing dependencies keeps incremental compiles fast while
@@ -110,6 +117,15 @@ codegen-units = 1
 # backtraces, which works against the diagnosability this release is trying to improve. Dropping
 # debuginfo alone gets most of the size win and keeps function names in the trace.
 strip = "debuginfo"
+
+# Used only by `.github/workflows/mutation-tests.yml`, which rebuilds one crate once per mutant.
+# Debuginfo is part of every one of those rebuilds and nobody reads a mutant's backtrace; without
+# it, and with incremental compilation on, an `ofm_core` mutant's build on a hosted runner went
+# from 90 s to 16 s (4 Oct and 6 Oct 2026). The optimisation levels are left as `test` has them. Lowering them would trade build
+# time for test time in a suite full of simulations, and nobody has measured which way that goes.
+[profile.mutants]
+inherits = "test"
+debug = "none"
 
 [features]
 mcp = ["dep:rmcp", "dep:axum", "dep:tokio"]

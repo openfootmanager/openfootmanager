@@ -150,9 +150,12 @@ pub fn bootstrap_game_for_mcp(
     let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
 
     // Step 6: Set state
-    state_manager.set_game(game);
-    state_manager.set_stats_state(stats_state);
-    state_manager.set_save_id(save_id.clone());
+    crate::application::career::install_career(
+        state_manager,
+        game,
+        stats_state,
+        Some(save_id.clone()),
+    );
 
     info!("[mcp-bootstrap] Game saved with ID: {}", save_id);
 

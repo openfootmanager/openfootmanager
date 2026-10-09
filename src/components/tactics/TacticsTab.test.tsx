@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
@@ -241,6 +241,34 @@ describe("TacticsTab", () => {
     });
   });
 
+  /** Given a tactics pitch token, when its player name is hovered,
+   * then the full summary appears outside the clipped pitch. */
+  it("shows a tactics token summary when its name is hovered", () => {
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    const control = screen.getByTestId("pitch-player-gk1");
+    fireEvent.mouseEnter(within(control).getByText("GK1"));
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("squad.pitchTokenTooltip");
+    expect(control).not.toContainElement(tooltip);
+  });
+
+  /** Given a tactics pitch token, when its player control receives keyboard focus,
+   * then its summary is visible and supplies an accessible description. */
+  it("describes a tactics token and shows its summary on focus", () => {
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    const control = screen.getByTestId("pitch-player-gk1");
+    act(() => control.focus());
+    expect(control).toHaveFocus();
+    expect(control).toHaveAccessibleDescription("squad.pitchTokenTooltip");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("squad.pitchTokenTooltip");
+    act(() => control.blur());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
   it("renders the top tactical controls plus bench player in the left panel", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
@@ -286,7 +314,7 @@ describe("TacticsTab", () => {
     );
   });
 
-  it("applies a preset by updating formation and play style", async () => {
+  it("applies a preset by asking the backend for the whole preset", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
@@ -295,10 +323,8 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByRole("option", { name: /high-press/i }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         formation: "3-4-3",
-      });
-      expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
         playStyle: "HighPress",
       });
     });
@@ -468,7 +494,7 @@ describe("TacticsTab", () => {
   it("does not mark a preset as active when applying it fails", async () => {
     const gameState = makeGameState();
     mockedInvoke.mockImplementation(async (command) => {
-      if (command === "set_formation") {
+      if (command === "apply_tactic_preset") {
         throw new Error("boom");
       }
 
@@ -491,8 +517,9 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByRole("option", { name: /high-press/i }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         formation: "3-4-3",
+        playStyle: "HighPress",
       });
     });
 

@@ -143,6 +143,7 @@ pub(crate) fn upsert_transfer_offer(
         date: date.to_string(),
         registration_date,
         closed_on: closing.then(|| date.to_string()),
+        registration_failure_reason: None,
     });
     offer_id
 }
@@ -174,6 +175,7 @@ pub(crate) fn create_incoming_user_offer(
             date: today.to_string(),
             registration_date: None,
             closed_on: None,
+            registration_failure_reason: None,
         });
 
         // Distinct clubs currently holding a live bid — the figure the digest

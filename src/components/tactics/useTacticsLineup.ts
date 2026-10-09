@@ -4,7 +4,11 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
-import { getSquad, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import {
+  applyTacticPreset,
+  getSquad,
+  setTacticsPhase as setTacticsPhaseService,
+} from "../../services/squadService";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -202,6 +206,20 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return true;
     } catch (error) {
       console.error("Failed to set play style:", error);
+      return false;
+    }
+  }
+
+  async function handleApplyTacticPreset(
+    nextFormation: string,
+    playStyle: string,
+  ): Promise<boolean> {
+    try {
+      const updated = await applyTacticPreset(nextFormation, playStyle);
+      onGameUpdate(updated);
+      return true;
+    } catch (error) {
+      console.error("Failed to apply tactic preset:", error);
       return false;
     }
   }
@@ -450,6 +468,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     dragPreviewRef,
     handleFormationChange,
     handlePlayStyleChange,
+    handleApplyTacticPreset,
     handleAssignBestFit,
     handlePromoteBenchPlayer,
     handleDemoteStarter,

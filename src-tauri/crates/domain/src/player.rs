@@ -601,6 +601,9 @@ pub struct TransferOffer {
     pub date: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_date: Option<String>,
+    /// Why an agreed transfer was voided at registration, rather than abandoned during talks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub registration_failure_reason: Option<TransferRegistrationFailureReason>,
     /// When talks ended, for offers that were rejected or withdrawn.
     ///
     /// Distinct from `date`, which is when the offer *arrived* and is rewritten whenever a club
@@ -616,6 +619,14 @@ pub enum TransferOfferStatus {
     Accepted,
     Rejected,
     Withdrawn,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TransferRegistrationFailureReason {
+    InsufficientFunds,
+    LoanConflict,
+    PlayerUnavailable,
+    RegistrationBlocked,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

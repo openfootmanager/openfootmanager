@@ -2,12 +2,28 @@ use domain::player::{Player, PlayerAttributes, Position};
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
-use uuid::Uuid;
 
 use super::authored_player::resolve_authored_contract;
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
 use crate::player_rating::{generate_potential, refresh_player_derived};
+
+pub(super) fn standard_available_staff_roles() -> [StaffRole; 12] {
+    [
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::AssistantManager,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::Coach,
+        StaffRole::Physio,
+        StaffRole::Scout,
+        StaffRole::AssistantManager,
+    ]
+}
 
 // ---------------------------------------------------------------------------
 // Helper functions for world generation
@@ -142,6 +158,18 @@ pub(super) fn pick_name_from_def(
 }
 
 /// A random first/last pair from `pool`. Callers must have checked it is usable.
+/// An id for something being generated, drawn from the generator it was made with rather
+/// than minted at random: a world generated from a seed is then the same world, ids and all,
+/// and what keys off those ids (a match's dice, a player's growth) replays too. It has the
+/// shape of a v4 UUID, so everything that treats ids as opaque strings is unaffected.
+pub(super) fn seeded_id(rng: &mut impl Rng) -> String {
+    let mut bytes = [0u8; 16];
+    rng.fill_bytes(&mut bytes);
+    uuid::Builder::from_random_bytes(bytes)
+        .into_uuid()
+        .to_string()
+}
+
 fn draw_name(pool: &NamePool, rng: &mut impl Rng) -> (String, String) {
     let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
     let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
@@ -461,7 +489,7 @@ pub(super) fn generate_random_player_from_def(
 
     let position = position_for_slot(index);
 
-    let p_id = Uuid::new_v4().to_string();
+    let p_id = seeded_id(rng);
     let nationality = nationality.to_string();
 
     // Reserve one slot per position group (GK + back line + midfield + attack) as
@@ -601,7 +629,7 @@ pub(super) fn generate_random_player_from_def(
         use crate::player_rating::natural_ovr;
         natural_ovr(&player).round() as u8
     };
-    player.potential = generate_potential(temp_ovr, player_age);
+    player.potential = generate_potential(temp_ovr, player_age, rng);
     refresh_player_derived(&mut player, current_year);
 
     player.jersey_number = jersey_number_for_slot(index);
@@ -683,14 +711,7 @@ pub(super) fn generate_random_staff_from_def(
         },
     };
 
-    let mut s = Staff::new(
-        Uuid::new_v4().to_string(),
-        first_name,
-        last_name,
-        dob,
-        role,
-        attributes,
-    );
+    let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
     s.team_id = Some(team_id.to_string());
     s
@@ -720,14 +741,7 @@ pub(super) fn generate_random_staff_unattached_from_def(
         physiotherapy: rng.random_range(25..75),
     };
 
-    let mut s = Staff::new(
-        Uuid::new_v4().to_string(),
-        first_name,
-        last_name,
-        dob,
-        role,
-        attributes,
-    );
+    let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
     s
 }
@@ -792,7 +806,7 @@ pub(super) fn generate_staff_from_authored_def(
     });
 
     let id = if def.id.is_empty() {
-        Uuid::new_v4().to_string()
+        seeded_id(rng)
     } else {
         def.id.clone()
     };
@@ -1058,7 +1072,7 @@ pub(super) fn generate_player_from_def(
     let contract_date = |date: chrono::NaiveDate| date.format("%Y-%m-%d").to_string();
 
     let id = if def.id.is_empty() {
-        Uuid::new_v4().to_string()
+        seeded_id(rng)
     } else {
         def.id.clone()
     };
@@ -1131,7 +1145,7 @@ pub(super) fn generate_player_from_def(
     // floored at current ovr — so nothing further is needed to make it stick.
     player.potential = def
         .potential
-        .unwrap_or_else(|| generate_potential(temp_ovr, age));
+        .unwrap_or_else(|| generate_potential(temp_ovr, age, rng));
     refresh_player_derived(&mut player, current_year);
     player
 }
@@ -1156,7 +1170,7 @@ pub(super) fn generate_random_unemployed_manager(
     let reputation = rng.random_range(200u32..=700u32);
 
     let mut mgr = domain::manager::Manager::new(
-        Uuid::new_v4().to_string(),
+        seeded_id(rng),
         first_name,
         last_name,
         dob,

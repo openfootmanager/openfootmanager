@@ -56,6 +56,8 @@ pub fn run() {
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
+            platform::watch_web_processes(app);
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -259,6 +261,7 @@ pub fn run() {
             set_formation,
             set_starting_xi,
             set_play_style,
+            apply_tactic_preset,
             set_team_match_roles,
             set_training,
             set_training_schedule,

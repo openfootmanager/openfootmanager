@@ -662,6 +662,8 @@
     "removeFromLoanList": "Remover da lista de empréstimos",
     "outOfPosition": "Fora de posição",
     "outOfPositionTooltip": "A jogar fora da função preferida do jogador",
+    "pitchTokenTooltip": "Condição {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condição {{condition}}%",
     "dragHint": "Arrasta jogadores do banco para o campo ou troca titulares entre vagas.",
     "benchDragHint": "Usa a lista do banco para arrastar jogadores diretamente para o campo.",
     "dropPlayerHere": "Larga o jogador aqui",
@@ -1403,7 +1405,11 @@
     "transferFeedbackCounterHeadline": "Querem mais antes de apertar a mão.",
     "transferFeedbackCounterDetail": "A proposta ficou suficientemente perto para continuarem a falar, mas do lado deles apontam para um valor mais próximo de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Fecharam esta ronda.",
-    "transferFeedbackRejectedDetail": "A proposta não os mexeu o suficiente. Precisarias de um valor mais forte, mais perto de {{fee}}, para reabrir conversas sérias."
+    "transferFeedbackRejectedDetail": "A proposta não os mexeu o suficiente. Precisarias de um valor mais forte, mais perto de {{fee}}, para reabrir conversas sérias.",
+    "registrationFailureInsufficientFunds": "Registo falhado: fundos insuficientes do comprador",
+    "registrationFailureLoanConflict": "Registo falhado: conflito com um empréstimo",
+    "registrationFailurePlayerUnavailable": "Registo falhado: jogador indisponível",
+    "registrationFailureRegistrationBlocked": "Registo bloqueado"
   },
   "transferCentreWorld": {
     "title": "Centro de transferências",
@@ -2599,6 +2605,7 @@
       "managedTeamNotFound": "Equipa gerida não encontrada",
       "unknownFacilityType": "Tipo de instalação desconhecido",
       "liveMatch": {
+        "inProgress": "Está um jogo em curso. Termina-o antes de guardar, avançar no tempo ou iniciar outro jogo.",
         "noLeague": "Não há dados da liga disponíveis para este jogo.",
         "fixtureNotFound": "Não foi possível encontrar o jogo selecionado.",
         "fixtureNotScheduled": "Este jogo já não está agendado e não pode ser disputado.",
@@ -3401,6 +3408,13 @@
       "loanBuyOptionExercised": {
         "subject": "Opção de compra exercida: {{player}}",
         "body": "A opção de compra de {{player}} foi exercida por {{fee}}. O empréstimo passa agora a transferência definitiva."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Registo da transferência falhado: {{player}}",
+        "InsufficientFunds": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o saldo ou o orçamento de transferências do comprador já não cobre o valor. Não foi paga qualquer verba pela transferência.",
+        "LoanConflict": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o jogador está emprestado ou tem um empréstimo acordado a aguardar registo. Não foi paga qualquer verba pela transferência.",
+        "PlayerUnavailable": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o jogador já não está disponível num clube vendedor. Não foi paga qualquer verba pela transferência.",
+        "RegistrationBlocked": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque deixou de ser cumprido um requisito de registo. Não foi paga qualquer verba pela transferência."
       }
     },
     "news": {

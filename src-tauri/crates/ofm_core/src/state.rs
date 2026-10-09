@@ -93,6 +93,7 @@ impl StateManager {
     pub fn clear_game(&self) {
         clear_option(&self.active_game);
         clear_option(&self.active_stats);
+        clear_option(&self.live_match);
     }
 
     pub fn set_stats_state(&self, stats: StatsState) {
@@ -370,5 +371,38 @@ mod tests {
         assert_eq!(taken.mode, MatchMode::Instant);
         assert!(state.take_live_match().is_none());
         assert!(state.with_live_match(|_| ()).is_none());
+    }
+
+    /// Given a live match, when a same-career writer replaces its updated clone,
+    /// then the session remains available to continue and finish.
+    #[test]
+    fn updating_the_same_career_keeps_its_live_match() {
+        let state = StateManager::new();
+        let mut game = make_game_with_fixture();
+        let session =
+            live_match_manager::create_live_match(&game, 0, MatchMode::Spectator, false).unwrap();
+        state.set_game(game.clone());
+        state.set_live_match(session);
+        game.teams[0].finance += 1234;
+        state.set_game(game.clone());
+        assert!(state.with_live_match(|_| ()).is_some());
+        assert_eq!(
+            state.get_game(|game| game.teams[0].finance),
+            Some(game.teams[0].finance)
+        );
+    }
+
+    /// Given a live match, when its career is cleared, then no transient session survives.
+    #[test]
+    fn clearing_the_game_discards_its_live_match() {
+        let state = StateManager::new();
+        let game = make_game_with_fixture();
+        let session =
+            live_match_manager::create_live_match(&game, 0, MatchMode::Spectator, false).unwrap();
+        state.set_game(game);
+        state.set_live_match(session);
+        state.clear_game();
+        assert!(state.with_live_match(|_| ()).is_none());
+        assert!(state.get_game(|_| ()).is_none());
     }
 }

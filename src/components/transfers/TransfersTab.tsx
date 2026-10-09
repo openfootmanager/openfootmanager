@@ -1420,7 +1420,11 @@ export default function TransfersTab({
                                         size="sm"
                                       >
                                         {formatVal(offer.fee)} —{" "}
-                                        {getTransferOfferStatusLabel(t, offer.status)}
+                                        {getTransferOfferStatusLabel(
+                                          t,
+                                          offer.status,
+                                          offer.registration_failure_reason,
+                                        )}
                                       </Badge>
                                       {offer.status === "Pending" &&
                                         player.team_id === userTeamId && (
