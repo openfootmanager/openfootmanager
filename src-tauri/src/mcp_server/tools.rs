@@ -179,6 +179,20 @@ fn extract_u64_param(
     args.as_ref()?.get(key).and_then(|v| v.as_u64())
 }
 
+/// `Ok(None)` when the key is absent; an error when it is present but not an integer.
+fn optional_integer_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<Option<i64>, CallToolResult> {
+    match args.as_ref().and_then(|a| a.get(key)) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(value) => value
+            .as_i64()
+            .map(Some)
+            .ok_or_else(|| error_result(&format!("Parameter {key} must be an integer"))),
+    }
+}
+
 fn extract_u32_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
@@ -1484,7 +1498,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // game_new
     custom_tool!(
         "game_new",
-        "Create manager + generate/load world + optionally select team",
+        "Create a manager and a world (generated from an optional seed, or loaded from world_source). With team_id the career starts and is saved; without it the game waits for game_select_team",
         build_schema(
             &[
                 ("first_name", "string", "Manager first name"),
@@ -1493,7 +1507,22 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 (
                     "world_source",
                     "string",
-                    "World JSON path (omit for random)"
+                    "World JSON path (omit for a generated compact world)"
+                ),
+                (
+                    "seed",
+                    "integer",
+                    "Generation seed: one seed gives one world for one generator version"
+                ),
+                (
+                    "start_year",
+                    "integer",
+                    "Year the career opens in (default: the current year)"
+                ),
+                (
+                    "start_phase",
+                    "string",
+                    "seasonStart (default) or midSeason"
                 ),
                 (
                     "team_id",
@@ -1520,7 +1549,33 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let world = extract_string_param(args, "world_source");
             let team = extract_string_param(args, "team_id");
-            match tools_impl::game::game_new(ctx, first, last, nat, world, team) {
+            let seed = match optional_integer_param(args, "seed") {
+                Ok(v) => match v.map(u64::try_from).transpose() {
+                    Ok(seed) => seed,
+                    Err(_) => return Ok(error_result("Parameter seed must not be negative")),
+                },
+                Err(e) => return Ok(e),
+            };
+            let start_year = match optional_integer_param(args, "start_year") {
+                Ok(v) => match v.map(i32::try_from).transpose() {
+                    Ok(year) => year,
+                    Err(_) => return Ok(error_result("Parameter start_year is out of range")),
+                },
+                Err(e) => return Ok(e),
+            };
+            let request = crate::commands::game::McpNewCareer {
+                world_source: world.as_deref(),
+                team_id: team.as_deref(),
+                manager_first_name: &first,
+                manager_last_name: &last,
+                manager_nationality: &nat,
+                options: crate::commands::game::McpCareerOptions {
+                    seed,
+                    start_year,
+                    start_phase: extract_string_param(args, "start_phase"),
+                },
+            };
+            match tools_impl::game::game_new(ctx, request) {
                 Ok(text) => Ok(text_result(text)),
                 Err(e) => Ok(err_result(&e)),
             }
