@@ -334,27 +334,16 @@ fn finances_in_range(game: &Game) -> Vec<String> {
 /// fail before a day was played and hide what this rule is for.
 fn no_stranded_fixture(game: &Game) -> Vec<String> {
     let began = game.clock.start_date.format("%Y-%m-%d").to_string();
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let club = game.competitions.iter().flat_map(|competition| {
-        competition
-            .fixtures
-            .iter()
-            .map(move |f| (competition.id.as_str(), f))
-    });
-    let international = game
-        .national_teams
-        .iter()
-        .flat_map(|team| team.fixtures.iter().map(move |f| (team.id.as_str(), f)));
-    club.chain(international)
-        .filter(|(_, fixture)| {
-            fixture.status == FixtureStatus::Scheduled
-                && fixture.date.as_str() >= began.as_str()
-                && fixture.date.as_str() < today.as_str()
-        })
-        .map(|(owner, fixture)| {
+    let Some(yesterday) = game.clock.current_date.pred_opt() else {
+        return Vec::new();
+    };
+    ofm_core::matchday::stranded_fixtures(game, yesterday)
+        .into_iter()
+        .filter(|fixture| fixture.date.as_str() >= began.as_str())
+        .map(|fixture| {
             format!(
-                "{owner} fixture {} was due {} and is still Scheduled",
-                fixture.id, fixture.date
+                "{} fixture {} was due {} and is still Scheduled",
+                fixture.owner, fixture.fixture_id, fixture.date
             )
         })
         .collect()
