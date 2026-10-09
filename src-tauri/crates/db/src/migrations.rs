@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 50;
+const EXPECTED_MIGRATION_COUNT: usize = 51;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -147,6 +147,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "v050_scouted_players.sql",
         include_str!("sql/v050_scouted_players.sql"),
     ),
+    // V51: Persisted competition name key
+    ("v051_competition_name_key.sql", include_str!("sql/v051_competition_name_key.sql")),
 ];
 
 /// All migrations for a per-save game database.
@@ -564,6 +566,33 @@ mod tests {
                 .query_row("SELECT COUNT(*) FROM competitions", [], |row| row.get(0))
                 .unwrap();
             assert_eq!((archived, competitions), (0, 1));
+        }
+    }
+
+    /// Given a real v050 save, when migrated twice, then competitions gain an empty name_key column and keep their rows.
+    #[test]
+    fn name_key_v051_upgrades_a_v050_save_without_touching_competitions() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(50)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute("INSERT INTO competitions (id, name, season) VALUES ('ar-d1-apertura', 'Opening', 2033)", []).unwrap();
+        assert!(conn.prepare("SELECT name_key FROM competitions").is_err());
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<String>) = conn
+                .query_row("SELECT id, name_key FROM competitions", [], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })
+                .unwrap();
+            assert_eq!(row, ("ar-d1-apertura".to_string(), None));
         }
     }
 
