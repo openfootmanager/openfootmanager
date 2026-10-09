@@ -434,7 +434,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     );
     real_tool!(
         "season_advance",
-        "Advance to next season (may be fired if objectives not met)",
+        "Roll over a completed season, returning its summary and any dismissal. Refuses incomplete seasons; use time_advance for one day",
         tools_impl::season::season_advance
     );
     real_tool!(
@@ -1559,10 +1559,10 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
 
     // ─── New tools: game state, saves, worlds ────────────────────────────────
 
-    // info_game_state — raw JSON game state dump (disabled in Competition mode)
+    // info_game_state — raw JSON game state dump (available in competition mode)
     real_tool!(
         "info_game_state",
-        "Full game state as JSON (useful for programmatic access; disabled in competition mode)",
+        "Full game state as JSON (useful for programmatic access; available in competition mode)",
         tools_impl::info::info_game_state
     );
 
@@ -2032,7 +2032,11 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
             "Check if season is complete and ready to advance",
             "Season",
         ),
-        ("season_advance", "Advance to next season", "Season"),
+        (
+            "season_advance",
+            "Roll over a completed season (may be fired); use time_advance for one day",
+            "Season",
+        ),
         ("season_get_awards", "Get end-of-season awards", "Season"),
         // Game Lifecycle
         (
@@ -2126,6 +2130,47 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
+
+    /// Given the MCP docs, implementation comment and registered tool description,
+    /// when an agent reads them, then they agree that the state dump is available
+    /// in competition mode and name the five restricted setup tools.
+    #[test]
+    fn the_docs_match_the_competition_mode_decision() {
+        let docs = include_str!("../../../docs/MCP_SERVER.md");
+        let competition_docs = docs
+            .split("## Competition Mode\n")
+            .nth(1)
+            .expect("competition-mode documentation")
+            .split("\n---")
+            .next()
+            .unwrap();
+        let info_source = include_str!("tools_impl/info.rs");
+        let info_comment = info_source.split("pub fn info_game_state").next().unwrap();
+        for document in [competition_docs, info_comment] {
+            assert!(
+                document.contains("available in competition mode"),
+                "the docs and implementation comment must state the availability decision"
+            );
+            for tool in crate::mcp_server::config::McpMode::Competition.disabled_tools() {
+                assert!(document.contains(tool), "missing restricted tool {tool}");
+            }
+        }
+        let registration = source()
+            .split("// info_game_state")
+            .nth(1)
+            .unwrap()
+            .split("tools_impl::info::info_game_state")
+            .next()
+            .unwrap();
+        assert!(registration.contains("available in competition mode"));
+        assert!(!registration.contains("disabled"));
+        let description = registration
+            .lines()
+            .filter_map(first_string_literal)
+            .nth(1)
+            .expect("registered tool description");
+        assert!(description.contains("available in competition mode"));
+    }
 
     /// Given exact fixture identity without an index, when parsed for match_start,
     /// then it reaches the shared application path with the unused index defaulted.

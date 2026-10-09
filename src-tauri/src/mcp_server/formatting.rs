@@ -6,6 +6,10 @@
 /// a human-readable message that helps agents self-correct.
 pub fn translate_error(key: &str) -> String {
     match key {
+        "be.error.liveMatch.inProgress" => {
+            "Finish the current match before saving, advancing, or starting another match."
+                .to_string()
+        }
         "be.error.noActiveGameSession" => {
             "No active game session. Start or load a game first.".to_string()
         }
@@ -131,6 +135,14 @@ mod tests {
             translate_error("be.error.liveMatch.fixtureNotScheduled"),
             "This fixture is no longer scheduled and cannot be played."
         );
+    }
+
+    /// Given the shared application's live-match refusal key, when rendered for an agent,
+    /// then it is a readable message rather than an untranslated key.
+    #[test]
+    fn the_live_match_refusal_is_renderable() {
+        let key = "be.error.liveMatch.inProgress";
+        assert!(!translate_error(key).contains(key));
     }
 
     /// The wrapper renders a key exactly once.

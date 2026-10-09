@@ -24,7 +24,7 @@ fn make_team(id: &str, name: &str, reputation: u32) -> Team {
     team
 }
 
-fn sample_attributes() -> PlayerAttributes {
+pub(super) fn sample_attributes() -> PlayerAttributes {
     PlayerAttributes {
         pace: 68,
         stamina: 66,

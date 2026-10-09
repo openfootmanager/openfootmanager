@@ -142,21 +142,12 @@ export default function MatchSimulation() {
             fixtureIndex: routeState.fixtureIndex,
             matchMode,
           });
-          const fixture = gameState?.league?.fixtures?.[routeState.fixtureIndex];
-          const competitionsWithET: string[] = [
-            "Cup",
-            "ContinentalClub",
-            "InternationalClub",
-            "InternationalNation",
-            "FriendlyCup",
-          ];
-          const allowsExtraTime =
-            routeState?.snapshot?.allows_extra_time ??
-            competitionsWithET.includes(fixture?.competition ?? "");
           // The raw index may point into a cup while game.league mirrors the
           // domestic league after a restart. Use stable fixture identity.
+          // The backend derives extra-time eligibility from the fixture; the
+          // argument is still required by the command signature.
           const restoredSnapshot = await invoke<MatchSnapshot>("start_live_match", {
-            allowsExtraTime,
+            allowsExtraTime: false,
             fixtureIndex: routeState.fixtureIndex,
             competitionId: routeState.competitionId,
             fixtureId: routeState.fixtureId,

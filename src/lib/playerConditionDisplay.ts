@@ -13,7 +13,7 @@ export function condColor(condition: number): string {
 }
 
 export function condBgColor(condition: number): string {
-  if (condition >= 75) return "bg-primary-500";
-  if (condition >= 50) return "bg-amber-500";
-  return "bg-red-500";
+  if (condition >= 75) return "bg-primary-500 dark:bg-primary-400";
+  if (condition >= 50) return "bg-amber-500 dark:bg-amber-400";
+  return "bg-red-500 dark:bg-red-400";
 }
