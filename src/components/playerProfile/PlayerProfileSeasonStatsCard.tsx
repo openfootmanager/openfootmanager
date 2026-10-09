@@ -1,4 +1,5 @@
 import type { PlayerSeasonStats } from "../../store/gameStore";
+import { isRatedMatch } from "../../lib/matchRating";
 import { Card, CardBody, CardHeader } from "../ui";
 
 type TranslateFn = (key: string) => string;
@@ -26,7 +27,7 @@ export default function PlayerProfileSeasonStatsCard({
           <StatBox label={t("playerProfile.reds")} value={stats.red_cards} />
           <StatBox
             label={t("playerProfile.avgRating")}
-            value={stats.avg_rating > 0 ? stats.avg_rating.toFixed(1) : "-"}
+            value={isRatedMatch(stats.avg_rating) ? stats.avg_rating.toFixed(1) : "–"}
           />
         </div>
       </CardBody>

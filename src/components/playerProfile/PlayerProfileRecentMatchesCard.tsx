@@ -1,3 +1,4 @@
+import { isRatedMatch } from "../../lib/matchRating";
 import { Card, CardBody, CardHeader } from "../ui";
 import { PlayerRatingTrendChart } from "./PlayerRatingTrendChart";
 
@@ -41,16 +42,20 @@ export default function PlayerProfileRecentMatchesCard({
     return null;
   }
 
+  const ratedMatches = matches.filter((match) => isRatedMatch(match.rating));
+
   return (
     <Card>
       <CardHeader>{title}</CardHeader>
       <CardBody>
-        <div className="mb-4">
-          <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-heading mb-2">
-            {ratingTrendLabel}
-          </p>
-          <PlayerRatingTrendChart matches={matches} ratingLabel={ratingLabel} />
-        </div>
+        {ratedMatches.length > 0 ? (
+          <div className="mb-4">
+            <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-heading mb-2">
+              {ratingTrendLabel}
+            </p>
+            <PlayerRatingTrendChart matches={ratedMatches} ratingLabel={ratingLabel} />
+          </div>
+        ) : null}
         <div className="space-y-3">
           {matches.map((match) => (
             <div
@@ -89,7 +94,7 @@ export default function PlayerProfileRecentMatchesCard({
                   {t("playerProfile.recentMatchesRating")}
                 </p>
                 <p className="font-heading font-bold text-base text-gray-700 dark:text-gray-200 tabular-nums">
-                  {match.rating.toFixed(1)}
+                  {isRatedMatch(match.rating) ? match.rating.toFixed(1) : "–"}
                 </p>
               </div>
             </div>

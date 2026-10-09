@@ -2042,7 +2042,7 @@
     "postMatchTeamTalk": "Maç Sonu Takım Konuşması",
     "addressPlayers": "Maçtan sonra oyuncularınıza hitap edin.",
     "matchOver": "Maç Bitti",
-    "ratings": "{{team}} Puanları",
+    "performance": "{{team}} Performansı",
     "motm": "Maçın Oyuncusu",
     "roundSummary": "Hafta Özeti",
     "roundSummaryUnavailable": "Hafta özeti mevcut değil.",
@@ -2518,7 +2518,7 @@
       }
     },
     "matchReport": "Maç Raporu",
-    "playerRatings": "Oyuncu Puanları",
+    "playerPerformance": "Oyuncu Performansı",
     "tacticsTab": "Taktikler",
     "goalSources": "Gol Kaynakları",
     "openPlay": "Akan Oyun",

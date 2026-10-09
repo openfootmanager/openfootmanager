@@ -2008,7 +2008,7 @@
     "postMatchTeamTalk": "Charla Post-Partido",
     "addressPlayers": "Dirígete a tus jugadores después del partido.",
     "matchOver": "Partido Terminado",
-    "ratings": "Calificaciones de {{team}}",
+    "performance": "Rendimiento de {{team}}",
     "motm": "Mejor del Partido",
     "roundSummary": "Resumen de la Jornada",
     "roundSummaryUnavailable": "No hay resumen de la jornada disponible.",
@@ -2518,7 +2518,7 @@
       }
     },
     "matchReport": "Informe del partido",
-    "playerRatings": "Valoraciones",
+    "playerPerformance": "Rendimiento de jugadores",
     "tacticsTab": "Táctica",
     "goalSources": "Fuentes de gol",
     "openPlay": "Juego abierto",
