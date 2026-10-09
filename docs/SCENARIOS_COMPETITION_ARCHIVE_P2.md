@@ -14,6 +14,7 @@ The completion validator is shared for AI, user and dormant results. It reads th
 rather than the manager, clock, name or simulation route.
 
 ## Completion proof
+
 | Named scenario | Given | When | Then |
 | --- | --- | --- | --- |
 | completed_tables_respect_authored_legs_and_odd_fields | Completed three/four-club one/two-leg tables | Completion is verified | Each full authored schedule has a proof with its actual final date |
@@ -30,6 +31,7 @@ rather than the manager, clock, name or simulation route.
 | completed_groups_wait_for_the_terminal_knockout | Completed groups that seed an unfinished bracket | Completion is verified before and after the final | Only the completed terminal knockout yields a proof |
 | missing_group_match_cannot_be_hidden_by_a_completed_final | A completed group cup with a missing or duplicated group match | Completion is verified | Invalid group shape blocks archiving |
 | stale_standings_block_a_completed_fixture_set | Completed fixtures whose table/group results have not all been applied | Completion is verified | No final table is certified before result application |
+| drawn_knockout_tie_without_a_decisive_shootout_is_not_complete | A final level after regulation with no shootout, or a level shootout | Completion is verified | Blocked; the home side is never named champion by default |
 | loaded_completion_proof_preserves_the_live_sibling | A JSON-loaded completed half and an InProgress sibling | The completed half is verified repeatedly | Proofs agree and both saved competitions remain byte-equivalent |
 
 ## Archive record and persistence

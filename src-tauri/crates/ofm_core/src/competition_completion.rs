@@ -108,6 +108,18 @@ pub fn verify_completed_edition(
     })
 }
 
+/// `advancing_team_id` favours home on a level score, so a drawn tie needs a decisive shootout
+/// to name a real winner.
+fn decided_knockout_tie(fixture: &Fixture) -> bool {
+    fixture.result.as_ref().is_some_and(|result| {
+        result.home_goals != result.away_goals
+            || matches!(
+                (result.home_penalties, result.away_penalties),
+                (Some(home), Some(away)) if home != away
+            )
+    })
+}
+
 fn unique_teams(ids: &[String]) -> Option<BTreeSet<&str>> {
     let unique: BTreeSet<_> = ids.iter().map(String::as_str).collect();
     (ids.len() >= 2 && unique.len() == ids.len() && !unique.contains("")).then_some(unique)
@@ -261,6 +273,9 @@ fn validate_bracket(
                     return Err(fail);
                 }
             }
+            if !decided_knockout_tie(f) {
+                return Err(fail);
+            }
             advancing.insert(f.advancing_team_id().ok_or(fail)?);
         }
         if playing != expected {
@@ -289,6 +304,34 @@ mod tests {
         assert_eq!(verify_completed_edition(c, legs), Err(reason));
     }
 
+    /// Given a final level after regulation with no shootout, or a shootout that is itself level,
+    /// when completion is verified, then no champion is fabricated for the home side.
+    #[test]
+    fn drawn_knockout_tie_without_a_decisive_shootout_is_not_complete() {
+        for penalties in [None, Some((3, 3))] {
+            let mut competition = cup(4);
+            let final_id = competition
+                .knockout_rounds
+                .last()
+                .and_then(|round| round.fixture_ids.first().cloned())
+                .unwrap();
+            let final_tie = competition
+                .fixtures
+                .iter_mut()
+                .find(|fixture| fixture.id == final_id)
+                .unwrap();
+            final_tie.result = Some(MatchResult {
+                home_goals: 1,
+                away_goals: 1,
+                home_penalties: penalties.map(|(home, _)| home),
+                away_penalties: penalties.map(|(_, away)| away),
+                ..Default::default()
+            });
+            blocked(&competition, None, CompletionFailure::InvalidBracket);
+        }
+    }
+
+    /// Given completed three and four club tables of one and two legs, when completion is verified, then each full authored schedule has a proof with its actual final date.
     #[test]
     fn completed_tables_respect_authored_legs_and_odd_fields() {
         for n in [3, 4] {
@@ -304,6 +347,7 @@ mod tests {
         }
     }
 
+    /// Given a completed table with no verified legs, when completion is verified, then it is blocked rather than assumed two-legged.
     #[test]
     fn missing_table_specification_cannot_invent_two_legs() {
         for legs in [None, Some(0)] {
@@ -315,6 +359,7 @@ mod tests {
         }
     }
 
+    /// Given a final fixture that is Scheduled or InProgress but carries a stale result, when completion is verified, then the table stays incomplete.
     #[test]
     fn unfinished_table_blocks_even_when_a_result_is_present() {
         for status in [FixtureStatus::Scheduled, FixtureStatus::InProgress] {
@@ -324,6 +369,7 @@ mod tests {
         }
     }
 
+    /// Given the expected fixture count with one pairing duplicated, when completion is verified, then the invalid table shape blocks it.
     #[test]
     fn duplicate_pair_cannot_replace_a_missing_table_match() {
         let mut c = table(4, 2);
@@ -332,6 +378,7 @@ mod tests {
         blocked(&c, Some(2), CompletionFailure::InvalidTableShape);
     }
 
+    /// Given completed fixtures with a missing result, bad date, duplicate id, wrong competition, self-pairing or unknown club, when completion is verified, then each blocks it.
     #[test]
     fn malformed_fixture_cannot_supply_completion_proof() {
         for case in 0..6 {
@@ -348,6 +395,7 @@ mod tests {
         }
     }
 
+    /// Given an edition with no competitive fixtures, when completion is verified, then it stays incomplete.
     #[test]
     fn empty_edition_cannot_supply_completion_proof() {
         let mut c = table(4, 2);
@@ -355,6 +403,7 @@ mod tests {
         blocked(&c, Some(2), CompletionFailure::UnfinishedFixtures);
     }
 
+    /// Given a complete table and an unplayed friendly, when completion is verified, then the friendly is ignored.
     #[test]
     fn optional_friendlies_do_not_block_a_completed_table() {
         let mut c = table(4, 2);
@@ -365,6 +414,7 @@ mod tests {
         assert!(verify_completed_edition(&c, Some(2)).is_ok());
     }
 
+    /// Given completed cups including odd fields with byes and a final decided on penalties, when completion is verified, then only the terminal bracket yields its actual champion.
     #[test]
     fn terminal_knockout_proof_uses_the_shared_champion_rule() {
         for n in [2, 3, 5, 8] {
@@ -384,6 +434,7 @@ mod tests {
         }
     }
 
+    /// Given played quarterfinals followed by Scheduled semifinals, when completion is verified, then the bracket stays incomplete.
     #[test]
     fn unfinished_knockout_cannot_be_archived() {
         let mut c = cup(8);
@@ -400,6 +451,7 @@ mod tests {
         blocked(&c, None, CompletionFailure::UnfinishedFixtures);
     }
 
+    /// Given a completed non-terminal round whose successor is missing, when completion is verified, then the missing progression blocks it.
     #[test]
     fn missing_terminal_round_cannot_masquerade_as_a_final() {
         let mut c = cup(8);
@@ -408,6 +460,7 @@ mod tests {
         blocked(&c, None, CompletionFailure::InvalidBracket);
     }
 
+    /// Given a completed cup with missing or duplicate references, invalid byes or forged progression, when completion is verified, then each blocks it.
     #[test]
     fn corrupt_bracket_references_cannot_supply_a_champion() {
         for case in 0..4 {
@@ -433,6 +486,7 @@ mod tests {
         }
     }
 
+    /// Given completed groups that seed an unfinished bracket, when completion is verified before and after the final, then only the completed terminal knockout yields a proof.
     #[test]
     fn completed_groups_wait_for_the_terminal_knockout() {
         let mut c = group_cup();
@@ -441,6 +495,7 @@ mod tests {
         blocked(&c, None, CompletionFailure::UnfinishedFixtures);
     }
 
+    /// Given a group cup with a missing or duplicated group match, when completion is verified, then the invalid group shape blocks it.
     #[test]
     fn missing_group_match_cannot_be_hidden_by_a_completed_final() {
         for duplicate in [false, true] {
@@ -455,6 +510,7 @@ mod tests {
         }
     }
 
+    /// Given completed fixtures whose results were never applied to the table or groups, when completion is verified, then no final table is certified.
     #[test]
     fn stale_standings_block_a_completed_fixture_set() {
         let mut c = table(4, 2);
@@ -465,6 +521,7 @@ mod tests {
         blocked(&c, None, CompletionFailure::InvalidGroups);
     }
 
+    /// Given a JSON-loaded completed half and an InProgress sibling, when the completed half is verified repeatedly, then the proofs agree and both competitions stay byte-equivalent.
     #[test]
     fn loaded_completion_proof_preserves_the_live_sibling() {
         let opening = table(4, 2);

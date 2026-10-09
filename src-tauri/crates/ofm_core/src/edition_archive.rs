@@ -23,15 +23,10 @@ pub fn archive_completed_edition(
         .as_ref()
         .and_then(|calendar| calendar.league_legs);
     let proof = verify_completed_edition(competition, legs)?;
+    let standings = competition.sorted_standings();
     let champion_id = proof
         .champion_id
-        .or_else(|| {
-            competition
-                .sorted_standings()
-                .into_iter()
-                .next()
-                .map(|entry| entry.team_id)
-        })
+        .or_else(|| standings.first().map(|entry| entry.team_id.clone()))
         .ok_or(CompletionFailure::InvalidTableShape)?;
     archive.push(CompletedEdition {
         competition_id: competition.id.clone(),
@@ -39,7 +34,7 @@ pub fn archive_completed_edition(
         completed_on: proof.completed_on.format("%Y-%m-%d").to_string(),
         champion_id,
         participant_ids: competition.participant_ids.clone(),
-        standings: competition.sorted_standings(),
+        standings,
         groups: competition.groups.clone(),
         knockout_rounds: competition.knockout_rounds.clone(),
         fixtures: competition.fixtures.clone(),

@@ -5,13 +5,19 @@ const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
 const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
 
 /// Insert-only: a recorded edition is frozen, so an existing row is never rewritten or deleted.
-pub fn persist_new_editions(
+/// Serializes every record before the first insert and relies on the caller's transaction
+/// (`write_game`) for all-or-nothing writes.
+pub(crate) fn persist_new_editions(
     conn: &Connection,
     editions: &[CompletedEdition],
 ) -> Result<(), String> {
-    for edition in editions {
-        let record_json =
-            serde_json::to_string(edition).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let records = editions
+        .iter()
+        .map(|edition| {
+            serde_json::to_string(edition).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    for (edition, record_json) in editions.iter().zip(records) {
         conn.execute(
             "INSERT OR IGNORE INTO competition_edition_archive (competition_id, season, record_json)
              VALUES (?1, ?2, ?3)",
