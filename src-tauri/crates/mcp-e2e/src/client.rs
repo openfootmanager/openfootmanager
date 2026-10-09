@@ -93,11 +93,12 @@ impl Client {
     }
 
     /// The same session with a different timeout for each call.
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        if let Ok(http) = Http::builder().timeout(timeout).build() {
-            self.http = http;
-        }
-        self
+    pub fn with_timeout(mut self, timeout: Duration) -> Result<Self, CallError> {
+        self.http = Http::builder()
+            .timeout(timeout)
+            .build()
+            .map_err(|e| CallError::Transport(e.to_string()))?;
+        Ok(self)
     }
 
     /// `tools/list`, as the server reports it.
@@ -152,12 +153,15 @@ impl Client {
     fn rpc(&self, method: &str, params: Value) -> Result<(Value, Option<String>), CallError> {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
-        let (body, session) = self.post(&request)?;
-        let reply = last_event_data(&body).ok_or_else(|| {
-            CallError::Transport(format!(
-                "no JSON-RPC message in the reply to `{method}`: {body}"
-            ))
+        let (body, session) = self.post(&request).inspect_err(|_| {
+            self.record(request.clone(), None);
         })?;
+        let Some(reply) = last_event_data(&body) else {
+            self.record(request, None);
+            return Err(CallError::Transport(format!(
+                "no JSON-RPC message in the reply to `{method}`: {body}"
+            )));
+        };
         self.record(request, Some(reply.clone()));
         if let Some(error) = reply.get("error") {
             return Err(CallError::Transport(format!("`{method}` failed: {error}")));
@@ -334,6 +338,12 @@ mod tests {
             1,
             "the call must be sent once"
         );
+        let last = client
+            .transcript()
+            .pop()
+            .expect("the timed-out call is in the transcript");
+        assert_eq!(last.request["params"]["name"], "transfer_make_bid");
+        assert!(last.response.is_none(), "no reply arrived");
     }
 
     /// Given a success reply

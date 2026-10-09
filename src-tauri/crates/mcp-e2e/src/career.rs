@@ -65,10 +65,14 @@ pub fn begin(app: &App, seed: u64, start_phase: &str, country: &str) -> Result<C
     let selected = app
         .client()
         .call_value("game_select_team", json!({"team_id": club_id}))?;
-    Ok(Career {
-        club_id,
-        save_id: selected["save_id"].as_str().unwrap_or_default().to_string(),
-    })
+    let save_id = selected["save_id"]
+        .as_str()
+        .ok_or_else(|| CallError::Shape {
+            tool: "game_select_team".to_string(),
+            detail: format!("no save_id: {selected}"),
+        })?
+        .to_string();
+    Ok(Career { club_id, save_id })
 }
 
 /// Every fixture of every competition, as (competition id, fixture).

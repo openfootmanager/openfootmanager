@@ -91,7 +91,12 @@ fn a_delegated_matchday_plays_everything_dated_today() {
         stranded.is_empty(),
         "still Scheduled on or before {match_day}: {stranded:?}"
     );
-    assert_ne!(today(&game), match_day);
+    let next_day = chrono::NaiveDate::parse_from_str(&match_day, "%Y-%m-%d")
+        .unwrap()
+        .succ_opt()
+        .unwrap()
+        .to_string();
+    assert_eq!(today(&game), next_day, "the date should move one day");
 }
 
 /// Given a saved game
@@ -113,12 +118,16 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     json_differences("game", &live, &on_disk, &mut differing);
 
     // Two known gaps, each under its own guard: when one is fixed its guard fails and must go.
-    let (name_key, rest): (Vec<_>, Vec<_>) = differing
-        .into_iter()
-        .partition(|difference| difference.contains(".name_key:"));
-    let (calendar, unexplained): (Vec<_>, Vec<_>) = rest
-        .into_iter()
-        .partition(|difference| difference.contains(".calendar:"));
+    let world_cups = world_cup_indices(&live);
+    let (name_key, rest): (Vec<_>, Vec<_>) = differing.into_iter().partition(|difference| {
+        (difference.starts_with("game.competitions[") || difference.starts_with("game.league."))
+            && difference.contains(".name_key:")
+    });
+    let (calendar, unexplained): (Vec<_>, Vec<_>) = rest.into_iter().partition(|difference| {
+        world_cups
+            .iter()
+            .any(|index| difference.starts_with(&format!("game.competitions[{index}].calendar:")))
+    });
     expect_bug!(#759, "competition name_key is not saved", {
         assert!(
             name_key.is_empty(),
@@ -149,6 +158,22 @@ fn the_file_on_disk_holds_what_the_game_holds() {
 
 /// The save does not keep national teams in the order the live game holds them, and nothing reads
 /// that order, so the comparison puts both in the same one.
+/// Positions of the World Cup competitions in `game.competitions`.
+fn world_cup_indices(game: &Value) -> Vec<usize> {
+    game["competitions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .filter(|(_, competition)| {
+            competition["name"]
+                .as_str()
+                .is_some_and(|name| name.contains("World Cup"))
+        })
+        .map(|(index, _)| index)
+        .collect()
+}
+
 fn by_national_team_id(mut game: Value) -> Value {
     if let Some(teams) = game["national_teams"].as_array_mut() {
         teams.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
@@ -191,7 +216,14 @@ fn json_differences(path: &str, live: &Value, on_disk: &Value, found: &mut Vec<S
                 );
             }
         }
-        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => {
+        (Value::Array(a), Value::Array(b)) => {
+            if a.len() != b.len() {
+                found.push(format!(
+                    "{path}: live has {} items / on disk {}",
+                    a.len(),
+                    b.len()
+                ));
+            }
             for (i, (x, y)) in a.iter().zip(b).enumerate() {
                 json_differences(&format!("{path}[{i}]"), x, y, found);
             }

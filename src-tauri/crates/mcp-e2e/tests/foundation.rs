@@ -117,23 +117,41 @@ fn catalog_matches_the_live_server() {
     let mut problems = Vec::new();
     for tool in &live {
         let name = tool["name"].as_str().unwrap_or_default();
-        let names = |key: &str| -> Vec<String> {
-            let mut found: Vec<String> = match &tool["inputSchema"][key] {
-                serde_json::Value::Object(map) => map.keys().cloned().collect(),
-                serde_json::Value::Array(items) => items
+        let properties: Vec<(String, String)> = tool["inputSchema"]["properties"]
+            .as_object()
+            .map(|map| {
+                let mut found: Vec<(String, String)> = map
                     .iter()
-                    .filter_map(|item| item.as_str().map(str::to_string))
-                    .collect(),
-                _ => Vec::new(),
-            };
-            found.sort();
-            found
-        };
+                    .map(|(name, schema)| {
+                        (
+                            name.clone(),
+                            schema["type"].as_str().unwrap_or_default().to_string(),
+                        )
+                    })
+                    .collect();
+                found.sort();
+                found
+            })
+            .unwrap_or_default();
+        let mut required: Vec<String> = tool["inputSchema"]["required"]
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|i| i.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        required.sort();
         match CATALOG.iter().find(|(known, _, _)| *known == name) {
             None => problems.push(format!("{name}: no typed method")),
-            Some((_, properties, required)) => {
-                if names("properties") != *properties || names("required") != *required {
-                    problems.push(format!("{name}: parameters changed"));
+            Some((_, known_properties, known_required)) => {
+                let known: Vec<(String, String)> = known_properties
+                    .iter()
+                    .map(|(n, t)| (n.to_string(), t.to_string()))
+                    .collect();
+                if properties != known || required != *known_required {
+                    problems.push(format!("{name}: parameters or their types changed"));
                 }
             }
         }

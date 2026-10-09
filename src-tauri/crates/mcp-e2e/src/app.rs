@@ -12,6 +12,8 @@ const READY_WITHIN: Duration = Duration::from_secs(60);
 const CALL_TIMEOUT: Duration = Duration::from_secs(120);
 const GRACEFUL_STOP_WITHIN: Duration = Duration::from_secs(10);
 const LOG_LINES_IN_BUNDLE: usize = 50;
+const LAST_EXCHANGES_IN_BUNDLE: usize = 10;
+const SHORTENED_TO: usize = 400;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -190,7 +192,7 @@ impl App {
                 }
             }
             match Client::connect(&self.url(), Duration::from_secs(5)) {
-                Ok(client) => return Ok(client.with_timeout(CALL_TIMEOUT)),
+                Ok(client) => return client.with_timeout(CALL_TIMEOUT).map_err(|e| e.to_string()),
                 Err(error) if started.elapsed() > READY_WITHIN => {
                     return Err(format!("no `initialize` within {READY_WITHIN:?}: {error}"));
                 }
@@ -203,17 +205,43 @@ impl App {
         let log = fs::read_to_string(&self.log).unwrap_or_default();
         let lines: Vec<&str> = log.lines().collect();
         let tail = &lines[lines.len().saturating_sub(LOG_LINES_IN_BUNDLE)..];
+        let kept = self
+            .dir
+            .as_ref()
+            .map_or_else(|| "?".to_string(), |d| d.path().display().to_string());
         format!(
-            "{detail}\nbinary: {}\nport: {}\nargs: {}\ndata kept in: {}\nlast {} log lines:\n{}",
+            "{detail}\nrepro: {}\nrevision: {}\nbinary: {}\nport: {}\nargs: {}\ndata kept in: {kept}\n\
+             last exchanges:\n{}\nlast {} log lines:\n{}",
+            repro_line(),
+            revision(),
             self.binary.display(),
             self.port,
             self.args.join(" "),
-            self.dir
-                .as_ref()
-                .map_or_else(|| "?".to_string(), |d| d.path().display().to_string()),
+            self.last_exchanges(),
             tail.len(),
             tail.join("\n")
         )
+    }
+
+    /// The last requests sent and what came back, shortened; the last one with a reply is the last
+    /// successful action.
+    fn last_exchanges(&self) -> String {
+        let Some(client) = self.client.as_ref() else {
+            return "(no session was open)".to_string();
+        };
+        let transcript = client.transcript();
+        let recent = &transcript[transcript.len().saturating_sub(LAST_EXCHANGES_IN_BUNDLE)..];
+        recent
+            .iter()
+            .map(|exchange| {
+                let reply = exchange
+                    .response
+                    .as_ref()
+                    .map_or_else(|| "no reply".to_string(), |r| shortened(&r.to_string()));
+                format!("> {}\n< {reply}", shortened(&exchange.request.to_string()))
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     fn keep_directory(&mut self) {
@@ -333,6 +361,55 @@ fn display_available(x11: Option<&std::ffi::OsStr>, wayland: Option<&std::ffi::O
         .into_iter()
         .flatten()
         .any(|display| !display.is_empty())
+}
+
+fn shortened(text: &str) -> String {
+    match text.char_indices().nth(SHORTENED_TO) {
+        Some((end, _)) => format!("{}…", &text[..end]),
+        None => text.to_string(),
+    }
+}
+
+/// The command that reruns the failing scenario: its test name is the thread's, its story file is
+/// the test binary's.
+fn repro_line() -> String {
+    let scenario = std::thread::current()
+        .name()
+        .unwrap_or("<scenario>")
+        .to_string();
+    let story = std::env::current_exe()
+        .ok()
+        .and_then(|exe| {
+            exe.file_stem()
+                .map(|stem| stem.to_string_lossy().into_owned())
+        })
+        .map(|stem| {
+            stem.rsplit_once('-')
+                .map_or(stem.clone(), |(name, _)| name.to_string())
+        })
+        .unwrap_or_else(|| "<story>".to_string());
+    format!(
+        "OFM_E2E_SEED={} xvfb-run cargo test -p mcp-e2e --test {story} {scenario} -- --ignored --nocapture",
+        crate::career::seed()
+    )
+}
+
+/// The revision under test: `$OFM_E2E_REVISION`, then `$GITHUB_SHA`, then `git rev-parse`.
+fn revision() -> String {
+    ["OFM_E2E_REVISION", "GITHUB_SHA"]
+        .into_iter()
+        .find_map(|name| std::env::var(name).ok())
+        .or_else(|| {
+            let output = Command::new("git")
+                .args(["rev-parse", "--short", "HEAD"])
+                .output()
+                .ok()?;
+            output
+                .status
+                .success()
+                .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        })
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 #[cfg(test)]
