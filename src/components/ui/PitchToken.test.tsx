@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeAll, describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { i18nReady } from "../../i18n";
 import { condBgColor } from "../../lib/playerConditionDisplay";
@@ -97,5 +97,84 @@ describe("PitchToken condition bar", () => {
     );
 
     expect(container.innerHTML).toContain("ring-red-400");
+  });
+});
+
+describe("PitchToken summary reachability", () => {
+  beforeAll(async () => {
+    await i18nReady;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Given a focused token whose role control swallows every keydown
+   * When Escape is pressed on that control
+   * Then the summary is dismissed anyway and focus stays put
+   */
+  it("dismisses the summary on Escape pressed inside a keydown-swallowing child", () => {
+    render(
+      <PitchToken name="Rossi" positionAbbr="ST" ovr={74} condition={74} focused>
+        <div onKeyDown={(e) => e.stopPropagation()}>
+          <button type="button">Role</button>
+        </div>
+      </PitchToken>,
+    );
+    const role = screen.getByRole("button", { name: "Role" });
+    role.focus();
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    fireEvent.keyDown(role, { key: "Escape" });
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(role).toHaveFocus();
+  });
+
+  /**
+   * Given a hovered token and a summary offset from it
+   * When the pointer leaves the token and enters the summary within the grace period
+   * Then the summary stays open, and closes once the pointer leaves it
+   */
+  it("keeps the summary open while the pointer moves onto it", () => {
+    vi.useFakeTimers();
+    render(<PitchToken name="Rossi" positionAbbr="ST" ovr={74} condition={74} />);
+    const name = screen.getByText("Rossi");
+    fireEvent.mouseEnter(name);
+
+    fireEvent.mouseLeave(name);
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    fireEvent.mouseEnter(screen.getByRole("tooltip"));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    fireEvent.mouseLeave(screen.getByRole("tooltip"));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a hovered token
+   * When the pointer leaves it and never returns
+   * Then the summary closes after the grace period
+   */
+  it("closes the summary after the pointer leaves for good", () => {
+    vi.useFakeTimers();
+    render(<PitchToken name="Rossi" positionAbbr="ST" ovr={74} condition={74} />);
+    fireEvent.mouseEnter(screen.getByText("Rossi"));
+
+    fireEvent.mouseLeave(screen.getByText("Rossi"));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });

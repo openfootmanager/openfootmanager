@@ -97,6 +97,27 @@ function fitRingClass(fitTone: PitchFitTone): string {
   }
 }
 
+/** Long enough to cross the gap between a token and its summary, short enough not to feel stuck. */
+const HOVER_LEAVE_GRACE_MS = 150;
+
+/** Hover state that survives the pointer crossing from the token to its portaled summary. */
+function useGracefulHover() {
+  const [hovered, setHovered] = useState(false);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(leaveTimer.current), []);
+  return {
+    hovered,
+    startHover: () => {
+      clearTimeout(leaveTimer.current);
+      setHovered(true);
+    },
+    endHover: () => {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = setTimeout(() => setHovered(false), HOVER_LEAVE_GRACE_MS);
+    },
+  };
+}
+
 /** The existing label for how a player fits the slot; `empty` has no verdict to state. */
 function fitLabelKey(fitTone: PitchFitTone): string | null {
   switch (fitTone) {
@@ -139,7 +160,7 @@ export function PitchToken({
   const { t } = useTranslation();
   const tokenRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLSpanElement>(null);
-  const [hovered, setHovered] = useState(false);
+  const { hovered, startHover, endHover } = useGracefulHover();
   const [dismissed, setDismissed] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(
     null,
@@ -161,8 +182,9 @@ export function PitchToken({
     function dismiss(event: KeyboardEvent) {
       if (event.key === "Escape") setDismissed(true);
     }
-    window.addEventListener("keydown", dismiss);
-    return () => window.removeEventListener("keydown", dismiss);
+    // Capture phase: role controls inside the token stop keydown from bubbling.
+    window.addEventListener("keydown", dismiss, true);
+    return () => window.removeEventListener("keydown", dismiss, true);
   }, [showTooltip]);
 
   // Pitches clip their contents. A portal keeps the summary readable even for
@@ -203,8 +225,8 @@ export function PitchToken({
     <div
       ref={tokenRef}
       className="flex w-full flex-col items-center gap-0.5"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={startHover}
+      onMouseLeave={endHover}
     >
       {/* Avatar with overlaid badges */}
       <div className="relative">
@@ -285,7 +307,7 @@ export function PitchToken({
             id={descriptionId}
             ref={tooltipRef}
             role="tooltip"
-            className={`pointer-events-none fixed z-50 w-max max-w-64 rounded-md border border-gray-200 bg-white px-3 py-2 font-sans text-xs font-medium normal-case tracking-normal text-gray-900 shadow-lg dark:border-navy-600 dark:bg-navy-800 dark:text-gray-100 ${tooltipPosition ? "" : "invisible"}`}
+            className={`fixed z-50 w-max max-w-64 rounded-md border border-gray-200 bg-white px-3 py-2 font-sans text-xs font-medium normal-case tracking-normal text-gray-900 shadow-lg dark:border-navy-600 dark:bg-navy-800 dark:text-gray-100 ${tooltipPosition ? "" : "invisible"}`}
             style={tooltipPosition ?? { left: 0, top: 0 }}
           >
             {summary}
