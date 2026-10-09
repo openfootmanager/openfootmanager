@@ -4,19 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Optional nightly tag override
+        description: Optional exact nightly tag (no refs/tags/ or __VERSION__ aliases)
         required: false
         type: string
   push:
     branches:
       - develop
 
-# Each build now publishes its own tag, so two runs can no longer fight over one release.
-# The group stays to avoid burning five platforms' worth of runners on a commit that a newer
-# push has already superseded.
+# Stable-tag overrides share the stable workflow's queue, so neither can publish while the
+# other is still uploading. Ordinary nightlies keep cancelling superseded builds.
 concurrency:
-  group: nightly-release
-  cancel-in-progress: true
+  group: ${{ startsWith(inputs.release_tag, 'v') && 'stable-release' || 'nightly-release' }}
+  cancel-in-progress: ${{ !startsWith(inputs.release_tag, 'v') }}
 
 jobs:
   prepare-nightly:
@@ -54,6 +53,9 @@ jobs:
           # of what shipped each night did not exist anywhere. The commit sha is in the tag
           # because `develop` can take more than one push in a day.
           tag="${INPUT_RELEASE_TAG:-nightly-${compact_date}-${short_sha}}"
+          # Validate raw overrides before writing outputs: newline injection must not change
+          # a nightly-group input into a stable-group tag. Also reject already public tags early.
+          RELEASE_TAG="$tag" bash scripts/check-release-state.sh
           base_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
           display_version="${base_version}-nightly.${compact_date}+${short_sha}"
 
@@ -93,6 +95,7 @@ jobs:
   # environment grants, and putting it behind the environment's protection rules would
   # gate the tests on the approval rather than the other way round.
   verify:
+    needs: prepare-nightly
     uses: ./.github/workflows/build-check.yml
 
   publish-tauri-nightly:
@@ -144,6 +147,14 @@ jobs:
       - name: install frontend dependencies
         run: npm ci
 
+      # Same-day reruns and overrides can resolve to an already published tag. Check the
+      # prepared tag directly, including on individual matrix-job retries.
+      - name: Refuse a published nightly tag before upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare-nightly.outputs.tag }}
+        run: bash scripts/check-release-state.sh
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -168,6 +179,14 @@ jobs:
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
+
+      # #281. If this AppImage ships its own libwayland-client, WebKit shows a white window on any
+      # machine using Mesa with a newer libwayland (AMD, Intel, rolling distros). The details are
+      # in docs/LINUX_GRAPHICS.md. Failing here keeps new nightlies drafts: `finalize-nightly`
+      # only publishes when every platform succeeded.
+      - name: AppImage must not bundle libwayland-client (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm'
+        run: scripts/check-appimage-libs.sh src-tauri/target/release/bundle/appimage
 
   # Nothing is ever deleted here: a failed build must not remove a previous good nightly. A
   # build that fails or is cancelled leaves a *draft*, which nobody sees, rather than replacing
