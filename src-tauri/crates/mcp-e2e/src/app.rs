@@ -105,7 +105,7 @@ impl App {
         }
 
         let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
-        for sub in ["data", "config"] {
+        for sub in ["data", "config", "cache", "state"] {
             fs::create_dir_all(dir.path().join(sub)).map_err(|e| LaunchError::Io(e.to_string()))?;
         }
         let port = free_port().map_err(|e| LaunchError::Io(e.to_string()))?;
@@ -127,6 +127,8 @@ impl App {
             .args(&args)
             .env("XDG_DATA_HOME", dir.path().join("data"))
             .env("XDG_CONFIG_HOME", dir.path().join("config"))
+            .env("XDG_CACHE_HOME", dir.path().join("cache"))
+            .env("XDG_STATE_HOME", dir.path().join("state"))
             .stdin(Stdio::null())
             .stdout(Stdio::from(
                 log_file
@@ -267,6 +269,16 @@ impl App {
     pub fn port_is_free(&self) -> bool {
         TcpListener::bind(("127.0.0.1", self.port)).is_ok()
     }
+}
+
+/// The renderer-fallback counter the app keeps under the cache directory. A scenario that touched
+/// the real one could pin a developer's own app to CPU compositing.
+pub fn real_startup_failures_file() -> PathBuf {
+    let cache = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cache")))
+        .unwrap_or_default();
+    cache.join("openfootmanager").join("startup-failures")
 }
 
 /// What a stopped app left behind.

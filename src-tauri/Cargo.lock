@@ -2671,7 +2671,6 @@ version = "0.1.0"
 dependencies = [
  "db",
  "mcp-results",
- "ofm_core",
  "reqwest",
  "serde",
  "serde_json",

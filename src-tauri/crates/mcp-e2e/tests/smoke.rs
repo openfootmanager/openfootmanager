@@ -119,14 +119,14 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let (calendar, unexplained): (Vec<_>, Vec<_>) = rest
         .into_iter()
         .partition(|difference| difference.contains(".calendar:"));
-    expect_bug!(#759, {
+    expect_bug!(#759, "competition name_key is not saved", {
         assert!(
             name_key.is_empty(),
             "competition name_key is not saved:\n{}",
             name_key.join("\n")
         );
     });
-    expect_bug!(#760, {
+    expect_bug!(#760, "the World Cup calendar differs after a reload", {
         assert!(
             calendar.is_empty(),
             "the World Cup calendar differs after a reload:\n{}",

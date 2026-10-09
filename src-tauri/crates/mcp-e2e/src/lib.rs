@@ -14,7 +14,7 @@ mod client;
 mod snapshot;
 pub mod tools;
 
-pub use app::{App, AppConfig, LaunchError, Mode, Teardown};
+pub use app::{real_startup_failures_file, App, AppConfig, LaunchError, Mode, Teardown};
 pub use bug::expect_bug;
 pub use client::{CallError, Client, Refusal};
 pub use snapshot::{assert_refusal_changes_nothing, Snapshot};

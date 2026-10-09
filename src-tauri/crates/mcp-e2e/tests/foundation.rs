@@ -44,6 +44,10 @@ fn a_missing_binary_fails_loudly() {
 #[test]
 #[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
 fn teardown_leaves_nothing_behind() {
+    let real_counter = mcp_e2e::real_startup_failures_file();
+    let counter_before = std::fs::metadata(&real_counter)
+        .and_then(|m| m.modified())
+        .ok();
     let app = App::launch(&AppConfig::default()).unwrap();
     let port = app.port();
     assert!(!app.port_is_free(), "the app should be listening on {port}");
@@ -51,6 +55,13 @@ fn teardown_leaves_nothing_behind() {
     let left_behind = app.shutdown();
 
     assert!(left_behind.is_clean(), "{left_behind:?}");
+    let counter_after = std::fs::metadata(&real_counter)
+        .and_then(|m| m.modified())
+        .ok();
+    assert_eq!(
+        counter_before, counter_after,
+        "the scenario touched the real renderer-fallback counter {real_counter:?}"
+    );
 }
 
 /// Given a game and a call that mutates it

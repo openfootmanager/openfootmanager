@@ -6,7 +6,6 @@ publish = false
 
 [dependencies]
 mcp-results = { path = "../mcp-results" }
-ofm_core = { path = "../ofm_core" }
 db = { path = "../db" }
 serde = "1"
 serde_json = "1"
