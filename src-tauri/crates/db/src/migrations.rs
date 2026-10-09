@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 48;
+const EXPECTED_MIGRATION_COUNT: usize = 49;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -140,6 +140,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("v047_legacy_world_cup_draw.sql", include_str!("sql/v047_legacy_world_cup_draw.sql")),
     // V48: Competition calendar identity and edition provenance
     ("v048_competition_calendar.sql", include_str!("sql/v048_competition_calendar.sql")),
+    // V49: Frozen outcome of each finished competition edition
+    ("v049_competition_edition_archive.sql", include_str!("sql/v049_competition_edition_archive.sql")),
 ];
 
 /// All migrations for a per-save game database.
@@ -520,8 +522,43 @@ mod tests {
                 let version: i64 = conn
                     .pragma_query_value(None, "user_version", |row| row.get(0))
                     .unwrap();
-                assert_eq!(version, 48);
+                assert_eq!(version, MIGRATION_COUNT as i64);
             }
+        }
+    }
+
+    /// Given a real v048 save, when migrated twice, then the archive table exists and is empty.
+    #[test]
+    fn edition_archive_v049_upgrades_a_v048_save_without_touching_competitions() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(48)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute("INSERT INTO competitions (id, name, season) VALUES ('ar-d1-apertura', 'Opening', 2033)", []).unwrap();
+        assert!(
+            conn.prepare("SELECT 1 FROM competition_edition_archive")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let archived: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM competition_edition_archive",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            let competitions: i64 = conn
+                .query_row("SELECT COUNT(*) FROM competitions", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!((archived, competitions), (0, 1));
         }
     }
 
