@@ -360,10 +360,15 @@ describe("Select highlight when the options change under an open list", () => {
         First
       </option>,
     ]);
+    pick().focus();
     fireEvent.keyDown(pick(), { key: "Enter" });
+    const option = screen.getByRole("option", { name: "First" });
 
-    const pressAllowedDefault = fireEvent.mouseDown(screen.getByRole("option", { name: "First" }));
+    // jsdom has no default action for mousedown; a browser focuses the pressed
+    // button unless the event was cancelled, so apply that default ourselves.
+    const defaultNotPrevented = fireEvent.mouseDown(option);
+    if (defaultNotPrevented) option.focus();
 
-    expect(pressAllowedDefault).toBe(false);
+    expect(document.activeElement).toBe(pick());
   });
 });
