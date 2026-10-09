@@ -16,7 +16,7 @@ name = "openfootmanager_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [workspace]
-members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "crates/sim-bench", "crates/ofm-cli"]
+members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "crates/sim-bench", "crates/ofm-cli", "crates/mcp-results"]
 
 # Lint levels live here so a plain `cargo clippy` applies the levels CI enforces, instead of only
 # doing so when someone remembers to append `-- -D warnings`. Every member opts in with
@@ -61,6 +61,7 @@ serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 domain = { path = "crates/domain" }
 ofm_core = { path = "crates/ofm_core" }
+mcp-results = { path = "crates/mcp-results" }
 engine = { path = "crates/engine" }
 db = { path = "crates/db" }
 chrono = "0.4.44"

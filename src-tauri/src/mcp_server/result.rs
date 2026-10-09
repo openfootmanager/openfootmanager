@@ -1,6 +1,7 @@
 //! How a tool call fails. One value, [`Failure`], produces both the readable
 //! text and the `structuredContent`, so the two cannot drift apart.
 
+use mcp_results::ToolResult;
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::{json, Map, Value};
 
@@ -70,6 +71,21 @@ impl Failure {
         let mut result = CallToolResult::structured_error(structured);
         result.content = vec![ContentBlock::text(self.message)];
         result
+    }
+}
+
+/// A tool's success. The structure and the text are both made from `value`.
+pub fn success(value: impl ToolResult) -> CallToolResult {
+    match serde_json::to_value(&value) {
+        Ok(data) => {
+            let mut result = CallToolResult::structured(data);
+            result.content = vec![ContentBlock::text(value.to_string())];
+            result
+        }
+        Err(error) => {
+            Failure::from_backend_error(&format!("Result could not be serialized: {error}"))
+                .into_result()
+        }
     }
 }
 
@@ -182,6 +198,22 @@ mod tests {
 
         assert!(data["error"]["key"].is_null());
         assert_eq!(text, "Unknown position: XX");
+    }
+
+    /// Given a result value
+    /// When it becomes a tool result
+    /// Then the structured part and the text are both made from that one value.
+    #[test]
+    fn the_structured_part_and_the_text_agree() {
+        let value = mcp_results::club::StaffHired {
+            staff_id: "s1".to_string(),
+        };
+
+        let result = success(value.clone());
+
+        assert_ne!(result.is_error, Some(true));
+        assert_eq!(result.structured_content, Some(json!({ "staff_id": "s1" })));
+        assert_eq!(result.content[0].as_text().unwrap().text, value.to_string());
     }
 
     /// Given a call missing a required parameter
