@@ -1,5 +1,5 @@
 import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
-import { useGameStore, type PlayerData, type GameStateData } from "../../store/gameStore";
+import type { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Select } from "../ui";
@@ -28,6 +28,7 @@ import PlayerProfileRecentMatchesCard from "./PlayerProfileRecentMatchesCard";
 import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
 import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
+import { useScoutedReport } from "./useScoutedReport";
 import { useContractActionsFlow } from "./useContractActionsFlow";
 import { useInitialModalIntent } from "./useInitialModalIntent";
 import { usePlayerProfileData } from "./usePlayerProfileData";
@@ -161,13 +162,10 @@ export default function PlayerProfile({
     hasAssistantManager,
     onGameUpdate,
   });
-  const scoutedReport = isManagerSquadProfile
-    ? undefined
-    : gameState.scouted_players?.find((report) => report.player_id === player.id);
-  const scoutReportOutOfDate = useGameStore((store) =>
-    store.sessionState?.scouted_players?.some(
-      (report) => report.player_id === player.id && report.out_of_date === true,
-    ),
+  const scoutedReport = useScoutedReport(
+    player.id,
+    !isManagerSquadProfile,
+    gameState.clock.current_date,
   );
   const attributesPlayer = scoutedReport
     ? { ...player, attributes: scoutedReport.attributes }
@@ -342,14 +340,14 @@ export default function PlayerProfile({
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           player={attributesPlayer}
-          attributesVisible={isManagerSquadProfile || scoutedReport !== undefined}
+          attributesVisible={isManagerSquadProfile || scoutedReport !== null}
           scoutNote={
             scoutedReport
               ? {
                   scoutedLabel: t("playerProfile.scoutedOn", {
                     date: formatDate(scoutedReport.scouted_on, i18n.language),
                   }),
-                  outOfDate: scoutReportOutOfDate === true,
+                  outOfDate: scoutedReport.out_of_date,
                   outOfDateLabel: t("playerProfile.scoutReportOutOfDate"),
                 }
               : undefined

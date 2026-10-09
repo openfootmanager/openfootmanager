@@ -810,9 +810,9 @@ export interface ScoutedPlayer {
   attributes: PlayerData["attributes"];
 }
 
-/** The session projection's copy, which alone carries the backend's out-of-date verdict. */
+/** The backend's verdict on a report: out of date once the season it was scouted in is over. */
 export interface ScoutedPlayerView extends ScoutedPlayer {
-  out_of_date?: boolean;
+  out_of_date: boolean;
 }
 
 export interface YouthScoutingAssignment {
@@ -849,7 +849,6 @@ export interface GameStateData {
   regions?: WorldRegionData[];
   league: LeagueData | null;
   scouting_assignments: ScoutingAssignment[];
-  scouted_players?: ScoutedPlayer[];
   youth_scouting_assignments?: YouthScoutingAssignment[];
   board_objectives: BoardObjective[];
   season_context?: SeasonContextData;

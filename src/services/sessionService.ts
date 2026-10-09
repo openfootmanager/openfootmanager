@@ -3,7 +3,6 @@ import type {
   BoardObjective,
   FixtureData,
   ManagerData,
-  ScoutedPlayerView,
   ScoutingAssignment,
   SeasonContextData,
   StandingData,
@@ -61,7 +60,6 @@ export interface SessionState {
   board_objectives: BoardObjective[];
   scouting_assignments: ScoutingAssignment[];
   youth_scouting_assignments: YouthScoutingAssignment[];
-  scouted_players: ScoutedPlayerView[];
   active_competition_ids: string[];
   unread_news_count: number;
   unread_messages_count: number;

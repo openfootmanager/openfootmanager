@@ -8,6 +8,7 @@ use ofm_core::slices::inbox::{query_messages, MessagesQuery};
 use ofm_core::slices::news::{query_news_feed, NewsFeed, NewsFeedQuery};
 use ofm_core::slices::players::{query_page, PlayersPage, PlayersPageQuery};
 use ofm_core::slices::schedule::{query_schedule, ScheduleQuery, ScheduleSlice};
+use ofm_core::slices::scouted_report::{query_scouted_report, ScoutedReportView};
 use ofm_core::slices::session::{project_session, SessionState, SessionStateQuery};
 use ofm_core::slices::squad::{query_squad, SquadPlayer};
 use ofm_core::slices::staff::{query_staff, StaffSlice};
@@ -84,6 +85,16 @@ pub async fn get_session_state(
 ) -> Result<SessionState, String> {
     state
         .get_game(project_session)
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+#[tauri::command]
+pub async fn get_scouted_report(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<Option<ScoutedReportView>, String> {
+    state
+        .get_game(|game| query_scouted_report(game, &player_id))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
