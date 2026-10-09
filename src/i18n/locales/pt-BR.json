@@ -1267,6 +1267,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Histórico de ofertas",
+    "viewOfferHistory": "Ver histórico de ofertas",
+    "offerRecordedOn": "Oferta feita em {{date}}.",
+    "loanOfferStartsOn": "O empréstimo começa em {{date}}.",
+    "dealAlreadyAgreed": "A mudança de clube deste jogador foi acertada e aguarda o registro.",
+    "dealOwnPlayer": "Este jogador já faz parte do seu time.",
+    "dealActiveLoan": "Este jogador está emprestado no momento.",
+    "dealRetired": "Este jogador se aposentou.",
     "bidImpactWageBill": "Folha salarial semanal {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Orçamento salarial semanal {{budget}}",
     "bidImpactIncomingWage": "Salário do jogador {{wage}} / semana",

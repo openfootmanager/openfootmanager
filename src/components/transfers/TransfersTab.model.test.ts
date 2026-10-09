@@ -523,3 +523,85 @@ describe("TransfersTab.model", () => {
     ).toEqual(["free-agent"]);
   });
 });
+
+describe("committed player lists", () => {
+  /** Given either kind of agreed move on an own dual-listed player, when the lists derive, then availability hides it and offers retain it. */
+  it.each(["transfer", "loan"] as const)("removes a %s agreement from both own lists", (kind) => {
+    const transfer = {
+      id: "offer",
+      from_team_id: "team-2",
+      fee: 700000,
+      wage_offered: 0,
+      last_manager_fee: null,
+      negotiation_round: 1,
+      suggested_counter_fee: null,
+      status: "PendingRegistration" as const,
+      date: "2026-12-20",
+      registration_date: "2027-01-02",
+    };
+    const loan = {
+      id: "loan",
+      from_team_id: "team-2",
+      parent_team_id: "team-1",
+      start_date: "2027-01-02",
+      end_date: "2027-06-30",
+      wage_contribution_pct: 75,
+      status: "PendingRegistration" as const,
+      date: "2026-12-20",
+    };
+    const player = createPlayer({
+      transfer_listed: true,
+      loan_listed: true,
+      transfer_offers: kind === "transfer" ? [transfer] : [],
+      loan_offers: kind === "loan" ? [loan] : [],
+    });
+    const collections = deriveTransferCollections(createGameState([player]), "team-1");
+    expect(collections.myTransferList).toEqual([]);
+    expect(collections.myLoanList).toEqual([]);
+    expect(collections.playersWithOffers).toEqual([player]);
+  });
+
+  /** Given an agreed loan already moved to its borrower, when the parent opens Offers, then it still finds the saved deal. */
+  it("keeps the parent clubs loan in the offers view after registration", () => {
+    const player = createPlayer({
+      team_id: "team-2",
+      loan_offers: [
+        {
+          id: "loan",
+          from_team_id: "team-2",
+          parent_team_id: "team-1",
+          start_date: "2026-08-01",
+          end_date: "2027-01-01",
+          wage_contribution_pct: 75,
+          status: "Accepted",
+          date: "2026-08-01",
+        },
+      ],
+    });
+    expect(
+      deriveTransferCollections(createGameState([player]), "team-1").playersWithOffers,
+    ).toEqual([player]);
+  });
+
+  /** Given a free player reserved for a registration, when availability derives, then the contract approach list excludes it. */
+  it("excludes a reserved free player from contract approaches", () => {
+    const player = createPlayer({
+      team_id: null,
+      loan_offers: [
+        {
+          id: "loan",
+          from_team_id: "team-1",
+          parent_team_id: "team-2",
+          start_date: "2027-01-02",
+          end_date: "2027-06-30",
+          wage_contribution_pct: 75,
+          status: "PendingRegistration",
+          date: "2026-12-20",
+        },
+      ],
+    });
+    expect(deriveTransferCollections(createGameState([player]), "team-1").freeAgentPlayers).toEqual(
+      [],
+    );
+  });
+});

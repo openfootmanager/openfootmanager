@@ -1,4 +1,9 @@
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type {
+  GameStateData,
+  PlayerData,
+  TransferOfferData,
+  LoanOfferData,
+} from "../../store/gameStore";
 import { canonicalPosition, normalisePosition } from "../squad/SquadTab.helpers";
 
 // Specific positions grouped by the broad category they refine. Used both by
@@ -67,10 +72,18 @@ export function deriveTransferCollections(
   userTeamId: string | null,
 ): TransferCollections {
   const myTransferList = gameState.players.filter(
-    (player) => player.team_id === userTeamId && player.transfer_listed && !player.active_loan,
+    (player) =>
+      player.team_id === userTeamId &&
+      player.transfer_listed &&
+      !player.active_loan &&
+      !playerHasPendingRegistration(player),
   );
   const myLoanList = gameState.players.filter(
-    (player) => player.team_id === userTeamId && player.loan_listed && !player.active_loan,
+    (player) =>
+      player.team_id === userTeamId &&
+      player.loan_listed &&
+      !player.active_loan &&
+      !playerHasPendingRegistration(player),
   );
   const marketPlayers = gameState.players.filter(
     (player) =>
@@ -80,7 +93,7 @@ export function deriveTransferCollections(
       !playerHasPendingRegistration(player),
   );
   const freeAgentPlayers = gameState.players.filter(
-    (player) => player.team_id === null && !player.retired,
+    (player) => player.team_id === null && !player.retired && !playerHasPendingRegistration(player),
   );
   const loanPlayers = gameState.players.filter(
     (player) =>
@@ -99,10 +112,8 @@ export function deriveTransferCollections(
     availablePlayers: uniquePlayersById([...marketPlayers, ...loanPlayers, ...freeAgentPlayers]),
     playersWithOffers: gameState.players.filter(
       (player) =>
-        (player.transfer_offers.length > 0 || (player.loan_offers?.length ?? 0) > 0) &&
-        (player.team_id === userTeamId ||
-          player.transfer_offers.some((offer) => offer.from_team_id === userTeamId) ||
-          (player.loan_offers ?? []).some((offer) => offer.from_team_id === userTeamId)),
+        getRelevantTransferOffers(player, userTeamId).length > 0 ||
+        getRelevantLoanOffers(player, userTeamId).length > 0,
     ),
   };
 }
@@ -190,4 +201,34 @@ export function filterTransferPlayers(
 
     return true;
   });
+}
+
+/** Saved offer records involving the current club; historical parent IDs keep loans reachable after registration. */
+export function getRelevantTransferOffers(
+  player: PlayerData,
+  userTeamId: string | null,
+): TransferOfferData[] {
+  if (!userTeamId) return [];
+  return (player.transfer_offers ?? []).filter(
+    (offer) => player.team_id === userTeamId || offer.from_team_id === userTeamId,
+  );
+}
+
+export function getRelevantLoanOffers(
+  player: PlayerData,
+  userTeamId: string | null,
+): LoanOfferData[] {
+  if (!userTeamId) return [];
+  return (player.loan_offers ?? []).filter(
+    (offer) => offer.parent_team_id === userTeamId || offer.from_team_id === userTeamId,
+  );
+}
+
+/** Availability presentation uses saved facts; backend validation remains authoritative when a deal is submitted. */
+export function getPlayerDealBlocker(player: PlayerData, userTeamId: string | null): string | null {
+  if (player.retired) return "transfers.dealRetired";
+  if (playerHasPendingRegistration(player)) return "transfers.dealAlreadyAgreed";
+  if (player.active_loan) return "transfers.dealActiveLoan";
+  if (player.team_id !== null && player.team_id === userTeamId) return "transfers.dealOwnPlayer";
+  return null;
 }
