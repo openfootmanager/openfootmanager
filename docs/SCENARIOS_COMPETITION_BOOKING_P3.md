@@ -21,6 +21,7 @@ Not covered here: the 20-club full-window fit (16) and four-season play (65), wh
 | unreadable_fixture_date_is_unresolved_not_empty | A fixture with an unreadable date | The ledger is built | An error names the fixture; it is not an empty booking |
 | played_and_live_fixtures_keep_their_reservation | Completed or InProgress fixtures | A neighbouring day is proposed | Both still reserve their dates |
 | members_of_one_batch_conflict_with_each_other | Proposals in one batch sharing a club on consecutive days | The batch is validated | The batch is rejected |
+| a_fixture_proposed_twice_in_one_batch_is_rejected | One fixture proposed twice, even on different dates | The batch is validated | The batch is rejected as a writer bug |
 | incompatible_fixed_openers_refuse_a_calendar_plan | A club forced into two hard openers on consecutive dates | Planning is attempted | It fails and moves no opener |
 | flexible_match_takes_the_earliest_legal_day_in_its_window | No commitments | A flexible match is planned | It takes its window's first day |
 | flexible_match_skips_the_rest_days_around_a_commitment | A commitment at the window start | A flexible match is planned | It lands two days clear |

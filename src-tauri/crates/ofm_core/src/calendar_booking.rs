@@ -56,6 +56,7 @@ impl BookingLedger {
             .insert(key.clone());
     }
 
+    /// Bookings of `club_id` on `date - 1 ..= date + 1`; may include the queried fixture itself.
     pub fn clashes(&self, club_id: &str, date: NaiveDate) -> Vec<Booking> {
         let Some(days) = self.by_club.get(club_id) else {
             return Vec::new();
@@ -113,7 +114,8 @@ fn conflicts_with_ledger(ledger: &BookingLedger, proposal: &Proposal) -> Vec<Con
 }
 
 fn conflicts_between(earlier: &Proposal, later: &Proposal) -> Vec<Conflict> {
-    if earlier.fixture == later.fixture || (earlier.date - later.date).num_days().abs() >= 2 {
+    let same_fixture = earlier.fixture == later.fixture;
+    if !same_fixture && (earlier.date - later.date).num_days().abs() >= 2 {
         return Vec::new();
     }
     later
@@ -541,6 +543,22 @@ mod tests {
         let conflicts = validate_batch(&BookingLedger::default(), &batch).unwrap_err();
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].club_id, "ajax");
+    }
+
+    /// Given one fixture proposed twice in a batch, even on different dates, when validated, then the batch is rejected.
+    #[test]
+    fn a_fixture_proposed_twice_in_one_batch_is_rejected() {
+        let batch = [
+            continental("c1", "ajax", "inter", day(2033, 4, 5)),
+            continental("c1", "ajax", "inter", day(2033, 4, 20)),
+        ];
+        let conflicts = validate_batch(&BookingLedger::default(), &batch).unwrap_err();
+        assert_eq!(conflicts.len(), 2);
+        assert!(
+            conflicts
+                .iter()
+                .all(|c| c.proposed == key("champions", "c1"))
+        );
     }
 
     /// Given a club forced into two hard openers on consecutive dates, when planning is attempted, then it fails and moves nothing.
