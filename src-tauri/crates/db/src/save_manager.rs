@@ -3406,6 +3406,62 @@ mod tests {
         assert_eq!(loaded.edition_archive.len(), 1);
     }
 
+    fn world_cup_game() -> Game {
+        let mut game = sample_game_with_league();
+        let kickoff = Utc.with_ymd_and_hms(2030, 6, 10, 0, 0, 0).unwrap();
+        ofm_core::world_cup::schedule_world_cup(
+            &mut game,
+            kickoff,
+            &ofm_core::world_cup::FORMAT_48,
+        );
+        game
+    }
+
+    fn world_cup_calendars(game: &Game) -> Vec<(String, serde_json::Value)> {
+        let mut calendars: Vec<_> = game
+            .competitions
+            .iter()
+            .filter(|c| ofm_core::world_cup::is_world_cup_competition(c))
+            .map(|c| (c.id.clone(), serde_json::to_value(&c.calendar).unwrap()))
+            .collect();
+        calendars.sort_by(|a, b| a.0.cmp(&b.0));
+        calendars
+    }
+
+    /// Given a career with a freshly created World Cup, when it is saved and loaded, then
+    /// each World Cup competition's calendar after the load equals its calendar before the save.
+    #[test]
+    fn live_and_reloaded_world_cup_calendars_agree() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let game = world_cup_game();
+        let before = world_cup_calendars(&game);
+        assert!(!before.is_empty() && before.iter().all(|(_, calendar)| !calendar.is_null()));
+        let id = manager.create_save(&game, "World Cup").unwrap();
+        assert_eq!(
+            world_cup_calendars(&manager.load_game(&id).unwrap()),
+            before
+        );
+    }
+
+    /// Given a save written before World Cup calendars were set live, when it is loaded,
+    /// then the backfill gives its World Cup competitions the calendar a new one gets.
+    #[test]
+    fn older_world_cup_save_is_backfilled_to_the_live_calendar() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let game = world_cup_game();
+        let live = world_cup_calendars(&game);
+        let mut older = game.clone();
+        older
+            .competitions
+            .iter_mut()
+            .filter(|c| ofm_core::world_cup::is_world_cup_competition(c))
+            .for_each(|c| c.calendar = None);
+        let id = manager.create_save(&older, "Older").unwrap();
+        assert_eq!(world_cup_calendars(&manager.load_game(&id).unwrap()), live);
+    }
+
     #[test]
     fn migrated_calendar_is_resaved_by_its_own_flag() {
         let dir = tempfile::tempdir().unwrap();
