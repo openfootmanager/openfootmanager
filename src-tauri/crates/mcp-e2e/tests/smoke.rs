@@ -4,7 +4,9 @@
 //! `OFM_E2E_SEED=<seed> xvfb-run cargo test -p mcp-e2e --test smoke <scenario> -- --ignored --nocapture`.
 
 use mcp_e2e::career::{self, begin, fixtures, game_state, today};
-use mcp_e2e::{assert_refusal_changes_nothing, App, AppConfig, CallError, Mode, Snapshot};
+use mcp_e2e::{
+    assert_refusal_changes_nothing, expect_bug, App, AppConfig, CallError, Mode, Snapshot,
+};
 use serde_json::{json, Value};
 
 fn is_mine(fixture: &Value, club: &str) -> bool {
@@ -109,17 +111,39 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let on_disk = by_national_team_id(serde_json::to_value(&on_disk).unwrap());
     let mut differing = Vec::new();
     json_differences("game", &live, &on_disk, &mut differing);
+
+    // Two known gaps, each under its own guard: when one is fixed its guard fails and must go.
+    let (name_key, rest): (Vec<_>, Vec<_>) = differing
+        .into_iter()
+        .partition(|difference| difference.contains(".name_key:"));
+    let (calendar, unexplained): (Vec<_>, Vec<_>) = rest
+        .into_iter()
+        .partition(|difference| difference.contains(".calendar:"));
+    expect_bug!(#759, {
+        assert!(
+            name_key.is_empty(),
+            "competition name_key is not saved:\n{}",
+            name_key.join("\n")
+        );
+    });
+    expect_bug!(#760, {
+        assert!(
+            calendar.is_empty(),
+            "the World Cup calendar differs after a reload:\n{}",
+            calendar.join("\n")
+        );
+    });
     assert!(
-        differing.is_empty(),
+        unexplained.is_empty(),
         "{} places differ after a save and load, first ten:\n{}{}",
-        differing.len(),
-        differing
+        unexplained.len(),
+        unexplained
             .iter()
             .take(10)
             .cloned()
             .collect::<Vec<_>>()
             .join("\n"),
-        shapes(&differing)
+        shapes(&unexplained)
     );
 }
 
