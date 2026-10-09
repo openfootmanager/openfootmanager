@@ -176,8 +176,7 @@ pub async fn start_new_game(
         new_game.players.len(),
         new_game.staff.len()
     );
-    state.set_game(new_game.clone());
-    state.set_stats_state(stats_state);
+    crate::application::career::install_career(&state, new_game.clone(), stats_state, None);
     Ok(new_game)
 }
 
@@ -210,10 +209,7 @@ pub async fn select_team(
 
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
     let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
-    state.set_save_id(save_id);
-
-    state.set_game(game.clone());
-    state.set_stats_state(stats_state);
+    crate::application::career::install_career(&state, game.clone(), stats_state, Some(save_id));
     Ok(game)
 }
 
@@ -251,9 +247,7 @@ pub async fn load_game(
 
     let mgr_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
 
-    state.set_save_id(save_id);
-    state.set_game(game);
-    state.set_stats_state(stats_state);
+    crate::application::career::install_career(&state, game, stats_state, Some(save_id));
     Ok(mgr_name)
 }
 
@@ -290,15 +284,8 @@ pub async fn exit_to_menu(
     sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] exit_to_menu");
-    if state.get_save_id().is_some_and(|id| !id.is_empty()) {
-        let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-        persist_active_game(&state, &mut sm)?;
-    }
-
-    // Clear the in-memory game state
-    state.clear_game();
-    state.clear_save_id();
-
+    let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
+    crate::application::saving::exit_to_menu(&state, &mut sm)?;
     Ok(())
 }
 
