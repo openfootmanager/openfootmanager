@@ -1,0 +1,17 @@
+[package]
+name = "mcp-e2e"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+mcp-results = { path = "../mcp-results" }
+ofm_core = { path = "../ofm_core" }
+db = { path = "../db" }
+serde = "1"
+serde_json = "1"
+tempfile = "3"
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "json"] }
+
+[lints]
+workspace = true
