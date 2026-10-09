@@ -2800,6 +2800,7 @@
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
+        "loanBorrowerCannotAffordWages": "Klub peminjam tidak sanggup membayar porsi gaji ini. Anggaran gaji mingguannya adalah {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Tawaran balasan harus melebihi tawaran saat ini",
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
         "playerNotLoanListed": "Pemain tidak terdaftar untuk dipinjamkan",

@@ -67,6 +67,10 @@ pub fn translate_error(key: &str) -> String {
             "Unknown facility type. Use 'training', 'medical', or 'scouting'.".to_string()
         }
         "be.error.saveNotFound" => "Save not found. Check the save ID.".to_string(),
+        "be.error.transfers.loanBorrowerCannotAffordWages" => {
+            "The borrowing club cannot afford this wage share: it would exceed its wage budget."
+                .to_string()
+        }
         "be.error.contracts.boardWagePolicy" => {
             "Board wage policy blocks this renewal: wage would exceed budget.".to_string()
         }

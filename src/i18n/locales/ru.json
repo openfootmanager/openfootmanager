@@ -2792,6 +2792,7 @@
         "transferBudgetTooLow": "Трансферный бюджет слишком мал",
         "playerNotOwnedByUser": "Игрок не найден или не ваш",
         "offerNotPending": "Предложение не найдено или не находится на рассмотрении",
+        "loanBorrowerCannotAffordWages": "Клуб, берущий игрока в аренду, не может позволить себе эту долю зарплаты. Его недельный бюджет на зарплаты — {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Встречное предложение должно превышать текущее предложение.",
         "loanCounterMustImproveTerms": "Встречное предложение аренды должно улучшать текущие условия",
         "playerNotLoanListed": "Игрок не выставлен для аренды",
