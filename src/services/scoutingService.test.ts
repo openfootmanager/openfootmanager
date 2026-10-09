@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import {
   cancelYouthScouting,
+  getScoutedReport,
   reassignYouthScouting,
   sendScout,
   startYouthScouting,
@@ -17,6 +18,14 @@ const mockedInvoke = vi.mocked(invoke);
 describe("scoutingService", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
+  });
+
+  it("asks the backend for a player's scouted report", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    await expect(getScoutedReport("p1")).resolves.toBeNull();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_scouted_report", { playerId: "p1" });
   });
 
   it("calls the send scout backend command", async () => {

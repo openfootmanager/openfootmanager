@@ -1644,6 +1644,8 @@
     "attributes": "Atribut",
     "attributesHidden": "Atribut Disembunyikan",
     "scoutToView": "Scout pemain ini atau rekrut mereka untuk melihat atribut secara detail.",
+    "scoutedOn": "Diamati pada {{date}}",
+    "scoutReportOutOfDate": "Kedaluwarsa",
     "seasonStats": "Statistik Musim",
     "advancedStats": "Statistik Lanjutan",
     "shots": "Tembakan",

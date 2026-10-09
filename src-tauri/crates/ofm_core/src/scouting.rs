@@ -1,5 +1,6 @@
 use crate::game::{
-    Game, ScoutingAssignment, YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
+    Game, ScoutedPlayer, ScoutingAssignment, YouthScoutingAssignment, YouthScoutingObjective,
+    YouthScoutingRegion,
 };
 use domain::contract_ledger::ContractSource;
 use domain::message::*;
@@ -333,12 +334,26 @@ pub fn process_scouting(game: &mut Game) {
                 &today,
             );
             game.messages.push(msg);
+            record_scouted_player(game, &assignment.player_id, &today);
         }
     }
 
     for assignment in &completed_youth {
         complete_youth_scouting_assignment(game, assignment, &today);
     }
+}
+
+fn record_scouted_player(game: &mut Game, player_id: &str, scouted_on: &str) {
+    let Some(player) = game.players.iter().find(|p| p.id == player_id) else {
+        return;
+    };
+    let scouted = ScoutedPlayer {
+        player_id: player_id.to_string(),
+        scouted_on: scouted_on.to_string(),
+        attributes: player.attributes.clone(),
+    };
+    game.scouted_players.retain(|s| s.player_id != player_id);
+    game.scouted_players.push(scouted);
 }
 
 fn complete_youth_scouting_assignment(

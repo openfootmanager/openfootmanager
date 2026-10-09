@@ -1644,6 +1644,8 @@
     "attributes": "Attributes",
     "attributesHidden": "Attributes Hidden",
     "scoutToView": "Scout this player or sign them to view detailed attributes.",
+    "scoutedOn": "Scouted on {{date}}",
+    "scoutReportOutOfDate": "Out of date",
     "seasonStats": "Season Statistics",
     "advancedStats": "Advanced Stats",
     "shots": "Shots",

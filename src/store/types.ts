@@ -804,6 +804,17 @@ export interface ScoutingAssignment {
   days_remaining: number;
 }
 
+export interface ScoutedPlayer {
+  player_id: string;
+  scouted_on: string;
+  attributes: PlayerData["attributes"];
+}
+
+/** The backend's verdict on a report: out of date once the season it was scouted in is over. */
+export interface ScoutedPlayerView extends ScoutedPlayer {
+  out_of_date: boolean;
+}
+
 export interface YouthScoutingAssignment {
   id: string;
   scout_id: string;

@@ -231,6 +231,7 @@ pub fn run() {
             get_messages_page,
             get_competitions_view,
             get_session_state,
+            get_scouted_report,
             get_squad,
             get_staff,
             get_active_save_id,

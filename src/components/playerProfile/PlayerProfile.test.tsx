@@ -365,6 +365,10 @@ function defaultInvokeResponse(command: string) {
     return [];
   }
 
+  if (command === "get_scouted_report") {
+    return null;
+  }
+
   return createGameState(createPlayer());
 }
 
@@ -482,6 +486,69 @@ describe("PlayerProfile contract surfaces", () => {
     });
     expect(screen.queryByRole("button", { name: "Submit Offer" })).toBeNull();
     expect(invoke).not.toHaveBeenCalledWith("preview_contract_termination", expect.anything());
+  });
+
+  /**
+   * Given a player at another club whom a scout reported on, flagged out of date by the backend
+   * When the profile opens
+   * Then the scouted attributes show instead of the hidden placeholder, marked out of date
+   */
+  it("shows a scouted player's snapshot attributes with the backend's out-of-date verdict", async () => {
+    const player = createPlayer({ team_id: "team-2" });
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: InvokeArgs) => {
+      if (command === "get_scouted_report") {
+        expect(args).toEqual({ playerId: player.id });
+        return {
+          player_id: player.id,
+          scouted_on: "2026-03-10",
+          attributes: { ...player.attributes, pace: 77 },
+          out_of_date: true,
+        };
+      }
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("playerProfile.scoutReportOutOfDate")).toBeInTheDocument();
+    expect(screen.getByText("77")).toBeInTheDocument();
+    expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player nobody has scouted
+   * When the profile opens
+   * Then the attributes stay hidden
+   */
+  it("keeps the attributes hidden when the backend has no report", async () => {
+    const player = createPlayer({ team_id: "team-2" });
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_scouted_report") return null;
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("get_scouted_report", { playerId: player.id });
+    });
+    expect(screen.getByText("playerProfile.attributesHidden")).toBeInTheDocument();
   });
 
   it("renders expiry date, years remaining, and contract risk for the selected player", () => {

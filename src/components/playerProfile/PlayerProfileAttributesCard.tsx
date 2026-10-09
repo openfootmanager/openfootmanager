@@ -21,7 +21,8 @@ function placeholderWidth(name: string): number {
 interface PlayerProfileAttributesCardProps {
   attrGroups: PlayerAttributeGroup[];
   player: PlayerData;
-  isOwnClub: boolean;
+  attributesVisible: boolean;
+  scoutNote?: { scoutedLabel: string; outOfDate: boolean; outOfDateLabel: string };
   isGk?: boolean;
   title: string;
   averageLabel: string;
@@ -34,7 +35,8 @@ interface PlayerProfileAttributesCardProps {
 export default function PlayerProfileAttributesCard({
   attrGroups,
   player,
-  isOwnClub,
+  attributesVisible,
+  scoutNote,
   isGk = false,
   title,
   averageLabel,
@@ -49,13 +51,13 @@ export default function PlayerProfileAttributesCard({
     <Card className="lg:col-span-2">
       <CardHeader
         action={
-          isOwnClub ? (
+          attributesVisible ? (
             <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-navy-600 text-[10px] font-heading font-bold uppercase tracking-wider">
               <button
                 type="button"
                 aria-pressed={view === "list"}
                 onClick={() => setView("list")}
-                className={`px-3 py-1 transition-colors ${view === "list" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
+                className={`px-3 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 ${view === "list" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
               >
                 {listLabel}
               </button>
@@ -63,7 +65,7 @@ export default function PlayerProfileAttributesCard({
                 type="button"
                 aria-pressed={view === "radar"}
                 onClick={() => setView("radar")}
-                className={`px-3 py-1 transition-colors ${view === "radar" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
+                className={`px-3 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 ${view === "radar" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
               >
                 {radarLabel}
               </button>
@@ -74,9 +76,19 @@ export default function PlayerProfileAttributesCard({
         {title}
       </CardHeader>
       <CardBody>
-        {isOwnClub && view === "radar" ? (
+        {attributesVisible && scoutNote ? (
+          <p className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span>{scoutNote.scoutedLabel}</span>
+            {scoutNote.outOfDate ? (
+              <span className="rounded-full bg-accent-100 px-2 py-0.5 font-heading text-[10px] font-bold uppercase tracking-wider text-accent-800 dark:bg-accent-500/20 dark:text-accent-300">
+                {scoutNote.outOfDateLabel}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+        {attributesVisible && view === "radar" ? (
           <PlayerAttributeRadarChart player={player} isGk={isGk} />
-        ) : isOwnClub ? (
+        ) : attributesVisible ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
             {attrGroups.map((group) => (
               <PlayerProfileStatCard

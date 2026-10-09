@@ -1644,6 +1644,8 @@
     "attributes": "Atributy",
     "attributesHidden": "Skryté atributy",
     "scoutToView": "Pro zobrazení podrobných atributů musíte hráče vyskautovat nebo podepsat.",
+    "scoutedOn": "Skautováno {{date}}",
+    "scoutReportOutOfDate": "Zastaralé",
     "seasonStats": "Sezónní statistiky",
     "advancedStats": "Pokročilé statistiky",
     "shots": "Střely",

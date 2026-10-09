@@ -694,6 +694,7 @@ impl SaveManager {
         game.news.clear();
         game.scouting_assignments.clear();
         game.youth_scouting_assignments.clear();
+        game.scouted_players.clear();
         game.board_objectives.clear();
 
         // A new career is a new game: its World Cups are drawn from its own seed, whatever the
@@ -3175,6 +3176,52 @@ mod tests {
             Some(domain::player::Position::Defender)
         );
         assert_eq!(loaded.youth_scouting_assignments[0].days_remaining, 5);
+    }
+
+    /// Given a game with a scouted player
+    /// When it is saved and loaded from the .db
+    /// Then the date and the full attribute snapshot come back
+    #[test]
+    fn scouted_players_survive_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mut attributes = game.players[0].attributes.clone();
+        attributes.pace = 91;
+        attributes.composure = 33;
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: game.players[0].id.clone(),
+            scouted_on: "2026-08-10".to_string(),
+            attributes,
+        });
+
+        let save_id = sm.create_save(&game, "Scouted").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.scouted_players.len(), 1);
+        assert_eq!(loaded.scouted_players[0].scouted_on, "2026-08-10");
+        assert_eq!(loaded.scouted_players[0].attributes.pace, 91);
+        assert_eq!(loaded.scouted_players[0].attributes.composure, 33);
+    }
+
+    /// Given a save with scouted players
+    /// When a new career starts from it
+    /// Then the new career has scouted nobody
+    #[test]
+    fn a_new_career_from_a_save_starts_with_nobody_scouted() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: game.players[0].id.clone(),
+            scouted_on: "2026-08-10".to_string(),
+            attributes: game.players[0].attributes.clone(),
+        });
+        let save_id = sm.create_save(&game, "Scouted").unwrap();
+
+        let fresh = sm.new_game_from_save(&save_id).unwrap();
+
+        assert!(fresh.scouted_players.is_empty());
     }
 
     #[test]
