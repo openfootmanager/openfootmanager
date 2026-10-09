@@ -126,15 +126,60 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     (team_data, bench)
 }
 
-/// Persist the side the user's actual kickoff will field so the next save and
-/// the management views no longer retain an ineligible youth starter.
+/// Replace, in place, only the saved starters the pool policy benches (youth outside the
+/// match-day pool). Injured seniors keep their slot: the kick-off side's one-match
+/// replacement for them must not become the manager's saved lineup.
 pub(crate) fn reconcile_user_starting_xi(game: &mut Game, team_id: &str) {
     if game.manager.team_id.as_deref() != Some(team_id) {
         return;
     }
+    let eligible: HashSet<&str> =
+        crate::match_day_eligibility::match_day_eligible_players(&game.players, team_id)
+            .into_iter()
+            .map(|p| p.id.as_str())
+            .collect();
+    let benched_youth: HashSet<String> = game
+        .players
+        .iter()
+        .filter(|p| {
+            p.team_id.as_deref() == Some(team_id)
+                && p.squad_role == domain::player::SquadRole::Youth
+                && !eligible.contains(p.id.as_str())
+        })
+        .map(|p| p.id.clone())
+        .collect();
+    let Some(saved) = game
+        .teams
+        .iter()
+        .find(|t| t.id == team_id)
+        .map(|t| t.starting_xi_ids.clone())
+        .filter(|ids| ids.iter().any(|id| benched_youth.contains(id)))
+    else {
+        return;
+    };
+
     let (side, _) = build_team_with_bench(game, team_id);
+    let side_ids: Vec<String> = side.players.into_iter().map(|p| p.id).collect();
+    let mut lineup = saved.clone();
+    for (slot, id) in saved.iter().enumerate() {
+        if !benched_youth.contains(id) {
+            continue;
+        }
+        let replacement = side_ids
+            .get(slot)
+            .filter(|candidate| !lineup.contains(candidate))
+            .or_else(|| {
+                side_ids
+                    .iter()
+                    .find(|candidate| !lineup.contains(candidate))
+            });
+        if let Some(replacement) = replacement {
+            lineup[slot] = replacement.clone();
+        }
+    }
+    lineup.retain(|id| !benched_youth.contains(id));
     if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.starting_xi_ids = side.players.into_iter().map(|p| p.id).collect();
+        team.starting_xi_ids = lineup;
     }
 }
 
@@ -956,6 +1001,36 @@ pub(crate) mod match_day_pool_tests {
         );
         let loaded: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
         assert_eq!(loaded.teams[0].starting_xi_ids, starters);
+    }
+
+    /// Given a saved XI whose senior starter is injured on match day
+    /// When the kick-off is prepared
+    /// Then his id is still saved in his slot: a one-match replacement is not the lineup
+    #[test]
+    fn an_injured_saved_senior_keeps_his_slot_in_the_saved_xi() {
+        let mut game = match_day_game(true, 18, 0);
+        let saved: Vec<String> = (0..11).map(|i| format!("senior-{i:02}")).collect();
+        game.teams[0].starting_xi_ids = saved.clone();
+        game.players
+            .iter_mut()
+            .find(|p| p.id == "senior-03")
+            .unwrap()
+            .injury = Some(domain::player::Injury {
+            name: "Knock".into(),
+            days_remaining: 3,
+        });
+        game.league = Some(domain::league::League {
+            fixtures: vec![domain::league::Fixture {
+                home_team_id: "club".into(),
+                away_team_id: "club".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+
+        crate::live_match_manager::prepare_kick_off(&mut game, 0);
+
+        assert_eq!(game.teams[0].starting_xi_ids, saved);
     }
 
     /// Given fewer players than a full squad needs, when either manager builds it,
