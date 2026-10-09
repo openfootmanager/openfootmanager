@@ -10,8 +10,7 @@ use mcp_results::info::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{
-    age_from_dob, format_position, goal_difference, ranked, require_game, require_league,
-    serde_label, user_team,
+    age_from_dob, format_position, require_game, require_league, serde_label, user_team,
 };
 use domain::league::{FixtureStatus, League};
 use std::sync::Arc;
@@ -98,7 +97,7 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<GameSummary, String> {
     let team_id = team.id.as_str();
 
     let league = game.league.as_ref().map(|league| {
-        let standings = ranked(league);
+        let standings = league.sorted_standings();
         let standing = standings.iter().find(|s| s.team_id == team_id);
         // Newest five results, shown oldest first.
         let mut recent: Vec<&str> = completed_results(league, team_id)
@@ -115,7 +114,7 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<GameSummary, String> {
                 .position(|s| s.team_id == team_id)
                 .map_or(0, |i| i + 1),
             points: standing.map_or(0, |s| s.points),
-            goal_difference: standing.map_or(0, goal_difference),
+            goal_difference: standing.map_or(0, |s| i64::from(s.goal_difference())),
             form: recent.join("-"),
         }
     });
@@ -203,7 +202,8 @@ pub fn info_standings(ctx: Arc<McpContext>) -> Result<Standings, String> {
         .as_deref()
         .ok_or("be.error.noTeamAssigned")?;
 
-    let rows = ranked(league)
+    let rows = league
+        .sorted_standings()
         .iter()
         .enumerate()
         .map(|(i, s)| StandingRow {
@@ -218,7 +218,7 @@ pub fn info_standings(ctx: Arc<McpContext>) -> Result<Standings, String> {
             won: s.won,
             drawn: s.drawn,
             lost: s.lost,
-            goal_difference: goal_difference(s),
+            goal_difference: i64::from(s.goal_difference()),
             points: s.points,
         })
         .collect();
@@ -471,7 +471,8 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<MatchPreview, String> 
         at_home,
         date: fixture.date.clone(),
         matchday: fixture.matchday,
-        opponent_position: ranked(league)
+        opponent_position: league
+            .sorted_standings()
             .iter()
             .position(|st| st.team_id == *opponent_id)
             .map_or(0, |p| p + 1),
@@ -538,7 +539,7 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<TeamPr
         .count();
 
     let league = game.league.as_ref().and_then(|league| {
-        let standings = ranked(league);
+        let standings = league.sorted_standings();
         let position = standings.iter().position(|st| st.team_id == team_id)?;
         let s = &standings[position];
         Some(TeamLeagueFigures {
@@ -547,7 +548,7 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<TeamPr
             won: s.won,
             drawn: s.drawn,
             lost: s.lost,
-            goal_difference: goal_difference(s),
+            goal_difference: i64::from(s.goal_difference()),
         })
     });
 

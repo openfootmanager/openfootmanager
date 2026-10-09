@@ -77,18 +77,3 @@ pub(crate) fn serde_label<T: serde::Serialize>(value: &T) -> String {
         Err(_) => String::new(),
     }
 }
-
-pub(crate) fn goal_difference(standing: &domain::league::StandingEntry) -> i64 {
-    i64::from(standing.goals_for) - i64::from(standing.goals_against)
-}
-
-/// The table as the agent sees it: points, then goals scored.
-pub(crate) fn ranked(league: &domain::league::League) -> Vec<domain::league::StandingEntry> {
-    let mut standings = league.standings.clone();
-    standings.sort_by(|a, b| {
-        b.points
-            .cmp(&a.points)
-            .then_with(|| b.goals_for.cmp(&a.goals_for))
-    });
-    standings
-}

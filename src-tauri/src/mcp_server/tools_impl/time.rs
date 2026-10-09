@@ -5,9 +5,7 @@ use mcp_results::time::{
 };
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::{
-    goal_difference, ranked, require_game, require_league,
-};
+use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
 use std::sync::{Arc, Mutex};
 
 // ─── time_advance ───────────────────────────────────────────────────────────
@@ -105,13 +103,13 @@ fn your_match_in(
 fn standings_update(game: &ofm_core::game::Game) -> Option<StandingsUpdate> {
     let league = game.league.as_ref()?;
     let team_id = game.manager.team_id.as_deref()?;
-    let standings = ranked(league);
+    let standings = league.sorted_standings();
     let position = standings.iter().position(|s| s.team_id == team_id)?;
     let standing = &standings[position];
     Some(StandingsUpdate {
         position: position + 1,
         points: standing.points,
-        goal_difference: goal_difference(standing),
+        goal_difference: i64::from(standing.goal_difference()),
     })
 }
 
@@ -262,3 +260,56 @@ pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<Blockers, String> {
 }
 
 // ─── transfer_market_browse ─────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::standings_update;
+    use chrono::TimeZone;
+    use domain::league::{League, StandingEntry};
+    use domain::manager::Manager;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+
+    fn entry(team_id: &str, goals_for: u32, goals_against: u32) -> StandingEntry {
+        StandingEntry {
+            team_id: team_id.to_string(),
+            played: 3,
+            won: 1,
+            drawn: 0,
+            lost: 2,
+            goals_for,
+            goals_against,
+            points: 3,
+        }
+    }
+
+    /// Given two clubs level on points, one with more goals scored and the other the better goal difference
+    /// When the standings update for the better goal difference's club is built
+    /// Then it is first, because the game ranks by points, goal difference, then goals scored.
+    #[test]
+    fn a_tie_on_points_is_split_by_goal_difference_not_goals_scored() {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("tidy".to_string());
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2030, 9, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        let mut league = League::new(
+            "league".to_string(),
+            "League".to_string(),
+            2030,
+            &["open".to_string(), "tidy".to_string()],
+        );
+        league.standings = vec![entry("open", 8, 8), entry("tidy", 3, 1)];
+        game.league = Some(league);
+
+        let update = standings_update(&game).expect("the manager's club is in the table");
+
+        assert_eq!(update.position, 1);
+        assert_eq!(update.goal_difference, 2);
+    }
+}
