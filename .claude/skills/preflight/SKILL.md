@@ -64,9 +64,9 @@ do not run a missing target or count a zero-test selection as a pass.
 ## 4. Review evidence
 
 Use `ofm-architecture-reviewer` for architecture and SOLID, `ofm-dedup-reviewer` for authoritative
-homes and reachable reuse, and `ofm-test-reviewer` for any test change and every bug fix (the last
-agent is added in programme PR 2). Map each named GWT scenario to one independently reported test;
-quote observed red/fix-removal failure and the green command. Use a disposable copy for fix removal.
+homes and reachable reuse, and `ofm-test-reviewer` for any test change and every bug fix.
+Map each named GWT scenario to one independently reported test; quote observed red/fix-removal
+failure and the green command. Use a disposable copy for fix removal.
 Do not claim "would fail" as observed evidence. Identify uncovered routes and exceptions.
 
 `i18n-auditor` and `ui-accessibility-reviewer` are mandatory when their surfaces change. Read the
