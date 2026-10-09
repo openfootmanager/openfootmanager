@@ -88,7 +88,7 @@ pub fn is_league_complete(league: &League) -> bool {
 /// fixtures are not wiped during a hemisphere-foreign rollover. Cups and
 /// group-knockout competitions are always regenerated — freshly-seeded cups
 /// have no fixtures yet and must receive new participants each season.
-fn is_competition_complete(competition: &League) -> bool {
+pub fn is_competition_complete(competition: &League) -> bool {
     match competition.rules.format {
         CompetitionFormat::LeagueTable => is_league_season_ended(competition),
         _ => true,
