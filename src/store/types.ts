@@ -808,7 +808,11 @@ export interface ScoutedPlayer {
   player_id: string;
   scouted_on: string;
   attributes: PlayerData["attributes"];
-  out_of_date: boolean;
+}
+
+/** The session projection's copy, which alone carries the backend's out-of-date verdict. */
+export interface ScoutedPlayerView extends ScoutedPlayer {
+  out_of_date?: boolean;
 }
 
 export interface YouthScoutingAssignment {

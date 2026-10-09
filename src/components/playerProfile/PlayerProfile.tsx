@@ -1,5 +1,5 @@
 import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
-import type { PlayerData, GameStateData } from "../../store/gameStore";
+import { useGameStore, type PlayerData, type GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Select } from "../ui";
@@ -164,6 +164,11 @@ export default function PlayerProfile({
   const scoutedReport = isManagerSquadProfile
     ? undefined
     : gameState.scouted_players?.find((report) => report.player_id === player.id);
+  const scoutReportOutOfDate = useGameStore((store) =>
+    store.sessionState?.scouted_players?.some(
+      (report) => report.player_id === player.id && report.out_of_date === true,
+    ),
+  );
   const attributesPlayer = scoutedReport
     ? { ...player, attributes: scoutedReport.attributes }
     : player;
@@ -344,7 +349,7 @@ export default function PlayerProfile({
                   scoutedLabel: t("playerProfile.scoutedOn", {
                     date: formatDate(scoutedReport.scouted_on, i18n.language),
                   }),
-                  outOfDate: scoutedReport.out_of_date,
+                  outOfDate: scoutReportOutOfDate === true,
                   outOfDateLabel: t("playerProfile.scoutReportOutOfDate"),
                 }
               : undefined

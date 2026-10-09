@@ -166,6 +166,7 @@ export type {
   NewsArticle,
   BoardObjective,
   ScoutedPlayer,
+  ScoutedPlayerView,
   ScoutingAssignment,
   YouthScoutingAssignment,
   GameStateData,

@@ -4,7 +4,14 @@ import { beforeEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
-import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import {
+  useGameStore,
+  type GameStateData,
+  type PlayerData,
+  type StaffData,
+  type TeamData,
+} from "../../store/gameStore";
+import type { SessionState } from "../../services/sessionService";
 import PlayerProfile from "./PlayerProfile";
 
 /**
@@ -497,9 +504,14 @@ describe("PlayerProfile contract surfaces", () => {
         player_id: player.id,
         scouted_on: "2026-03-10",
         attributes: { ...player.attributes, pace: 77 },
-        out_of_date: true,
       },
     ];
+
+    useGameStore.setState({
+      sessionState: {
+        scouted_players: [{ ...state.scouted_players?.[0], out_of_date: true }],
+      } as SessionState,
+    });
 
     render(
       <PlayerProfile
