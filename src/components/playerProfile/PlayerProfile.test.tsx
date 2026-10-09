@@ -485,31 +485,19 @@ describe("PlayerProfile contract surfaces", () => {
   });
 
   /**
-   * Given a player at another club whom a scout reported on before this season
+   * Given a player at another club whom a scout reported on, flagged out of date by the backend
    * When the profile opens
    * Then the scouted attributes show instead of the hidden placeholder, marked as out of date
    */
-  it("shows a scouted player's snapshot attributes, marked out of date after a season", () => {
+  it("shows a scouted player's snapshot attributes, the backend flags out of date", () => {
     const player = createPlayer({ team_id: "team-2" });
     const state = createGameState(player, [createStaff()]);
-    state.season_context = {
-      phase: "Preseason",
-      season_start: "2026-08-01",
-      season_end: null,
-      days_until_season_start: null,
-      transfer_window: {
-        status: "Closed",
-        opens_on: null,
-        closes_on: null,
-        days_until_opens: null,
-        days_remaining: null,
-      },
-    };
     state.scouted_players = [
       {
         player_id: player.id,
         scouted_on: "2026-03-10",
         attributes: { ...player.attributes, pace: 77 },
+        out_of_date: true,
       },
     ];
 

@@ -785,6 +785,7 @@ export interface ScoutedPlayer {
   player_id: string;
   scouted_on: string;
   attributes: PlayerData["attributes"];
+  out_of_date: boolean;
 }
 
 export interface YouthScoutingAssignment {

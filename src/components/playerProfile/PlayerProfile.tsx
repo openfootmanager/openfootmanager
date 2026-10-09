@@ -17,7 +17,6 @@ import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
 import { formatDate } from "../../lib/dateFormatting";
-import { findScoutedReport } from "../../lib/scoutedPlayers";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
@@ -163,8 +162,8 @@ export default function PlayerProfile({
     onGameUpdate,
   });
   const scoutedReport = isManagerSquadProfile
-    ? null
-    : findScoutedReport(gameState.scouted_players, player.id, gameState.season_context?.season_start);
+    ? undefined
+    : gameState.scouted_players?.find((report) => report.player_id === player.id);
   const attributesPlayer = scoutedReport
     ? { ...player, attributes: scoutedReport.attributes }
     : player;
@@ -338,14 +337,14 @@ export default function PlayerProfile({
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           player={attributesPlayer}
-          attributesVisible={isManagerSquadProfile || scoutedReport !== null}
+          attributesVisible={isManagerSquadProfile || scoutedReport !== undefined}
           scoutNote={
             scoutedReport
               ? {
                   scoutedLabel: t("playerProfile.scoutedOn", {
-                    date: formatDate(scoutedReport.scoutedOn, i18n.language),
+                    date: formatDate(scoutedReport.scouted_on, i18n.language),
                   }),
-                  outOfDate: scoutedReport.outOfDate,
+                  outOfDate: scoutedReport.out_of_date,
                   outOfDateLabel: t("playerProfile.scoutReportOutOfDate"),
                 }
               : undefined

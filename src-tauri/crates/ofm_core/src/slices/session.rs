@@ -55,12 +55,30 @@ pub struct SessionState {
     pub board_objectives: Vec<BoardObjective>,
     pub scouting_assignments: Vec<ScoutingAssignment>,
     pub youth_scouting_assignments: Vec<YouthScoutingAssignment>,
-    pub scouted_players: Vec<ScoutedPlayer>,
+    pub scouted_players: Vec<ScoutedPlayerView>,
     pub active_competition_ids: Vec<String>,
     pub unread_news_count: usize,
     pub unread_messages_count: usize,
     /// Slim view of the manager's primary competition, or `None` when not yet set.
     pub user_competition: Option<UserCompetitionSummary>,
+}
+
+/// A scout's report plus whether it still describes the player: one that predates the
+/// current season's start is out of date. ISO dates order like the days they name.
+#[derive(Debug, Serialize)]
+pub struct ScoutedPlayerView {
+    #[serde(flatten)]
+    pub report: ScoutedPlayer,
+    pub out_of_date: bool,
+}
+
+impl ScoutedPlayerView {
+    fn of(report: &ScoutedPlayer, season_start: Option<&str>) -> Self {
+        Self {
+            out_of_date: season_start.is_some_and(|start| report.scouted_on.as_str() < start),
+            report: report.clone(),
+        }
+    }
 }
 
 /// Project a `Game` into a `SessionState`.
@@ -87,7 +105,13 @@ pub fn project_session(game: &Game) -> SessionState {
         board_objectives: game.board_objectives.clone(),
         scouting_assignments: game.scouting_assignments.clone(),
         youth_scouting_assignments: game.youth_scouting_assignments.clone(),
-        scouted_players: game.scouted_players.clone(),
+        scouted_players: game
+            .scouted_players
+            .iter()
+            .map(|report| {
+                ScoutedPlayerView::of(report, game.season_context.season_start.as_deref())
+            })
+            .collect(),
         active_competition_ids: game.active_competition_ids.clone(),
         unread_news_count: {
             // Don't count future-dated articles (e.g. a World Cup kickoff dated
@@ -328,25 +352,61 @@ mod tests {
         assert_eq!(session.unread_news_count, 2);
     }
 
+    fn scouted_on(date: &str) -> crate::game::ScoutedPlayer {
+        crate::game::ScoutedPlayer {
+            player_id: "p9".to_string(),
+            scouted_on: date.to_string(),
+            attributes: serde_json::from_str(r#"{"pace":50,"stamina":50,"strength":50,"agility":50,"passing":50,"shooting":50,"tackling":50,"dribbling":50,"defending":50,"positioning":50,"vision":50,"decisions":50,"composure":50,"aggression":50,"teamwork":50,"leadership":50,"handling":50,"reflexes":50,"aerial":50}"#).unwrap(),
+        }
+    }
+
+    fn session_with_scouted(scouted_on_date: &str, season_start: Option<&str>) -> SessionState {
+        let mut game = make_game_with_team();
+        game.scouted_players.push(scouted_on(scouted_on_date));
+        game.season_context.season_start = season_start.map(str::to_string);
+        project_session(&game)
+    }
+
     /// Given a game with a scouted player
     /// When the session is projected
     /// Then the scouted snapshot reaches the frontend
     #[test]
     fn session_carries_scouted_players() {
-        let mut game = make_game_with_team();
-        game.scouted_players.push(crate::game::ScoutedPlayer {
-            player_id: "p9".to_string(),
-            scouted_on: "2026-08-10".to_string(),
-            attributes: serde_json::from_str(
-                r#"{"pace":50,"stamina":50,"strength":50,"agility":50,"passing":50,"shooting":50,"tackling":50,"dribbling":50,"defending":50,"positioning":50,"vision":50,"decisions":50,"composure":50,"aggression":50,"teamwork":50,"leadership":50,"handling":50,"reflexes":50,"aerial":50}"#,
-            )
-            .unwrap(),
-        });
-
-        let session = project_session(&game);
+        let session = session_with_scouted("2026-08-10", Some("2026-08-01"));
 
         assert_eq!(session.scouted_players.len(), 1);
-        assert_eq!(session.scouted_players[0].player_id, "p9");
+        assert_eq!(session.scouted_players[0].report.player_id, "p9");
+    }
+
+    /// Given a report from before the current season started
+    /// When the session is projected
+    /// Then the report is out of date
+    #[test]
+    fn a_report_from_before_the_season_start_is_out_of_date() {
+        let session = session_with_scouted("2026-03-10", Some("2026-08-01"));
+
+        assert!(session.scouted_players[0].out_of_date);
+    }
+
+    /// Given a report from the season's first day or later
+    /// When the session is projected
+    /// Then it is current
+    #[test]
+    fn a_report_from_the_season_start_onward_is_current() {
+        assert!(
+            !session_with_scouted("2026-08-01", Some("2026-08-01")).scouted_players[0].out_of_date
+        );
+        assert!(
+            !session_with_scouted("2026-09-20", Some("2026-08-01")).scouted_players[0].out_of_date
+        );
+    }
+
+    /// Given a game with no known season start
+    /// When the session is projected
+    /// Then no report is called out of date
+    #[test]
+    fn no_report_is_out_of_date_without_a_season_start() {
+        assert!(!session_with_scouted("2020-01-01", None).scouted_players[0].out_of_date);
     }
 
     #[test]
