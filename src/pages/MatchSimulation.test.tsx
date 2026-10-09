@@ -378,6 +378,7 @@ describe("MatchSimulation", (): void => {
         fixtureId: "cup-fix4",
         mode: "live",
         snapshot: makeSnapshot({
+          allows_extra_time: true,
           home_team: {
             id: "home1",
             name: "Boot Snapshot FC",
