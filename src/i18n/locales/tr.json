@@ -1267,6 +1267,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Teklif geçmişi",
+    "viewOfferHistory": "Teklif geçmişini görüntüle",
+    "offerRecordedOn": "Teklif tarihi: {{date}}.",
+    "loanOfferStartsOn": "Kiralama {{date}} tarihinde başlar.",
+    "dealAlreadyAgreed": "Bu oyuncunun transferi üzerinde anlaşılmış ve tescil bekleniyor.",
+    "dealOwnPlayer": "Bu oyuncu zaten kulübünüze ait.",
+    "dealActiveLoan": "Bu oyuncu şu anda kiralık oynuyor.",
+    "dealRetired": "Bu oyuncu futbolu bıraktı.",
     "bidImpactWageBill": "Haftalık maaş gideri {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Haftalık maaş bütçesi {{budget}}",
     "bidImpactIncomingWage": "Oyuncu maaşı {{wage}} / hafta",
@@ -3373,7 +3381,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Tamamlandı: {{player}}",
-        "body": "{{player}} transferi {{fee}} bonservis bedeliyle tamamlandı.\n\nOyuncu kadroya katıldı ve seçilebilir durumda."
+        "body": "{{player}} transferi {{fee}} bonservis bedeliyle tamamlandı.\n\nOyuncu kadroya katıldı ve seçilebilir durumda.",
+        "bodySold": "{{player}} oyuncusunun {{buyer}} kulübüne transferi {{fee}} bedelle tamamlandı. Oyuncu kadrodan ayrılıp {{buyer}} kulübüne katıldı."
+      },
+      "transferAgreed": {
+        "subject": "Transfer anlaşması: {{player}}",
+        "body": "{{player}} oyuncusunun {{seller}} kulübünden {{buyer}} kulübüne transferi {{fee}} bedelle kararlaştırıldı. Tescil {{start}} tarihinde yapılacak."
       },
       "transferOffer": {
         "subject": "{{player}} için Gelen Teklif",
@@ -3384,6 +3397,11 @@
         "subject": "{{player}} için transfer ilgisi",
         "body": "{{player}} için aktif teklifi olan kulüpler: {{n}}. Son başvuru: {{team}} ({{fee}}). Yanıtlamak için teklifleri Transferler sekmesinde inceleyin.",
         "actionReview": "Teklifleri İncele"
+      },
+      "loanAgreed": {
+        "subject": "Kiralama anlaşması: {{player}}",
+        "bodyWithOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu: {{fee}}.",
+        "bodyNoOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu yok."
       },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",

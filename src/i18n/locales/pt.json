@@ -1267,6 +1267,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Histórico de propostas",
+    "viewOfferHistory": "Ver histórico de propostas",
+    "offerRecordedOn": "Proposta de {{date}}.",
+    "loanOfferStartsOn": "O empréstimo começa em {{date}}.",
+    "dealAlreadyAgreed": "A mudança de clube deste jogador está acordada e aguarda a inscrição.",
+    "dealOwnPlayer": "Este jogador já pertence à tua equipa.",
+    "dealActiveLoan": "Este jogador está atualmente emprestado.",
+    "dealRetired": "Este jogador retirou-se.",
     "bidImpactWageBill": "Massa salarial semanal {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Orçamento salarial semanal {{budget}}",
     "bidImpactIncomingWage": "Salário do jogador {{wage}} / semana",
@@ -3373,7 +3381,12 @@
       },
       "transferComplete": {
         "subject": "Transferência Concluída: {{player}}",
-        "body": "A transferência de {{player}} foi concluída por um valor de {{fee}}.\n\nO jogador juntou-se ao plantel e está disponível para ser utilizado."
+        "body": "A transferência de {{player}} foi concluída por um valor de {{fee}}.\n\nO jogador juntou-se ao plantel e está disponível para ser utilizado.",
+        "bodySold": "A transferência de {{player}} para {{buyer}} foi concluída por {{fee}}. O jogador deixou o plantel e juntou-se a {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transferência acordada: {{player}}",
+        "body": "A transferência de {{player}} de {{seller}} para {{buyer}} foi acordada por {{fee}}. A inscrição está prevista para {{start}}."
       },
       "transferOffer": {
         "subject": "Proposta Recebida por {{player}}",
@@ -3384,6 +3397,11 @@
         "subject": "Interesse de transferência em {{player}}",
         "body": "Clubes com propostas ativas por {{player}}: {{n}}. Última consulta: {{team}} ({{fee}}). Veja as propostas no separador Transferências para responder.",
         "actionReview": "Ver propostas"
+      },
+      "loanAgreed": {
+        "subject": "Empréstimo acordado: {{player}}",
+        "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Opção de compra: {{fee}}.",
+        "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Sem opção de compra."
       },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",

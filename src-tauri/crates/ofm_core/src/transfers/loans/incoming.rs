@@ -87,10 +87,12 @@ fn register_agreement(
             &agreement.terms.end_date,
             agreement.terms.wage_contribution_pct,
             agreement.terms.buy_option_fee,
-        )
+        )?;
     } else {
-        reserve_player_for_pending_loan(game, player_id, offer_id)
+        reserve_player_for_pending_loan(game, player_id, offer_id)?;
     }
+    notify_loan_agreement(game, player_id, offer_id);
+    Ok(())
 }
 
 fn agreed_status(register_immediately: bool) -> LoanOfferStatus {

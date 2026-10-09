@@ -1267,6 +1267,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Historial de ofertas",
+    "viewOfferHistory": "Ver historial de ofertas",
+    "offerRecordedOn": "Oferta del {{date}}.",
+    "loanOfferStartsOn": "La cesión comienza el {{date}}.",
+    "dealAlreadyAgreed": "Este jugador ha acordado un cambio de club y está pendiente de inscripción.",
+    "dealOwnPlayer": "Este jugador ya pertenece a tu club.",
+    "dealActiveLoan": "Este jugador está cedido actualmente.",
+    "dealRetired": "Este jugador se ha retirado.",
     "bidImpactWageBill": "Masa salarial semanal {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Presupuesto salarial semanal {{budget}}",
     "bidImpactIncomingWage": "Salario del jugador {{wage}} / semana",
@@ -3373,7 +3381,12 @@
       },
       "transferComplete": {
         "subject": "Fichaje Completado: {{player}}",
-        "body": "El fichaje de {{player}} se ha completado por una cantidad de {{fee}}.\n\nEl jugador se ha unido a la plantilla y está disponible para ser convocado."
+        "body": "El fichaje de {{player}} se ha completado por una cantidad de {{fee}}.\n\nEl jugador se ha unido a la plantilla y está disponible para ser convocado.",
+        "bodySold": "El traspaso de {{player}} a {{buyer}} se ha completado por {{fee}}. El jugador ha dejado la plantilla y se ha unido a {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Traspaso acordado: {{player}}",
+        "body": "Se ha acordado el traspaso de {{player}} de {{seller}} a {{buyer}} por {{fee}}. La inscripción está prevista para el {{start}}."
       },
       "transferOffer": {
         "subject": "Oferta Entrante por {{player}}",
@@ -3384,6 +3397,11 @@
         "subject": "Interés de traspaso por {{player}}",
         "body": "Clubes con ofertas activas por {{player}}: {{n}}. Última consulta: {{team}} ({{fee}}). Revisa las ofertas en la pestaña Traspasos para responder.",
         "actionReview": "Ver ofertas"
+      },
+      "loanAgreed": {
+        "subject": "Cesión acordada: {{player}}",
+        "bodyWithOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Opción de compra: {{fee}}.",
+        "bodyNoOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Sin opción de compra."
       },
       "loanOffer": {
         "subject": "Oferta de cesión por {{player}}",

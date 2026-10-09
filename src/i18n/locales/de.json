@@ -1267,6 +1267,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Angebotsverlauf",
+    "viewOfferHistory": "Angebotsverlauf ansehen",
+    "offerRecordedOn": "Angebot vom {{date}}.",
+    "loanOfferStartsOn": "Die Leihe beginnt am {{date}}.",
+    "dealAlreadyAgreed": "Der Wechsel dieses Spielers ist vereinbart. Die Registrierung steht noch aus.",
+    "dealOwnPlayer": "Dieser Spieler gehört bereits zu deinem Verein.",
+    "dealActiveLoan": "Dieser Spieler ist derzeit verliehen.",
+    "dealRetired": "Dieser Spieler ist zurückgetreten.",
     "bidImpactWageBill": "Wöchentliche Gehaltssumme {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Wöchentliches Gehaltsbudget {{budget}}",
     "bidImpactIncomingWage": "Gehalt des Spielers {{wage}} / Woche",
@@ -3373,7 +3381,12 @@
       },
       "transferComplete": {
         "subject": "Transfer abgeschlossen: {{player}}",
-        "body": "Der Transfer von {{player}} wurde für eine Ablösesumme von {{fee}} abgeschlossen.\n\nDer Spieler hat sich dem Kader angeschlossen und steht zur Auswahl bereit."
+        "body": "Der Transfer von {{player}} wurde für eine Ablösesumme von {{fee}} abgeschlossen.\n\nDer Spieler hat sich dem Kader angeschlossen und steht zur Auswahl bereit.",
+        "bodySold": "Der Transfer von {{player}} zu {{buyer}} wurde für {{fee}} abgeschlossen. Der Spieler hat den Kader verlassen und sich {{buyer}} angeschlossen."
+      },
+      "transferAgreed": {
+        "subject": "Transfer vereinbart: {{player}}",
+        "body": "Der Transfer von {{player}} von {{seller}} zu {{buyer}} wurde für {{fee}} vereinbart. Die Registrierung ist für den {{start}} vorgesehen."
       },
       "transferOffer": {
         "subject": "Eingehendes Angebot für {{player}}",
@@ -3384,6 +3397,11 @@
         "subject": "Transferinteresse an {{player}}",
         "body": "Vereine mit aktiven Geboten für {{player}}: {{n}}. Letzte Anfrage: {{team}} ({{fee}}). Prüfe die Angebote im Transfers-Tab, um zu reagieren.",
         "actionReview": "Angebote prüfen"
+      },
+      "loanAgreed": {
+        "subject": "Leihe vereinbart: {{player}}",
+        "bodyWithOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Kaufoption: {{fee}}.",
+        "bodyNoOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Keine Kaufoption."
       },
       "loanOffer": {
         "subject": "Leihangebot für {{player}}",

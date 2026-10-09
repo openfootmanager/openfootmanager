@@ -568,6 +568,7 @@ pub fn make_loan_offer(
         } else {
             reserve_player_for_pending_loan(game, player_id, &offer_id)?;
         }
+        notify_loan_agreement(game, player_id, &offer_id);
     }
 
     Ok(LoanOfferOutcome {
@@ -1457,5 +1458,210 @@ mod tests {
         );
         assert_eq!(game.players[0].loan_offers[0].end_date, "2026-04-01");
         assert!(game.players[0].active_loan.is_none());
+    }
+}
+
+#[cfg(test)]
+mod acceptance_tests {
+    use super::super::tests::{acceptance_game, assert_acceptance_notice, incoming_loan};
+    use super::*;
+
+    fn assert_loan(game: &Game, deferred: bool, option: Option<u64>, contribution: u8) {
+        let message = assert_acceptance_notice(
+            game,
+            if option.is_some() {
+                "be.msg.loanAgreed.bodyWithOption"
+            } else {
+                "be.msg.loanAgreed.bodyNoOption"
+            },
+            if deferred { "2026-07-02" } else { "2026-01-12" },
+        );
+        assert_eq!(message.i18n_params["end"], "2026-12-20");
+        assert_eq!(
+            message.i18n_params["contribution"],
+            contribution.to_string()
+        );
+        if let Some(fee) = option {
+            assert_eq!(message.i18n_params["fee"], fee.to_string());
+        } else {
+            assert!(!message.i18n_params.contains_key("fee"));
+        }
+        assert_eq!(game.players[0].active_loan.is_some(), !deferred);
+    }
+    fn bid(deferred: bool) {
+        let mut game = acceptance_game("team2", deferred);
+        assert_eq!(
+            make_loan_offer(
+                &mut game,
+                "player-award",
+                "2026-12-20",
+                100,
+                Some(2_000_001)
+            )
+            .unwrap()
+            .decision,
+            LoanOfferDecision::Accepted
+        );
+        assert_loan(&game, deferred, Some(2_000_001), 100);
+    }
+    /// Given a loan-listed player, when an immediate loan bid is accepted, then the buyer receives all agreed terms.
+    #[test]
+    fn an_immediate_loan_bid_notifies_the_borrower() {
+        bid(false);
+    }
+    /// Given a closed window, when a loan bid is accepted, then the borrower receives the future start date.
+    #[test]
+    fn a_deferred_loan_bid_notifies_the_borrower() {
+        bid(true);
+    }
+    fn incoming(deferred: bool, counter: bool) {
+        let mut game = acceptance_game("team1", deferred);
+        let id = incoming_loan(&mut game);
+        if counter {
+            assert_eq!(
+                counter_loan_offer(&mut game, "player-award", &id, "2026-12-20", 70, None)
+                    .unwrap()
+                    .decision,
+                LoanOfferDecision::Accepted
+            );
+        } else {
+            respond_to_loan_offer(&mut game, "player-award", &id, true).unwrap();
+        }
+        assert_loan(
+            &game,
+            deferred,
+            if counter { None } else { Some(600_000) },
+            if counter { 70 } else { 60 },
+        );
+        assert_eq!(game.messages[0].i18n_params["borrower"], "Beta FC");
+    }
+    /// Given an incoming loan, when accepted immediately, then the parent club receives its terms.
+    #[test]
+    fn accepting_an_immediate_loan_notifies_the_parent() {
+        incoming(false, false);
+    }
+    /// Given an incoming loan in a closed window, when accepted, then the parent receives the future start date.
+    #[test]
+    fn accepting_a_deferred_loan_notifies_the_parent() {
+        incoming(true, false);
+    }
+    /// Given an incoming loan with an option, when an immediate counter drops it, then the notice says no option.
+    #[test]
+    fn an_immediate_loan_counter_reports_the_dropped_option() {
+        incoming(false, true);
+    }
+    /// Given a closed window, when a loan counter drops the option, then the notice shows final terms and start date.
+    #[test]
+    fn a_deferred_loan_counter_reports_the_dropped_option() {
+        incoming(true, true);
+    }
+    /// Given an incoming loan, when a counter changes the end date and option fee, then the notice uses those final terms.
+    #[test]
+    fn an_accepted_loan_counter_reports_the_final_end_date_and_option() {
+        let mut game = acceptance_game("team1", true);
+        let id = incoming_loan(&mut game);
+        assert_eq!(
+            counter_loan_offer(
+                &mut game,
+                "player-award",
+                &id,
+                "2026-11-20",
+                70,
+                Some(650_001)
+            )
+            .unwrap()
+            .decision,
+            LoanOfferDecision::Accepted
+        );
+        let message =
+            assert_acceptance_notice(&game, "be.msg.loanAgreed.bodyWithOption", "2026-07-02");
+        assert_eq!(message.i18n_params["end"], "2026-11-20");
+        assert_eq!(message.i18n_params["contribution"], "70");
+        assert_eq!(message.i18n_params["fee"], "650001");
+    }
+
+    /// Given an incoming loan, when declined, then no agreement notice is sent.
+    #[test]
+    fn a_declined_loan_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        respond_to_loan_offer(&mut game, "player-award", &id, false).unwrap();
+        assert!(game.messages.is_empty());
+    }
+    /// Given insufficient contribution, when a loan bid is rejected, then no agreement notice is sent.
+    #[test]
+    fn a_rejected_loan_bid_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team2", false);
+        assert_eq!(
+            make_loan_offer(&mut game, "player-award", "2026-12-20", 0, None)
+                .unwrap()
+                .decision,
+            LoanOfferDecision::Rejected
+        );
+        assert!(game.messages.is_empty());
+    }
+    /// Given a counter above the accepted wage ceiling, when talks continue, then no agreement notice is sent.
+    #[test]
+    fn a_loan_counter_that_keeps_talking_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        game.players[0].ovr = 65;
+        game.players[0].potential = 65;
+        let id = incoming_loan(&mut game);
+        assert_eq!(
+            counter_loan_offer(&mut game, "player-award", &id, "2026-12-20", 90, None)
+                .unwrap()
+                .decision,
+            LoanOfferDecision::CounterOffer
+        );
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given a buy option beyond the borrower ceiling, when the counter is rejected, then no agreement notice is sent.
+    #[test]
+    fn a_rejected_loan_counter_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        assert_eq!(
+            counter_loan_offer(
+                &mut game,
+                "player-award",
+                &id,
+                "2026-12-20",
+                70,
+                Some(10_000_000)
+            )
+            .unwrap()
+            .decision,
+            LoanOfferDecision::Rejected
+        );
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given unchanged loan terms, when countered, then the refusal sends no agreement notice.
+    #[test]
+    fn an_invalid_loan_counter_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        assert!(
+            counter_loan_offer(
+                &mut game,
+                "player-award",
+                &id,
+                "2026-12-20",
+                60,
+                Some(600_000)
+            )
+            .is_err()
+        );
+        assert!(game.messages.is_empty());
+    }
+    /// Given accepted loan terms, when the route is called again, then the stale offer adds no second notice.
+    #[test]
+    fn accepting_a_loan_twice_sends_one_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        respond_to_loan_offer(&mut game, "player-award", &id, true).unwrap();
+        assert!(respond_to_loan_offer(&mut game, "player-award", &id, true).is_err());
+        assert_loan(&game, false, Some(600_000), 60);
     }
 }
