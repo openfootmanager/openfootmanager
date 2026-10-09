@@ -20,6 +20,8 @@ pub struct Booking {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BookingError {
     UnreadableDate(FixtureKey),
+    /// One fixture identity listed with different participants or dates.
+    InconsistentFixture(FixtureKey),
 }
 
 /// Every fixture a club already has, keyed by club and date.
@@ -34,6 +36,7 @@ impl BookingLedger {
     /// error rather than an empty booking.
     pub fn from_competitions(competitions: &[League]) -> Result<Self, BookingError> {
         let mut ledger = Self::default();
+        let mut seen: BTreeMap<FixtureKey, (&str, &str, NaiveDate)> = BTreeMap::new();
         for fixture in competitions.iter().flat_map(|c| &c.fixtures) {
             let key = FixtureKey {
                 competition_id: fixture.competition_id.clone(),
@@ -41,6 +44,18 @@ impl BookingLedger {
             };
             let date = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
                 .map_err(|_| BookingError::UnreadableDate(key.clone()))?;
+            let listing = (
+                fixture.home_team_id.as_str(),
+                fixture.away_team_id.as_str(),
+                date,
+            );
+            match seen.insert(key.clone(), listing) {
+                Some(earlier) if earlier != listing => {
+                    return Err(BookingError::InconsistentFixture(key));
+                }
+                Some(_) => continue,
+                None => {}
+            }
             ledger.book(&fixture.home_team_id, &key, date);
             ledger.book(&fixture.away_team_id, &key, date);
         }
@@ -114,8 +129,7 @@ fn conflicts_with_ledger(ledger: &BookingLedger, proposal: &Proposal) -> Vec<Con
 }
 
 fn conflicts_between(earlier: &Proposal, later: &Proposal) -> Vec<Conflict> {
-    let same_fixture = earlier.fixture == later.fixture;
-    if !same_fixture && (earlier.date - later.date).num_days().abs() >= 2 {
+    if earlier.fixture == later.fixture || (earlier.date - later.date).num_days().abs() >= 2 {
         return Vec::new();
     }
     later
@@ -133,9 +147,27 @@ fn conflicts_between(earlier: &Proposal, later: &Proposal) -> Vec<Conflict> {
         .collect()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BatchRejection {
+    RestRule(Vec<Conflict>),
+    /// The same fixture identity appears twice, whoever the participants are.
+    RepeatedFixture(FixtureKey),
+}
+
+fn first_repeated_fixture<'a>(keys: impl Iterator<Item = &'a FixtureKey>) -> Option<FixtureKey> {
+    let mut seen = BTreeSet::new();
+    keys.into_iter().find(|key| !seen.insert(*key)).cloned()
+}
+
 /// Checks a whole batch against the ledger and against itself; nothing is published here,
 /// so a rejected batch leaves no trace.
-pub fn validate_batch(ledger: &BookingLedger, proposals: &[Proposal]) -> Result<(), Vec<Conflict>> {
+pub fn validate_batch(
+    ledger: &BookingLedger,
+    proposals: &[Proposal],
+) -> Result<(), BatchRejection> {
+    if let Some(key) = first_repeated_fixture(proposals.iter().map(|p| &p.fixture)) {
+        return Err(BatchRejection::RepeatedFixture(key));
+    }
     let mut conflicts: Vec<Conflict> = proposals
         .iter()
         .flat_map(|proposal| conflicts_with_ledger(ledger, proposal))
@@ -148,7 +180,7 @@ pub fn validate_batch(ledger: &BookingLedger, proposals: &[Proposal]) -> Result<
     if conflicts.is_empty() {
         Ok(())
     } else {
-        Err(conflicts)
+        Err(BatchRejection::RestRule(conflicts))
     }
 }
 
@@ -164,19 +196,28 @@ pub struct FlexibleMatch {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanFailure {
-    FixedDatesConflict(Vec<Conflict>),
+    InvalidBatch(BatchRejection),
     NoLegalDate(FixtureKey),
 }
 
 /// Places every flexible match on its earliest legal date, or fails without placing any.
-/// Hard dates are validated first and never move. Matches are placed tightest window
+/// Hard dates are validated first and never move. Matches are placed earliest deadline
 /// first, ties broken by identity, so input order cannot change the plan.
 pub fn plan_flexible(
     ledger: &BookingLedger,
     fixed: &[Proposal],
     flexible: &[FlexibleMatch],
 ) -> Result<Vec<Proposal>, PlanFailure> {
-    validate_batch(ledger, fixed).map_err(PlanFailure::FixedDatesConflict)?;
+    validate_batch(ledger, fixed).map_err(PlanFailure::InvalidBatch)?;
+    let all_keys = fixed
+        .iter()
+        .map(|p| &p.fixture)
+        .chain(flexible.iter().map(|m| &m.fixture));
+    if let Some(key) = first_repeated_fixture(all_keys) {
+        return Err(PlanFailure::InvalidBatch(BatchRejection::RepeatedFixture(
+            key,
+        )));
+    }
     let mut ordered: Vec<&FlexibleMatch> = flexible.iter().collect();
     ordered.sort_by_key(|m| (m.latest, m.earliest, m.fixture.clone()));
 
@@ -271,6 +312,13 @@ mod tests {
         .unwrap()
     }
 
+    fn rest_conflicts(result: Result<(), BatchRejection>) -> Vec<Conflict> {
+        match result {
+            Err(BatchRejection::RestRule(conflicts)) => conflicts,
+            other => panic!("expected a rest-rule rejection, got {other:?}"),
+        }
+    }
+
     fn continental(id: &str, home: &str, away: &str, date: NaiveDate) -> Proposal {
         Proposal {
             fixture: key("champions", id),
@@ -285,11 +333,10 @@ mod tests {
     #[test]
     fn league_and_continental_same_day_plan_is_rejected() {
         let ledger = la_liga_tuesday();
-        let conflicts = validate_batch(
+        let conflicts = rest_conflicts(validate_batch(
             &ledger,
             &[continental("c1", "madrid", "inter", day(2033, 3, 1))],
-        )
-        .unwrap_err();
+        ));
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].club_id, "madrid");
         assert_eq!(conflicts[0].proposed, key("champions", "c1"));
@@ -329,6 +376,7 @@ mod tests {
             FixtureCompetition::Cup,
             FixtureCompetition::ContinentalClub,
             FixtureCompetition::InternationalClub,
+            FixtureCompetition::InternationalNation,
             FixtureCompetition::Friendly,
             FixtureCompetition::FriendlyCup,
             FixtureCompetition::PreseasonTournament,
@@ -379,8 +427,10 @@ mod tests {
         )])
         .unwrap();
         for date in [day(2033, 3, 10), day(2033, 3, 12)] {
-            let conflicts =
-                validate_batch(&ledger, &[continental("c1", "madrid", "betis", date)]).unwrap_err();
+            let conflicts = rest_conflicts(validate_batch(
+                &ledger,
+                &[continental("c1", "madrid", "betis", date)],
+            ));
             assert_eq!(conflicts.len(), 1);
             assert_eq!(conflicts[0].club_id, "betis");
         }
@@ -540,24 +590,69 @@ mod tests {
             continental("c2", "ajax", "porto", day(2033, 4, 6)),
             continental("c3", "benfica", "porto", day(2033, 4, 9)),
         ];
-        let conflicts = validate_batch(&BookingLedger::default(), &batch).unwrap_err();
+        let conflicts = rest_conflicts(validate_batch(&BookingLedger::default(), &batch));
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].club_id, "ajax");
     }
 
-    /// Given one fixture proposed twice in a batch, even on different dates, when validated, then the batch is rejected.
+    /// Given one fixture proposed twice in a batch, even on different dates and with different
+    /// participants, when validated, then the batch is rejected as a repeated fixture.
     #[test]
     fn a_fixture_proposed_twice_in_one_batch_is_rejected() {
-        let batch = [
-            continental("c1", "ajax", "inter", day(2033, 4, 5)),
-            continental("c1", "ajax", "inter", day(2033, 4, 20)),
-        ];
-        let conflicts = validate_batch(&BookingLedger::default(), &batch).unwrap_err();
-        assert_eq!(conflicts.len(), 2);
-        assert!(
-            conflicts
-                .iter()
-                .all(|c| c.proposed == key("champions", "c1"))
+        for second in [
+            ("ajax", "inter", day(2033, 4, 20)),
+            ("psv", "porto", day(2033, 4, 5)),
+        ] {
+            let batch = [
+                continental("c1", "ajax", "inter", day(2033, 4, 5)),
+                continental("c1", second.0, second.1, second.2),
+            ];
+            assert_eq!(
+                validate_batch(&BookingLedger::default(), &batch),
+                Err(BatchRejection::RepeatedFixture(key("champions", "c1")))
+            );
+        }
+    }
+
+    /// Given a flexible match that repeats a fixed fixture's identity, when planned, then planning fails.
+    #[test]
+    fn planning_rejects_a_flexible_match_that_repeats_a_fixed_fixture() {
+        let fixed = [Proposal {
+            fixture: key("liga", "f1"),
+            ..continental("f1", "a", "b", day(2033, 3, 1))
+        }];
+        let flexible = [flex("f1", "c", "d", day(2033, 3, 10), day(2033, 3, 12))];
+        assert_eq!(
+            plan_flexible(&BookingLedger::default(), &fixed, &flexible),
+            Err(PlanFailure::InvalidBatch(BatchRejection::RepeatedFixture(
+                key("liga", "f1")
+            )))
+        );
+    }
+
+    /// Given a competition and its mirror that list one fixture on different dates, when the
+    /// ledger is built, then it fails instead of reserving both dates.
+    #[test]
+    fn mirrors_that_disagree_about_a_fixture_are_inconsistent() {
+        let original = fixture(
+            "la-liga",
+            "l1",
+            "madrid",
+            "betis",
+            "2033-03-01",
+            FixtureCompetition::League,
+        );
+        let moved = Fixture {
+            date: "2033-03-08".into(),
+            ..original.clone()
+        };
+        assert_eq!(
+            BookingLedger::from_competitions(&[
+                competition_with("la-liga", vec![original]),
+                competition_with("la-liga", vec![moved]),
+            ])
+            .unwrap_err(),
+            BookingError::InconsistentFixture(key("la-liga", "l1"))
         );
     }
 
@@ -570,7 +665,9 @@ mod tests {
         ];
         let flexible = [flex("f1", "x", "y", day(2034, 3, 1), day(2034, 3, 5))];
         let failure = plan_flexible(&BookingLedger::default(), &fixed, &flexible).unwrap_err();
-        assert!(matches!(failure, PlanFailure::FixedDatesConflict(c) if c.len() == 1));
+        assert!(
+            matches!(failure, PlanFailure::InvalidBatch(BatchRejection::RestRule(c)) if c.len() == 1)
+        );
     }
 
     fn flex(
