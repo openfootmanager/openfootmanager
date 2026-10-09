@@ -58,6 +58,7 @@ pub struct PlayerMatchHistoryEntryDto {
     pub yellow_cards: u8,
     pub red_cards: u8,
     pub rating: f32,
+    pub rated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

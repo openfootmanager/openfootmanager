@@ -1,4 +1,3 @@
-import { isRatedMatch } from "../../lib/matchRating";
 import { Card, CardBody, CardHeader } from "../ui";
 import { PlayerRatingTrendChart } from "./PlayerRatingTrendChart";
 
@@ -19,6 +18,7 @@ export interface PlayerRecentMatchEntry {
   shots: number;
   shots_on_target: number;
   rating: number;
+  rated: boolean;
 }
 
 function resolveLabel(t: TranslateFn, key: string, fallback: string): string {
@@ -42,7 +42,7 @@ export default function PlayerProfileRecentMatchesCard({
     return null;
   }
 
-  const ratedMatches = matches.filter((match) => isRatedMatch(match.rating));
+  const ratedMatches = matches.filter((match) => match.rated);
 
   return (
     <Card>
@@ -94,7 +94,7 @@ export default function PlayerProfileRecentMatchesCard({
                   {t("playerProfile.recentMatchesRating")}
                 </p>
                 <p className="font-heading font-bold text-base text-gray-700 dark:text-gray-200 tabular-nums">
-                  {isRatedMatch(match.rating) ? match.rating.toFixed(1) : "–"}
+                  {match.rated ? match.rating.toFixed(1) : "–"}
                 </p>
               </div>
             </div>

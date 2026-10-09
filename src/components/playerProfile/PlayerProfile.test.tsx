@@ -767,6 +767,7 @@ describe("PlayerProfile contract surfaces", () => {
             shots: 5,
             shots_on_target: 3,
             rating: 8.4,
+            rated: true,
           },
         ];
       }
@@ -1579,6 +1580,7 @@ describe("PlayerProfile switching between players", () => {
               goals: 1,
               assists: 0,
               rating: 7.5,
+              rated: true,
               minutes_played: 90,
             },
           ];

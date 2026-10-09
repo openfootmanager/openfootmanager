@@ -12,7 +12,7 @@ vi.mock("./PlayerRatingTrendChart", () => ({
 
 const t = (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key;
 
-function match(id: string, rating: number): PlayerRecentMatchEntry {
+function match(id: string, rating: number, rated: boolean): PlayerRecentMatchEntry {
   return {
     fixture_id: id,
     date: "2026-09-01",
@@ -28,6 +28,7 @@ function match(id: string, rating: number): PlayerRecentMatchEntry {
     shots: 0,
     shots_on_target: 0,
     rating,
+    rated,
   };
 }
 
@@ -38,7 +39,7 @@ describe("PlayerProfileRecentMatchesCard ratings", () => {
    * Then each shows a dash, not 0.0, and there is no trend chart
    */
   it("shows a dash and no trend when no match has a rating", () => {
-    render(<PlayerProfileRecentMatchesCard matches={[match("a", 0), match("b", 0)]} t={t} />);
+    render(<PlayerProfileRecentMatchesCard matches={[match("a", 0, false), match("b", 0, false)]} t={t} />);
 
     expect(screen.queryByText("0.0")).not.toBeInTheDocument();
     expect(screen.getAllByText("–")).toHaveLength(2);
@@ -53,7 +54,7 @@ describe("PlayerProfileRecentMatchesCard ratings", () => {
   it("plots only the rated matches", () => {
     render(
       <PlayerProfileRecentMatchesCard
-        matches={[match("a", 7.2), match("b", 0), match("c", 6.1)]}
+        matches={[match("a", 7.2, true), match("b", 0, false), match("c", 6.1, true)]}
         t={t}
       />,
     );

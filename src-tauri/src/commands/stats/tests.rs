@@ -577,6 +577,40 @@ fn get_player_match_history_returns_latest_matches_first_with_limit() {
     assert_eq!(history[0].goals, 2);
 }
 
+/// Given a stored match rating of 0 (no rating computed) and one real rating
+/// When the player's match history is read
+/// Then only the real rating is flagged as rated
+#[test]
+fn match_history_flags_which_ratings_exist() {
+    let state = StateManager::new();
+    let mut stats = sample_stats_state();
+    for record in stats
+        .player_matches
+        .iter_mut()
+        .filter(|r| r.player_id == "player-1")
+    {
+        record.rating = if record.fixture_id == "fixture-latest" {
+            0.0
+        } else {
+            7.2
+        };
+    }
+    state.set_stats_state(stats);
+
+    let history = get_player_match_history_internal(&state, "player-1", Some(10)).unwrap();
+
+    let latest = history
+        .iter()
+        .find(|e| e.fixture_id == "fixture-latest")
+        .unwrap();
+    assert!(!latest.rated);
+    assert!(history
+        .iter()
+        .filter(|e| e.fixture_id != "fixture-latest")
+        .all(|e| e.rated));
+    assert!(history.len() > 1);
+}
+
 #[test]
 fn get_player_match_history_returns_empty_when_stats_state_is_missing() {
     let state = StateManager::new();

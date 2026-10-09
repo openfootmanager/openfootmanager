@@ -329,6 +329,7 @@ fn to_dto(state: &StateManager, record: &PlayerMatchStatsRecord) -> PlayerMatchH
         yellow_cards: record.yellow_cards,
         red_cards: record.red_cards,
         rating: record.rating,
+        rated: ofm_core::match_rating::is_rated(record.rating),
     }
 }
 
