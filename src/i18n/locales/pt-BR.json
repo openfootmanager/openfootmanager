@@ -3381,7 +3381,12 @@
       },
       "transferComplete": {
         "subject": "Transferência Concluída: {{player}}",
-        "body": "A transferência de {{player}} foi concluída por um valor de {{fee}}.\n\nO jogador se juntou ao elenco e está disponível para ser escalado."
+        "body": "A transferência de {{player}} foi concluída por um valor de {{fee}}.\n\nO jogador se juntou ao elenco e está disponível para ser escalado.",
+        "bodySold": "A transferência de {{player}} para {{buyer}} foi concluída por {{fee}}. O jogador deixou o elenco e se juntou a {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transferência acertada: {{player}}",
+        "body": "A transferência de {{player}} de {{seller}} para {{buyer}} foi acertada por {{fee}}. O registro está previsto para {{start}}."
       },
       "transferOffer": {
         "subject": "Oferta Recebida por {{player}}",
@@ -3392,6 +3397,11 @@
         "subject": "Interesse de transferência em {{player}}",
         "body": "Clubes com propostas ativas por {{player}}: {{n}}. Última sondagem: {{team}} ({{fee}}). Veja as propostas na aba Transferências para responder.",
         "actionReview": "Ver propostas"
+      },
+      "loanAgreed": {
+        "subject": "Empréstimo acertado: {{player}}",
+        "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} pagará {{contribution}}% do salário. Opção de compra: {{fee}}.",
+        "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} pagará {{contribution}}% do salário. Sem opção de compra."
       },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",
