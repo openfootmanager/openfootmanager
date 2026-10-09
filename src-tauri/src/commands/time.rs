@@ -10,6 +10,7 @@ use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 pub fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     // Process the day in place (no upfront clone of the whole world) and clone
     // only once for the response. Captures are appended after the game lock is
     // released to avoid holding two state locks at once.
@@ -105,6 +106,7 @@ pub async fn skip_to_match_day(
 }
 
 pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] skip_to_match_day");
     // Precondition: manager must be employed at entry — guarantees that any later
     // `team_id.is_none()` inside the loop is a real firing transition, not a stale state.
@@ -243,6 +245,7 @@ pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Va
 ///   - `fired`      — manager was dismissed during today's processing
 ///   - `advanced`   — quiet day processed successfully; game state updated
 pub fn advance_one_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     // The whole check-process-respond sequence runs under the game lock
     // (update_game) so a concurrent GUI/MCP write is never clobbered by a
     // stale clone written back afterwards.
@@ -362,6 +365,7 @@ pub async fn advance_to_next_event(
 /// `skip_to_match_day` but with the broader stop conditions of an opt-in
 /// "smart Continue".
 pub fn advance_to_next_event_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] advance_to_next_event");
     // Require an employed manager at entry so a later `team_id.is_none()` in the
     // loop is a genuine firing transition.

@@ -85,6 +85,7 @@ const REQUIRED_KEYS = [
   "be.error.staffMemberNotFound",
   "be.error.staffMemberAlreadyEmployed",
   "be.error.noActiveLiveMatch",
+  "be.error.liveMatch.inProgress",
   "be.error.seasonNotComplete",
   "be.error.managedTeamNotFound",
   "be.error.unknownFacilityType",

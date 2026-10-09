@@ -50,6 +50,18 @@ jobs:
       - name: Check the mutation-testing exit-status check
         run: ./scripts/mutation-outcome.test.sh
 
+      # The AppImage check itself only runs at release time, against a real AppImage that should
+      # pass. That run can't show the check still rejects a bad one, so its fixtures run on every
+      # pull request instead. They need no toolchain either, hence this job.
+      - name: Check the AppImage library check still rejects violations
+        run: ./scripts/check-appimage-libs.test.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Check stable releases wait for AppImage validation
+        run: bash scripts/check-stable-release.test.sh
+
   # Also its own job, and for the same reason: `cargo fmt --check` compiles nothing, so it can
   # answer in well under a minute rather than sitting behind `backend`'s twenty. Finding out
   # about a misplaced brace twenty minutes into a run is how people learn to ignore a formatter.
@@ -255,7 +267,7 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils xvfb xauth
 
       # Keep this version equal to `rust-toolchain.toml`'s channel; scripts/check-toolchain-pin.sh
       # fails the build if they drift. `rustfmt` is installed alongside clippy so the components

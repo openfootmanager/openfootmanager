@@ -58,5 +58,5 @@ not import the production computation for their expected values. Neither is dupl
 Findings as `file:line`, each naming the existing thing that should have been used and whether it
 is reachable from the new site. List unresolved duplicates and their canonical homes for epic #589
 in the report and PR body; never file issues yourself. Apply the root Code quality rules and use
-`ofm-test-reviewer` for fixture/oracle concerns (added in programme PR 2). If you find nothing, say so
+`ofm-test-reviewer` for fixture/oracle concerns. If you find nothing, say so
 plainly rather than manufacturing a finding.

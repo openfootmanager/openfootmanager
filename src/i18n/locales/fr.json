@@ -662,6 +662,8 @@
     "removeFromLoanList": "Retirer de la liste des prêts",
     "outOfPosition": "Hors de position",
     "outOfPositionTooltip": "Joue en dehors du rôle préféré du joueur",
+    "pitchTokenTooltip": "Condition {{condition}} % · {{fit}}",
+    "pitchTokenConditionOnly": "Condition {{condition}} %",
     "dragHint": "Faites glisser des remplaçants sur le terrain ou échangez des titulaires entre les postes.",
     "benchDragHint": "Utilisez la liste des remplaçants pour faire glisser directement des joueurs sur le terrain.",
     "dropPlayerHere": "Déposez le joueur ici",
@@ -1403,7 +1405,11 @@
     "transferFeedbackCounterHeadline": "Ils veulent plus avant de conclure.",
     "transferFeedbackCounterDetail": "L'offre était assez proche pour continuer à parler, mais leur camp vise plutôt un prix autour de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Ils ont fermé cette manche.",
-    "transferFeedbackRejectedDetail": "La proposition ne les a pas assez fait bouger. Il faudrait une somme plus forte, plus proche de {{fee}}, pour rouvrir des discussions sérieuses."
+    "transferFeedbackRejectedDetail": "La proposition ne les a pas assez fait bouger. Il faudrait une somme plus forte, plus proche de {{fee}}, pour rouvrir des discussions sérieuses.",
+    "registrationFailureInsufficientFunds": "Enregistrement échoué : fonds insuffisants de l'acheteur",
+    "registrationFailureLoanConflict": "Enregistrement échoué : conflit avec un prêt",
+    "registrationFailurePlayerUnavailable": "Enregistrement échoué : joueur indisponible",
+    "registrationFailureRegistrationBlocked": "Enregistrement bloqué"
   },
   "transferCentreWorld": {
     "title": "Centre des transferts",
@@ -2599,6 +2605,7 @@
       "managedTeamNotFound": "Équipe gérée introuvable",
       "unknownFacilityType": "Type d'installation inconnu",
       "liveMatch": {
+        "inProgress": "Un match est en cours. Terminez-le avant de sauvegarder, d’avancer dans le temps ou de commencer un autre match.",
         "noLeague": "Aucune donnée de ligue n'est disponible pour ce match.",
         "fixtureNotFound": "Le match sélectionné est introuvable.",
         "fixtureNotScheduled": "Ce match n’est plus programmé et ne peut pas être joué.",
@@ -3391,6 +3398,13 @@
       "loanBuyOptionExercised": {
         "subject": "Option d'achat levée : {{player}}",
         "body": "L'option d'achat de {{player}} a été levée pour {{fee}}. Le prêt devient un transfert définitif."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Échec de l'enregistrement du transfert : {{player}}",
+        "InsufficientFunds": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car la trésorerie ou le budget transferts de l'acheteur ne couvre plus le montant. Aucune indemnité de transfert n'a été versée.",
+        "LoanConflict": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur est prêté ou a un prêt convenu en attente d'enregistrement. Aucune indemnité de transfert n'a été versée.",
+        "PlayerUnavailable": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur n'est plus disponible auprès d'un club vendeur. Aucune indemnité de transfert n'a été versée.",
+        "RegistrationBlocked": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car une condition d'enregistrement n'est plus remplie. Aucune indemnité de transfert n'a été versée."
       }
     },
     "news": {
