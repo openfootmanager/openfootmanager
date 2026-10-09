@@ -16,11 +16,11 @@ const CATCHUP_XI: usize = 11;
 /// Average OVR of a club's best XI, used as scoreline strength. Falls back to a
 /// neutral rating when the club has no players on the books.
 pub(crate) fn club_strength(players: &[Player], club_id: &str) -> f64 {
-    let mut ovrs: Vec<u8> = players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(club_id))
-        .map(|p| p.ovr)
-        .collect();
+    let mut ovrs: Vec<u8> =
+        crate::match_day_eligibility::match_day_eligible_players(players, club_id)
+            .into_iter()
+            .map(|p| p.ovr)
+            .collect();
     if ovrs.is_empty() {
         return 50.0;
     }
@@ -1087,5 +1087,19 @@ mod tests {
         let scores: std::collections::BTreeSet<String> =
             (0..40).map(friendly_score_after_repair).collect();
         assert!(scores.len() > 1, "forty seeds all settled it alike");
+    }
+    /// Given eighteen seniors and elite youth, when catchup estimates strength,
+    /// then the academy cannot raise the strength of a side it cannot join.
+    #[test]
+    fn ineligible_youth_cannot_raise_catchup_strength() {
+        let mut game = crate::turn::squad::match_day_pool_tests::match_day_game(false, 18, 11);
+        for p in &mut game.players {
+            p.ovr = if p.squad_role == domain::player::SquadRole::Senior {
+                60
+            } else {
+                99
+            };
+        }
+        assert_eq!(super::club_strength(&game.players, "club"), 60.0);
     }
 }

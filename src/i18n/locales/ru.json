@@ -1268,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "История предложений",
+    "viewOfferHistory": "Просмотреть историю предложений",
+    "offerRecordedOn": "Предложение от {{date}}.",
+    "loanOfferStartsOn": "Аренда начинается {{date}}.",
+    "dealAlreadyAgreed": "Переход этого игрока согласован, регистрация ещё не завершена.",
+    "dealOwnPlayer": "Этот игрок уже принадлежит вашему клубу.",
+    "dealActiveLoan": "Этот игрок сейчас в аренде.",
+    "dealRetired": "Этот игрок завершил карьеру.",
     "bidImpactWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Недельный бюджет зарплат {{budget}}",
     "bidImpactIncomingWage": "Зарплата игрока {{wage}} / неделя",
@@ -3374,7 +3382,12 @@
       },
       "transferComplete": {
         "subject": "Переход оформлен: {{player}}",
-        "body": "Переход {{player}} завершён за {{fee}}.\n\nИгрок присоединился к команде и доступен для выбора."
+        "body": "Переход {{player}} завершён за {{fee}}.\n\nИгрок присоединился к команде и доступен для выбора.",
+        "bodySold": "Переход {{player}} в {{buyer}} завершён за {{fee}}. Игрок покинул команду и присоединился к {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Переход согласован: {{player}}",
+        "body": "Переход {{player}} из {{seller}} в {{buyer}} согласован за {{fee}}. Регистрация запланирована на {{start}}."
       },
       "transferOffer": {
         "subject": "Входящее предложение по {{player}}",
@@ -3385,6 +3398,11 @@
         "subject": "Трансферный интерес к {{player}}",
         "body": "Клубы с активными предложениями по {{player}}: {{n}}. Последний запрос: {{team}} ({{fee}}). Просмотрите предложения на вкладке «Трансферы», чтобы ответить.",
         "actionReview": "Посмотреть предложения"
+      },
+      "loanAgreed": {
+        "subject": "Аренда согласована: {{player}}",
+        "bodyWithOption": "{{player}} перейдёт в аренду из {{parent}} в {{borrower}} с {{start}} до {{end}}. {{borrower}} будет оплачивать {{contribution}}% зарплаты. Опция выкупа: {{fee}}.",
+        "bodyNoOption": "{{player}} перейдёт в аренду из {{parent}} в {{borrower}} с {{start}} до {{end}}. {{borrower}} будет оплачивать {{contribution}}% зарплаты. Без опции выкупа."
       },
       "loanOffer": {
         "subject": "Предложение аренды по {{player}}",

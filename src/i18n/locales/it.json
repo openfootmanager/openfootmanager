@@ -1287,6 +1287,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Storico delle offerte",
+    "viewOfferHistory": "Visualizza lo storico delle offerte",
+    "offerRecordedOn": "Offerta del {{date}}.",
+    "loanOfferStartsOn": "Il prestito inizia il {{date}}.",
+    "dealAlreadyAgreed": "Il trasferimento di questo giocatore è concordato e il tesseramento è in attesa.",
+    "dealOwnPlayer": "Questo giocatore appartiene già al tuo club.",
+    "dealActiveLoan": "Questo giocatore è attualmente in prestito.",
+    "dealRetired": "Questo giocatore si è ritirato.",
     "bidImpactWageBill": "Monte ingaggi settimanale {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Budget ingaggi settimanale {{budget}}",
     "bidImpactIncomingWage": "Ingaggio del giocatore {{wage}} / settimana",
@@ -3374,7 +3382,12 @@
       },
       "transferComplete": {
         "subject": "Trasferimento completato: {{player}}",
-        "body": "Il trasferimento di {{player}} è stato completato per una cifra di {{fee}}.\n\nIl giocatore si è unito alla rosa ed è disponibile per la selezione."
+        "body": "Il trasferimento di {{player}} è stato completato per una cifra di {{fee}}.\n\nIl giocatore si è unito alla rosa ed è disponibile per la selezione.",
+        "bodySold": "Il trasferimento di {{player}} a {{buyer}} è stato completato per {{fee}}. Il giocatore ha lasciato la rosa e si è unito a {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Trasferimento concordato: {{player}}",
+        "body": "Il trasferimento di {{player}} da {{seller}} a {{buyer}} è stato concordato per {{fee}}. Il tesseramento è previsto per il {{start}}."
       },
       "transferOffer": {
         "subject": "Offerta ricevuta per {{player}}",
@@ -3385,6 +3398,11 @@
         "subject": "Interesse di mercato per {{player}}",
         "body": "Club con offerte attive per {{player}}: {{n}}. Ultima richiesta: {{team}} ({{fee}}). Controlla le offerte nella scheda Trasferimenti per rispondere.",
         "actionReview": "Vedi offerte"
+      },
+      "loanAgreed": {
+        "subject": "Prestito concordato: {{player}}",
+        "bodyWithOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Opzione di riscatto: {{fee}}.",
+        "bodyNoOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Nessuna opzione di riscatto."
       },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",

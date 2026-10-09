@@ -1268,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Historie nabídek",
+    "viewOfferHistory": "Zobrazit historii nabídek",
+    "offerRecordedOn": "Nabídka ze dne {{date}}.",
+    "loanOfferStartsOn": "Hostování začíná {{date}}.",
+    "dealAlreadyAgreed": "Změna klubu tohoto hráče je dohodnutá a čeká na registraci.",
+    "dealOwnPlayer": "Tento hráč již patří vašemu klubu.",
+    "dealActiveLoan": "Tento hráč je momentálně na hostování.",
+    "dealRetired": "Tento hráč ukončil kariéru.",
     "bidImpactWageBill": "Týdenní mzdové náklady {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Týdenní mzdový rozpočet {{budget}}",
     "bidImpactIncomingWage": "Mzda hráče {{wage}} / týden",
@@ -3374,7 +3382,12 @@
       },
       "transferComplete": {
         "subject": "Přestup dokončen: {{player}}",
-        "body": "Přestup hráče {{player}} byl dokončen za odstupnou částku {{fee}}.\n\nHráč se připojil k týmu a je k dispozici pro výběr do sestavy."
+        "body": "Přestup hráče {{player}} byl dokončen za odstupnou částku {{fee}}.\n\nHráč se připojil k týmu a je k dispozici pro výběr do sestavy.",
+        "bodySold": "Přestup hráče {{player}} do klubu {{buyer}} byl dokončen za {{fee}}. Hráč opustil tým a připojil se ke klubu {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Přestup dohodnut: {{player}}",
+        "body": "Přestup hráče {{player}} z klubu {{seller}} do klubu {{buyer}} byl dohodnut za {{fee}}. Registrace je naplánována na {{start}}."
       },
       "transferOffer": {
         "subject": "Příchozí nabídka na hráče {{player}}",
@@ -3385,6 +3398,11 @@
         "subject": "Zájem o přestup hráče {{player}}",
         "body": "Kluby s aktivní nabídkou na hráče {{player}}: {{n}}. Nejnovější dotaz: {{team}} ({{fee}}). Pro odpověď zkontrolujte nabídky v záložce Přestupy.",
         "actionReview": "Zkontrolovat nabídky"
+      },
+      "loanAgreed": {
+        "subject": "Hostování dohodnuto: {{player}}",
+        "bodyWithOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Opce na odkup: {{fee}}.",
+        "bodyNoOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Bez opce na odkup."
       },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",

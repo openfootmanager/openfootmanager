@@ -613,21 +613,6 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
         let failure_reason = registration_result.err();
         let executed = failure_reason.is_none();
 
-        if executed && user_team_id.as_deref() == Some(buyer_team_id.as_str()) {
-            let player_name = game
-                .players
-                .iter()
-                .find(|player| player.id == player_id)
-                .map(|player| player.full_name.clone())
-                .unwrap_or_default();
-            game.messages
-                .push(crate::messages::transfer_complete_message(
-                    &player_name,
-                    fee,
-                    &today,
-                ));
-        }
-
         if let Some(player) = game
             .players
             .iter_mut()
@@ -648,6 +633,9 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 close_transfer_offer(offer, TransferOfferStatus::Withdrawn, &today);
                 offer.registration_failure_reason = failure_reason;
             }
+        }
+        if executed && let Some(seller_team_id) = from_team_id.as_deref() {
+            notify_transfer_agreement(game, &player_id, &offer_id, seller_team_id);
         }
 
         if let Some(reason) = failure_reason
@@ -1059,5 +1047,108 @@ mod tests {
             TransferOfferStatus::PendingRegistration
         );
         assert!(game.messages.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod acceptance_tests {
+    use super::super::tests::{acceptance_game, assert_acceptance_notice};
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    fn due_game(user_buys: bool) -> Game {
+        let mut game = acceptance_game(if user_buys { "team2" } else { "team1" }, false);
+        let buyer = if user_buys { "team1" } else { "team2" };
+        super::super::bids::upsert_transfer_offer(
+            &mut game.players[0],
+            buyer,
+            600_001,
+            TransferOfferStatus::PendingRegistration,
+            "2025-12-12",
+            None,
+            1,
+            None,
+            Some("2026-01-12".into()),
+        );
+        game
+    }
+    fn completes(user_buys: bool) {
+        let mut game = due_game(user_buys);
+        process_pending_transfer_registrations(&mut game);
+        let message = assert_acceptance_notice(
+            &game,
+            if user_buys {
+                "be.msg.transferComplete.body"
+            } else {
+                "be.msg.transferComplete.bodySold"
+            },
+            "",
+        );
+        assert_eq!(message.i18n_params["fee"], "600001");
+        assert_eq!(
+            game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::Accepted
+        );
+    }
+    /// Given a due purchase, when registered, then the user buyer receives one completion notice.
+    #[test]
+    fn a_registered_purchase_notifies_the_buyer() {
+        completes(true);
+    }
+    /// Given a due sale, when registered, then the user seller receives one departure notice.
+    #[test]
+    fn a_registered_sale_notifies_the_seller() {
+        completes(false);
+    }
+    /// Given an unaffordable due transfer, when registration fails, then no completion notice is sent.
+    #[test]
+    fn a_failed_registration_sends_no_completion_notice() {
+        let mut game = due_game(true);
+        game.teams[0].finance = 0;
+        process_pending_transfer_registrations(&mut game);
+        assert!(
+            !game
+                .messages
+                .iter()
+                .any(|m| m.subject_key.as_deref() == Some("be.msg.transferComplete.subject"))
+        );
+    }
+    /// Given a due AI-to-AI transfer, when registered, then an unrelated manager receives no notice.
+    #[test]
+    fn an_unrelated_manager_receives_no_completion_notice() {
+        let mut game = due_game(true);
+        game.manager.team_id = Some("unrelated".into());
+        process_pending_transfer_registrations(&mut game);
+        assert!(game.messages.is_empty());
+    }
+    /// Given a completed transfer whose notice was deleted, when the save reloads and processing repeats, then the ledger prevents a duplicate.
+    #[test]
+    fn a_deleted_completion_notice_stays_deleted_after_reload() {
+        let mut game = due_game(true);
+        process_pending_transfer_registrations(&mut game);
+        assert_acceptance_notice(&game, "be.msg.transferComplete.body", "");
+        let id = game.messages[0].id.clone();
+        game.messages.clear();
+        let mut loaded: Game =
+            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        process_pending_transfer_registrations(&mut loaded);
+        assert!(loaded.messages.is_empty());
+        assert!(loaded.emitted_events.contains(&id));
+    }
+    /// Given a deferred purchase and its agreement notice, when registration falls due, then a distinct completion notice is sent.
+    #[test]
+    fn a_deferred_agreement_gets_a_separate_completion_notice() {
+        let mut game = acceptance_game("team2", true);
+        make_transfer_bid(&mut game, "player-award", 2_000_001).unwrap();
+        assert_acceptance_notice(&game, "be.msg.transferAgreed.body", "2026-07-02");
+        let id = game.messages[0].id.clone();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 7, 2, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        process_pending_transfer_registrations(&mut game);
+        assert_eq!(game.messages.len(), 2);
+        assert_ne!(game.messages[1].id, id);
+        assert_eq!(
+            game.messages[1].body_key.as_deref(),
+            Some("be.msg.transferComplete.body")
+        );
     }
 }

@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
-import { isSeniorSquadPlayer } from "../../lib/playerSquad";
+import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { useTrainingFocusAttributes } from "../../hooks/useTrainingFocusAttributes";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
@@ -89,7 +89,11 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   const [isSaving, setIsSaving] = useState(false);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
-  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(teamId, clockDate);
+  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(
+    teamId,
+    clockDate,
+    sessionState ?? gameState,
+  );
   const focusAttributes = useTrainingFocusAttributes();
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
@@ -104,7 +108,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
 
   const allSquadPlayers =
     fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
-  const roster = allSquadPlayers.filter(isSeniorSquadPlayer);
+  const roster = allSquadPlayers.filter(isFirstTeamSquadPlayer);
   const avgCondition =
     roster.length > 0
       ? Math.round(roster.reduce((sum, player) => sum + player.condition, 0) / roster.length)

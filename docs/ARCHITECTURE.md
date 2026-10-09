@@ -206,6 +206,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 
 | Command | Parameters | Returns | Description |
 |---------|-----------|---------|-------------|
+| `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |
 | `set_formation` | formation | `Game` | Change team formation |
 | `set_play_style` | play_style | `Game` | Change play style |
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |

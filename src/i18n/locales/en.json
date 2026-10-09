@@ -1268,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Offer history",
+    "viewOfferHistory": "View offer history",
+    "offerRecordedOn": "Offer dated {{date}}.",
+    "loanOfferStartsOn": "Loan starts on {{date}}.",
+    "dealAlreadyAgreed": "This player has an agreed move and is awaiting registration.",
+    "dealOwnPlayer": "This player already belongs to your club.",
+    "dealActiveLoan": "This player is currently on loan.",
+    "dealRetired": "This player has retired.",
     "bidImpactWageBill": "Weekly wage bill {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Weekly wage budget {{budget}}",
     "bidImpactIncomingWage": "Incoming player wage {{wage}} / week",
@@ -3374,7 +3382,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Complete: {{player}}",
-        "body": "The transfer of {{player}} has been completed for a fee of {{fee}}.\n\nThe player has joined the squad and is available for selection."
+        "body": "The transfer of {{player}} has been completed for a fee of {{fee}}.\n\nThe player has joined the squad and is available for selection.",
+        "bodySold": "The transfer of {{player}} to {{buyer}} has been completed for {{fee}}. The player has left the squad and joined {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfer agreed: {{player}}",
+        "body": "The transfer of {{player}} from {{seller}} to {{buyer}} has been agreed for {{fee}}. Registration is scheduled for {{start}}."
       },
       "transferOffer": {
         "subject": "Incoming Offer for {{player}}",
@@ -3385,6 +3398,11 @@
         "subject": "Transfer interest in {{player}}",
         "body": "Clubs with active bids for {{player}}: {{n}}. Latest enquiry: {{team}} ({{fee}}). Review the offers in the Transfers tab to respond.",
         "actionReview": "Review Offers"
+      },
+      "loanAgreed": {
+        "subject": "Loan agreed: {{player}}",
+        "bodyWithOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. Purchase option: {{fee}}.",
+        "bodyNoOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. No purchase option."
       },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
