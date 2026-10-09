@@ -434,7 +434,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     );
     real_tool!(
         "season_advance",
-        "Advance to next season (may be fired if objectives not met)",
+        "Roll over a completed season, returning its summary and any dismissal. Refuses incomplete seasons; use time_advance for one day",
         tools_impl::season::season_advance
     );
     real_tool!(
@@ -2032,7 +2032,11 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
             "Check if season is complete and ready to advance",
             "Season",
         ),
-        ("season_advance", "Advance to next season", "Season"),
+        (
+            "season_advance",
+            "Roll over a completed season (may be fired); use time_advance for one day",
+            "Season",
+        ),
         ("season_get_awards", "Get end-of-season awards", "Season"),
         // Game Lifecycle
         (
