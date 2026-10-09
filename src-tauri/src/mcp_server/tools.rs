@@ -189,7 +189,7 @@ fn optional_integer_param(
         Some(value) => value
             .as_i64()
             .map(Some)
-            .ok_or_else(|| error_result(&format!("Parameter {key} must be an integer"))),
+            .ok_or_else(|| Failure::invalid_parameter(key, "must be an integer").into_result()),
     }
 }
 
@@ -1552,14 +1552,14 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             let seed = match optional_integer_param(args, "seed") {
                 Ok(v) => match v.map(u64::try_from).transpose() {
                     Ok(seed) => seed,
-                    Err(_) => return Ok(error_result("Parameter seed must not be negative")),
+                    Err(_) => return Ok(Failure::invalid_parameter("seed", "must not be negative").into_result()),
                 },
                 Err(e) => return Ok(e),
             };
             let start_year = match optional_integer_param(args, "start_year") {
                 Ok(v) => match v.map(i32::try_from).transpose() {
                     Ok(year) => year,
-                    Err(_) => return Ok(error_result("Parameter start_year is out of range")),
+                    Err(_) => return Ok(Failure::invalid_parameter("start_year", "is out of range").into_result()),
                 },
                 Err(e) => return Ok(e),
             };
