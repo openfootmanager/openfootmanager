@@ -90,7 +90,7 @@ translation key in every locale. Use `/add-ui-string`; don't hand-roll it.
 
 ## 6. Test it
 
-Use `/write-tests` (programme PR 2) for named GWT scenarios. Co-locate `Foo.test.tsx` next to
+Use `/write-tests` for named GWT scenarios. Co-locate `Foo.test.tsx` next to
 `Foo.tsx`, write it first and watch it fail for the intended reason. Test through the component
 and service wiring; helper-only tests cannot prove that a handler calls the helper. A controlled
 component needs a stateful host that feeds `onChange` values back as props, not just `vi.fn()`.
