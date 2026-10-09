@@ -1405,7 +1405,11 @@
     "transferFeedbackCounterHeadline": "Quieren más antes de cerrar el trato.",
     "transferFeedbackCounterDetail": "La oferta fue suficiente para seguir hablando, pero su lado está marcando un precio más cercano a {{fee}}.",
     "transferFeedbackRejectedHeadline": "Han cerrado esta ronda.",
-    "transferFeedbackRejectedDetail": "La propuesta no les movió lo suficiente. Necesitarías una cifra mejor, más cerca de {{fee}}, para reabrir conversaciones serias."
+    "transferFeedbackRejectedDetail": "La propuesta no les movió lo suficiente. Necesitarías una cifra mejor, más cerca de {{fee}}, para reabrir conversaciones serias.",
+    "registrationFailureInsufficientFunds": "Inscripción fallida: fondos insuficientes del comprador",
+    "registrationFailureLoanConflict": "Inscripción fallida: conflicto con una cesión",
+    "registrationFailurePlayerUnavailable": "Inscripción fallida: jugador no disponible",
+    "registrationFailureRegistrationBlocked": "Inscripción bloqueada"
   },
   "transferCentreWorld": {
     "title": "Centro de fichajes",
@@ -3396,6 +3400,13 @@
       "loanBuyOptionExercised": {
         "subject": "Opción de compra ejercida: {{player}}",
         "body": "La opción de compra de {{player}} se ha ejercido por {{fee}}. La cesión pasa a ser un fichaje definitivo."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Inscripción del fichaje fallida: {{player}}",
+        "InsufficientFunds": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque el saldo o el presupuesto de fichajes del comprador ya no cubre el importe. No se pagó ninguna cantidad por el fichaje.",
+        "LoanConflict": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque el jugador está cedido o tiene una cesión acordada pendiente de inscripción. No se pagó ninguna cantidad por el fichaje.",
+        "PlayerUnavailable": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque el jugador ya no está disponible en un club vendedor. No se pagó ninguna cantidad por el fichaje.",
+        "RegistrationBlocked": "El fichaje acordado de {{player}} por {{buyer}} por {{fee}} no pudo inscribirse el {{start}} porque ya no se cumple un requisito de inscripción. No se pagó ninguna cantidad por el fichaje."
       }
     },
     "news": {

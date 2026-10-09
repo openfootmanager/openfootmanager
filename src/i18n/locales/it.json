@@ -1424,7 +1424,11 @@
     "transferFeedbackCounterHeadline": "Vogliono di più prima di stringersi la mano.",
     "transferFeedbackCounterDetail": "L'offerta era abbastanza vicina per continuare a parlare, ma la controparte segnala un prezzo più vicino a {{fee}}.",
     "transferFeedbackRejectedHeadline": "Hanno chiuso questo round.",
-    "transferFeedbackRejectedDetail": "La proposta non li ha smossi abbastanza. Servirebbe una cifra più forte, più vicina a {{fee}}, per riaprire una trattativa seria."
+    "transferFeedbackRejectedDetail": "La proposta non li ha smossi abbastanza. Servirebbe una cifra più forte, più vicina a {{fee}}, per riaprire una trattativa seria.",
+    "registrationFailureInsufficientFunds": "Registrazione fallita: fondi insufficienti del compratore",
+    "registrationFailureLoanConflict": "Registrazione fallita: conflitto con un prestito",
+    "registrationFailurePlayerUnavailable": "Registrazione fallita: giocatore non disponibile",
+    "registrationFailureRegistrationBlocked": "Registrazione bloccata"
   },
   "transferCentreWorld": {
     "title": "Centro trasferimenti",
@@ -3396,6 +3400,13 @@
       "loanBuyOptionExercised": {
         "subject": "Opzione di riscatto esercitata: {{player}}",
         "body": "L'opzione di riscatto per {{player}} è stata esercitata per {{fee}}. Il prestito diventa ora un trasferimento definitivo."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Registrazione del trasferimento fallita: {{player}}",
+        "InsufficientFunds": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il saldo o il budget trasferimenti del compratore non copre più la cifra. Non è stato pagato alcun importo per il trasferimento.",
+        "LoanConflict": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore è in prestito o ha un prestito concordato in attesa di registrazione. Non è stato pagato alcun importo per il trasferimento.",
+        "PlayerUnavailable": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore non è più disponibile presso un club venditore. Non è stato pagato alcun importo per il trasferimento.",
+        "RegistrationBlocked": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché un requisito di registrazione non è più soddisfatto. Non è stato pagato alcun importo per il trasferimento."
       }
     },
     "news": {

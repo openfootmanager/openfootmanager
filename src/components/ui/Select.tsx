@@ -517,7 +517,7 @@ export function Select({
 
                     return (
                       <button
-                        key={option.value}
+                        key={optionIndex}
                         id={optionId(optionIndex)}
                         type="button"
                         role="option"
@@ -527,6 +527,7 @@ export function Select({
                         aria-selected={isSelected}
                         disabled={option.disabled}
                         className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${isActive && !isSelected ? "bg-gray-50 dark:bg-navy-700" : ""} ${isActive ? "ring-2 ring-inset ring-primary-500/40 dark:ring-primary-400/40" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        onMouseDown={(event) => event.preventDefault()}
                         onMouseEnter={() => {
                           if (!option.disabled) {
                             setActiveIndex(optionIndex);

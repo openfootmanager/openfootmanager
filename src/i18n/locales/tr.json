@@ -1405,7 +1405,11 @@
     "transferFeedbackCounterHeadline": "El sıkışmadan önce daha fazlasını istiyorlar.",
     "transferFeedbackCounterDetail": "Teklif görüşmeyi sürdürecek kadar yakındı, ancak karşı taraf {{fee}} civarında bir fiyata işaret ediyor.",
     "transferFeedbackRejectedHeadline": "Bu turu kapattılar.",
-    "transferFeedbackRejectedDetail": "Öneri onları yeterince etkilemedi. Ciddi görüşmeleri yeniden başlatmak için {{fee}} civarında daha güçlü bir bonservis gerekir."
+    "transferFeedbackRejectedDetail": "Öneri onları yeterince etkilemedi. Ciddi görüşmeleri yeniden başlatmak için {{fee}} civarında daha güçlü bir bonservis gerekir.",
+    "registrationFailureInsufficientFunds": "Tescil başarısız: alıcının fonları yetersiz",
+    "registrationFailureLoanConflict": "Tescil başarısız: kiralama çakışması",
+    "registrationFailurePlayerUnavailable": "Tescil başarısız: oyuncu uygun değil",
+    "registrationFailureRegistrationBlocked": "Tescil engellendi"
   },
   "transferCentreWorld": {
     "title": "Transfer Merkezi",
@@ -3396,6 +3400,13 @@
       "loanBuyOptionExercised": {
         "subject": "Kiralamada Satın Alma Opsiyonu Kullanıldı: {{player}}",
         "body": "{{player}} için satın alma opsiyonu {{fee}} bedelle kullanıldı. Kiralama artık kalıcı bir transfere dönüştü."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Transfer tescili başarısız: {{player}}",
+        "InsufficientFunds": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; alıcının nakdi veya transfer bütçesi artık bedeli karşılamıyor. Transfer bedeli ödenmedi.",
+        "LoanConflict": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu kiralık durumda veya tescil bekleyen bir kiralama anlaşması var. Transfer bedeli ödenmedi.",
+        "PlayerUnavailable": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu artık bir satıcı kulüpten transfer edilebilir durumda değil. Transfer bedeli ödenmedi.",
+        "RegistrationBlocked": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; bir tescil koşulu artık sağlanmıyor. Transfer bedeli ödenmedi."
       }
     },
     "news": {
