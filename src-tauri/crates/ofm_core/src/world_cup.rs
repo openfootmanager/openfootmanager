@@ -530,6 +530,7 @@ pub fn schedule_world_cup_with_field(
     cup.priority = 10_000;
     cup.name_key = Some("tournaments.competitions.worldCup".to_string());
     let cup_id = cup.id.clone();
+    crate::calendar_identity::backfill_competition_calendar(&mut cup);
     game.competitions.push(cup);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(cup_id);
@@ -987,6 +988,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         .collect();
     competition.participant_ids = participant_ids;
     let competition_id = competition.id.clone();
+    crate::calendar_identity::backfill_competition_calendar(&mut competition);
     game.competitions.push(competition);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(competition_id);
@@ -1413,6 +1415,7 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
         preliminaries.name = "Semifinal".to_string();
     }
 
+    crate::calendar_identity::backfill_competition_calendar(&mut cup);
     game.competitions.push(cup);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(competition_id);
@@ -1972,6 +1975,81 @@ mod tests {
             "England".to_string(),
         );
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Every World Cup competition in the live game must already hold exactly what the
+    /// load-time backfill would give it, so a live game and its reload cannot disagree.
+    fn assert_calendars_match_the_backfill(game: &Game) {
+        let world_cup: Vec<&League> = game
+            .competitions
+            .iter()
+            .filter(|c| is_world_cup_competition(c))
+            .collect();
+        assert!(
+            !world_cup.is_empty(),
+            "the route created no World Cup competition"
+        );
+        for competition in world_cup {
+            let mut stripped = competition.clone();
+            stripped.calendar = None;
+            crate::calendar_identity::backfill_competition_calendar(&mut stripped);
+            assert!(
+                competition.calendar.is_some(),
+                "{} has no calendar",
+                competition.id
+            );
+            assert_eq!(
+                serde_json::to_value(&competition.calendar).unwrap(),
+                serde_json::to_value(&stripped.calendar).unwrap(),
+                "{} differs from the backfill",
+                competition.id
+            );
+        }
+    }
+
+    /// Given a career where the finals were just staged, when the live game is inspected,
+    /// then the finals carry the calendar the backfill would assign.
+    #[test]
+    fn newly_staged_world_cup_finals_have_their_calendar() {
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2030), &FORMAT_48);
+        assert_calendars_match_the_backfill(&game);
+    }
+
+    /// Given a career where World Cup qualifying was just scheduled, when the live game is
+    /// inspected, then every qualifying competition carries the calendar the backfill would assign.
+    #[test]
+    fn newly_scheduled_world_cup_qualifying_has_its_calendar() {
+        let mut game = empty_game();
+        let windows = crate::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+        schedule_world_cup_qualifying(&mut game, 2026, &windows);
+        assert_calendars_match_the_backfill(&game);
+    }
+
+    /// Given qualifying played far enough to stage the inter-confederation playoff, when the
+    /// live game is inspected, then the playoff carries a calendar too.
+    #[test]
+    fn newly_staged_world_cup_playoff_has_its_calendar() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+        let mut campaign_days: Vec<String> = game
+            .competitions
+            .iter()
+            .flat_map(|c| c.fixtures.iter().map(|f| f.date.clone()))
+            .collect();
+        campaign_days.sort();
+        campaign_days.dedup();
+        let mut rng = StdRng::seed_from_u64(7);
+        for date in &campaign_days {
+            process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        }
+        assert!(
+            game.competitions.iter().any(is_world_cup_playoff),
+            "the playoff route was not exercised"
+        );
+        assert_calendars_match_the_backfill(&game);
     }
 
     #[test]
