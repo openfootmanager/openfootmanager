@@ -36,11 +36,7 @@ describe("PlayerProfileSeasonStatsCard average rating", () => {
    */
   it("shows the average once matches are rated", () => {
     render(
-      <PlayerProfileSeasonStatsCard
-        stats={{ ...stats, avg_rating: 7.24 }}
-        hasRatedMatches
-        t={t}
-      />,
+      <PlayerProfileSeasonStatsCard stats={{ ...stats, avg_rating: 7.24 }} hasRatedMatches t={t} />,
     );
 
     expect(screen.getByText("7.2")).toBeInTheDocument();

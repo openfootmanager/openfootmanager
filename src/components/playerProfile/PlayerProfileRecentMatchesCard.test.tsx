@@ -39,7 +39,12 @@ describe("PlayerProfileRecentMatchesCard ratings", () => {
    * Then each shows a dash, not 0.0, and there is no trend chart
    */
   it("shows a dash and no trend when no match has a rating", () => {
-    render(<PlayerProfileRecentMatchesCard matches={[match("a", 0, false), match("b", 0, false)]} t={t} />);
+    render(
+      <PlayerProfileRecentMatchesCard
+        matches={[match("a", 0, false), match("b", 0, false)]}
+        t={t}
+      />,
+    );
 
     expect(screen.queryByText("0.0")).not.toBeInTheDocument();
     expect(screen.getAllByText("–")).toHaveLength(2);
@@ -62,5 +67,22 @@ describe("PlayerProfileRecentMatchesCard ratings", () => {
     expect(screen.getByText("7.2")).toBeInTheDocument();
     expect(screen.getAllByText("–")).toHaveLength(1);
     expect(screen.getByTestId("trend")).toHaveAttribute("data-count", "2");
+  });
+
+  /**
+   * Given a single rated match among unrated ones
+   * When the card renders
+   * Then no trend block appears, since one point is not a trend
+   */
+  it("hides the trend until two matches are rated", () => {
+    render(
+      <PlayerProfileRecentMatchesCard
+        matches={[match("a", 7.2, true), match("b", 0, false)]}
+        t={t}
+      />,
+    );
+
+    expect(screen.getByText("7.2")).toBeInTheDocument();
+    expect(screen.queryByTestId("trend")).not.toBeInTheDocument();
   });
 });

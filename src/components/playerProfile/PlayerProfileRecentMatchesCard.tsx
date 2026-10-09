@@ -21,6 +21,8 @@ export interface PlayerRecentMatchEntry {
   rated: boolean;
 }
 
+const MIN_POINTS_FOR_TREND = 2;
+
 function resolveLabel(t: TranslateFn, key: string, fallback: string): string {
   return t(key, { defaultValue: fallback });
 }
@@ -48,7 +50,7 @@ export default function PlayerProfileRecentMatchesCard({
     <Card>
       <CardHeader>{title}</CardHeader>
       <CardBody>
-        {ratedMatches.length > 0 ? (
+        {ratedMatches.length >= MIN_POINTS_FOR_TREND ? (
           <div className="mb-4">
             <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-heading mb-2">
               {ratingTrendLabel}
