@@ -1,16 +1,19 @@
-# P2: immutable completed-edition archive (local work)
+# P2: immutable completed-edition archive
 
-This fresh branch starts at upstream/develop `8f6659f5`. P1 (#710) is held
-behind #668. This first local increment implements only the pure completion
-proof needed before archiving. It activates no renewal or rollover change and
-adds no persisted field or migration. Table legs are supplied explicitly until
-P1's durable calendar specification lands; missing provenance must block.
+As a career player, I need the final table, bracket and champion of every finished competition
+edition frozen once, so later slices can renew a competition on its own calendar without losing
+the result that promotion, awards and qualification read.
 
-The validator is shared for AI, user and dormant results. It reads the saved
-competition rather than the manager, clock, name, or simulation route. Existing
-rollover predicates remain compatibility behavior until the planned cutover;
-their permissive cup predicate cannot be used as an archive proof.
+Refs #654. Stacked on P1 (#710). This slice proves completion, records one immutable archive entry per
+`(competition, season)` and persists it. It does not renew a competition, advance an edition, move
+clubs or change any rollover outcome. Tables are archivable only when P1 recorded their authored legs;
+older saves without them stay unarchived rather than guessing two legs. Each scenario maps to a named
+test, seen failing first and mutation-checked.
 
+The completion validator is shared for AI, user and dormant results. It reads the saved competition
+rather than the manager, clock, name or simulation route.
+
+## Completion proof
 | Named scenario | Given | When | Then |
 | --- | --- | --- | --- |
 | completed_tables_respect_authored_legs_and_odd_fields | Completed three/four-club one/two-leg tables | Completion is verified | Each full authored schedule has a proof with its actual final date |
@@ -29,34 +32,28 @@ their permissive cup predicate cannot be used as an archive proof.
 | stale_standings_block_a_completed_fixture_set | Completed fixtures whose table/group results have not all been applied | Completion is verified | No final table is certified before result application |
 | loaded_completion_proof_preserves_the_live_sibling | A JSON-loaded completed half and an InProgress sibling | The completed half is verified repeatedly | Proofs agree and both saved competitions remain byte-equivalent |
 
-Remaining P2 work, after P1 integration: the immutable table/bracket/player-stat
-record, edition-keyed idempotent receipt, capture at safe post-result boundaries,
-and real SQLite normal/replacement/dirty-save/load tests. The full design's
-archive scenarios 4, 5, 22, 29 and 33 remain acceptance requirements; this pure
-validator increment does not claim those complete lifecycle routes are done.
+## Archive record and persistence
 
-## Local evidence and integration hold
+| Named scenario | Given | When | Then |
+| --- | --- | --- | --- |
+| finished_league_is_archived_with_its_final_table | A finished league with authored legs | Archiving runs | One record holds edition key, ordered final table, champion, clubs and fixtures |
+| league_with_a_scheduled_fixture_is_not_archived | A Scheduled competitive fixture | Archiving runs | Nothing is recorded |
+| league_without_authored_legs_is_not_archived | A finished table with no authored legs | Archiving runs | Blocked, not guessed |
+| finished_knockout_archives_bracket_and_champion | A finished cup | Archiving runs | Bracket and the final's winner are recorded |
+| finished_group_cup_archives_groups_and_bracket | A finished group cup | Archiving runs | Groups and bracket are recorded |
+| unfinished_knockout_is_not_archived | An unplayed final | Archiving runs | Nothing is recorded |
+| archiving_twice_keeps_the_first_record | An archived edition | Archiving again | One unchanged record |
+| archive_is_immutable_after_the_live_competition_resets | An archived edition whose live competition then resets | Archiving again | The freeze holds |
+| archive_keeps_sibling_halves_separate | Finished Apertura, unplayed Clausura | Archiving runs | Only Apertura recorded; Clausura byte-identical |
+| archiving_does_not_mutate_the_competition | Any finished edition | Archiving runs | Competition byte-identical afterwards |
+| sweep_archives_only_finished_editions | One finished, one unfinished competition | Every edition is swept | Only the finished one is recorded |
+| rollover_freezes_the_finished_edition_before_regenerating_it | A finished edition at the user's rollover | Competitions regenerate | The pre-reset table is archived first |
+| editions_survive_sqlite_reload | Non-default editions | Saved and reloaded | Every field survives |
+| replacing_competitions_does_not_delete_the_archive | An archived edition | Competitions are replaced | The archive remains |
+| a_recorded_edition_is_never_rewritten | A recorded key | A different record claims it | The first wins |
+| corrupt_archive_record_is_not_silently_dropped | A malformed record | Loaded | The translated load error, not an empty archive |
+| edition_archive_survives_save_load_and_competition_restart | A saved career, competition restarted, saved again | Reloaded | The record is byte-identical |
+| edition_archive_v049_upgrades_a_v048_save_without_touching_competitions | A v048 save | Migrated twice | Empty archive table, competitions unchanged |
 
-The clean develop baseline passed all 29 scoped `end_of_season` tests. All 15
-new named scenarios failed against the initial `NotVerified` service scaffold
-before implementation, then passed with the validator. A mutation returning
-success without validation made 11 guard scenarios fail (four positive/read-only
-scenarios passed); the real implementation was restored afterward.
-
-Group qualification and knockout bye sizing are extracted from their existing
-writers and reused, and final champion selection uses `world_cup_champion`.
-No existing public signature/field/variant is removed or renamed. The small
-extractions overlap files touched by #704; this branch remains local and must
-integrate the landed versions plus P1 before its eventual review/push. P1's
-provisional calendar migration becomes v048 only after #668's v047 is merged.
-This P2 increment contains no DB changes. CodeRabbit and full PR preflight are
-reserved for the completed P2 branch before its first push.
-
-Final local checks for this increment:
-
-- `cargo test --locked --manifest-path src-tauri/Cargo.toml -p ofm_core --lib --jobs 2`: 895 passed, including all 15 new scenarios and the existing group/knockout writer tests.
-- `cargo clippy --locked --manifest-path src-tauri/Cargo.toml -p ofm_core --all-targets --jobs 2 -- -D warnings`: passed.
-- `cargo fmt --manifest-path src-tauri/Cargo.toml --all --check` and `git diff --check`: passed.
-
-No full workspace/frontend preflight, CodeRabbit run, push or PR opening is
-claimed for this unfinished P2 slice.
+Not in this slice: player statistics in the record, capture on the live post-result paths (only the
+existing rollover captures), and any use of the archive by awards or promotion (P7).
