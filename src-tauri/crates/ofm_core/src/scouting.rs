@@ -7,7 +7,6 @@ use domain::player::{Player, PlayerMovementKind, Position, SquadRole};
 use domain::staff::StaffRole;
 use rand::RngExt;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 const ERR_SCOUT_NOT_FOUND: &str = "be.error.scouting.scoutNotFound";
 const ERR_STAFF_MEMBER_NOT_SCOUT: &str = "be.error.scouting.staffMemberNotScout";
@@ -166,8 +165,10 @@ pub fn send_scout(game: &mut Game, scout_id: &str, player_id: &str) -> Result<()
     // Create assignment (2-5 days depending on scout quality)
     let days = assignment_days_for_player_scouting(scout.attributes.judging_ability);
 
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     game.scouting_assignments.push(ScoutingAssignment {
-        id: Uuid::new_v4().to_string(),
+        // Made from what the assignment is, so a replay of the save starts the same one.
+        id: crate::seed::derived_id(&["scouting", scout_id, player_id, &today]),
         scout_id: scout_id.to_string(),
         player_id: player_id.to_string(),
         days_remaining: days,
@@ -207,9 +208,11 @@ pub fn start_youth_scouting(
 
     let days =
         assignment_days_for_youth_scouting(scout.attributes.judging_potential, region, objective);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let search = format!("{region:?}/{objective:?}/{target_position:?}");
     game.youth_scouting_assignments
         .push(YouthScoutingAssignment {
-            id: Uuid::new_v4().to_string(),
+            id: crate::seed::derived_id(&["youth-scouting", scout_id, &search, &today]),
             scout_id: scout_id.to_string(),
             region,
             objective,
@@ -366,12 +369,14 @@ fn complete_youth_scouting_assignment(
     // Prospects are scouted mid-career, so they are aged against the running
     // clock rather than the year the world opened in.
     let current_year = chrono::Datelike::year(&game.clock.current_date) as u32;
+    let mut rng = game.rng_today(&format!("youth-scouting/{}", assignment.id));
     let prospects = generate_youth_recruitment_candidates(
         &team,
         assignment.region,
         assignment.objective,
         assignment.target_position.as_ref(),
         current_year,
+        &mut rng,
     );
     if prospects.is_empty() {
         return;
@@ -508,6 +513,7 @@ fn generate_youth_recruitment_candidates(
     objective: YouthScoutingObjective,
     target_position: Option<&Position>,
     current_year: u32,
+    rng: &mut impl rand::Rng,
 ) -> Vec<Player> {
     let pool_size = match objective {
         YouthScoutingObjective::Balanced => 4,
@@ -530,6 +536,7 @@ fn generate_youth_recruitment_candidates(
                     YouthScoutingRegion::International => None,
                 },
                 current_year,
+                &mut *rng,
             );
             prospect.team_id = None;
             prospect.squad_role = SquadRole::Youth;

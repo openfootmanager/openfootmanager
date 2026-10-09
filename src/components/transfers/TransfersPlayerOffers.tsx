@@ -52,7 +52,8 @@ export function TransferOfferRecord({ state, offer, player }: TransferOfferRecor
         {getTeamName(gameState.teams, offer.from_team_id, t("common.unknown"))}
       </span>
       <Badge variant={getTransferOfferBadgeVariant(offer.status)} size="sm">
-        {formatVal(offer.fee)} — {getTransferOfferStatusLabel(t, offer.status)}
+        {formatVal(offer.fee)} —{" "}
+        {getTransferOfferStatusLabel(t, offer.status, offer.registration_failure_reason)}
       </Badge>
       {offer.status === "Pending" && player.team_id === userTeamId && (
         <div className="flex gap-1 ml-1">

@@ -662,6 +662,8 @@
     "removeFromLoanList": "从租借名单移除",
     "outOfPosition": "不对位",
     "outOfPositionTooltip": "球员正在其惯用角色之外的位置上场",
+    "pitchTokenTooltip": "状态 {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "状态 {{condition}}%",
     "dragHint": "将替补球员拖到球场上,或在位置间互换首发。",
     "benchDragHint": "使用替补列表将球员直接拖到球场上。",
     "dropPlayerHere": "将球员放在此处",
@@ -1411,7 +1413,11 @@
     "transferFeedbackCounterHeadline": "他们希望得到更多才肯握手。",
     "transferFeedbackCounterDetail": "出价已足够接近,谈判仍在继续,但对方暗示的价位更接近 {{fee}}。",
     "transferFeedbackRejectedHeadline": "他们这一轮直接关闭了谈判。",
-    "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。"
+    "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。",
+    "registrationFailureInsufficientFunds": "注册失败：买方资金不足",
+    "registrationFailureLoanConflict": "注册失败：租借冲突",
+    "registrationFailurePlayerUnavailable": "注册失败：球员不可转会",
+    "registrationFailureRegistrationBlocked": "注册受阻"
   },
   "transferCentreWorld": {
     "title": "转会中心",
@@ -2607,6 +2613,7 @@
       "managedTeamNotFound": "未找到你执教的球队",
       "unknownFacilityType": "未知的设施类型",
       "liveMatch": {
+        "inProgress": "比赛正在进行。请先结束比赛，再保存、推进时间或开始另一场比赛。",
         "noLeague": "该比赛暂无联赛数据。",
         "fixtureNotFound": "未找到所选比赛。",
         "fixtureNotScheduled": "这场比赛已不在赛程中，无法进行。",
@@ -3399,6 +3406,13 @@
       "loanBuyOptionExercised": {
         "subject": "已执行买断选项:{{player}}",
         "body": "{{player}}的买断选项已按{{fee}}执行。这笔租借现已转为永久转会。"
+      },
+      "transferRegistrationFailed": {
+        "subject": "转会注册失败：{{player}}",
+        "InsufficientFunds": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为买方的现金或转会预算已不足以支付转会费。此次转会未支付任何转会费。",
+        "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
+        "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
+        "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
       }
     },
     "news": {

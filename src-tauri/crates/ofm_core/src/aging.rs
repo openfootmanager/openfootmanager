@@ -97,11 +97,13 @@ fn retirement_chance(player: &Player, age: i32, current_date: NaiveDate) -> u32 
     if player.stats.appearances < 10 {
         chance += 8;
     }
-    if player.stats.avg_rating <= 6.4 {
-        chance += 8;
-    }
-    if player.stats.avg_rating >= 7.4 {
-        chance = chance.saturating_sub(10);
+    if crate::match_rating::is_rated(player.stats.avg_rating) {
+        if player.stats.avg_rating <= 6.4 {
+            chance += 8;
+        }
+        if player.stats.avg_rating >= 7.4 {
+            chance = chance.saturating_sub(10);
+        }
     }
     if player.ovr >= 80 {
         chance = chance.saturating_sub(15);
@@ -160,7 +162,8 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_seasonal_aging, player_age_on, should_retire, technical_growth, veteran_pace_loss,
+        apply_seasonal_aging, player_age_on, retirement_chance, should_retire, technical_growth,
+        veteran_pace_loss,
     };
     use crate::clock::GameClock;
     use crate::game::Game;
@@ -325,5 +328,47 @@ mod tests {
         assert_eq!(entry.kind, PlayerMovementKind::Retired);
         assert_eq!(entry.from_team_id.as_deref(), Some("team1"));
         assert_eq!(veteran.wage(), 0, "no wage left on a retired player");
+    }
+    /// Given a contracted 34-year-old with enough appearances and an unrated season,
+    /// when retirement is considered, then only the age term applies.
+    #[test]
+    fn an_unrated_veteran_has_no_retirement_rating_modifier() {
+        let date = NaiveDate::from_ymd_opt(2026, 5, 20).unwrap();
+        let mut player = make_player("unrated-veteran", "1992-01-01");
+        player.stage_contract_end(Some("2027-06-30".to_string()));
+        player.stats.appearances = 20;
+        player.stats.avg_rating = 0.0;
+        assert_eq!(retirement_chance(&player, 34, date), 24);
+        player.stats.avg_rating = 6.8;
+        assert_eq!(retirement_chance(&player, 34, date), 24);
+    }
+
+    /// Given an old save storing the numeric zero sentinel, when the player is loaded,
+    /// then his unrated season has no retirement penalty.
+    #[test]
+    fn a_loaded_unrated_veteran_keeps_the_neutral_retirement_chance() {
+        let mut player = make_player("loaded-unrated", "1992-01-01");
+        player.stage_contract_end(Some("2027-06-30".to_string()));
+        player.stats.appearances = 20;
+        let json = serde_json::to_string(&player).unwrap();
+        let loaded: Player = serde_json::from_str(&json).unwrap();
+        assert_eq!(loaded.stats.avg_rating, 0.0);
+        assert_eq!(
+            retirement_chance(&loaded, 34, NaiveDate::from_ymd_opt(2026, 5, 20).unwrap()),
+            24
+        );
+    }
+
+    /// Given a rated veteran, when retirement is considered, then established poor/good modifiers survive.
+    #[test]
+    fn a_rated_veteran_keeps_the_existing_retirement_modifiers() {
+        let date = NaiveDate::from_ymd_opt(2026, 5, 20).unwrap();
+        let mut player = make_player("rated-veteran", "1992-01-01");
+        player.stage_contract_end(Some("2027-06-30".to_string()));
+        player.stats.appearances = 20;
+        player.stats.avg_rating = 6.4;
+        assert_eq!(retirement_chance(&player, 34, date), 32);
+        player.stats.avg_rating = 7.4;
+        assert_eq!(retirement_chance(&player, 34, date), 14);
     }
 }

@@ -64,6 +64,9 @@ export default function AwardsCeremonyScreen({
     gameState,
     "poty",
   );
+  const hasPlayerOfYear = awards
+    ? awards.player_of_year.length > 0
+    : playerOfYear.playerName !== "-" && playerOfYear.playerName !== "";
   const managerOfSeason = resolveManagerWinner(
     awards?.manager_of_season[0] ?? null,
     article,
@@ -89,9 +92,11 @@ export default function AwardsCeremonyScreen({
             <Badge variant="primary" size="md">
               {t("awardsCeremony.goldenBoot")}
             </Badge>
-            <Badge variant="neutral" size="md">
-              {t("awardsCeremony.playerOfYear")}
-            </Badge>
+            {hasPlayerOfYear && (
+              <Badge variant="neutral" size="md">
+                {t("awardsCeremony.playerOfYear")}
+              </Badge>
+            )}
           </div>
         </CardBody>
       </Card>
@@ -128,25 +133,27 @@ export default function AwardsCeremonyScreen({
             goldenBoot.teamId && onSelectTeam ? () => onSelectTeam(goldenBoot.teamId!) : undefined
           }
         />
-        <WinnerCard
-          icon={<Star className="h-6 w-6" />}
-          accent="none"
-          title={t("awardsCeremony.playerOfYear")}
-          name={playerOfYear.playerName}
-          teamName={playerOfYear.teamName}
-          valueLabel={t("awardsCeremony.rating")}
-          value={playerOfYear.value}
-          onSelectName={
-            playerOfYear.playerId && onSelectPlayer
-              ? () => onSelectPlayer(playerOfYear.playerId!)
-              : undefined
-          }
-          onSelectTeam={
-            playerOfYear.teamId && onSelectTeam
-              ? () => onSelectTeam(playerOfYear.teamId!)
-              : undefined
-          }
-        />
+        {hasPlayerOfYear && (
+          <WinnerCard
+            icon={<Star className="h-6 w-6" />}
+            accent="none"
+            title={t("awardsCeremony.playerOfYear")}
+            name={playerOfYear.playerName}
+            teamName={playerOfYear.teamName}
+            valueLabel={t("awardsCeremony.rating")}
+            value={playerOfYear.value}
+            onSelectName={
+              playerOfYear.playerId && onSelectPlayer
+                ? () => onSelectPlayer(playerOfYear.playerId!)
+                : undefined
+            }
+            onSelectTeam={
+              playerOfYear.teamId && onSelectTeam
+                ? () => onSelectTeam(playerOfYear.teamId!)
+                : undefined
+            }
+          />
+        )}
       </div>
 
       {(onBack || onContinue) && (

@@ -686,6 +686,8 @@
     "removeFromLoanList": "Remove from loan list",
     "outOfPosition": "Out of position",
     "outOfPositionTooltip": "Playing outside the player's preferred role",
+    "pitchTokenTooltip": "Condition {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condition {{condition}}%",
     "dragHint": "Drag bench players onto the pitch or swap starters between slots.",
     "benchDragHint": "Use the bench list to drag players directly onto the pitch.",
     "dropPlayerHere": "Drop player here",
@@ -1411,7 +1413,11 @@
     "transferFeedbackCounterHeadline": "They want more before shaking hands.",
     "transferFeedbackCounterDetail": "The bid was close enough to keep talking, but their side are signalling a price nearer {{fee}}.",
     "transferFeedbackRejectedHeadline": "They shut this round down.",
-    "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks."
+    "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks.",
+    "registrationFailureInsufficientFunds": "Registration failed: insufficient buyer funds",
+    "registrationFailureLoanConflict": "Registration failed: loan conflict",
+    "registrationFailurePlayerUnavailable": "Registration failed: player unavailable",
+    "registrationFailureRegistrationBlocked": "Registration blocked"
   },
   "transferCentreWorld": {
     "title": "Transfer Centre",
@@ -2624,6 +2630,7 @@
       "managedTeamNotFound": "Managed team not found",
       "unknownFacilityType": "Unknown facility type",
       "liveMatch": {
+        "inProgress": "A match is in progress. Finish it before saving, advancing time or starting another match.",
         "noLeague": "No league data is available for this match.",
         "fixtureNotFound": "The selected fixture could not be found.",
         "fixtureNotScheduled": "This fixture is no longer scheduled and cannot be played.",
@@ -3399,6 +3406,13 @@
       "loanBuyOptionExercised": {
         "subject": "Loan Buy Option Exercised: {{player}}",
         "body": "The purchase option for {{player}} has been exercised for {{fee}}. The loan is now a permanent transfer."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Transfer registration failed: {{player}}",
+        "InsufficientFunds": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the buyer's cash or transfer budget no longer covers the fee. No transfer fee was paid.",
+        "LoanConflict": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player has an active loan or an agreed loan awaiting registration. No transfer fee was paid.",
+        "PlayerUnavailable": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player is no longer available from a selling club. No transfer fee was paid.",
+        "RegistrationBlocked": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because a registration requirement is no longer met. No transfer fee was paid."
       }
     },
     "news": {

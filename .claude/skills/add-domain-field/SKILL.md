@@ -13,9 +13,9 @@ repositories in `src-tauri/crates/db/src/repositories/` use hand-written positio
 field that isn't in the column lists is silently dropped on every save/load round trip — with no
 error, no warning, and a passing test suite.
 
-Start with `/write-tests` (programme PR 2): name the GWT scenarios and write the test cases first.
-Until that skill lands, follow the root Code quality Tests rules directly. Include a non-default SQL
-round-trip via a fresh reader and an old-save fixture with the new serialized field absent.
+Start with `/write-tests`: name the GWT scenarios and write the test cases first.
+Include a non-default SQL round-trip via a fresh reader and an old-save fixture with the new
+serialized field absent.
 Typed-field tests may need the field declaration and minimal constructor/struct-literal updates to
 compile; add only that scaffolding before observing RED. A compile error is not behavioural evidence.
 Observe the old-save incompatibility before adding its serde default, and the SQL round-trip failure

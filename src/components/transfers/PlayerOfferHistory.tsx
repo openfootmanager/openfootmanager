@@ -45,7 +45,11 @@ function SavedOfferEntry({ entry, teams }: { entry: SavedOffer; teams: TeamData[
         </span>
         <span>{getTeamName(teams, offer.from_team_id, t("common.unknown"))}</span>
         <Badge variant={getTransferOfferBadgeVariant(offer.status)} size="sm">
-          {getTransferOfferStatusLabel(t, offer.status)}
+          {getTransferOfferStatusLabel(
+            t,
+            offer.status,
+            "registration_failure_reason" in offer ? offer.registration_failure_reason : undefined,
+          )}
         </Badge>
         <span>
           {t("transfers.negotiationRound", {

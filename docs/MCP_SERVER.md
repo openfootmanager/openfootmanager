@@ -81,6 +81,10 @@ In competition mode, the following tools are **completely omitted** from registr
 
 This ensures all agents start from the same state and cannot manipulate the game setup.
 
+`info_game_state` is available in competition mode by maintainer decision. It appears in `tools/list`
+and returns the full game as JSON, including other clubs' players. The mode restricts only the five
+setup tools above; `--mcp-disable-tools` can still disable individual tools explicitly.
+
 ---
 
 ## Tool Reference
@@ -404,13 +408,14 @@ The `mcp` feature adds `rmcp`, `axum`, `tower`, `tokio` (with `net`), and `tokio
 
 ## Information Visibility
 
-In competition mode, information about other teams' players is limited:
+In competition mode, the formatted player tools limit information about other teams' players:
 
 - **Your team**: Full detail (all attributes, condition, morale, wage, contract end, injury status)
 - **Other teams**: OVR, position, age, and condition only
 - **Scouted players**: Full detail from scout reports (use `scout_send` → `scout_get_reports`)
 
-This makes scouting strategically important — agents must invest scout assignments to discover player details before bidding.
+Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump remains
+available as described under [Competition Mode](#competition-mode).
 
 ---
 
@@ -484,3 +489,16 @@ src-tauri/src/mcp_server/
 │   └── help.rs      # Tool discovery helpers
 └── formatting.rs    # Error key → human-readable translation
 ```
+
+### Live-match refusal
+
+While a live-match session exists, `game_save`, `time_advance`,
+`time_skip_to_match_day`, `season_advance`, and a second `match_start` are refused
+with the backend key `be.error.liveMatch.inProgress`. Save-on-exit also refuses
+before clearing the game (`game_exit` and Tauri `exit_to_menu`). The game,
+fixtures, clock and existing session stay unchanged, and saving writes no files. Finish the
+current match with `match_finish` before saving or advancing. A completed
+snapshot still counts as a live session until `match_finish` applies its result.
+Autosave follows a successful day advance and therefore cannot run during the
+refused advance. This application rule also applies to the corresponding Tauri
+save, advance, skip, season and match commands.

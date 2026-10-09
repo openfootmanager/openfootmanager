@@ -16,6 +16,11 @@ pub fn check_season_complete(state: State<'_, Arc<StateManager>>) -> Result<bool
 pub fn advance_to_next_season(
     state: State<'_, Arc<StateManager>>,
 ) -> Result<serde_json::Value, String> {
+    advance_to_next_season_internal(&state)
+}
+
+pub fn advance_to_next_season_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] advance_to_next_season");
     state
         .update_game(|game| {

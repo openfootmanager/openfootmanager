@@ -208,6 +208,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 |---------|-----------|---------|-------------|
 | `set_formation` | formation | `Game` | Change team formation |
 | `set_play_style` | play_style | `Game` | Change play style |
+| `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |

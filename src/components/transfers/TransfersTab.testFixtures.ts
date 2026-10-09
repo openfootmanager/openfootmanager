@@ -293,6 +293,9 @@ export const transferTestTranslation = (key: string, params?: Record<string, str
   if (key === "transfers.offerStatusAccepted") return "Accepted";
   if (key === "transfers.offerStatusRejected") return "Rejected";
   if (key === "transfers.offerStatusWithdrawn") return "Talks cooled off";
+  if (key === "transfers.registrationFailureInsufficientFunds") {
+    return "Registration failed: insufficient buyer funds";
+  }
   if (key === "transfers.negotiationExpiredError")
     return "Talks cooled off before you could answer. Start a new negotiation if the club comes back.";
   if (key === "transfers.acceptOffer") return "Accept";

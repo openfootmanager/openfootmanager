@@ -255,4 +255,29 @@ describe("AwardsCeremonyScreen", () => {
     expect(screen.queryByRole("button", { name: "Alpha FC" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Victor Vale").length).toBeGreaterThan(0);
   });
+  // Given an unrated season with an empty POTY list, when the ceremony renders, then its card and badge are hidden.
+  it("hides the empty player-of-year card and badge while keeping other winners", () => {
+    const awards = createAwards();
+    awards.player_of_year = [];
+    render(
+      <AwardsCeremonyScreen
+        season={2026}
+        leagueName="League"
+        gameState={createGameState()}
+        awards={awards}
+      />,
+    );
+    expect(screen.queryByText("Player of the Year")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Golden Boot")).toHaveLength(2);
+    expect(screen.getAllByText("Manager of the Season")).toHaveLength(2);
+    expect(screen.queryByText("Rating")).not.toBeInTheDocument();
+  });
+
+  // Given an older news article without a POTY winner, when opened, then it has no empty rating card.
+  it("hides the player-of-year card when no awards or article winner exist", () => {
+    render(
+      <AwardsCeremonyScreen season={2026} leagueName="League" gameState={createGameState()} />,
+    );
+    expect(screen.queryByText("Player of the Year")).not.toBeInTheDocument();
+  });
 });
