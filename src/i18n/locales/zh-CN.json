@@ -918,6 +918,7 @@
     "aTrainingDay": "训练日",
     "aRestDay": "休息日",
     "currentlyTraining": "当前训练内容:<strong>{{attrs}}</strong>,强度 <strong>{{intensity}}</strong>。",
+    "goalkeepersLabel": "门将",
     "recoveryNote": "球员每天都将专注于休息与状态恢复。",
     "effectiveFocus": "重点",
     "trainingAppliedNote": "训练会在你推进日期时的训练日生效。休息日可完全恢复。",

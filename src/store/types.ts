@@ -1,3 +1,10 @@
+/** Attribute keys a training focus can improve, by natural position group. */
+export interface TrainingFocusAttributesData {
+  focus: string;
+  outfield: string[];
+  goalkeeper: string[];
+}
+
 /** One training group as the backend stores it. */
 export interface TrainingGroupData {
   id: string;

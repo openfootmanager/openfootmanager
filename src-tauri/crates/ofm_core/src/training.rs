@@ -1,4 +1,5 @@
 mod fitness_warnings;
+mod focus_attributes;
 pub use fitness_warnings::check_squad_fitness_warnings;
 
 use crate::game::Game;
@@ -7,6 +8,9 @@ use domain::player::{Player, PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffRole};
 use domain::team::{TrainingFocus, TrainingIntensity, TrainingSchedule};
 use rand::Rng;
+
+use focus_attributes::focus_gains;
+pub use focus_attributes::{TrainingFocusAttributes, training_focus_attributes};
 
 /// Computed coaching quality for a team's staff.
 pub struct TeamCoachingBonus {
@@ -536,12 +540,6 @@ fn try_gain(current: &mut u8, gain: f64, rng: &mut impl Rng) {
     }
 }
 
-fn apply_goalkeeper_gains(attrs: &mut PlayerAttributes, gain: f64, rng: &mut impl Rng) {
-    try_gain(&mut attrs.handling, gain, rng);
-    try_gain(&mut attrs.reflexes, gain, rng);
-}
-
-/// Apply attribute gains based on training focus and natural position.
 fn apply_focus_gains(
     attrs: &mut PlayerAttributes,
     focus: &TrainingFocus,
@@ -549,46 +547,12 @@ fn apply_focus_gains(
     gain: f64,
     rng: &mut impl Rng,
 ) {
-    match focus {
-        TrainingFocus::Physical => {
-            try_gain(&mut attrs.pace, gain, rng);
-            try_gain(&mut attrs.stamina, gain, rng);
-            try_gain(&mut attrs.strength, gain, rng);
-            try_gain(&mut attrs.agility, gain, rng);
-        }
-        TrainingFocus::Technical => {
-            try_gain(&mut attrs.passing, gain, rng);
-            if is_goalkeeper {
-                apply_goalkeeper_gains(attrs, gain, rng);
-            } else {
-                try_gain(&mut attrs.shooting, gain, rng);
-                try_gain(&mut attrs.dribbling, gain, rng);
-            }
-        }
-        TrainingFocus::Tactical => {
-            try_gain(&mut attrs.positioning, gain, rng);
-            try_gain(&mut attrs.vision, gain, rng);
-            try_gain(&mut attrs.decisions, gain, rng);
-            try_gain(&mut attrs.composure, gain, rng);
-        }
-        TrainingFocus::Defending => {
-            if is_goalkeeper {
-                apply_goalkeeper_gains(attrs, gain, rng);
-            } else {
-                try_gain(&mut attrs.tackling, gain, rng);
-                try_gain(&mut attrs.defending, gain, rng);
-            }
-            try_gain(&mut attrs.strength, gain * 0.5, rng);
-            try_gain(&mut attrs.positioning, gain * 0.5, rng);
-        }
-        TrainingFocus::Attacking => {
-            try_gain(&mut attrs.shooting, gain, rng);
-            try_gain(&mut attrs.dribbling, gain, rng);
-            try_gain(&mut attrs.pace, gain * 0.5, rng);
-        }
-        TrainingFocus::Recovery => {
-            // No attribute gains on recovery days
-        }
+    for focus_gain in focus_gains(focus, is_goalkeeper) {
+        try_gain(
+            focus_gain.attribute.of_mut(attrs),
+            gain * focus_gain.rate,
+            rng,
+        );
     }
 }
 

@@ -918,6 +918,7 @@
     "aTrainingDay": "a training day",
     "aRestDay": "a rest day",
     "currentlyTraining": "Currently training: <strong>{{attrs}}</strong> at <strong>{{intensity}}</strong> intensity.",
+    "goalkeepersLabel": "Goalkeepers",
     "recoveryNote": "Players will focus on rest and condition recovery on all days.",
     "effectiveFocus": "Focus",
     "trainingAppliedNote": "Training is applied on scheduled training days when you advance time. Rest days provide full recovery.",

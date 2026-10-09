@@ -918,6 +918,7 @@
     "aTrainingDay": "tréninkový den",
     "aRestDay": "den volna",
     "currentlyTraining": "Aktuální trénink: <strong>{{attrs}}</strong> s intenzitou <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Brankáři",
     "recoveryNote": "V dny volna se hráči zaměří na odpočinek a obnovu kondice.",
     "effectiveFocus": "Zaměření",
     "trainingAppliedNote": "Trénink probíhá v naplánované tréninkové dny při postupu v čase. Dny volna poskytují plnou regeneraci.",

@@ -918,6 +918,7 @@
     "aTrainingDay": "hari latihan",
     "aRestDay": "hari istirahat",
     "currentlyTraining": "Saat ini berlatih: <strong>{{attrs}}</strong> pada intensitas <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Kiper",
     "recoveryNote": "Pemain akan fokus pada istirahat dan pemulihan kondisi di semua hari.",
     "effectiveFocus": "Fokus",
     "trainingAppliedNote": "Latihan diterapkan pada hari latihan terjadwal saat kamu melanjutkan waktu. Hari istirahat memberikan pemulihan penuh.",
