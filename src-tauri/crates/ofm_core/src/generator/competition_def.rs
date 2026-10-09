@@ -916,6 +916,9 @@ fn reassign_competition_id(competition: &mut League, new_id: &str) {
     competition.id = new_id.to_string();
     for fixture in &mut competition.fixtures {
         fixture.competition_id = new_id.to_string();
+        // Fixture ids were derived from the competition's name and teams; two authored cups
+        // that share both would share every id. The definition's own id tells them apart.
+        fixture.id = crate::seed::derived_id(&["authored-fixture", new_id, &fixture.id]);
     }
     for round in &mut competition.knockout_rounds {
         round.id = round.id.replace(&old, new_id);
@@ -1183,6 +1186,36 @@ pub fn build_explicit_competition(
 
 #[cfg(test)]
 mod tests {
+    /// Given two authored group cups with the same name and the same teams but different ids,
+    /// When both are built,
+    /// Then no fixture id is shared: ids are keyed by the definition, not just by what it is
+    ///      called, or match statistics for one would be overwritten by the other.
+    #[test]
+    fn two_group_cups_with_one_name_and_different_ids_share_no_fixture_id() {
+        let teams: Vec<String> = (1..=8).map(|n| format!("team_{n}")).collect();
+        use chrono::TimeZone;
+        let start = chrono::Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let build = |id: &str| {
+            let mut cup = crate::group_stage::generate_group_knockout_cup_with(
+                "Same Name",
+                2026,
+                &teams,
+                start,
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+                &crate::group_stage::GroupStageConfig::default(),
+            );
+            reassign_competition_id(&mut cup, id);
+            cup
+        };
+
+        let (one, two) = (build("cup-one"), build("cup-two"));
+
+        assert!(!one.fixtures.is_empty());
+        let ids: std::collections::BTreeSet<&String> = one.fixtures.iter().map(|f| &f.id).collect();
+        assert!(two.fixtures.iter().all(|f| !ids.contains(&f.id)));
+    }
+
     use super::*;
 
     fn ctx() -> WorldValidationContext<'static> {

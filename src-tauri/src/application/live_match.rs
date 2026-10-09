@@ -14,6 +14,7 @@ pub struct FinishLiveMatchResponse {
 }
 
 pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
+    let _operation = super::live_session::operation();
     info!("[cmd] finish_live_match");
     let mut session = state
         .take_live_match()
@@ -151,34 +152,18 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     })
 }
 
-#[cfg(any(feature = "mcp", test))]
-pub fn start_live_match(
-    state: &StateManager,
-    fixture_index: usize,
-    mode: &str,
-    allows_extra_time: bool,
-    home_team_id: Option<&str>,
-    away_team_id: Option<&str>,
-) -> Result<engine::MatchSnapshot, String> {
-    if home_team_id.is_some() || away_team_id.is_some() {
-        // Team IDs cannot identify a fixture when two competitions pair the
-        // same clubs. Session restoration must supply stable identity.
-        return Err("be.error.liveMatch.fixtureNotFound".to_string());
-    }
-    start_live_match_with_identity(state, fixture_index, mode, allows_extra_time, None, None)
-}
-
 pub fn start_live_match_with_identity(
     state: &StateManager,
     fixture_index: usize,
     mode: &str,
-    allows_extra_time: bool,
+    _allows_extra_time: bool,
     competition_id: Option<&str>,
     fixture_id: Option<&str>,
 ) -> Result<engine::MatchSnapshot, String> {
+    let _operation = super::live_session::idle_operation(state)?;
     info!(
-        "[cmd] start_live_match: fixture={}, mode={}, extra_time={}, competition={:?}, fixture_id={:?}",
-        fixture_index, mode, allows_extra_time, competition_id, fixture_id
+        "[cmd] start_live_match: fixture={}, mode={}, competition={:?}, fixture_id={:?}",
+        fixture_index, mode, competition_id, fixture_id
     );
     let match_mode = match mode {
         "spectator" => MatchMode::Spectator,
@@ -191,127 +176,15 @@ pub fn start_live_match_with_identity(
     // stored after the lock is released.
     let mut captures = Vec::new();
     let (snapshot, session) = state
-        .update_game(|game| -> Result<(engine::MatchSnapshot, live_match_manager::LiveMatchSession), String> {
-            // After a restart, game.league may mirror the domestic league
-            // while the selected fixture belongs to a cup. Resolve the exact
-            // competition and fixture IDs before creating the session.
-            let mut fixture_index = fixture_index;
-            let mut swapped_league = false;
-            match (competition_id, fixture_id) {
-                (Some(competition_id), Some(fixture_id)) => {
-                    let competition = game
-                    .competitions
-                    .iter()
-                        .find(|competition| competition.id == competition_id)
-                        .cloned();
-                    if let Some(competition) = competition {
-                        fixture_index = competition
-                            .fixtures
-                            .iter()
-                            .position(|fixture| fixture.id == fixture_id)
-                            .ok_or("be.error.liveMatch.fixtureNotFound")?;
-                        if competition.fixtures[fixture_index].status != FixtureStatus::Scheduled {
-                            return Err("be.error.liveMatch.fixtureNotScheduled".to_string());
-                        }
-                        game.league = Some(competition);
-                        swapped_league = true;
-                    } else if game.competitions.is_empty() {
-                        let league = game.league.as_ref().ok_or("be.error.liveMatch.noLeague")?;
-                        if league.id != competition_id {
-                            return Err("be.error.liveMatch.fixtureNotFound".to_string());
-                        }
-                        fixture_index = league
-                            .fixtures
-                            .iter()
-                            .position(|fixture| fixture.id == fixture_id)
-                            .ok_or("be.error.liveMatch.fixtureNotFound")?;
-                    } else {
-                        return Err("be.error.liveMatch.fixtureNotFound".to_string());
-                    }
-                }
-                (None, None) => {} // MCP selects the current mirror by index.
-                _ => return Err("be.error.liveMatch.fixtureNotFound".to_string()),
-            }
-
-            let league = game
-                .league
-                .as_ref()
-                .ok_or("be.error.liveMatch.noLeague")?;
-            let fixture = league
-                .fixtures
-                .get(fixture_index)
-                .ok_or("be.error.liveMatch.fixtureNotFound")?;
-            if let Some(competition) = game.competitions.iter().find(|c| c.id == league.id) {
-                let current_fixture = competition
-                    .fixtures
-                    .get(fixture_index)
-                    .ok_or("be.error.liveMatch.fixtureNotFound")?;
-                if current_fixture.id != fixture.id {
-                    return Err("be.error.liveMatch.fixtureNotFound".to_string());
-                }
-                if current_fixture.status != FixtureStatus::Scheduled {
-                    return Err("be.error.liveMatch.fixtureNotScheduled".to_string());
-                }
-            } else if !game.competitions.is_empty() {
-                return Err("be.error.liveMatch.fixtureNotFound".to_string());
-            }
-
-            let session = live_match_manager::kick_off_live_match(
+        .update_game(|game| {
+            start_selected_fixture(
                 game,
                 fixture_index,
                 match_mode,
-                allows_extra_time,
+                competition_id,
+                fixture_id,
+                &mut captures,
             )
-            .inspect_err(|_| {
-                if swapped_league {
-                    game.sync_legacy_league();
-                }
-            })?;
-            let snapshot = session.snapshot();
-            info!(
-                "[cmd] start_live_match: created fixture={}, phase={:?}, home_team={}, away_team={}, home_players={}, away_players={}",
-                fixture_index,
-                snapshot.phase,
-                snapshot.home_team.name,
-                snapshot.away_team.name,
-                snapshot.home_team.players.len(),
-                snapshot.away_team.players.len()
-            );
-
-            // Simulate the rest of today's fixtures in this competition, exactly
-            // like the GUI match-day path does. Without this, an MCP
-            // `match_start` → `match_finish` flow advanced the clock past
-            // fixtures that were never played, stranding them Scheduled in the
-            // past. simulate_other_matches only touches Scheduled fixtures, so
-            // the session-restore path (where they are already Completed) is
-            // naturally idempotent.
-            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            let fixture_is_today = game
-                .league
-                .as_ref()
-                .and_then(|league| league.fixtures.get(fixture_index))
-                .map(|fixture| fixture.date == today)
-                .unwrap_or(false);
-            if fixture_is_today {
-                ofm_core::turn::simulate_other_matches_with_capture(
-                    game,
-                    &today,
-                    Some(fixture_index),
-                    &mut |capture| captures.push(capture),
-                );
-                if let Some(league) = game.league.clone() {
-                    if let Some(idx) = game.competitions.iter().position(|c| c.id == league.id) {
-                        game.competitions[idx] = league;
-                        game.sync_legacy_league();
-                    }
-                }
-            } else if swapped_league && !game.competitions.is_empty() {
-                // The swap now persists (update_game mutates in place); restore
-                // the legacy mirror when no simulation ran to do it for us.
-                game.sync_legacy_league();
-            }
-
-            Ok((snapshot, session))
         })
         .ok_or("be.error.noActiveGameSession")??;
     for capture in captures {
@@ -320,6 +193,145 @@ pub fn start_live_match_with_identity(
 
     state.set_live_match(session);
     Ok(snapshot)
+}
+
+fn resolve_fixture_for_start(
+    game: &mut Game,
+    requested_index: usize,
+    competition_id: Option<&str>,
+    fixture_id: Option<&str>,
+) -> Result<(usize, bool), String> {
+    // After a restart, game.league may mirror the domestic league
+    // while the selected fixture belongs to a cup. Resolve the exact
+    // competition and fixture IDs before creating the session.
+    let mut fixture_index = requested_index;
+    let mut swapped_league = false;
+    match (competition_id, fixture_id) {
+        (Some(competition_id), Some(fixture_id)) => {
+            let competition = game
+                .competitions
+                .iter()
+                .find(|competition| competition.id == competition_id)
+                .cloned();
+            if let Some(competition) = competition {
+                fixture_index = competition
+                    .fixtures
+                    .iter()
+                    .position(|fixture| fixture.id == fixture_id)
+                    .ok_or("be.error.liveMatch.fixtureNotFound")?;
+                if competition.fixtures[fixture_index].status != FixtureStatus::Scheduled {
+                    return Err("be.error.liveMatch.fixtureNotScheduled".to_string());
+                }
+                game.league = Some(competition);
+                swapped_league = true;
+            } else if game.competitions.is_empty() {
+                let league = game.league.as_ref().ok_or("be.error.liveMatch.noLeague")?;
+                if league.id != competition_id {
+                    return Err("be.error.liveMatch.fixtureNotFound".to_string());
+                }
+                fixture_index = league
+                    .fixtures
+                    .iter()
+                    .position(|fixture| fixture.id == fixture_id)
+                    .ok_or("be.error.liveMatch.fixtureNotFound")?;
+            } else {
+                return Err("be.error.liveMatch.fixtureNotFound".to_string());
+            }
+        }
+        (None, None) => {} // MCP selects the current mirror by index.
+        _ => return Err("be.error.liveMatch.fixtureNotFound".to_string()),
+    }
+
+    let league = game.league.as_ref().ok_or("be.error.liveMatch.noLeague")?;
+    let fixture = league
+        .fixtures
+        .get(fixture_index)
+        .ok_or("be.error.liveMatch.fixtureNotFound")?;
+    if let Some(competition) = game.competitions.iter().find(|c| c.id == league.id) {
+        let current_fixture = competition
+            .fixtures
+            .get(fixture_index)
+            .ok_or("be.error.liveMatch.fixtureNotFound")?;
+        if current_fixture.id != fixture.id {
+            return Err("be.error.liveMatch.fixtureNotFound".to_string());
+        }
+        if current_fixture.status != FixtureStatus::Scheduled {
+            return Err("be.error.liveMatch.fixtureNotScheduled".to_string());
+        }
+    } else if !game.competitions.is_empty() {
+        return Err("be.error.liveMatch.fixtureNotFound".to_string());
+    }
+
+    Ok((fixture_index, swapped_league))
+}
+
+fn start_selected_fixture(
+    game: &mut Game,
+    fixture_index: usize,
+    match_mode: MatchMode,
+    competition_id: Option<&str>,
+    fixture_id: Option<&str>,
+    captures: &mut Vec<domain::stats::StatsState>,
+) -> Result<(engine::MatchSnapshot, live_match_manager::LiveMatchSession), String> {
+    let (fixture_index, swapped_league) =
+        resolve_fixture_for_start(game, fixture_index, competition_id, fixture_id)?;
+
+    // A caller's flag cannot turn a league draw into a knockout result or suppress
+    // a cup decider. Resolve identity first so the shared rule reads this fixture's
+    // competition, including cup restores while the domestic league is mirrored.
+    let allows_extra_time = ofm_core::matchday::fixture_allows_extra_time(game, fixture_index);
+    let session =
+        live_match_manager::kick_off_live_match(game, fixture_index, match_mode, allows_extra_time)
+            .inspect_err(|_| {
+                if swapped_league {
+                    game.sync_legacy_league();
+                }
+            })?;
+    let snapshot = session.snapshot();
+    info!(
+        "[cmd] start_live_match: created fixture={}, phase={:?}, home_team={}, away_team={}, home_players={}, away_players={}",
+        fixture_index,
+        snapshot.phase,
+        snapshot.home_team.name,
+        snapshot.away_team.name,
+        snapshot.home_team.players.len(),
+        snapshot.away_team.players.len()
+    );
+
+    // Simulate the rest of today's fixtures in this competition, exactly
+    // like the GUI match-day path does. Without this, an MCP
+    // `match_start` → `match_finish` flow advanced the clock past
+    // fixtures that were never played, stranding them Scheduled in the
+    // past. simulate_other_matches only touches Scheduled fixtures, so
+    // the session-restore path (where they are already Completed) is
+    // naturally idempotent.
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let fixture_is_today = game
+        .league
+        .as_ref()
+        .and_then(|league| league.fixtures.get(fixture_index))
+        .map(|fixture| fixture.date == today)
+        .unwrap_or(false);
+    if fixture_is_today {
+        ofm_core::turn::simulate_other_matches_with_capture(
+            game,
+            &today,
+            Some(fixture_index),
+            &mut |capture| captures.push(capture),
+        );
+        if let Some(league) = game.league.clone() {
+            if let Some(idx) = game.competitions.iter().position(|c| c.id == league.id) {
+                game.competitions[idx] = league;
+                game.sync_legacy_league();
+            }
+        }
+    } else if swapped_league && !game.competitions.is_empty() {
+        // The swap now persists (update_game mutates in place); restore
+        // the legacy mirror when no simulation ran to do it for us.
+        game.sync_legacy_league();
+    }
+
+    Ok((snapshot, session))
 }
 
 pub fn step_live_match(

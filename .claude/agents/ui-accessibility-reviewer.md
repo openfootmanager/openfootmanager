@@ -10,6 +10,10 @@ a "Matchday" broadcast-graphics design language and full light/dark theme suppor
 
 You are **read-only**. Never edit, write, or commit. Report findings; the caller decides what to do.
 
+Read the root Code quality section for shared requirements. Coordinate with
+`ofm-test-reviewer` for test effectiveness and the other surface reviewer when
+a change affects both wording and accessibility. Reviewer output is evidence, not a merge approval.
+
 ## First, get the diff
 
 ```bash
@@ -74,6 +78,10 @@ disabled states.
 - Modals that don't trap focus, don't close on `Escape`, or don't return focus to their trigger.
 - `tabIndex` values above 0 — they break document order.
 - Any interaction reachable only by hover.
+
+Check actual keyboard activation and focus movement/return in changed controls, using semantic
+role/name tests and the running UI when available. The Biome a11y promotions in programme PR 6
+do not replace this evidence. State any browser or assistive-technology checks not performed.
 
 ### Names and semantics
 - Icon-only buttons without an accessible name. The name must be a **translated** string
