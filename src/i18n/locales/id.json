@@ -2616,6 +2616,7 @@
       "managedTeamNotFound": "Tim yang dikelola tidak ditemukan",
       "unknownFacilityType": "Jenis fasilitas tidak dikenal",
       "liveMatch": {
+        "inProgress": "Pertandingan sedang berlangsung. Selesaikan sebelum menyimpan, memajukan waktu, atau memulai pertandingan lain.",
         "noLeague": "Tidak ada data liga yang tersedia untuk pertandingan ini.",
         "fixtureNotFound": "Jadwal yang dipilih tidak dapat ditemukan.",
         "fixtureNotScheduled": "Pertandingan ini tidak lagi dijadwalkan dan tidak dapat dimainkan.",

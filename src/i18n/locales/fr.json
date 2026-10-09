@@ -2599,6 +2599,7 @@
       "managedTeamNotFound": "Équipe gérée introuvable",
       "unknownFacilityType": "Type d'installation inconnu",
       "liveMatch": {
+        "inProgress": "Un match est en cours. Terminez-le avant de sauvegarder, d’avancer dans le temps ou de commencer un autre match.",
         "noLeague": "Aucune donnée de ligue n'est disponible pour ce match.",
         "fixtureNotFound": "Le match sélectionné est introuvable.",
         "fixtureNotScheduled": "Ce match n’est plus programmé et ne peut pas être joué.",

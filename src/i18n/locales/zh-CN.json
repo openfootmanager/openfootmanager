@@ -2599,6 +2599,7 @@
       "managedTeamNotFound": "未找到你执教的球队",
       "unknownFacilityType": "未知的设施类型",
       "liveMatch": {
+        "inProgress": "比赛正在进行。请先结束比赛，再保存、推进时间或开始另一场比赛。",
         "noLeague": "该比赛暂无联赛数据。",
         "fixtureNotFound": "未找到所选比赛。",
         "fixtureNotScheduled": "这场比赛已不在赛程中，无法进行。",

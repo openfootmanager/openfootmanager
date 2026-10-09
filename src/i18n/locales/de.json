@@ -2599,6 +2599,7 @@
       "managedTeamNotFound": "Betreutes Team nicht gefunden",
       "unknownFacilityType": "Unbekannter Einrichtungstyp",
       "liveMatch": {
+        "inProgress": "Ein Spiel läuft. Beende es, bevor du speicherst, die Zeit vorspulst oder ein weiteres Spiel startest.",
         "noLeague": "Für dieses Spiel sind keine Ligadaten verfügbar.",
         "fixtureNotFound": "Das ausgewählte Spiel konnte nicht gefunden werden.",
         "fixtureNotScheduled": "Diese Partie ist nicht mehr angesetzt und kann nicht gespielt werden.",
