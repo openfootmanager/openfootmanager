@@ -2678,6 +2678,7 @@
         "unsupportedFormatVersion": "此扩展包由更新版本的游戏创建（格式 {{version}}，本版本支持 {{supported}}）。请更新游戏后再打开。"
       },
       "competitionDef": {
+        "invalidCalendar": "赛事日历无效：请检查联赛系列、级别、阶段和结束日期。",
         "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
         "invalidStandalone": "所选的赛事定义文件无效。",
         "parseFailed": "无法将赛事定义文件解析为 JSON。",

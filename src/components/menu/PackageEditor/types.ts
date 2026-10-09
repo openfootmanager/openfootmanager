@@ -1,4 +1,4 @@
-import type { StaffData } from "../../../store/types";
+import type { CompetitionCalendarData, StaffData } from "../../../store/types";
 
 export interface TeamColorsDef {
   primary: string;
@@ -269,6 +269,7 @@ export interface CompetitionDef {
   format: FormatDef;
   participants: ParticipantSpec;
   berths?: unknown[];
+  calendar?: CompetitionCalendarData | null;
   seasonStartMonth?: number;
   seasonStartDay?: number;
   nameKey?: string;

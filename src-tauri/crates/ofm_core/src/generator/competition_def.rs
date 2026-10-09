@@ -74,6 +74,9 @@ pub struct CompetitionDefinition {
     /// Optional path to a logo/badge image, relative to the package root.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logo: Option<String>,
+    /// Explicit phase identity and optional authored closing window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calendar: Option<domain::competition_calendar::SeasonCalendar>,
 }
 
 /// Format-specific configuration. `kind` selects the shape; the other fields
@@ -98,6 +101,11 @@ pub struct FormatDef {
 }
 
 impl FormatDef {
+    /// Ordinary-table leg resolution, also used by its retained metadata.
+    pub(crate) fn league_table_legs(&self) -> u8 {
+        self.legs.unwrap_or(2)
+    }
+
     /// The effective authored shape, shared by validation and construction.
     fn group_stage_config(&self) -> crate::group_stage::GroupStageConfig {
         let defaults = crate::group_stage::GroupStageConfig::default();
@@ -295,6 +303,12 @@ pub fn validate_definitions(
 
         validate_region_and_country(competition, ctx, &mut errors);
         validate_format(competition, &mut errors);
+        if crate::calendar_identity::invalid_definition_calendar(competition) {
+            errors.push(DefinitionError::new(
+                "be.error.competitionDef.invalidCalendar",
+                &competition.id,
+            ));
+        }
         validate_participants(competition, ctx, &known_ids, &mut errors);
         validate_berths(competition, &known_ids, &mut errors);
 
@@ -1046,8 +1060,8 @@ fn build_competition(
                 team_ids,
                 season_start,
                 fixture_competition,
-                def.format.legs.unwrap_or(2),
-                7,
+                def.format.league_table_legs(),
+                crate::schedule::LEAGUE_MATCHDAY_GAP_DAYS.into(),
             );
             league
         }
@@ -1090,6 +1104,7 @@ fn build_competition(
     competition.season_start_month = def.season_start_month.unwrap_or(8);
     competition.season_start_day = def.season_start_day.unwrap_or(1);
     competition.name_key = def.name_key.clone();
+    crate::calendar_identity::attach_definition_calendar(&mut competition, def, season_start);
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {
         competition.standings = team_ids
@@ -1252,6 +1267,7 @@ mod tests {
             season_start_day: None,
             name_key: None,
             logo: None,
+            calendar: None,
         }
     }
 
@@ -1657,6 +1673,7 @@ mod tests {
             season_start_day: None,
             name_key: None,
             logo: None,
+            calendar: None,
         }
     }
 

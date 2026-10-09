@@ -2703,6 +2703,7 @@
         "fallbackTeamsFilled": "Hanya satu tim yang didefinisikan. Lawan prosedural dihasilkan secara otomatis agar permainan dapat dimainkan."
       },
       "competitionDef": {
+        "invalidCalendar": "Kalender kompetisi tidak valid: periksa kelompok divisi, tingkat, fase, dan tanggal penutupan.",
         "invalidEmbedded": "Definisi kompetisi dunia ini tidak valid dan tidak dapat dimuat.",
         "invalidStandalone": "Berkas definisi kompetisi yang dipilih tidak valid.",
         "parseFailed": "Berkas definisi kompetisi tidak dapat dibaca sebagai JSON.",

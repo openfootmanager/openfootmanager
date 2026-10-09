@@ -6,6 +6,9 @@ use domain::league::{
 #[cfg(test)]
 use uuid::Uuid;
 
+/// The ordinary-table cadence shared by default and authored construction.
+pub(crate) const LEAGUE_MATCHDAY_GAP_DAYS: u32 = 7;
+
 /// Generate a full double round-robin schedule (home & away) for the given teams.
 /// Matchdays are spaced 7 days apart starting from `start_date`.
 /// Uses a rotation-based algorithm for balanced scheduling.
@@ -53,7 +56,7 @@ pub fn build_round_robin_fixtures(
         start_date,
         fixture_competition,
         2,
-        7,
+        LEAGUE_MATCHDAY_GAP_DAYS.into(),
     )
 }
 
@@ -184,6 +187,7 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
 
     league.participant_ids = team_ids.clone();
     league.season = season;
+    crate::calendar_identity::record_regenerated_calendar(league, start_date);
     league.fixtures.clear();
     league.standings = team_ids
         .iter()
@@ -199,6 +203,7 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
 /// and participants but clearing previous fixtures, standings, and rounds.
 pub fn regenerate_knockout_for_season(cup: &mut League, season: u32, start_date: DateTime<Utc>) {
     cup.season = season;
+    crate::calendar_identity::record_regenerated_calendar(cup, start_date);
     cup.fixtures.clear();
     cup.standings.clear();
     cup.knockout_rounds.clear();

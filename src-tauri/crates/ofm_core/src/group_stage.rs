@@ -411,6 +411,7 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
 /// snake-seeded groups from `participant_ids`, no fixtures played, no bracket.
 pub fn regenerate_for_season(league: &mut League, season: u32, start_date: DateTime<Utc>) {
     league.season = season;
+    crate::calendar_identity::record_regenerated_calendar(league, start_date);
     league.fixtures.clear();
     league.standings.clear();
     league.knockout_rounds.clear();

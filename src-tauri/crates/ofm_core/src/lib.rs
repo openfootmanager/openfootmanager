@@ -7,6 +7,7 @@ mod ai_roles;
 pub mod ai_tactics;
 pub mod ai_training;
 pub mod board_objectives;
+pub mod calendar_identity;
 pub mod career;
 pub mod catchup;
 pub mod clock;

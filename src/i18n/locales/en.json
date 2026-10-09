@@ -2703,6 +2703,7 @@
         "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
       },
       "competitionDef": {
+        "invalidCalendar": "Invalid competition calendar: check the division family, tier, phase and closing date.",
         "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",
         "invalidStandalone": "The selected competition definition file is invalid.",
         "parseFailed": "The competition definition file could not be read as JSON.",

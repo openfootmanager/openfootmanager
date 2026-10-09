@@ -76,9 +76,16 @@ pub fn replace_competitions(
         let berths_json = serde_json::to_string(&competition.berths)
             .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
+        let calendar_json = competition
+            .calendar
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+
         conn.execute(
-            "INSERT INTO competitions (id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+            "INSERT INTO competitions (id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day, calendar_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
             params![
                 competition.id,
                 competition.name,
@@ -100,6 +107,7 @@ pub fn replace_competitions(
                 berths_json,
                 competition.season_start_month as i64,
                 competition.season_start_day as i64,
+                calendar_json,
             ],
         )
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -110,7 +118,7 @@ pub fn replace_competitions(
 
 pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, String> {
     let mut stmt = match conn.prepare(
-        "SELECT id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day
+        "SELECT id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day, calendar_json
          FROM competitions
          ORDER BY priority ASC, season DESC, name ASC",
     ) {
@@ -132,6 +140,22 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
             let berths_json: String = row.get(17)?;
 
             Ok(CompetitionState {
+                calendar:
+                    row.get::<_, Option<String>>(20)?
+                        .map(|raw| {
+                            serde_json::from_str::<
+                                Option<domain::competition_calendar::CalendarMetadata>,
+                            >(&raw)
+                        })
+                        .transpose()
+                        .map_err(|error| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                20,
+                                rusqlite::types::Type::Text,
+                                Box::new(error),
+                            )
+                        })?
+                        .flatten(),
                 id: row.get(0)?,
                 name: row.get(1)?,
                 kind: parse_competition_type(&row.get::<_, String>(2)?),
@@ -179,9 +203,17 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
 
     let mut competitions = Vec::new();
     for row in rows {
-        competitions.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
+        let mut competition = row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
+        ofm_core::calendar_identity::backfill_competition_calendar(&mut competition);
+        competitions.push(competition);
     }
     Ok(competitions)
+}
+
+/// A load backfill must reach disk even when every other repair is already settled.
+pub(crate) fn needs_calendar_backfill(conn: &Connection) -> Result<bool, String> {
+    conn.query_row("SELECT EXISTS(SELECT 1 FROM competitions WHERE calendar_json IS NULL OR trim(calendar_json) = 'null') OR (NOT EXISTS(SELECT 1 FROM competitions) AND EXISTS(SELECT 1 FROM league))", [], |row| row.get(0))
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())
 }
 
 #[cfg(test)]
@@ -356,5 +388,182 @@ mod tests {
         ofm_core::group_stage::regenerate_for_season(&mut legacy, 2033, start);
         assert_eq!(legacy.groups.len(), 2);
         assert_eq!(legacy.fixtures.len(), 24);
+    }
+    fn calendar_sample() -> League {
+        let raw = serde_json::json!({"id":"authored","name":"Authored","season":2033,
+            "calendar":{"definition_id":"authored","edition_basis":{"kind":"calendarYear"},
+              "league_legs":1,"matchday_gap_days":7,
+              "season":{"division":{"familyId":"ar-league","tier":1,"phase":"closing"},"windowEnd":{"month":1,"day":31}}}});
+        let mut league: League = serde_json::from_value(raw).unwrap();
+        league.participant_ids = vec!["a".into(), "b".into()];
+        league.fixtures = legacy_division(2033, "2033-07-01").fixtures;
+        for fixture in &mut league.fixtures {
+            fixture.competition_id = league.id.clone();
+        }
+        league.fixtures[0].status = domain::league::FixtureStatus::Completed;
+        league.fixtures[0].result = Some(domain::league::MatchResult {
+            home_goals: 3,
+            away_goals: 1,
+            ..Default::default()
+        });
+        league
+    }
+    #[test]
+    fn sqlite_calendar_metadata_survives_replace_and_reload() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        for _ in 0..2 {
+            let original = calendar_sample();
+            let original_fixtures = serde_json::to_value(&original.fixtures).unwrap();
+            let original_calendar = serde_json::to_value(&original.calendar).unwrap();
+            replace_competitions(db.conn(), &[original]).unwrap();
+            let loaded = load_competitions(db.conn()).unwrap();
+            let value = serde_json::to_value(&loaded[0]).unwrap();
+            assert_eq!(value["fixtures"], original_fixtures);
+            assert_eq!(value["calendar"], original_calendar);
+            assert_eq!(value["calendar"]["league_legs"], 1);
+            assert_eq!(value["calendar"]["season"]["division"]["phase"], "closing");
+        }
+    }
+    /// Given tip-era SQLite JSON, when loaded and replaced, then the ordinal survives the rename.
+    #[test]
+    fn sqlite_tip_ordinal_alias_survives_reload_and_replacement() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let original = calendar_sample();
+        let fixtures = serde_json::to_value(&original.fixtures).unwrap();
+        let mut calendar = serde_json::to_value(&original.calendar).unwrap();
+        calendar["edition_basis"] = serde_json::json!({
+            "kind": "legacyOrdinal", "first_season": 6, "opener_year": 2031
+        });
+        replace_competitions(db.conn(), &[original]).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE competitions SET calendar_json = ?1",
+                [calendar.to_string()],
+            )
+            .unwrap();
+
+        let loaded = load_competitions(db.conn()).unwrap();
+        let expected = serde_json::json!({
+            "kind": "legacyOrdinal", "season_at_opener": 6, "opener_year": 2031
+        });
+        assert_eq!(
+            serde_json::to_value(&loaded[0].calendar).unwrap()["edition_basis"],
+            expected
+        );
+        replace_competitions(db.conn(), &loaded).unwrap();
+        let stored: String = db
+            .conn()
+            .query_row("SELECT calendar_json FROM competitions", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&stored).unwrap()["edition_basis"],
+            expected
+        );
+        let reloaded = load_competitions(db.conn()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&reloaded[0].calendar).unwrap()["edition_basis"],
+            expected
+        );
+        assert_eq!(
+            serde_json::to_value(&reloaded[0].fixtures).unwrap(),
+            fixtures
+        );
+        assert_eq!(
+            reloaded[0].calendar.as_ref().unwrap().definition_id,
+            "authored"
+        );
+    }
+
+    fn legacy_division(season: u32, date: &str) -> League {
+        let mut league = League::new(
+            "legacy".into(),
+            "Apertura".into(),
+            season,
+            &["a".into(), "b".into()],
+        );
+        league.fixtures = ofm_core::schedule::build_round_robin_fixtures(
+            &league.id,
+            &league.participant_ids,
+            chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap()
+                .and_utc(),
+            domain::league::FixtureCompetition::League,
+        );
+        league
+    }
+    #[test]
+    fn legacy_ordinal_uses_verified_opener_provenance() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        for (date, month, day, year) in [
+            ("2030-08-01", 8, 1, 2030),
+            ("2033-02-28", 2, 29, 2033),
+            ("2032-02-29", 2, 29, 2032),
+        ] {
+            let mut league = legacy_division(5, date);
+            league.season_start_month = month;
+            league.season_start_day = day;
+            let mut friendly = league.fixtures[0].clone();
+            friendly.id = "preseason".into();
+            friendly.date = "2029-01-01".into();
+            friendly.competition = domain::league::FixtureCompetition::Friendly;
+            league.fixtures.push(friendly);
+            let fixtures = serde_json::to_value(&league.fixtures).unwrap();
+            replace_competitions(db.conn(), &[league]).unwrap();
+            let loaded = load_competitions(db.conn()).unwrap();
+            let value = serde_json::to_value(&loaded[0]).unwrap();
+            assert_eq!(
+                value["calendar"]["edition_basis"],
+                serde_json::json!({"kind":"legacyOrdinal","season_at_opener":5,"opener_year":year})
+            );
+            assert_eq!(loaded[0].season, 5);
+            assert_eq!(serde_json::to_value(&loaded[0].fixtures).unwrap(), fixtures);
+        }
+    }
+    #[test]
+    fn ambiguous_legacy_edition_is_recorded_as_unresolved() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        for date in ["2030-05-16", "2030-08-01"] {
+            let mut league = legacy_division(5, date);
+            if date.ends_with("08-01") {
+                league.fixtures[0].date = "broken".into();
+            }
+            replace_competitions(db.conn(), &[league]).unwrap();
+            let loaded = load_competitions(db.conn()).unwrap();
+            assert_eq!(
+                serde_json::to_value(&loaded[0]).unwrap()["calendar"]["edition_basis"],
+                serde_json::json!({"kind":"unresolved"})
+            );
+        }
+    }
+    #[test]
+    fn legacy_same_roster_does_not_invent_phase_identity() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let a = legacy_division(2033, "2033-08-01");
+        let mut b = a.clone();
+        b.id = "clausura".into();
+        b.name = "Clausura".into();
+        replace_competitions(db.conn(), &[a, b]).unwrap();
+        let loaded = load_competitions(db.conn()).unwrap();
+        for league in loaded {
+            let value = serde_json::to_value(&league).unwrap();
+            assert_eq!(value["calendar"]["definition_id"], league.id);
+            assert!(value["calendar"]["season"]["division"].is_null());
+        }
+    }
+    #[test]
+    fn corrupt_calendar_metadata_is_not_silently_discarded() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        replace_competitions(db.conn(), &[calendar_sample()]).unwrap();
+        db.conn()
+            .execute("UPDATE competitions SET calendar_json = '{broken'", [])
+            .unwrap();
+        assert_eq!(
+            load_competitions(db.conn()).unwrap_err(),
+            "be.error.gamePersistence.loadFailed"
+        );
     }
 }
