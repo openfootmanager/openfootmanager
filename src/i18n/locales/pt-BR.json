@@ -918,6 +918,7 @@
     "aTrainingDay": "dia de treino",
     "aRestDay": "dia de descanso",
     "currentlyTraining": "Treinando atualmente: <strong>{{attrs}}</strong> com intensidade <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Goleiros",
     "recoveryNote": "Os jogadores focarão em descanso e recuperação de condição em todos os dias.",
     "effectiveFocus": "Foco",
     "trainingAppliedNote": "O treino é aplicado nos dias programados quando você avança o tempo. Dias de descanso proporcionam recuperação total.",

@@ -918,6 +918,7 @@
     "aTrainingDay": "antrenman günü",
     "aRestDay": "dinlenme günü",
     "currentlyTraining": "Şu an <strong>{{attrs}}</strong> üzerinde <strong>{{intensity}}</strong> yoğunlukta çalışılıyor.",
+    "goalkeepersLabel": "Kaleciler",
     "recoveryNote": "Oyuncular tüm günlerde dinlenme ve kondisyon toparlanmasına odaklanacak.",
     "effectiveFocus": "Odak",
     "trainingAppliedNote": "Antrenman, zaman ilerletildiğinde planlı antrenman günlerinde uygulanır. Dinlenme günleri tam toparlanma sağlar.",

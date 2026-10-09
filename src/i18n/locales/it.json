@@ -937,6 +937,7 @@
     "aTrainingDay": "un giorno di allenamento",
     "aRestDay": "un giorno di riposo",
     "currentlyTraining": "Attualmente in allenamento: <strong>{{attrs}}</strong> con intensità <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Portieri",
     "recoveryNote": "I giocatori si concentreranno su riposo e recupero della condizione in tutti i giorni.",
     "effectiveFocus": "Focus",
     "trainingAppliedNote": "L'allenamento viene applicato nei giorni previsti quando avanzi il tempo. I giorni di riposo garantiscono recupero completo.",

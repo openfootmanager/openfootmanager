@@ -265,6 +265,7 @@ pub fn run() {
             set_team_match_roles,
             set_training,
             set_training_schedule,
+            get_training_focus_attributes,
             set_training_groups,
             set_player_training_focus,
             set_player_squad_role,

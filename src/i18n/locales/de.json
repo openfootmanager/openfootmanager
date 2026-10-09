@@ -918,6 +918,7 @@
     "aTrainingDay": "ein Trainingstag",
     "aRestDay": "ein Ruhetag",
     "currentlyTraining": "Aktuelles Training: <strong>{{attrs}}</strong> mit <strong>{{intensity}}</strong> Intensität.",
+    "goalkeepersLabel": "Torhüter",
     "recoveryNote": "Die Spieler konzentrieren sich an allen Tagen auf Ruhe und Erholung.",
     "effectiveFocus": "Fokus",
     "trainingAppliedNote": "Training wird an geplanten Tagen angewendet, wenn du die Zeit vorrückst. Ruhetage bieten volle Erholung.",
