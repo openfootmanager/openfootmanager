@@ -2791,6 +2791,7 @@
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",
+        "loanBorrowerCannotAffordWages": "租借俱乐部负担不起这部分薪资。其每周薪资预算为 {{budget}}。",
         "counterOfferMustExceedCurrentOffer": "还价必须高于当前报价",
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
         "playerNotLoanListed": "该球员未被列入租借名单",

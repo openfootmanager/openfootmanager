@@ -220,6 +220,93 @@ describe("TransfersTab", (): void => {
     });
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
   });
+  // Given the backend refuses an Accept because the borrower can no longer afford the wage share, when the manager clicks Accept, then the translated refusal is shown and the game is untouched.
+  it("shows the backend's refusal when accepting an incoming loan offer fails", async (): Promise<void> => {
+    const gameState = createGameState([
+      createPlayer({
+        id: "loan-owned",
+        transfer_offers: [],
+        loan_offers: [
+          {
+            id: "loan-offer-1",
+            from_team_id: "team-2",
+            parent_team_id: "team-1",
+            start_date: "2026-08-01",
+            end_date: "2027-01-01",
+            wage_contribution_pct: 75,
+            status: "Pending",
+            date: "2026-08-01",
+          },
+        ],
+      }),
+    ]);
+    const onGameUpdate = vi.fn();
+    mockedInvoke.mockRejectedValueOnce(
+      "be.error.transfers.loanBorrowerCannotAffordWages?budget=40000",
+    );
+
+    render(
+      <TransfersTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /offers/i }));
+    fireEvent.click(screen.getByTitle("Accept Loan"));
+
+    await waitFor((): void => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "The borrowing club cannot afford this wage share. Its weekly wage budget is 40000.",
+      );
+    });
+    expect(onGameUpdate).not.toHaveBeenCalled();
+  });
+
+  // Given a refused Accept, when the manager then accepts successfully, then the stale refusal is cleared.
+  it("clears the refusal once a later response succeeds", async (): Promise<void> => {
+    const gameState = createGameState([
+      createPlayer({
+        id: "loan-owned",
+        transfer_offers: [],
+        loan_offers: [
+          {
+            id: "loan-offer-1",
+            from_team_id: "team-2",
+            parent_team_id: "team-1",
+            start_date: "2026-08-01",
+            end_date: "2027-01-01",
+            wage_contribution_pct: 75,
+            status: "Pending",
+            date: "2026-08-01",
+          },
+        ],
+      }),
+    ]);
+    mockedInvoke.mockRejectedValueOnce("be.error.transfers.playerAlreadyLoaned");
+    mockedInvoke.mockResolvedValueOnce(gameState);
+
+    render(
+      <TransfersTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /offers/i }));
+    fireEvent.click(screen.getByTitle("Accept Loan"));
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByTitle("Accept Loan"));
+
+    await waitFor((): void => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
   it("submits a counter offer for an incoming loan offer", async (): Promise<void> => {
     const initialState = createGameState([
       createPlayer({

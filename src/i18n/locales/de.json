@@ -2791,6 +2791,7 @@
         "transferBudgetTooLow": "Das Transferbudget ist zu niedrig",
         "playerNotOwnedByUser": "Spieler nicht gefunden oder nicht in deinem Besitz",
         "offerNotPending": "Angebot nicht gefunden oder nicht mehr ausstehend",
+        "loanBorrowerCannotAffordWages": "Der aufnehmende Verein kann sich diesen Gehaltsanteil nicht leisten. Sein wöchentliches Gehaltsbudget beträgt {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Das Gegenangebot muss über dem aktuellen Angebot liegen",
         "loanCounterMustImproveTerms": "Das Leih-Gegenangebot muss das aktuelle Angebot verbessern",
         "playerNotLoanListed": "Der Spieler steht nicht auf der Leihliste",

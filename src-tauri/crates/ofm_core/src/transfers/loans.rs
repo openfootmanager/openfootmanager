@@ -28,7 +28,7 @@ pub(crate) fn validate_loan_borrower_affordability(
     let projected_wage_bill = current_wage_bill.saturating_add(projected_wage_share);
 
     if !wage_policy_allows_projection(borrower_team, current_wage_bill, projected_wage_bill) {
-        return Err(renewal_wage_policy_error_message(borrower_team));
+        return Err(loan_borrower_wage_policy_error_message(borrower_team));
     }
 
     Ok(())

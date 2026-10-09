@@ -2791,6 +2791,7 @@
         "transferBudgetTooLow": "O orçamento de transferências é baixo demais",
         "playerNotOwnedByUser": "Jogador não encontrado ou não pertence a você",
         "offerNotPending": "Oferta não encontrada ou não está mais pendente",
+        "loanBorrowerCannotAffordWages": "O clube que recebe o jogador não consegue pagar esta parte do salário. O orçamento salarial semanal é {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "A contraproposta deve superar a oferta atual",
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo precisa melhorar a oferta atual",
         "playerNotLoanListed": "O jogador não está listado para empréstimo",

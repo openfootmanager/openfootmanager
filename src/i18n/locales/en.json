@@ -2799,6 +2799,7 @@
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
+        "loanBorrowerCannotAffordWages": "The borrowing club cannot afford this wage share. Its weekly wage budget is {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Counter offer must exceed current offer",
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
         "playerNotLoanListed": "Player is not listed for loan",

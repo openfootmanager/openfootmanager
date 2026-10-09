@@ -462,7 +462,10 @@ fn loan_offer_rejects_terms_that_exceed_user_wage_budget() {
     )
     .expect_err("loan should be blocked by wage budget");
 
-    assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=50000");
+    assert_eq!(
+        error,
+        "be.error.transfers.loanBorrowerCannotAffordWages?budget=50000"
+    );
     let player = game
         .players
         .iter()
@@ -508,7 +511,10 @@ fn loan_offer_counts_existing_loan_wages_against_borrower_budget() {
     )
     .expect_err("existing loan wages should count against borrower affordability");
 
-    assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=100000");
+    assert_eq!(
+        error,
+        "be.error.transfers.loanBorrowerCannotAffordWages?budget=100000"
+    );
     let player = game
         .players
         .iter()

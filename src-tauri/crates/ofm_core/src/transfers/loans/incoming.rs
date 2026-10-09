@@ -443,7 +443,10 @@ mod tests {
         game.teams[1].wage_budget = 10_000;
         let before = game_snapshot(&game);
         let error = respond_to_loan_offer(&mut game, PLAYER_ID, OFFER_ID, true).unwrap_err();
-        assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=10000");
+        assert_eq!(
+            error,
+            "be.error.transfers.loanBorrowerCannotAffordWages?budget=10000"
+        );
         assert_eq!(game_snapshot(&game), before);
     }
 
@@ -454,7 +457,10 @@ mod tests {
         validate_loan_borrower_affordability(&game, "team2", &game.players[0], 50).unwrap();
         let before = game_snapshot(&game);
         let error = accept_counter(&mut game).unwrap_err();
-        assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=60000");
+        assert_eq!(
+            error,
+            "be.error.transfers.loanBorrowerCannotAffordWages?budget=60000"
+        );
         assert_eq!(game_snapshot(&game), before);
     }
 
@@ -507,7 +513,10 @@ mod tests {
         assert_eq!(calc_wages(&game, "team2"), 30_000);
         let before = game_snapshot(&game);
         let error = respond_to_loan_offer(&mut game, PLAYER_ID, OFFER_ID, true).unwrap_err();
-        assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=40000");
+        assert_eq!(
+            error,
+            "be.error.transfers.loanBorrowerCannotAffordWages?budget=40000"
+        );
         assert_eq!(game_snapshot(&game), before);
     }
 
@@ -618,7 +627,10 @@ mod tests {
         game.players[0].loan_offers.clear();
         let before = game_snapshot(&game);
         let error = make_loan_offer(&mut game, PLAYER_ID, END_DATE, 75, None).unwrap_err();
-        assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=10000");
+        assert_eq!(
+            error,
+            "be.error.transfers.loanBorrowerCannotAffordWages?budget=10000"
+        );
         assert_eq!(game_snapshot(&game), before);
     }
 
@@ -646,7 +658,7 @@ mod tests {
         let before = game_snapshot(&restored);
         assert_eq!(
             respond_to_loan_offer(&mut restored, PLAYER_ID, OFFER_ID, true).unwrap_err(),
-            "be.error.contracts.boardWagePolicy?budget=10000"
+            "be.error.transfers.loanBorrowerCannotAffordWages?budget=10000"
         );
         assert_eq!(game_snapshot(&restored), before);
     }
@@ -660,7 +672,7 @@ mod tests {
         let before = game_snapshot(&restored);
         assert_eq!(
             accept_counter(&mut restored).unwrap_err(),
-            "be.error.contracts.boardWagePolicy?budget=60000"
+            "be.error.transfers.loanBorrowerCannotAffordWages?budget=60000"
         );
         assert_eq!(game_snapshot(&restored), before);
     }

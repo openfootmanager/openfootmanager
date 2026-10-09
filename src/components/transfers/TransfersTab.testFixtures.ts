@@ -353,6 +353,9 @@ export const transferTestTranslation = (key: string, params?: Record<string, str
     return `Wants more: ${params?.wage} for ${params?.years} years`;
   if (key === "playerProfile.renewalBlocked") return "Talks blocked";
   if (key === "be.error.transfers.playerAlreadyLoaned") return "Player already loaned";
+  if (key === "be.error.transfers.loanBorrowerCannotAffordWages") {
+    return `The borrowing club cannot afford this wage share. Its weekly wage budget is ${params?.budget}.`;
+  }
   if (params && typeof params === "object" && "defaultValue" in params) {
     return String(params.defaultValue);
   }

@@ -2799,6 +2799,7 @@
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",
+        "loanBorrowerCannotAffordWages": "Kiralayan kulüp bu maaş payını karşılayamıyor. Haftalık maaş bütçesi {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Karşı teklif mevcut teklifi aşmalıdır",
         "loanCounterMustImproveTerms": "Karşı kiralama teklifi mevcut teklifi iyileştirmelidir",
         "playerNotLoanListed": "Oyuncu kiralık listesinde değil",

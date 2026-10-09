@@ -2799,6 +2799,7 @@
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
+        "loanBorrowerCannotAffordWages": "Hostující klub si tento podíl na mzdě nemůže dovolit. Jeho týdenní mzdový rozpočet je {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Protinabídka musí být vyšší než aktuální nabídka",
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
         "playerNotLoanListed": "Hráč není na listině pro hostování",
