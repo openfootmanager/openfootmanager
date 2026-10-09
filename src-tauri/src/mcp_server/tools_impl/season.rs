@@ -1,35 +1,37 @@
 //! MCP tool implementations: season
 
+use mcp_results::season::{
+    AvailableJobs, AwardWinner, JobApplication, JobApplicationOutcome, JobOpening, SeasonAdvanced,
+    SeasonAwards, SeasonStatus,
+};
+
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
 use std::sync::Arc;
 
 // ─── season_check_complete ──────────────────────────────────────────────────
 
-pub fn season_check_complete(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn season_check_complete(ctx: Arc<McpContext>) -> Result<SeasonStatus, String> {
     let game = require_game(&ctx.state_manager)?;
 
-    if let Some(league) = &game.league {
-        let incomplete = league
-            .fixtures
-            .iter()
-            .filter(|f| f.status != domain::league::FixtureStatus::Completed)
-            .count();
-        if incomplete == 0 && !league.fixtures.is_empty() {
-            return Ok("## Season Status: Complete ✅\n\nAll fixtures played. Use `season_advance` to proceed.".to_string());
-        }
-        return Ok(format!(
-            "## Season Status: In Progress\n\n**Remaining fixtures**: {}",
-            incomplete
-        ));
+    let Some(league) = &game.league else {
+        return Ok(SeasonStatus::NoLeague {});
+    };
+    let remaining_fixtures = league
+        .fixtures
+        .iter()
+        .filter(|f| f.status != domain::league::FixtureStatus::Completed)
+        .count();
+    if remaining_fixtures == 0 && !league.fixtures.is_empty() {
+        Ok(SeasonStatus::Complete {})
+    } else {
+        Ok(SeasonStatus::InProgress { remaining_fixtures })
     }
-
-    Ok("## Season Status: No league active.".to_string())
 }
 
 // ─── season_advance ─────────────────────────────────────────────────────────
 
-pub fn season_advance(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn season_advance(ctx: Arc<McpContext>) -> Result<SeasonAdvanced, String> {
     let output = season_advance_for_state(&ctx.state_manager)?;
     {
         use tauri::Emitter;
@@ -38,110 +40,81 @@ pub fn season_advance(ctx: Arc<McpContext>) -> Result<String, String> {
     Ok(output)
 }
 
-fn season_advance_for_state(state: &ofm_core::state::StateManager) -> Result<String, String> {
+fn season_advance_for_state(
+    state: &ofm_core::state::StateManager,
+) -> Result<SeasonAdvanced, String> {
     let response = crate::commands::season::advance_to_next_season_internal(state)?;
-    let dismissal = if response["action"] == "fired" {
-        "\n\n**You have been fired.** Use `jobs_available` to find a new position."
-    } else {
-        ""
-    };
-    Ok(format!(
-        "## Season Advanced\n\n### Completed Season Summary\n```json\n{:#}\n```{}\n\nUse `info_game_state` to inspect the regenerated season.",
-        response["summary"], dismissal
-    ))
+    Ok(SeasonAdvanced {
+        fired: response["action"] == "fired",
+        summary: response["summary"].clone(),
+    })
 }
 
 // ─── help_find_tool ─────────────────────────────────────────────────────────
 
 // ─── season_get_awards ──────────────────────────────────────────────────────
 
-pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<SeasonAwards, String> {
     let game = require_game(&ctx.state_manager)?;
     let awards = ofm_core::season_awards::compute_season_awards(&game);
 
-    let mut output = String::from("## Season Awards\n\n");
+    let winners = |entries: &[ofm_core::season_awards::AwardEntry]| -> Vec<AwardWinner> {
+        entries
+            .iter()
+            .map(|e| AwardWinner {
+                name: e.player_name.clone(),
+                team: e.team_name.clone(),
+                value: e.value,
+            })
+            .collect()
+    };
 
-    let categories = [
-        ("🏆 Golden Boot", &awards.golden_boot),
-        ("🅰️ Assist King", &awards.assist_king),
-        ("⭐ Player of the Year", &awards.player_of_year),
-        ("🧤 Clean Sheet King", &awards.clean_sheet_king),
-        ("📋 Most Appearances", &awards.most_appearances),
-        ("🌟 Young Player", &awards.young_player),
-    ];
-
-    for (title, entries) in &categories {
-        if !entries.is_empty() {
-            output.push_str(&format!(
-                "### {}\n\n| # | Player | Team | Value |\n|---|--------|------|-------|\n",
-                title
-            ));
-            for (i, e) in entries.iter().enumerate() {
-                output.push_str(&format!(
-                    "| {} | {} | {} | {:.1} |\n",
-                    i + 1,
-                    e.player_name,
-                    e.team_name,
-                    e.value
-                ));
-            }
-            output.push('\n');
-        }
-    }
-
-    if !awards.manager_of_season.is_empty() {
-        output.push_str("### 👔 Manager of the Season\n\n| # | Manager | Team | Value |\n|---|---------|------|-------|\n");
-        for (i, e) in awards.manager_of_season.iter().enumerate() {
-            output.push_str(&format!(
-                "| {} | {} | {} | {:.1} |\n",
-                i + 1,
-                e.manager_name,
-                e.team_name,
-                e.value
-            ));
-        }
-    }
-
-    Ok(output)
+    Ok(SeasonAwards {
+        golden_boot: winners(&awards.golden_boot),
+        assist_king: winners(&awards.assist_king),
+        player_of_year: winners(&awards.player_of_year),
+        clean_sheet_king: winners(&awards.clean_sheet_king),
+        most_appearances: winners(&awards.most_appearances),
+        young_player: winners(&awards.young_player),
+        manager_of_season: awards
+            .manager_of_season
+            .iter()
+            .map(|e| AwardWinner {
+                name: e.manager_name.clone(),
+                team: e.team_name.clone(),
+                value: e.value,
+            })
+            .collect(),
+    })
 }
 
 // ─── jobs_available ─────────────────────────────────────────────────────────
 
 // ─── jobs_available ─────────────────────────────────────────────────────────
 
-pub fn jobs_available(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn jobs_available(ctx: Arc<McpContext>) -> Result<AvailableJobs, String> {
     let game = require_game(&ctx.state_manager)?;
     let jobs = ofm_core::job_offers::get_available_jobs(&game);
 
-    if jobs.is_empty() {
-        return Ok("## Available Jobs\n\nNo job openings available right now.".to_string());
-    }
-
-    let mut output = format!("## Available Jobs ({} openings)\n\n| # | Team | City | Reputation | Last Position |\n|---|------|------|------------|---------------|\n", jobs.len());
-    for (i, j) in jobs.iter().enumerate() {
-        let pos = j
-            .last_league_position
-            .map(|p| p.to_string())
-            .unwrap_or_else(|| "-".to_string());
-        output.push_str(&format!(
-            "| {} | {} ({}) | {} | {} | {} |\n",
-            i + 1,
-            j.team_name,
-            j.team_id,
-            j.city,
-            j.reputation,
-            pos
-        ));
-    }
-
-    Ok(output)
+    Ok(AvailableJobs {
+        jobs: jobs
+            .into_iter()
+            .map(|job| JobOpening {
+                team_id: job.team_id,
+                team_name: job.team_name,
+                city: job.city,
+                reputation: job.reputation,
+                last_league_position: job.last_league_position,
+            })
+            .collect(),
+    })
 }
 
 // ─── jobs_apply ──────────────────────────────────────────────────────────────
 
 // ─── jobs_apply ──────────────────────────────────────────────────────────────
 
-pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
+pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<JobApplication, String> {
     // `apply_for_job` reports its outcome as a value rather than an error, and
     // the old code committed unconditionally — so running it in place changes
     // nothing except closing the window between the read and the write.
@@ -155,16 +128,17 @@ pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<String, Strin
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let result_text = match result {
-        ofm_core::job_offers::JobApplicationResult::Hired => "✅ Hired! You are now the manager of this team.",
-        ofm_core::job_offers::JobApplicationResult::Rejected => "❌ Rejected. The team chose another candidate.",
-        ofm_core::job_offers::JobApplicationResult::InvalidTeam => "⚠️ Invalid team — no opening available.",
-        ofm_core::job_offers::JobApplicationResult::AlreadyEmployed => "⚠️ You already have a team. Resign first.",
-        ofm_core::job_offers::JobApplicationResult::SameTeam => "⚠️ You are already managing this team.",
-        ofm_core::job_offers::JobApplicationResult::NotBetterClub => "⚠️ This club is not a step up from your current position. Only better clubs will consider an employed manager.",
+    use ofm_core::job_offers::JobApplicationResult as Applied;
+    let outcome = match result {
+        Applied::Hired => JobApplicationOutcome::Hired,
+        Applied::Rejected => JobApplicationOutcome::Rejected,
+        Applied::InvalidTeam => JobApplicationOutcome::InvalidTeam,
+        Applied::AlreadyEmployed => JobApplicationOutcome::AlreadyEmployed,
+        Applied::SameTeam => JobApplicationOutcome::SameTeam,
+        Applied::NotBetterClub => JobApplicationOutcome::NotBetterClub,
     };
 
-    Ok(format!("## Job Application Result\n\n{}", result_text))
+    Ok(JobApplication { outcome })
 }
 
 // ─── game_new ───────────────────────────────────────────────────────────────
@@ -189,7 +163,8 @@ mod tests {
     fn season_advance_rolls_the_season_over() {
         let state = StateManager::new();
         state.set_game(completed_checkpoint());
-        let text = season_advance_for_state(&state).unwrap();
+        let advanced = season_advance_for_state(&state).unwrap();
+        let text = advanced.to_string();
         let after = state.get_game(Clone::clone).unwrap();
         assert_eq!(after.competitions[0].season, 2026);
         assert!(after.competitions[0]
@@ -265,12 +240,14 @@ mod tests {
             met: false,
         });
         state.set_game(game);
-        let text = season_advance_for_state(&state).unwrap();
+        let advanced = season_advance_for_state(&state).unwrap();
+        let text = advanced.to_string();
         let after = state.get_game(Clone::clone).unwrap();
         assert_eq!(after.competitions[0].season, 2026);
         assert!(after.manager.team_id.is_none());
         assert!(text.contains("Completed Season Summary"), "{text}");
         assert!(text.contains("You have been fired"), "{text}");
+        assert!(advanced.fired);
     }
 
     /// Given one database save loaded through two fresh readers,

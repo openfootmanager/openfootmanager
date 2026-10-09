@@ -918,6 +918,7 @@
     "aTrainingDay": "antrenman günü",
     "aRestDay": "dinlenme günü",
     "currentlyTraining": "Şu an <strong>{{attrs}}</strong> üzerinde <strong>{{intensity}}</strong> yoğunlukta çalışılıyor.",
+    "goalkeepersLabel": "Kaleciler",
     "recoveryNote": "Oyuncular tüm günlerde dinlenme ve kondisyon toparlanmasına odaklanacak.",
     "effectiveFocus": "Odak",
     "trainingAppliedNote": "Antrenman, zaman ilerletildiğinde planlı antrenman günlerinde uygulanır. Dinlenme günleri tam toparlanma sağlar.",
@@ -2052,7 +2053,7 @@
     "postMatchTeamTalk": "Maç Sonu Takım Konuşması",
     "addressPlayers": "Maçtan sonra oyuncularınıza hitap edin.",
     "matchOver": "Maç Bitti",
-    "ratings": "{{team}} Puanları",
+    "performance": "{{team}} Performansı",
     "motm": "Maçın Oyuncusu",
     "roundSummary": "Hafta Özeti",
     "roundSummaryUnavailable": "Hafta özeti mevcut değil.",
@@ -2528,7 +2529,7 @@
       }
     },
     "matchReport": "Maç Raporu",
-    "playerRatings": "Oyuncu Puanları",
+    "playerPerformance": "Oyuncu Performansı",
     "tacticsTab": "Taktikler",
     "goalSources": "Gol Kaynakları",
     "openPlay": "Akan Oyun",
@@ -2704,6 +2705,7 @@
         "fallbackTeamsFilled": "Yalnızca bir takım tanımlanmıştı. Oyunun oynanabilir olması için prosedürel rakipler otomatik olarak oluşturuldu."
       },
       "competitionDef": {
+        "invalidCalendar": "Geçersiz müsabaka takvimi: lig ailesini, seviyeyi, aşamayı ve kapanış tarihini kontrol edin.",
         "invalidEmbedded": "Bu dünyanın turnuva tanımları geçersiz ve yüklenemedi.",
         "invalidStandalone": "Seçilen turnuva tanım dosyası geçersiz.",
         "parseFailed": "Turnuva tanım dosyası JSON olarak okunamadı.",
@@ -2801,6 +2803,7 @@
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",
+        "loanBorrowerCannotAffordWages": "Kiralayan kulüp bu maaş payını karşılayamıyor. Haftalık maaş bütçesi {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Karşı teklif mevcut teklifi aşmalıdır",
         "loanCounterMustImproveTerms": "Karşı kiralama teklifi mevcut teklifi iyileştirmelidir",
         "playerNotLoanListed": "Oyuncu kiralık listesinde değil",
@@ -3383,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Tamamlandı: {{player}}",
-        "body": "{{player}} transferi {{fee}} bonservis bedeliyle tamamlandı.\n\nOyuncu kadroya katıldı ve seçilebilir durumda."
+        "body": "{{player}} transferi {{fee}} bonservis bedeliyle tamamlandı.\n\nOyuncu kadroya katıldı ve seçilebilir durumda.",
+        "bodySold": "{{player}} oyuncusunun {{buyer}} kulübüne transferi {{fee}} bedelle tamamlandı. Oyuncu kadrodan ayrılıp {{buyer}} kulübüne katıldı."
+      },
+      "transferAgreed": {
+        "subject": "Transfer anlaşması: {{player}}",
+        "body": "{{player}} oyuncusunun {{seller}} kulübünden {{buyer}} kulübüne transferi {{fee}} bedelle kararlaştırıldı. Tescil {{start}} tarihinde yapılacak."
       },
       "transferOffer": {
         "subject": "{{player}} için Gelen Teklif",
@@ -3394,6 +3402,11 @@
         "subject": "{{player}} için transfer ilgisi",
         "body": "{{player}} için aktif teklifi olan kulüpler: {{n}}. Son başvuru: {{team}} ({{fee}}). Yanıtlamak için teklifleri Transferler sekmesinde inceleyin.",
         "actionReview": "Teklifleri İncele"
+      },
+      "loanAgreed": {
+        "subject": "Kiralama anlaşması: {{player}}",
+        "bodyWithOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu: {{fee}}.",
+        "bodyNoOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu yok."
       },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",

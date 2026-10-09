@@ -5,11 +5,13 @@ type TranslateFn = (key: string) => string;
 
 interface PlayerProfileSeasonStatsCardProps {
   stats: PlayerSeasonStats;
+  seasonRatingRated: boolean;
   t: TranslateFn;
 }
 
 export default function PlayerProfileSeasonStatsCard({
   stats,
+  seasonRatingRated,
   t,
 }: PlayerProfileSeasonStatsCardProps) {
   return (
@@ -26,7 +28,7 @@ export default function PlayerProfileSeasonStatsCard({
           <StatBox label={t("playerProfile.reds")} value={stats.red_cards} />
           <StatBox
             label={t("playerProfile.avgRating")}
-            value={stats.avg_rating > 0 ? stats.avg_rating.toFixed(1) : "-"}
+            value={seasonRatingRated ? stats.avg_rating.toFixed(1) : "–"}
           />
         </div>
       </CardBody>

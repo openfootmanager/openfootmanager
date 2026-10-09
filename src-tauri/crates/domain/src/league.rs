@@ -178,6 +178,9 @@ pub struct League {
     /// translates via `t(name_key, { year })` instead of displaying `name` raw.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name_key: Option<String>,
+    /// Durable authoring identity and edition provenance. Absent in legacy saves.
+    #[serde(default)]
+    pub calendar: Option<crate::competition_calendar::CalendarMetadata>,
 }
 
 fn default_season_start_month() -> u8 {
@@ -211,6 +214,7 @@ impl Default for League {
             season_start_month: default_season_start_month(),
             season_start_day: default_season_start_day(),
             name_key: None,
+            calendar: None,
         }
     }
 }
@@ -477,6 +481,7 @@ impl League {
             season_start_month: default_season_start_month(),
             season_start_day: default_season_start_day(),
             name_key: None,
+            calendar: None,
         }
     }
 

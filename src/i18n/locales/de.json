@@ -918,6 +918,7 @@
     "aTrainingDay": "ein Trainingstag",
     "aRestDay": "ein Ruhetag",
     "currentlyTraining": "Aktuelles Training: <strong>{{attrs}}</strong> mit <strong>{{intensity}}</strong> Intensität.",
+    "goalkeepersLabel": "Torhüter",
     "recoveryNote": "Die Spieler konzentrieren sich an allen Tagen auf Ruhe und Erholung.",
     "effectiveFocus": "Fokus",
     "trainingAppliedNote": "Training wird an geplanten Tagen angewendet, wenn du die Zeit vorrückst. Ruhetage bieten volle Erholung.",
@@ -2018,7 +2019,7 @@
     "postMatchTeamTalk": "Ansprache nach dem Spiel",
     "addressPlayers": "Sprich nach dem Spiel zu deinen Spielern.",
     "matchOver": "Spiel beendet",
-    "ratings": "{{team}} Bewertungen",
+    "performance": "{{team}} Leistung",
     "motm": "Spieler des Spiels",
     "roundSummary": "Spieltagsübersicht",
     "roundSummaryUnavailable": "Spieltagsübersicht nicht verfügbar.",
@@ -2528,7 +2529,7 @@
       }
     },
     "matchReport": "Spielbericht",
-    "playerRatings": "Spielerbewertungen",
+    "playerPerformance": "Spielerleistung",
     "tacticsTab": "Taktik",
     "goalSources": "Torquellen",
     "openPlay": "Aus dem Spiel heraus",
@@ -2679,6 +2680,7 @@
         "unsupportedFormatVersion": "Dieses Paket wurde mit einer neueren Version des Spiels erstellt (Format {{version}}; diese Version unterstützt {{supported}}). Aktualisiere das Spiel, um es zu öffnen."
       },
       "competitionDef": {
+        "invalidCalendar": "Ungültiger Wettbewerbskalender: Prüfe die Ligafamilie, die Spielklasse, die Phase und das Enddatum.",
         "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden.",
         "invalidStandalone": "Die ausgewählte Wettbewerbsdefinitionsdatei ist ungültig.",
         "parseFailed": "Die Wettbewerbsdefinitionsdatei konnte nicht als JSON gelesen werden.",
@@ -2793,6 +2795,7 @@
         "transferBudgetTooLow": "Das Transferbudget ist zu niedrig",
         "playerNotOwnedByUser": "Spieler nicht gefunden oder nicht in deinem Besitz",
         "offerNotPending": "Angebot nicht gefunden oder nicht mehr ausstehend",
+        "loanBorrowerCannotAffordWages": "Der aufnehmende Verein kann sich diesen Gehaltsanteil nicht leisten. Sein wöchentliches Gehaltsbudget beträgt {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Das Gegenangebot muss über dem aktuellen Angebot liegen",
         "loanCounterMustImproveTerms": "Das Leih-Gegenangebot muss das aktuelle Angebot verbessern",
         "playerNotLoanListed": "Der Spieler steht nicht auf der Leihliste",
@@ -3383,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Transfer abgeschlossen: {{player}}",
-        "body": "Der Transfer von {{player}} wurde für eine Ablösesumme von {{fee}} abgeschlossen.\n\nDer Spieler hat sich dem Kader angeschlossen und steht zur Auswahl bereit."
+        "body": "Der Transfer von {{player}} wurde für eine Ablösesumme von {{fee}} abgeschlossen.\n\nDer Spieler hat sich dem Kader angeschlossen und steht zur Auswahl bereit.",
+        "bodySold": "Der Transfer von {{player}} zu {{buyer}} wurde für {{fee}} abgeschlossen. Der Spieler hat den Kader verlassen und sich {{buyer}} angeschlossen."
+      },
+      "transferAgreed": {
+        "subject": "Transfer vereinbart: {{player}}",
+        "body": "Der Transfer von {{player}} von {{seller}} zu {{buyer}} wurde für {{fee}} vereinbart. Die Registrierung ist für den {{start}} vorgesehen."
       },
       "transferOffer": {
         "subject": "Eingehendes Angebot für {{player}}",
@@ -3394,6 +3402,11 @@
         "subject": "Transferinteresse an {{player}}",
         "body": "Vereine mit aktiven Geboten für {{player}}: {{n}}. Letzte Anfrage: {{team}} ({{fee}}). Prüfe die Angebote im Transfers-Tab, um zu reagieren.",
         "actionReview": "Angebote prüfen"
+      },
+      "loanAgreed": {
+        "subject": "Leihe vereinbart: {{player}}",
+        "bodyWithOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Kaufoption: {{fee}}.",
+        "bodyNoOption": "{{player}} wechselt vom {{start}} bis zum {{end}} auf Leihbasis von {{parent}} zu {{borrower}}. {{borrower}} übernimmt {{contribution}}% des Gehalts. Keine Kaufoption."
       },
       "loanOffer": {
         "subject": "Leihangebot für {{player}}",

@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 48;
+const EXPECTED_MIGRATION_COUNT: usize = 50;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -137,14 +137,15 @@ const MIGRATIONS: &[(&str, &str)] = &[
     // V46: The seed the game's own dice are derived from
     ("v046_game_seed.sql", include_str!("sql/v046_game_seed.sql")),
     // V47: Whether World Cups are drawn the pre-seed way
+    ("v047_legacy_world_cup_draw.sql", include_str!("sql/v047_legacy_world_cup_draw.sql")),
+    // V48: Competition calendar identity and edition provenance
+    ("v048_competition_calendar.sql", include_str!("sql/v048_competition_calendar.sql")),
+    // V49: Frozen outcome of each finished competition edition
+    ("v049_competition_edition_archive.sql", include_str!("sql/v049_competition_edition_archive.sql")),
+    // V50: Scouted players: what a finished scouting job revealed, and when
     (
-        "v047_legacy_world_cup_draw.sql",
-        include_str!("sql/v047_legacy_world_cup_draw.sql"),
-    ),
-    // V48: Scouted players: what a finished scouting job revealed, and when
-    (
-        "v048_scouted_players.sql",
-        include_str!("sql/v048_scouted_players.sql"),
+        "v050_scouted_players.sql",
+        include_str!("sql/v050_scouted_players.sql"),
     ),
 ];
 
@@ -477,6 +478,93 @@ mod tests {
         migrations
             .to_latest(&mut conn)
             .expect("second apply should succeed (idempotent)");
+    }
+
+    #[test]
+    fn calendar_v048_upgrades_a_seeded_v047_save_without_reinterpreting_it() {
+        for draw_policy in [0_i64, 1] {
+            let mut conn = Connection::open_in_memory().unwrap();
+            let old = Migrations::new(
+                MIGRATIONS
+                    .iter()
+                    .take(47)
+                    .map(|(_, sql)| M::up(sql))
+                    .collect(),
+            );
+            old.to_latest(&mut conn).unwrap();
+            conn.execute(
+                "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date, save_format_version, legacy_world_cup_draw) VALUES ('save', 'Seeded save', 'manager', '2033-02-01', '2033-06-30', 8, ?1)",
+                [draw_policy],
+            ).unwrap();
+            conn.execute("INSERT INTO competitions (id, name, season) VALUES ('ar-d1-apertura', 'Opening', 2033)", []).unwrap();
+            let version: i64 = conn
+                .pragma_query_value(None, "user_version", |row| row.get(0))
+                .unwrap();
+            assert_eq!(version, 47);
+            assert!(
+                conn.prepare("SELECT calendar_json FROM competitions")
+                    .is_err()
+            );
+
+            for _ in 0..2 {
+                all_migrations().to_latest(&mut conn).unwrap();
+                let row: (String, u32, Option<String>) = conn
+                    .query_row(
+                        "SELECT id, season, calendar_json FROM competitions",
+                        [],
+                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                    )
+                    .expect("v048 must add the calendar column to a real v047 save");
+                assert_eq!(row, ("ar-d1-apertura".into(), 2033, None));
+                let meta: (u32, i64) = conn
+                    .query_row(
+                        "SELECT save_format_version, legacy_world_cup_draw FROM game_meta",
+                        [],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .unwrap();
+                assert_eq!(meta, (8, draw_policy));
+                let version: i64 = conn
+                    .pragma_query_value(None, "user_version", |row| row.get(0))
+                    .unwrap();
+                assert_eq!(version, MIGRATION_COUNT as i64);
+            }
+        }
+    }
+
+    /// Given a real v048 save, when migrated twice, then the archive table exists and is empty.
+    #[test]
+    fn edition_archive_v049_upgrades_a_v048_save_without_touching_competitions() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(48)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute("INSERT INTO competitions (id, name, season) VALUES ('ar-d1-apertura', 'Opening', 2033)", []).unwrap();
+        assert!(
+            conn.prepare("SELECT 1 FROM competition_edition_archive")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let archived: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM competition_edition_archive",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            let competitions: i64 = conn
+                .query_row("SELECT COUNT(*) FROM competitions", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!((archived, competitions), (0, 1));
+        }
     }
 
     #[test]

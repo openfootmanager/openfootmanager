@@ -1010,6 +1010,49 @@ mod tests {
         assert_eq!(champions[0].year, 2030);
     }
 
+    /// Given a World Cup whose final is the only fixture left and its date has passed unplayed (#433)
+    /// When the game is loaded and the stranded fixtures are repaired
+    /// Then the final is played by the engine that crowns a champion, and a winner emerges.
+    #[test]
+    fn a_world_cup_final_whose_date_has_passed_is_played_and_crowns_a_champion() {
+        let mut game = game_with_two_national_squads("2030-12-01");
+        let mut competition = League::new(
+            "wc-2030".to_string(),
+            "World Cup 2030".to_string(),
+            2030,
+            &["nt-eng".to_string(), "nt-bra".to_string()],
+        );
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::International;
+        competition.rules.format = CompetitionFormat::Knockout;
+        competition.fixtures = vec![international_fixture(
+            "final",
+            "2030-07-15",
+            "nt-eng",
+            "nt-bra",
+        )];
+        competition.knockout_rounds = vec![KnockoutRoundState {
+            id: "final-round".to_string(),
+            name: "Final".to_string(),
+            fixture_ids: vec!["final".to_string()],
+            bye_team_ids: Vec::new(),
+            completed: false,
+        }];
+        game.competitions = vec![competition];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(repaired, 1);
+        let final_fixture = &game.competitions[0].fixtures[0];
+        assert_eq!(final_fixture.status, FixtureStatus::Completed);
+        assert!(
+            final_fixture.advancing_team_id().is_some(),
+            "a knockout final always has a winner"
+        );
+        assert!(game.competitions[0].knockout_rounds[0].completed);
+        assert_eq!(game.world_history.world_cup_champions.len(), 1);
+    }
+
     #[test]
     fn repairs_a_stranded_window_friendly_on_a_national_team() {
         // These fixtures do not live in `competitions` at all — they hang off `game.national_teams`,

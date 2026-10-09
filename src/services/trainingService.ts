@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../store/gameStore";
-import type { TrainingGroupData } from "../store/types";
+import type { TrainingFocusAttributesData, TrainingGroupData } from "../store/types";
 
 // Lives in `store/types.ts` with the rest of the wire shape — `TeamData.training_groups` needs
 // it, and a type the store depends on cannot sit in a service the store does not import.
@@ -35,4 +35,8 @@ export async function setPlayerTrainingFocus(
     playerId,
     focus,
   });
+}
+
+export async function getTrainingFocusAttributes(): Promise<TrainingFocusAttributesData[]> {
+  return invoke<TrainingFocusAttributesData[]>("get_training_focus_attributes");
 }

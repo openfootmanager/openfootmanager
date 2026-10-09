@@ -918,6 +918,7 @@
     "aTrainingDay": "tréninkový den",
     "aRestDay": "den volna",
     "currentlyTraining": "Aktuální trénink: <strong>{{attrs}}</strong> s intenzitou <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Brankáři",
     "recoveryNote": "V dny volna se hráči zaměří na odpočinek a obnovu kondice.",
     "effectiveFocus": "Zaměření",
     "trainingAppliedNote": "Trénink probíhá v naplánované tréninkové dny při postupu v čase. Dny volna poskytují plnou regeneraci.",
@@ -2052,7 +2053,7 @@
     "postMatchTeamTalk": "Pozápasový proslov",
     "addressPlayers": "Promluvte k hráčům po skončení zápasu.",
     "matchOver": "Zápas skončil",
-    "ratings": "Hodnocení týmu {{team}}",
+    "performance": "Výkony týmu {{team}}",
     "motm": "Hráč zápasu",
     "roundSummary": "Shrnutí kola",
     "roundSummaryUnavailable": "Shrnutí kola není k dispozici.",
@@ -2528,7 +2529,7 @@
       }
     },
     "matchReport": "Zpráva ze zápasu",
-    "playerRatings": "Hodnocení hráčů",
+    "playerPerformance": "Výkony hráčů",
     "tacticsTab": "Taktika",
     "goalSources": "Zdroje gólů",
     "openPlay": "Ze hry",
@@ -2704,6 +2705,7 @@
         "fallbackTeamsFilled": "Byl definován pouze jeden tým. Aby byla hra hratelná, byli automaticky vygenerováni procedurální soupeři."
       },
       "competitionDef": {
+        "invalidCalendar": "Neplatný kalendář soutěže: zkontrolujte skupinu divizí, úroveň, fázi a datum ukončení.",
         "invalidEmbedded": "Definice soutěží tohoto světa jsou neplatné a nepodařilo se je načíst.",
         "invalidStandalone": "Vybraný soubor s definicí soutěže je neplatný.",
         "parseFailed": "Soubor s definicí soutěže se nepodařilo načíst jako JSON.",
@@ -2801,6 +2803,7 @@
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
+        "loanBorrowerCannotAffordWages": "Hostující klub si tento podíl na mzdě nemůže dovolit. Jeho týdenní mzdový rozpočet je {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Protinabídka musí být vyšší než aktuální nabídka",
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
         "playerNotLoanListed": "Hráč není na listině pro hostování",
@@ -3383,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Přestup dokončen: {{player}}",
-        "body": "Přestup hráče {{player}} byl dokončen za odstupnou částku {{fee}}.\n\nHráč se připojil k týmu a je k dispozici pro výběr do sestavy."
+        "body": "Přestup hráče {{player}} byl dokončen za odstupnou částku {{fee}}.\n\nHráč se připojil k týmu a je k dispozici pro výběr do sestavy.",
+        "bodySold": "Přestup hráče {{player}} do klubu {{buyer}} byl dokončen za {{fee}}. Hráč opustil tým a připojil se ke klubu {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Přestup dohodnut: {{player}}",
+        "body": "Přestup hráče {{player}} z klubu {{seller}} do klubu {{buyer}} byl dohodnut za {{fee}}. Registrace je naplánována na {{start}}."
       },
       "transferOffer": {
         "subject": "Příchozí nabídka na hráče {{player}}",
@@ -3394,6 +3402,11 @@
         "subject": "Zájem o přestup hráče {{player}}",
         "body": "Kluby s aktivní nabídkou na hráče {{player}}: {{n}}. Nejnovější dotaz: {{team}} ({{fee}}). Pro odpověď zkontrolujte nabídky v záložce Přestupy.",
         "actionReview": "Zkontrolovat nabídky"
+      },
+      "loanAgreed": {
+        "subject": "Hostování dohodnuto: {{player}}",
+        "bodyWithOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Opce na odkup: {{fee}}.",
+        "bodyNoOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Bez opce na odkup."
       },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",

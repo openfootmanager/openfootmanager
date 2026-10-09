@@ -425,7 +425,31 @@ describe("PostMatchScreen", (): void => {
 
     expect(screen.getAllByText("match.postMatchTeamTalk").length).toBeGreaterThan(0);
     expect(screen.getByText("match.matchReport")).toBeInTheDocument();
-    expect(screen.getByText("match.playerRatings")).toBeInTheDocument();
+    expect(screen.getByText("match.playerPerformance")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the post-match panel, whose numbers the UI derives from match events
+   * When it renders
+   * Then it is titled as a performance score, not as a rating the backend stored
+   */
+  it("titles the derived player scores as performance, not ratings", (): void => {
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getAllByText(/^match\.performance:/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^match\.ratings/)).not.toBeInTheDocument();
   });
 
   it("switches to Match Report tab and shows scorers section", (): void => {

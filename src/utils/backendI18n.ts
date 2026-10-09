@@ -152,7 +152,7 @@ const COUNTRY_PARAM_KEYS = new Set(["country", "nationality"]);
  * to render in the player's own locale. The backend cannot do this itself —
  * a month name formatted there would be English whatever language they picked.
  */
-const DATE_PARAM_KEYS = new Set(["start"]);
+const DATE_PARAM_KEYS = new Set(["start", "end"]);
 
 function parseMoneyValue(value: string): { amount: number; compact: boolean } | null {
   const trimmed = value.trim();

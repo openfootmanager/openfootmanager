@@ -918,6 +918,7 @@
     "aTrainingDay": "dia de treino",
     "aRestDay": "dia de descanso",
     "currentlyTraining": "A treinar: <strong>{{attrs}}</strong> com intensidade <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Guarda-redes",
     "recoveryNote": "Os jogadores vão focar-se no descanso e recuperação em todos os dias.",
     "effectiveFocus": "Foco",
     "trainingAppliedNote": "O treino é aplicado nos dias programados quando avanças o tempo. Dias de descanso proporcionam recuperação total.",
@@ -2018,7 +2019,7 @@
     "postMatchTeamTalk": "Palestra Pós-Jogo",
     "addressPlayers": "Dirige-te aos teus jogadores após o jogo.",
     "matchOver": "Jogo Terminado",
-    "ratings": "Classificações de {{team}}",
+    "performance": "Desempenho do {{team}}",
     "motm": "Melhor em Campo",
     "roundSummary": "Resumo da Jornada",
     "roundSummaryUnavailable": "Resumo da jornada indisponível.",
@@ -2528,7 +2529,7 @@
       }
     },
     "matchReport": "Relatório do jogo",
-    "playerRatings": "Avaliações",
+    "playerPerformance": "Desempenho dos jogadores",
     "tacticsTab": "Tática",
     "goalSources": "Fontes de golo",
     "openPlay": "Jogo aberto",
@@ -2679,6 +2680,7 @@
         "unsupportedFormatVersion": "Este pacote foi criado com uma versão mais recente do jogo (formato {{version}}; esta versão suporta {{supported}}). Atualize o jogo para o abrir."
       },
       "competitionDef": {
+        "invalidCalendar": "Calendário da competição inválido: verifique a família da divisão, o escalão, a fase e a data de encerramento.",
         "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
         "invalidStandalone": "O ficheiro de definição de competições selecionado é inválido.",
         "parseFailed": "Não foi possível ler o ficheiro de definição de competições como JSON.",
@@ -2793,6 +2795,7 @@
         "transferBudgetTooLow": "O orçamento de transferências é demasiado baixo",
         "playerNotOwnedByUser": "Jogador não encontrado ou não te pertence",
         "offerNotPending": "Oferta não encontrada ou já não está pendente",
+        "loanBorrowerCannotAffordWages": "O clube de destino não consegue pagar esta parte do salário. O orçamento salarial semanal é {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "A contraproposta tem de superar a oferta atual",
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo tem de melhorar a oferta atual",
         "playerNotLoanListed": "O jogador não está listado para empréstimo",
@@ -3383,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Transferência Concluída: {{player}}",
-        "body": "A transferência de {{player}} foi concluída por um valor de {{fee}}.\n\nO jogador juntou-se ao plantel e está disponível para ser utilizado."
+        "body": "A transferência de {{player}} foi concluída por um valor de {{fee}}.\n\nO jogador juntou-se ao plantel e está disponível para ser utilizado.",
+        "bodySold": "A transferência de {{player}} para {{buyer}} foi concluída por {{fee}}. O jogador deixou o plantel e juntou-se a {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transferência acordada: {{player}}",
+        "body": "A transferência de {{player}} de {{seller}} para {{buyer}} foi acordada por {{fee}}. A inscrição está prevista para {{start}}."
       },
       "transferOffer": {
         "subject": "Proposta Recebida por {{player}}",
@@ -3394,6 +3402,11 @@
         "subject": "Interesse de transferência em {{player}}",
         "body": "Clubes com propostas ativas por {{player}}: {{n}}. Última consulta: {{team}} ({{fee}}). Veja as propostas no separador Transferências para responder.",
         "actionReview": "Ver propostas"
+      },
+      "loanAgreed": {
+        "subject": "Empréstimo acordado: {{player}}",
+        "bodyWithOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Opção de compra: {{fee}}.",
+        "bodyNoOption": "{{player}} será emprestado por {{parent}} a {{borrower}} de {{start}} até {{end}}. {{borrower}} suportará {{contribution}}% do salário. Sem opção de compra."
       },
       "loanOffer": {
         "subject": "Proposta de Empréstimo por {{player}}",

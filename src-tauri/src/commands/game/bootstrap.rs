@@ -9,12 +9,13 @@ use domain::stats::StatsState;
 use ofm_core::career::{begin_career, date_opening_contracts, CareerScope};
 use ofm_core::game::Game;
 
-// Only `bootstrap_game_for_mcp` needs these, and it is behind the feature.
+// Only `start_career_for_mcp` needs these, and it is behind the feature.
 #[cfg(feature = "mcp")]
 use {
     super::{
         build_game_from_world_data, default_save_name, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
+        RawStartupOptions, StartupOptions,
     },
     chrono::Datelike,
     domain::manager::Manager,
@@ -31,80 +32,60 @@ pub(crate) fn create_new_save(
     save_manager.create_save_with_stats(game, stats_state, save_name)
 }
 
-/// Bootstrap a game for MCP auto-start.
-/// Creates a manager, loads world, selects team, and saves.
-/// Returns the save ID.
 #[cfg(feature = "mcp")]
-pub fn bootstrap_game_for_mcp(
+pub const AUTO_START_NEEDS_CLUB_ERROR: &str = "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\" or \"random,team_id\" for a generated world (the same --mcp-seed gives the same team ids)";
+
+/// What an MCP client may choose when it creates a career. Everything is optional,
+/// and the defaults are the app's: this year, joining at the start of the season.
+#[cfg(feature = "mcp")]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct McpCareerOptions {
+    pub seed: Option<u64>,
+    pub start_year: Option<i32>,
+    pub start_phase: Option<String>,
+}
+
+#[cfg(feature = "mcp")]
+pub struct McpNewCareer<'a> {
+    /// A world file to load; `None`, an empty string or `"random"` generates one.
+    pub world_source: Option<&'a str>,
+    pub team_id: Option<&'a str>,
+    /// `None` leaves a snapshot's own manager as it is, or names a fresh one "Agent",
+    /// "Manager" and "England".
+    pub manager_first_name: Option<&'a str>,
+    pub manager_last_name: Option<&'a str>,
+    pub manager_nationality: Option<&'a str>,
+    pub options: McpCareerOptions,
+}
+
+/// Creates a manager and a world for an MCP client.
+///
+/// With a club (named, or already the world's manager's) the career begins and is
+/// saved, and the save id comes back. Without one the game is installed clubless,
+/// as the app's first step leaves it, and `game_select_team` finishes the job.
+#[cfg(feature = "mcp")]
+pub fn start_career_for_mcp(
     state_manager: &StateManager,
     save_manager_state: &crate::SaveManagerState,
-    world_path: &str,
-    team_id: Option<&str>,
-    manager_first_name: &str,
-    manager_last_name: &str,
-    manager_nationality: &str,
-) -> Result<String, String> {
-    // Step 1: Load world data
-    let mut world = load_world_data_from_path(world_path)?;
+    request: &McpNewCareer<'_>,
+) -> Result<Option<String>, String> {
+    let startup_options = normalize_startup_options(Some(RawStartupOptions::new(
+        request.options.start_year,
+        request.options.start_phase.clone(),
+    )))?;
+    let mut world = load_world_for_mcp(request.world_source, request.options.seed)?;
 
-    // Normalize imported world for career start (same as start_new_game does for non-random imports)
-    let bootstrap_opening_year = normalize_startup_options(None)
-        .ok()
-        .and_then(|options| game_clock_for_world(&options, &world.metadata).ok())
-        .and_then(|clock| u32::try_from(clock.start_date.year()).ok())
-        .unwrap_or_else(ofm_core::generator::default_opening_year);
-    ofm_core::generator::normalize_imported_world_for_career_start(
-        &mut world,
-        bootstrap_opening_year,
-    );
+    let opening_year = u32::try_from(
+        game_clock_for_world(&startup_options, &world.metadata)?
+            .start_date
+            .year(),
+    )
+    .unwrap_or_else(|_| ofm_core::generator::default_opening_year());
+    if is_world_file(request.world_source) {
+        ofm_core::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
+    }
 
-    // Step 2: Find the existing user manager in the world data.
-    // HistoricalSnapshot exports include the user manager (id "mgr_user") already
-    // assigned to their team. Reusing it preserves the team assignment, career
-    // history, and all manager state — no takeover/hiring logic needed.
-    // If not found (e.g. RosterBaseline world), fall back to creating a fresh one.
-    let manager = if let Some(idx) = world.managers.iter().position(|m| m.id == "mgr_user") {
-        let mut existing = world.managers.remove(idx);
-        info!(
-            "[mcp-bootstrap] Reusing existing manager {} {} (team_id={:?})",
-            existing.first_name, existing.last_name, existing.team_id
-        );
-        // Apply CLI overrides for name/nationality if provided
-        if manager_first_name != "Agent" {
-            existing.first_name = manager_first_name.to_string();
-        }
-        if manager_last_name != "Manager" {
-            existing.last_name = manager_last_name.to_string();
-        }
-        if manager_nationality != "England" {
-            existing.nationality = manager_nationality.to_string();
-        }
-        existing
-    } else {
-        // No existing user manager — create a fresh one (DOB set to make age ~45)
-        let startup_options = normalize_startup_options(None)?;
-        let reference_date = game_clock_for_world(&startup_options, &world.metadata)?
-            .current_date
-            .date_naive();
-        let dob = reference_date - chrono::Duration::days(45 * 365);
-        let dob_str = dob.format("%Y-%m-%d").to_string();
-
-        let fresh = Manager::new(
-            "mgr_user".to_string(),
-            manager_first_name.to_string(),
-            manager_last_name.to_string(),
-            dob_str,
-            manager_nationality.to_string(),
-        );
-        info!(
-            "[mcp-bootstrap] Created fresh manager {} {}",
-            fresh.first_name, fresh.last_name
-        );
-        fresh
-    };
-
-    // Step 3: Build game from world data
-    let startup_options = normalize_startup_options(None)?;
+    let manager = take_or_create_manager(&mut world, request, &startup_options)?;
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let (mut game, current_stats_state) =
         build_game_from_world_data(clock, manager, &startup_options, world);
@@ -116,50 +97,99 @@ pub fn bootstrap_game_for_mcp(
         game.manager.team_id,
     );
 
-    // Step 4: If the manager already has a team assigned (reused from world data),
-    // this resumes a career rather than starting one: nobody is choosing a club, so
-    // the clock stays where the world put it and contracts are dated against that.
-    // Otherwise a club is being chosen, which is `begin_career`'s job.
+    // A manager the world already placed at a club is resuming a career, so the
+    // clock stays where the world put it. Otherwise a club is being chosen, which
+    // is `begin_career`'s job, and it dates contracts itself after placing the clock.
     let stats_state = if game.manager.team_id.is_some() {
         date_opening_contracts(&mut game, None);
         ofm_core::ai_hiring::seed_ai_managers(&mut game);
         ofm_core::season_context::refresh_game_context(&mut game);
         ofm_core::transfers::seed_opening_ai_loan_market(&mut game);
         current_stats_state
+    } else if let Some(team_id) = request.team_id {
+        begin_career(
+            &mut game,
+            team_id,
+            CareerScope::default(),
+            current_stats_state,
+        )?
     } else {
-        // Manager has no team — need an explicit team_id to assign one
-        let tid = team_id.ok_or(
-            "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\""
-                .to_string(),
-        )?;
-        // Not dated first: `begin_career` dates contracts itself, after deciding
-        // where the clock goes. Dating them here would stamp starts against a clock
-        // that then moves back past them.
-        begin_career(&mut game, tid, CareerScope::default(), current_stats_state)?
+        crate::application::career::install_career(state_manager, game, current_stats_state, None);
+        return Ok(None);
     };
 
-    info!(
-        "[mcp-bootstrap] Manager assigned to team_id={:?}",
-        game.manager.team_id
-    );
-
-    // Step 5: Create initial save
     let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
     let save_name = default_save_name(&manager_name);
     let mut sm = map_save_manager_lock_error(save_manager_state.0.lock())?;
     let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
 
-    // Step 6: Set state
     crate::application::career::install_career(
         state_manager,
         game,
         stats_state,
         Some(save_id.clone()),
     );
-
     info!("[mcp-bootstrap] Game saved with ID: {}", save_id);
+    Ok(Some(save_id))
+}
 
-    Ok(save_id)
+#[cfg(feature = "mcp")]
+fn is_world_file(world_source: Option<&str>) -> bool {
+    !matches!(world_source, None | Some("") | Some("random"))
+}
+
+#[cfg(feature = "mcp")]
+fn load_world_for_mcp(
+    world_source: Option<&str>,
+    seed: Option<u64>,
+) -> Result<ofm_core::generator::WorldData, String> {
+    if !is_world_file(world_source) {
+        let seed = seed.unwrap_or_else(rand::random);
+        return Ok(ofm_core::generator::generate_world_data_seeded_with(
+            seed,
+            &ofm_core::generator::WorldGenConfig::compact(),
+            &ofm_core::generator::DefinitionSources::embedded_only(),
+        ));
+    }
+    let mut world = load_world_data_from_path(world_source.unwrap_or_default())?;
+    if seed.is_some() {
+        world.generation_seed = seed;
+    }
+    Ok(world)
+}
+
+/// A snapshot's own `mgr_user` keeps its club and history; anything else gets a
+/// fresh 45-year-old manager.
+#[cfg(feature = "mcp")]
+fn take_or_create_manager(
+    world: &mut ofm_core::generator::WorldData,
+    request: &McpNewCareer<'_>,
+    startup_options: &StartupOptions,
+) -> Result<Manager, String> {
+    if let Some(idx) = world.managers.iter().position(|m| m.id == "mgr_user") {
+        let mut existing = world.managers.remove(idx);
+        if let Some(first_name) = request.manager_first_name {
+            existing.first_name = first_name.to_string();
+        }
+        if let Some(last_name) = request.manager_last_name {
+            existing.last_name = last_name.to_string();
+        }
+        if let Some(nationality) = request.manager_nationality {
+            existing.nationality = nationality.to_string();
+        }
+        return Ok(existing);
+    }
+    let reference_date = game_clock_for_world(startup_options, &world.metadata)?
+        .current_date
+        .date_naive();
+    let dob = reference_date - chrono::Duration::days(45 * 365);
+    Ok(Manager::new(
+        "mgr_user".to_string(),
+        request.manager_first_name.unwrap_or("Agent").to_string(),
+        request.manager_last_name.unwrap_or("Manager").to_string(),
+        dob.format("%Y-%m-%d").to_string(),
+        request.manager_nationality.unwrap_or("England").to_string(),
+    ))
 }
 
 #[cfg(test)]
@@ -188,5 +218,256 @@ mod tests {
         assert_eq!(loaded_stats.team_matches[0].team_id, "team1");
 
         std::fs::remove_dir_all(&saves_dir).unwrap();
+    }
+}
+
+#[cfg(all(test, feature = "mcp"))]
+mod mcp_career_tests {
+    use super::*;
+    use ofm_core::career::{start_phase_for_game, StartPhase};
+
+    struct Sandbox {
+        state: StateManager,
+        saves: crate::SaveManagerState,
+        _dir: tempfile::TempDir,
+    }
+
+    fn sandbox() -> Sandbox {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = crate::SaveManagerState(std::sync::Mutex::new(
+            SaveManager::init(dir.path()).unwrap(),
+        ));
+        Sandbox {
+            state: StateManager::new(),
+            saves,
+            _dir: dir,
+        }
+    }
+
+    fn start(
+        sandbox: &Sandbox,
+        team_id: Option<&str>,
+        options: McpCareerOptions,
+    ) -> Result<Option<String>, String> {
+        start_career_for_mcp(
+            &sandbox.state,
+            &sandbox.saves,
+            &McpNewCareer {
+                world_source: None,
+                team_id,
+                manager_first_name: Some("Ada"),
+                manager_last_name: Some("Lovelace"),
+                manager_nationality: Some("England"),
+                options,
+            },
+        )
+    }
+
+    fn seeded(seed: u64) -> McpCareerOptions {
+        McpCareerOptions {
+            seed: Some(seed),
+            ..Default::default()
+        }
+    }
+
+    type Identities = (Vec<String>, Vec<String>, Vec<String>, Vec<String>);
+
+    fn identities(sandbox: &Sandbox) -> Identities {
+        sandbox
+            .state
+            .get_game(|game| {
+                (
+                    game.teams.iter().map(|t| t.id.clone()).collect(),
+                    game.players.iter().map(|p| p.id.clone()).collect(),
+                    game.competitions.iter().map(|c| c.id.clone()).collect(),
+                    game.competitions
+                        .iter()
+                        .flat_map(|c| &c.fixtures)
+                        .map(|f| format!("{} {} {}", f.date, f.home_team_id, f.away_team_id))
+                        .collect(),
+                )
+            })
+            .unwrap()
+    }
+
+    /// Given a sandbox with no game and no world file
+    /// When a career is created from a seed with no club
+    /// Then a generated world is installed, clubless, and nothing is saved.
+    #[test]
+    fn a_generated_world_needs_no_world_source() {
+        let sandbox = sandbox();
+
+        let save_id = start(&sandbox, None, seeded(7)).unwrap();
+
+        assert_eq!(save_id, None);
+        let (club, teams) = sandbox
+            .state
+            .get_game(|game| (game.manager.team_id.clone(), game.teams.len()))
+            .unwrap();
+        assert_eq!(club, None);
+        assert!(teams > 0);
+        assert_eq!(sandbox.state.get_save_id(), None);
+    }
+
+    /// Given two sandboxes
+    /// When both generate from one seed, and a third from another
+    /// Then team, player and competition ids agree for the first two and differ for the third.
+    #[test]
+    fn the_same_seed_gives_the_same_core() {
+        let (one, two, other) = (sandbox(), sandbox(), sandbox());
+        start(&one, None, seeded(7)).unwrap();
+        start(&two, None, seeded(7)).unwrap();
+        start(&other, None, seeded(8)).unwrap();
+
+        assert!(
+            !identities(&one).3.is_empty(),
+            "the world has fixtures to compare"
+        );
+        assert_eq!(identities(&one), identities(&two));
+        assert_ne!(identities(&one).0, identities(&other).0);
+        assert_eq!(one.state.get_game(|g| g.seed), Some(7));
+    }
+
+    /// Given a generated world and a club chosen from it
+    /// When the career starts at seasonStart and at midSeason in 2030
+    /// Then each opens in 2030 in its own phase, and is saved.
+    #[test]
+    fn the_start_options_reach_the_career() {
+        let probe = sandbox();
+        start(&probe, None, seeded(7)).unwrap();
+        let club = probe.state.get_game(|g| g.teams[0].id.clone()).unwrap();
+
+        for (phase, expected) in [
+            ("seasonStart", StartPhase::SeasonStart),
+            ("midSeason", StartPhase::MidSeason),
+        ] {
+            let sandbox = sandbox();
+            let options = McpCareerOptions {
+                seed: Some(7),
+                start_year: Some(2030),
+                start_phase: Some(phase.to_string()),
+            };
+
+            let save_id = start(&sandbox, Some(&club), options).unwrap();
+
+            assert!(save_id.is_some());
+            let (year, started) = sandbox
+                .state
+                .get_game(|g| {
+                    (
+                        chrono::Datelike::year(&g.clock.current_date),
+                        start_phase_for_game(g),
+                    )
+                })
+                .unwrap();
+            assert_eq!((year, started), (2030, expected));
+        }
+    }
+
+    /// Given no career
+    /// When creation is asked for an invalid phase
+    /// Then it is refused, no game is installed, and a valid creation then succeeds.
+    #[test]
+    fn an_invalid_phase_is_refused() {
+        let sandbox = sandbox();
+        let bad = McpCareerOptions {
+            start_phase: Some("nextWeek".to_string()),
+            ..seeded(7)
+        };
+
+        let refused = start(&sandbox, None, bad);
+
+        assert_eq!(
+            refused.unwrap_err(),
+            "be.error.createManager.invalidStartPhase"
+        );
+        assert!(sandbox.state.get_game(|_| ()).is_none());
+        assert!(start(&sandbox, None, seeded(7)).is_ok());
+    }
+
+    /// Given a club that is not in the generated world
+    /// When the career is created for it
+    /// Then it is refused and nothing is installed or saved.
+    #[test]
+    fn an_unknown_club_installs_nothing() {
+        let sandbox = sandbox();
+
+        let refused = start(&sandbox, Some("no_such_team"), seeded(7));
+
+        assert_eq!(refused.unwrap_err(), "be.error.teamNotFound");
+        assert!(sandbox.state.get_game(|_| ()).is_none());
+        assert_eq!(sandbox.state.get_save_id(), None);
+    }
+
+    fn world_with_a_snapshot_manager() -> ofm_core::generator::WorldData {
+        let mut world = ofm_core::generator::WorldData::default();
+        world.managers.push(Manager::new(
+            "mgr_user".to_string(),
+            "Grace".to_string(),
+            "Hopper".to_string(),
+            "1980-01-01".to_string(),
+            "Scotland".to_string(),
+        ));
+        world
+    }
+
+    fn named(
+        first: Option<&'static str>,
+        last: Option<&'static str>,
+        nationality: Option<&'static str>,
+    ) -> McpNewCareer<'static> {
+        McpNewCareer {
+            world_source: None,
+            team_id: None,
+            manager_first_name: first,
+            manager_last_name: last,
+            manager_nationality: nationality,
+            options: McpCareerOptions::default(),
+        }
+    }
+
+    /// Given a snapshot whose manager is "Grace Hopper" of Scotland
+    /// When the caller explicitly names "Agent", "Manager" and "England"
+    /// Then those names are used, because only an absent name keeps the snapshot's.
+    #[test]
+    fn an_explicit_name_equal_to_the_default_still_overrides() {
+        let startup = normalize_startup_options(None).unwrap();
+        let mut world = world_with_a_snapshot_manager();
+
+        let manager = take_or_create_manager(
+            &mut world,
+            &named(Some("Agent"), Some("Manager"), Some("England")),
+            &startup,
+        )
+        .unwrap();
+
+        assert_eq!(
+            (manager.first_name, manager.last_name, manager.nationality),
+            (
+                "Agent".to_string(),
+                "Manager".to_string(),
+                "England".to_string()
+            )
+        );
+    }
+
+    /// Given a snapshot manager and a caller who names nobody
+    /// When the manager is taken
+    /// Then the snapshot's manager is kept as it was.
+    #[test]
+    fn an_absent_name_keeps_the_snapshots_manager() {
+        let startup = normalize_startup_options(None).unwrap();
+        let mut world = world_with_a_snapshot_manager();
+
+        let manager =
+            take_or_create_manager(&mut world, &named(None, None, None), &startup).unwrap();
+
+        assert_eq!(manager.first_name, "Grace");
+        assert_eq!(manager.nationality, "Scotland");
+    }
+
+    #[test]
+    fn the_auto_start_error_explains_the_generated_form() {
+        assert!(AUTO_START_NEEDS_CLUB_ERROR.contains("random,team_id"));
     }
 }

@@ -1,3 +1,10 @@
+/** Attribute keys a training focus can improve, by natural position group. */
+export interface TrainingFocusAttributesData {
+  focus: string;
+  outfield: string[];
+  goalkeeper: string[];
+}
+
 /** One training group as the backend stores it. */
 export interface TrainingGroupData {
   id: string;
@@ -632,7 +639,23 @@ export interface TransferRumourData {
   team_name: string;
 }
 
+/** The authored season specification shared by package definitions and runtime calendars. */
+export interface CompetitionCalendarData {
+  division?: { familyId: string; tier: number; phase: "annual" | "opening" | "closing" } | null;
+  windowEnd?: { month: number; day: number } | null;
+}
+
 export interface LeagueData {
+  calendar?: {
+    definition_id: string;
+    edition_basis:
+      | { kind: "calendarYear" }
+      | { kind: "legacyOrdinal"; season_at_opener: number; opener_year: number }
+      | { kind: "unresolved" };
+    league_legs: number | null;
+    matchday_gap_days: number | null;
+    season: CompetitionCalendarData;
+  } | null;
   id: string;
   name: string;
   kind?: string;

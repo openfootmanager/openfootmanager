@@ -15,8 +15,16 @@ import {
 } from "./TransfersDealDialogs";
 export default function TransfersTab(props: TransfersTabProps) {
   const state = useTransfersTabController(props);
-  const { t, view, availabilityFilter, filteredList, scoutError, isScoutingView, listingError } =
-    state;
+  const {
+    t,
+    view,
+    availabilityFilter,
+    filteredList,
+    scoutError,
+    isScoutingView,
+    listingError,
+    responseError,
+  } = state;
   return (
     <div>
       {/* Budget header */}
@@ -42,6 +50,15 @@ export default function TransfersTab(props: TransfersTabProps) {
           className="mb-4 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
         >
           {listingError}
+        </p>
+      ) : null}
+
+      {responseError && view === "offers" ? (
+        <p
+          role="alert"
+          className="mb-4 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
+        >
+          {responseError}
         </p>
       ) : null}
 

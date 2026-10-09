@@ -918,6 +918,7 @@
     "aTrainingDay": "训练日",
     "aRestDay": "休息日",
     "currentlyTraining": "当前训练内容:<strong>{{attrs}}</strong>,强度 <strong>{{intensity}}</strong>。",
+    "goalkeepersLabel": "门将",
     "recoveryNote": "球员每天都将专注于休息与状态恢复。",
     "effectiveFocus": "重点",
     "trainingAppliedNote": "训练会在你推进日期时的训练日生效。休息日可完全恢复。",
@@ -2018,7 +2019,7 @@
     "postMatchTeamTalk": "赛后讲话",
     "addressPlayers": "在赛后对球员发表讲话。",
     "matchOver": "比赛结束",
-    "ratings": "{{team}} 评分",
+    "performance": "{{team}} 表现",
     "motm": "全场最佳",
     "roundSummary": "本轮综述",
     "roundSummaryUnavailable": "本轮综述暂不可用。",
@@ -2528,7 +2529,7 @@
       }
     },
     "matchReport": "比赛报告",
-    "playerRatings": "球员评分",
+    "playerPerformance": "球员表现",
     "tacticsTab": "战术",
     "goalSources": "进球来源",
     "openPlay": "进攻中的进球",
@@ -2679,6 +2680,7 @@
         "unsupportedFormatVersion": "此扩展包由更新版本的游戏创建（格式 {{version}}，本版本支持 {{supported}}）。请更新游戏后再打开。"
       },
       "competitionDef": {
+        "invalidCalendar": "赛事日历无效：请检查联赛系列、级别、阶段和结束日期。",
         "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
         "invalidStandalone": "所选的赛事定义文件无效。",
         "parseFailed": "无法将赛事定义文件解析为 JSON。",
@@ -2793,6 +2795,7 @@
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",
+        "loanBorrowerCannotAffordWages": "租借俱乐部负担不起这部分薪资。其每周薪资预算为 {{budget}}。",
         "counterOfferMustExceedCurrentOffer": "还价必须高于当前报价",
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
         "playerNotLoanListed": "该球员未被列入租借名单",
@@ -3383,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "转会完成：{{player}}",
-        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。"
+        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。",
+        "bodySold": "{{player}}转会至{{buyer}}已完成，转会费为{{fee}}。该球员已离开球队并加入{{buyer}}。"
+      },
+      "transferAgreed": {
+        "subject": "转会已达成：{{player}}",
+        "body": "{{player}}从{{seller}}转会至{{buyer}}的协议已达成，转会费为{{fee}}。预计于{{start}}注册。"
       },
       "transferOffer": {
         "subject": "收到对{{player}}的报价",
@@ -3394,6 +3402,11 @@
         "subject": "对 {{player}} 的转会兴趣",
         "body": "对 {{player}} 提出有效报价的俱乐部：{{n}}。最新询问：{{team}}（{{fee}}）。请在转会标签页查看报价并回应。",
         "actionReview": "查看报价"
+      },
+      "loanAgreed": {
+        "subject": "租借已达成：{{player}}",
+        "bodyWithOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。买断选项：{{fee}}。",
+        "bodyNoOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。无买断选项。"
       },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",

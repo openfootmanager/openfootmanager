@@ -918,6 +918,7 @@
     "aTrainingDay": "hari latihan",
     "aRestDay": "hari istirahat",
     "currentlyTraining": "Saat ini berlatih: <strong>{{attrs}}</strong> pada intensitas <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Kiper",
     "recoveryNote": "Pemain akan fokus pada istirahat dan pemulihan kondisi di semua hari.",
     "effectiveFocus": "Fokus",
     "trainingAppliedNote": "Latihan diterapkan pada hari latihan terjadwal saat kamu melanjutkan waktu. Hari istirahat memberikan pemulihan penuh.",
@@ -2052,7 +2053,7 @@
     "postMatchTeamTalk": "Sesi Tim Pascapertandingan",
     "addressPlayers": "Sapa para pemain setelah pertandingan.",
     "matchOver": "Pertandingan Selesai",
-    "ratings": "Rating {{team}}",
+    "performance": "Performa {{team}}",
     "motm": "Pemain Terbaik",
     "roundSummary": "Ringkasan Pekan",
     "roundSummaryUnavailable": "Ringkasan pekan tidak tersedia.",
@@ -2528,7 +2529,7 @@
       }
     },
     "matchReport": "Laporan Pertandingan",
-    "playerRatings": "Rating Pemain",
+    "playerPerformance": "Performa Pemain",
     "tacticsTab": "Taktik",
     "goalSources": "Sumber Gol",
     "openPlay": "Permainan Terbuka",
@@ -2704,6 +2705,7 @@
         "fallbackTeamsFilled": "Hanya satu tim yang didefinisikan. Lawan prosedural dihasilkan secara otomatis agar permainan dapat dimainkan."
       },
       "competitionDef": {
+        "invalidCalendar": "Kalender kompetisi tidak valid: periksa kelompok divisi, tingkat, fase, dan tanggal penutupan.",
         "invalidEmbedded": "Definisi kompetisi dunia ini tidak valid dan tidak dapat dimuat.",
         "invalidStandalone": "Berkas definisi kompetisi yang dipilih tidak valid.",
         "parseFailed": "Berkas definisi kompetisi tidak dapat dibaca sebagai JSON.",
@@ -2801,6 +2803,7 @@
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
+        "loanBorrowerCannotAffordWages": "Klub peminjam tidak sanggup membayar porsi gaji ini. Anggaran gaji mingguannya adalah {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Tawaran balasan harus melebihi tawaran saat ini",
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
         "playerNotLoanListed": "Pemain tidak terdaftar untuk dipinjamkan",
@@ -3383,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Selesai: {{player}}",
-        "body": "Transfer {{player}} telah selesai dengan biaya {{fee}}.\n\nPemain telah bergabung dengan skuad dan tersedia untuk dipilih."
+        "body": "Transfer {{player}} telah selesai dengan biaya {{fee}}.\n\nPemain telah bergabung dengan skuad dan tersedia untuk dipilih.",
+        "bodySold": "Transfer {{player}} ke {{buyer}} telah selesai dengan biaya {{fee}}. Pemain telah meninggalkan skuad dan bergabung dengan {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfer disepakati: {{player}}",
+        "body": "Transfer {{player}} dari {{seller}} ke {{buyer}} telah disepakati dengan biaya {{fee}}. Pendaftaran dijadwalkan pada {{start}}."
       },
       "transferOffer": {
         "subject": "Tawaran Masuk untuk {{player}}",
@@ -3394,6 +3402,11 @@
         "subject": "Minat Transfer pada {{player}}",
         "body": "Klub dengan tawaran aktif untuk {{player}}: {{n}}. Pertanyaan terbaru: {{team}} ({{fee}}). Tinjau tawaran di tab Transfer untuk merespons.",
         "actionReview": "Tinjau Tawaran"
+      },
+      "loanAgreed": {
+        "subject": "Pinjaman disepakati: {{player}}",
+        "bodyWithOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Opsi pembelian: {{fee}}.",
+        "bodyNoOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Tanpa opsi pembelian."
       },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",

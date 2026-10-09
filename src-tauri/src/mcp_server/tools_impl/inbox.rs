@@ -1,5 +1,10 @@
 //! MCP tool implementations: inbox
 
+use mcp_results::inbox::{
+    ActionResolved, AllMessagesMarkedRead, InboxMessage, InboxMessages, MessageDeleted,
+    MessageMarkedRead, OldMessagesCleared,
+};
+
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
 use std::sync::Arc;
@@ -10,7 +15,7 @@ pub fn inbox_get_messages(
     ctx: Arc<McpContext>,
     category: Option<String>,
     unread_only: Option<bool>,
-) -> Result<String, String> {
+) -> Result<InboxMessages, String> {
     let game = require_game(&ctx.state_manager)?;
 
     // Agents see the same inbox the player does, which means mail dated ahead of
@@ -37,30 +42,29 @@ pub fn inbox_get_messages(
         })
         .collect();
 
-    if messages.is_empty() {
-        return Ok("## Inbox\n\nNo messages.".to_string());
-    }
-
-    let mut output = format!("## Inbox ({} messages)\n\n| ID | Subject | Category | Read | Date |\n|----|---------|----------|------|------|\n", messages.len());
-    for m in messages.iter().take(20) {
-        let read_marker = if m.read { "✓" } else { "●" };
-        output.push_str(&format!(
-            "| {} | {} | {:?} | {} | {} |\n",
-            m.id, m.subject, m.category, read_marker, m.date,
-        ));
-    }
-    if messages.len() > 20 {
-        output.push_str(&format!("\n... and {} more.", messages.len() - 20));
-    }
-
-    Ok(output)
+    Ok(InboxMessages {
+        messages: messages
+            .into_iter()
+            .map(|m| InboxMessage {
+                id: m.id.clone(),
+                subject: m.subject.clone(),
+                // Spelled as the `category` filter accepts it.
+                category: format!("{:?}", m.category),
+                read: m.read,
+                date: m.date.clone(),
+            })
+            .collect(),
+    })
 }
 
 // ─── inbox_mark_read ────────────────────────────────────────────────────────
 
 // ─── inbox_mark_read ────────────────────────────────────────────────────────
 
-pub fn inbox_mark_read(ctx: Arc<McpContext>, message_id: String) -> Result<String, String> {
+pub fn inbox_mark_read(
+    ctx: Arc<McpContext>,
+    message_id: String,
+) -> Result<MessageMarkedRead, String> {
     crate::commands::messages::mark_message_read_internal(&ctx.state_manager, &message_id)?;
 
     {
@@ -68,14 +72,14 @@ pub fn inbox_mark_read(ctx: Arc<McpContext>, message_id: String) -> Result<Strin
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok("Message marked as read.".to_string())
+    Ok(MessageMarkedRead { message_id })
 }
 
 // ─── inbox_mark_all_read ────────────────────────────────────────────────────
 
 // ─── inbox_mark_all_read ────────────────────────────────────────────────────
 
-pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<AllMessagesMarkedRead, String> {
     crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager)?;
 
     {
@@ -83,14 +87,14 @@ pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<String, String> {
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok("All messages marked as read.".to_string())
+    Ok(AllMessagesMarkedRead {})
 }
 
 // ─── inbox_delete ───────────────────────────────────────────────────────────
 
 // ─── inbox_delete ───────────────────────────────────────────────────────────
 
-pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<String, String> {
+pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<MessageDeleted, String> {
     crate::commands::messages::delete_message_internal(&ctx.state_manager, &message_id)?;
 
     {
@@ -98,14 +102,14 @@ pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<String, 
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok("Message deleted.".to_string())
+    Ok(MessageDeleted { message_id })
 }
 
 // ─── inbox_clear_old ────────────────────────────────────────────────────────
 
 // ─── inbox_clear_old ────────────────────────────────────────────────────────
 
-pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<OldMessagesCleared, String> {
     crate::commands::messages::clear_old_messages_internal(&ctx.state_manager)?;
 
     {
@@ -113,7 +117,7 @@ pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<String, String> {
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok("Old messages cleared.".to_string())
+    Ok(OldMessagesCleared {})
 }
 
 // ─── inbox_resolve_action ───────────────────────────────────────────────────
@@ -125,7 +129,7 @@ pub fn inbox_resolve_action(
     message_id: String,
     action_id: String,
     option_id: Option<String>,
-) -> Result<String, String> {
+) -> Result<ActionResolved, String> {
     crate::commands::messages::resolve_message_action_internal(
         &ctx.state_manager,
         &message_id,
@@ -138,10 +142,10 @@ pub fn inbox_resolve_action(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Action Resolved\n\nMessage {} — action {} completed.",
-        message_id, action_id
-    ))
+    Ok(ActionResolved {
+        message_id,
+        action_id,
+    })
 }
 
 // ─── info_player_profile ────────────────────────────────────────────────────

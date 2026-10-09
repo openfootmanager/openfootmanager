@@ -1,11 +1,12 @@
 //! Real implementations for MCP tools.
 //!
-//! Each function takes `Arc<McpContext>` and returns formatted text.
-//! They call the same `*_internal` functions used by Tauri commands,
-//! then format the result as markdown for agent readability.
+//! Each function takes `Arc<McpContext>` and returns the tool's result struct from the
+//! `mcp-results` crate, whose `Display` is the markdown an agent reads and whose `Serialize`
+//! is the `structuredContent`. They call the same `*_internal` functions used by Tauri commands.
 //!
 //! ⚠️  WHEN ADDING A NEW TOOL IMPLEMENTATION:
 //!     - Add the `pub fn` in the appropriate sub-module (or create a new one)
+//!     - Add its result struct to `crates/mcp-results` (a tool cannot return anything else)
 //!     - If the tool mutates game state, emit `"game-state-changed"` via
 //!       `ctx.app_handle.emit("game-state-changed", ())` so the GUI refreshes
 //!     - Register the tool in `tools.rs` `build_tool_router()`

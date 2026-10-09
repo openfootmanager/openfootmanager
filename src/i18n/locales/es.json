@@ -918,6 +918,7 @@
     "aTrainingDay": "día de entrenamiento",
     "aRestDay": "día de descanso",
     "currentlyTraining": "Entrenando: <strong>{{attrs}}</strong> con intensidad <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Porteros",
     "recoveryNote": "Los jugadores se centrarán en descanso y recuperación todos los días.",
     "effectiveFocus": "Enfoque",
     "trainingAppliedNote": "El entrenamiento se aplica los días programados al avanzar el tiempo. Los días de descanso proporcionan recuperación total.",
@@ -2018,7 +2019,7 @@
     "postMatchTeamTalk": "Charla Post-Partido",
     "addressPlayers": "Dirígete a tus jugadores después del partido.",
     "matchOver": "Partido Terminado",
-    "ratings": "Calificaciones de {{team}}",
+    "performance": "Rendimiento de {{team}}",
     "motm": "Mejor del Partido",
     "roundSummary": "Resumen de la Jornada",
     "roundSummaryUnavailable": "No hay resumen de la jornada disponible.",
@@ -2528,7 +2529,7 @@
       }
     },
     "matchReport": "Informe del partido",
-    "playerRatings": "Valoraciones",
+    "playerPerformance": "Rendimiento de jugadores",
     "tacticsTab": "Táctica",
     "goalSources": "Fuentes de gol",
     "openPlay": "Juego abierto",
@@ -2679,6 +2680,7 @@
         "unsupportedFormatVersion": "Este paquete se creó con una versión más reciente del juego (formato {{version}}; esta versión admite {{supported}}). Actualiza el juego para abrirlo."
       },
       "competitionDef": {
+        "invalidCalendar": "Calendario de competición no válido: comprueba la familia de divisiones, el nivel, la fase y la fecha de cierre.",
         "invalidEmbedded": "Las definiciones de competiciones de este mundo no son válidas y no se pudieron cargar.",
         "invalidStandalone": "El archivo de definición de competiciones seleccionado no es válido.",
         "parseFailed": "No se pudo leer el archivo de definición de competiciones como JSON.",
@@ -2793,6 +2795,7 @@
         "transferBudgetTooLow": "El presupuesto de fichajes es demasiado bajo",
         "playerNotOwnedByUser": "Jugador no encontrado o no te pertenece",
         "offerNotPending": "Oferta no encontrada o ya no está pendiente",
+        "loanBorrowerCannotAffordWages": "El club que recibe al jugador a préstamo no puede asumir esta parte del salario. Su presupuesto salarial semanal es {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "La contraoferta debe superar la oferta actual",
         "loanCounterMustImproveTerms": "La contraoferta de cesión debe mejorar la oferta actual",
         "playerNotLoanListed": "El jugador no está listado para cesión",
@@ -3383,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Fichaje Completado: {{player}}",
-        "body": "El fichaje de {{player}} se ha completado por una cantidad de {{fee}}.\n\nEl jugador se ha unido a la plantilla y está disponible para ser convocado."
+        "body": "El fichaje de {{player}} se ha completado por una cantidad de {{fee}}.\n\nEl jugador se ha unido a la plantilla y está disponible para ser convocado.",
+        "bodySold": "El traspaso de {{player}} a {{buyer}} se ha completado por {{fee}}. El jugador ha dejado la plantilla y se ha unido a {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Traspaso acordado: {{player}}",
+        "body": "Se ha acordado el traspaso de {{player}} de {{seller}} a {{buyer}} por {{fee}}. La inscripción está prevista para el {{start}}."
       },
       "transferOffer": {
         "subject": "Oferta Entrante por {{player}}",
@@ -3394,6 +3402,11 @@
         "subject": "Interés de traspaso por {{player}}",
         "body": "Clubes con ofertas activas por {{player}}: {{n}}. Última consulta: {{team}} ({{fee}}). Revisa las ofertas en la pestaña Traspasos para responder.",
         "actionReview": "Ver ofertas"
+      },
+      "loanAgreed": {
+        "subject": "Cesión acordada: {{player}}",
+        "bodyWithOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Opción de compra: {{fee}}.",
+        "bodyNoOption": "{{player}} irá cedido de {{parent}} a {{borrower}} desde el {{start}} hasta el {{end}}. {{borrower}} cubrirá el {{contribution}}% del salario. Sin opción de compra."
       },
       "loanOffer": {
         "subject": "Oferta de cesión por {{player}}",

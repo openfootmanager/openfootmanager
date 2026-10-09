@@ -74,6 +74,9 @@ pub(super) fn build_foundation_competition_plan(
     division_size: usize,
 ) -> Vec<(crate::generator::CompetitionDefinition, DateTime<Utc>)> {
     use crate::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
+    use domain::competition_calendar::{
+        CalendarDate, DivisionIdentity, SeasonCalendar, SeasonPhase,
+    };
     use domain::league::{Berth, BerthRule};
     use std::collections::BTreeMap;
 
@@ -185,6 +188,22 @@ pub(super) fn build_foundation_competition_plan(
                         season_start_day: Some(1),
                         name_key: None,
                         logo: None,
+                        calendar: Some(SeasonCalendar {
+                            division: Some(DivisionIdentity {
+                                family_id: format!("{country_slug}-league"),
+                                tier: (tier + 1) as u32,
+                                phase: if month == 2 {
+                                    SeasonPhase::Opening
+                                } else {
+                                    SeasonPhase::Closing
+                                },
+                            }),
+                            window_end: Some(if month == 2 {
+                                CalendarDate { month: 6, day: 30 }
+                            } else {
+                                CalendarDate { month: 1, day: 31 }
+                            }),
+                        }),
                     }
                 };
                 let tier_suffix = format!("d{}", tier + 1);
@@ -264,6 +283,14 @@ pub(super) fn build_foundation_competition_plan(
                         }),
                         name_key: Some(division_tier_name_key(tier, division_count).to_string()),
                         logo: None,
+                        calendar: Some(SeasonCalendar {
+                            division: Some(DivisionIdentity {
+                                family_id: format!("{country_slug}-league"),
+                                tier: (tier + 1) as u32,
+                                phase: SeasonPhase::Annual,
+                            }),
+                            window_end: None,
+                        }),
                     },
                     actual_start,
                 ));
@@ -300,6 +327,7 @@ pub(super) fn build_foundation_competition_plan(
                 season_start_day: Some(cup_actual_start.day() as u8),
                 name_key: Some("tournaments.competitions.nationalCup".to_string()),
                 logo: None,
+                calendar: None,
             },
             cup_actual_start,
         ));
@@ -385,6 +413,7 @@ pub(super) fn build_foundation_competition_plan(
                         season_start_day: Some(11),
                         name_key: Some(name_key.to_string()),
                         logo: None,
+                        calendar: None,
                     },
                     state_start,
                 ));
@@ -433,6 +462,7 @@ pub(super) fn build_foundation_competition_plan(
                 season_start_month: Some(10),
                 season_start_day: Some(1),
                 logo: None,
+                calendar: None,
             },
             continental_start,
         ));
@@ -488,5 +518,95 @@ mod tests {
     #[test]
     fn default_size_keeps_the_original_fifty_club_layout() {
         assert_eq!(league_sizes(50, TOP_DIVISION_SIZE), vec![20, 20, 10]);
+    }
+    #[test]
+    fn generated_calendar_halves_declare_shared_family_and_distinct_windows() {
+        let teams = (0..40)
+            .map(|i| nation_team(&format!("ar-{i}"), "AR", 1000 - i))
+            .collect();
+        let start = start_date_for_year(2033).unwrap();
+        let game = Game::new(
+            GameClock::new(start),
+            manager_for("ar-0"),
+            teams,
+            vec![],
+            vec![],
+            vec![],
+        );
+        let plan = build_foundation_competition_plan(&game, start, 20);
+        assert_eq!(
+            plan.iter()
+                .filter(|(d, _)| d.country_id.as_deref() == Some("AR")
+                    && d.r#type == CompetitionType::League)
+                .count(),
+            4
+        );
+        for (definition, _) in plan.iter().filter(|(d, _)| {
+            d.country_id.as_deref() == Some("AR") && d.r#type == CompetitionType::League
+        }) {
+            let value = serde_json::to_value(definition).unwrap();
+            let phase = if definition.id.ends_with("-apertura") {
+                "opening"
+            } else {
+                "closing"
+            };
+            assert_eq!(value["calendar"]["division"]["familyId"], "ar-league");
+            assert_eq!(value["calendar"]["division"]["phase"], phase);
+            assert_eq!(
+                value["calendar"]["division"]["tier"],
+                if definition.id.contains("d1") { 1 } else { 2 }
+            );
+            assert_eq!(
+                value["calendar"]["windowEnd"],
+                if phase == "opening" {
+                    serde_json::json!({"month":6,"day":30})
+                } else {
+                    serde_json::json!({"month":1,"day":31})
+                }
+            );
+            assert_eq!(definition.season_start_day, Some(1));
+            assert_eq!(
+                definition.season_start_month,
+                Some(if phase == "opening" { 2 } else { 7 })
+            );
+        }
+    }
+    #[test]
+    fn generated_annual_calendar_declares_tiers_without_split_phase() {
+        let teams = (0..40)
+            .map(|i| nation_team(&format!("eng-{i}"), "ENG", 1000 - i))
+            .collect();
+        let start = start_date_for_year(2033).unwrap();
+        let game = Game::new(
+            GameClock::new(start),
+            manager_for("eng-0"),
+            teams,
+            vec![],
+            vec![],
+            vec![],
+        );
+        let plan = build_foundation_competition_plan(&game, start, 20);
+        let leagues: Vec<_> = plan
+            .iter()
+            .filter(|(definition, _)| {
+                definition.country_id.as_deref() == Some("ENG")
+                    && definition.r#type == CompetitionType::League
+            })
+            .collect();
+        assert_eq!(leagues.len(), 2);
+        for (definition, _) in leagues {
+            let value = serde_json::to_value(definition).unwrap();
+            assert_eq!(value["calendar"]["division"]["familyId"], "eng-league");
+            assert_eq!(
+                value["calendar"]["division"]["tier"],
+                if definition.id.ends_with("d1") { 1 } else { 2 }
+            );
+            assert_eq!(value["calendar"]["division"]["phase"], "annual");
+            assert!(value["calendar"]["windowEnd"].is_null());
+            assert_eq!(
+                (definition.season_start_month, definition.season_start_day),
+                (Some(8), Some(1))
+            );
+        }
     }
 }
