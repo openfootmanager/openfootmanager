@@ -46,7 +46,11 @@ describe("PlayerProfileAttributesCard", () => {
   it("shows the scouted attributes with the date they were scouted", () => {
     renderCard({
       attributesVisible: true,
-      scoutNote: { scoutedLabel: "Scouted on 10 Sep 2026", outOfDate: false, outOfDateLabel: "Out of date" },
+      scoutNote: {
+        scoutedLabel: "Scouted on 10 Sep 2026",
+        outOfDate: false,
+        outOfDateLabel: "Out of date",
+      },
     });
 
     expect(screen.getByText("Scouted on 10 Sep 2026")).toBeInTheDocument();
@@ -62,7 +66,11 @@ describe("PlayerProfileAttributesCard", () => {
   it("marks an old report as out of date", () => {
     renderCard({
       attributesVisible: true,
-      scoutNote: { scoutedLabel: "Scouted on 10 Mar 2026", outOfDate: true, outOfDateLabel: "Out of date" },
+      scoutNote: {
+        scoutedLabel: "Scouted on 10 Mar 2026",
+        outOfDate: true,
+        outOfDateLabel: "Out of date",
+      },
     });
 
     expect(screen.getByText("Out of date")).toBeInTheDocument();
