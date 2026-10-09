@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use rmcp::handler::server::tool::ToolRoute;
-use rmcp::model::{CallToolResult, ContentBlock, Tool};
+use rmcp::model::{CallToolResult, Tool};
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::result::Failure;
+use crate::mcp_server::result::{success, Failure};
 use crate::mcp_server::tools_impl;
 
 /// Type alias for our tool router.
@@ -127,10 +127,6 @@ fn simple_tool(name: &'static str, description: &'static str) -> Tool {
 }
 
 // ─── Result helpers ─────────────────────────────────────────────────────────
-
-fn text_result(text: String) -> CallToolResult {
-    CallToolResult::success(vec![ContentBlock::text(text)])
-}
 
 fn err_result(e: &str) -> CallToolResult {
     Failure::from_backend_error(e).into_result()
@@ -340,7 +336,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                         let ctx = ctx.clone();
                         Box::pin(async move {
                             match $fn(ctx) {
-                                Ok(text) => Ok(text_result(text)),
+                                Ok(value) => Ok(success(value)),
                                 Err(e) => Ok(err_result(&e)),
                             }
                         })
@@ -369,7 +365,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                                 Err(e) => return Ok(e),
                             };
                             match $fn(ctx, $param_key) {
-                                Ok(text) => Ok(text_result(text)),
+                                Ok(value) => Ok(success(value)),
                                 Err(e) => Ok(err_result(&e)),
                             }
                         })
@@ -405,13 +401,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     if !disabled.contains(&"ping".to_string()) {
         router.add_route(ToolRoute::new_dyn(
             simple_tool("ping", "Check if the MCP server is alive and responding"),
-            |_context| {
-                Box::pin(async {
-                    Ok(text_result(
-                        "Pong! OpenFoot Manager MCP server is alive.".to_string(),
-                    ))
-                })
-            },
+            |_context| Box::pin(async { Ok(success(tools_impl::help::ping())) }),
         ));
     }
 
@@ -673,7 +663,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::squad::squad_set_formation(ctx, formation) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -696,7 +686,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         {
             let pids = extract_string_array_param(args, "player_ids").unwrap_or_default();
             match tools_impl::squad::squad_set_starting_xi(ctx, pids) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -722,7 +712,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::squad::squad_set_play_style(ctx, style) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -753,7 +743,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 extract_string_param(args, "free_kick_taker"),
                 extract_string_param(args, "corner_taker"),
             ) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -782,7 +772,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::squad::squad_set_player_role(ctx, pid, role) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -819,7 +809,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::training::training_set_focus_intensity(ctx, focus, intensity) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -845,7 +835,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::training::training_set_schedule(ctx, schedule) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -871,7 +861,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::training::training_set_groups(ctx, groups_json) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -901,7 +891,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let focus = extract_string_param(args, "focus");
             match tools_impl::training::training_set_player_focus(ctx, pid, focus) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -930,7 +920,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::transfers::transfer_make_bid(ctx, pid, fee) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -959,7 +949,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::transfers::transfer_preview_bid(ctx, pid, fee) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -993,7 +983,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::transfers::transfer_respond_to_offer(ctx, pid, oid, accept) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1027,7 +1017,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::transfers::transfer_counter_offer(ctx, pid, oid, fee) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1056,7 +1046,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             let max_price = extract_u64_param(args, "max_price");
             let listed_only = extract_bool_param(args, "listed_only");
             match tools_impl::transfers::transfer_market_browse(ctx, pos, max_price, listed_only) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1090,7 +1080,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::transfers::transfer_free_agent_offer(ctx, pid, wage, years) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1119,7 +1109,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::transfers::transfer_free_agent_preview(ctx, pid, wage) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1157,7 +1147,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::contracts::contract_propose_renewal(ctx, pid, wage, years) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1196,7 +1186,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::contracts::contract_delegate_renewals(ctx, pids, max_pct, max_years) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1225,7 +1215,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::contracts::contract_preview_renewal(ctx, pid, wage) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1251,7 +1241,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let reason = extract_string_param(args, "reason");
             match tools_impl::contracts::contract_set_exit_intent(ctx, pid, reason) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1274,7 +1264,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             let category = extract_string_param(args, "category");
             let unread_only = extract_bool_param(args, "unread_only");
             match tools_impl::inbox::inbox_get_messages(ctx, category, unread_only) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1305,7 +1295,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let oid = extract_string_param(args, "option_id");
             match tools_impl::inbox::inbox_resolve_action(ctx, mid, aid, oid) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1327,7 +1317,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::club::club_upgrade_facility(ctx, facility) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1346,7 +1336,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::help::help_find_tool(ctx, query) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1360,7 +1350,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 "List all tool categories with counts",
             ),
             |_tool_context| {
-                Box::pin(async move { Ok(text_result(tools_impl::help::help_list_categories())) })
+                Box::pin(async move { Ok(success(tools_impl::help::help_list_categories())) })
             },
         ));
     }
@@ -1385,7 +1375,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let limit = extract_u64_param(args, "limit").map(|n| n as usize);
             match tools_impl::info::info_player_match_history(ctx, pid, limit) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1429,7 +1419,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let limit = extract_u64_param(args, "limit").map(|n| n as usize);
             match tools_impl::info::info_team_match_history(ctx, tid, limit) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1448,7 +1438,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         {
             let tid = extract_string_param(args, "team_id");
             match tools_impl::info::info_finance_snapshot(ctx, tid) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1477,7 +1467,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::scouting::scout_send(ctx, sid, pid) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1525,7 +1515,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 objective,
                 target_position,
             ) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1554,7 +1544,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::scouting::scout_youth_reassign(ctx, aid, sid) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1639,7 +1629,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 },
             };
             match tools_impl::game::game_new(ctx, request) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1658,7 +1648,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 let ctx = ctx.clone();
                 Box::pin(async move {
                     match tools_impl::game::game_export_world_safe(ctx) {
-                        Ok(text) => Ok(text_result(text)),
+                        Ok(value) => Ok(success(value)),
                         Err(e) => Ok(err_result(&e)),
                     }
                 })
@@ -1727,7 +1717,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 competition_id,
                 fixture_id,
             ) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1739,7 +1729,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         ctx, args, {
             let minutes = match require_u32_param(args, "minutes") { Ok(v) => v as u16, Err(e) => return Ok(e) };
             match tools_impl::live_match::match_step(ctx, minutes) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         });
@@ -1764,7 +1754,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::live_match::match_command(ctx, command_json) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1815,7 +1805,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Err(e) => return Ok(e),
             };
             match tools_impl::live_match::match_team_talk(ctx, tone, context) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         }
@@ -1829,7 +1819,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         ctx, args, {
             let answers_json = match require_string_param(args, "answers_json") { Ok(v) => v, Err(e) => return Ok(e) };
             match tools_impl::live_match::match_press_conference(ctx, answers_json) {
-                Ok(text) => Ok(text_result(text)),
+                Ok(value) => Ok(success(value)),
                 Err(e) => Ok(err_result(&e)),
             }
         });

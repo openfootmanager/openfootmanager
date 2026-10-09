@@ -1,12 +1,22 @@
 //! MCP tool implementations: transfers
 
+use mcp_results::transfers::{
+    BidMade, BidPreview, CounterOffered, FreeAgentOffered, FreeAgentPreview, LoanListingToggled,
+    MarketPlayer, OfferAnswered, TransferListingToggled, TransferMarket,
+};
+
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::{age_from_dob, format_position, require_game};
+use crate::mcp_server::tools_impl::helpers::{
+    age_from_dob, format_position, require_game, serde_label,
+};
 use std::sync::Arc;
 
 // ─── transfer_toggle_listed ────────────────────────────────────────────────
 
-pub fn transfer_toggle_listed(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
+pub fn transfer_toggle_listed(
+    ctx: Arc<McpContext>,
+    player_id: String,
+) -> Result<TransferListingToggled, String> {
     let game = require_game(&ctx.state_manager)?;
     let player_name = game
         .players
@@ -30,22 +40,21 @@ pub fn transfer_toggle_listed(ctx: Arc<McpContext>, player_id: String) -> Result
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let status = if is_listed {
-        "Transfer Listed ✓"
-    } else {
-        "Not Listed"
-    };
-    Ok(format!(
-        "## Transfer Status Updated\n\n**{}**: {}",
-        player_name, status
-    ))
+    Ok(TransferListingToggled {
+        player_id,
+        player_name,
+        listed: is_listed,
+    })
 }
 
 // ─── transfer_toggle_loan ──────────────────────────────────────────────────
 
 // ─── transfer_toggle_loan ──────────────────────────────────────────────────
 
-pub fn transfer_toggle_loan(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
+pub fn transfer_toggle_loan(
+    ctx: Arc<McpContext>,
+    player_id: String,
+) -> Result<LoanListingToggled, String> {
     let game = require_game(&ctx.state_manager)?;
     let player_name = game
         .players
@@ -69,15 +78,11 @@ pub fn transfer_toggle_loan(ctx: Arc<McpContext>, player_id: String) -> Result<S
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let status = if is_loaned {
-        "Loan Listed ✓"
-    } else {
-        "Not Listed"
-    };
-    Ok(format!(
-        "## Loan Status Updated\n\n**{}**: {}",
-        player_name, status
-    ))
+    Ok(LoanListingToggled {
+        player_id,
+        player_name,
+        listed: is_loaned,
+    })
 }
 
 // ─── transfer_make_bid ──────────────────────────────────────────────────────
@@ -88,7 +93,7 @@ pub fn transfer_make_bid(
     ctx: Arc<McpContext>,
     player_id: String,
     fee: u64,
-) -> Result<String, String> {
+) -> Result<BidMade, String> {
     let game = require_game(&ctx.state_manager)?;
     let player_name = game
         .players
@@ -103,33 +108,24 @@ pub fn transfer_make_bid(
         fee,
     )?;
 
-    let mut output = format!("## Transfer Bid: {} — {} 💰\n\n", player_name, fee);
-
-    output.push_str(&format!("**Decision**: {:?}\n", response.decision));
-    if let Some(suggested) = response.suggested_fee {
-        output.push_str(&format!("**Suggested Fee**: {}\n", suggested));
-    }
-    output.push_str(&format!("**Terminal**: {}\n", response.is_terminal));
-    output.push_str(&format!("**Mood**: {:?}\n", response.feedback.mood));
-    output.push_str(&format!("**Tension**: {}/100\n", response.feedback.tension));
-    output.push_str(&format!(
-        "**Patience**: {}/100\n",
-        response.feedback.patience
-    ));
-    output.push_str(&format!("**Round**: {}\n", response.feedback.round));
-
-    if response.is_terminal {
-        output.push_str("\n✅ Negotiation complete.");
-    } else {
-        output.push_str("\n🔄 Negotiation continues — make another bid or walk away.");
-    }
+    let bid = BidMade {
+        player_name,
+        fee,
+        decision: serde_label(&response.decision),
+        suggested_fee: response.suggested_fee,
+        is_terminal: response.is_terminal,
+        mood: serde_label(&response.feedback.mood),
+        tension: response.feedback.tension,
+        patience: response.feedback.patience,
+        round: response.feedback.round,
+    };
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(output)
+    Ok(bid)
 }
 
 // ─── transfer_preview_bid ──────────────────────────────────────────────────
@@ -140,7 +136,7 @@ pub fn transfer_preview_bid(
     ctx: Arc<McpContext>,
     player_id: String,
     fee: u64,
-) -> Result<String, String> {
+) -> Result<BidPreview, String> {
     let game = require_game(&ctx.state_manager)?;
     let player_name = game
         .players
@@ -156,16 +152,20 @@ pub fn transfer_preview_bid(
     )?;
     let p = &response.projection;
 
-    Ok(format!(
-        "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Weekly Wage Bill Before | {} |\n| Weekly Wage Bill After | {} |\n| Weekly Wage Budget | {} |\n| Projected Wage Usage | {}% |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n\nThis is a preview — no bid was made.",
-        player_name, fee,
-        p.transfer_budget_before, p.transfer_budget_after,
-        p.finance_before, p.finance_after,
-        p.current_weekly_wage_spend, p.projected_weekly_wage_spend,
-        p.weekly_wage_budget, p.projected_wage_budget_usage_pct,
-        if p.exceeds_transfer_budget { "Yes" } else { "No" },
-        if p.exceeds_finance { "Yes" } else { "No" },
-    ))
+    Ok(BidPreview {
+        player_name,
+        fee,
+        transfer_budget_before: p.transfer_budget_before,
+        transfer_budget_after: p.transfer_budget_after,
+        finance_before: p.finance_before,
+        finance_after: p.finance_after,
+        current_weekly_wage_spend: p.current_weekly_wage_spend,
+        projected_weekly_wage_spend: p.projected_weekly_wage_spend,
+        weekly_wage_budget: p.weekly_wage_budget,
+        projected_wage_budget_usage_pct: p.projected_wage_budget_usage_pct,
+        exceeds_transfer_budget: p.exceeds_transfer_budget,
+        exceeds_finance: p.exceeds_finance,
+    })
 }
 
 // ─── transfer_respond_to_offer ──────────────────────────────────────────────
@@ -177,7 +177,7 @@ pub fn transfer_respond_to_offer(
     player_id: String,
     offer_id: String,
     accept: bool,
-) -> Result<String, String> {
+) -> Result<OfferAnswered, String> {
     crate::commands::transfers::respond_to_offer_internal(
         &ctx.state_manager,
         &player_id,
@@ -190,11 +190,11 @@ pub fn transfer_respond_to_offer(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let action = if accept { "accepted" } else { "rejected" };
-    Ok(format!(
-        "## Offer {}\n\nOffer {} for player {}.",
-        action, offer_id, player_id
-    ))
+    Ok(OfferAnswered {
+        player_id,
+        offer_id,
+        accepted: accept,
+    })
 }
 
 // ─── transfer_counter_offer ─────────────────────────────────────────────────
@@ -206,7 +206,7 @@ pub fn transfer_counter_offer(
     player_id: String,
     offer_id: String,
     requested_fee: u64,
-) -> Result<String, String> {
+) -> Result<CounterOffered, String> {
     let response = crate::commands::transfers::counter_offer_internal(
         &ctx.state_manager,
         &player_id,
@@ -214,19 +214,19 @@ pub fn transfer_counter_offer(
         requested_fee,
     )?;
 
-    let mut output = format!("## Counter Offer: {} 💰\n\n", requested_fee);
-    output.push_str(&format!("**Decision**: {:?}\n", response.decision));
-    if let Some(suggested) = response.suggested_fee {
-        output.push_str(&format!("**Suggested Fee**: {}\n", suggested));
-    }
-    output.push_str(&format!("**Terminal**: {}\n", response.is_terminal));
+    let countered = CounterOffered {
+        requested_fee,
+        decision: serde_label(&response.decision),
+        suggested_fee: response.suggested_fee,
+        is_terminal: response.is_terminal,
+    };
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(output)
+    Ok(countered)
 }
 
 // ─── contract_propose_renewal ───────────────────────────────────────────────
@@ -238,7 +238,7 @@ pub fn transfer_market_browse(
     position: Option<String>,
     max_price: Option<u64>,
     listed_only: Option<bool>,
-) -> Result<String, String> {
+) -> Result<TransferMarket, String> {
     let game = require_game(&ctx.state_manager)?;
     let team_id = game
         .manager
@@ -280,45 +280,26 @@ pub fn transfer_market_browse(
         })
         .collect();
 
-    if players.is_empty() {
-        return Ok("## Transfer Market\n\nNo players found matching criteria.".to_string());
-    }
-
-    let mut output = format!("## Transfer Market ({} players)\n\n| ID | Name | Pos | Age | OVR | Team | Listed | Wage |\n|----|------|-----|-----|-----|------|--------|------|\n", players.len());
-    for p in players.iter().take(30) {
-        let team_name = p
-            .team_id
-            .as_deref()
-            .and_then(|tid| game.teams.iter().find(|t| t.id == tid))
-            .map(|t| t.name.clone())
-            .unwrap_or_else(|| "Free".to_string());
-        let listed = if p.transfer_listed {
-            "T"
-        } else if p.loan_listed {
-            "L"
-        } else {
-            "-"
-        };
-        output.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {} | {} | {} |\n",
-            p.id,
-            p.match_name,
-            format_position(&p.position),
-            age_from_dob(&p.date_of_birth, &game),
-            p.ovr,
-            team_name,
-            listed,
-            p.wage(),
-        ));
-    }
-    if players.len() > 30 {
-        output.push_str(&format!(
-            "\n... and {} more. Use filters to narrow results.",
-            players.len() - 30
-        ));
-    }
-
-    Ok(output)
+    Ok(TransferMarket {
+        players: players
+            .into_iter()
+            .map(|p| MarketPlayer {
+                id: p.id.clone(),
+                name: p.match_name.clone(),
+                position: format_position(&p.position).to_string(),
+                age: age_from_dob(&p.date_of_birth, &game),
+                ovr: p.ovr,
+                team: p
+                    .team_id
+                    .as_deref()
+                    .and_then(|tid| game.teams.iter().find(|t| t.id == tid))
+                    .map(|t| t.name.clone()),
+                transfer_listed: p.transfer_listed,
+                loan_listed: p.loan_listed,
+                wage: p.wage(),
+            })
+            .collect(),
+    })
 }
 
 // ─── transfer_free_agent_offer ───────────────────────────────────────────────
@@ -330,7 +311,7 @@ pub fn transfer_free_agent_offer(
     player_id: String,
     weekly_wage: u32,
     contract_years: u32,
-) -> Result<String, String> {
+) -> Result<FreeAgentOffered, String> {
     let response = crate::commands::contracts::offer_free_agent_contract_internal(
         &ctx.state_manager,
         &player_id,
@@ -343,10 +324,11 @@ pub fn transfer_free_agent_offer(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Free Agent Offer\n\n**Wage**: {}/wk × {}yr\n**Outcome**: {:?}",
-        weekly_wage, contract_years, response.outcome
-    ))
+    Ok(FreeAgentOffered {
+        weekly_wage,
+        contract_years,
+        outcome: serde_label(&response.outcome),
+    })
 }
 
 // ─── transfer_free_agent_preview ────────────────────────────────────────────
@@ -357,7 +339,7 @@ pub fn transfer_free_agent_preview(
     ctx: Arc<McpContext>,
     player_id: String,
     weekly_wage: u32,
-) -> Result<String, String> {
+) -> Result<FreeAgentPreview, String> {
     let response = crate::commands::contracts::preview_free_agent_contract_impact_internal(
         &ctx.state_manager,
         &player_id,
@@ -365,16 +347,17 @@ pub fn transfer_free_agent_preview(
     )?;
     let p = &response.projection;
 
-    Ok(format!(
-        "## Free Agent Preview\n\n| Field | Value |\n|-------|-------|\n| Weekly Wage Offered | {}/wk |\n| Current Weekly Wage Bill | {} |\n| Projected Weekly Wage Bill | {} |\n| Weekly Wage Budget | {} |\n| Weekly Soft Cap | {} |\n| Cash Runway (weeks) | {} → {} |\n| Currently Over Budget | {} |\n| Policy Allows | {} |\n\nThis is a preview — no offer was made.",
+    Ok(FreeAgentPreview {
         weekly_wage,
-        p.current_weekly_wage_spend, p.projected_weekly_wage_spend,
-        p.annual_wage_budget, p.annual_soft_cap,
-        p.current_cash_runway_weeks.map(|w| w.to_string()).unwrap_or_else(|| "N/A".to_string()),
-        p.projected_cash_runway_weeks.map(|w| w.to_string()).unwrap_or_else(|| "N/A".to_string()),
-        if p.currently_over_budget { "Yes" } else { "No" },
-        if p.policy_allows { "Yes" } else { "No" },
-    ))
+        current_weekly_wage_spend: p.current_weekly_wage_spend,
+        projected_weekly_wage_spend: p.projected_weekly_wage_spend,
+        annual_wage_budget: p.annual_wage_budget,
+        annual_soft_cap: p.annual_soft_cap,
+        current_cash_runway_weeks: p.current_cash_runway_weeks,
+        projected_cash_runway_weeks: p.projected_cash_runway_weeks,
+        currently_over_budget: p.currently_over_budget,
+        policy_allows: p.policy_allows,
+    })
 }
 
 // ─── info_player_stats ──────────────────────────────────────────────────────

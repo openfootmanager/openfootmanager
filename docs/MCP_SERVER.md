@@ -94,6 +94,15 @@ setup tools above; `--mcp-disable-tools` can still disable individual tools expl
 
 > **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
 
+### Results
+
+Every tool returns its outcome twice, built from one value: readable markdown in `content`, and the same data as `structuredContent`.
+
+- **Success**: `structuredContent` is a plain object whose shape is one struct per tool, defined in `src-tauri/crates/mcp-results` (serde only, so clients can deserialize it without the game crates). Fields are `snake_case`; enums are their serialized name. A tool with several outcomes is an object with a tag field (`status`, `outcome`, `fixture` or `visibility`), for example `{"status": "in_progress", "remaining_fixtures": 3}`.
+- **Failure**: `isError` is true and `structuredContent` is `{"error": {"key", "params", "message"}}`. `key` is the `be.error.*` translation key (or null for a message private to the MCP layer), `params` its decoded parameters, `message` the readable text.
+
+Assert on the structure or the key, not on the text: wording can change.
+
 ### Information (15 tools)
 
 | Tool | Description |
