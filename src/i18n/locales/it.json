@@ -681,6 +681,8 @@
     "removeFromLoanList": "Rimuovi dalla lista prestiti",
     "outOfPosition": "Fuori ruolo",
     "outOfPositionTooltip": "Sta giocando fuori dal ruolo preferito",
+    "pitchTokenTooltip": "Condizione {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condizione {{condition}}%",
     "dragHint": "Trascina i giocatori dalla panchina sul campo o scambia i titolari tra gli slot.",
     "benchDragHint": "Usa la lista panchina per trascinare i giocatori direttamente sul campo.",
     "dropPlayerHere": "Rilascia qui il giocatore",
@@ -935,6 +937,7 @@
     "aTrainingDay": "un giorno di allenamento",
     "aRestDay": "un giorno di riposo",
     "currentlyTraining": "Attualmente in allenamento: <strong>{{attrs}}</strong> con intensità <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Portieri",
     "recoveryNote": "I giocatori si concentreranno su riposo e recupero della condizione in tutti i giorni.",
     "effectiveFocus": "Focus",
     "trainingAppliedNote": "L'allenamento viene applicato nei giorni previsti quando avanzi il tempo. I giorni di riposo garantiscono recupero completo.",
@@ -1284,6 +1287,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Storico delle offerte",
+    "viewOfferHistory": "Visualizza lo storico delle offerte",
+    "offerRecordedOn": "Offerta del {{date}}.",
+    "loanOfferStartsOn": "Il prestito inizia il {{date}}.",
+    "dealAlreadyAgreed": "Il trasferimento di questo giocatore è concordato e il tesseramento è in attesa.",
+    "dealOwnPlayer": "Questo giocatore appartiene già al tuo club.",
+    "dealActiveLoan": "Questo giocatore è attualmente in prestito.",
+    "dealRetired": "Questo giocatore si è ritirato.",
     "bidImpactWageBill": "Monte ingaggi settimanale {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Budget ingaggi settimanale {{budget}}",
     "bidImpactIncomingWage": "Ingaggio del giocatore {{wage}} / settimana",
@@ -1422,7 +1433,11 @@
     "transferFeedbackCounterHeadline": "Vogliono di più prima di stringersi la mano.",
     "transferFeedbackCounterDetail": "L'offerta era abbastanza vicina per continuare a parlare, ma la controparte segnala un prezzo più vicino a {{fee}}.",
     "transferFeedbackRejectedHeadline": "Hanno chiuso questo round.",
-    "transferFeedbackRejectedDetail": "La proposta non li ha smossi abbastanza. Servirebbe una cifra più forte, più vicina a {{fee}}, per riaprire una trattativa seria."
+    "transferFeedbackRejectedDetail": "La proposta non li ha smossi abbastanza. Servirebbe una cifra più forte, più vicina a {{fee}}, per riaprire una trattativa seria.",
+    "registrationFailureInsufficientFunds": "Registrazione fallita: fondi insufficienti del compratore",
+    "registrationFailureLoanConflict": "Registrazione fallita: conflitto con un prestito",
+    "registrationFailurePlayerUnavailable": "Registrazione fallita: giocatore non disponibile",
+    "registrationFailureRegistrationBlocked": "Registrazione bloccata"
   },
   "transferCentreWorld": {
     "title": "Centro trasferimenti",
@@ -2021,7 +2036,7 @@
     "postMatchTeamTalk": "Discorso post-partita",
     "addressPlayers": "Rivolgiti ai tuoi giocatori dopo la partita.",
     "matchOver": "Partita terminata",
-    "ratings": "Voti di {{team}}",
+    "performance": "Prestazioni di {{team}}",
     "motm": "Migliore in campo",
     "roundSummary": "Riepilogo del Turno",
     "roundSummaryUnavailable": "Riepilogo del turno non disponibile.",
@@ -2531,7 +2546,7 @@
       }
     },
     "matchReport": "Rapporto partita",
-    "playerRatings": "Valutazioni",
+    "playerPerformance": "Prestazioni dei giocatori",
     "tacticsTab": "Tattica",
     "goalSources": "Fonti dei gol",
     "openPlay": "Azione da gioco",
@@ -2778,6 +2793,7 @@
         "transferBudgetTooLow": "Il budget trasferimenti è troppo basso",
         "playerNotOwnedByUser": "Giocatore non trovato o non appartiene al tuo club",
         "offerNotPending": "Offerta non trovata o non più in sospeso",
+        "loanBorrowerCannotAffordWages": "Il club che riceve il giocatore non può permettersi questa quota di stipendio. Il suo budget salariale settimanale è {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "La controfferta deve superare l'offerta attuale",
         "loanCounterMustImproveTerms": "La controfferta di prestito deve migliorare l'offerta attuale",
         "playerNotLoanListed": "Il giocatore non è inserito nella lista prestiti",
@@ -3368,7 +3384,12 @@
       },
       "transferComplete": {
         "subject": "Trasferimento completato: {{player}}",
-        "body": "Il trasferimento di {{player}} è stato completato per una cifra di {{fee}}.\n\nIl giocatore si è unito alla rosa ed è disponibile per la selezione."
+        "body": "Il trasferimento di {{player}} è stato completato per una cifra di {{fee}}.\n\nIl giocatore si è unito alla rosa ed è disponibile per la selezione.",
+        "bodySold": "Il trasferimento di {{player}} a {{buyer}} è stato completato per {{fee}}. Il giocatore ha lasciato la rosa e si è unito a {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Trasferimento concordato: {{player}}",
+        "body": "Il trasferimento di {{player}} da {{seller}} a {{buyer}} è stato concordato per {{fee}}. Il tesseramento è previsto per il {{start}}."
       },
       "transferOffer": {
         "subject": "Offerta ricevuta per {{player}}",
@@ -3379,6 +3400,11 @@
         "subject": "Interesse di mercato per {{player}}",
         "body": "Club con offerte attive per {{player}}: {{n}}. Ultima richiesta: {{team}} ({{fee}}). Controlla le offerte nella scheda Trasferimenti per rispondere.",
         "actionReview": "Vedi offerte"
+      },
+      "loanAgreed": {
+        "subject": "Prestito concordato: {{player}}",
+        "bodyWithOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Opzione di riscatto: {{fee}}.",
+        "bodyNoOption": "{{player}} passerà in prestito da {{parent}} a {{borrower}} dal {{start}} al {{end}}. {{borrower}} coprirà il {{contribution}}% dello stipendio. Nessuna opzione di riscatto."
       },
       "loanOffer": {
         "subject": "Offerta di prestito per {{player}}",
@@ -3393,6 +3419,13 @@
       "loanBuyOptionExercised": {
         "subject": "Opzione di riscatto esercitata: {{player}}",
         "body": "L'opzione di riscatto per {{player}} è stata esercitata per {{fee}}. Il prestito diventa ora un trasferimento definitivo."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Registrazione del trasferimento fallita: {{player}}",
+        "InsufficientFunds": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il saldo o il budget trasferimenti del compratore non copre più la cifra. Non è stato pagato alcun importo per il trasferimento.",
+        "LoanConflict": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore è in prestito o ha un prestito concordato in attesa di registrazione. Non è stato pagato alcun importo per il trasferimento.",
+        "PlayerUnavailable": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore non è più disponibile presso un club venditore. Non è stato pagato alcun importo per il trasferimento.",
+        "RegistrationBlocked": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché un requisito di registrazione non è più soddisfatto. Non è stato pagato alcun importo per il trasferimento."
       }
     },
     "news": {

@@ -686,6 +686,8 @@
     "removeFromLoanList": "Hapus dari daftar pinjaman",
     "outOfPosition": "Di luar posisi",
     "outOfPositionTooltip": "Bermain di luar peran yang disukai pemain",
+    "pitchTokenTooltip": "Kondisi {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Kondisi {{condition}}%",
     "dragHint": "Seret pemain cadangan ke lapangan atau tukar starter antar slot.",
     "benchDragHint": "Gunakan daftar cadangan untuk menyeret pemain langsung ke lapangan.",
     "dropPlayerHere": "Letakkan pemain di sini",
@@ -916,6 +918,7 @@
     "aTrainingDay": "hari latihan",
     "aRestDay": "hari istirahat",
     "currentlyTraining": "Saat ini berlatih: <strong>{{attrs}}</strong> pada intensitas <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Kiper",
     "recoveryNote": "Pemain akan fokus pada istirahat dan pemulihan kondisi di semua hari.",
     "effectiveFocus": "Fokus",
     "trainingAppliedNote": "Latihan diterapkan pada hari latihan terjadwal saat kamu melanjutkan waktu. Hari istirahat memberikan pemulihan penuh.",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Riwayat tawaran",
+    "viewOfferHistory": "Lihat riwayat tawaran",
+    "offerRecordedOn": "Tawaran tertanggal {{date}}.",
+    "loanOfferStartsOn": "Peminjaman dimulai pada {{date}}.",
+    "dealAlreadyAgreed": "Kepindahan pemain ini sudah disepakati dan menunggu pendaftaran.",
+    "dealOwnPlayer": "Pemain ini sudah menjadi milik klubmu.",
+    "dealActiveLoan": "Pemain ini sedang dipinjamkan.",
+    "dealRetired": "Pemain ini sudah pensiun.",
     "bidImpactWageBill": "Beban gaji mingguan {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Anggaran gaji mingguan {{budget}}",
     "bidImpactIncomingWage": "Gaji pemain masuk {{wage}} / minggu",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "Mereka menginginkan lebih sebelum berjabat tangan.",
     "transferFeedbackCounterDetail": "Tawaran cukup dekat untuk terus bernegosiasi, tetapi pihak mereka mengisyaratkan harga yang mendekati {{fee}}.",
     "transferFeedbackRejectedHeadline": "Mereka menghentikan putaran ini.",
-    "transferFeedbackRejectedDetail": "Proposal tidak cukup menggugah mereka. Kamu membutuhkan nominal yang lebih kuat, mendekati {{fee}}, untuk membuka negosiasi serius lagi."
+    "transferFeedbackRejectedDetail": "Proposal tidak cukup menggugah mereka. Kamu membutuhkan nominal yang lebih kuat, mendekati {{fee}}, untuk membuka negosiasi serius lagi.",
+    "registrationFailureInsufficientFunds": "Registrasi gagal: dana pembeli tidak cukup",
+    "registrationFailureLoanConflict": "Registrasi gagal: benturan pinjaman",
+    "registrationFailurePlayerUnavailable": "Registrasi gagal: pemain tidak tersedia",
+    "registrationFailureRegistrationBlocked": "Registrasi terhalang"
   },
   "transferCentreWorld": {
     "title": "Pusat Transfer",
@@ -2036,7 +2051,7 @@
     "postMatchTeamTalk": "Sesi Tim Pascapertandingan",
     "addressPlayers": "Sapa para pemain setelah pertandingan.",
     "matchOver": "Pertandingan Selesai",
-    "ratings": "Rating {{team}}",
+    "performance": "Performa {{team}}",
     "motm": "Pemain Terbaik",
     "roundSummary": "Ringkasan Pekan",
     "roundSummaryUnavailable": "Ringkasan pekan tidak tersedia.",
@@ -2512,7 +2527,7 @@
       }
     },
     "matchReport": "Laporan Pertandingan",
-    "playerRatings": "Rating Pemain",
+    "playerPerformance": "Performa Pemain",
     "tacticsTab": "Taktik",
     "goalSources": "Sumber Gol",
     "openPlay": "Permainan Terbuka",
@@ -2786,6 +2801,7 @@
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
+        "loanBorrowerCannotAffordWages": "Klub peminjam tidak sanggup membayar porsi gaji ini. Anggaran gaji mingguannya adalah {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Tawaran balasan harus melebihi tawaran saat ini",
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
         "playerNotLoanListed": "Pemain tidak terdaftar untuk dipinjamkan",
@@ -3368,7 +3384,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Selesai: {{player}}",
-        "body": "Transfer {{player}} telah selesai dengan biaya {{fee}}.\n\nPemain telah bergabung dengan skuad dan tersedia untuk dipilih."
+        "body": "Transfer {{player}} telah selesai dengan biaya {{fee}}.\n\nPemain telah bergabung dengan skuad dan tersedia untuk dipilih.",
+        "bodySold": "Transfer {{player}} ke {{buyer}} telah selesai dengan biaya {{fee}}. Pemain telah meninggalkan skuad dan bergabung dengan {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfer disepakati: {{player}}",
+        "body": "Transfer {{player}} dari {{seller}} ke {{buyer}} telah disepakati dengan biaya {{fee}}. Pendaftaran dijadwalkan pada {{start}}."
       },
       "transferOffer": {
         "subject": "Tawaran Masuk untuk {{player}}",
@@ -3379,6 +3400,11 @@
         "subject": "Minat Transfer pada {{player}}",
         "body": "Klub dengan tawaran aktif untuk {{player}}: {{n}}. Pertanyaan terbaru: {{team}} ({{fee}}). Tinjau tawaran di tab Transfer untuk merespons.",
         "actionReview": "Tinjau Tawaran"
+      },
+      "loanAgreed": {
+        "subject": "Pinjaman disepakati: {{player}}",
+        "bodyWithOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Opsi pembelian: {{fee}}.",
+        "bodyNoOption": "{{player}} akan dipinjamkan dari {{parent}} ke {{borrower}} mulai {{start}} hingga {{end}}. {{borrower}} akan menanggung {{contribution}}% gaji. Tanpa opsi pembelian."
       },
       "loanOffer": {
         "subject": "Tawaran Pinjaman untuk {{player}}",
@@ -3393,6 +3419,13 @@
       "loanBuyOptionExercised": {
         "subject": "Opsi Pembelian Pinjaman Dilakukan: {{player}}",
         "body": "Opsi pembelian untuk {{player}} telah dilakukan sebesar {{fee}}. Pinjaman ini kini menjadi transfer permanen."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Registrasi transfer gagal: {{player}}",
+        "InsufficientFunds": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena kas atau anggaran transfer pembeli tidak lagi mencukupi. Tidak ada biaya transfer yang dibayarkan.",
+        "LoanConflict": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain sedang dipinjamkan atau memiliki kesepakatan pinjaman yang menunggu registrasi. Tidak ada biaya transfer yang dibayarkan.",
+        "PlayerUnavailable": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain tidak lagi tersedia di klub penjual. Tidak ada biaya transfer yang dibayarkan.",
+        "RegistrationBlocked": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena salah satu persyaratan registrasi tidak lagi terpenuhi. Tidak ada biaya transfer yang dibayarkan."
       }
     },
     "news": {

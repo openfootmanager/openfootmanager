@@ -206,11 +206,13 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 
 | Command | Parameters | Returns | Description |
 |---------|-----------|---------|-------------|
+| `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |
 | `set_formation` | formation | `Game` | Change team formation |
 | `set_play_style` | play_style | `Game` | Change play style |
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |
+| `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
 

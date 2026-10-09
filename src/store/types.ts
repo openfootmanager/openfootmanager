@@ -1,3 +1,10 @@
+/** Attribute keys a training focus can improve, by natural position group. */
+export interface TrainingFocusAttributesData {
+  focus: string;
+  outfield: string[];
+  goalkeeper: string[];
+}
+
 /** One training group as the backend stores it. */
 export interface TrainingGroupData {
   id: string;
@@ -264,6 +271,8 @@ export interface PlayerMediaData {
 }
 
 export interface PlayerData {
+  /** Computed by the backend squad projection; never stored in a save. */
+  match_day_eligible?: boolean;
   id: string;
   match_name: string;
   full_name: string;
@@ -341,6 +350,8 @@ export interface TransferOfferData {
   status: "Pending" | "PendingRegistration" | "Accepted" | "Rejected" | "Withdrawn";
   date: string;
   registration_date?: string | null;
+  /** Why an agreed transfer was voided at registration; absent for ordinary withdrawn talks. */
+  registration_failure_reason?: string | null;
   /**
    * When talks ended, for offers that were rejected or withdrawn. Distinct from `date`, which
    * is when the offer arrived and is rewritten whenever a club re-opens talks.

@@ -16,8 +16,9 @@ import { useTranslation } from "react-i18next";
 
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
-import { isSeniorSquadPlayer } from "../../lib/playerSquad";
+import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { useTrainingFocusAttributes } from "../../hooks/useTrainingFocusAttributes";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
@@ -45,15 +46,6 @@ const TRAINING_FOCUS_ICONS: Record<string, ReactNode> = {
   Defending: <Shield className="w-6 h-6" />,
   Attacking: <Zap className="w-6 h-6" />,
   Recovery: <BedDouble className="w-6 h-6" />,
-};
-
-const TRAINING_FOCUS_ATTRS: Record<string, string[]> = {
-  Physical: ["pace", "stamina", "strength", "agility"],
-  Technical: ["passing", "shooting", "dribbling"],
-  Tactical: ["positioning", "vision", "decisions", "composure"],
-  Defending: ["tackling", "defending", "strength", "positioning"],
-  Attacking: ["shooting", "dribbling", "pace"],
-  Recovery: [],
 };
 
 const INTENSITY_IDS = ["Low", "Medium", "High"] as const;
@@ -97,7 +89,12 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   const [isSaving, setIsSaving] = useState(false);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
-  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(teamId, clockDate);
+  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(
+    teamId,
+    clockDate,
+    sessionState ?? gameState,
+  );
+  const focusAttributes = useTrainingFocusAttributes();
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
@@ -111,7 +108,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
 
   const allSquadPlayers =
     fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
-  const roster = allSquadPlayers.filter(isSeniorSquadPlayer);
+  const roster = allSquadPlayers.filter(isFirstTeamSquadPlayer);
   const avgCondition =
     roster.length > 0
       ? Math.round(roster.reduce((sum, player) => sum + player.condition, 0) / roster.length)
@@ -151,7 +148,6 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
     }
   };
 
-  const activeFocusAttrs = TRAINING_FOCUS_ATTRS[currentFocus] || [];
   const staffAdvice = getTrainingStaffAdvice(t, {
     criticalCount,
     avgCondition,
@@ -208,7 +204,6 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
           isSaving={isSaving}
           todayWeekday={todayWeekday}
           isTodayTraining={isTodayTraining}
-          activeFocusAttrs={activeFocusAttrs}
           onSetTraining={handleSetTraining}
           onSetSchedule={handleSetSchedule}
           scheduleIds={SCHEDULE_IDS}
@@ -217,7 +212,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
           dayKeys={DAY_KEYS}
           trainingFocusIds={TRAINING_FOCUS_IDS}
           trainingFocusIcons={TRAINING_FOCUS_ICONS}
-          trainingFocusAttrs={TRAINING_FOCUS_ATTRS}
+          focusAttributes={focusAttributes}
           intensityIds={INTENSITY_IDS}
           intensityColors={INTENSITY_COLORS}
         />

@@ -68,47 +68,45 @@ pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
 
 pub fn game_new(
     ctx: Arc<McpContext>,
-    first_name: String,
-    last_name: String,
-    nationality: String,
-    world_source: Option<String>,
-    team_id: Option<String>,
+    request: crate::commands::game::McpNewCareer<'_>,
 ) -> Result<String, String> {
-    // Validate inputs
-    if first_name.trim().is_empty() || last_name.trim().is_empty() {
+    let text = create_career(&ctx.state_manager, &ctx.save_manager_state, &request)?;
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+    Ok(text)
+}
+
+fn create_career(
+    state_manager: &ofm_core::state::StateManager,
+    save_manager_state: &crate::SaveManagerState,
+    request: &crate::commands::game::McpNewCareer<'_>,
+) -> Result<String, String> {
+    let blank = |name: Option<&str>| name.is_some_and(|name| name.trim().is_empty());
+    if blank(request.manager_first_name) || blank(request.manager_last_name) {
         return Err("be.error.createManager.nameRequired".to_string());
     }
-    if nationality.trim().is_empty() {
+    if blank(request.manager_nationality) {
         return Err("be.error.createManager.nationalityRequired".to_string());
     }
 
-    // Determine world path
-    let world_path = world_source.unwrap_or_default();
-
-    // Use the MCP bootstrap path to create the game
-    let result = crate::commands::game::bootstrap_game_for_mcp(
-        &ctx.state_manager,
-        &ctx.save_manager_state,
-        &world_path,
-        team_id.as_deref(),
-        &first_name,
-        &last_name,
-        &nationality,
+    let save_id =
+        crate::commands::game::start_career_for_mcp(state_manager, save_manager_state, request)?;
+    let manager = format!(
+        "Manager: {} {}\nNationality: {}",
+        request.manager_first_name.unwrap_or("Agent"),
+        request.manager_last_name.unwrap_or("Manager"),
+        request.manager_nationality.unwrap_or("England")
     );
-
-    match result {
-        Ok(save_id) => {
-            {
-                use tauri::Emitter;
-                let _ = ctx.app_handle.emit("game-state-changed", ());
-            }
-            Ok(format!(
-                "## Game Created\n\nManager: {} {}\nNationality: {}\nSave ID: {}\n\nUse `info_game_summary` to see your current state.",
-                first_name, last_name, nationality, save_id
-            ))
-        }
-        Err(e) => Err(e),
-    }
+    Ok(match save_id {
+        Some(save_id) => format!(
+            "## Game Created\n\n{manager}\nSave ID: {save_id}\n\nUse `info_game_summary` to see your current state."
+        ),
+        None => format!(
+            "## Game Created\n\n{manager}\nNo club yet: call `game_select_team` to start the career."
+        ),
+    })
 }
 
 // ─── game_select_team ───────────────────────────────────────────────────────

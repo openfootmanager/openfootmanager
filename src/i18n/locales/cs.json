@@ -686,6 +686,8 @@
     "removeFromLoanList": "Odebrat z listiny hostování",
     "outOfPosition": "Mimo svou pozici",
     "outOfPositionTooltip": "Hraje mimo hráčovu preferovanou roli",
+    "pitchTokenTooltip": "Kondice {{condition}} % · {{fit}}",
+    "pitchTokenConditionOnly": "Kondice {{condition}} %",
     "dragHint": "Přetáhněte hráče z lavičky na hřiště nebo prohoďte členy základní sestavy mezi sebou.",
     "benchDragHint": "Použijte seznam lavičky pro přímé přetažení hráčů na hřiště.",
     "dropPlayerHere": "Pusťte hráče sem",
@@ -916,6 +918,7 @@
     "aTrainingDay": "tréninkový den",
     "aRestDay": "den volna",
     "currentlyTraining": "Aktuální trénink: <strong>{{attrs}}</strong> s intenzitou <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Brankáři",
     "recoveryNote": "V dny volna se hráči zaměří na odpočinek a obnovu kondice.",
     "effectiveFocus": "Zaměření",
     "trainingAppliedNote": "Trénink probíhá v naplánované tréninkové dny při postupu v čase. Dny volna poskytují plnou regeneraci.",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Historie nabídek",
+    "viewOfferHistory": "Zobrazit historii nabídek",
+    "offerRecordedOn": "Nabídka ze dne {{date}}.",
+    "loanOfferStartsOn": "Hostování začíná {{date}}.",
+    "dealAlreadyAgreed": "Změna klubu tohoto hráče je dohodnutá a čeká na registraci.",
+    "dealOwnPlayer": "Tento hráč již patří vašemu klubu.",
+    "dealActiveLoan": "Tento hráč je momentálně na hostování.",
+    "dealRetired": "Tento hráč ukončil kariéru.",
     "bidImpactWageBill": "Týdenní mzdové náklady {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Týdenní mzdový rozpočet {{budget}}",
     "bidImpactIncomingWage": "Mzda hráče {{wage}} / týden",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "Před stvrzením dohody požadují více.",
     "transferFeedbackCounterDetail": "Nabídka byla dostatečně vysoká na to, aby se pokračovalo v jednání, ale druhá strana dává najevo, že si představuje cenu bližší k {{fee}}.",
     "transferFeedbackRejectedHeadline": "Tato fáze vyjednávání byla ukončena.",
-    "transferFeedbackRejectedDetail": "Návrh je nepřesvědčil. Pro opětovné zahájení vážných rozhovorů budete muset nabídnout vyšší částku, bližší k {{fee}}."
+    "transferFeedbackRejectedDetail": "Návrh je nepřesvědčil. Pro opětovné zahájení vážných rozhovorů budete muset nabídnout vyšší částku, bližší k {{fee}}.",
+    "registrationFailureInsufficientFunds": "Registrace selhala: kupující nemá dost peněz",
+    "registrationFailureLoanConflict": "Registrace selhala: konflikt s hostováním",
+    "registrationFailurePlayerUnavailable": "Registrace selhala: hráč není dostupný",
+    "registrationFailureRegistrationBlocked": "Registrace zablokována"
   },
   "transferCentreWorld": {
     "title": "Přestupové centrum",
@@ -2036,7 +2051,7 @@
     "postMatchTeamTalk": "Pozápasový proslov",
     "addressPlayers": "Promluvte k hráčům po skončení zápasu.",
     "matchOver": "Zápas skončil",
-    "ratings": "Hodnocení týmu {{team}}",
+    "performance": "Výkony týmu {{team}}",
     "motm": "Hráč zápasu",
     "roundSummary": "Shrnutí kola",
     "roundSummaryUnavailable": "Shrnutí kola není k dispozici.",
@@ -2512,7 +2527,7 @@
       }
     },
     "matchReport": "Zpráva ze zápasu",
-    "playerRatings": "Hodnocení hráčů",
+    "playerPerformance": "Výkony hráčů",
     "tacticsTab": "Taktika",
     "goalSources": "Zdroje gólů",
     "openPlay": "Ze hry",
@@ -2786,6 +2801,7 @@
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
+        "loanBorrowerCannotAffordWages": "Hostující klub si tento podíl na mzdě nemůže dovolit. Jeho týdenní mzdový rozpočet je {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Protinabídka musí být vyšší než aktuální nabídka",
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
         "playerNotLoanListed": "Hráč není na listině pro hostování",
@@ -3368,7 +3384,12 @@
       },
       "transferComplete": {
         "subject": "Přestup dokončen: {{player}}",
-        "body": "Přestup hráče {{player}} byl dokončen za odstupnou částku {{fee}}.\n\nHráč se připojil k týmu a je k dispozici pro výběr do sestavy."
+        "body": "Přestup hráče {{player}} byl dokončen za odstupnou částku {{fee}}.\n\nHráč se připojil k týmu a je k dispozici pro výběr do sestavy.",
+        "bodySold": "Přestup hráče {{player}} do klubu {{buyer}} byl dokončen za {{fee}}. Hráč opustil tým a připojil se ke klubu {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Přestup dohodnut: {{player}}",
+        "body": "Přestup hráče {{player}} z klubu {{seller}} do klubu {{buyer}} byl dohodnut za {{fee}}. Registrace je naplánována na {{start}}."
       },
       "transferOffer": {
         "subject": "Příchozí nabídka na hráče {{player}}",
@@ -3379,6 +3400,11 @@
         "subject": "Zájem o přestup hráče {{player}}",
         "body": "Kluby s aktivní nabídkou na hráče {{player}}: {{n}}. Nejnovější dotaz: {{team}} ({{fee}}). Pro odpověď zkontrolujte nabídky v záložce Přestupy.",
         "actionReview": "Zkontrolovat nabídky"
+      },
+      "loanAgreed": {
+        "subject": "Hostování dohodnuto: {{player}}",
+        "bodyWithOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Opce na odkup: {{fee}}.",
+        "bodyNoOption": "Hráč {{player}} bude hostovat z klubu {{parent}} v klubu {{borrower}} od {{start}} do {{end}}. Klub {{borrower}} bude hradit {{contribution}} % platu. Bez opce na odkup."
       },
       "loanOffer": {
         "subject": "Nabídka hostování pro hráče {{player}}",
@@ -3393,6 +3419,13 @@
       "loanBuyOptionExercised": {
         "subject": "Uplatněna opce na odkup z hostování: {{player}}",
         "body": "Opce na odkup hráče {{player}} byla uplatněna za částku {{fee}}. Hostování se nyní mění v trvalý přestup."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Registrace přestupu selhala: {{player}}",
+        "InsufficientFunds": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hotovost nebo přestupový rozpočet kupujícího již nepokrývá částku. Nebyla zaplacena žádná přestupová částka.",
+        "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
+        "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
+        "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
       }
     },
     "news": {

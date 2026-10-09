@@ -56,6 +56,8 @@ pub fn run() {
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
+            platform::watch_web_processes(app);
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -139,31 +141,23 @@ pub fn run() {
                             auto_start.team_id
                         );
 
-                        let mgr_name = mcp_config
-                            .manager_name
-                            .as_deref()
-                            .unwrap_or("Agent")
-                            .to_string();
-                        let mgr_last = mcp_config
-                            .manager_last_name
-                            .as_deref()
-                            .unwrap_or("Manager")
-                            .to_string();
-                        let mgr_nat = mcp_config
-                            .manager_nationality
-                            .as_deref()
-                            .unwrap_or("England")
-                            .to_string();
-
-                        match crate::commands::game::bootstrap_game_for_mcp(
+                        match crate::commands::game::start_career_for_mcp(
                             &sm,
                             &save_mgr,
-                            &auto_start.world_path,
-                            auto_start.team_id.as_deref(),
-                            &mgr_name,
-                            &mgr_last,
-                            &mgr_nat,
-                        ) {
+                            &crate::commands::game::McpNewCareer {
+                                world_source: Some(&auto_start.world_path),
+                                team_id: auto_start.team_id.as_deref(),
+                                manager_first_name: mcp_config.manager_name.as_deref(),
+                                manager_last_name: mcp_config.manager_last_name.as_deref(),
+                                manager_nationality: mcp_config.manager_nationality.as_deref(),
+                                options: auto_start.options.clone(),
+                            },
+                        )
+                        .and_then(|save_id| {
+                            save_id.ok_or_else(|| {
+                                crate::commands::game::AUTO_START_NEEDS_CLUB_ERROR.to_string()
+                            })
+                        }) {
                             Ok(save_id) => {
                                 log::info!("[mcp] Bootstrap complete, save_id={}", save_id);
                                 // Notify GUI that a game is now active
@@ -263,6 +257,7 @@ pub fn run() {
             set_team_match_roles,
             set_training,
             set_training_schedule,
+            get_training_focus_attributes,
             set_training_groups,
             set_player_training_focus,
             set_player_squad_role,

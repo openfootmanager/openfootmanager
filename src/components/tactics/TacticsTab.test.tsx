@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
@@ -241,6 +241,34 @@ describe("TacticsTab", () => {
     });
   });
 
+  /** Given a tactics pitch token, when its player name is hovered,
+   * then the full summary appears outside the clipped pitch. */
+  it("shows a tactics token summary when its name is hovered", () => {
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    const control = screen.getByTestId("pitch-player-gk1");
+    fireEvent.mouseEnter(within(control).getByText("GK1"));
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("squad.pitchTokenTooltip");
+    expect(control).not.toContainElement(tooltip);
+  });
+
+  /** Given a tactics pitch token, when its player control receives keyboard focus,
+   * then its summary is visible and supplies an accessible description. */
+  it("describes a tactics token and shows its summary on focus", () => {
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    const control = screen.getByTestId("pitch-player-gk1");
+    act(() => control.focus());
+    expect(control).toHaveFocus();
+    expect(control).toHaveAccessibleDescription("squad.pitchTokenTooltip");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("squad.pitchTokenTooltip");
+    act(() => control.blur());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
   it("renders the top tactical controls plus bench player in the left panel", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
@@ -318,6 +346,29 @@ describe("TacticsTab", () => {
     expect(screen.getByText("6d")).toBeInTheDocument();
   });
 
+  // Given a backend-called-up youth, when Tactics opens, then he is selectable.
+  it("shows called-up youth in tactics selection", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("gk1", "Goalkeeper"),
+      makePlayer("d5", "Defender", { match_name: "Bench DEF" }),
+      makePlayer("called", "Forward", {
+        full_name: "Called Youth",
+        match_name: "Called Youth",
+        squad_role: "Youth",
+        match_day_eligible: true,
+      }),
+    ];
+    mockedInvoke.mockImplementation(async (command: string) =>
+      command === "get_squad" ? state.players : state,
+    );
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    const [calledUp] = await screen.findAllByRole("button", { name: /Called Youth/i });
+    fireEvent.click(calledUp);
+    fireEvent.click(screen.getAllByRole("button", { name: /Bench DEF/ })[0]);
+    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
+    expect(screen.getAllByText("Called Youth", { selector: "p" }).length).toBeGreaterThan(0);
+  });
   it("keeps youth academy players out of first-team tactics selection", async () => {
     const gameState = makeGameState();
     gameState.players.push(

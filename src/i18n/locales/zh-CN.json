@@ -662,6 +662,8 @@
     "removeFromLoanList": "从租借名单移除",
     "outOfPosition": "不对位",
     "outOfPositionTooltip": "球员正在其惯用角色之外的位置上场",
+    "pitchTokenTooltip": "状态 {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "状态 {{condition}}%",
     "dragHint": "将替补球员拖到球场上,或在位置间互换首发。",
     "benchDragHint": "使用替补列表将球员直接拖到球场上。",
     "dropPlayerHere": "将球员放在此处",
@@ -916,6 +918,7 @@
     "aTrainingDay": "训练日",
     "aRestDay": "休息日",
     "currentlyTraining": "当前训练内容:<strong>{{attrs}}</strong>,强度 <strong>{{intensity}}</strong>。",
+    "goalkeepersLabel": "门将",
     "recoveryNote": "球员每天都将专注于休息与状态恢复。",
     "effectiveFocus": "重点",
     "trainingAppliedNote": "训练会在你推进日期时的训练日生效。休息日可完全恢复。",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "报价历史",
+    "viewOfferHistory": "查看报价历史",
+    "offerRecordedOn": "报价日期：{{date}}。",
+    "loanOfferStartsOn": "租借于{{date}}开始。",
+    "dealAlreadyAgreed": "这名球员已达成转会协议，正在等待注册。",
+    "dealOwnPlayer": "这名球员已属于你的俱乐部。",
+    "dealActiveLoan": "这名球员目前正在外租。",
+    "dealRetired": "这名球员已退役。",
     "bidImpactWageBill": "每周工资总额 {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "每周工资预算 {{budget}}",
     "bidImpactIncomingWage": "球员周薪 {{wage}}",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "他们希望得到更多才肯握手。",
     "transferFeedbackCounterDetail": "出价已足够接近,谈判仍在继续,但对方暗示的价位更接近 {{fee}}。",
     "transferFeedbackRejectedHeadline": "他们这一轮直接关闭了谈判。",
-    "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。"
+    "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。",
+    "registrationFailureInsufficientFunds": "注册失败：买方资金不足",
+    "registrationFailureLoanConflict": "注册失败：租借冲突",
+    "registrationFailurePlayerUnavailable": "注册失败：球员不可转会",
+    "registrationFailureRegistrationBlocked": "注册受阻"
   },
   "transferCentreWorld": {
     "title": "转会中心",
@@ -2002,7 +2017,7 @@
     "postMatchTeamTalk": "赛后讲话",
     "addressPlayers": "在赛后对球员发表讲话。",
     "matchOver": "比赛结束",
-    "ratings": "{{team}} 评分",
+    "performance": "{{team}} 表现",
     "motm": "全场最佳",
     "roundSummary": "本轮综述",
     "roundSummaryUnavailable": "本轮综述暂不可用。",
@@ -2512,7 +2527,7 @@
       }
     },
     "matchReport": "比赛报告",
-    "playerRatings": "球员评分",
+    "playerPerformance": "球员表现",
     "tacticsTab": "战术",
     "goalSources": "进球来源",
     "openPlay": "进攻中的进球",
@@ -2778,6 +2793,7 @@
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",
+        "loanBorrowerCannotAffordWages": "租借俱乐部负担不起这部分薪资。其每周薪资预算为 {{budget}}。",
         "counterOfferMustExceedCurrentOffer": "还价必须高于当前报价",
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
         "playerNotLoanListed": "该球员未被列入租借名单",
@@ -3368,7 +3384,12 @@
       },
       "transferComplete": {
         "subject": "转会完成：{{player}}",
-        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。"
+        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。",
+        "bodySold": "{{player}}转会至{{buyer}}已完成，转会费为{{fee}}。该球员已离开球队并加入{{buyer}}。"
+      },
+      "transferAgreed": {
+        "subject": "转会已达成：{{player}}",
+        "body": "{{player}}从{{seller}}转会至{{buyer}}的协议已达成，转会费为{{fee}}。预计于{{start}}注册。"
       },
       "transferOffer": {
         "subject": "收到对{{player}}的报价",
@@ -3379,6 +3400,11 @@
         "subject": "对 {{player}} 的转会兴趣",
         "body": "对 {{player}} 提出有效报价的俱乐部：{{n}}。最新询问：{{team}}（{{fee}}）。请在转会标签页查看报价并回应。",
         "actionReview": "查看报价"
+      },
+      "loanAgreed": {
+        "subject": "租借已达成：{{player}}",
+        "bodyWithOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。买断选项：{{fee}}。",
+        "bodyNoOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。无买断选项。"
       },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",
@@ -3393,6 +3419,13 @@
       "loanBuyOptionExercised": {
         "subject": "已执行买断选项:{{player}}",
         "body": "{{player}}的买断选项已按{{fee}}执行。这笔租借现已转为永久转会。"
+      },
+      "transferRegistrationFailed": {
+        "subject": "转会注册失败：{{player}}",
+        "InsufficientFunds": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为买方的现金或转会预算已不足以支付转会费。此次转会未支付任何转会费。",
+        "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
+        "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
+        "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
       }
     },
     "news": {

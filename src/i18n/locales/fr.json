@@ -662,6 +662,8 @@
     "removeFromLoanList": "Retirer de la liste des prêts",
     "outOfPosition": "Hors de position",
     "outOfPositionTooltip": "Joue en dehors du rôle préféré du joueur",
+    "pitchTokenTooltip": "Condition {{condition}} % · {{fit}}",
+    "pitchTokenConditionOnly": "Condition {{condition}} %",
     "dragHint": "Faites glisser des remplaçants sur le terrain ou échangez des titulaires entre les postes.",
     "benchDragHint": "Utilisez la liste des remplaçants pour faire glisser directement des joueurs sur le terrain.",
     "dropPlayerHere": "Déposez le joueur ici",
@@ -916,6 +918,7 @@
     "aTrainingDay": "jour d'entraînement",
     "aRestDay": "jour de repos",
     "currentlyTraining": "Entraînement actuel : <strong>{{attrs}}</strong> à intensité <strong>{{intensity}}</strong>.",
+    "goalkeepersLabel": "Gardiens",
     "recoveryNote": "Les joueurs se concentreront sur le repos et la récupération tous les jours.",
     "effectiveFocus": "Focus",
     "trainingAppliedNote": "L'entraînement est appliqué les jours programmés quand vous avancez le temps. Les jours de repos offrent une récupération totale.",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Historique des offres",
+    "viewOfferHistory": "Voir l’historique des offres",
+    "offerRecordedOn": "Offre du {{date}}.",
+    "loanOfferStartsOn": "Le prêt commence le {{date}}.",
+    "dealAlreadyAgreed": "Le départ de ce joueur est convenu et son inscription est en attente.",
+    "dealOwnPlayer": "Ce joueur appartient déjà à ton club.",
+    "dealActiveLoan": "Ce joueur est actuellement prêté.",
+    "dealRetired": "Ce joueur a pris sa retraite.",
     "bidImpactWageBill": "Masse salariale hebdomadaire {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Budget salarial hebdomadaire {{budget}}",
     "bidImpactIncomingWage": "Salaire du joueur {{wage}} / semaine",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "Ils veulent plus avant de conclure.",
     "transferFeedbackCounterDetail": "L'offre était assez proche pour continuer à parler, mais leur camp vise plutôt un prix autour de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Ils ont fermé cette manche.",
-    "transferFeedbackRejectedDetail": "La proposition ne les a pas assez fait bouger. Il faudrait une somme plus forte, plus proche de {{fee}}, pour rouvrir des discussions sérieuses."
+    "transferFeedbackRejectedDetail": "La proposition ne les a pas assez fait bouger. Il faudrait une somme plus forte, plus proche de {{fee}}, pour rouvrir des discussions sérieuses.",
+    "registrationFailureInsufficientFunds": "Enregistrement échoué : fonds insuffisants de l'acheteur",
+    "registrationFailureLoanConflict": "Enregistrement échoué : conflit avec un prêt",
+    "registrationFailurePlayerUnavailable": "Enregistrement échoué : joueur indisponible",
+    "registrationFailureRegistrationBlocked": "Enregistrement bloqué"
   },
   "transferCentreWorld": {
     "title": "Centre des transferts",
@@ -2002,7 +2017,7 @@
     "postMatchTeamTalk": "Causerie d'Après-Match",
     "addressPlayers": "Adressez-vous à vos joueurs après le match.",
     "matchOver": "Match Terminé",
-    "ratings": "Notes de {{team}}",
+    "performance": "Performances de {{team}}",
     "motm": "Homme du Match",
     "roundSummary": "Résumé de la Journée",
     "roundSummaryUnavailable": "Résumé de la journée indisponible.",
@@ -2512,7 +2527,7 @@
       }
     },
     "matchReport": "Rapport de match",
-    "playerRatings": "Évaluations",
+    "playerPerformance": "Performances des joueurs",
     "tacticsTab": "Tactique",
     "goalSources": "Sources de buts",
     "openPlay": "Jeu ouvert",
@@ -2778,6 +2793,7 @@
         "transferBudgetTooLow": "Le budget transferts est trop faible",
         "playerNotOwnedByUser": "Joueur introuvable ou ne vous appartenant pas",
         "offerNotPending": "Offre introuvable ou plus en attente",
+        "loanBorrowerCannotAffordWages": "Le club emprunteur ne peut pas assumer cette part du salaire. Son budget salarial hebdomadaire est de {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "La contre-offre doit dépasser l'offre actuelle",
         "loanCounterMustImproveTerms": "La contre-offre de prêt doit améliorer l'offre actuelle",
         "playerNotLoanListed": "Le joueur n'est pas listé pour un prêt",
@@ -3368,7 +3384,12 @@
       },
       "transferComplete": {
         "subject": "Transfert conclu : {{player}}",
-        "body": "Le transfert de {{player}} a été finalisé pour un montant de {{fee}}.\n\nLe joueur a rejoint l'effectif et est désormais disponible pour la sélection."
+        "body": "Le transfert de {{player}} a été finalisé pour un montant de {{fee}}.\n\nLe joueur a rejoint l'effectif et est désormais disponible pour la sélection.",
+        "bodySold": "Le transfert de {{player}} à {{buyer}} a été finalisé pour {{fee}}. Le joueur a quitté l’effectif et rejoint {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfert convenu : {{player}}",
+        "body": "Le transfert de {{player}} de {{seller}} à {{buyer}} a été convenu pour {{fee}}. L’enregistrement est prévu le {{start}}."
       },
       "transferOffer": {
         "subject": "Offre reçue pour {{player}}",
@@ -3379,6 +3400,11 @@
         "subject": "Intérêt de transfert pour {{player}}",
         "body": "Clubs avec des offres actives pour {{player}} : {{n}}. Dernière demande : {{team}} ({{fee}}). Consultez les offres dans l’onglet Transferts pour répondre.",
         "actionReview": "Voir les offres"
+      },
+      "loanAgreed": {
+        "subject": "Prêt convenu : {{player}}",
+        "bodyWithOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Option d’achat : {{fee}}.",
+        "bodyNoOption": "{{player}} sera prêté par {{parent}} à {{borrower}} du {{start}} au {{end}}. {{borrower}} prendra en charge {{contribution}}% du salaire. Aucune option d’achat."
       },
       "loanOffer": {
         "subject": "Offre de prêt pour {{player}}",
@@ -3393,6 +3419,13 @@
       "loanBuyOptionExercised": {
         "subject": "Option d'achat levée : {{player}}",
         "body": "L'option d'achat de {{player}} a été levée pour {{fee}}. Le prêt devient un transfert définitif."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Échec de l'enregistrement du transfert : {{player}}",
+        "InsufficientFunds": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car la trésorerie ou le budget transferts de l'acheteur ne couvre plus le montant. Aucune indemnité de transfert n'a été versée.",
+        "LoanConflict": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur est prêté ou a un prêt convenu en attente d'enregistrement. Aucune indemnité de transfert n'a été versée.",
+        "PlayerUnavailable": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur n'est plus disponible auprès d'un club vendeur. Aucune indemnité de transfert n'a été versée.",
+        "RegistrationBlocked": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car une condition d'enregistrement n'est plus remplie. Aucune indemnité de transfert n'a été versée."
       }
     },
     "news": {

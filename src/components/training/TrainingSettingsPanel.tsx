@@ -1,6 +1,7 @@
 import { Gauge } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { TrainingFocusAttributesData } from "../../store/types";
 import { Card, CardBody, CardHeader } from "../ui";
 
 interface TrainingSettingsPanelProps {
@@ -10,7 +11,6 @@ interface TrainingSettingsPanelProps {
   isSaving: boolean;
   todayWeekday: number;
   isTodayTraining: boolean;
-  activeFocusAttrs: string[];
   onSetTraining: (focus: string, intensity: string) => void;
   onSetSchedule: (schedule: string) => void;
   scheduleIds: readonly string[];
@@ -19,9 +19,45 @@ interface TrainingSettingsPanelProps {
   dayKeys: readonly string[];
   trainingFocusIds: readonly string[];
   trainingFocusIcons: Record<string, React.ReactNode>;
-  trainingFocusAttrs: Record<string, string[]>;
+  focusAttributes: Record<string, TrainingFocusAttributesData>;
   intensityIds: readonly string[];
   intensityColors: Record<string, string>;
+}
+
+function goalkeeperOnlyAttributes(entry: TrainingFocusAttributesData | undefined): string[] {
+  if (!entry) return [];
+  const sameAsOutfield =
+    entry.goalkeeper.length === entry.outfield.length &&
+    entry.goalkeeper.every((attribute, index) => attribute === entry.outfield[index]);
+  return sameAsOutfield ? [] : entry.goalkeeper;
+}
+
+function FocusAttributeChips({
+  attributes,
+  label,
+}: {
+  attributes: readonly string[];
+  label: string | null;
+}) {
+  const { t } = useTranslation();
+  if (attributes.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-2">
+      {label && (
+        <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+          {label}:
+        </span>
+      )}
+      {attributes.map((attribute) => (
+        <span
+          key={attribute}
+          className="text-[10px] bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded font-heading uppercase tracking-wider"
+        >
+          {t(`common.attributes.${attribute}`)}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export default function TrainingSettingsPanel({
@@ -31,7 +67,6 @@ export default function TrainingSettingsPanel({
   isSaving,
   todayWeekday,
   isTodayTraining,
-  activeFocusAttrs,
   onSetTraining,
   onSetSchedule,
   scheduleIds,
@@ -40,11 +75,15 @@ export default function TrainingSettingsPanel({
   dayKeys,
   trainingFocusIds,
   trainingFocusIcons,
-  trainingFocusAttrs,
+  focusAttributes,
   intensityIds,
   intensityColors,
 }: TrainingSettingsPanelProps) {
   const { t } = useTranslation();
+  const activeFocusAttrs = focusAttributes[currentFocus]?.outfield ?? [];
+  const activeGoalkeeperAttrs = goalkeeperOnlyAttributes(focusAttributes[currentFocus]);
+  const attributeNames = (attributes: readonly string[]) =>
+    attributes.map((attribute) => t(`common.attributes.${attribute}`)).join(", ");
 
   return (
     <>
@@ -116,18 +155,14 @@ export default function TrainingSettingsPanel({
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {t(`training.focuses.${focusId}.desc`)}
                 </p>
-                {trainingFocusAttrs[focusId].length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {trainingFocusAttrs[focusId].map((attribute) => (
-                      <span
-                        key={attribute}
-                        className="text-[10px] bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded font-heading uppercase tracking-wider"
-                      >
-                        {t(`common.attributes.${attribute}`)}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <FocusAttributeChips
+                  attributes={focusAttributes[focusId]?.outfield ?? []}
+                  label={null}
+                />
+                <FocusAttributeChips
+                  attributes={goalkeeperOnlyAttributes(focusAttributes[focusId])}
+                  label={t("training.goalkeepersLabel")}
+                />
               </button>
             ))}
           </div>
@@ -173,13 +208,17 @@ export default function TrainingSettingsPanel({
                 <span
                   dangerouslySetInnerHTML={{
                     __html: t("training.currentlyTraining", {
-                      attrs: activeFocusAttrs
-                        .map((attribute) => t(`common.attributes.${attribute}`))
-                        .join(", "),
+                      attrs: attributeNames(activeFocusAttrs),
                       intensity: t(`training.intensities.${currentIntensity}.label`),
                     }),
                   }}
                 />
+              </>
+            )}
+            {activeGoalkeeperAttrs.length > 0 && (
+              <>
+                {" "}
+                {t("training.goalkeepersLabel")}: {attributeNames(activeGoalkeeperAttrs)}.
               </>
             )}
             {currentFocus === "Recovery" && <> {t("training.recoveryNote")}</>}

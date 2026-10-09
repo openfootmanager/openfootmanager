@@ -1,5 +1,16 @@
-import type { ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import type { KitPattern } from "../../store/types";
+import { condBgColor } from "../../lib/playerConditionDisplay";
 import { getPositionColor } from "../../lib/positionColors";
 import { PlayerAvatar } from "./PlayerAvatar";
 import JerseyIcon from "./JerseyIcon";
@@ -26,6 +37,10 @@ export interface PitchTokenProps {
   /** 0–100 short-term condition; drives the bar at the bottom. */
   condition: number;
   fitTone?: PitchFitTone;
+  /** Connect the owning player control to the persistent summary. */
+  descriptionId?: string;
+  /** The owning player control or one of its children has keyboard focus. */
+  focused?: boolean;
   /** When present, renders a face/generated avatar; otherwise initials from name. */
   avatar?: { full_name: string; match_name: string; media?: { face?: string } };
   /** Optional kit jersey rendered under the avatar. */
@@ -49,6 +64,26 @@ export interface PitchTokenProps {
   children?: ReactNode;
 }
 
+/** Shared focus/description wiring for the tactics and pre-match player controls. */
+export function usePitchTokenFocus() {
+  const id = useId();
+  const [focusedPlayerId, focusToken] = useState<string | null>(null);
+  function blurToken(event: FocusEvent<HTMLElement>) {
+    if (
+      !(event.relatedTarget instanceof Node) ||
+      !event.currentTarget.contains(event.relatedTarget)
+    ) {
+      focusToken(null);
+    }
+  }
+  return {
+    focusedPlayerId,
+    focusToken,
+    blurToken,
+    getDescriptionId: (playerId: string) => `${id}-${playerId}-description`,
+  };
+}
+
 function fitRingClass(fitTone: PitchFitTone): string {
   switch (fitTone) {
     case "exact":
@@ -62,15 +97,39 @@ function fitRingClass(fitTone: PitchFitTone): string {
   }
 }
 
-function conditionFillClass(condition: number, fitTone: PitchFitTone): string {
-  // The fit tone caps the bar COLOUR (not its width): an out-of-position
-  // player shows a warning-coloured bar even when fully fresh, signalling
-  // reduced effectiveness in that slot.
-  const capped = Math.min(condition, fitTone === "out" ? 56 : fitTone === "adapted" ? 74 : 100);
-  if (capped >= 90) return "bg-success-400";
-  if (capped >= 75) return "bg-primary-300";
-  if (capped >= 60) return "bg-accent-300";
-  return "bg-red-400";
+/** Long enough to cross the gap between a token and its summary, short enough not to feel stuck. */
+const HOVER_LEAVE_GRACE_MS = 150;
+
+/** Hover state that survives the pointer crossing from the token to its portaled summary. */
+function useGracefulHover() {
+  const [hovered, setHovered] = useState(false);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(leaveTimer.current), []);
+  return {
+    hovered,
+    startHover: () => {
+      clearTimeout(leaveTimer.current);
+      setHovered(true);
+    },
+    endHover: () => {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = setTimeout(() => setHovered(false), HOVER_LEAVE_GRACE_MS);
+    },
+  };
+}
+
+/** The existing label for how a player fits the slot; `empty` has no verdict to state. */
+function fitLabelKey(fitTone: PitchFitTone): string | null {
+  switch (fitTone) {
+    case "exact":
+      return "squad.naturalFit";
+    case "adapted":
+      return "squad.adaptedFit";
+    case "out":
+      return "squad.outOfPosition";
+    default:
+      return null;
+  }
 }
 
 /**
@@ -89,6 +148,8 @@ export function PitchToken({
   ovr,
   condition,
   fitTone = "empty",
+  descriptionId,
+  focused = false,
   avatar,
   jersey,
   jerseyNumber,
@@ -96,8 +157,77 @@ export function PitchToken({
   markers,
   children,
 }: PitchTokenProps) {
+  const { t } = useTranslation();
+  const tokenRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLSpanElement>(null);
+  const { hovered, startHover, endHover } = useGracefulHover();
+  const [dismissed, setDismissed] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(
+    null,
+  );
+  const showTooltip = (hovered || focused) && !dismissed;
+  const fitKey = fitLabelKey(fitTone);
+  // Each channel says one thing — ring: fit, bar: condition — and the words
+  // carry both, for hover and for screen readers (#330).
+  const summary = fitKey
+    ? t("squad.pitchTokenTooltip", { condition: Math.round(condition), fit: t(fitKey) })
+    : t("squad.pitchTokenConditionOnly", { condition: Math.round(condition) });
+
+  useEffect(() => {
+    if (!hovered && !focused) setDismissed(false);
+  }, [hovered, focused]);
+
+  useEffect(() => {
+    if (!showTooltip) return;
+    function dismiss(event: KeyboardEvent) {
+      if (event.key === "Escape") setDismissed(true);
+    }
+    // Capture phase: role controls inside the token stop keydown from bubbling.
+    window.addEventListener("keydown", dismiss, true);
+    return () => window.removeEventListener("keydown", dismiss, true);
+  }, [showTooltip]);
+
+  // Pitches clip their contents. A portal keeps the summary readable even for
+  // edge slots; reposition it when the surrounding workspace scrolls.
+  useLayoutEffect(() => {
+    if (!showTooltip) return;
+    function reposition() {
+      const anchor = tokenRef.current?.getBoundingClientRect();
+      const tooltip = tooltipRef.current?.getBoundingClientRect();
+      if (!anchor || !tooltip) return;
+      const below = anchor.bottom + 8;
+      setTooltipPosition({
+        left: Math.max(
+          8,
+          Math.min(
+            anchor.left + (anchor.width - tooltip.width) / 2,
+            window.innerWidth - tooltip.width - 8,
+          ),
+        ),
+        top: Math.max(
+          8,
+          below + tooltip.height <= window.innerHeight - 8
+            ? below
+            : anchor.top - tooltip.height - 8,
+        ),
+      });
+    }
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [showTooltip, summary]);
+
   return (
-    <>
+    <div
+      ref={tokenRef}
+      className="flex w-full flex-col items-center gap-0.5"
+      onMouseEnter={startHover}
+      onMouseLeave={endHover}
+    >
       {/* Avatar with overlaid badges */}
       <div className="relative">
         {markers && markers.length > 0 && (
@@ -154,13 +284,36 @@ export function PitchToken({
       {children}
 
       <div className="w-full">
+        {!showTooltip && (
+          <span
+            id={descriptionId}
+            aria-hidden={descriptionId ? true : undefined}
+            className="sr-only"
+          >
+            {summary}
+          </span>
+        )}
         <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
           <div
-            className={`h-full rounded-full ${conditionFillClass(condition, fitTone)}`}
+            data-testid="pitch-token-condition-fill"
+            className={`h-full rounded-full ${condBgColor(condition)}`}
             style={{ width: `${Math.max(20, condition)}%` }}
           />
         </div>
       </div>
-    </>
+      {showTooltip &&
+        createPortal(
+          <span
+            id={descriptionId}
+            ref={tooltipRef}
+            role="tooltip"
+            className={`fixed z-50 w-max max-w-64 rounded-md border border-gray-200 bg-white px-3 py-2 font-sans text-xs font-medium normal-case tracking-normal text-gray-900 shadow-lg dark:border-navy-600 dark:bg-navy-800 dark:text-gray-100 ${tooltipPosition ? "" : "invisible"}`}
+            style={tooltipPosition ?? { left: 0, top: 0 }}
+          >
+            {summary}
+          </span>,
+          document.body,
+        )}
+    </div>
   );
 }

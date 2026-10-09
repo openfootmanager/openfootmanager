@@ -686,6 +686,8 @@
     "removeFromLoanList": "Remove from loan list",
     "outOfPosition": "Out of position",
     "outOfPositionTooltip": "Playing outside the player's preferred role",
+    "pitchTokenTooltip": "Condition {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condition {{condition}}%",
     "dragHint": "Drag bench players onto the pitch or swap starters between slots.",
     "benchDragHint": "Use the bench list to drag players directly onto the pitch.",
     "dropPlayerHere": "Drop player here",
@@ -916,6 +918,7 @@
     "aTrainingDay": "a training day",
     "aRestDay": "a rest day",
     "currentlyTraining": "Currently training: <strong>{{attrs}}</strong> at <strong>{{intensity}}</strong> intensity.",
+    "goalkeepersLabel": "Goalkeepers",
     "recoveryNote": "Players will focus on rest and condition recovery on all days.",
     "effectiveFocus": "Focus",
     "trainingAppliedNote": "Training is applied on scheduled training days when you advance time. Rest days provide full recovery.",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Offer history",
+    "viewOfferHistory": "View offer history",
+    "offerRecordedOn": "Offer dated {{date}}.",
+    "loanOfferStartsOn": "Loan starts on {{date}}.",
+    "dealAlreadyAgreed": "This player has an agreed move and is awaiting registration.",
+    "dealOwnPlayer": "This player already belongs to your club.",
+    "dealActiveLoan": "This player is currently on loan.",
+    "dealRetired": "This player has retired.",
     "bidImpactWageBill": "Weekly wage bill {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Weekly wage budget {{budget}}",
     "bidImpactIncomingWage": "Incoming player wage {{wage}} / week",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "They want more before shaking hands.",
     "transferFeedbackCounterDetail": "The bid was close enough to keep talking, but their side are signalling a price nearer {{fee}}.",
     "transferFeedbackRejectedHeadline": "They shut this round down.",
-    "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks."
+    "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks.",
+    "registrationFailureInsufficientFunds": "Registration failed: insufficient buyer funds",
+    "registrationFailureLoanConflict": "Registration failed: loan conflict",
+    "registrationFailurePlayerUnavailable": "Registration failed: player unavailable",
+    "registrationFailureRegistrationBlocked": "Registration blocked"
   },
   "transferCentreWorld": {
     "title": "Transfer Centre",
@@ -2036,7 +2051,7 @@
     "postMatchTeamTalk": "Post-Match Team Talk",
     "addressPlayers": "Address your players after the match.",
     "matchOver": "Match Over",
-    "ratings": "{{team}} Ratings",
+    "performance": "{{team}} Performance",
     "motm": "Man of the Match",
     "roundSummary": "Round Summary",
     "roundSummaryUnavailable": "Round summary unavailable.",
@@ -2512,7 +2527,7 @@
       }
     },
     "matchReport": "Match Report",
-    "playerRatings": "Player Ratings",
+    "playerPerformance": "Player Performance",
     "tacticsTab": "Tactics",
     "goalSources": "Goal Sources",
     "openPlay": "Open Play",
@@ -2786,6 +2801,7 @@
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
+        "loanBorrowerCannotAffordWages": "The borrowing club cannot afford this wage share. Its weekly wage budget is {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Counter offer must exceed current offer",
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
         "playerNotLoanListed": "Player is not listed for loan",
@@ -3368,7 +3384,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Complete: {{player}}",
-        "body": "The transfer of {{player}} has been completed for a fee of {{fee}}.\n\nThe player has joined the squad and is available for selection."
+        "body": "The transfer of {{player}} has been completed for a fee of {{fee}}.\n\nThe player has joined the squad and is available for selection.",
+        "bodySold": "The transfer of {{player}} to {{buyer}} has been completed for {{fee}}. The player has left the squad and joined {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfer agreed: {{player}}",
+        "body": "The transfer of {{player}} from {{seller}} to {{buyer}} has been agreed for {{fee}}. Registration is scheduled for {{start}}."
       },
       "transferOffer": {
         "subject": "Incoming Offer for {{player}}",
@@ -3379,6 +3400,11 @@
         "subject": "Transfer interest in {{player}}",
         "body": "Clubs with active bids for {{player}}: {{n}}. Latest enquiry: {{team}} ({{fee}}). Review the offers in the Transfers tab to respond.",
         "actionReview": "Review Offers"
+      },
+      "loanAgreed": {
+        "subject": "Loan agreed: {{player}}",
+        "bodyWithOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. Purchase option: {{fee}}.",
+        "bodyNoOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. No purchase option."
       },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
@@ -3393,6 +3419,13 @@
       "loanBuyOptionExercised": {
         "subject": "Loan Buy Option Exercised: {{player}}",
         "body": "The purchase option for {{player}} has been exercised for {{fee}}. The loan is now a permanent transfer."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Transfer registration failed: {{player}}",
+        "InsufficientFunds": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the buyer's cash or transfer budget no longer covers the fee. No transfer fee was paid.",
+        "LoanConflict": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player has an active loan or an agreed loan awaiting registration. No transfer fee was paid.",
+        "PlayerUnavailable": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player is no longer available from a selling club. No transfer fee was paid.",
+        "RegistrationBlocked": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because a registration requirement is no longer met. No transfer fee was paid."
       }
     },
     "news": {

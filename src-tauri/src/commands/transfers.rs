@@ -284,13 +284,9 @@ pub fn respond_to_loan_offer_internal(
         "[cmd] respond_to_loan_offer: player_id={}, offer_id={}, accept={}",
         player_id, offer_id, accept
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::transfers::respond_to_loan_offer(&mut game, player_id, offer_id, accept)?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(state, |game| {
+        ofm_core::transfers::respond_to_loan_offer(game, player_id, offer_id, accept)
+    })
 }
 
 #[tauri::command]
@@ -324,21 +320,21 @@ pub fn counter_loan_offer_internal(
         "[cmd] counter_loan_offer: player_id={}, offer_id={}, end_date={}, wage_contribution_pct={}, buy_option_fee={:?}",
         player_id, offer_id, end_date, wage_contribution_pct, buy_option_fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    let mut outcome = None;
+    let game = mutate_active_game(state, |game| {
+        outcome = Some(ofm_core::transfers::counter_loan_offer(
+            game,
+            player_id,
+            offer_id,
+            end_date,
+            wage_contribution_pct,
+            buy_option_fee,
+        )?);
+        Ok(())
+    })?;
+    let outcome = outcome.ok_or("be.error.noActiveGameSession".to_string())?;
 
-    let result = ofm_core::transfers::counter_loan_offer(
-        &mut game,
-        player_id,
-        offer_id,
-        end_date,
-        wage_contribution_pct,
-        buy_option_fee,
-    )?;
-    state.set_game(game.clone());
-
-    Ok(map_loan_offer_response(result, game))
+    Ok(map_loan_offer_response(outcome, game))
 }
 
 #[tauri::command]
@@ -597,6 +593,7 @@ mod tests {
             date: "2026-08-01".to_string(),
             registration_date: None,
             closed_on: None,
+            registration_failure_reason: None,
         });
         player
     }
@@ -960,10 +957,12 @@ mod tests {
         assert!(stored_player.active_loan.is_some());
     }
 
+    /// Given an affordable AI borrower, when its accepted counter passes through the command adapter, then the payload and stored game reflect the agreed loan.
     #[test]
     fn counter_loan_offer_internal_returns_payload_and_updates_state() {
         let state = StateManager::new();
         let mut game = make_game();
+        game.teams[1].wage_budget = 500_000;
         game.players[0].loan_listed = true;
         game.players[0].stage_wage(520_000);
         game.players[0].ovr = 68;

@@ -18,7 +18,10 @@ export interface PlayerRecentMatchEntry {
   shots: number;
   shots_on_target: number;
   rating: number;
+  rated: boolean;
 }
+
+const MIN_POINTS_FOR_TREND = 2;
 
 function resolveLabel(t: TranslateFn, key: string, fallback: string): string {
   return t(key, { defaultValue: fallback });
@@ -41,16 +44,20 @@ export default function PlayerProfileRecentMatchesCard({
     return null;
   }
 
+  const ratedMatches = matches.filter((match) => match.rated);
+
   return (
     <Card>
       <CardHeader>{title}</CardHeader>
       <CardBody>
-        <div className="mb-4">
-          <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-heading mb-2">
-            {ratingTrendLabel}
-          </p>
-          <PlayerRatingTrendChart matches={matches} ratingLabel={ratingLabel} />
-        </div>
+        {ratedMatches.length >= MIN_POINTS_FOR_TREND ? (
+          <div className="mb-4">
+            <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-heading mb-2">
+              {ratingTrendLabel}
+            </p>
+            <PlayerRatingTrendChart matches={ratedMatches} ratingLabel={ratingLabel} />
+          </div>
+        ) : null}
         <div className="space-y-3">
           {matches.map((match) => (
             <div
@@ -89,7 +96,7 @@ export default function PlayerProfileRecentMatchesCard({
                   {t("playerProfile.recentMatchesRating")}
                 </p>
                 <p className="font-heading font-bold text-base text-gray-700 dark:text-gray-200 tabular-nums">
-                  {match.rating.toFixed(1)}
+                  {match.rated ? match.rating.toFixed(1) : "–"}
                 </p>
               </div>
             </div>

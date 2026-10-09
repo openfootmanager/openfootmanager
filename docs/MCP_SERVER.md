@@ -58,6 +58,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--mcp-mode <MODE>` | No | `sandbox` | `sandbox` = all tools available. `competition` = restricted tool set (see below). |
 | `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. \*\*Required in competition mode\*\* (enforced after CLI parsing, at startup). |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
+| `--mcp-seed <N>`, `--mcp-start-year <YEAR>`, `--mcp-start-phase <PHASE>` | No | — | Same as `game_new`'s `seed`, `start_year` and `start_phase`. Use `random` as the world to generate one: one seed gives the same team ids, so a sandbox run with the seed tells you which `team_id` to pass. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |
 | `--manager-last-name <NAME>` | No | `Manager` | Manager last name for auto-start. |
 | `--manager-nationality <NAT>` | No | `England` | Manager nationality for auto-start. |
@@ -207,7 +208,7 @@ setup tools above; `--mcp-disable-tools` can still disable individual tools expl
 | Tool | Description |
 |------|-------------|
 | `season_check_complete` | Check if the current season is finished |
-| `season_advance` | Advance through the off-season (may result in being fired) |
+| `season_advance` | Roll over a completed season through the same command as the UI, returning its summary and any dismissal. Refuses an incomplete season; use `time_advance` for a day. |
 | `season_get_awards` | View end-of-season awards (Golden Boot, Player of the Year, etc.) |
 
 ### Game Lifecycle (10 tools)
@@ -216,7 +217,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 
 | Tool | Description |
 |------|-------------|
-| `game_new` | Create a new manager and generate/load a world |
+| `game_new` | Create a new manager and a world: loaded from `world_source`, or generated (compact) from an optional `seed`, `start_year` and `start_phase` (`seasonStart` or `midSeason`). With `team_id` the career starts and is saved; without it the game is clubless until `game_select_team` |
 | `game_select_team` | Pick a team to manage (creates initial save) |
 | `game_load_save` | Load an existing save |
 | `game_save` | Persist the current game |
@@ -295,8 +296,8 @@ To run 8 agents competing in parallel:
 for i in $(seq 1 8); do
   PORT=$((3000 + i))
   SAVEDIR="/tmp/ofm-agent-$i"
-  mkdir -p "$SAVEDIR"
-  export TAURI_SAVE_DIR="$SAVEDIR"
+  mkdir -p "$SAVEDIR/data" "$SAVEDIR/config"
+  export XDG_DATA_HOME="$SAVEDIR/data" XDG_CONFIG_HOME="$SAVEDIR/config"
 
   openfootmanager \
     --mcp-port $PORT \
@@ -314,7 +315,7 @@ done
 
 Each instance gets its own port (3001–3008) and its own game state. Agents diverge only through their decisions.
 
-**Note on save isolation**: By default, all Tauri instances share the same `app_data_dir/saves/` directory (and thus the same SQLite databases). The script above achieves per-instance isolation by setting `TAURI_SAVE_DIR` to a unique directory for each agent. Alternatively, you can build with distinct app identifiers.
+**Note on save isolation**: By default, all Tauri instances share the same `app_data_dir/saves/` directory (and thus the same SQLite databases). On Linux the app data and config directories derive from `XDG_DATA_HOME` and `XDG_CONFIG_HOME`, so the script above isolates each agent by giving it its own pair. Alternatively, you can build with distinct app identifiers.
 
 ---
 

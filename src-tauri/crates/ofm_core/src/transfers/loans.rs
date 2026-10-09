@@ -6,6 +6,9 @@
 
 use super::*;
 
+mod incoming;
+pub use incoming::{counter_loan_offer, respond_to_loan_offer};
+
 pub(crate) fn loan_wage_share(player: &domain::player::Player, wage_contribution_pct: u8) -> i64 {
     (i64::from(player.wage()) * i64::from(wage_contribution_pct)) / 100
 }
@@ -25,7 +28,7 @@ pub(crate) fn validate_loan_borrower_affordability(
     let projected_wage_bill = current_wage_bill.saturating_add(projected_wage_share);
 
     if !wage_policy_allows_projection(borrower_team, current_wage_bill, projected_wage_bill) {
-        return Err(renewal_wage_policy_error_message(borrower_team));
+        return Err(loan_borrower_wage_policy_error_message(borrower_team));
     }
 
     Ok(())
@@ -168,7 +171,7 @@ pub(crate) fn default_loan_end_date(
     let end_date = match player.contract_end() {
         Some(contract_end) => {
             let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").ok()?;
-            let latest_loan_end_date = contract_end_date - Duration::days(1);
+            let latest_loan_end_date = contract_end_date;
             if latest_loan_end_date < minimum_end_date {
                 return None;
             }
@@ -340,7 +343,7 @@ pub(crate) fn validate_loan_end_before_contract(
     let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d")
         .map_err(|_| ERR_INVALID_LOAN_END_DATE.to_string())?;
 
-    if loan_end_date >= contract_end_date {
+    if loan_end_date > contract_end_date {
         return Err(ERR_INVALID_LOAN_END_DATE.to_string());
     }
 
@@ -565,6 +568,7 @@ pub fn make_loan_offer(
         } else {
             reserve_player_for_pending_loan(game, player_id, &offer_id)?;
         }
+        notify_loan_agreement(game, player_id, &offer_id);
     }
 
     Ok(LoanOfferOutcome {
@@ -579,325 +583,6 @@ pub fn make_loan_offer(
         suggested_buy_option_fee: None,
         is_terminal: true,
     })
-}
-/// Respond to an incoming loan offer on one of the user's players.
-pub fn respond_to_loan_offer(
-    game: &mut Game,
-    player_id: &str,
-    offer_id: &str,
-    accept: bool,
-) -> Result<(), String> {
-    expire_stale_loan_offers(game);
-
-    let user_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned")?;
-
-    let player = game
-        .players
-        .iter()
-        .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
-        .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
-
-    if accept && player_has_active_or_pending_loan(player) {
-        return Err(ERR_PLAYER_ALREADY_LOANED.into());
-    }
-
-    let offer = player
-        .loan_offers
-        .iter()
-        .find(|offer| offer.id == offer_id && offer.status == LoanOfferStatus::Pending)
-        .ok_or(ERR_OFFER_NOT_PENDING)?;
-    // After the offer is known to be real — a stale one is refused as stale —
-    // and before anything is recorded as agreed.
-    if accept {
-        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
-    }
-
-    let from_team_id = offer.from_team_id.clone();
-    let wage_contribution_pct = offer.wage_contribution_pct;
-    let buy_option_fee = offer.buy_option_fee;
-    let offer_end_date = offer.end_date.clone();
-    let current_date = game.clock.current_date.date_naive();
-    let registration_date = if accept {
-        loan_registration_date(game)?
-    } else {
-        current_date
-    };
-    let register_immediately = registration_date == current_date;
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let start_date = registration_date.format("%Y-%m-%d").to_string();
-    let end_date = if accept {
-        let parsed_end_date = parse_valid_loan_end_date(registration_date, &offer_end_date)?;
-        validate_loan_end_before_contract(player, parsed_end_date)?;
-        parsed_end_date.format("%Y-%m-%d").to_string()
-    } else {
-        offer_end_date
-    };
-
-    if let Some(player) = game
-        .players
-        .iter_mut()
-        .find(|player| player.id == player_id)
-        && let Some(offer) = player
-            .loan_offers
-            .iter_mut()
-            .find(|offer| offer.id == offer_id)
-    {
-        if accept {
-            offer.status = if register_immediately {
-                LoanOfferStatus::Accepted
-            } else {
-                LoanOfferStatus::PendingRegistration
-            };
-        } else {
-            close_loan_offer(offer, LoanOfferStatus::Rejected, &today);
-        }
-        offer.start_date = start_date.clone();
-        // `date` is when the offer arrived, not when it was answered — both branches here are
-        // terminal, so it stays put and `closed_on` carries the outcome date.
-    }
-
-    if accept {
-        if register_immediately {
-            execute_loan(
-                game,
-                player_id,
-                &user_team_id,
-                &from_team_id,
-                &start_date,
-                &end_date,
-                wage_contribution_pct,
-                buy_option_fee,
-            )?;
-        } else {
-            reserve_player_for_pending_loan(game, player_id, offer_id)?;
-        }
-    }
-
-    Ok(())
-}
-/// Counter an incoming loan offer on one of the user's players.
-pub fn counter_loan_offer(
-    game: &mut Game,
-    player_id: &str,
-    offer_id: &str,
-    end_date: &str,
-    wage_contribution_pct: u8,
-    buy_option_fee: Option<u64>,
-) -> Result<LoanOfferOutcome, String> {
-    expire_stale_loan_offers(game);
-
-    if wage_contribution_pct > 100 {
-        return Err(ERR_INVALID_LOAN_WAGE_CONTRIBUTION.into());
-    }
-
-    if buy_option_fee == Some(0) {
-        return Err(ERR_INVALID_LOAN_BUY_OPTION.into());
-    }
-
-    let current_date = game.clock.current_date.date_naive();
-    let registration_date = loan_registration_date(game)?;
-    let register_immediately = registration_date == current_date;
-    let parsed_end_date = parse_valid_loan_end_date(registration_date, end_date)?;
-    let requested_end_date = parsed_end_date.format("%Y-%m-%d").to_string();
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let start_date = registration_date.format("%Y-%m-%d").to_string();
-    let user_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned")?;
-
-    let player = game
-        .players
-        .iter()
-        .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
-        .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
-
-    if player_has_pending_registration(player) {
-        return Err(ERR_PLAYER_ALREADY_LOANED.into());
-    }
-
-    validate_loan_end_before_contract(player, parsed_end_date)?;
-
-    let offer = player
-        .loan_offers
-        .iter()
-        .find(|offer| offer.id == offer_id && offer.status == LoanOfferStatus::Pending)
-        .ok_or(ERR_OFFER_NOT_PENDING)?;
-
-    if offer.from_team_id == user_team_id {
-        return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
-    }
-
-    if wage_contribution_pct < offer.wage_contribution_pct {
-        return Err(ERR_LOAN_COUNTER_MUST_IMPROVE_TERMS.into());
-    }
-
-    if let (Some(current_buy_option), Some(requested_buy_option)) =
-        (offer.buy_option_fee, buy_option_fee)
-        && requested_buy_option < current_buy_option
-    {
-        return Err(ERR_LOAN_COUNTER_MUST_IMPROVE_TERMS.into());
-    }
-
-    if wage_contribution_pct == offer.wage_contribution_pct
-        && requested_end_date == offer.end_date
-        && buy_option_fee == offer.buy_option_fee
-    {
-        return Err(ERR_LOAN_COUNTER_MUST_IMPROVE_TERMS.into());
-    }
-
-    let borrower_team = game
-        .teams
-        .iter()
-        .find(|team| team.id == offer.from_team_id)
-        .ok_or("be.error.teamNotFound")?;
-    let borrower_team_id = borrower_team.id.clone();
-    let round = offer.negotiation_round.max(1).saturating_add(1);
-    let wage_ceiling = loan_borrower_wage_ceiling(player, borrower_team, offer);
-    let buy_option_ceiling = loan_borrower_buy_option_ceiling(player);
-    let buy_option_accepted = buy_option_fee
-        .map(|fee| fee <= buy_option_ceiling)
-        .unwrap_or(true);
-    let accepted = wage_contribution_pct <= wage_ceiling && buy_option_accepted;
-    let counter_wage_window = wage_ceiling.saturating_add(if round >= 3 { 8 } else { 12 });
-    let counter_buy_option_window = round_transfer_fee(
-        ((buy_option_ceiling as f64) * if round >= 3 { 1.08 } else { 1.15 }).round() as u64,
-    );
-    let counterable_buy_option = buy_option_fee
-        .map(|fee| fee <= counter_buy_option_window)
-        .unwrap_or(true);
-    let offer_id_string = offer.id.clone();
-
-    if accepted {
-        // Before the offer is marked agreed, like every other refusal here.
-        crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
-        if let Some(player) = game
-            .players
-            .iter_mut()
-            .find(|player| player.id == player_id)
-            && let Some(offer) = player
-                .loan_offers
-                .iter_mut()
-                .find(|offer| offer.id == offer_id)
-        {
-            offer.start_date = start_date.clone();
-            offer.end_date = requested_end_date.clone();
-            offer.wage_contribution_pct = wage_contribution_pct;
-            offer.buy_option_fee = buy_option_fee;
-            offer.last_manager_wage_contribution_pct = Some(wage_contribution_pct);
-            offer.last_manager_end_date = Some(requested_end_date.clone());
-            offer.last_manager_buy_option_fee = buy_option_fee;
-            offer.negotiation_round = round;
-            offer.suggested_wage_contribution_pct = None;
-            offer.suggested_end_date = None;
-            offer.suggested_buy_option_fee = None;
-            offer.status = if register_immediately {
-                LoanOfferStatus::Accepted
-            } else {
-                LoanOfferStatus::PendingRegistration
-            };
-            // Agreeing terms does not change when the offer arrived, and `respond_to_loan_offer`
-            // already leaves `date` alone — accepting via a counter must match it.
-        }
-
-        if register_immediately {
-            execute_loan(
-                game,
-                player_id,
-                &user_team_id,
-                &borrower_team_id,
-                &start_date,
-                &requested_end_date,
-                wage_contribution_pct,
-                buy_option_fee,
-            )?;
-        } else {
-            reserve_player_for_pending_loan(game, player_id, offer_id)?;
-        }
-
-        return Ok(loan_offer_outcome(
-            LoanOfferDecision::Accepted,
-            offer_id_string,
-            None,
-            None,
-            None,
-            true,
-        ));
-    }
-
-    if wage_contribution_pct <= counter_wage_window && counterable_buy_option {
-        let suggested_wage_contribution_pct = wage_ceiling.max(offer.wage_contribution_pct);
-        let suggested_buy_option_fee =
-            buy_option_fee.map(|fee| fee.min(buy_option_ceiling).max(50_000));
-
-        if let Some(player) = game
-            .players
-            .iter_mut()
-            .find(|player| player.id == player_id)
-            && let Some(offer) = player
-                .loan_offers
-                .iter_mut()
-                .find(|offer| offer.id == offer_id)
-        {
-            offer.end_date = requested_end_date.clone();
-            offer.wage_contribution_pct = suggested_wage_contribution_pct;
-            offer.buy_option_fee = suggested_buy_option_fee;
-            offer.last_manager_wage_contribution_pct = Some(wage_contribution_pct);
-            offer.last_manager_end_date = Some(requested_end_date.clone());
-            offer.last_manager_buy_option_fee = buy_option_fee;
-            offer.negotiation_round = round;
-            offer.suggested_wage_contribution_pct = Some(suggested_wage_contribution_pct);
-            offer.suggested_end_date = Some(requested_end_date.clone());
-            offer.suggested_buy_option_fee = suggested_buy_option_fee;
-            offer.status = LoanOfferStatus::Pending;
-            // Talks are live again, so any earlier closure stamp no longer applies.
-            offer.closed_on = None;
-            offer.date = today;
-        }
-
-        return Ok(loan_offer_outcome(
-            LoanOfferDecision::CounterOffer,
-            offer_id_string,
-            Some(suggested_wage_contribution_pct),
-            Some(requested_end_date),
-            suggested_buy_option_fee,
-            false,
-        ));
-    }
-
-    if let Some(player) = game
-        .players
-        .iter_mut()
-        .find(|player| player.id == player_id)
-        && let Some(offer) = player
-            .loan_offers
-            .iter_mut()
-            .find(|offer| offer.id == offer_id)
-    {
-        offer.last_manager_wage_contribution_pct = Some(wage_contribution_pct);
-        offer.last_manager_end_date = Some(requested_end_date);
-        offer.last_manager_buy_option_fee = buy_option_fee;
-        offer.negotiation_round = round;
-        offer.suggested_wage_contribution_pct = None;
-        offer.suggested_end_date = None;
-        offer.suggested_buy_option_fee = None;
-        // Talks are over, so `date` keeps the arrival stamp and `closed_on` records the ending.
-        close_loan_offer(offer, LoanOfferStatus::Rejected, &today);
-    }
-
-    Ok(loan_offer_outcome(
-        LoanOfferDecision::Rejected,
-        offer_id_string,
-        None,
-        None,
-        None,
-        true,
-    ))
 }
 pub(crate) fn complete_loan_buy_option_transfer(
     game: &mut Game,
@@ -1463,5 +1148,520 @@ pub fn process_loan_returns(game: &mut Game) {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transfers::tests::{make_game, sample_attributes};
+    use chrono::{TimeZone, Utc};
+
+    fn contract_end_loan_game(user_is_parent: bool) -> Game {
+        let mut game = make_game();
+        let player = &mut game.players[0];
+        player.team_id = Some(if user_is_parent { "team1" } else { "team2" }.to_string());
+        player.loan_listed = true;
+        player.stage_contract_end(Some("2026-04-12".to_string()));
+        player.stage_wage(1_000);
+        player.adopt_legacy_contract();
+
+        // These scenarios exercise the contract boundary; both clubs can spare a player.
+        for team_id in ["team1", "team2"] {
+            for (position, count) in [
+                (Position::Goalkeeper, 3),
+                (Position::Defender, 5),
+                (Position::Midfielder, 5),
+                (Position::Forward, 3),
+            ] {
+                for index in 0..count {
+                    let id = format!("depth-{team_id}-{position:?}-{index}");
+                    let mut player = Player::new(
+                        id.clone(),
+                        id.clone(),
+                        id,
+                        "1998-01-01".to_string(),
+                        "England".to_string(),
+                        position.clone(),
+                        sample_attributes(),
+                    );
+                    player.team_id = Some(team_id.to_string());
+                    game.players.push(player);
+                }
+            }
+        }
+        game
+    }
+
+    fn add_contract_end_loan_offer(game: &mut Game, end_date: &str) {
+        game.players[0].loan_offers.push(domain::player::LoanOffer {
+            id: "loan-contract-end".to_string(),
+            from_team_id: "team2".to_string(),
+            parent_team_id: "team1".to_string(),
+            start_date: "2026-01-12".to_string(),
+            end_date: end_date.to_string(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: domain::player::LoanOfferStatus::Pending,
+            date: "2026-01-12".to_string(),
+            closed_on: None,
+        });
+    }
+
+    /// Given a short contract, when the AI proposes a loan, then it can end on the contract date.
+    #[test]
+    fn an_ai_loan_default_can_end_on_the_contract_date() {
+        let game = contract_end_loan_game(true);
+        assert_eq!(
+            super::default_loan_end_date(game.clock.current_date.date_naive(), &game.players[0]),
+            Some("2026-04-12".to_string()),
+        );
+    }
+
+    /// Given exactly thirty contract days left, when the AI proposes a loan, then the minimum term is available.
+    #[test]
+    fn an_ai_loan_default_allows_exactly_thirty_contract_days() {
+        let mut game = make_game();
+        game.players[0].stage_contract_end(Some("2026-02-11".to_string()));
+        assert_eq!(
+            super::default_loan_end_date(game.clock.current_date.date_naive(), &game.players[0]),
+            Some("2026-02-11".to_string()),
+        );
+    }
+
+    /// Given fewer than thirty contract days left, when the AI proposes a loan, then no term is available.
+    #[test]
+    fn an_ai_loan_default_refuses_fewer_than_thirty_contract_days() {
+        let mut game = make_game();
+        game.players[0].stage_contract_end(Some("2026-02-10".to_string()));
+        assert_eq!(
+            super::default_loan_end_date(game.clock.current_date.date_naive(), &game.players[0]),
+            None
+        );
+    }
+
+    /// Given a listed player, when the user bids through the contract date, then the loan registers.
+    #[test]
+    fn an_outgoing_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(false);
+        let outcome =
+            super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
+        assert_eq!(outcome.decision, super::LoanOfferDecision::Accepted);
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given an incoming offer, when accepted through the contract date, then the AI borrower registers it.
+    #[test]
+    fn an_incoming_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-12");
+        super::respond_to_loan_offer(&mut game, "player-award", "loan-contract-end", true).unwrap();
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given an incoming offer, when countered through the contract date, then the accepted counter registers.
+    #[test]
+    fn a_countered_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-01");
+        let outcome = super::counter_loan_offer(
+            &mut game,
+            "player-award",
+            "loan-contract-end",
+            "2026-04-12",
+            60,
+            None,
+        )
+        .unwrap();
+        assert_eq!(outcome.decision, super::LoanOfferDecision::Accepted);
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given a closed window, when a loan ending with the contract is agreed and reloaded,
+    /// then it registers once when the window opens with the same end date.
+    #[test]
+    fn a_pending_contract_end_loan_registers_after_reload() {
+        let mut game = contract_end_loan_game(false);
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2026-02-01".to_string());
+        super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
+        assert!(game.players[0].active_loan.is_none());
+        let mut game: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        super::process_pending_loan_registrations(&mut game);
+        super::process_pending_loan_registrations(&mut game);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Accepted
+        );
+        assert_eq!(
+            game.players[0]
+                .movement_history
+                .iter()
+                .filter(|entry| { entry.kind == domain::player::PlayerMovementKind::LoanStart })
+                .count(),
+            1,
+        );
+    }
+
+    fn open_loan_window_and_register(game: &mut Game) {
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        super::process_pending_loan_registrations(game);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given a closed window and an incoming loan ending with the contract,
+    /// when accepted, then it waits for the window and registers with its agreed end.
+    #[test]
+    fn a_pending_incoming_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-12");
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2026-02-01".to_string());
+        super::respond_to_loan_offer(&mut game, "player-award", "loan-contract-end", true).unwrap();
+        assert!(game.players[0].active_loan.is_none());
+        open_loan_window_and_register(&mut game);
+    }
+
+    /// Given a closed window and an incoming loan, when countered through the contract date,
+    /// then the accepted counter waits for the window and registers with its agreed end.
+    #[test]
+    fn a_pending_countered_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-01");
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2026-02-01".to_string());
+        let outcome = super::counter_loan_offer(
+            &mut game,
+            "player-award",
+            "loan-contract-end",
+            "2026-04-12",
+            60,
+            None,
+        )
+        .unwrap();
+        assert_eq!(outcome.decision, super::LoanOfferDecision::Accepted);
+        assert!(game.players[0].active_loan.is_none());
+        open_loan_window_and_register(&mut game);
+    }
+
+    /// Given a saved pending loan ending beyond the contract, when registration runs,
+    /// then the agreement is withdrawn and the player stays with the parent.
+    #[test]
+    fn a_pending_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-13");
+        game.players[0].loan_offers[0].status =
+            domain::player::LoanOfferStatus::PendingRegistration;
+        game.players[0].loan_offers[0].start_date = "2026-02-01".to_string();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        super::process_pending_loan_registrations(&mut game);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
+        assert!(game.players[0].active_loan.is_none());
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Withdrawn
+        );
+    }
+
+    /// Given a loan running to the contract date, when the day's loan return precedes expiry,
+    /// then the returned player is released from the parent club on the same date.
+    #[test]
+    fn a_contract_end_loan_returns_then_releases_the_player() {
+        let mut game = contract_end_loan_game(false);
+        super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 4, 12, 12, 0, 0).unwrap();
+        super::process_loan_returns(&mut game);
+        crate::contracts::process_contract_expiries(&mut game);
+        assert_eq!(
+            game.players[0]
+                .movement_history
+                .iter()
+                .filter(|entry| entry.kind == PlayerMovementKind::LoanReturn)
+                .count(),
+            1,
+        );
+        assert!(game.players[0].team_id.is_none());
+        assert!(game.players[0].active_loan.is_none());
+        assert!(game.players[0].contract_end().is_none());
+    }
+
+    /// Given a requested end after the contract, when bidding, then no offer or loan is created.
+    #[test]
+    fn an_outgoing_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(false);
+        assert!(
+            super::make_loan_offer(&mut game, "player-award", "2026-04-13", 100, None).is_err()
+        );
+        assert!(game.players[0].loan_offers.is_empty());
+        assert!(game.players[0].active_loan.is_none());
+    }
+
+    /// Given an incoming offer ending after the contract, when accepted, then it remains pending.
+    #[test]
+    fn an_incoming_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-13");
+        assert!(
+            super::respond_to_loan_offer(&mut game, "player-award", "loan-contract-end", true)
+                .is_err()
+        );
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Pending
+        );
+        assert!(game.players[0].active_loan.is_none());
+    }
+
+    /// Given an incoming offer, when countered beyond the contract, then its terms remain unchanged.
+    #[test]
+    fn a_countered_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-01");
+        assert!(
+            super::counter_loan_offer(
+                &mut game,
+                "player-award",
+                "loan-contract-end",
+                "2026-04-13",
+                60,
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(game.players[0].loan_offers[0].end_date, "2026-04-01");
+        assert!(game.players[0].active_loan.is_none());
+    }
+}
+
+#[cfg(test)]
+mod acceptance_tests {
+    use super::super::tests::{acceptance_game, assert_acceptance_notice, incoming_loan};
+    use super::*;
+
+    fn assert_loan(game: &Game, deferred: bool, option: Option<u64>, contribution: u8) {
+        let message = assert_acceptance_notice(
+            game,
+            if option.is_some() {
+                "be.msg.loanAgreed.bodyWithOption"
+            } else {
+                "be.msg.loanAgreed.bodyNoOption"
+            },
+            if deferred { "2026-07-02" } else { "2026-01-12" },
+        );
+        assert_eq!(message.i18n_params["end"], "2026-12-20");
+        assert_eq!(
+            message.i18n_params["contribution"],
+            contribution.to_string()
+        );
+        if let Some(fee) = option {
+            assert_eq!(message.i18n_params["fee"], fee.to_string());
+        } else {
+            assert!(!message.i18n_params.contains_key("fee"));
+        }
+        assert_eq!(game.players[0].active_loan.is_some(), !deferred);
+    }
+    fn bid(deferred: bool) {
+        let mut game = acceptance_game("team2", deferred);
+        assert_eq!(
+            make_loan_offer(
+                &mut game,
+                "player-award",
+                "2026-12-20",
+                100,
+                Some(2_000_001)
+            )
+            .unwrap()
+            .decision,
+            LoanOfferDecision::Accepted
+        );
+        assert_loan(&game, deferred, Some(2_000_001), 100);
+    }
+    /// Given a loan-listed player, when an immediate loan bid is accepted, then the buyer receives all agreed terms.
+    #[test]
+    fn an_immediate_loan_bid_notifies_the_borrower() {
+        bid(false);
+    }
+    /// Given a closed window, when a loan bid is accepted, then the borrower receives the future start date.
+    #[test]
+    fn a_deferred_loan_bid_notifies_the_borrower() {
+        bid(true);
+    }
+    fn incoming(deferred: bool, counter: bool) {
+        let mut game = acceptance_game("team1", deferred);
+        let id = incoming_loan(&mut game);
+        if counter {
+            assert_eq!(
+                counter_loan_offer(&mut game, "player-award", &id, "2026-12-20", 70, None)
+                    .unwrap()
+                    .decision,
+                LoanOfferDecision::Accepted
+            );
+        } else {
+            respond_to_loan_offer(&mut game, "player-award", &id, true).unwrap();
+        }
+        assert_loan(
+            &game,
+            deferred,
+            if counter { None } else { Some(600_000) },
+            if counter { 70 } else { 60 },
+        );
+        assert_eq!(game.messages[0].i18n_params["borrower"], "Beta FC");
+    }
+    /// Given an incoming loan, when accepted immediately, then the parent club receives its terms.
+    #[test]
+    fn accepting_an_immediate_loan_notifies_the_parent() {
+        incoming(false, false);
+    }
+    /// Given an incoming loan in a closed window, when accepted, then the parent receives the future start date.
+    #[test]
+    fn accepting_a_deferred_loan_notifies_the_parent() {
+        incoming(true, false);
+    }
+    /// Given an incoming loan with an option, when an immediate counter drops it, then the notice says no option.
+    #[test]
+    fn an_immediate_loan_counter_reports_the_dropped_option() {
+        incoming(false, true);
+    }
+    /// Given a closed window, when a loan counter drops the option, then the notice shows final terms and start date.
+    #[test]
+    fn a_deferred_loan_counter_reports_the_dropped_option() {
+        incoming(true, true);
+    }
+    /// Given an incoming loan, when a counter changes the end date and option fee, then the notice uses those final terms.
+    #[test]
+    fn an_accepted_loan_counter_reports_the_final_end_date_and_option() {
+        let mut game = acceptance_game("team1", true);
+        let id = incoming_loan(&mut game);
+        assert_eq!(
+            counter_loan_offer(
+                &mut game,
+                "player-award",
+                &id,
+                "2026-11-20",
+                70,
+                Some(650_001)
+            )
+            .unwrap()
+            .decision,
+            LoanOfferDecision::Accepted
+        );
+        let message =
+            assert_acceptance_notice(&game, "be.msg.loanAgreed.bodyWithOption", "2026-07-02");
+        assert_eq!(message.i18n_params["end"], "2026-11-20");
+        assert_eq!(message.i18n_params["contribution"], "70");
+        assert_eq!(message.i18n_params["fee"], "650001");
+    }
+
+    /// Given an incoming loan, when declined, then no agreement notice is sent.
+    #[test]
+    fn a_declined_loan_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        respond_to_loan_offer(&mut game, "player-award", &id, false).unwrap();
+        assert!(game.messages.is_empty());
+    }
+    /// Given insufficient contribution, when a loan bid is rejected, then no agreement notice is sent.
+    #[test]
+    fn a_rejected_loan_bid_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team2", false);
+        assert_eq!(
+            make_loan_offer(&mut game, "player-award", "2026-12-20", 0, None)
+                .unwrap()
+                .decision,
+            LoanOfferDecision::Rejected
+        );
+        assert!(game.messages.is_empty());
+    }
+    /// Given a counter above the accepted wage ceiling, when talks continue, then no agreement notice is sent.
+    #[test]
+    fn a_loan_counter_that_keeps_talking_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        game.players[0].ovr = 65;
+        game.players[0].potential = 65;
+        let id = incoming_loan(&mut game);
+        assert_eq!(
+            counter_loan_offer(&mut game, "player-award", &id, "2026-12-20", 90, None)
+                .unwrap()
+                .decision,
+            LoanOfferDecision::CounterOffer
+        );
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given a buy option beyond the borrower ceiling, when the counter is rejected, then no agreement notice is sent.
+    #[test]
+    fn a_rejected_loan_counter_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        assert_eq!(
+            counter_loan_offer(
+                &mut game,
+                "player-award",
+                &id,
+                "2026-12-20",
+                70,
+                Some(10_000_000)
+            )
+            .unwrap()
+            .decision,
+            LoanOfferDecision::Rejected
+        );
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given unchanged loan terms, when countered, then the refusal sends no agreement notice.
+    #[test]
+    fn an_invalid_loan_counter_sends_no_agreement_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        assert!(
+            counter_loan_offer(
+                &mut game,
+                "player-award",
+                &id,
+                "2026-12-20",
+                60,
+                Some(600_000)
+            )
+            .is_err()
+        );
+        assert!(game.messages.is_empty());
+    }
+    /// Given accepted loan terms, when the route is called again, then the stale offer adds no second notice.
+    #[test]
+    fn accepting_a_loan_twice_sends_one_notice() {
+        let mut game = acceptance_game("team1", false);
+        let id = incoming_loan(&mut game);
+        respond_to_loan_offer(&mut game, "player-award", &id, true).unwrap();
+        assert!(respond_to_loan_offer(&mut game, "player-award", &id, true).is_err());
+        assert_loan(&game, false, Some(600_000), 60);
     }
 }
