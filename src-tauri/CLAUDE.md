@@ -10,7 +10,7 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
 
 ```text
   Tauri commands   src/commands/, src/application/, src/mcp_server/
-                   → domain, engine, ofm_core, db
+                   → domain, engine, ofm_core, db, mcp-results
 
   db               SQLite persistence        → domain, ofm_core
   ofm_core         game logic, state, turn   → domain, engine
@@ -19,6 +19,7 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
 
   ofm-cli          standalone CLI binary     → ofm_core
   sim-bench        balance benchmark harness → engine
+  mcp-results      MCP tool result structs   → nothing in this workspace (serde only)
 ```
 
 - **`domain`** — data, constructors, `Default`, and pure value semantics. Outcome-deciding game
