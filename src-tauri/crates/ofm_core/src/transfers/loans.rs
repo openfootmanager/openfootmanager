@@ -168,7 +168,7 @@ pub(crate) fn default_loan_end_date(
     let end_date = match player.contract_end() {
         Some(contract_end) => {
             let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").ok()?;
-            let latest_loan_end_date = contract_end_date - Duration::days(1);
+            let latest_loan_end_date = contract_end_date;
             if latest_loan_end_date < minimum_end_date {
                 return None;
             }
@@ -340,7 +340,7 @@ pub(crate) fn validate_loan_end_before_contract(
     let contract_end_date = NaiveDate::parse_from_str(contract_end, "%Y-%m-%d")
         .map_err(|_| ERR_INVALID_LOAN_END_DATE.to_string())?;
 
-    if loan_end_date >= contract_end_date {
+    if loan_end_date > contract_end_date {
         return Err(ERR_INVALID_LOAN_END_DATE.to_string());
     }
 
@@ -1463,5 +1463,315 @@ pub fn process_loan_returns(game: &mut Game) {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transfers::tests::{make_game, sample_attributes};
+    use chrono::{TimeZone, Utc};
+
+    fn contract_end_loan_game(user_is_parent: bool) -> Game {
+        let mut game = make_game();
+        let player = &mut game.players[0];
+        player.team_id = Some(if user_is_parent { "team1" } else { "team2" }.to_string());
+        player.loan_listed = true;
+        player.stage_contract_end(Some("2026-04-12".to_string()));
+        player.stage_wage(1_000);
+        player.adopt_legacy_contract();
+
+        // These scenarios exercise the contract boundary; both clubs can spare a player.
+        for team_id in ["team1", "team2"] {
+            for (position, count) in [
+                (Position::Goalkeeper, 3),
+                (Position::Defender, 5),
+                (Position::Midfielder, 5),
+                (Position::Forward, 3),
+            ] {
+                for index in 0..count {
+                    let id = format!("depth-{team_id}-{position:?}-{index}");
+                    let mut player = Player::new(
+                        id.clone(),
+                        id.clone(),
+                        id,
+                        "1998-01-01".to_string(),
+                        "England".to_string(),
+                        position.clone(),
+                        sample_attributes(),
+                    );
+                    player.team_id = Some(team_id.to_string());
+                    game.players.push(player);
+                }
+            }
+        }
+        game
+    }
+
+    fn add_contract_end_loan_offer(game: &mut Game, end_date: &str) {
+        game.players[0].loan_offers.push(domain::player::LoanOffer {
+            id: "loan-contract-end".to_string(),
+            from_team_id: "team2".to_string(),
+            parent_team_id: "team1".to_string(),
+            start_date: "2026-01-12".to_string(),
+            end_date: end_date.to_string(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: domain::player::LoanOfferStatus::Pending,
+            date: "2026-01-12".to_string(),
+            closed_on: None,
+        });
+    }
+
+    /// Given a short contract, when the AI proposes a loan, then it can end on the contract date.
+    #[test]
+    fn an_ai_loan_default_can_end_on_the_contract_date() {
+        let game = contract_end_loan_game(true);
+        assert_eq!(
+            super::default_loan_end_date(game.clock.current_date.date_naive(), &game.players[0]),
+            Some("2026-04-12".to_string()),
+        );
+    }
+
+    /// Given exactly thirty contract days left, when the AI proposes a loan, then the minimum term is available.
+    #[test]
+    fn an_ai_loan_default_allows_exactly_thirty_contract_days() {
+        let mut game = make_game();
+        game.players[0].stage_contract_end(Some("2026-02-11".to_string()));
+        assert_eq!(
+            super::default_loan_end_date(game.clock.current_date.date_naive(), &game.players[0]),
+            Some("2026-02-11".to_string()),
+        );
+    }
+
+    /// Given fewer than thirty contract days left, when the AI proposes a loan, then no term is available.
+    #[test]
+    fn an_ai_loan_default_refuses_fewer_than_thirty_contract_days() {
+        let mut game = make_game();
+        game.players[0].stage_contract_end(Some("2026-02-10".to_string()));
+        assert_eq!(
+            super::default_loan_end_date(game.clock.current_date.date_naive(), &game.players[0]),
+            None
+        );
+    }
+
+    /// Given a listed player, when the user bids through the contract date, then the loan registers.
+    #[test]
+    fn an_outgoing_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(false);
+        let outcome =
+            super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
+        assert_eq!(outcome.decision, super::LoanOfferDecision::Accepted);
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given an incoming offer, when accepted through the contract date, then the AI borrower registers it.
+    #[test]
+    fn an_incoming_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-12");
+        super::respond_to_loan_offer(&mut game, "player-award", "loan-contract-end", true).unwrap();
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given an incoming offer, when countered through the contract date, then the accepted counter registers.
+    #[test]
+    fn a_countered_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-01");
+        let outcome = super::counter_loan_offer(
+            &mut game,
+            "player-award",
+            "loan-contract-end",
+            "2026-04-12",
+            60,
+            None,
+        )
+        .unwrap();
+        assert_eq!(outcome.decision, super::LoanOfferDecision::Accepted);
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given a closed window, when a loan ending with the contract is agreed and reloaded,
+    /// then it registers once when the window opens with the same end date.
+    #[test]
+    fn a_pending_contract_end_loan_registers_after_reload() {
+        let mut game = contract_end_loan_game(false);
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2026-02-01".to_string());
+        super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
+        assert!(game.players[0].active_loan.is_none());
+        let mut game: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        super::process_pending_loan_registrations(&mut game);
+        super::process_pending_loan_registrations(&mut game);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Accepted
+        );
+        assert_eq!(
+            game.players[0]
+                .movement_history
+                .iter()
+                .filter(|entry| { entry.kind == domain::player::PlayerMovementKind::LoanStart })
+                .count(),
+            1,
+        );
+    }
+
+    fn open_loan_window_and_register(game: &mut Game) {
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        super::process_pending_loan_registrations(game);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        assert_eq!(
+            game.players[0].active_loan.as_ref().unwrap().end_date,
+            "2026-04-12"
+        );
+    }
+
+    /// Given a closed window and an incoming loan ending with the contract,
+    /// when accepted, then it waits for the window and registers with its agreed end.
+    #[test]
+    fn a_pending_incoming_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-12");
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2026-02-01".to_string());
+        super::respond_to_loan_offer(&mut game, "player-award", "loan-contract-end", true).unwrap();
+        assert!(game.players[0].active_loan.is_none());
+        open_loan_window_and_register(&mut game);
+    }
+
+    /// Given a closed window and an incoming loan, when countered through the contract date,
+    /// then the accepted counter waits for the window and registers with its agreed end.
+    #[test]
+    fn a_pending_countered_loan_can_end_on_the_contract_date() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-01");
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2026-02-01".to_string());
+        let outcome = super::counter_loan_offer(
+            &mut game,
+            "player-award",
+            "loan-contract-end",
+            "2026-04-12",
+            60,
+            None,
+        )
+        .unwrap();
+        assert_eq!(outcome.decision, super::LoanOfferDecision::Accepted);
+        assert!(game.players[0].active_loan.is_none());
+        open_loan_window_and_register(&mut game);
+    }
+
+    /// Given a saved pending loan ending beyond the contract, when registration runs,
+    /// then the agreement is withdrawn and the player stays with the parent.
+    #[test]
+    fn a_pending_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-13");
+        game.players[0].loan_offers[0].status =
+            domain::player::LoanOfferStatus::PendingRegistration;
+        game.players[0].loan_offers[0].start_date = "2026-02-01".to_string();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        super::process_pending_loan_registrations(&mut game);
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team1"));
+        assert!(game.players[0].active_loan.is_none());
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Withdrawn
+        );
+    }
+
+    /// Given a loan running to the contract date, when the day's loan return precedes expiry,
+    /// then the returned player is released from the parent club on the same date.
+    #[test]
+    fn a_contract_end_loan_returns_then_releases_the_player() {
+        let mut game = contract_end_loan_game(false);
+        super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 4, 12, 12, 0, 0).unwrap();
+        super::process_loan_returns(&mut game);
+        crate::contracts::process_contract_expiries(&mut game);
+        assert_eq!(
+            game.players[0]
+                .movement_history
+                .iter()
+                .filter(|entry| entry.kind == PlayerMovementKind::LoanReturn)
+                .count(),
+            1,
+        );
+        assert!(game.players[0].team_id.is_none());
+        assert!(game.players[0].active_loan.is_none());
+        assert!(game.players[0].contract_end().is_none());
+    }
+
+    /// Given a requested end after the contract, when bidding, then no offer or loan is created.
+    #[test]
+    fn an_outgoing_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(false);
+        assert!(
+            super::make_loan_offer(&mut game, "player-award", "2026-04-13", 100, None).is_err()
+        );
+        assert!(game.players[0].loan_offers.is_empty());
+        assert!(game.players[0].active_loan.is_none());
+    }
+
+    /// Given an incoming offer ending after the contract, when accepted, then it remains pending.
+    #[test]
+    fn an_incoming_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-13");
+        assert!(
+            super::respond_to_loan_offer(&mut game, "player-award", "loan-contract-end", true)
+                .is_err()
+        );
+        assert_eq!(
+            game.players[0].loan_offers[0].status,
+            domain::player::LoanOfferStatus::Pending
+        );
+        assert!(game.players[0].active_loan.is_none());
+    }
+
+    /// Given an incoming offer, when countered beyond the contract, then its terms remain unchanged.
+    #[test]
+    fn a_countered_loan_cannot_outlive_the_contract() {
+        let mut game = contract_end_loan_game(true);
+        add_contract_end_loan_offer(&mut game, "2026-04-01");
+        assert!(
+            super::counter_loan_offer(
+                &mut game,
+                "player-award",
+                "loan-contract-end",
+                "2026-04-13",
+                60,
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(game.players[0].loan_offers[0].end_date, "2026-04-01");
+        assert!(game.players[0].active_loan.is_none());
     }
 }

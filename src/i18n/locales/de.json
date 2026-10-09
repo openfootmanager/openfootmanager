@@ -662,6 +662,8 @@
     "removeFromLoanList": "Von der Leihliste entfernen",
     "outOfPosition": "Falsche Position",
     "outOfPositionTooltip": "Spielt außerhalb der bevorzugten Rolle des Spielers",
+    "pitchTokenTooltip": "Kondition {{condition}} % · {{fit}}",
+    "pitchTokenConditionOnly": "Kondition {{condition}} %",
     "dragHint": "Ziehe Ersatzspieler aufs Feld oder tausche Stammspieler zwischen den Positionen.",
     "benchDragHint": "Nutze die Ersatzbankliste, um Spieler direkt aufs Feld zu ziehen.",
     "dropPlayerHere": "Spieler hier ablegen",

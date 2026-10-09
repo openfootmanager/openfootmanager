@@ -686,6 +686,8 @@
     "removeFromLoanList": "Odebrat z listiny hostování",
     "outOfPosition": "Mimo svou pozici",
     "outOfPositionTooltip": "Hraje mimo hráčovu preferovanou roli",
+    "pitchTokenTooltip": "Kondice {{condition}} % · {{fit}}",
+    "pitchTokenConditionOnly": "Kondice {{condition}} %",
     "dragHint": "Přetáhněte hráče z lavičky na hřiště nebo prohoďte členy základní sestavy mezi sebou.",
     "benchDragHint": "Použijte seznam lavičky pro přímé přetažení hráčů na hřiště.",
     "dropPlayerHere": "Pusťte hráče sem",

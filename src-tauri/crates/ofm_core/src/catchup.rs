@@ -145,7 +145,9 @@ pub fn simulate_past_fixtures(
     cutoff: DateTime<Utc>,
     rng: &mut impl Rng,
 ) -> usize {
-    let cutoff_date = cutoff.date_naive();
+    let Some(on_or_before) = yesterday(cutoff.date_naive()) else {
+        return 0;
+    };
 
     // Precompute strength once per participant to avoid O(fixtures × players).
     let strengths: std::collections::HashMap<String, f64> = competition
@@ -158,12 +160,7 @@ pub fn simulate_past_fixtures(
         .fixtures
         .iter()
         .enumerate()
-        .filter(|(_, f)| {
-            f.status == FixtureStatus::Scheduled
-                && NaiveDate::parse_from_str(&f.date, "%Y-%m-%d")
-                    .map(|d| d < cutoff_date)
-                    .unwrap_or(false)
-        })
+        .filter(|(_, fixture)| crate::matchday::is_stranded(fixture, on_or_before))
         .map(|(i, _)| i)
         .collect();
 
@@ -205,13 +202,9 @@ pub fn simulate_past_fixtures(
 /// nothing. Sixty-four rounds is past any real bracket (a 64-team cup is six).
 const MAX_REPAIR_PASSES: usize = 64;
 
-/// Whether `date` (a `%Y-%m-%d` fixture date) has already passed. An unparseable date is *not*
-/// treated as past: rewriting a fixture whose date cannot even be read is the more destructive of
-/// the two mistakes.
-fn is_in_the_past(date: &str, today: NaiveDate) -> bool {
-    NaiveDate::parse_from_str(date, "%Y-%m-%d")
-        .map(|parsed| parsed < today)
-        .unwrap_or(false)
+/// The last day that counts as "already passed", or none when no earlier day exists.
+fn yesterday(today: NaiveDate) -> Option<NaiveDate> {
+    today.pred_opt()
 }
 
 /// National-team football, which the club match engine never simulates — the same test
@@ -221,12 +214,13 @@ fn is_national_team_competition(competition: &League) -> bool {
 }
 
 fn stranded_in(competition: &League, today: NaiveDate) -> usize {
+    let Some(on_or_before) = yesterday(today) else {
+        return 0;
+    };
     competition
         .fixtures
         .iter()
-        .filter(|fixture| {
-            fixture.status == FixtureStatus::Scheduled && is_in_the_past(&fixture.date, today)
-        })
+        .filter(|fixture| crate::matchday::is_stranded(fixture, on_or_before))
         .count()
 }
 
@@ -234,25 +228,9 @@ fn stranded_in(competition: &League, today: NaiveDate) -> usize {
 /// live on `game.national_teams` rather than in `competitions` at all. Leaving the latter out of the
 /// count is how they stayed stranded — the early return saw nothing to do.
 fn count_stranded(game: &Game, today: NaiveDate) -> usize {
-    let in_competitions: usize = game
-        .competitions
-        .iter()
-        .map(|competition| stranded_in(competition, today))
-        .sum();
-    let in_national_teams: usize = game
-        .national_teams
-        .iter()
-        .map(|team| {
-            team.fixtures
-                .iter()
-                .filter(|fixture| {
-                    fixture.status == FixtureStatus::Scheduled
-                        && is_in_the_past(&fixture.date, today)
-                })
-                .count()
-        })
-        .sum();
-    in_competitions + in_national_teams
+    yesterday(today).map_or(0, |on_or_before| {
+        crate::matchday::stranded_fixtures(game, on_or_before).len()
+    })
 }
 
 /// The past dates on which a national-team fixture is still `Scheduled`, oldest first.
@@ -261,6 +239,9 @@ fn count_stranded(game: &Game, today: NaiveDate) -> usize {
 /// stranded date back in turn. Oldest first because a group stage decides who is in the knockout
 /// round that follows it.
 fn stranded_international_dates(game: &Game, today: NaiveDate) -> Vec<String> {
+    let Some(on_or_before) = yesterday(today) else {
+        return Vec::new();
+    };
     let mut dates: Vec<String> = game
         .competitions
         .iter()
@@ -271,9 +252,7 @@ fn stranded_international_dates(game: &Game, today: NaiveDate) -> Vec<String> {
                 .iter()
                 .flat_map(|team| team.fixtures.iter()),
         )
-        .filter(|fixture| {
-            fixture.status == FixtureStatus::Scheduled && is_in_the_past(&fixture.date, today)
-        })
+        .filter(|fixture| crate::matchday::is_stranded(fixture, on_or_before))
         .map(|fixture| fixture.date.clone())
         .collect();
     dates.sort();
@@ -509,6 +488,72 @@ mod tests {
             result: None,
         }];
         league
+    }
+
+    /// Given past, cutoff-day, future, unreadable and non-Scheduled fixtures,
+    /// When catchup uses its exclusive cutoff during career creation or repair,
+    /// Then only the past Scheduled fixture is settled and the others remain unchanged.
+    #[test]
+    fn catchup_keeps_the_stranded_rule_cutoff_exclusive() {
+        use rand::SeedableRng;
+
+        let mut league = league_with_fixture_on("2030-08-31");
+        let template = league.fixtures[0].clone();
+        league.fixtures = [
+            ("past", "2030-08-31", FixtureStatus::Scheduled),
+            ("cutoff", "2030-09-01", FixtureStatus::Scheduled),
+            ("future", "2030-09-02", FixtureStatus::Scheduled),
+            ("unreadable", "someday", FixtureStatus::Scheduled),
+            ("in-progress", "2030-08-31", FixtureStatus::InProgress),
+            ("completed", "2030-08-31", FixtureStatus::Completed),
+        ]
+        .into_iter()
+        .map(|(id, date, status)| Fixture {
+            id: id.to_string(),
+            date: date.to_string(),
+            status,
+            ..template.clone()
+        })
+        .collect();
+        let untouched = serde_json::to_value(&league.fixtures[1..]).unwrap();
+        let cutoff = game_on("2030-09-01").clock.current_date;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(715);
+
+        assert_eq!(
+            super::simulate_past_fixtures(&mut league, &[], cutoff, &mut rng),
+            1
+        );
+        assert_eq!(league.fixtures[0].status, FixtureStatus::Completed);
+        assert!(league.fixtures[0].result.is_some());
+        assert!(league.standings.iter().all(|entry| entry.played == 1));
+        assert_eq!(
+            serde_json::to_value(&league.fixtures[1..]).unwrap(),
+            untouched
+        );
+    }
+
+    /// Given a Scheduled fixture on the earliest representable date,
+    /// When catchup uses that day as its exclusive cutoff,
+    /// Then it resolves nothing because no earlier day exists.
+    #[test]
+    fn catchup_has_no_stranded_fixture_before_the_minimum_date() {
+        use rand::SeedableRng;
+
+        let date = chrono::NaiveDate::MIN;
+        let mut league = league_with_fixture_on(&date.to_string());
+        assert_eq!(
+            chrono::NaiveDate::parse_from_str(&league.fixtures[0].date, "%Y-%m-%d").unwrap(),
+            date
+        );
+        let cutoff = date.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(715);
+
+        assert_eq!(
+            super::simulate_past_fixtures(&mut league, &[], cutoff, &mut rng),
+            0
+        );
+        assert_eq!(league.fixtures[0].status, FixtureStatus::Scheduled);
+        assert!(league.fixtures[0].result.is_none());
     }
 
     fn scorelines_after_repairing_twenty_stranded_fixtures(seed: u64) -> Vec<String> {
@@ -987,6 +1032,27 @@ mod tests {
             fixture.result.is_some(),
             "and it carries a result, not just a status"
         );
+    }
+
+    /// Given a national-team fixture Scheduled on the earliest representable date,
+    /// When load repair runs on that same day,
+    /// Then the fixture stays Scheduled because the repair cutoff is exclusive.
+    #[test]
+    fn national_repair_has_no_stranded_fixture_before_the_minimum_date() {
+        let date = chrono::NaiveDate::MIN;
+        let mut game = game_with_two_national_squads("2030-09-01");
+        game.clock.current_date = date.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        game.national_teams[0].fixtures = vec![international_fixture(
+            "minimum-day-friendly",
+            &date.to_string(),
+            "nt-eng",
+            "nt-bra",
+        )];
+
+        assert_eq!(super::repair_stranded_fixtures(&mut game), 0);
+        let fixture = &game.national_teams[0].fixtures[0];
+        assert_eq!(fixture.status, FixtureStatus::Scheduled);
+        assert!(fixture.result.is_none());
     }
 
     fn friendly_score_after_repair(seed: u64) -> String {

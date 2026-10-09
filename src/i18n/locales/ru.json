@@ -662,6 +662,8 @@
     "removeFromLoanList": "Убрать из списка на аренду",
     "outOfPosition": "Не на своей позиции",
     "outOfPositionTooltip": "Игрок играет не на своей предпочитаемой позиции",
+    "pitchTokenTooltip": "Форма {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Форма {{condition}}%",
     "dragHint": "Перетаскивайте игроков запаса на поле или меняйте местами игроков основы.",
     "benchDragHint": "Используйте список запасных, чтобы перетаскивать игроков прямо на поле.",
     "dropPlayerHere": "Перетащите игрока сюда",

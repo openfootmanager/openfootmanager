@@ -686,6 +686,8 @@
     "removeFromLoanList": "Hapus dari daftar pinjaman",
     "outOfPosition": "Di luar posisi",
     "outOfPositionTooltip": "Bermain di luar peran yang disukai pemain",
+    "pitchTokenTooltip": "Kondisi {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Kondisi {{condition}}%",
     "dragHint": "Seret pemain cadangan ke lapangan atau tukar starter antar slot.",
     "benchDragHint": "Gunakan daftar cadangan untuk menyeret pemain langsung ke lapangan.",
     "dropPlayerHere": "Letakkan pemain di sini",
