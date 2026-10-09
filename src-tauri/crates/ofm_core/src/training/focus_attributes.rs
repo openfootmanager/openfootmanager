@@ -220,4 +220,62 @@ mod tests {
         );
         assert!(attributes_for(TrainingFocus::Recovery).outfield.is_empty());
     }
+
+    fn sequence(focus: TrainingFocus, is_goalkeeper: bool) -> Vec<(&'static str, f64)> {
+        focus_gains(&focus, is_goalkeeper)
+            .iter()
+            .map(|gain| (gain.attribute.key(), gain.rate))
+            .collect()
+    }
+
+    /// Given each focus, when its gains are read for outfield players and keepers, then the attribute order and rates are exactly the ones seeded training draws its rolls in.
+    #[test]
+    fn each_focus_gains_keep_their_roll_order_and_rates() {
+        use TrainingFocus::*;
+        let physical = vec![
+            ("pace", 1.0),
+            ("stamina", 1.0),
+            ("strength", 1.0),
+            ("agility", 1.0),
+        ];
+        let tactical = vec![
+            ("positioning", 1.0),
+            ("vision", 1.0),
+            ("decisions", 1.0),
+            ("composure", 1.0),
+        ];
+        let attacking = vec![("shooting", 1.0), ("dribbling", 1.0), ("pace", 0.5)];
+        for is_goalkeeper in [false, true] {
+            assert_eq!(sequence(Physical, is_goalkeeper), physical);
+            assert_eq!(sequence(Tactical, is_goalkeeper), tactical);
+            assert_eq!(sequence(Attacking, is_goalkeeper), attacking);
+            assert!(sequence(Recovery, is_goalkeeper).is_empty());
+        }
+        assert_eq!(
+            sequence(Technical, false),
+            [("passing", 1.0), ("shooting", 1.0), ("dribbling", 1.0)]
+        );
+        assert_eq!(
+            sequence(Technical, true),
+            [("passing", 1.0), ("handling", 1.0), ("reflexes", 1.0)]
+        );
+        assert_eq!(
+            sequence(Defending, false),
+            [
+                ("tackling", 1.0),
+                ("defending", 1.0),
+                ("strength", 0.5),
+                ("positioning", 0.5)
+            ]
+        );
+        assert_eq!(
+            sequence(Defending, true),
+            [
+                ("handling", 1.0),
+                ("reflexes", 1.0),
+                ("strength", 0.5),
+                ("positioning", 0.5)
+            ]
+        );
+    }
 }
