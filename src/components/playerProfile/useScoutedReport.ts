@@ -11,19 +11,19 @@ export function useScoutedReport(
   enabled: boolean,
   currentDate: string,
 ): ScoutedPlayerView | null {
-  const [report, setReport] = useState<ScoutedPlayerView | null>(null);
+  const [fetched, setFetched] = useState<ScoutedPlayerView | null>(null);
 
   useEffect(() => {
-    setReport(null);
+    setFetched(null);
     if (!enabled) return;
 
     let cancelled = false;
     getScoutedReport(playerId)
-      .then((fetched) => {
-        if (!cancelled) setReport(fetched);
+      .then((report) => {
+        if (!cancelled) setFetched(report);
       })
       .catch(() => {
-        if (!cancelled) setReport(null);
+        if (!cancelled) setFetched(null);
       });
 
     return () => {
@@ -31,5 +31,7 @@ export function useScoutedReport(
     };
   }, [playerId, enabled, currentDate]);
 
-  return report;
+  // The effect clears after the render in which the player changed, so a report for
+  // another player must read as none here.
+  return fetched?.player_id === playerId ? fetched : null;
 }

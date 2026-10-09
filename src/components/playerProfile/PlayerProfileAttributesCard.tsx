@@ -57,7 +57,7 @@ export default function PlayerProfileAttributesCard({
                 type="button"
                 aria-pressed={view === "list"}
                 onClick={() => setView("list")}
-                className={`px-3 py-1 transition-colors ${view === "list" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
+                className={`px-3 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 ${view === "list" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
               >
                 {listLabel}
               </button>
@@ -65,7 +65,7 @@ export default function PlayerProfileAttributesCard({
                 type="button"
                 aria-pressed={view === "radar"}
                 onClick={() => setView("radar")}
-                className={`px-3 py-1 transition-colors ${view === "radar" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
+                className={`px-3 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 ${view === "radar" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
               >
                 {radarLabel}
               </button>
