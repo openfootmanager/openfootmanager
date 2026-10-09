@@ -71,19 +71,26 @@ impl BookingLedger {
             .insert(key.clone());
     }
 
-    /// Bookings of `club_id` on `date - 1 ..= date + 1`; may include the queried fixture itself.
-    pub fn clashes(&self, club_id: &str, date: NaiveDate) -> Vec<Booking> {
-        let Some(days) = self.by_club.get(club_id) else {
-            return Vec::new();
-        };
+    fn nearby<'a>(
+        &'a self,
+        club_id: &str,
+        date: NaiveDate,
+    ) -> impl Iterator<Item = (NaiveDate, &'a FixtureKey)> + 'a {
         let from = date.checked_sub_days(Days::new(1)).unwrap_or(date);
         let to = date.checked_add_days(Days::new(1)).unwrap_or(date);
-        days.range(from..=to)
-            .flat_map(|(booked_on, keys)| {
-                keys.iter().map(|fixture| Booking {
-                    fixture: fixture.clone(),
-                    date: *booked_on,
-                })
+        self.by_club
+            .get(club_id)
+            .into_iter()
+            .flat_map(move |days| days.range(from..=to))
+            .flat_map(|(booked_on, keys)| keys.iter().map(move |key| (*booked_on, key)))
+    }
+
+    /// Bookings of `club_id` on `date - 1 ..= date + 1`; may include the queried fixture itself.
+    pub fn clashes(&self, club_id: &str, date: NaiveDate) -> Vec<Booking> {
+        self.nearby(club_id, date)
+            .map(|(date, fixture)| Booking {
+                fixture: fixture.clone(),
+                date,
             })
             .collect()
     }
@@ -97,9 +104,30 @@ pub struct Proposal {
     pub date: NaiveDate,
 }
 
+/// A fixture on a date, borrowed, so legality can be probed without building a `Proposal`.
+struct Placement<'a> {
+    fixture: &'a FixtureKey,
+    clubs: [&'a str; 2],
+    date: NaiveDate,
+}
+
 impl Proposal {
-    fn clubs(&self) -> [&str; 2] {
-        [&self.home_team_id, &self.away_team_id]
+    fn placement(&self) -> Placement<'_> {
+        Placement {
+            fixture: &self.fixture,
+            clubs: [&self.home_team_id, &self.away_team_id],
+            date: self.date,
+        }
+    }
+}
+
+impl FlexibleMatch {
+    fn placement_on(&self, date: NaiveDate) -> Placement<'_> {
+        Placement {
+            fixture: &self.fixture,
+            clubs: [&self.home_team_id, &self.away_team_id],
+            date,
+        }
     }
 }
 
@@ -110,32 +138,33 @@ pub struct Conflict {
     pub existing: Booking,
 }
 
-fn conflicts_with_ledger(ledger: &BookingLedger, proposal: &Proposal) -> Vec<Conflict> {
-    proposal
-        .clubs()
-        .into_iter()
-        .flat_map(|club_id| {
-            ledger
-                .clashes(club_id, proposal.date)
-                .into_iter()
-                .filter(|booking| booking.fixture != proposal.fixture)
-                .map(move |existing| Conflict {
-                    club_id: club_id.to_owned(),
-                    proposed: proposal.fixture.clone(),
-                    existing,
-                })
-        })
-        .collect()
+fn conflicts_with_ledger<'a>(
+    ledger: &'a BookingLedger,
+    placement: &'a Placement<'a>,
+) -> impl Iterator<Item = Conflict> + 'a {
+    placement.clubs.into_iter().flat_map(move |club_id| {
+        ledger
+            .nearby(club_id, placement.date)
+            .filter(move |(_, booked)| *booked != placement.fixture)
+            .map(move |(booked_on, booked)| Conflict {
+                club_id: club_id.to_owned(),
+                proposed: placement.fixture.clone(),
+                existing: Booking {
+                    fixture: booked.clone(),
+                    date: booked_on,
+                },
+            })
+    })
 }
 
-fn conflicts_between(earlier: &Proposal, later: &Proposal) -> Vec<Conflict> {
+fn conflicts_between(earlier: &Placement<'_>, later: &Placement<'_>) -> Vec<Conflict> {
     if earlier.fixture == later.fixture || (earlier.date - later.date).num_days().abs() >= 2 {
         return Vec::new();
     }
     later
-        .clubs()
+        .clubs
         .into_iter()
-        .filter(|club_id| earlier.clubs().contains(club_id))
+        .filter(|club_id| earlier.clubs.contains(club_id))
         .map(|club_id| Conflict {
             club_id: club_id.to_owned(),
             proposed: later.fixture.clone(),
@@ -168,12 +197,13 @@ pub fn validate_batch(
     if let Some(key) = first_repeated_fixture(proposals.iter().map(|p| &p.fixture)) {
         return Err(BatchRejection::RepeatedFixture(key));
     }
-    let mut conflicts: Vec<Conflict> = proposals
+    let placements: Vec<Placement<'_>> = proposals.iter().map(Proposal::placement).collect();
+    let mut conflicts: Vec<Conflict> = placements
         .iter()
-        .flat_map(|proposal| conflicts_with_ledger(ledger, proposal))
+        .flat_map(|placement| conflicts_with_ledger(ledger, placement))
         .collect();
-    for (index, later) in proposals.iter().enumerate() {
-        for earlier in &proposals[..index] {
+    for (index, later) in placements.iter().enumerate() {
+        for earlier in &placements[..index] {
             conflicts.extend(conflicts_between(earlier, later));
         }
     }
@@ -219,39 +249,39 @@ pub fn plan_flexible(
         )));
     }
     let mut ordered: Vec<&FlexibleMatch> = flexible.iter().collect();
-    ordered.sort_by_key(|m| (m.latest, m.earliest, m.fixture.clone()));
+    ordered.sort_by(|a, b| {
+        (a.latest, a.earliest, &a.fixture).cmp(&(b.latest, b.earliest, &b.fixture))
+    });
 
-    let mut committed: Vec<Proposal> = fixed.to_vec();
-    let mut placed = Vec::with_capacity(ordered.len());
+    let mut placed: Vec<Proposal> = Vec::with_capacity(ordered.len());
     for candidate in ordered {
-        let proposal = earliest_legal_date(ledger, &committed, candidate)
+        let date = earliest_legal_date(ledger, fixed.iter().chain(&placed), candidate)
             .ok_or_else(|| PlanFailure::NoLegalDate(candidate.fixture.clone()))?;
-        committed.push(proposal.clone());
-        placed.push(proposal);
-    }
-    Ok(placed)
-}
-
-fn earliest_legal_date(
-    ledger: &BookingLedger,
-    committed: &[Proposal],
-    candidate: &FlexibleMatch,
-) -> Option<Proposal> {
-    candidate
-        .earliest
-        .iter_days()
-        .take_while(|date| *date <= candidate.latest)
-        .map(|date| Proposal {
+        placed.push(Proposal {
             fixture: candidate.fixture.clone(),
             home_team_id: candidate.home_team_id.clone(),
             away_team_id: candidate.away_team_id.clone(),
             date,
-        })
-        .find(|proposal| {
-            conflicts_with_ledger(ledger, proposal).is_empty()
+        });
+    }
+    Ok(placed)
+}
+
+fn earliest_legal_date<'a>(
+    ledger: &BookingLedger,
+    committed: impl Iterator<Item = &'a Proposal> + Clone,
+    candidate: &FlexibleMatch,
+) -> Option<NaiveDate> {
+    candidate
+        .earliest
+        .iter_days()
+        .take_while(|date| *date <= candidate.latest)
+        .find(|date| {
+            let placement = candidate.placement_on(*date);
+            conflicts_with_ledger(ledger, &placement).next().is_none()
                 && committed
-                    .iter()
-                    .all(|other| conflicts_between(other, proposal).is_empty())
+                    .clone()
+                    .all(|other| conflicts_between(&other.placement(), &placement).is_empty())
         })
 }
 
