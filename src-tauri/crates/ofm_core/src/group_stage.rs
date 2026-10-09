@@ -340,6 +340,34 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
         return;
     }
 
+    let qualifiers = knockout_qualifiers(league);
+    if qualifiers.len() < 2 {
+        return;
+    }
+
+    let last_group_date = league
+        .fixtures
+        .iter()
+        .map(|fixture| fixture.date.as_str())
+        .max()
+        .unwrap_or("2026-01-01");
+    let knockout_start = chrono::NaiveDate::parse_from_str(last_group_date, "%Y-%m-%d")
+        .ok()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+        .unwrap_or_else(Utc::now)
+        + Duration::days(league.rules.knockout_round_gap_days as i64);
+
+    crate::schedule::seed_knockout_round(
+        league,
+        &qualifiers,
+        knockout_start,
+        fixture_competition_for(&league.kind.clone()),
+    );
+}
+
+/// The existing field/seeding rule, shared with strict archive verification.
+pub(crate) fn knockout_qualifiers(league: &League) -> Vec<String> {
     // Group winners (ranked among themselves), then runners-up, and so on, so
     // the strongest group performances receive any knockout byes. The next
     // placed finishers across all groups can also qualify ("best thirds").
@@ -382,29 +410,7 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
                 .map(|entry| entry.team_id),
         );
     }
-    if qualifiers.len() < 2 {
-        return;
-    }
-
-    let last_group_date = league
-        .fixtures
-        .iter()
-        .map(|fixture| fixture.date.as_str())
-        .max()
-        .unwrap_or("2026-01-01");
-    let knockout_start = chrono::NaiveDate::parse_from_str(last_group_date, "%Y-%m-%d")
-        .ok()
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
-        .unwrap_or_else(Utc::now)
-        + Duration::days(league.rules.knockout_round_gap_days as i64);
-
-    crate::schedule::seed_knockout_round(
-        league,
-        &qualifiers,
-        knockout_start,
-        fixture_competition_for(&league.kind.clone()),
-    );
+    qualifiers
 }
 
 /// Reset a group-and-knockout competition for a new season in place: fresh

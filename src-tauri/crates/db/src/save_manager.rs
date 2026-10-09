@@ -3371,6 +3371,41 @@ mod tests {
         let loaded_again = sm.load_game(&save_id).unwrap();
         assert_eq!(loaded_again.cash_journal.len(), loaded.cash_journal.len());
     }
+    /// Given a finished edition in a saved career, when saved again after its competition
+    /// restarts and reloaded, then the frozen record is still there, byte for byte.
+    #[test]
+    fn edition_archive_survives_save_load_and_competition_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game_with_league();
+        game.competitions = vec![game.league.clone().unwrap()];
+        let competition = &game.competitions[0];
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: competition.id.clone(),
+                season: competition.season,
+                completed_on: "2033-06-30".into(),
+                champion_id: "champion-club".into(),
+                participant_ids: competition.participant_ids.clone(),
+                standings: competition.sorted_standings(),
+                groups: Vec::new(),
+                knockout_rounds: Vec::new(),
+                fixtures: Vec::new(),
+            });
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        game.competitions[0].season += 1;
+        game.competitions[0].fixtures.clear();
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&loaded.edition_archive).unwrap(),
+            serde_json::to_value(&game.edition_archive).unwrap()
+        );
+        assert_eq!(loaded.edition_archive.len(), 1);
+    }
+
     #[test]
     fn migrated_calendar_is_resaved_by_its_own_flag() {
         let dir = tempfile::tempdir().unwrap();

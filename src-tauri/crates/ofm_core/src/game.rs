@@ -113,6 +113,11 @@ pub struct Game {
     pub vacant_team_days: HashMap<String, u32>,
     #[serde(default)]
     pub world_history: WorldHistoryArchive,
+    /// Frozen outcomes of finished competition editions; append-only. Skipped on IPC serde
+    /// because nothing in the UI reads it yet and it grows every season. Persistence is the
+    /// `competition_edition_archive` table, not Game JSON.
+    #[serde(skip)]
+    pub edition_archive: Vec<domain::edition_archive::CompletedEdition>,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -195,6 +200,7 @@ impl Game {
             available_staff_market_last_activity_date: None,
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
+            edition_archive: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
