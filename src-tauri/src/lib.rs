@@ -155,15 +155,23 @@ pub fn run() {
                             .unwrap_or("England")
                             .to_string();
 
-                        match crate::commands::game::bootstrap_game_for_mcp(
+                        match crate::commands::game::start_career_for_mcp(
                             &sm,
                             &save_mgr,
-                            &auto_start.world_path,
-                            auto_start.team_id.as_deref(),
-                            &mgr_name,
-                            &mgr_last,
-                            &mgr_nat,
-                        ) {
+                            &crate::commands::game::McpNewCareer {
+                                world_source: Some(&auto_start.world_path),
+                                team_id: auto_start.team_id.as_deref(),
+                                manager_first_name: &mgr_name,
+                                manager_last_name: &mgr_last,
+                                manager_nationality: &mgr_nat,
+                                options: auto_start.options.clone(),
+                            },
+                        )
+                        .and_then(|save_id| {
+                            save_id.ok_or_else(|| {
+                                "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\"".to_string()
+                            })
+                        }) {
                             Ok(save_id) => {
                                 log::info!("[mcp] Bootstrap complete, save_id={}", save_id);
                                 // Notify GUI that a game is now active

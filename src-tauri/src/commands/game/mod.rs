@@ -25,9 +25,9 @@ mod world_load;
 // No private glob for `bootstrap`: everything this module still calls is
 // something `mcp_server/tools_impl/game.rs` drives a whole career opening
 // through, so it needs a real path anyway.
-#[cfg(feature = "mcp")]
-pub(crate) use bootstrap::bootstrap_game_for_mcp;
 pub(crate) use bootstrap::create_new_save;
+#[cfg(feature = "mcp")]
+pub(crate) use bootstrap::{start_career_for_mcp, McpCareerOptions, McpNewCareer};
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
 pub(crate) use ofm_core::career::{begin_career, CareerScope};

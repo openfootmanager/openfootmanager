@@ -1493,7 +1493,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // game_new
     custom_tool!(
         "game_new",
-        "Create manager + generate/load world + optionally select team",
+        "Create a manager and a world (generated from an optional seed, or loaded from world_source). With team_id the career starts and is saved; without it the game waits for game_select_team",
         build_schema(
             &[
                 ("first_name", "string", "Manager first name"),
@@ -1502,7 +1502,22 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 (
                     "world_source",
                     "string",
-                    "World JSON path (omit for random)"
+                    "World JSON path (omit for a generated compact world)"
+                ),
+                (
+                    "seed",
+                    "integer",
+                    "Generation seed: one seed gives one world for one generator version"
+                ),
+                (
+                    "start_year",
+                    "integer",
+                    "Year the career opens in (default: the current year)"
+                ),
+                (
+                    "start_phase",
+                    "string",
+                    "seasonStart (default) or midSeason"
                 ),
                 (
                     "team_id",
@@ -1529,7 +1544,20 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let world = extract_string_param(args, "world_source");
             let team = extract_string_param(args, "team_id");
-            match tools_impl::game::game_new(ctx, first, last, nat, world, team) {
+            let request = crate::commands::game::McpNewCareer {
+                world_source: world.as_deref(),
+                team_id: team.as_deref(),
+                manager_first_name: &first,
+                manager_last_name: &last,
+                manager_nationality: &nat,
+                options: crate::commands::game::McpCareerOptions {
+                    seed: extract_u64_param(args, "seed"),
+                    start_year: extract_u64_param(args, "start_year")
+                        .and_then(|year| i32::try_from(year).ok()),
+                    start_phase: extract_string_param(args, "start_phase"),
+                },
+            };
+            match tools_impl::game::game_new(ctx, request) {
                 Ok(text) => Ok(text_result(text)),
                 Err(e) => Ok(err_result(&e)),
             }
