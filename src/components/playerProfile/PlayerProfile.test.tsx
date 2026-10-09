@@ -4,12 +4,7 @@ import { beforeEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
-import {
-  type GameStateData,
-  type PlayerData,
-  type StaffData,
-  type TeamData,
-} from "../../store/gameStore";
+import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import PlayerProfile from "./PlayerProfile";
 
 /**
