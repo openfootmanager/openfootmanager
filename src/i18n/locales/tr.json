@@ -1631,6 +1631,8 @@
     "attributes": "Özellikler",
     "attributesHidden": "Özellikler Gizli",
     "scoutToView": "Detaylı özellikleri görmek için bu oyuncuyu scout edin veya kadroya katın.",
+    "scoutedOn": "{{date}} tarihinde izlendi",
+    "scoutReportOutOfDate": "Güncel değil",
     "seasonStats": "Sezon İstatistikleri",
     "advancedStats": "Gelişmiş İstatistikler",
     "shots": "Şutlar",

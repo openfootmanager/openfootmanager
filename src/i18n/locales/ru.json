@@ -1631,6 +1631,8 @@
     "attributes": "Атрибуты",
     "attributesHidden": "Атрибуты скрыты",
     "scoutToView": "Отправьте скаута на этого игрока или подпишите его, чтобы открыть подробные атрибуты.",
+    "scoutedOn": "Оценён {{date}}",
+    "scoutReportOutOfDate": "Устарело",
     "seasonStats": "Статистика сезона",
     "advancedStats": "Продвинутая статистика",
     "shots": "Удары",

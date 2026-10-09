@@ -16,6 +16,8 @@ import { getPlayerAge, getPlayerTeamName } from "./PlayerProfile.helpers";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
+import { formatDate } from "../../lib/dateFormatting";
+import { findScoutedReport } from "../../lib/scoutedPlayers";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
@@ -90,7 +92,6 @@ export default function PlayerProfile({
       : contractRiskLevel === "warning"
         ? t("finances.contractRiskWarning")
         : t("finances.contractRiskStable");
-  const attrGroups = buildPlayerAttributeGroups(player, t);
   const {
     managerTeamId,
     isManagerOwnedProfile,
@@ -161,6 +162,13 @@ export default function PlayerProfile({
     hasAssistantManager,
     onGameUpdate,
   });
+  const scoutedReport = isManagerSquadProfile
+    ? null
+    : findScoutedReport(gameState.scouted_players, player.id, gameState.season_context?.season_start);
+  const attributesPlayer = scoutedReport
+    ? { ...player, attributes: scoutedReport.attributes }
+    : player;
+  const attrGroups = buildPlayerAttributeGroups(attributesPlayer, t);
 
   const {
     contractActionSubmitting,
@@ -329,8 +337,19 @@ export default function PlayerProfile({
 
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
-          player={player}
-          isOwnClub={isManagerSquadProfile}
+          player={attributesPlayer}
+          attributesVisible={isManagerSquadProfile || scoutedReport !== null}
+          scoutNote={
+            scoutedReport
+              ? {
+                  scoutedLabel: t("playerProfile.scoutedOn", {
+                    date: formatDate(scoutedReport.scoutedOn, i18n.language),
+                  }),
+                  outOfDate: scoutedReport.outOfDate,
+                  outOfDateLabel: t("playerProfile.scoutReportOutOfDate"),
+                }
+              : undefined
+          }
           isGk={isGoalkeeper(player)}
           title={t("playerProfile.attributes")}
           averageLabel={t("common.average")}

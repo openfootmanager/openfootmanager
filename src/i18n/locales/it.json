@@ -1650,6 +1650,8 @@
     "attributes": "Attributi",
     "attributesHidden": "Attributi nascosti",
     "scoutToView": "Osserva questo giocatore o acquistalo per vedere gli attributi dettagliati.",
+    "scoutedOn": "Osservato il {{date}}",
+    "scoutReportOutOfDate": "Non aggiornato",
     "seasonStats": "Statistiche stagionali",
     "advancedStats": "Statistiche avanzate",
     "shots": "Tiri",

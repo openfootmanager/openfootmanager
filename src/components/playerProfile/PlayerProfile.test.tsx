@@ -484,6 +484,50 @@ describe("PlayerProfile contract surfaces", () => {
     expect(invoke).not.toHaveBeenCalledWith("preview_contract_termination", expect.anything());
   });
 
+  /**
+   * Given a player at another club whom a scout reported on before this season
+   * When the profile opens
+   * Then the scouted attributes show instead of the hidden placeholder, marked as out of date
+   */
+  it("shows a scouted player's snapshot attributes, marked out of date after a season", () => {
+    const player = createPlayer({ team_id: "team-2" });
+    const state = createGameState(player, [createStaff()]);
+    state.season_context = {
+      phase: "Preseason",
+      season_start: "2026-08-01",
+      season_end: null,
+      days_until_season_start: null,
+      transfer_window: {
+        status: "Closed",
+        opens_on: null,
+        closes_on: null,
+        days_until_opens: null,
+        days_remaining: null,
+      },
+    };
+    state.scouted_players = [
+      {
+        player_id: player.id,
+        scouted_on: "2026-03-10",
+        attributes: { ...player.attributes, pace: 77 },
+      },
+    ];
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={state}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
+    expect(screen.getByText("77")).toBeInTheDocument();
+    expect(screen.getByText("playerProfile.scoutReportOutOfDate")).toBeInTheDocument();
+  });
+
   it("renders expiry date, years remaining, and contract risk for the selected player", () => {
     const player = createPlayer();
     const gameState = createGameState(player);
