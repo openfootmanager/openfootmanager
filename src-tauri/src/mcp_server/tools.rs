@@ -2408,6 +2408,107 @@ mod tests {
             .expect("this test module is introduced by `#[cfg(test)] mod tests {`")
     }
 
+    /// Given the router source
+    /// When every `Err(..) =>` arm in it is read
+    /// Then each one builds its result through `err_result` or `Failure`, never by hand, so a
+    /// refusal always carries its key.
+    #[test]
+    fn every_error_arm_routes_through_the_one_builder() {
+        let offenders: Vec<&str> = source()
+            .lines()
+            .map(str::trim)
+            .filter(|line| line.starts_with("Err(") && line.contains("=>"))
+            .filter(|line| {
+                let result = line
+                    .split_once("=>")
+                    .map_or("", |(_, result)| result.trim());
+                !(result.starts_with("Ok(err_result(")
+                    || result.starts_with("return Ok(e)")
+                    || result.contains("Failure::"))
+            })
+            .collect();
+
+        assert!(
+            offenders.is_empty(),
+            "error arms that do not go through `err_result` or `Failure`:\n{}",
+            offenders.join("\n")
+        );
+    }
+
+    /// Given every production source file of the MCP server
+    /// When they are searched for the ways to build an error result
+    /// Then those appear only in `result.rs` and in `text_result`, so no tool can return an
+    /// error result without a structured key.
+    #[test]
+    fn only_the_result_builder_makes_error_results() {
+        const FORBIDDEN: &[&str] = &[
+            "is_error",
+            "structured_error",
+            "CallToolResult::success",
+            "CallToolResult::error",
+        ];
+        let mut offenders = Vec::new();
+        for (path, text) in server_sources() {
+            for token in FORBIDDEN {
+                if text.contains(token) {
+                    offenders.push(format!("{path}: {token}"));
+                }
+            }
+        }
+
+        assert!(
+            offenders.is_empty(),
+            "built outside result.rs and text_result:\n{}",
+            offenders.join("\n")
+        );
+    }
+
+    /// Production code of every MCP server source except `result.rs`, with `text_result` cut out.
+    fn server_sources() -> Vec<(String, String)> {
+        fn collect(dir: &std::path::Path, found: &mut Vec<(String, String)>) {
+            for entry in std::fs::read_dir(dir).expect("readable directory") {
+                let path = entry.expect("readable entry").path();
+                if path.is_dir() {
+                    collect(&path, found);
+                } else if path.extension().and_then(|e| e.to_str()) == Some("rs")
+                    && path.file_name().and_then(|n| n.to_str()) != Some("result.rs")
+                {
+                    let text = std::fs::read_to_string(&path).expect("readable source");
+                    found.push((path.display().to_string(), text));
+                }
+            }
+        }
+
+        let mut found = Vec::new();
+        collect(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/mcp_server"),
+            &mut found,
+        );
+        found
+            .into_iter()
+            .map(|(path, text)| {
+                let production = text
+                    .split("\n#[cfg(test)]")
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                (path, without_text_result(production))
+            })
+            .collect()
+    }
+
+    fn without_text_result(source: String) -> String {
+        match source.find("fn text_result(") {
+            Some(start) => {
+                let end = source[start..]
+                    .find("\n}\n")
+                    .map_or(source.len(), |e| start + e + 3);
+                format!("{}{}", &source[..start], &source[end..])
+            }
+            None => source,
+        }
+    }
+
     /// The macros every bulk registration goes through.
     const REGISTRATION_MACROS: &[&str] = &["real_tool!(", "id_tool!(", "custom_tool!("];
 
