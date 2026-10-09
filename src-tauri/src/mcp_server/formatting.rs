@@ -116,6 +116,8 @@ pub fn translate_error(key: &str) -> String {
         "be.error.mcp.cannotDeleteActiveSave" => {
             "Cannot delete the save you are playing. Use `game_exit` first.".to_string()
         }
+        "be.error.mcp.missingParameter" => "A required parameter is missing.".to_string(),
+        "be.error.mcp.invalidParameter" => "A parameter has an invalid value.".to_string(),
         "be.error.liveMatch.pressConferenceAlreadyHeld" => {
             "A press conference has already been held today.".to_string()
         }

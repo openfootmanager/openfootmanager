@@ -4,7 +4,7 @@ use rmcp::handler::server::tool::ToolRoute;
 use rmcp::model::{CallToolResult, ContentBlock, Tool};
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
+use crate::mcp_server::result::Failure;
 use crate::mcp_server::tools_impl;
 
 /// Type alias for our tool router.
@@ -128,18 +128,12 @@ fn simple_tool(name: &'static str, description: &'static str) -> Tool {
 
 // ─── Result helpers ─────────────────────────────────────────────────────────
 
-fn error_result(msg: &str) -> CallToolResult {
-    let mut result = CallToolResult::success(vec![ContentBlock::text(msg.to_string())]);
-    result.is_error = Some(true);
-    result
-}
-
 fn text_result(text: String) -> CallToolResult {
     CallToolResult::success(vec![ContentBlock::text(text)])
 }
 
 fn err_result(e: &str) -> CallToolResult {
-    error_result(&translate_error(e))
+    Failure::from_backend_error(e).into_result()
 }
 
 // ─── Parameter extraction helpers ───────────────────────────────────────────
@@ -159,9 +153,33 @@ fn require_string_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<String, CallToolResult> {
-    extract_string_param(args, key)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+    let text = require_with(args, key, "must be a string", |value| {
+        value.as_str().map(str::to_string)
+    })?;
+    if text.is_empty() {
+        return Err(Failure::missing_parameter(key).into_result());
+    }
+    Ok(text)
+}
+
+/// The value under `key` when it is present and not null.
+fn present_param<'a>(
+    args: &'a Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Option<&'a serde_json::Value> {
+    args.as_ref()?.get(key).filter(|value| !value.is_null())
+}
+
+/// Reads a required parameter: absent or null is missing, and a value `read` rejects is invalid.
+fn require_with<T>(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+    problem: &str,
+    read: impl FnOnce(&serde_json::Value) -> Option<T>,
+) -> Result<T, CallToolResult> {
+    let value =
+        present_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())?;
+    read(value).ok_or_else(|| Failure::invalid_parameter(key, problem).into_result())
 }
 
 fn extract_string_array_param(
@@ -194,10 +212,12 @@ fn optional_seed_param(
         None | Some(serde_json::Value::Null) => Ok(None),
         Some(value) => match (value.as_u64(), value.as_i64()) {
             (Some(seed), _) => Ok(Some(seed)),
-            (None, Some(_)) => Err(error_result(&format!(
-                "Parameter {key} must not be negative"
-            ))),
-            (None, None) => Err(error_result(&format!("Parameter {key} must be an integer"))),
+            (None, Some(_)) => {
+                Err(Failure::invalid_parameter(key, "must not be negative").into_result())
+            }
+            (None, None) => {
+                Err(Failure::invalid_parameter(key, "must be an integer").into_result())
+            }
         },
     }
 }
@@ -210,7 +230,20 @@ fn optional_text_param(
     match args.as_ref().and_then(|a| a.get(key)) {
         None | Some(serde_json::Value::Null) => Ok(None),
         Some(serde_json::Value::String(text)) => Ok(Some(text.clone())),
-        Some(_) => Err(error_result(&format!("Parameter {key} must be a string"))),
+        Some(_) => Err(Failure::invalid_parameter(key, "must be a string").into_result()),
+    }
+}
+
+/// `Ok(None)` when the key is absent; an error when it is present but not a year that fits `i32`.
+fn optional_year_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<Option<i32>, CallToolResult> {
+    match optional_integer_param(args, key)? {
+        None => Ok(None),
+        Some(year) => i32::try_from(year)
+            .map(Some)
+            .map_err(|_| Failure::invalid_parameter(key, "is out of range").into_result()),
     }
 }
 
@@ -224,18 +257,8 @@ fn optional_integer_param(
         Some(value) => value
             .as_i64()
             .map(Some)
-            .ok_or_else(|| error_result(&format!("Parameter {key} must be an integer"))),
+            .ok_or_else(|| Failure::invalid_parameter(key, "must be an integer").into_result()),
     }
-}
-
-fn extract_u32_param(
-    args: &Option<serde_json::Map<String, serde_json::Value>>,
-    key: &str,
-) -> Option<u32> {
-    args.as_ref()?
-        .get(key)
-        .and_then(|v| v.as_u64())
-        .and_then(|n| u32::try_from(n).ok())
 }
 
 fn extract_bool_param(
@@ -250,8 +273,9 @@ fn require_u64_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<u64, CallToolResult> {
-    extract_u64_param(args, key)
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+    require_with(args, key, "must be a non-negative integer", |value| {
+        value.as_u64()
+    })
 }
 
 /// Extract a required u32 parameter. Returns an error result if missing or out of range.
@@ -259,8 +283,12 @@ fn require_u32_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<u32, CallToolResult> {
-    extract_u32_param(args, key)
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+    require_with(
+        args,
+        key,
+        "must be a non-negative integer below 2^32",
+        |value| value.as_u64().and_then(|n| u32::try_from(n).ok()),
+    )
 }
 
 fn match_start_fixture_index(
@@ -284,8 +312,7 @@ fn require_bool_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<bool, CallToolResult> {
-    extract_bool_param(args, key)
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+    require_with(args, key, "must be a boolean", |value| value.as_bool())
 }
 
 // ─── Tool router builder ────────────────────────────────────────────────────
@@ -1591,11 +1618,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Ok(seed) => seed,
                 Err(e) => return Ok(e),
             };
-            let start_year = match optional_integer_param(args, "start_year") {
-                Ok(v) => match v.map(i32::try_from).transpose() {
-                    Ok(year) => year,
-                    Err(_) => return Ok(error_result("Parameter start_year is out of range")),
-                },
+            let start_year = match optional_year_param(args, "start_year") {
+                Ok(year) => year,
                 Err(e) => return Ok(e),
             };
             let start_phase = match optional_text_param(args, "start_phase") {
@@ -2234,6 +2258,68 @@ mod tests {
         assert!(description.contains("seed") && description.contains("clubless"));
     }
 
+    /// Given each required-parameter helper
+    /// When the value is absent, null, of the wrong type or out of range
+    /// Then absent and null are `missingParameter`, anything else present is `invalidParameter`.
+    #[test]
+    fn a_present_value_of_the_wrong_type_is_invalid_not_missing() {
+        fn key_of(result: CallToolResult) -> String {
+            result.structured_content.unwrap()["error"]["key"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        }
+        let absent = args(serde_json::json!({}));
+        let null = args(serde_json::json!({"p": null}));
+        let wrong = args(serde_json::json!({"p": {"nested": 1}}));
+        let negative = args(serde_json::json!({"p": -1}));
+        let huge = args(serde_json::json!({"p": 4_294_967_296_u64}));
+
+        for a in [&absent, &null] {
+            assert_eq!(
+                key_of(require_string_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+            assert_eq!(
+                key_of(require_u64_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+            assert_eq!(
+                key_of(require_u32_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+            assert_eq!(
+                key_of(require_bool_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+        }
+        assert_eq!(
+            key_of(require_string_param(&wrong, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_u64_param(&wrong, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_u64_param(&negative, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_u32_param(&huge, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_bool_param(&wrong, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        let empty = args(serde_json::json!({"p": ""}));
+        assert_eq!(
+            key_of(require_string_param(&empty, "p").unwrap_err()),
+            "be.error.mcp.missingParameter"
+        );
+    }
+
     /// Given a seed above i64::MAX, a negative seed and a fractional one
     /// When each is read
     /// Then the large one is accepted and the others are refused by name.
@@ -2413,6 +2499,107 @@ mod tests {
             .rsplit_once("\n#[cfg(test)]\nmod tests {")
             .map(|(production_code, _)| production_code)
             .expect("this test module is introduced by `#[cfg(test)] mod tests {`")
+    }
+
+    /// Given the router source
+    /// When every `Err(..) =>` arm in it is read
+    /// Then each one builds its result through `err_result` or `Failure`, never by hand, so a
+    /// refusal always carries its key.
+    #[test]
+    fn every_error_arm_routes_through_the_one_builder() {
+        let offenders: Vec<&str> = source()
+            .lines()
+            .map(str::trim)
+            .filter(|line| line.starts_with("Err(") && line.contains("=>"))
+            .filter(|line| {
+                let result = line
+                    .split_once("=>")
+                    .map_or("", |(_, result)| result.trim());
+                !(result.starts_with("Ok(err_result(")
+                    || result.starts_with("return Ok(e)")
+                    || result.contains("Failure::"))
+            })
+            .collect();
+
+        assert!(
+            offenders.is_empty(),
+            "error arms that do not go through `err_result` or `Failure`:\n{}",
+            offenders.join("\n")
+        );
+    }
+
+    /// Given every production source file of the MCP server
+    /// When they are searched for the ways to build an error result
+    /// Then those appear only in `result.rs` and in `text_result`, so no tool can return an
+    /// error result without a structured key.
+    #[test]
+    fn only_the_result_builder_makes_error_results() {
+        const FORBIDDEN: &[&str] = &[
+            "is_error",
+            "structured_error",
+            "CallToolResult::success",
+            "CallToolResult::error",
+        ];
+        let mut offenders = Vec::new();
+        for (path, text) in server_sources() {
+            for token in FORBIDDEN {
+                if text.contains(token) {
+                    offenders.push(format!("{path}: {token}"));
+                }
+            }
+        }
+
+        assert!(
+            offenders.is_empty(),
+            "built outside result.rs and text_result:\n{}",
+            offenders.join("\n")
+        );
+    }
+
+    /// Production code of every MCP server source except `result.rs`, with `text_result` cut out.
+    fn server_sources() -> Vec<(String, String)> {
+        fn collect(dir: &std::path::Path, found: &mut Vec<(String, String)>) {
+            for entry in std::fs::read_dir(dir).expect("readable directory") {
+                let path = entry.expect("readable entry").path();
+                if path.is_dir() {
+                    collect(&path, found);
+                } else if path.extension().and_then(|e| e.to_str()) == Some("rs")
+                    && path.file_name().and_then(|n| n.to_str()) != Some("result.rs")
+                {
+                    let text = std::fs::read_to_string(&path).expect("readable source");
+                    found.push((path.display().to_string(), text));
+                }
+            }
+        }
+
+        let mut found = Vec::new();
+        collect(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/mcp_server"),
+            &mut found,
+        );
+        found
+            .into_iter()
+            .map(|(path, text)| {
+                let production = text
+                    .split("\n#[cfg(test)]")
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                (path, without_text_result(production))
+            })
+            .collect()
+    }
+
+    fn without_text_result(source: String) -> String {
+        match source.find("fn text_result(") {
+            Some(start) => {
+                let end = source[start..]
+                    .find("\n}\n")
+                    .map_or(source.len(), |e| start + e + 3);
+                format!("{}{}", &source[..start], &source[end..])
+            }
+            None => source,
+        }
     }
 
     /// The macros every bulk registration goes through.
