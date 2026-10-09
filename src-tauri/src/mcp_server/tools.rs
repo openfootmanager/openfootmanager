@@ -185,6 +185,35 @@ fn extract_u64_param(
     args.as_ref()?.get(key).and_then(|v| v.as_u64())
 }
 
+/// `Ok(None)` when the key is absent; an error when it is present but not a non-negative integer.
+fn optional_seed_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<Option<u64>, CallToolResult> {
+    match args.as_ref().and_then(|a| a.get(key)) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(value) => match (value.as_u64(), value.as_i64()) {
+            (Some(seed), _) => Ok(Some(seed)),
+            (None, Some(_)) => Err(error_result(&format!(
+                "Parameter {key} must not be negative"
+            ))),
+            (None, None) => Err(error_result(&format!("Parameter {key} must be an integer"))),
+        },
+    }
+}
+
+/// `Ok(None)` when the key is absent; an error when it is present but not a string.
+fn optional_text_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<Option<String>, CallToolResult> {
+    match args.as_ref().and_then(|a| a.get(key)) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(text)) => Ok(Some(text.clone())),
+        Some(_) => Err(error_result(&format!("Parameter {key} must be a string"))),
+    }
+}
+
 /// `Ok(None)` when the key is absent; an error when it is present but not an integer.
 fn optional_integer_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
@@ -1558,11 +1587,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let world = extract_string_param(args, "world_source");
             let team = extract_string_param(args, "team_id");
-            let seed = match optional_integer_param(args, "seed") {
-                Ok(v) => match v.map(u64::try_from).transpose() {
-                    Ok(seed) => seed,
-                    Err(_) => return Ok(error_result("Parameter seed must not be negative")),
-                },
+            let seed = match optional_seed_param(args, "seed") {
+                Ok(seed) => seed,
                 Err(e) => return Ok(e),
             };
             let start_year = match optional_integer_param(args, "start_year") {
@@ -1572,16 +1598,20 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 },
                 Err(e) => return Ok(e),
             };
+            let start_phase = match optional_text_param(args, "start_phase") {
+                Ok(phase) => phase,
+                Err(e) => return Ok(e),
+            };
             let request = crate::commands::game::McpNewCareer {
                 world_source: world.as_deref(),
                 team_id: team.as_deref(),
-                manager_first_name: &first,
-                manager_last_name: &last,
-                manager_nationality: &nat,
+                manager_first_name: Some(&first),
+                manager_last_name: Some(&last),
+                manager_nationality: Some(&nat),
                 options: crate::commands::game::McpCareerOptions {
                     seed,
                     start_year,
-                    start_phase: extract_string_param(args, "start_phase"),
+                    start_phase,
                 },
             };
             match tools_impl::game::game_new(ctx, request) {
@@ -2092,7 +2122,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         // Game Lifecycle
         (
             "game_new",
-            "Create a new manager and generate/load a world",
+            "Create a manager and a world: loaded from world_source, or generated from an optional seed, start_year and start_phase. Without team_id the game is clubless until game_select_team",
             "Game Lifecycle",
         ),
         (
@@ -2180,6 +2210,64 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn args(json: serde_json::Value) -> Option<serde_json::Map<String, serde_json::Value>> {
+        json.as_object().cloned()
+    }
+
+    fn failure_text(result: CallToolResult) -> String {
+        result.content[0].as_text().expect("text").text.clone()
+    }
+
+    #[test]
+    fn the_catalog_describes_the_clubless_flow_of_game_new() {
+        let description = tool_catalog()
+            .into_iter()
+            .find(|(name, _, _)| *name == "game_new")
+            .map(|(_, description, _)| description)
+            .unwrap();
+
+        assert!(description.contains("seed") && description.contains("clubless"));
+    }
+
+    /// Given a seed above i64::MAX, a negative seed and a fractional one
+    /// When each is read
+    /// Then the large one is accepted and the others are refused by name.
+    #[test]
+    fn a_seed_may_use_the_whole_u64_range() {
+        assert_eq!(
+            optional_seed_param(&args(serde_json::json!({"seed": u64::MAX})), "seed").ok(),
+            Some(Some(u64::MAX))
+        );
+        let negative = optional_seed_param(&args(serde_json::json!({"seed": -1})), "seed");
+        assert_eq!(
+            failure_text(negative.unwrap_err()),
+            "Parameter seed must not be negative"
+        );
+        let fractional = optional_seed_param(&args(serde_json::json!({"seed": 1.5})), "seed");
+        assert_eq!(
+            failure_text(fractional.unwrap_err()),
+            "Parameter seed must be an integer"
+        );
+    }
+
+    /// Given a start_phase that is present but not a string
+    /// When it is read
+    /// Then it is refused instead of silently defaulting.
+    #[test]
+    fn a_non_string_start_phase_is_refused() {
+        let refused =
+            optional_text_param(&args(serde_json::json!({"start_phase": 3})), "start_phase");
+        assert_eq!(
+            failure_text(refused.unwrap_err()),
+            "Parameter start_phase must be a string"
+        );
+        assert_eq!(
+            optional_text_param(&args(serde_json::json!({})), "start_phase").ok(),
+            Some(None)
+        );
+    }
+
     use std::collections::BTreeSet;
 
     /// Given the MCP docs, implementation comment and registered tool description,

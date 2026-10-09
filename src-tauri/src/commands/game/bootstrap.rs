@@ -32,6 +32,9 @@ pub(crate) fn create_new_save(
     save_manager.create_save_with_stats(game, stats_state, save_name)
 }
 
+#[cfg(feature = "mcp")]
+pub const AUTO_START_NEEDS_CLUB_ERROR: &str = "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\" or \"random,team_id\" for a generated world (the same --mcp-seed gives the same team ids)";
+
 /// What an MCP client may choose when it creates a career. Everything is optional,
 /// and the defaults are the app's: this year, joining at the start of the season.
 #[cfg(feature = "mcp")]
@@ -47,9 +50,11 @@ pub struct McpNewCareer<'a> {
     /// A world file to load; `None`, an empty string or `"random"` generates one.
     pub world_source: Option<&'a str>,
     pub team_id: Option<&'a str>,
-    pub manager_first_name: &'a str,
-    pub manager_last_name: &'a str,
-    pub manager_nationality: &'a str,
+    /// `None` leaves a snapshot's own manager as it is, or names a fresh one "Agent",
+    /// "Manager" and "England".
+    pub manager_first_name: Option<&'a str>,
+    pub manager_last_name: Option<&'a str>,
+    pub manager_nationality: Option<&'a str>,
     pub options: McpCareerOptions,
 }
 
@@ -163,15 +168,14 @@ fn take_or_create_manager(
 ) -> Result<Manager, String> {
     if let Some(idx) = world.managers.iter().position(|m| m.id == "mgr_user") {
         let mut existing = world.managers.remove(idx);
-        // "Agent", "Manager" and "England" are the auto-start defaults, not a choice.
-        if request.manager_first_name != "Agent" {
-            existing.first_name = request.manager_first_name.to_string();
+        if let Some(first_name) = request.manager_first_name {
+            existing.first_name = first_name.to_string();
         }
-        if request.manager_last_name != "Manager" {
-            existing.last_name = request.manager_last_name.to_string();
+        if let Some(last_name) = request.manager_last_name {
+            existing.last_name = last_name.to_string();
         }
-        if request.manager_nationality != "England" {
-            existing.nationality = request.manager_nationality.to_string();
+        if let Some(nationality) = request.manager_nationality {
+            existing.nationality = nationality.to_string();
         }
         return Ok(existing);
     }
@@ -181,10 +185,10 @@ fn take_or_create_manager(
     let dob = reference_date - chrono::Duration::days(45 * 365);
     Ok(Manager::new(
         "mgr_user".to_string(),
-        request.manager_first_name.to_string(),
-        request.manager_last_name.to_string(),
+        request.manager_first_name.unwrap_or("Agent").to_string(),
+        request.manager_last_name.unwrap_or("Manager").to_string(),
         dob.format("%Y-%m-%d").to_string(),
-        request.manager_nationality.to_string(),
+        request.manager_nationality.unwrap_or("England").to_string(),
     ))
 }
 
@@ -251,9 +255,9 @@ mod mcp_career_tests {
             &McpNewCareer {
                 world_source: None,
                 team_id,
-                manager_first_name: "Ada",
-                manager_last_name: "Lovelace",
-                manager_nationality: "England",
+                manager_first_name: Some("Ada"),
+                manager_last_name: Some("Lovelace"),
+                manager_nationality: Some("England"),
                 options,
             },
         )
@@ -266,7 +270,9 @@ mod mcp_career_tests {
         }
     }
 
-    fn identities(sandbox: &Sandbox) -> (Vec<String>, Vec<String>, Vec<String>) {
+    type Identities = (Vec<String>, Vec<String>, Vec<String>, Vec<String>);
+
+    fn identities(sandbox: &Sandbox) -> Identities {
         sandbox
             .state
             .get_game(|game| {
@@ -274,6 +280,11 @@ mod mcp_career_tests {
                     game.teams.iter().map(|t| t.id.clone()).collect(),
                     game.players.iter().map(|p| p.id.clone()).collect(),
                     game.competitions.iter().map(|c| c.id.clone()).collect(),
+                    game.competitions
+                        .iter()
+                        .flat_map(|c| &c.fixtures)
+                        .map(|f| format!("{} {} {}", f.date, f.home_team_id, f.away_team_id))
+                        .collect(),
                 )
             })
             .unwrap()
@@ -308,6 +319,10 @@ mod mcp_career_tests {
         start(&two, None, seeded(7)).unwrap();
         start(&other, None, seeded(8)).unwrap();
 
+        assert!(
+            !identities(&one).3.is_empty(),
+            "the world has fixtures to compare"
+        );
         assert_eq!(identities(&one), identities(&two));
         assert_ne!(identities(&one).0, identities(&other).0);
         assert_eq!(one.state.get_game(|g| g.seed), Some(7));
@@ -382,5 +397,77 @@ mod mcp_career_tests {
         assert_eq!(refused.unwrap_err(), "be.error.teamNotFound");
         assert!(sandbox.state.get_game(|_| ()).is_none());
         assert_eq!(sandbox.state.get_save_id(), None);
+    }
+
+    fn world_with_a_snapshot_manager() -> ofm_core::generator::WorldData {
+        let mut world = ofm_core::generator::WorldData::default();
+        world.managers.push(Manager::new(
+            "mgr_user".to_string(),
+            "Grace".to_string(),
+            "Hopper".to_string(),
+            "1980-01-01".to_string(),
+            "Scotland".to_string(),
+        ));
+        world
+    }
+
+    fn named(
+        first: Option<&'static str>,
+        last: Option<&'static str>,
+        nationality: Option<&'static str>,
+    ) -> McpNewCareer<'static> {
+        McpNewCareer {
+            world_source: None,
+            team_id: None,
+            manager_first_name: first,
+            manager_last_name: last,
+            manager_nationality: nationality,
+            options: McpCareerOptions::default(),
+        }
+    }
+
+    /// Given a snapshot whose manager is "Grace Hopper" of Scotland
+    /// When the caller explicitly names "Agent", "Manager" and "England"
+    /// Then those names are used, because only an absent name keeps the snapshot's.
+    #[test]
+    fn an_explicit_name_equal_to_the_default_still_overrides() {
+        let startup = normalize_startup_options(None).unwrap();
+        let mut world = world_with_a_snapshot_manager();
+
+        let manager = take_or_create_manager(
+            &mut world,
+            &named(Some("Agent"), Some("Manager"), Some("England")),
+            &startup,
+        )
+        .unwrap();
+
+        assert_eq!(
+            (manager.first_name, manager.last_name, manager.nationality),
+            (
+                "Agent".to_string(),
+                "Manager".to_string(),
+                "England".to_string()
+            )
+        );
+    }
+
+    /// Given a snapshot manager and a caller who names nobody
+    /// When the manager is taken
+    /// Then the snapshot's manager is kept as it was.
+    #[test]
+    fn an_absent_name_keeps_the_snapshots_manager() {
+        let startup = normalize_startup_options(None).unwrap();
+        let mut world = world_with_a_snapshot_manager();
+
+        let manager =
+            take_or_create_manager(&mut world, &named(None, None, None), &startup).unwrap();
+
+        assert_eq!(manager.first_name, "Grace");
+        assert_eq!(manager.nationality, "Scotland");
+    }
+
+    #[test]
+    fn the_auto_start_error_explains_the_generated_form() {
+        assert!(AUTO_START_NEEDS_CLUB_ERROR.contains("random,team_id"));
     }
 }

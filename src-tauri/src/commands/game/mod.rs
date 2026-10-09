@@ -27,7 +27,9 @@ mod world_load;
 // through, so it needs a real path anyway.
 pub(crate) use bootstrap::create_new_save;
 #[cfg(feature = "mcp")]
-pub(crate) use bootstrap::{start_career_for_mcp, McpCareerOptions, McpNewCareer};
+pub(crate) use bootstrap::{
+    start_career_for_mcp, McpCareerOptions, McpNewCareer, AUTO_START_NEEDS_CLUB_ERROR,
+};
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
 pub(crate) use ofm_core::career::{begin_career, CareerScope};

@@ -139,37 +139,21 @@ pub fn run() {
                             auto_start.team_id
                         );
 
-                        let mgr_name = mcp_config
-                            .manager_name
-                            .as_deref()
-                            .unwrap_or("Agent")
-                            .to_string();
-                        let mgr_last = mcp_config
-                            .manager_last_name
-                            .as_deref()
-                            .unwrap_or("Manager")
-                            .to_string();
-                        let mgr_nat = mcp_config
-                            .manager_nationality
-                            .as_deref()
-                            .unwrap_or("England")
-                            .to_string();
-
                         match crate::commands::game::start_career_for_mcp(
                             &sm,
                             &save_mgr,
                             &crate::commands::game::McpNewCareer {
                                 world_source: Some(&auto_start.world_path),
                                 team_id: auto_start.team_id.as_deref(),
-                                manager_first_name: &mgr_name,
-                                manager_last_name: &mgr_last,
-                                manager_nationality: &mgr_nat,
+                                manager_first_name: mcp_config.manager_name.as_deref(),
+                                manager_last_name: mcp_config.manager_last_name.as_deref(),
+                                manager_nationality: mcp_config.manager_nationality.as_deref(),
                                 options: auto_start.options.clone(),
                             },
                         )
                         .and_then(|save_id| {
                             save_id.ok_or_else(|| {
-                                "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\"".to_string()
+                                crate::commands::game::AUTO_START_NEEDS_CLUB_ERROR.to_string()
                             })
                         }) {
                             Ok(save_id) => {
