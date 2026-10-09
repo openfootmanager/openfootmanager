@@ -1405,7 +1405,11 @@
     "transferFeedbackCounterHeadline": "Sie wollen mehr, bevor sie einschlagen.",
     "transferFeedbackCounterDetail": "Das Angebot war nah genug, um weiterzureden, aber ihre Seite signalisiert eher einen Preis um {{fee}}.",
     "transferFeedbackRejectedHeadline": "Diese Runde haben sie beendet.",
-    "transferFeedbackRejectedDetail": "Der Vorschlag hat sie nicht genug bewegt. Du brauchst eine stärkere Summe, eher in Richtung {{fee}}, um ernste Gespräche wieder zu öffnen."
+    "transferFeedbackRejectedDetail": "Der Vorschlag hat sie nicht genug bewegt. Du brauchst eine stärkere Summe, eher in Richtung {{fee}}, um ernste Gespräche wieder zu öffnen.",
+    "registrationFailureInsufficientFunds": "Registrierung gescheitert: Käufer hat zu wenig Mittel",
+    "registrationFailureLoanConflict": "Registrierung gescheitert: Leihkonflikt",
+    "registrationFailurePlayerUnavailable": "Registrierung gescheitert: Spieler nicht verfügbar",
+    "registrationFailureRegistrationBlocked": "Registrierung blockiert"
   },
   "transferCentreWorld": {
     "title": "Transferzentrum",
@@ -3394,6 +3398,13 @@
       "loanBuyOptionExercised": {
         "subject": "Kaufoption gezogen: {{player}}",
         "body": "Die Kaufoption für {{player}} wurde für {{fee}} gezogen. Aus der Leihe wird nun ein fester Transfer."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Transferregistrierung gescheitert: {{player}}",
+        "InsufficientFunds": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Kontostand oder das Transferbudget des Käufers die Ablöse nicht mehr deckt. Es wurde keine Ablöse gezahlt.",
+        "LoanConflict": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler verliehen ist oder eine vereinbarte Leihe auf die Registrierung wartet. Es wurde keine Ablöse gezahlt.",
+        "PlayerUnavailable": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler bei keinem verkaufenden Verein mehr verfügbar ist. Es wurde keine Ablöse gezahlt.",
+        "RegistrationBlocked": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil eine Registrierungsvoraussetzung nicht mehr erfüllt ist. Es wurde keine Ablöse gezahlt."
       }
     },
     "news": {

@@ -341,6 +341,8 @@ export interface TransferOfferData {
   status: "Pending" | "PendingRegistration" | "Accepted" | "Rejected" | "Withdrawn";
   date: string;
   registration_date?: string | null;
+  /** Why an agreed transfer was voided at registration; absent for ordinary withdrawn talks. */
+  registration_failure_reason?: string | null;
   /**
    * When talks ended, for offers that were rejected or withdrawn. Distinct from `date`, which
    * is when the offer arrived and is rewritten whenever a club re-opens talks.

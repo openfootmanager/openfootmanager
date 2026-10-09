@@ -1405,7 +1405,11 @@
     "transferFeedbackCounterHeadline": "Mereka menginginkan lebih sebelum berjabat tangan.",
     "transferFeedbackCounterDetail": "Tawaran cukup dekat untuk terus bernegosiasi, tetapi pihak mereka mengisyaratkan harga yang mendekati {{fee}}.",
     "transferFeedbackRejectedHeadline": "Mereka menghentikan putaran ini.",
-    "transferFeedbackRejectedDetail": "Proposal tidak cukup menggugah mereka. Kamu membutuhkan nominal yang lebih kuat, mendekati {{fee}}, untuk membuka negosiasi serius lagi."
+    "transferFeedbackRejectedDetail": "Proposal tidak cukup menggugah mereka. Kamu membutuhkan nominal yang lebih kuat, mendekati {{fee}}, untuk membuka negosiasi serius lagi.",
+    "registrationFailureInsufficientFunds": "Registrasi gagal: dana pembeli tidak cukup",
+    "registrationFailureLoanConflict": "Registrasi gagal: benturan pinjaman",
+    "registrationFailurePlayerUnavailable": "Registrasi gagal: pemain tidak tersedia",
+    "registrationFailureRegistrationBlocked": "Registrasi terhalang"
   },
   "transferCentreWorld": {
     "title": "Pusat Transfer",
@@ -3394,6 +3398,13 @@
       "loanBuyOptionExercised": {
         "subject": "Opsi Pembelian Pinjaman Dilakukan: {{player}}",
         "body": "Opsi pembelian untuk {{player}} telah dilakukan sebesar {{fee}}. Pinjaman ini kini menjadi transfer permanen."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Registrasi transfer gagal: {{player}}",
+        "InsufficientFunds": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena kas atau anggaran transfer pembeli tidak lagi mencukupi. Tidak ada biaya transfer yang dibayarkan.",
+        "LoanConflict": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain sedang dipinjamkan atau memiliki kesepakatan pinjaman yang menunggu registrasi. Tidak ada biaya transfer yang dibayarkan.",
+        "PlayerUnavailable": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain tidak lagi tersedia di klub penjual. Tidak ada biaya transfer yang dibayarkan.",
+        "RegistrationBlocked": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena salah satu persyaratan registrasi tidak lagi terpenuhi. Tidak ada biaya transfer yang dibayarkan."
       }
     },
     "news": {
