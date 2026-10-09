@@ -1,0 +1,58 @@
+name: "\U0001F4AC Góp ý / Đề xuất (Tiếng Việt)"
+description: "Chia sẻ góp ý hoặc đề xuất cải thiện bằng tiếng Việt"
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Góp ý / Đề xuất
+        Chúng tôi rất muốn nghe ý kiến của bạn!
+        Vui lòng viết bằng tiếng Việt trong mẫu này.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Danh mục"
+      options:
+        - "Trải nghiệm sử dụng"
+        - "Cân bằng game"
+        - "Đề xuất"
+        - "Khác"
+    validations:
+      required: true
+
+  - type: input
+    id: area
+    attributes:
+      label: "Phần nào của game?"
+      description: "Ví dụ: Tập luyện, Mô phỏng trận đấu, Chuyển nhượng, Hộp thư, Chiến thuật..."
+      placeholder: "Mô phỏng trận đấu"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Mô tả"
+      description: "Mô tả chi tiết trải nghiệm, vấn đề hoặc đề xuất của bạn."
+      placeholder: "Tôi nghĩ hệ thống tập luyện có thể tốt hơn nếu..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-it-matters
+    attributes:
+      label: "Vì sao điều này quan trọng"
+      description: "Điều này ảnh hưởng thế nào đến niềm vui chơi game của bạn?"
+      placeholder: "Điều này quan trọng vì..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Ảnh chụp màn hình"
+      description: "Kéo thả các ảnh chụp màn hình liên quan vào đây."
+      placeholder: "Kéo file vào đây..."
+    validations:
+      required: false

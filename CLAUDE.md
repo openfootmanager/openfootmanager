@@ -103,7 +103,7 @@ Six rules. CI checks some mechanically; the review requirements and evidence are
    This is here because reviewers kept raising it as a defect on all three out-of-scope surfaces —
    see the closed threads on #479 (MCP markdown) and #437 (CLI scaffold comments). Both are working
    as intended. If a surface is genuinely ambiguous, ask rather than translating on spec: a key that
-   no player will ever see still costs twelve translations and a row in every locale file.
+   no player will ever see still costs thirteen translations and a row in every locale file.
 
 3. **`engine` never imports `domain`.** The match engine defines its own mirror types on purpose
    so it can be tested and evolved independently; `ofm_core/turn/` is the only bridge. This is

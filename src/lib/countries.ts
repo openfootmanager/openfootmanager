@@ -17,6 +17,7 @@ import zhLocale from "i18n-iso-countries/langs/zh.json";
 import csLocale from "i18n-iso-countries/langs/cs.json";
 import trLocale from "i18n-iso-countries/langs/tr.json";
 import idLocale from "i18n-iso-countries/langs/id.json";
+import viLocale from "i18n-iso-countries/langs/vi.json";
 import type { SupportedLanguageCode } from "../i18n";
 
 /**
@@ -38,6 +39,7 @@ export const COUNTRY_PACKS = {
   tr: trLocale,
   id: idLocale,
   cs: csLocale,
+  vi: viLocale,
 } satisfies Record<string, LocaleData>;
 
 type SupportedLocale = keyof typeof COUNTRY_PACKS;
@@ -70,6 +72,7 @@ export const LIBRARY_LOCALE_FOR_LANGUAGE: Record<SupportedLanguageCode, Supporte
   cs: "cs",
   tr: "tr",
   id: "id",
+  vi: "vi",
 };
 
 interface FootballIdentityDefinition {
@@ -95,6 +98,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       cs: "Anglie",
       tr: "İngiltere",
       id: "Inggris",
+      vi: "Anh",
     },
     aliases: ["english", "england"],
     flagCode: "GB-ENG",
@@ -114,6 +118,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       cs: "Skotsko",
       tr: "İskoçya",
       id: "Skotlandia",
+      vi: "Scotland",
     },
     aliases: ["scottish", "scotland"],
     flagCode: "GB-SCT",
@@ -133,6 +138,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       cs: "Wales",
       tr: "Galler",
       id: "Wales",
+      vi: "Xứ Wales",
     },
     aliases: ["welsh", "wales"],
     flagCode: "GB-WLS",
@@ -152,6 +158,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       cs: "Severní Irsko",
       tr: "Kuzey İrlanda",
       id: "Irlandia Utara",
+      vi: "Bắc Ireland",
     },
     aliases: ["northern irish", "northern ireland"],
     flagCode: "GB-NIR",
@@ -171,6 +178,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       cs: "Irská republika",
       tr: "İrlanda Cumhuriyeti",
       id: "Republik Irlandia",
+      vi: "Cộng hòa Ireland",
     },
     aliases: ["irish", "republic of ireland", "ireland"],
     flagCode: "IE",

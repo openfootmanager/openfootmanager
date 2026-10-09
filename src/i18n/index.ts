@@ -15,6 +15,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "cs", labelKey: "settings.languages.cs" },
   { code: "tr", labelKey: "settings.languages.tr" },
   { code: "id", labelKey: "settings.languages.id" },
+  { code: "vi", labelKey: "settings.languages.vi" },
 ] as const;
 
 /** A language code the game ships, as named in `SUPPORTED_LANGUAGES`. */

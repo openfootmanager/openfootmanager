@@ -1,0 +1,87 @@
+name: "\U0001F3AE Báo cáo phiên chơi (Tiếng Việt)"
+description: "Chia sẻ tóm tắt phiên chơi của bạn bằng tiếng Việt"
+labels: ["session-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Báo cáo phiên chơi
+        Báo cáo phiên chơi vô cùng quý giá — chúng giúp chúng tôi hiểu trọn vẹn trải nghiệm của người chơi.
+        Vui lòng viết bằng tiếng Việt trong mẫu này.
+
+  - type: input
+    id: play-time
+    attributes:
+      label: "Thời gian chơi"
+      description: "Bạn đã chơi bao lâu?"
+      placeholder: "Khoảng 2 tiếng"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-did
+    attributes:
+      label: "Tôi đã làm gì"
+      description: "Tóm tắt ngắn gọn phiên chơi của bạn."
+      placeholder: "Bắt đầu ván mới, đá 10 trận, đến vòng 12..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-enjoyed
+    attributes:
+      label: "Điều tôi thích"
+      description: "Điều gì mang lại cảm giác tốt? Điều gì khiến bạn chơi tiếp?"
+      placeholder: "Phần mô phỏng trận đấu rất hấp dẫn, nhất là khi..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-frustrated-me
+    attributes:
+      label: "Điều khiến tôi khó chịu"
+      description: "Điều gì suýt khiến bạn bỏ dở? Chỗ nào có vẻ hỏng hoặc nhàm chán?"
+      placeholder: "Tôi bị rối ở trang tập luyện và..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: top-improvements
+    attributes:
+      label: "3 điều tôi muốn cải thiện nhất"
+      description: "Nếu được thay đổi ba điều, bạn sẽ chọn gì?"
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: play-again
+    attributes:
+      label: "Bạn có chơi lại không?"
+      options:
+        - "Có"
+        - "Có thể"
+        - "Không"
+    validations:
+      required: true
+
+  - type: textarea
+    id: play-again-why
+    attributes:
+      label: "Vì sao?"
+      description: "Cho chúng tôi biết vì sao bạn sẽ hoặc sẽ không chơi lại."
+      placeholder: "Bởi vì..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Còn điều gì khác không?"
+      description: "Mọi suy nghĩ khác, ảnh chụp màn hình hoặc file log."
+      placeholder: "Kéo file vào đây hoặc viết thêm bất cứ điều gì..."
+    validations:
+      required: false

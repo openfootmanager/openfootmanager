@@ -15,6 +15,7 @@ describe("resolveSupportedLanguage", () => {
     expect(resolveSupportedLanguage("ru-RU")).toBe("ru");
     expect(resolveSupportedLanguage("cs-CZ")).toBe("cs");
     expect(resolveSupportedLanguage("tr-TR")).toBe("tr");
+    expect(resolveSupportedLanguage("vi-VN")).toBe("vi");
     expect(resolveSupportedLanguage("es-419")).toBe("es");
     expect(resolveSupportedLanguage("en-US")).toBe("en");
   });

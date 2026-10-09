@@ -264,8 +264,9 @@ describe("country names in every shipped language", () => {
    * Then it is translated into that language
    */
   it.each(nonEnglish)("translates football identities for %s", (code) => {
-    // German writes "England" exactly as English does.
-    const writtenTheSame = new Set(["de:ENG"]);
+    // German writes "England" exactly as English does, and Vietnamese
+    // "Scotland".
+    const writtenTheSame = new Set(["de:ENG", "vi:SCO"]);
     for (const identity of ["ENG", "SCO", "NIR", "IE"]) {
       if (writtenTheSame.has(`${code}:${identity}`)) continue;
       expect(countryName(identity, code), `${identity} in ${code}`).not.toBe(
@@ -283,6 +284,17 @@ describe("country names in every shipped language", () => {
     const names = allNationalities("id").map(({ name }) => name);
     expect(names).toContain("Inggris");
     expect(names).toContain("Jerman");
+  });
+
+  /**
+   * Given Vietnamese is selected
+   * When the nationality list is built
+   * Then it is named in Vietnamese
+   */
+  it("lists nationalities in Vietnamese", () => {
+    const names = allNationalities("vi").map(({ name }) => name);
+    expect(names).toContain("Anh");
+    expect(names).toContain("Đức");
   });
 
   /**

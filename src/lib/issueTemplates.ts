@@ -23,6 +23,7 @@ export const BUG_REPORT_TEMPLATE_BY_LOCALE: Record<string, string> = {
   cs: "bug_report_cs.yml",
   tr: "bug_report_tr.yml",
   id: "bug_report_id.yml",
+  vi: "bug_report_vi.yml",
 };
 
 /** The English form, used for any locale without one of its own. */

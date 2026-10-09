@@ -1,0 +1,856 @@
+{
+  "rivalries": [
+    {
+      "team_a_id": "0277ca5f-d86c-4b4b-a873-89fbc10c1775",
+      "team_b_id": "9be38da6-7cd5-43d6-a8a4-b6d2c12695a7",
+      "intensity": 83,
+      "started_season": 2021
+    },
+    {
+      "team_a_id": "9be38da6-7cd5-43d6-a8a4-b6d2c12695a7",
+      "team_b_id": "a44bad42-f8bb-4dd5-94bf-1d6fa3f1c9fd",
+      "intensity": 87,
+      "started_season": 2014
+    }
+  ],
+  "season_awards": [
+    {
+      "season": 2025,
+      "golden_boot": {
+        "player_id": "0b0bd170-7891-4a82-b227-61d4e146f348",
+        "player_name": "Costa",
+        "team_id": "2258df24-74f5-4e6f-91db-b9f7120d7b07",
+        "team_name": "Birmingham Town",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "d28eafb2-09ed-47a0-8654-5b4b72cdcdc1",
+        "player_name": "Wagner",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "23b7201a-afa8-45c7-8621-ccc142294987",
+        "player_name": "Anderson",
+        "team_id": "bd2ff239-5975-4a5b-8eac-90e10e35bc18",
+        "team_name": "Livingston Rovers",
+        "value": 8.396666526794434
+      },
+      "clean_sheet_king": {
+        "player_id": "d1b6abec-e012-4347-9d96-044fa9229cc6",
+        "player_name": "Young",
+        "team_id": "a2c09269-b241-48cd-87e6-a4b936be30a4",
+        "team_name": "Leeds Athletic",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "8bd76c82-742c-4dd4-ac8d-f3d443010916",
+        "player_name": "Sousa",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "01b8e27d-8891-4520-b8bd-48640d81e965",
+        "player_name": "Stevens",
+        "team_id": "1fe0d806-b154-47a3-8541-a619a2c316a0",
+        "team_name": "Waterford Athletic",
+        "value": 8.342222213745117
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_4ee0b702-3ccf-4263-b85c-f3ba798731fa",
+        "manager_name": "Andres Torres",
+        "team_id": "4ee0b702-3ccf-4263-b85c-f3ba798731fa",
+        "team_name": "Unión Valencia",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2024,
+      "golden_boot": {
+        "player_id": "8aa49c43-4344-44fc-815b-c1784ba0397a",
+        "player_name": "Taylor",
+        "team_id": "e2b27276-52d0-4634-a57d-1d83ddd28e21",
+        "team_name": "Newcastle Rovers",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "59f206af-728b-4330-8178-2f8e7aa3e8ea",
+        "player_name": "Braun",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "01b8e27d-8891-4520-b8bd-48640d81e965",
+        "player_name": "Stevens",
+        "team_id": "1fe0d806-b154-47a3-8541-a619a2c316a0",
+        "team_name": "Waterford Athletic",
+        "value": 8.432222366333008
+      },
+      "clean_sheet_king": {
+        "player_id": "e1bd3644-99da-4500-aaa4-2e5510e74a6a",
+        "player_name": "Wright",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "21b4849b-6299-4032-99fd-583a97e8e0da",
+        "player_name": "Moreira",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "01b8e27d-8891-4520-b8bd-48640d81e965",
+        "player_name": "Stevens",
+        "team_id": "1fe0d806-b154-47a3-8541-a619a2c316a0",
+        "team_name": "Waterford Athletic",
+        "value": 8.432222366333008
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_79cd2e4a-99df-4dc8-8abd-2e9ed3773df0",
+        "manager_name": "Paolo Fontana",
+        "team_id": "79cd2e4a-99df-4dc8-8abd-2e9ed3773df0",
+        "team_name": "IFK Gothenburg",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2023,
+      "golden_boot": {
+        "player_id": "c5d94539-e624-4b2d-98d7-59f98b7b8620",
+        "player_name": "Robinson",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "3cf87933-5d79-4fcc-9d20-fc39a0ef44de",
+        "player_name": "Griffiths",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "01b8e27d-8891-4520-b8bd-48640d81e965",
+        "player_name": "Stevens",
+        "team_id": "1fe0d806-b154-47a3-8541-a619a2c316a0",
+        "team_name": "Waterford Athletic",
+        "value": 8.422222137451172
+      },
+      "clean_sheet_king": {
+        "player_id": "e5318b77-8073-4e89-bc71-0484234466cf",
+        "player_name": "Green",
+        "team_id": "2258df24-74f5-4e6f-91db-b9f7120d7b07",
+        "team_name": "Birmingham Town",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "e7b55998-7b2c-471e-ac41-82bb54de6173",
+        "player_name": "Turner",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "01b8e27d-8891-4520-b8bd-48640d81e965",
+        "player_name": "Stevens",
+        "team_id": "1fe0d806-b154-47a3-8541-a619a2c316a0",
+        "team_name": "Waterford Athletic",
+        "value": 8.422222137451172
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_17da6990-2c20-40f1-98f5-768d95e8f872",
+        "manager_name": "Alexander Svensson",
+        "team_id": "17da6990-2c20-40f1-98f5-768d95e8f872",
+        "team_name": "Malmö FF",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2022,
+      "golden_boot": {
+        "player_id": "54dcf01e-fa00-4a91-bcfc-f91525429d3f",
+        "player_name": "Jones",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "f775d88a-f39c-4f9b-b74c-ea0a506a643a",
+        "player_name": "Hill",
+        "team_id": "2258df24-74f5-4e6f-91db-b9f7120d7b07",
+        "team_name": "Birmingham Town",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "05834e7c-df5c-4756-8b5c-5b8b97b7e28a",
+        "player_name": "Greco",
+        "team_id": "162e262f-c305-4573-a2b6-0b7d866151e0",
+        "team_name": "AC Venice",
+        "value": 8.35111141204834
+      },
+      "clean_sheet_king": {
+        "player_id": "bfe2f8cf-8625-44d7-9efb-e0dc94fcd7d9",
+        "player_name": "Green",
+        "team_id": "7c4c6292-283e-43b7-a899-c84719d9b75b",
+        "team_name": "Sunderland Town",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "e7b55998-7b2c-471e-ac41-82bb54de6173",
+        "player_name": "Turner",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "0fb51854-9448-4950-af3c-b71ab3013ca3",
+        "player_name": "Rinaldi",
+        "team_id": "f135bd0b-1a17-4b34-8a6d-c34180768d90",
+        "team_name": "AC Bari",
+        "value": 8.323332786560059
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_957df772-d88f-4eac-a15e-96b009756efe",
+        "manager_name": "Oliver Walker",
+        "team_id": "957df772-d88f-4eac-a15e-96b009756efe",
+        "team_name": "Clube Atlético Porto Alegre",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2021,
+      "golden_boot": {
+        "player_id": "d9a87a8f-4c12-4ca3-a494-30c15affc298",
+        "player_name": "Ruiz",
+        "team_id": "0b3af5ed-47a8-4231-802a-0c454b063ddf",
+        "team_name": "Portsmouth Rovers",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "3cf87933-5d79-4fcc-9d20-fc39a0ef44de",
+        "player_name": "Griffiths",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "23b7201a-afa8-45c7-8621-ccc142294987",
+        "player_name": "Anderson",
+        "team_id": "bd2ff239-5975-4a5b-8eac-90e10e35bc18",
+        "team_name": "Livingston Rovers",
+        "value": 8.316666603088379
+      },
+      "clean_sheet_king": {
+        "player_id": "69c36799-c372-43f7-b1ed-ab69c4456371",
+        "player_name": "Parker",
+        "team_id": "f7d2228b-9967-454a-a475-88931d1577d9",
+        "team_name": "Blackburn County",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "eb311a55-e83a-4943-ac89-4d49e06dbc0c",
+        "player_name": "Allen",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "23b7201a-afa8-45c7-8621-ccc142294987",
+        "player_name": "Anderson",
+        "team_id": "bd2ff239-5975-4a5b-8eac-90e10e35bc18",
+        "team_name": "Livingston Rovers",
+        "value": 8.316666603088379
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_e28aabbc-5006-4b92-9ed0-cc12c9ecfe84",
+        "manager_name": "Conor Mullan",
+        "team_id": "e28aabbc-5006-4b92-9ed0-cc12c9ecfe84",
+        "team_name": "Belfast FC",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2020,
+      "golden_boot": {
+        "player_id": "c3db567c-40cf-4deb-ae93-f66d144f24f4",
+        "player_name": "Young",
+        "team_id": "4dd266a9-07bd-412a-8d8c-6763b3caf358",
+        "team_name": "Southampton United",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "f699bf6f-0ac1-476e-bea2-d979224df9e1",
+        "player_name": "Walker",
+        "team_id": "2f46ffdc-400c-4bf0-b37a-fee317b247ad",
+        "team_name": "Liverpool City",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "30c73f79-6898-4725-8453-ee4a98df1f98",
+        "player_name": "Johnson",
+        "team_id": "7539e466-dc7a-497b-94f2-7f441163e3b2",
+        "team_name": "Blackburn City",
+        "value": 8.337778091430664
+      },
+      "clean_sheet_king": {
+        "player_id": "f2b21429-280d-4256-bd2b-d611a7caddc1",
+        "player_name": "Reid",
+        "team_id": "ee8aca6f-8cbf-42d9-b7ff-ab7f789d0e01",
+        "team_name": "Nottingham County",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "afcb6219-53b4-44b7-9656-6ae9be593d11",
+        "player_name": "Pinto",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "30c73f79-6898-4725-8453-ee4a98df1f98",
+        "player_name": "Johnson",
+        "team_id": "7539e466-dc7a-497b-94f2-7f441163e3b2",
+        "team_name": "Blackburn City",
+        "value": 8.337778091430664
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_0277ca5f-d86c-4b4b-a873-89fbc10c1775",
+        "manager_name": "Javier Herrera",
+        "team_id": "0277ca5f-d86c-4b4b-a873-89fbc10c1775",
+        "team_name": "Rosario FC",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2019,
+      "golden_boot": {
+        "player_id": "f3b433bc-6971-4021-8626-b66b67b15fcf",
+        "player_name": "Johnson",
+        "team_id": "2258df24-74f5-4e6f-91db-b9f7120d7b07",
+        "team_name": "Birmingham Town",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "6e6b4a0e-6b88-45c8-8339-72fb5f88ec9f",
+        "player_name": "Taylor",
+        "team_id": "ba6bb132-deb6-48da-94d6-1e1f17eb64a6",
+        "team_name": "Sheffield Wanderers",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "e5900dfd-345d-4f1b-a8c4-400dea328467",
+        "player_name": "Colombo",
+        "team_id": "78321ced-2f6e-4bd3-95c6-bd71e4f99e7c",
+        "team_name": "Palermo Calcio",
+        "value": 8.236666679382324
+      },
+      "clean_sheet_king": {
+        "player_id": "d194d538-e534-48ca-8ace-24bcd5a6743b",
+        "player_name": "Wilson",
+        "team_id": "c4a95fac-0c2c-426a-b9e0-ea3cb0dfcf16",
+        "team_name": "Leicester FC",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "2482ca9c-349e-44d1-a955-c043a2e90c3b",
+        "player_name": "Taylor",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "30c73f79-6898-4725-8453-ee4a98df1f98",
+        "player_name": "Johnson",
+        "team_id": "7539e466-dc7a-497b-94f2-7f441163e3b2",
+        "team_name": "Blackburn City",
+        "value": 8.167778015136719
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_e2616af4-6d9f-436f-b1ca-50f94f9fd849",
+        "manager_name": "Federico Flores",
+        "team_id": "e2616af4-6d9f-436f-b1ca-50f94f9fd849",
+        "team_name": "Inter Florence",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2018,
+      "golden_boot": {
+        "player_id": "70f11e8b-f4e4-4245-99b3-f66a4f54989e",
+        "player_name": "Taylor",
+        "team_id": "ba6bb132-deb6-48da-94d6-1e1f17eb64a6",
+        "team_name": "Sheffield Wanderers",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "33af9edd-6b90-46f0-b9e6-0ddfdc8665bf",
+        "player_name": "Brown",
+        "team_id": "7c4c6292-283e-43b7-a899-c84719d9b75b",
+        "team_name": "Sunderland Town",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "1fe5a143-bf18-4ee2-acab-76b8f58d264d",
+        "player_name": "Fontana",
+        "team_id": "bbdf5c8b-7d70-4329-98ae-f638eccbe581",
+        "team_name": "Uppsala BK",
+        "value": 8.337778091430664
+      },
+      "clean_sheet_king": {
+        "player_id": "440e02b0-3be2-44be-bbd3-fc9784fcdede",
+        "player_name": "Campbell",
+        "team_id": "cd65dd54-9340-4a55-8d19-f82486b107b4",
+        "team_name": "Wolverhampton FC",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "afcb6219-53b4-44b7-9656-6ae9be593d11",
+        "player_name": "Pinto",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "f198519c-8e6d-44b2-a9ed-24a072c56847",
+        "player_name": "Garcia",
+        "team_id": "3e1b0af6-964c-4fbe-b075-d295f6a1cff1",
+        "team_name": "Deportivo Las Palmas",
+        "value": 8.227777481079102
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_70a0318f-86a5-4a03-8c3c-0460003478fd",
+        "manager_name": "Julian Hoffmann",
+        "team_id": "70a0318f-86a5-4a03-8c3c-0460003478fd",
+        "team_name": "Porto Alegre Esporte Clube",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2017,
+      "golden_boot": {
+        "player_id": "6a9e73c3-acb7-4c78-9765-bb5390ccec47",
+        "player_name": "Leroy",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "7bde1621-f680-4db4-a19e-45c53d1e4736",
+        "player_name": "Smith",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "05834e7c-df5c-4756-8b5c-5b8b97b7e28a",
+        "player_name": "Greco",
+        "team_id": "162e262f-c305-4573-a2b6-0b7d866151e0",
+        "team_name": "AC Venice",
+        "value": 8.241111755371094
+      },
+      "clean_sheet_king": {
+        "player_id": "882516ae-c37b-4496-bd2d-3e66d54211cf",
+        "player_name": "Alvarez",
+        "team_id": "9c4aba53-37ef-4536-b3e2-872a26c3b55d",
+        "team_name": "Gijón CF",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "2386eb29-2ffe-4aa1-9049-dc03be505c21",
+        "player_name": "Young",
+        "team_id": "2258df24-74f5-4e6f-91db-b9f7120d7b07",
+        "team_name": "Birmingham Town",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "379b7a74-8d81-4028-864b-3f1d63332bc3",
+        "player_name": "Gustafsson",
+        "team_id": "79cd2e4a-99df-4dc8-8abd-2e9ed3773df0",
+        "team_name": "IFK Gothenburg",
+        "value": 8.229999542236328
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_171a2177-249a-49df-a773-112e8642dac4",
+        "manager_name": "Clement Leroy",
+        "team_id": "171a2177-249a-49df-a773-112e8642dac4",
+        "team_name": "Lisbon FC",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2016,
+      "golden_boot": {
+        "player_id": "8dfb1593-98bc-4f93-8d69-43c8a4fff448",
+        "player_name": "Martinez",
+        "team_id": "7abefb29-3cea-4904-ad7b-5bd456302745",
+        "team_name": "Hull Wanderers",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "426b0001-8537-459a-b25a-ee1b241eb1ca",
+        "player_name": "Smith",
+        "team_id": "2f46ffdc-400c-4bf0-b37a-fee317b247ad",
+        "team_name": "Liverpool City",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "f198519c-8e6d-44b2-a9ed-24a072c56847",
+        "player_name": "Garcia",
+        "team_id": "3e1b0af6-964c-4fbe-b075-d295f6a1cff1",
+        "team_name": "Deportivo Las Palmas",
+        "value": 8.267777442932129
+      },
+      "clean_sheet_king": {
+        "player_id": "a192d1b0-3e1e-4ea8-86f4-997150fec39d",
+        "player_name": "Gil",
+        "team_id": "32d41518-fb85-442a-8086-cee4b2bf80b6",
+        "team_name": "Deportivo Zaragoza",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "6cc58c4c-5386-4cb8-9e3c-e19081d33564",
+        "player_name": "Turner",
+        "team_id": "2f46ffdc-400c-4bf0-b37a-fee317b247ad",
+        "team_name": "Liverpool City",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "f198519c-8e6d-44b2-a9ed-24a072c56847",
+        "player_name": "Garcia",
+        "team_id": "3e1b0af6-964c-4fbe-b075-d295f6a1cff1",
+        "team_name": "Deportivo Las Palmas",
+        "value": 8.267777442932129
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_910931ea-883e-4fb2-8149-8041147c1169",
+        "manager_name": "Kevin Braun",
+        "team_id": "910931ea-883e-4fb2-8149-8041147c1169",
+        "team_name": "FC Munich",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2015,
+      "golden_boot": {
+        "player_id": "8aa49c43-4344-44fc-815b-c1784ba0397a",
+        "player_name": "Taylor",
+        "team_id": "e2b27276-52d0-4634-a57d-1d83ddd28e21",
+        "team_name": "Newcastle Rovers",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "e1c6e94f-3e5d-48b1-8367-1297737fb78b",
+        "player_name": "Wilson",
+        "team_id": "3e317582-6cae-4d2b-8d24-91dadfa5abaf",
+        "team_name": "Manchester United",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "7b5b9cfd-83ca-4400-bf40-f8f28eb5fb89",
+        "player_name": "Connolly",
+        "team_id": "a4fc6fec-a74f-4153-a8d9-6eac29191547",
+        "team_name": "Longford City",
+        "value": 8.181111335754395
+      },
+      "clean_sheet_king": {
+        "player_id": "5483497e-a483-4b8f-9397-b378243589bb",
+        "player_name": "Juric",
+        "team_id": "878e9826-98c4-4585-a3e5-52ad4ddfd3c3",
+        "team_name": "Southampton Athletic",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "afcb6219-53b4-44b7-9656-6ae9be593d11",
+        "player_name": "Pinto",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "7b5b9cfd-83ca-4400-bf40-f8f28eb5fb89",
+        "player_name": "Connolly",
+        "team_id": "a4fc6fec-a74f-4153-a8d9-6eac29191547",
+        "team_name": "Longford City",
+        "value": 8.181111335754395
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "manager_name": "Jack Robinson",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    },
+    {
+      "season": 2014,
+      "golden_boot": {
+        "player_id": "5a4270c3-3a7f-4f72-8a8e-a880cc904d1a",
+        "player_name": "Hall",
+        "team_id": "c4a95fac-0c2c-426a-b9e0-ea3cb0dfcf16",
+        "team_name": "Leicester FC",
+        "value": 19.0
+      },
+      "assist_king": {
+        "player_id": "f699bf6f-0ac1-476e-bea2-d979224df9e1",
+        "player_name": "Walker",
+        "team_id": "2f46ffdc-400c-4bf0-b37a-fee317b247ad",
+        "team_name": "Liverpool City",
+        "value": 10.0
+      },
+      "player_of_year": {
+        "player_id": "6b854be2-984d-4aeb-af49-f57889a9f171",
+        "player_name": "Herrera",
+        "team_id": "03496f61-92b3-47c7-a16e-ae0e4c20b93c",
+        "team_name": "Famalicão SC",
+        "value": 8.231111526489258
+      },
+      "clean_sheet_king": {
+        "player_id": "7eb9dd2f-d8f5-4dad-9f0b-b9365ce36e85",
+        "player_name": "Gonzalez",
+        "team_id": "d2b4cfc0-fba0-4397-8411-2d52b7f1b413",
+        "team_name": "Unión Vigo",
+        "value": 15.0
+      },
+      "most_appearances": {
+        "player_id": "46a8a14f-81b5-46c6-9157-95239070bf1c",
+        "player_name": "Baker",
+        "team_id": "45163903-7ee6-4d67-9ff6-0bd55a1ba0df",
+        "team_name": "London FC",
+        "value": 38.0
+      },
+      "young_player": {
+        "player_id": "6b854be2-984d-4aeb-af49-f57889a9f171",
+        "player_name": "Herrera",
+        "team_id": "03496f61-92b3-47c7-a16e-ae0e4c20b93c",
+        "team_name": "Famalicão SC",
+        "value": 8.231111526489258
+      },
+      "manager_of_season": {
+        "manager_id": "mgr_ec15c753-9768-4808-95a2-73d82551c8f8",
+        "manager_name": "Lewis Murray",
+        "team_id": "ec15c753-9768-4808-95a2-73d82551c8f8",
+        "team_name": "Edinburgh United",
+        "value": 106.0,
+        "win_rate": 89.47368421052632
+      }
+    }
+  ],
+  "world_cup_champions": [
+    {
+      "year": 2026,
+      "nation_code": "ZA",
+      "nation_name": "South Africa National Team"
+    }
+  ],
+  "national_team_ranking": [
+    {
+      "nation_code": "EG",
+      "points": 1805.6790937937533
+    },
+    {
+      "nation_code": "MA",
+      "points": 1790.5018570187865
+    },
+    {
+      "nation_code": "NA",
+      "points": 1725.8124251903869
+    },
+    {
+      "nation_code": "GH",
+      "points": 1807.4768132792085
+    },
+    {
+      "nation_code": "NG",
+      "points": 1817.1749464429824
+    },
+    {
+      "nation_code": "SN",
+      "points": 1753.8559824601716
+    },
+    {
+      "nation_code": "CI",
+      "points": 1766.4057998010376
+    },
+    {
+      "nation_code": "CM",
+      "points": 1740.8462470099073
+    },
+    {
+      "nation_code": "TN",
+      "points": 1743.2573965712352
+    },
+    {
+      "nation_code": "ZA",
+      "points": 1827.5042804591362
+    },
+    {
+      "nation_code": "LR",
+      "points": 1698.3530207031465
+    },
+    {
+      "nation_code": "KR",
+      "points": 1765.2680248140884
+    },
+    {
+      "nation_code": "QA",
+      "points": 1816.3668392149382
+    },
+    {
+      "nation_code": "JP",
+      "points": 1764.0397188987572
+    },
+    {
+      "nation_code": "IR",
+      "points": 1718.1886522522375
+    },
+    {
+      "nation_code": "CN",
+      "points": 1779.4771688469566
+    },
+    {
+      "nation_code": "AE",
+      "points": 1747.2077755059654
+    },
+    {
+      "nation_code": "UZ",
+      "points": 1741.2856077643642
+    },
+    {
+      "nation_code": "MN",
+      "points": 1704.9323589420055
+    },
+    {
+      "nation_code": "SA",
+      "points": 1697.5908487737022
+    },
+    {
+      "nation_code": "BH",
+      "points": 1712.0333935656467
+    },
+    {
+      "nation_code": "CR",
+      "points": 1843.1729979071588
+    },
+    {
+      "nation_code": "HN",
+      "points": 1791.313112584249
+    },
+    {
+      "nation_code": "GT",
+      "points": 1788.6185104017932
+    },
+    {
+      "nation_code": "SV",
+      "points": 1762.3868684300048
+    },
+    {
+      "nation_code": "PA",
+      "points": 1763.2962282842625
+    },
+    {
+      "nation_code": "JM",
+      "points": 1778.0337647504552
+    },
+    {
+      "nation_code": "IT",
+      "points": 1818.1952759712317
+    },
+    {
+      "nation_code": "ENG",
+      "points": 1825.1067519903977
+    },
+    {
+      "nation_code": "ES",
+      "points": 1858.665871862565
+    },
+    {
+      "nation_code": "FR",
+      "points": 1836.039822143512
+    },
+    {
+      "nation_code": "NL",
+      "points": 1832.4079685657155
+    },
+    {
+      "nation_code": "NIR",
+      "points": 1858.8774253262484
+    },
+    {
+      "nation_code": "SCO",
+      "points": 1809.122418877453
+    },
+    {
+      "nation_code": "DE",
+      "points": 1787.4332062977437
+    },
+    {
+      "nation_code": "IE",
+      "points": 1810.7553065216
+    },
+    {
+      "nation_code": "BE",
+      "points": 1798.190181526669
+    },
+    {
+      "nation_code": "PT",
+      "points": 1813.7108681404104
+    },
+    {
+      "nation_code": "SE",
+      "points": 1783.2604212998676
+    },
+    {
+      "nation_code": "WAL",
+      "points": 1796.4748838715109
+    },
+    {
+      "nation_code": "CA",
+      "points": 1760.4216148956575
+    },
+    {
+      "nation_code": "MX",
+      "points": 1744.4270198269064
+    },
+    {
+      "nation_code": "FJ",
+      "points": 1689.928939517676
+    },
+    {
+      "nation_code": "AU",
+      "points": 1826.0253153904262
+    },
+    {
+      "nation_code": "VU",
+      "points": 1752.7144628169553
+    },
+    {
+      "nation_code": "BR",
+      "points": 1818.5804700692577
+    },
+    {
+      "nation_code": "AR",
+      "points": 1756.4223831233148
+    },
+    {
+      "nation_code": "US",
+      "points": 1713.1596582985455
+    }
+  ],
+  "world_cup_hosts": []
+}

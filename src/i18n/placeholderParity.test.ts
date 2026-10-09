@@ -5,12 +5,12 @@ import { LOCALE_FILES, NON_ENGLISH_LOCALES, type LocaleTree } from "./i18nTestHe
 // English adds an ordinal suffix (1st, 2nd, ...) to these messages. The listed
 // languages express ordinal position without that interpolation. Keep the
 // exception tied to each key and locale so a different omission still fails.
-const REVIEW_ORDINAL_LOCALES = ["cs", "de", "es", "fr", "id", "it", "pt", "pt-BR", "tr"];
+const REVIEW_ORDINAL_LOCALES = ["cs", "de", "es", "fr", "id", "it", "pt", "pt-BR", "tr", "vi"];
 const ALLOWED_SUFFIX_OMISSIONS: Record<string, readonly string[]> = {
   "be.msg.seasonReview.body.topFour": REVIEW_ORDINAL_LOCALES,
   "be.msg.seasonReview.body.midTable": REVIEW_ORDINAL_LOCALES,
   "be.msg.seasonReview.body.lowerHalf": REVIEW_ORDINAL_LOCALES,
-  "be.msg.seasonPayout.ledgerDescription": ["id"],
+  "be.msg.seasonPayout.ledgerDescription": ["id", "vi"],
 };
 
 function placeholders(text: string): Set<string> {

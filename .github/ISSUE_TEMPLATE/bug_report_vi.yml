@@ -1,0 +1,111 @@
+name: "\U0001F41B Báo lỗi (Tiếng Việt)"
+description: "Báo lỗi hoặc sự cố treo game bằng tiếng Việt"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Báo lỗi
+        Cảm ơn bạn đã báo lỗi! Hãy điền càng chi tiết càng tốt.
+        Vui lòng viết bằng tiếng Việt trong mẫu này.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Chuyện gì đã xảy ra?"
+      description: "Mô tả lỗi thật rõ ràng."
+      placeholder: "Game bị treo khi tôi thử..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "Bạn mong đợi điều gì?"
+      description: "Lẽ ra điều gì phải xảy ra?"
+      placeholder: "Tôi mong trận đấu bắt đầu bình thường..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Các bước tái hiện lỗi"
+      description: "Làm thế nào để chúng tôi gặp lại lỗi này?"
+      placeholder: |
+        1. Bắt đầu ván mới
+        2. Chọn một đội
+        3. Chuyển đến ngày thi đấu
+        4. Bấm "Ra sân"
+        5. Game bị treo
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: "Lỗi xảy ra thường xuyên đến mức nào?"
+      options:
+        - Lần nào cũng bị
+        - Thỉnh thoảng
+        - Chỉ xảy ra một lần
+    validations:
+      required: true
+
+  - type: textarea
+    id: game-context
+    attributes:
+      label: "Bối cảnh trong game"
+      description: "Lúc đó là ngày/vòng đấu nào? Bạn đang làm gì? Bạn vừa tải một bản lưu phải không?"
+      placeholder: "Tôi đang ở vòng 5, ngay sau một trận đấu..."
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: "Phiên bản ứng dụng"
+      description: "Hiển thị ở cuối menu chính và trong Cài đặt → Giới thiệu."
+      placeholder: "v0.3.0-nightly · f164fcd"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: "Hệ điều hành"
+      description: "Ví dụ: Windows 11, macOS 15, Ubuntu 24.04"
+      placeholder: "Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: resolution
+    attributes:
+      label: "Độ phân giải màn hình"
+      description: "Ví dụ: 1920x1080"
+      placeholder: "1920x1080"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: logs
+    attributes:
+      label: "File log"
+      description: |
+        Hãy đính kèm file log của bạn! Chúng giúp chúng tôi sửa lỗi nhanh hơn rất nhiều.
+        **Windows:** `C:\Users\<Bạn>\AppData\Roaming\com.sturdyrobot.openfootmanager\logs\`
+        **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
+        **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
+      options:
+        - label: "Tôi đã đính kèm file log (kéo thả thư mục logs đã nén vào bên dưới)"
+          required: false
+
+  - type: textarea
+    id: logs-and-screenshots
+    attributes:
+      label: "File log và ảnh chụp màn hình"
+      description: "Kéo thả thư mục logs đã nén và ảnh chụp màn hình vào đây."
+      placeholder: "Kéo file vào đây..."
+    validations:
+      required: false
