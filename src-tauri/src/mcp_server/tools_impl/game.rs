@@ -83,10 +83,11 @@ fn create_career(
     save_manager_state: &crate::SaveManagerState,
     request: &crate::commands::game::McpNewCareer<'_>,
 ) -> Result<String, String> {
-    if request.manager_first_name.trim().is_empty() || request.manager_last_name.trim().is_empty() {
+    let blank = |name: Option<&str>| name.is_some_and(|name| name.trim().is_empty());
+    if blank(request.manager_first_name) || blank(request.manager_last_name) {
         return Err("be.error.createManager.nameRequired".to_string());
     }
-    if request.manager_nationality.trim().is_empty() {
+    if blank(request.manager_nationality) {
         return Err("be.error.createManager.nationalityRequired".to_string());
     }
 
@@ -94,7 +95,9 @@ fn create_career(
         crate::commands::game::start_career_for_mcp(state_manager, save_manager_state, request)?;
     let manager = format!(
         "Manager: {} {}\nNationality: {}",
-        request.manager_first_name, request.manager_last_name, request.manager_nationality
+        request.manager_first_name.unwrap_or("Agent"),
+        request.manager_last_name.unwrap_or("Manager"),
+        request.manager_nationality.unwrap_or("England")
     );
     Ok(match save_id {
         Some(save_id) => format!(

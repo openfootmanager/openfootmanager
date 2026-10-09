@@ -577,6 +577,75 @@ fn get_player_match_history_returns_latest_matches_first_with_limit() {
     assert_eq!(history[0].goals, 2);
 }
 
+/// Given a stored match rating of 0 (no rating computed) and one real rating
+/// When the player's match history is read
+/// Then only the real rating is flagged as rated
+#[test]
+fn match_history_flags_which_ratings_exist() {
+    let state = StateManager::new();
+    let mut stats = sample_stats_state();
+    for record in stats
+        .player_matches
+        .iter_mut()
+        .filter(|r| r.player_id == "player-1")
+    {
+        record.rating = if record.fixture_id == "fixture-latest" {
+            0.0
+        } else {
+            7.2
+        };
+    }
+    state.set_stats_state(stats);
+
+    let history = get_player_match_history_internal(&state, "player-1", Some(10)).unwrap();
+
+    let latest = history
+        .iter()
+        .find(|e| e.fixture_id == "fixture-latest")
+        .unwrap();
+    assert!(!latest.rated);
+    assert!(history
+        .iter()
+        .filter(|e| e.fixture_id != "fixture-latest")
+        .all(|e| e.rated));
+    assert!(history.len() > 1);
+}
+
+/// Given a player whose stored season average is 0 and another whose is 7.2
+/// When their stats overviews are read
+/// Then only the second's season rating is flagged as rated
+#[test]
+fn stats_overview_flags_whether_the_season_rating_exists() {
+    let mut unrated = make_player("player-1", "team-1", Position::Striker);
+    unrated.stats.avg_rating = 0.0;
+    let mut rated = make_player("player-2", "team-1", Position::Striker);
+    rated.stats.avg_rating = 7.2;
+    let state = StateManager::new();
+    state.set_game(make_game(vec![unrated, rated]));
+
+    let unrated_overview = get_player_stats_overview_internal(&state, "player-1").unwrap();
+    let rated_overview = get_player_stats_overview_internal(&state, "player-2").unwrap();
+
+    assert!(!unrated_overview.season_rating_rated);
+    assert!(rated_overview.season_rating_rated);
+}
+
+/// Given match history exists for a player whose season average is 0 (a new season)
+/// When the overview is read
+/// Then the season rating is not flagged, whatever the older history holds
+#[test]
+fn stats_overview_from_history_follows_the_season_average_not_the_history() {
+    let mut player = make_player("player-1", "team-1", Position::Striker);
+    player.stats.avg_rating = 0.0;
+    let state = StateManager::new();
+    state.set_game(make_game(vec![player]));
+    state.set_stats_state(sample_stats_state());
+
+    let overview = get_player_stats_overview_internal(&state, "player-1").unwrap();
+
+    assert!(!overview.season_rating_rated);
+}
+
 #[test]
 fn get_player_match_history_returns_empty_when_stats_state_is_missing() {
     let state = StateManager::new();

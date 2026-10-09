@@ -343,7 +343,11 @@ export default function PlayerProfile({
 
       {/* Full-width data cards, stacked for a uniform page */}
       <div className="grid grid-cols-1 gap-5 mt-5">
-        <PlayerProfileSeasonStatsCard stats={player.stats} t={t} />
+        <PlayerProfileSeasonStatsCard
+          stats={player.stats}
+          seasonRatingRated={advancedStats.seasonRatingRated}
+          t={t}
+        />
 
         <PlayerProfileAdvancedStatsCard summary={advancedStats} t={t} />
 

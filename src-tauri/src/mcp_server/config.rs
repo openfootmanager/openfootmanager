@@ -227,8 +227,15 @@ where
 
     let mode = mode.unwrap_or(McpMode::Sandbox);
 
-    if let Some(auto_start) = auto_start.as_mut() {
-        auto_start.options = career_options;
+    match auto_start.as_mut() {
+        Some(auto_start) => auto_start.options = career_options,
+        None if career_options != Default::default() => {
+            return Err(
+                "--mcp-seed, --mcp-start-year and --mcp-start-phase need --mcp-auto-start"
+                    .to_string(),
+            );
+        }
+        None => {}
     }
 
     // Validate: competition mode requires --mcp-auto-start
@@ -327,6 +334,16 @@ mod tests {
         let refused = parse_mcp_config_from_iter(["--mcp-port", "3000", "--mcp-seed"]);
 
         assert_eq!(refused.unwrap_err(), "--mcp-seed needs a value");
+    }
+
+    /// Given career flags but no `--mcp-auto-start`
+    /// When the arguments are parsed
+    /// Then startup is refused rather than the flags being dropped.
+    #[test]
+    fn career_flags_without_auto_start_are_refused() {
+        let refused = parse_mcp_config_from_iter(["--mcp-port", "3000", "--mcp-seed", "7"]);
+
+        assert!(refused.unwrap_err().contains("need --mcp-auto-start"));
     }
 
     #[test]

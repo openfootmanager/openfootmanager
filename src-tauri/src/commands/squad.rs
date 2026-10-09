@@ -211,6 +211,11 @@ pub fn set_training_internal(
 }
 
 #[tauri::command]
+pub fn get_training_focus_attributes() -> Vec<ofm_core::training::TrainingFocusAttributes> {
+    ofm_core::training::training_focus_attributes()
+}
+
+#[tauri::command]
 pub fn set_training_schedule(
     state: State<'_, Arc<StateManager>>,
     schedule: String,
