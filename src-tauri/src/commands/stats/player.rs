@@ -83,6 +83,7 @@ where
 fn build_overview_from_aggregate(
     player_aggregate: &PlayerAggregate,
     peers: &[PlayerAggregate],
+    season_avg_rating: f32,
 ) -> PlayerStatsOverviewDto {
     let eligible_peers = peers
         .iter()
@@ -93,6 +94,7 @@ fn build_overview_from_aggregate(
 
     PlayerStatsOverviewDto {
         percentile_eligible: can_compute_percentiles,
+        season_rating_rated: ofm_core::match_rating::is_rated(season_avg_rating),
         metrics: PlayerStatsOverviewMetricsDto {
             shots: PlayerAdvancedMetricDto {
                 total: player_aggregate.shots,
@@ -264,6 +266,7 @@ fn build_history_overview(
     Ok(Some(build_overview_from_aggregate(
         player_aggregate,
         &peers,
+        player.stats.avg_rating,
     )))
 }
 
@@ -292,6 +295,7 @@ fn build_legacy_overview(
     Ok(build_overview_from_aggregate(
         &aggregate_from_season_stats(&player.stats),
         &peers,
+        player.stats.avg_rating,
     ))
 }
 

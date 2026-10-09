@@ -345,7 +345,7 @@ export default function PlayerProfile({
       <div className="grid grid-cols-1 gap-5 mt-5">
         <PlayerProfileSeasonStatsCard
           stats={player.stats}
-          hasRatedMatches={recentMatches.some((match) => match.rated)}
+          seasonRatingRated={advancedStats.seasonRatingRated}
           t={t}
         />
 

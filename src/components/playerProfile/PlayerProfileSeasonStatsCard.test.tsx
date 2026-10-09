@@ -18,25 +18,29 @@ const t = (key: string) => key;
 
 describe("PlayerProfileSeasonStatsCard average rating", () => {
   /**
-   * Given the backend reports no rated match for the player
+   * Given the backend flags the season rating as unavailable
    * When the card renders
    * Then the average rating is a dash, not 0.0
    */
   it("shows a dash when no match is rated", () => {
-    render(<PlayerProfileSeasonStatsCard stats={stats} hasRatedMatches={false} t={t} />);
+    render(<PlayerProfileSeasonStatsCard stats={stats} seasonRatingRated={false} t={t} />);
 
     expect(screen.getByText("–")).toBeInTheDocument();
     expect(screen.queryByText("0.0")).not.toBeInTheDocument();
   });
 
   /**
-   * Given the backend reports rated matches
+   * Given the backend flags the season rating as available
    * When the card renders
    * Then the stored average shows
    */
   it("shows the average once matches are rated", () => {
     render(
-      <PlayerProfileSeasonStatsCard stats={{ ...stats, avg_rating: 7.24 }} hasRatedMatches t={t} />,
+      <PlayerProfileSeasonStatsCard
+        stats={{ ...stats, avg_rating: 7.24 }}
+        seasonRatingRated
+        t={t}
+      />,
     );
 
     expect(screen.getByText("7.2")).toBeInTheDocument();

@@ -32,6 +32,7 @@ pub struct PlayerStatsOverviewMetricsDto {
 #[serde(rename_all = "camelCase")]
 pub struct PlayerStatsOverviewDto {
     pub percentile_eligible: bool,
+    pub season_rating_rated: bool,
     pub metrics: PlayerStatsOverviewMetricsDto,
 }
 
