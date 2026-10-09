@@ -286,7 +286,13 @@ pub fn seed_knockout_round(
     // When the entrant count is not a power of two, the strongest seeds (which
     // the caller passes first) receive a bye into the next round so the bracket
     // converges to a power of two.
-    let byes = knockout_bye_count(team_ids.len()).expect("knockout entrant count is too large");
+    let Some(byes) = knockout_bye_count(team_ids.len()) else {
+        log::warn!(
+            "[schedule] a knockout field of {} entrants cannot form a bracket",
+            team_ids.len()
+        );
+        return;
+    };
     let (bye_teams, playing_teams) = team_ids.split_at(byes);
 
     let mpd = cup.rules.knockout_matches_per_day.max(1) as usize;
