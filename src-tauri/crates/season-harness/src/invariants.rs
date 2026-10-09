@@ -334,7 +334,7 @@ fn finances_in_range(game: &Game) -> Vec<String> {
 /// fail before a day was played and hide what this rule is for.
 fn no_stranded_fixture(game: &Game) -> Vec<String> {
     let began = game.clock.start_date.format("%Y-%m-%d").to_string();
-    let Some(yesterday) = game.clock.current_date.pred_opt() else {
+    let Some(yesterday) = game.clock.current_date.date_naive().pred_opt() else {
         return Vec::new();
     };
     ofm_core::matchday::stranded_fixtures(game, yesterday)

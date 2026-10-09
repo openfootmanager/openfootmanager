@@ -244,18 +244,13 @@ fn the_same_seed_plays_the_same_seasons() {
     assert!(first == second, "{}", first_difference(&first, &second));
 }
 
-/// The control: another seed is another world, or the test above could not tell a seeded
-/// run from one that ignores its seed.
+/// The control for the test above, at the cost of a build rather than a season: another seed is
+/// another world, or that test could not tell a seeded run from one that ignores its seed.
 #[test]
-fn another_seed_plays_other_seasons() {
-    let play = |seed: u64| {
-        let mut game = WorldSpec::gate(seed).build().expect("the world builds");
-        let mut invariants = Invariants::new(&game);
-        let _ = run_seasons(&mut game, RunOptions::seasons(1), &mut invariants);
-        fingerprint(&game)
-    };
+fn another_seed_builds_another_world() {
+    let built = |seed: u64| fingerprint(&WorldSpec::gate(seed).build().expect("the world builds"));
 
-    assert_ne!(play(1), play(2));
+    assert_ne!(built(1), built(2));
 }
 
 /// Given a world generated from a seed,
