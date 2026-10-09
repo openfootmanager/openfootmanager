@@ -127,10 +127,19 @@ pub struct MatchRolesUpdated {
 
 impl fmt::Display for MatchRolesUpdated {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "## Match Roles Updated\n\nCaptain, set-piece takers set as specified."
-        )
+        write!(f, "## Match Roles Updated\n\n")?;
+        let roles = [
+            ("Captain", &self.captain),
+            ("Vice-captain", &self.vice_captain),
+            ("Penalties", &self.penalty_taker),
+            ("Free Kicks", &self.free_kick_taker),
+            ("Corners", &self.corner_taker),
+        ];
+        let lines: Vec<String> = roles
+            .into_iter()
+            .map(|(label, holder)| format!("{label}: {}", holder.as_deref().unwrap_or("none")))
+            .collect();
+        write!(f, "{}", lines.join("\n"))
     }
 }
 

@@ -82,7 +82,11 @@ pub struct TrainingGroupsUpdated {
 
 impl fmt::Display for TrainingGroupsUpdated {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "## Training Groups Updated")
+        write!(
+            f,
+            "## Training Groups Updated\n\n**Groups**: {}",
+            self.group_count
+        )
     }
 }
 

@@ -4,6 +4,10 @@
 //! value, through `Display`, as the readable text, so the two cannot disagree. Test clients
 //! deserialize the same structs. Fields are plain strings and numbers: this crate depends on
 //! nothing in the workspace, so the wire contract cannot be changed by editing a game type.
+//!
+//! The exceptions are fields that pass a game or command type through as untyped JSON, whose
+//! shape follows that type: `info::GameState::game`, `info::PlayerStats::stats`,
+//! `info::TeamStats::stats` and `season::SeasonAdvanced::summary`.
 
 pub mod club;
 pub mod contracts;
@@ -254,5 +258,35 @@ mod tests {
         assert!(text.contains("No scout reports available."));
         assert!(text.contains("### Active Assignments (1 pending)"));
         assert!(text.contains("| a1 | S. Cout | A. Player | 5 |"));
+    }
+
+    /// Given a match-roles update that sets only a captain
+    /// When it is rendered
+    /// Then the text names the captain and shows the other roles as none, instead of claiming all were set.
+    #[test]
+    fn match_roles_text_shows_the_roles_it_holds() {
+        let roles = squad::MatchRolesUpdated {
+            captain: Some("p1".to_string()),
+            vice_captain: None,
+            penalty_taker: None,
+            free_kick_taker: None,
+            corner_taker: None,
+        };
+
+        let text = roles.to_string();
+
+        assert!(text.contains("Captain: p1"));
+        assert!(text.contains("Penalties: none"));
+        assert!(!text.contains("set as specified"));
+    }
+
+    /// Given a training groups update with three groups
+    /// When it is rendered
+    /// Then the text says how many groups were set.
+    #[test]
+    fn training_groups_text_carries_the_group_count() {
+        let text = training::TrainingGroupsUpdated { group_count: 3 }.to_string();
+
+        assert!(text.contains("**Groups**: 3"));
     }
 }
