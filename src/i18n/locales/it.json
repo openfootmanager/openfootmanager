@@ -681,6 +681,8 @@
     "removeFromLoanList": "Rimuovi dalla lista prestiti",
     "outOfPosition": "Fuori ruolo",
     "outOfPositionTooltip": "Sta giocando fuori dal ruolo preferito",
+    "pitchTokenTooltip": "Condizione {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condizione {{condition}}%",
     "dragHint": "Trascina i giocatori dalla panchina sul campo o scambia i titolari tra gli slot.",
     "benchDragHint": "Usa la lista panchina per trascinare i giocatori direttamente sul campo.",
     "dropPlayerHere": "Rilascia qui il giocatore",

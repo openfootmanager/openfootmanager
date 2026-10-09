@@ -686,6 +686,8 @@
     "removeFromLoanList": "Remove from loan list",
     "outOfPosition": "Out of position",
     "outOfPositionTooltip": "Playing outside the player's preferred role",
+    "pitchTokenTooltip": "Condition {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condition {{condition}}%",
     "dragHint": "Drag bench players onto the pitch or swap starters between slots.",
     "benchDragHint": "Use the bench list to drag players directly onto the pitch.",
     "dropPlayerHere": "Drop player here",
