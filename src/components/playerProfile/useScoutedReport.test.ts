@@ -40,7 +40,7 @@ describe("useScoutedReport", () => {
       },
       { initialProps: { playerId: "a" } },
     );
-    await waitFor(() => expect(rendered.at(-1)?.player_id).toBe("a"));
+    await waitFor(() => expect(rendered[rendered.length - 1]?.player_id).toBe("a"));
     const rendersBeforeSwitch = rendered.length;
 
     rerender({ playerId: "b" });
