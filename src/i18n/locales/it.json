@@ -2036,7 +2036,7 @@
     "postMatchTeamTalk": "Discorso post-partita",
     "addressPlayers": "Rivolgiti ai tuoi giocatori dopo la partita.",
     "matchOver": "Partita terminata",
-    "ratings": "Voti di {{team}}",
+    "performance": "Prestazioni di {{team}}",
     "motm": "Migliore in campo",
     "roundSummary": "Riepilogo del Turno",
     "roundSummaryUnavailable": "Riepilogo del turno non disponibile.",
@@ -2546,7 +2546,7 @@
       }
     },
     "matchReport": "Rapporto partita",
-    "playerRatings": "Valutazioni",
+    "playerPerformance": "Prestazioni dei giocatori",
     "tacticsTab": "Tattica",
     "goalSources": "Fonti dei gol",
     "openPlay": "Azione da gioco",

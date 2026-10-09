@@ -729,6 +729,51 @@ describe("PlayerProfile contract surfaces", () => {
     });
   });
 
+  /**
+   * Given the backend overview flags the season rating as available or not
+   * When the profile opens for a player with a stored 7.2 average
+   * Then the season card shows 7.2 only when the flag says so
+   */
+  it.each([
+    { seasonRatingRated: true, shown: "7.2" },
+    { seasonRatingRated: false, shown: "–" },
+  ])(
+    "shows the season average only when the backend flags it ($seasonRatingRated)",
+    async ({ seasonRatingRated, shown }) => {
+      const player = createPlayer({
+        stats: { ...createPlayer().stats, avg_rating: 7.2, minutes_played: 450 },
+      });
+      vi.mocked(invoke).mockImplementation(async (command: string) => {
+        if (command === "get_player_stats_overview") {
+          return {
+            ...createAdvancedStatsSummary(),
+            percentileEligible: true,
+            seasonRatingRated,
+          };
+        }
+        if (command === "get_player_match_history") {
+          return [];
+        }
+        return defaultInvokeResponse(command);
+      });
+
+      render(
+        <PlayerProfile
+          player={player}
+          gameState={createGameState(player)}
+          isOwnClub
+          onClose={vi.fn()}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("playerProfile.avgRating").previousElementSibling,
+        ).toHaveTextContent(shown);
+      });
+    },
+  );
+
   it("loads and renders recent player match history", async () => {
     const player = createPlayer({
       stats: {
@@ -767,6 +812,7 @@ describe("PlayerProfile contract surfaces", () => {
             shots: 5,
             shots_on_target: 3,
             rating: 8.4,
+            rated: true,
           },
         ];
       }
@@ -1579,6 +1625,7 @@ describe("PlayerProfile switching between players", () => {
               goals: 1,
               assists: 0,
               rating: 7.5,
+              rated: true,
               minutes_played: 90,
             },
           ];

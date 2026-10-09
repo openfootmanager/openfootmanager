@@ -2017,7 +2017,7 @@
     "postMatchTeamTalk": "赛后讲话",
     "addressPlayers": "在赛后对球员发表讲话。",
     "matchOver": "比赛结束",
-    "ratings": "{{team}} 评分",
+    "performance": "{{team}} 表现",
     "motm": "全场最佳",
     "roundSummary": "本轮综述",
     "roundSummaryUnavailable": "本轮综述暂不可用。",
@@ -2527,7 +2527,7 @@
       }
     },
     "matchReport": "比赛报告",
-    "playerRatings": "球员评分",
+    "playerPerformance": "球员表现",
     "tacticsTab": "战术",
     "goalSources": "进球来源",
     "openPlay": "进攻中的进球",

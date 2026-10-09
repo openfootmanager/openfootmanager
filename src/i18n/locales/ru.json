@@ -2017,7 +2017,7 @@
     "postMatchTeamTalk": "Речь после матча",
     "addressPlayers": "Обратитесь к игрокам после матча.",
     "matchOver": "Матч завершён",
-    "ratings": "Оценки {{team}}",
+    "performance": "Выступление {{team}}",
     "motm": "Игрок матча",
     "roundSummary": "Итоги тура",
     "roundSummaryUnavailable": "Итоги тура недоступны.",
@@ -2527,7 +2527,7 @@
       }
     },
     "matchReport": "Отчёт о матче",
-    "playerRatings": "Рейтинги игроков",
+    "playerPerformance": "Игра футболистов",
     "tacticsTab": "Тактика",
     "goalSources": "Источники голов",
     "openPlay": "С игры",

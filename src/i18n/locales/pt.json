@@ -2017,7 +2017,7 @@
     "postMatchTeamTalk": "Palestra Pós-Jogo",
     "addressPlayers": "Dirige-te aos teus jogadores após o jogo.",
     "matchOver": "Jogo Terminado",
-    "ratings": "Classificações de {{team}}",
+    "performance": "Desempenho do {{team}}",
     "motm": "Melhor em Campo",
     "roundSummary": "Resumo da Jornada",
     "roundSummaryUnavailable": "Resumo da jornada indisponível.",
@@ -2527,7 +2527,7 @@
       }
     },
     "matchReport": "Relatório do jogo",
-    "playerRatings": "Avaliações",
+    "playerPerformance": "Desempenho dos jogadores",
     "tacticsTab": "Tática",
     "goalSources": "Fontes de golo",
     "openPlay": "Jogo aberto",
