@@ -385,6 +385,10 @@ fn regenerate_competitions_for_new_season(
     if game.competitions.is_empty() {
         return;
     }
+    crate::edition_archive::archive_finished_editions(
+        &mut game.edition_archive,
+        &game.competitions,
+    );
 
     // Read the World Cup field from this cycle's qualifying before competitions
     // are retired below.
@@ -1543,6 +1547,32 @@ mod tests {
     #[test]
     fn preseason_rollover_retains_midseason_clausura() {
         retained_division_receives_no_friendlies("ar-d1-clausura", at(2035, 9, 18), at(2035, 7, 1));
+    }
+
+    /// Given a finished edition and the user's rollover, when competitions regenerate, then the
+    /// finished edition is frozen with its pre-reset table before the live competition restarts.
+    #[test]
+    fn rollover_freezes_the_finished_edition_before_regenerating_it() {
+        let mut game = calendar_game(at(2033, 7, 1));
+        let mut finished = crate::competition_test_support::table(4, 2);
+        finished.calendar = Some(domain::competition_calendar::CalendarMetadata {
+            league_legs: Some(2),
+            ..Default::default()
+        });
+        let final_table = serde_json::to_value(finished.sorted_standings()).unwrap();
+        let (id, season) = (finished.id.clone(), finished.season);
+        game.competitions.push(finished);
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2033, 7, 1));
+
+        let [record] = game.edition_archive.as_slice() else {
+            panic!("expected one archived edition");
+        };
+        assert!(record.is_edition_of(&id, season));
+        assert_eq!(
+            serde_json::to_value(&record.standings).unwrap(),
+            final_table
+        );
     }
 
     #[test]

@@ -47,6 +47,18 @@ pub fn archive_completed_edition(
     Ok(ArchiveOutcome::Archived)
 }
 
+pub fn archive_finished_editions(archive: &mut Vec<CompletedEdition>, competitions: &[League]) {
+    for competition in competitions {
+        if let Err(failure) = archive_completed_edition(archive, competition) {
+            log::debug!(
+                "[edition-archive] {} season {} not archived: {failure:?}",
+                competition.id,
+                competition.season
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,5 +233,18 @@ mod tests {
         let before = serde_json::to_value(&competition).unwrap();
         archived(&competition);
         assert_eq!(serde_json::to_value(&competition).unwrap(), before);
+    }
+
+    /// Given one finished and one unfinished competition, when every edition is swept, then only the finished one is recorded.
+    #[test]
+    fn sweep_archives_only_finished_editions() {
+        let finished = authored_table(4, 2);
+        let mut unfinished = authored_table(4, 2);
+        unfinished.id = "unfinished".into();
+        unfinished.fixtures[0].status = FixtureStatus::Scheduled;
+        let mut archive = Vec::new();
+        archive_finished_editions(&mut archive, &[finished.clone(), unfinished]);
+        assert_eq!(archive.len(), 1);
+        assert!(archive[0].is_edition_of(&finished.id, finished.season));
     }
 }
