@@ -346,6 +346,29 @@ describe("TacticsTab", () => {
     expect(screen.getByText("6d")).toBeInTheDocument();
   });
 
+  // Given a backend-called-up youth, when Tactics opens, then he is selectable.
+  it("shows called-up youth in tactics selection", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("gk1", "Goalkeeper"),
+      makePlayer("d5", "Defender", { match_name: "Bench DEF" }),
+      makePlayer("called", "Forward", {
+        full_name: "Called Youth",
+        match_name: "Called Youth",
+        squad_role: "Youth",
+        match_day_eligible: true,
+      }),
+    ];
+    mockedInvoke.mockImplementation(async (command: string) =>
+      command === "get_squad" ? state.players : state,
+    );
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    const [calledUp] = await screen.findAllByRole("button", { name: /Called Youth/i });
+    fireEvent.click(calledUp);
+    fireEvent.click(screen.getAllByRole("button", { name: /Bench DEF/ })[0]);
+    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
+    expect(screen.getAllByText("Called Youth", { selector: "p" }).length).toBeGreaterThan(0);
+  });
   it("keeps youth academy players out of first-team tactics selection", async () => {
     const gameState = makeGameState();
     gameState.players.push(
