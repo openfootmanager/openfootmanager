@@ -5,7 +5,7 @@ use domain::manager::Manager;
 use domain::message::InboxMessage;
 use domain::national_team::NationalTeam;
 use domain::news::NewsArticle;
-use domain::player::{Player, Position};
+use domain::player::{Player, PlayerAttributes, Position};
 use domain::season::SeasonContext;
 use domain::staff::Staff;
 use domain::team::Team;
@@ -37,6 +37,15 @@ pub struct ScoutingAssignment {
     pub scout_id: String,
     pub player_id: String,
     pub days_remaining: u32,
+}
+
+/// What a finished scouting job revealed about a player, as of `scouted_on`.
+/// The attributes are a snapshot: they do not follow the player's later changes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScoutedPlayer {
+    pub player_id: String,
+    pub scouted_on: String,
+    pub attributes: PlayerAttributes,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,6 +110,8 @@ pub struct Game {
     pub scouting_assignments: Vec<ScoutingAssignment>,
     #[serde(default)]
     pub youth_scouting_assignments: Vec<YouthScoutingAssignment>,
+    #[serde(default)]
+    pub scouted_players: Vec<ScoutedPlayer>,
     #[serde(default)]
     pub board_objectives: Vec<BoardObjective>,
     #[serde(default)]
@@ -194,6 +205,7 @@ impl Game {
             league: None,
             scouting_assignments: vec![],
             youth_scouting_assignments: vec![],
+            scouted_players: vec![],
             board_objectives: vec![],
             season_context: SeasonContext::default(),
             days_since_last_job_offer: None,

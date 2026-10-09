@@ -1644,6 +1644,8 @@
     "attributes": "Atributos",
     "attributesHidden": "Atributos Ocultos",
     "scoutToView": "Observa ou contrata este jogador para ver os atributos detalhados.",
+    "scoutedOn": "Observado a {{date}}",
+    "scoutReportOutOfDate": "Desatualizado",
     "seasonStats": "Estatísticas da Temporada",
     "advancedStats": "Estatísticas avançadas",
     "shots": "Remates",

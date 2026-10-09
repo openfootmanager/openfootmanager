@@ -1017,3 +1017,74 @@ fn a_scouting_assignment_has_an_id_made_from_what_it_is() {
     .unwrap();
     assert_ne!(youth_id(), other.youth_scouting_assignments[0].id);
 }
+
+// ---------------------------------------------------------------------------
+// process_scouting — scouted-player snapshots (#338)
+// ---------------------------------------------------------------------------
+
+/// Given a scout sent to a player at another club
+/// When the assignment completes
+/// Then the game records that player as scouted, dated, with the attributes the scout saw
+#[test]
+fn a_completed_assignment_records_the_scouted_player() {
+    let mut game = make_game();
+    let seen = game
+        .players
+        .iter()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .attributes
+        .clone();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    assert_eq!(game.scouted_players.len(), 1);
+    let scouted = &game.scouted_players[0];
+    assert_eq!(scouted.player_id, "p2");
+    assert!(scouted.scouted_on.as_str() >= "2025-06-15");
+    assert_eq!(scouted.attributes.pace, seen.pace);
+    assert_eq!(scouted.attributes.passing, seen.passing);
+}
+
+/// Given a player scouted earlier
+/// When his attributes change afterwards
+/// Then the record keeps what the scout saw
+#[test]
+fn a_scouted_snapshot_does_not_follow_later_attribute_changes() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+    let pace_seen = game.scouted_players[0].attributes.pace;
+
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .attributes
+        .pace = pace_seen + 5;
+
+    assert_eq!(game.scouted_players[0].attributes.pace, pace_seen);
+}
+
+/// Given a player already scouted
+/// When a second assignment on him completes later
+/// Then there is still one record, with the newer date and attributes
+#[test]
+fn scouting_a_player_again_replaces_the_record() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+    let first_scouted_on = game.scouted_players[0].scouted_on.clone();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .attributes
+        .pace = 99;
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    assert_eq!(game.scouted_players.len(), 1);
+    assert_eq!(game.scouted_players[0].attributes.pace, 99);
+    assert!(game.scouted_players[0].scouted_on.as_str() > first_scouted_on.as_str());
+}

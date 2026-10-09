@@ -1644,6 +1644,8 @@
     "attributes": "属性",
     "attributesHidden": "属性隐藏",
     "scoutToView": "球探考察该球员或签下他后可查看详细属性。",
+    "scoutedOn": "{{date}} 已球探考察",
+    "scoutReportOutOfDate": "已过期",
     "seasonStats": "赛季数据",
     "advancedStats": "高级数据",
     "shots": "射门",

@@ -5,8 +5,8 @@ use rusqlite::Connection;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::{
-    BoardObjective, Game, ObjectiveType, ScoutingAssignment, YouthScoutingAssignment,
-    YouthScoutingObjective, YouthScoutingRegion,
+    BoardObjective, Game, ObjectiveType, ScoutedPlayer, ScoutingAssignment,
+    YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
 };
 
 use crate::game_database::GameDatabase;
@@ -182,6 +182,20 @@ fn write_game_to_connection(
         .collect();
     scouting_repo::upsert_scouting_list(conn, &scouting_rows)?;
 
+    let scouted_rows = game
+        .scouted_players
+        .iter()
+        .map(|scouted| {
+            Ok(scouting_repo::ScoutedPlayerRow {
+                player_id: scouted.player_id.clone(),
+                scouted_on: scouted.scouted_on.clone(),
+                attributes_json: serde_json::to_string(&scouted.attributes)
+                    .map_err(|_| game_persistence_write_error())?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    scouting_repo::upsert_scouted_players_list(conn, &scouted_rows)?;
+
     let youth_scouting_rows: Vec<scouting_repo::YouthScoutingAssignmentRow> = game
         .youth_scouting_assignments
         .iter()
@@ -299,6 +313,17 @@ impl GamePersistenceReader {
                 days_remaining: assignment.days_remaining,
             })
             .collect();
+        let scouted_players = scouting_repo::load_all_scouted_players(conn)?
+            .into_iter()
+            .map(|row| {
+                Ok(ScoutedPlayer {
+                    player_id: row.player_id,
+                    scouted_on: row.scouted_on,
+                    attributes: serde_json::from_str(&row.attributes_json)
+                        .map_err(|_| game_persistence_load_error())?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
         let youth_scouting_rows = scouting_repo::load_all_youth_scouting(conn)?;
         let youth_scouting_assignments: Vec<YouthScoutingAssignment> = youth_scouting_rows
             .into_iter()
@@ -338,6 +363,7 @@ impl GamePersistenceReader {
             league,
             scouting_assignments,
             youth_scouting_assignments,
+            scouted_players,
             board_objectives,
             season_context: domain::season::SeasonContext::default(),
             days_since_last_job_offer: None,

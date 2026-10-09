@@ -14,6 +14,13 @@ pub struct ScoutingAssignmentRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScoutedPlayerRow {
+    pub player_id: String,
+    pub scouted_on: String,
+    pub attributes_json: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YouthScoutingAssignmentRow {
     pub id: String,
     pub scout_id: String,
@@ -69,6 +76,43 @@ pub fn load_all_scouting(conn: &Connection) -> Result<Vec<ScoutingAssignmentRow>
         assignments.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(assignments)
+}
+
+/// Replace every scouted-player row (clear + re-insert).
+pub fn upsert_scouted_players_list(
+    conn: &Connection,
+    scouted: &[ScoutedPlayerRow],
+) -> Result<(), String> {
+    conn.execute("DELETE FROM scouted_players", [])
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    for row in scouted {
+        conn.execute(
+            "INSERT INTO scouted_players (player_id, scouted_on, attributes_json)
+             VALUES (?1, ?2, ?3)",
+            params![row.player_id, row.scouted_on, row.attributes_json],
+        )
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    }
+    Ok(())
+}
+
+pub fn load_all_scouted_players(conn: &Connection) -> Result<Vec<ScoutedPlayerRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT player_id, scouted_on, attributes_json FROM scouted_players ORDER BY player_id",
+        )
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(ScoutedPlayerRow {
+                player_id: row.get(0)?,
+                scouted_on: row.get(1)?,
+                attributes_json: row.get(2)?,
+            })
+        })
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
+    rows.map(|row| row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string()))
+        .collect()
 }
 
 pub fn upsert_youth_scouting(
