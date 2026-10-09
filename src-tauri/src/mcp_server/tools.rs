@@ -4,7 +4,7 @@ use rmcp::handler::server::tool::ToolRoute;
 use rmcp::model::{CallToolResult, ContentBlock, Tool};
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
+use crate::mcp_server::result::Failure;
 use crate::mcp_server::tools_impl;
 
 /// Type alias for our tool router.
@@ -128,18 +128,12 @@ fn simple_tool(name: &'static str, description: &'static str) -> Tool {
 
 // ─── Result helpers ─────────────────────────────────────────────────────────
 
-fn error_result(msg: &str) -> CallToolResult {
-    let mut result = CallToolResult::success(vec![ContentBlock::text(msg.to_string())]);
-    result.is_error = Some(true);
-    result
-}
-
 fn text_result(text: String) -> CallToolResult {
     CallToolResult::success(vec![ContentBlock::text(text)])
 }
 
 fn err_result(e: &str) -> CallToolResult {
-    error_result(&translate_error(e))
+    Failure::from_backend_error(e).into_result()
 }
 
 // ─── Parameter extraction helpers ───────────────────────────────────────────
@@ -161,7 +155,7 @@ fn require_string_param(
 ) -> Result<String, CallToolResult> {
     extract_string_param(args, key)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+        .ok_or_else(|| Failure::missing_parameter(key).into_result())
 }
 
 fn extract_string_array_param(
@@ -207,8 +201,7 @@ fn require_u64_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<u64, CallToolResult> {
-    extract_u64_param(args, key)
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+    extract_u64_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())
 }
 
 /// Extract a required u32 parameter. Returns an error result if missing or out of range.
@@ -216,8 +209,7 @@ fn require_u32_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<u32, CallToolResult> {
-    extract_u32_param(args, key)
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+    extract_u32_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())
 }
 
 fn match_start_fixture_index(
@@ -241,8 +233,7 @@ fn require_bool_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<bool, CallToolResult> {
-    extract_bool_param(args, key)
-        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+    extract_bool_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())
 }
 
 // ─── Tool router builder ────────────────────────────────────────────────────
