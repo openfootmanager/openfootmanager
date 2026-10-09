@@ -32,7 +32,7 @@ executed by a default-feature test run.
 **Call the same `_internal` function the Tauri command calls.** Never reimplement game logic here.
 If the behaviour has no `_internal` split yet, do that first — see `/add-tauri-command`. Check
 that the shared function is reachable in default and `mcp` builds; application code never imports
-MCP or commands. Apply the root Code quality limits and use `/write-tests` (programme PR 2) first.
+MCP or commands. Apply the root Code quality limits and use `/write-tests` first.
 
 Return text an agent can actually use. Tools return prose or JSON, not opaque ids: an agent
 reading `info_standings` should be able to act on it without a second call. Follow the formatting
