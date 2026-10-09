@@ -115,6 +115,7 @@ function deriveSessionState(state: GameStateData): SessionState {
     season_context: state.season_context ?? DEFAULT_SEASON_CONTEXT,
     board_objectives: state.board_objectives ?? [],
     scouting_assignments: state.scouting_assignments ?? [],
+    scouted_players: state.scouted_players ?? [],
     youth_scouting_assignments: state.youth_scouting_assignments ?? [],
     active_competition_ids: state.active_competition_ids ?? [],
     unread_news_count: (state.news ?? []).filter(
@@ -164,6 +165,7 @@ export type {
   SeasonAwardsData,
   NewsArticle,
   BoardObjective,
+  ScoutedPlayer,
   ScoutingAssignment,
   YouthScoutingAssignment,
   GameStateData,

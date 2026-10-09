@@ -1,5 +1,7 @@
 use crate::clock::GameClock;
-use crate::game::{BoardObjective, Game, ScoutingAssignment, YouthScoutingAssignment};
+use crate::game::{
+    BoardObjective, Game, ScoutedPlayer, ScoutingAssignment, YouthScoutingAssignment,
+};
 use domain::league::{Fixture, FixtureStatus};
 use domain::manager::Manager;
 use domain::season::SeasonContext;
@@ -53,6 +55,7 @@ pub struct SessionState {
     pub board_objectives: Vec<BoardObjective>,
     pub scouting_assignments: Vec<ScoutingAssignment>,
     pub youth_scouting_assignments: Vec<YouthScoutingAssignment>,
+    pub scouted_players: Vec<ScoutedPlayer>,
     pub active_competition_ids: Vec<String>,
     pub unread_news_count: usize,
     pub unread_messages_count: usize,
@@ -84,6 +87,7 @@ pub fn project_session(game: &Game) -> SessionState {
         board_objectives: game.board_objectives.clone(),
         scouting_assignments: game.scouting_assignments.clone(),
         youth_scouting_assignments: game.youth_scouting_assignments.clone(),
+        scouted_players: game.scouted_players.clone(),
         active_competition_ids: game.active_competition_ids.clone(),
         unread_news_count: {
             // Don't count future-dated articles (e.g. a World Cup kickoff dated
@@ -322,6 +326,27 @@ mod tests {
         // Past + same-day unread count; the future-dated article (e.g. a World
         // Cup kickoff) does not inflate the badge before it happens.
         assert_eq!(session.unread_news_count, 2);
+    }
+
+    /// Given a game with a scouted player
+    /// When the session is projected
+    /// Then the scouted snapshot reaches the frontend
+    #[test]
+    fn session_carries_scouted_players() {
+        let mut game = make_game_with_team();
+        game.scouted_players.push(crate::game::ScoutedPlayer {
+            player_id: "p9".to_string(),
+            scouted_on: "2026-08-10".to_string(),
+            attributes: serde_json::from_str(
+                r#"{"pace":50,"stamina":50,"strength":50,"agility":50,"passing":50,"shooting":50,"tackling":50,"dribbling":50,"defending":50,"positioning":50,"vision":50,"decisions":50,"composure":50,"aggression":50,"teamwork":50,"leadership":50,"handling":50,"reflexes":50,"aerial":50}"#,
+            )
+            .unwrap(),
+        });
+
+        let session = project_session(&game);
+
+        assert_eq!(session.scouted_players.len(), 1);
+        assert_eq!(session.scouted_players[0].player_id, "p9");
     }
 
     #[test]

@@ -777,6 +777,12 @@ export interface ScoutingAssignment {
   days_remaining: number;
 }
 
+export interface ScoutedPlayer {
+  player_id: string;
+  scouted_on: string;
+  attributes: PlayerData["attributes"];
+}
+
 export interface YouthScoutingAssignment {
   id: string;
   scout_id: string;
@@ -811,6 +817,7 @@ export interface GameStateData {
   regions?: WorldRegionData[];
   league: LeagueData | null;
   scouting_assignments: ScoutingAssignment[];
+  scouted_players?: ScoutedPlayer[];
   youth_scouting_assignments?: YouthScoutingAssignment[];
   board_objectives: BoardObjective[];
   season_context?: SeasonContextData;
