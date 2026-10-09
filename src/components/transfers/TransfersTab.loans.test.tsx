@@ -23,7 +23,12 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
-  resolveBackendError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
+  resolveBackendError: (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.startsWith("be.error.transfers.loanBorrowerCannotAffordWages")
+      ? "The borrowing club cannot afford this wage share. Its weekly wage budget is €40,000."
+      : message;
+  },
 }));
 
 vi.mock("react-i18next", () => ({
@@ -259,7 +264,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "The borrowing club cannot afford this wage share. Its weekly wage budget is 40000.",
+        "The borrowing club cannot afford this wage share. Its weekly wage budget is €40,000.",
       );
     });
     expect(onGameUpdate).not.toHaveBeenCalled();

@@ -1,17 +1,15 @@
 import { useState } from "react";
-import type { TFunction } from "i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
   exerciseLoanBuyOption,
   respondToOffer,
   respondToLoanOffer,
 } from "../../services/transfersService";
-import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
+import { resolveBackendError } from "../../utils/backendI18n";
 interface Input {
   onGameUpdate: ((game: GameStateData) => void) | undefined;
-  t: TFunction;
 }
-export function useTransferResponses({ onGameUpdate, t }: Input) {
+export function useTransferResponses({ onGameUpdate }: Input) {
   const [responseError, setResponseError] = useState<string | null>(null);
   const respond = async (
     failureLog: string,
@@ -23,7 +21,7 @@ export function useTransferResponses({ onGameUpdate, t }: Input) {
       if (onGameUpdate) onGameUpdate(game);
     } catch (err) {
       console.error(failureLog, err);
-      setResponseError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+      setResponseError(resolveBackendError(err));
     }
   };
   const handleRespondOffer = (playerId: string, offerId: string, accept: boolean) =>

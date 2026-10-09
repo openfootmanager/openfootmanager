@@ -33,7 +33,7 @@ export function useTransfersTabController({
     transferWindowBlocksRegistration,
   });
   const transferCounterFlow = useTransferCounterFlow({ onGameUpdate, t });
-  const transferResponses = useTransferResponses({ onGameUpdate, t });
+  const transferResponses = useTransferResponses({ onGameUpdate });
   const transferActions = useTransferActions({ gameState, userTeamId, onGameUpdate, t });
   const dealWorkspaceFlow = useDealWorkspaceFlow({
     gameState,
