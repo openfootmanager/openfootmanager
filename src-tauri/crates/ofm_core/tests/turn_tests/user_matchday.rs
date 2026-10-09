@@ -97,19 +97,11 @@ fn playing_the_users_matchday_leaves_nothing_due_today_unplayed() {
     matchday::play_user_matchday_with_capture(&mut game, Some(0), 0, &mut |_| {})
         .expect("the user's matchday is played");
 
-    let unplayed: Vec<(String, String)> = game
-        .competitions
-        .iter()
-        .flat_map(|competition| {
-            competition
-                .fixtures
-                .iter()
-                .filter(|fixture| {
-                    fixture.date == today && fixture.status == FixtureStatus::Scheduled
-                })
-                .map(|fixture| (competition.id.clone(), fixture.id.clone()))
-        })
-        .collect();
+    // The shared rule, not a restatement of it: nothing dated today or earlier is left Scheduled.
+    let unplayed = matchday::stranded_fixtures(
+        &game,
+        chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").unwrap(),
+    );
 
     assert!(
         unplayed.is_empty(),

@@ -126,6 +126,9 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.offerStatusAccepted") return "Accepted";
       if (key === "transfers.offerStatusRejected") return "Rejected";
       if (key === "transfers.offerStatusWithdrawn") return "Talks cooled off";
+      if (key === "transfers.registrationFailureInsufficientFunds") {
+        return "Registration failed: insufficient buyer funds";
+      }
       if (key === "transfers.negotiationExpiredError")
         return "Talks cooled off before you could answer. Start a new negotiation if the club comes back.";
       if (key === "transfers.acceptOffer") return "Accept";
@@ -785,6 +788,34 @@ describe("TransfersTab", (): void => {
         ),
       ).toBeInTheDocument();
     });
+  });
+
+  // Given a voided pending registration, when viewing offers, then its funds failure replaces the cooled-off label.
+  it("renders the persisted registration failure reason in the offers list", (): void => {
+    const state = createGameState([
+      createPlayer({
+        transfer_offers: [
+          {
+            id: "offer-registration-failed",
+            from_team_id: "team-2",
+            fee: 850000,
+            wage_offered: 0,
+            last_manager_fee: null,
+            negotiation_round: 1,
+            suggested_counter_fee: null,
+            status: "Withdrawn",
+            date: "2026-06-01",
+            registration_date: "2026-07-02",
+            closed_on: "2026-07-02",
+            registration_failure_reason: "InsufficientFunds",
+          },
+        ],
+      }),
+    ]);
+    render(<TransfersTab gameState={state} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /offers/i }));
+    expect(screen.getByText(/Registration failed: insufficient buyer funds/)).toBeInTheDocument();
+    expect(screen.queryByText(/Talks cooled off/i)).not.toBeInTheDocument();
   });
 
   it("renders withdrawn transfer offers with a localized cooled-off status", (): void => {

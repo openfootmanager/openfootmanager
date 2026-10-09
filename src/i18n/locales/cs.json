@@ -686,6 +686,8 @@
     "removeFromLoanList": "Odebrat z listiny hostování",
     "outOfPosition": "Mimo svou pozici",
     "outOfPositionTooltip": "Hraje mimo hráčovu preferovanou roli",
+    "pitchTokenTooltip": "Kondice {{condition}} % · {{fit}}",
+    "pitchTokenConditionOnly": "Kondice {{condition}} %",
     "dragHint": "Přetáhněte hráče z lavičky na hřiště nebo prohoďte členy základní sestavy mezi sebou.",
     "benchDragHint": "Použijte seznam lavičky pro přímé přetažení hráčů na hřiště.",
     "dropPlayerHere": "Pusťte hráče sem",
@@ -1403,7 +1405,11 @@
     "transferFeedbackCounterHeadline": "Před stvrzením dohody požadují více.",
     "transferFeedbackCounterDetail": "Nabídka byla dostatečně vysoká na to, aby se pokračovalo v jednání, ale druhá strana dává najevo, že si představuje cenu bližší k {{fee}}.",
     "transferFeedbackRejectedHeadline": "Tato fáze vyjednávání byla ukončena.",
-    "transferFeedbackRejectedDetail": "Návrh je nepřesvědčil. Pro opětovné zahájení vážných rozhovorů budete muset nabídnout vyšší částku, bližší k {{fee}}."
+    "transferFeedbackRejectedDetail": "Návrh je nepřesvědčil. Pro opětovné zahájení vážných rozhovorů budete muset nabídnout vyšší částku, bližší k {{fee}}.",
+    "registrationFailureInsufficientFunds": "Registrace selhala: kupující nemá dost peněz",
+    "registrationFailureLoanConflict": "Registrace selhala: konflikt s hostováním",
+    "registrationFailurePlayerUnavailable": "Registrace selhala: hráč není dostupný",
+    "registrationFailureRegistrationBlocked": "Registrace zablokována"
   },
   "transferCentreWorld": {
     "title": "Přestupové centrum",
@@ -3392,6 +3398,13 @@
       "loanBuyOptionExercised": {
         "subject": "Uplatněna opce na odkup z hostování: {{player}}",
         "body": "Opce na odkup hráče {{player}} byla uplatněna za částku {{fee}}. Hostování se nyní mění v trvalý přestup."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Registrace přestupu selhala: {{player}}",
+        "InsufficientFunds": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hotovost nebo přestupový rozpočet kupujícího již nepokrývá částku. Nebyla zaplacena žádná přestupová částka.",
+        "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
+        "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
+        "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
       }
     },
     "news": {

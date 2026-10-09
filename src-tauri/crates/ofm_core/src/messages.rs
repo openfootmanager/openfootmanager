@@ -110,6 +110,48 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
 }
 
+pub(crate) fn transfer_registration_failed_message(
+    offer: &domain::player::TransferOffer,
+    player: &domain::player::Player,
+    user_team_id: &str,
+    buyer_name: &str,
+    reason: domain::player::TransferRegistrationFailureReason,
+    date: &str,
+) -> InboxMessage {
+    use domain::player::TransferRegistrationFailureReason as Failure;
+    let body_key = match reason {
+        Failure::InsufficientFunds => "be.msg.transferRegistrationFailed.InsufficientFunds",
+        Failure::LoanConflict => "be.msg.transferRegistrationFailed.LoanConflict",
+        Failure::PlayerUnavailable => "be.msg.transferRegistrationFailed.PlayerUnavailable",
+        Failure::RegistrationBlocked => "be.msg.transferRegistrationFailed.RegistrationBlocked",
+    };
+    InboxMessage::new(
+        format!("transfer_registration_failed_{}", offer.id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_context(MessageContext {
+        team_id: Some(user_team_id.to_string()),
+        player_id: Some(player.id.clone()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.transferRegistrationFailed.subject",
+        body_key,
+        HashMap::from([
+            ("player".to_string(), player.full_name.clone()),
+            ("buyer".to_string(), buyer_name.to_string()),
+            ("fee".to_string(), offer.fee.to_string()),
+            ("start".to_string(), date.to_string()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
+}
+
 pub fn incoming_transfer_offer_message(
     offer_id: &str,
     player_id: &str,
