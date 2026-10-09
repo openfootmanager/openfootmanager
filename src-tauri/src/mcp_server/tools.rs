@@ -185,6 +185,20 @@ fn extract_u64_param(
     args.as_ref()?.get(key).and_then(|v| v.as_u64())
 }
 
+/// `Ok(None)` when the key is absent; an error when it is present but not an integer.
+fn optional_integer_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<Option<i64>, CallToolResult> {
+    match args.as_ref().and_then(|a| a.get(key)) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(value) => value
+            .as_i64()
+            .map(Some)
+            .ok_or_else(|| error_result(&format!("Parameter {key} must be an integer"))),
+    }
+}
+
 fn extract_u32_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
@@ -1544,6 +1558,20 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             };
             let world = extract_string_param(args, "world_source");
             let team = extract_string_param(args, "team_id");
+            let seed = match optional_integer_param(args, "seed") {
+                Ok(v) => match v.map(u64::try_from).transpose() {
+                    Ok(seed) => seed,
+                    Err(_) => return Ok(error_result("Parameter seed must not be negative")),
+                },
+                Err(e) => return Ok(e),
+            };
+            let start_year = match optional_integer_param(args, "start_year") {
+                Ok(v) => match v.map(i32::try_from).transpose() {
+                    Ok(year) => year,
+                    Err(_) => return Ok(error_result("Parameter start_year is out of range")),
+                },
+                Err(e) => return Ok(e),
+            };
             let request = crate::commands::game::McpNewCareer {
                 world_source: world.as_deref(),
                 team_id: team.as_deref(),
@@ -1551,9 +1579,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 manager_last_name: &last,
                 manager_nationality: &nat,
                 options: crate::commands::game::McpCareerOptions {
-                    seed: extract_u64_param(args, "seed"),
-                    start_year: extract_u64_param(args, "start_year")
-                        .and_then(|year| i32::try_from(year).ok()),
+                    seed,
+                    start_year,
                     start_phase: extract_string_param(args, "start_phase"),
                 },
             };

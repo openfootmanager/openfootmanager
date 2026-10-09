@@ -168,9 +168,8 @@ where
             "--mcp-seed" | "--mcp-start-year" | "--mcp-start-phase" => {
                 let flag = args[i].clone();
                 i += 1;
-                if i < args.len() {
-                    apply_career_option(&mut career_options, &flag, &args[i])?;
-                }
+                let value = args.get(i).ok_or_else(|| format!("{flag} needs a value"))?;
+                apply_career_option(&mut career_options, &flag, value)?;
             }
             "--no-gui" => {
                 no_gui = true;
@@ -318,6 +317,16 @@ mod tests {
         assert_eq!(options.seed, Some(7));
         assert_eq!(options.start_year, Some(2030));
         assert_eq!(options.start_phase.as_deref(), Some("midSeason"));
+    }
+
+    /// Given a career flag with no value after it
+    /// When the arguments are parsed
+    /// Then startup is refused rather than the flag being ignored.
+    #[test]
+    fn a_career_flag_without_a_value_is_refused() {
+        let refused = parse_mcp_config_from_iter(["--mcp-port", "3000", "--mcp-seed"]);
+
+        assert_eq!(refused.unwrap_err(), "--mcp-seed needs a value");
     }
 
     #[test]
