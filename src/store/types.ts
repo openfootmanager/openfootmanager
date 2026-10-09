@@ -264,6 +264,8 @@ export interface PlayerMediaData {
 }
 
 export interface PlayerData {
+  /** Computed by the backend squad projection; never stored in a save. */
+  match_day_eligible?: boolean;
   id: string;
   match_name: string;
   full_name: string;

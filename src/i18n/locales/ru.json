@@ -1267,6 +1267,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "История предложений",
+    "viewOfferHistory": "Просмотреть историю предложений",
+    "offerRecordedOn": "Предложение от {{date}}.",
+    "loanOfferStartsOn": "Аренда начинается {{date}}.",
+    "dealAlreadyAgreed": "Переход этого игрока согласован, регистрация ещё не завершена.",
+    "dealOwnPlayer": "Этот игрок уже принадлежит вашему клубу.",
+    "dealActiveLoan": "Этот игрок сейчас в аренде.",
+    "dealRetired": "Этот игрок завершил карьеру.",
     "bidImpactWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Недельный бюджет зарплат {{budget}}",
     "bidImpactIncomingWage": "Зарплата игрока {{wage}} / неделя",

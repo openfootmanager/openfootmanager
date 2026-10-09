@@ -1267,6 +1267,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Teklif geçmişi",
+    "viewOfferHistory": "Teklif geçmişini görüntüle",
+    "offerRecordedOn": "Teklif tarihi: {{date}}.",
+    "loanOfferStartsOn": "Kiralama {{date}} tarihinde başlar.",
+    "dealAlreadyAgreed": "Bu oyuncunun transferi üzerinde anlaşılmış ve tescil bekleniyor.",
+    "dealOwnPlayer": "Bu oyuncu zaten kulübünüze ait.",
+    "dealActiveLoan": "Bu oyuncu şu anda kiralık oynuyor.",
+    "dealRetired": "Bu oyuncu futbolu bıraktı.",
     "bidImpactWageBill": "Haftalık maaş gideri {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Haftalık maaş bütçesi {{budget}}",
     "bidImpactIncomingWage": "Oyuncu maaşı {{wage}} / hafta",

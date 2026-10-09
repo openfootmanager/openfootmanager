@@ -6,7 +6,7 @@ import type { PlayerData } from "../store/gameStore";
 
 /**
  * Fetches a team's squad and refetches whenever the team OR the game clock
- * changes, so per-day fields (condition, fitness, injuries) refresh after a day
+ * or supplied game revision changes, so eligibility and per-day fields (condition, fitness, injuries) refresh after a day
  * is advanced — not only when the user switches tabs. A `cancelled` guard drops
  * out-of-order responses.
  *
@@ -17,6 +17,7 @@ import type { PlayerData } from "../store/gameStore";
 export function useFetchedSquad(
   teamId: string | null,
   clockDate: string,
+  revision?: unknown,
 ): [PlayerData[] | null, Dispatch<SetStateAction<PlayerData[] | null>>] {
   const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   // The team the cached squad belongs to. Used to scope the cache so switching
@@ -33,7 +34,19 @@ export function useFetchedSquad(
       return;
     }
     setFetchedTeamId(teamId);
-    setFetchedSquad(next);
+    setFetchedSquad((previous) => {
+      const updated = typeof next === "function" ? next(previous) : next;
+      // Full Game mutation responses omit projection metadata. Preserve it until
+      // the revision-triggered fetch supplies the new backend verdict.
+      const previousById = new Map(previous?.map((player) => [player.id, player]));
+      return (
+        updated?.map((player) => ({
+          ...player,
+          match_day_eligible:
+            player.match_day_eligible ?? previousById.get(player.id)?.match_day_eligible,
+        })) ?? null
+      );
+    });
   };
 
   useEffect(() => {
@@ -50,11 +63,11 @@ export function useFetchedSquad(
           setFetchedSquad(squad);
         }
       })
-      .catch(() => {});
+      .catch((error: unknown) => console.error("Failed to fetch squad", error));
     return () => {
       cancelled = true;
     };
-  }, [teamId, clockDate]);
+  }, [teamId, clockDate, revision]);
 
   // Only serve the cache for the team currently requested.
   return [fetchedTeamId === teamId ? fetchedSquad : null, setSquadForCurrentTeam];
