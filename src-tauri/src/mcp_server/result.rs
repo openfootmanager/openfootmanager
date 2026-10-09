@@ -28,10 +28,12 @@ impl Failure {
                 message: error.to_string(),
             };
         }
+        let params = query_params(query);
+        let message = readable_message(key, &params);
         Self {
             key: Some(key.to_string()),
-            params: query_params(query),
-            message: translate_error(key),
+            params,
+            message,
         }
     }
 
@@ -71,10 +73,24 @@ impl Failure {
     }
 }
 
+/// The mapped text for a key, or, for a key with no mapping, the key and its parameters.
+fn readable_message(key: &str, params: &Map<String, Value>) -> String {
+    let mapped = translate_error(key);
+    if mapped != format!("Error: {key}") || params.is_empty() {
+        return mapped;
+    }
+    let details: Vec<String> = params
+        .iter()
+        .map(|(name, value)| format!("{name}={}", value.as_str().unwrap_or_default()))
+        .collect();
+    format!("{mapped} ({})", details.join(", "))
+}
+
 fn query_params(query: &str) -> Map<String, Value> {
     query
         .split('&')
         .filter_map(|pair| pair.split_once('='))
+        .filter(|(name, _)| !name.is_empty())
         .map(|(name, value)| (name.to_string(), json!(percent_decoded(value))))
         .collect()
 }
@@ -142,9 +158,15 @@ mod tests {
     /// Then the key and the decoded parameters are separate fields.
     #[test]
     fn a_keys_parameters_become_fields() {
-        let (data, _, _) = structured(Failure::from_backend_error(
-            "be.error.package.unknownCountry?country=C%C3%B4te%20d%27Ivoire&n=2",
+        let (data, text, _) = structured(Failure::from_backend_error(
+            "be.error.package.unknownCountry?country=C%C3%B4te%20d%27Ivoire&n=2&=ignored",
         ));
+
+        assert_eq!(
+            text,
+            "Error: be.error.package.unknownCountry (country=Côte d'Ivoire, n=2)"
+        );
+        assert_eq!(data["error"]["params"].as_object().unwrap().len(), 2);
 
         assert_eq!(data["error"]["key"], "be.error.package.unknownCountry");
         assert_eq!(data["error"]["params"]["country"], "Côte d'Ivoire");

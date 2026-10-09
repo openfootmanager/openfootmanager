@@ -153,9 +153,33 @@ fn require_string_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<String, CallToolResult> {
-    extract_string_param(args, key)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| Failure::missing_parameter(key).into_result())
+    let text = require_with(args, key, "must be a string", |value| {
+        value.as_str().map(str::to_string)
+    })?;
+    if text.is_empty() {
+        return Err(Failure::missing_parameter(key).into_result());
+    }
+    Ok(text)
+}
+
+/// The value under `key` when it is present and not null.
+fn present_param<'a>(
+    args: &'a Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Option<&'a serde_json::Value> {
+    args.as_ref()?.get(key).filter(|value| !value.is_null())
+}
+
+/// Reads a required parameter: absent or null is missing, and a value `read` rejects is invalid.
+fn require_with<T>(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+    problem: &str,
+    read: impl FnOnce(&serde_json::Value) -> Option<T>,
+) -> Result<T, CallToolResult> {
+    let value =
+        present_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())?;
+    read(value).ok_or_else(|| Failure::invalid_parameter(key, problem).into_result())
 }
 
 fn extract_string_array_param(
@@ -210,6 +234,19 @@ fn optional_text_param(
     }
 }
 
+/// `Ok(None)` when the key is absent; an error when it is present but not a year that fits `i32`.
+fn optional_year_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<Option<i32>, CallToolResult> {
+    match optional_integer_param(args, key)? {
+        None => Ok(None),
+        Some(year) => i32::try_from(year)
+            .map(Some)
+            .map_err(|_| Failure::invalid_parameter(key, "is out of range").into_result()),
+    }
+}
+
 /// `Ok(None)` when the key is absent; an error when it is present but not an integer.
 fn optional_integer_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
@@ -224,16 +261,6 @@ fn optional_integer_param(
     }
 }
 
-fn extract_u32_param(
-    args: &Option<serde_json::Map<String, serde_json::Value>>,
-    key: &str,
-) -> Option<u32> {
-    args.as_ref()?
-        .get(key)
-        .and_then(|v| v.as_u64())
-        .and_then(|n| u32::try_from(n).ok())
-}
-
 fn extract_bool_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
@@ -246,7 +273,9 @@ fn require_u64_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<u64, CallToolResult> {
-    extract_u64_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())
+    require_with(args, key, "must be a non-negative integer", |value| {
+        value.as_u64()
+    })
 }
 
 /// Extract a required u32 parameter. Returns an error result if missing or out of range.
@@ -254,7 +283,12 @@ fn require_u32_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<u32, CallToolResult> {
-    extract_u32_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())
+    require_with(
+        args,
+        key,
+        "must be a non-negative integer below 2^32",
+        |value| value.as_u64().and_then(|n| u32::try_from(n).ok()),
+    )
 }
 
 fn match_start_fixture_index(
@@ -278,7 +312,7 @@ fn require_bool_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
     key: &str,
 ) -> Result<bool, CallToolResult> {
-    extract_bool_param(args, key).ok_or_else(|| Failure::missing_parameter(key).into_result())
+    require_with(args, key, "must be a boolean", |value| value.as_bool())
 }
 
 // ─── Tool router builder ────────────────────────────────────────────────────
@@ -1584,11 +1618,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 Ok(seed) => seed,
                 Err(e) => return Ok(e),
             };
-            let start_year = match optional_integer_param(args, "start_year") {
-                Ok(v) => match v.map(i32::try_from).transpose() {
-                    Ok(year) => year,
-                    Err(_) => return Ok(Failure::invalid_parameter("start_year", "is out of range").into_result()),
-                },
+            let start_year = match optional_year_param(args, "start_year") {
+                Ok(year) => year,
                 Err(e) => return Ok(e),
             };
             let start_phase = match optional_text_param(args, "start_phase") {
@@ -2225,6 +2256,68 @@ mod tests {
             .unwrap();
 
         assert!(description.contains("seed") && description.contains("clubless"));
+    }
+
+    /// Given each required-parameter helper
+    /// When the value is absent, null, of the wrong type or out of range
+    /// Then absent and null are `missingParameter`, anything else present is `invalidParameter`.
+    #[test]
+    fn a_present_value_of_the_wrong_type_is_invalid_not_missing() {
+        fn key_of(result: CallToolResult) -> String {
+            result.structured_content.unwrap()["error"]["key"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        }
+        let absent = args(serde_json::json!({}));
+        let null = args(serde_json::json!({"p": null}));
+        let wrong = args(serde_json::json!({"p": {"nested": 1}}));
+        let negative = args(serde_json::json!({"p": -1}));
+        let huge = args(serde_json::json!({"p": 4_294_967_296_u64}));
+
+        for a in [&absent, &null] {
+            assert_eq!(
+                key_of(require_string_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+            assert_eq!(
+                key_of(require_u64_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+            assert_eq!(
+                key_of(require_u32_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+            assert_eq!(
+                key_of(require_bool_param(a, "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+        }
+        assert_eq!(
+            key_of(require_string_param(&wrong, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_u64_param(&wrong, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_u64_param(&negative, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_u32_param(&huge, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        assert_eq!(
+            key_of(require_bool_param(&wrong, "p").unwrap_err()),
+            "be.error.mcp.invalidParameter"
+        );
+        let empty = args(serde_json::json!({"p": ""}));
+        assert_eq!(
+            key_of(require_string_param(&empty, "p").unwrap_err()),
+            "be.error.mcp.missingParameter"
+        );
     }
 
     /// Given a seed above i64::MAX, a negative seed and a fractional one
