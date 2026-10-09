@@ -1,7 +1,321 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-09T15:39:57.832Z",
+  "updatedAt": "2026-10-09T18:01:20.193Z",
   "builds": [
+    {
+      "schemaVersion": 1,
+      "product": "Openfoot Manager",
+      "repository": "openfootmanager/openfootmanager",
+      "tag": "nightly-20261009-0b6cdcf",
+      "version": "0.3.0-nightly.20261009+0b6cdcf",
+      "commit": "0b6cdcf5625c2aa0d1705518ceee095964a92f73",
+      "prerelease": true,
+      "publishedAt": "2026-10-09T18:00:54Z",
+      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261009+0b6cdcf",
+      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261009-0b6cdcf",
+      "assets": [
+        {
+          "id": 625727871,
+          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "label": "",
+          "size": 87595528,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "sha256": "e8900a2e9d10ef915e0b40c163c6f69be2dc2ee65fd3de4ee04feb004aa60bc3",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 625727772,
+          "name": "Openfoot.Manager_0.3.0_arm64.deb",
+          "label": "",
+          "size": 11869348,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_arm64.deb",
+          "sha256": "480bf71fad1be5c8c60c58649c4720bc4b3b125d8b03c6a45d0761b23524db65",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 625727820,
+          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "label": "",
+          "size": 11870021,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "sha256": "a532ac4f220c056eebb1410a34629df0de39099f056c7153734923c430dbc350",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 625732834,
+          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
+          "label": "",
+          "size": 89963000,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_amd64.AppImage",
+          "sha256": "304057ecb5a796c95a0bcbcc3396a677ec907f78857bcb918f0dd3216fa25577",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 625732700,
+          "name": "Openfoot.Manager_0.3.0_amd64.deb",
+          "label": "",
+          "size": 12282538,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_amd64.deb",
+          "sha256": "8bac975d2a4265c5c164eb6e2cfee20a8787982af2f189cdb05a1e3df342893d",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 625732768,
+          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "label": "",
+          "size": 12283343,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "sha256": "27fa0f4fc71fa2d56ba41d4e05855feee0abb851802668535408cd4b36166dbf",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 625724783,
+          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
+          "label": "",
+          "size": 10694463,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_aarch64.dmg",
+          "sha256": "21c3aa461f8789c1ee3a978fa5c410a5f5866bbf2a7ee024769c404d439e5dce",
+          "platform": "macos",
+          "arch": "arm64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 625723880,
+          "name": "Openfoot.Manager_0.3.0_x64.dmg",
+          "label": "",
+          "size": 11760866,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_x64.dmg",
+          "sha256": "5ff15ab89ed3832ef3a135f336636253ede8f3355beaed4b9bd90cf802442f60",
+          "platform": "macos",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 625741170,
+          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "label": "",
+          "size": 11309056,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "sha256": "e89c8c8c9909406ab82aa5eda93928766826499b447d66cf235060abe4ca93be",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".msi"
+        },
+        {
+          "id": 625741213,
+          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
+          "label": "",
+          "size": 8557539,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/Openfoot.Manager_0.3.0_x64-setup.exe",
+          "sha256": "753c4eefea3cadfe8b57a8e4fdede242916768e8cbc18e2baf0468b6a15f023c",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".exe"
+        }
+      ],
+      "previousTag": "nightly-20261009-2cc3653",
+      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261009-2cc3653...nightly-20261009-0b6cdcf",
+      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261009-0b6cdcf/nightly-checksums.txt",
+      "commitCount": 41,
+      "commits": [
+        {
+          "sha": "0973a36f",
+          "subject": "test(ui): assert the trigger keeps DOM focus when an option is pressed"
+        },
+        {
+          "sha": "60fbc2ec",
+          "subject": "fix(squad): the saved XI loses only the youth the pool policy benches"
+        },
+        {
+          "sha": "37d281fe",
+          "subject": "fix(ui): stop recomputing extra-time eligibility when restoring a live match"
+        },
+        {
+          "sha": "825152e6",
+          "subject": "fix(ui): Select keys options by position and keeps focus on the trigger when one is pressed"
+        },
+        {
+          "sha": "77441383",
+          "subject": "fix(ui): pitch summary dismisses from child controls and stays open under the pointer"
+        },
+        {
+          "sha": "47784054",
+          "subject": "refactor(matchday): keep declarations before tests"
+        },
+        {
+          "sha": "3997a10a",
+          "subject": "test(mcp): verify rollover adapter from saved checkpoints"
+        },
+        {
+          "sha": "1d25c30e",
+          "subject": "fix(matchday): share stranded eligibility across catchup"
+        },
+        {
+          "sha": "4547c941",
+          "subject": "fix(ui): show backend-eligible youth in senior views"
+        },
+        {
+          "sha": "735dd2ce",
+          "subject": "fix(squad): share keeper-aware match-day eligibility"
+        },
+        {
+          "sha": "c6f9806f",
+          "subject": "test(linux): exercise managed webview discovery"
+        },
+        {
+          "sha": "a58551ae",
+          "subject": "test(linux): cover native WebKit signal registration"
+        },
+        {
+          "sha": "960bd39d",
+          "subject": "fix(release): protect retried uploads and overlapping runs"
+        },
+        {
+          "sha": "92c80876",
+          "subject": "fix(transfers): normalize legacy offer rounds"
+        },
+        {
+          "sha": "c437bb5b",
+          "subject": "fix(i18n): translate unknown offer clubs"
+        },
+        {
+          "sha": "0f1b3832",
+          "subject": "fix(transfers): show saved offer history and agreed deals"
+        },
+        {
+          "sha": "ef2fe1ff",
+          "subject": "fix(release): preserve complete semantic version tags"
+        },
+        {
+          "sha": "c50130ba",
+          "subject": "fix(release): refuse published stable versions before building"
+        },
+        {
+          "sha": "7d26ba50",
+          "subject": "test(squad): keep pool scenarios beside the implementation"
+        },
+        {
+          "sha": "dc33d248",
+          "subject": "fix(squad): use youth only to top up the match-day pool"
+        },
+        {
+          "sha": "e961d091",
+          "subject": "test(linux): cover WebKit termination signal registration"
+        },
+        {
+          "sha": "fcf6c4f9",
+          "subject": "fix(core): treat unavailable match ratings as neutral"
+        },
+        {
+          "sha": "69d708ef",
+          "subject": "fix(linux): log WebKit web-process termination at error"
+        },
+        {
+          "sha": "c0dd230e",
+          "subject": "fix(ui): expose pitch summaries on hover and keyboard focus"
+        },
+        {
+          "sha": "49e94540",
+          "subject": "fix(transfers): notify managers when deals are accepted"
+        },
+        {
+          "sha": "1e4cb1d0",
+          "subject": "fix(release): finalize the version declared by Tauri"
+        },
+        {
+          "sha": "16e31c51",
+          "subject": "fix(release): publish stable drafts only after AppImage checks pass"
+        },
+        {
+          "sha": "6d33480d",
+          "subject": "docs(matchday): describe the stranded-rule callers that exist"
+        },
+        {
+          "sha": "44509ad2",
+          "subject": "fix(transfers): localize failure dates and unknown reasons"
+        },
+        {
+          "sha": "9ab39508",
+          "subject": "fix(mcp): call the shared season rollover command"
+        },
+        {
+          "sha": "ac17a1b6",
+          "subject": "test(transfers): verify exact registration fee presentation"
+        },
+        {
+          "sha": "092014af",
+          "subject": "fix(transfers): explain failed pending registrations"
+        },
+        {
+          "sha": "d07d286b",
+          "subject": "test(transfers): match daily loan-return ordering"
+        },
+        {
+          "sha": "9bcbe020",
+          "subject": "test(transfers): colocate loan boundary scenarios with implementation"
+        },
+        {
+          "sha": "1341a746",
+          "subject": "fix(transfers): allow loans through contract expiry"
+        },
+        {
+          "sha": "9d3c07b4",
+          "subject": "docs(linux): explain the AppImage white screen and correct the safe-profile advice"
+        },
+        {
+          "sha": "0f37cac8",
+          "subject": "ci(release): fail a release whose AppImage bundles libwayland-client"
+        },
+        {
+          "sha": "e9bc78d5",
+          "subject": "fix(linux): build AppImages with @tauri-apps/cli 2.12 so Mesa can load EGL"
+        },
+        {
+          "sha": "b7b663a5",
+          "subject": "test(matchday): the stranded-fixture tests live beside the rule"
+        },
+        {
+          "sha": "dc102110",
+          "subject": "feat(matchday): one home for \"nothing dated today or earlier is left Scheduled\""
+        },
+        {
+          "sha": "b3992c1f",
+          "subject": "fix(ui): pitch token bar shows condition only; fit stays on the ring"
+        }
+      ]
+    },
     {
       "schemaVersion": 1,
       "product": "Openfoot Manager",
