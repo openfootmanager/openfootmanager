@@ -170,6 +170,11 @@ impl App {
             .expect("a launched app always has a client")
     }
 
+    /// The process id of the app, which `_NET_WM_PID` carries on its windows.
+    pub fn pid(&self) -> Option<u32> {
+        self.child.as_ref().map(Child::id)
+    }
+
     pub fn port(&self) -> u16 {
         self.port
     }
@@ -382,6 +387,35 @@ impl Drop for App {
             self.keep_directory();
         }
     }
+}
+
+/// Starts the app the way a player does, with no MCP arguments, and reports whether it maps a
+/// window on the display within `timeout`. The positive control for the headless checks: it proves
+/// the window detector can see this app's window at all.
+pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<bool, LaunchError> {
+    let binary = app_binary();
+    if !binary.is_file() {
+        return Err(LaunchError::BinaryMissing(binary));
+    }
+    let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
+    let mut child = app_command(&binary, &[], dir.path())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
+    let started = Instant::now();
+    let mut mapped = false;
+    while started.elapsed() < timeout && !mapped {
+        std::thread::sleep(Duration::from_millis(500));
+        mapped = crate::windows::mapped_windows()
+            .map_err(LaunchError::Io)?
+            .iter()
+            .any(|window| window.pid == Some(child.id()));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    Ok(mapped)
 }
 
 fn app_binary() -> PathBuf {
