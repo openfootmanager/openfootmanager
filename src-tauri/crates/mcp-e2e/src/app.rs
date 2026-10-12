@@ -71,7 +71,7 @@ impl std::fmt::Display for LaunchError {
             ),
             Self::NoDisplay => write!(
                 f,
-                "no display: set DISPLAY or run under `xvfb-run`; the app cannot start without one"
+                "no DISPLAY: run under `xvfb-run -a`; the app is forced onto X11 and cannot start without one"
             ),
             Self::NotReady(bundle) => write!(f, "{bundle}"),
             Self::Io(detail) => write!(f, "{detail}"),
@@ -100,10 +100,7 @@ impl App {
         if !binary.is_file() {
             return Err(LaunchError::BinaryMissing(binary));
         }
-        if !display_available(
-            std::env::var_os("DISPLAY").as_deref(),
-            std::env::var_os("WAYLAND_DISPLAY").as_deref(),
-        ) {
+        if !display_available(std::env::var_os("DISPLAY").as_deref()) {
             return Err(LaunchError::NoDisplay);
         }
 
@@ -126,12 +123,7 @@ impl App {
         ];
         args.extend(config.extra_args.iter().cloned());
 
-        let child = Command::new(&binary)
-            .args(&args)
-            .env("XDG_DATA_HOME", dir.path().join("data"))
-            .env("XDG_CONFIG_HOME", dir.path().join("config"))
-            .env("XDG_CACHE_HOME", dir.path().join("cache"))
-            .env("XDG_STATE_HOME", dir.path().join("state"))
+        let child = app_command(&binary, &args, dir.path())
             .stdin(Stdio::null())
             .stdout(Stdio::from(
                 log_file
@@ -384,6 +376,26 @@ impl Drop for App {
     }
 }
 
+/// The command that starts the app, with its environment pinned to the scratch directory and to X11.
+///
+/// GTK prefers Wayland when it can see a Wayland session, and `xvfb-run` only sets `DISPLAY`. An app
+/// that inherits `WAYLAND_DISPLAY` opens its window on the developer's own desktop instead of the
+/// virtual one, so the Wayland variables are removed and the backend is forced to X11.
+fn app_command(binary: &Path, args: &[String], dir: &Path) -> Command {
+    let mut command = Command::new(binary);
+    command
+        .args(args)
+        .env("XDG_DATA_HOME", dir.join("data"))
+        .env("XDG_CONFIG_HOME", dir.join("config"))
+        .env("XDG_CACHE_HOME", dir.join("cache"))
+        .env("XDG_STATE_HOME", dir.join("state"))
+        .env_remove("WAYLAND_DISPLAY")
+        .env_remove("WAYLAND_SOCKET")
+        .env("XDG_SESSION_TYPE", "x11")
+        .env("GDK_BACKEND", "x11");
+    command
+}
+
 fn app_binary() -> PathBuf {
     if let Some(path) = std::env::var_os("OFM_E2E_BIN") {
         return PathBuf::from(path);
@@ -404,12 +416,9 @@ fn find_saves_dir(data: &Path) -> Option<PathBuf> {
         .find(|path| path.is_dir())
 }
 
-/// The app opens a window even when hidden, so it cannot start without a display.
-fn display_available(x11: Option<&std::ffi::OsStr>, wayland: Option<&std::ffi::OsStr>) -> bool {
-    [x11, wayland]
-        .into_iter()
-        .flatten()
-        .any(|display| !display.is_empty())
+/// The app is forced onto X11, so it needs `DISPLAY`; `WAYLAND_DISPLAY` is of no use to it.
+fn display_available(x11: Option<&std::ffi::OsStr>) -> bool {
+    x11.is_some_and(|display| !display.is_empty())
 }
 
 fn shortened(text: &str) -> String {
@@ -465,16 +474,40 @@ fn revision() -> String {
 mod tests {
     use std::ffi::OsStr;
 
-    use super::display_available;
+    use super::{app_command, display_available};
 
     /// Given neither DISPLAY nor WAYLAND_DISPLAY (or only empty ones)
     /// When the fixture checks for a display
     /// Then there is none, and launch fails with that named instead of timing out.
     #[test]
     fn a_missing_display_is_detected_before_launch() {
-        assert!(!display_available(None, None));
-        assert!(!display_available(Some(OsStr::new("")), None));
-        assert!(display_available(Some(OsStr::new(":0")), None));
-        assert!(display_available(None, Some(OsStr::new("wayland-0"))));
+        assert!(!display_available(None));
+        assert!(!display_available(Some(OsStr::new(""))));
+        assert!(display_available(Some(OsStr::new(":0"))));
+    }
+
+    /// Given a developer session that exports a Wayland display
+    /// When the fixture builds the command that starts the app
+    /// Then the app cannot reach that session: no Wayland variables, and GTK is forced onto X11.
+    #[test]
+    fn the_app_cannot_reach_the_developers_wayland_session() {
+        let command = app_command(
+            std::path::Path::new("/bin/true"),
+            &[],
+            std::path::Path::new("/tmp/scratch"),
+        );
+
+        let environment: std::collections::HashMap<_, _> = command
+            .get_envs()
+            .map(|(name, value)| (name.to_owned(), value.map(|v| v.to_owned())))
+            .collect();
+
+        // `Some(None)` is a variable the command removes from the inherited environment.
+        assert_eq!(environment.get(OsStr::new("WAYLAND_DISPLAY")), Some(&None));
+        assert_eq!(environment.get(OsStr::new("WAYLAND_SOCKET")), Some(&None));
+        assert_eq!(
+            environment.get(OsStr::new("GDK_BACKEND")),
+            Some(&Some(OsStr::new("x11").to_owned()))
+        );
     }
 }
