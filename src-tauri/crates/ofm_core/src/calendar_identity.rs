@@ -71,10 +71,12 @@ pub(crate) fn attach_definition_calendar(
     });
 }
 
-/// Adopt only provenance supported by the saved edition, never by today's clock,
+/// Gives a competition the calendar metadata it is missing. Called by creation routes
+/// (World Cup staging) and by the load path for older saves, so both agree.
+/// Adopts only provenance supported by the saved edition, never by today's clock,
 /// display names, club overlap or a guess about the old authoring format.
 /// Returns whether data changed, for persistence callers.
-pub fn backfill_competition_calendar(league: &mut League) -> bool {
+pub fn ensure_competition_calendar(league: &mut League) -> bool {
     if league.calendar.is_some() {
         return false;
     }
