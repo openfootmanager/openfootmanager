@@ -4,9 +4,7 @@
 //! `OFM_E2E_SEED=<seed> xvfb-run cargo test -p mcp-e2e --test smoke <scenario> -- --ignored --nocapture`.
 
 use mcp_e2e::career::{self, begin, fixtures, game_state, today};
-use mcp_e2e::{
-    assert_refusal_changes_nothing, expect_bug, App, AppConfig, CallError, Mode, Snapshot,
-};
+use mcp_e2e::{assert_refusal_changes_nothing, App, AppConfig, CallError, Mode, Snapshot};
 use serde_json::{json, Value};
 
 fn is_mine(fixture: &Value, club: &str) -> bool {
@@ -117,18 +115,7 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let mut differing = Vec::new();
     json_differences("game", &live, &on_disk, &mut differing);
 
-    // One known gap, under its own guard: when it is fixed the guard fails and must go.
-    let (name_key, unexplained): (Vec<_>, Vec<_>) = differing.into_iter().partition(|difference| {
-        (difference.starts_with("game.competitions[") || difference.starts_with("game.league."))
-            && difference.contains(".name_key:")
-    });
-    expect_bug!(#759, "competition name_key is not saved", {
-        assert!(
-            name_key.is_empty(),
-            "competition name_key is not saved:\n{}",
-            name_key.join("\n")
-        );
-    });
+    let unexplained = differing;
     assert!(
         unexplained.is_empty(),
         "{} places differ after a save and load, first ten:\n{}{}",
