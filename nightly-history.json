@@ -1,7 +1,345 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-12T21:55:24.799Z",
+  "updatedAt": "2026-10-12T23:28:18.495Z",
   "builds": [
+    {
+      "schemaVersion": 1,
+      "product": "Openfoot Manager",
+      "repository": "openfootmanager/openfootmanager",
+      "tag": "nightly-20261012-b0343c8",
+      "version": "0.3.0-nightly.20261012+b0343c8",
+      "commit": "b0343c84c3cada7321fe94cf99e6ec968fcf2b6e",
+      "prerelease": true,
+      "publishedAt": "2026-10-12T23:27:41Z",
+      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20261012+b0343c8",
+      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20261012-b0343c8",
+      "assets": [
+        {
+          "id": 635266548,
+          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "label": "",
+          "size": 88672776,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_aarch64.AppImage",
+          "sha256": "dade528ae8fc1f875fe5954305a6c606205d89f4e1ddd18448f38a049c51b1c1",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 635266447,
+          "name": "Openfoot.Manager_0.3.0_arm64.deb",
+          "label": "",
+          "size": 13052432,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_arm64.deb",
+          "sha256": "4ac273ff8db57b13db396c10d79eb939715172345bc2a130d67aa9b0c7725724",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 635266493,
+          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "label": "",
+          "size": 13051288,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager-0.3.0-1.aarch64.rpm",
+          "sha256": "c32ca9cd54b99a5ec24002629b3b8dad0955d7f0ad44f1894b9a2154ee44a2db",
+          "platform": "linux",
+          "arch": "arm64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 635269198,
+          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
+          "label": "",
+          "size": 91105784,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_amd64.AppImage",
+          "sha256": "b6ececab106f917a8f92c702c9b4857c5fc809be09cf7cb6d06ec5f278daafaf",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "portable",
+          "extension": ".appimage"
+        },
+        {
+          "id": 635269131,
+          "name": "Openfoot.Manager_0.3.0_amd64.deb",
+          "label": "",
+          "size": 13504180,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_amd64.deb",
+          "sha256": "92d8886e6270f9cc2b96685ff5189eb83f73b06195f7252a26688db2066470d9",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".deb"
+        },
+        {
+          "id": 635269164,
+          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "label": "",
+          "size": 13504679,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager-0.3.0-1.x86_64.rpm",
+          "sha256": "f1faff144ef45ccc4c3a11b5c1d4a835dee827692fe892e9e8242194aeb5c892",
+          "platform": "linux",
+          "arch": "x64",
+          "kind": "package",
+          "extension": ".rpm"
+        },
+        {
+          "id": 635279604,
+          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
+          "label": "",
+          "size": 11803720,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_aarch64.dmg",
+          "sha256": "d3e9c4e8256810e054b21ab666c15e416f7b2c9e135aa0cdd23cf8d176ed1862",
+          "platform": "macos",
+          "arch": "arm64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 635265370,
+          "name": "Openfoot.Manager_0.3.0_x64.dmg",
+          "label": "",
+          "size": 12964727,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_x64.dmg",
+          "sha256": "769adb75657edf0380cea06ae5e367fe72dfbd773f66cf46bb5d63157e7ca072",
+          "platform": "macos",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".dmg"
+        },
+        {
+          "id": 635275964,
+          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "label": "",
+          "size": 12406784,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_x64_en-US.msi",
+          "sha256": "96efb9085590f7d1c96b0a305b218ad7f4dbd925d7981e510d895d70db68330f",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".msi"
+        },
+        {
+          "id": 635276043,
+          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
+          "label": "",
+          "size": 9410436,
+          "contentType": "application/zip",
+          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/Openfoot.Manager_0.3.0_x64-setup.exe",
+          "sha256": "9a322cb6ca9b483603984712df560e1bbc3ec2767a69ed574bd2ecf9ae67f85f",
+          "platform": "windows",
+          "arch": "x64",
+          "kind": "installer",
+          "extension": ".exe"
+        }
+      ],
+      "previousTag": "nightly-20261012-5257749",
+      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20261012-5257749...nightly-20261012-b0343c8",
+      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20261012-b0343c8/nightly-checksums.txt",
+      "commitCount": 47,
+      "commits": [
+        {
+          "sha": "0891c4df",
+          "subject": "fix(mcp-e2e): no revision for a tarball inside another checkout; test that the digested crates are the linked ones"
+        },
+        {
+          "sha": "602e5de5",
+          "subject": "fix(mcp-e2e): digest only the crates the app links, and only their src, data and manifest"
+        },
+        {
+          "sha": "29dfcb19",
+          "subject": "docs(backend): list mcp-e2e and season-harness in the crate matrix"
+        },
+        {
+          "sha": "bc6af9a8",
+          "subject": "refactor(mcp-e2e): simplify the revision verdict; state only what the stale test checks"
+        },
+        {
+          "sha": "bb617525",
+          "subject": "fix(report): an accepted report replaces an unknown entry only when it is the resend of the same build"
+        },
+        {
+          "sha": "92335d0e",
+          "subject": "chore(db): drop imports the fixture loader no longer needs"
+        },
+        {
+          "sha": "4457272a",
+          "subject": "test(season-harness): the capped report names what it dropped; say the #553 guard is per rule"
+        },
+        {
+          "sha": "8ea244ad",
+          "subject": "test(mcp-e2e): a tree with no git has no revision"
+        },
+        {
+          "sha": "9e5e7c66",
+          "subject": "chore(review): answer the bot threads on the season harness"
+        },
+        {
+          "sha": "d0b61f86",
+          "subject": "fix(report): drop the unused plain record; accepted entries replace a trailing unknown one"
+        },
+        {
+          "sha": "b13296ba",
+          "subject": "fix(saves): a stored fixture list that does not parse fails the load"
+        },
+        {
+          "sha": "714bfee4",
+          "subject": "test(season-harness): clubs rest three days between matches; #553 is a carried known bug"
+        },
+        {
+          "sha": "c0c8e2af",
+          "subject": "fix(report): copy that is true about resending, typed refusals in 12 locales, entry keys, focus ring offset"
+        },
+        {
+          "sha": "e3e658e2",
+          "subject": "fix(report): refuse webview paths, one upload at a time, durable writes, replace an unknown entry on acceptance, entry ids"
+        },
+        {
+          "sha": "42b51b8f",
+          "subject": "fix: digest only what the app is built from, and never panic on a short git digest"
+        },
+        {
+          "sha": "2a95db73",
+          "subject": "chore(fixtures): mark the postponement field serde(default) explicitly"
+        },
+        {
+          "sha": "2754839b",
+          "subject": "feat(mcp): the app reports the sources it was built from, and the e2e fixture refuses a stale binary"
+        },
+        {
+          "sha": "b305a60c",
+          "subject": "feat(fixtures): record where a moved match was first scheduled and why"
+        },
+        {
+          "sha": "33ce0589",
+          "subject": "feat(report): list an unknown outcome in Settings; generated-parity check for failure kinds"
+        },
+        {
+          "sha": "b217d507",
+          "subject": "feat(report): discard the held build on dialog teardown, sweep stale upload folders at startup, record an unknown outcome"
+        },
+        {
+          "sha": "f14fdddd",
+          "subject": "fix(report): drop the held copy of the save after any definite answer; import types as types"
+        },
+        {
+          "sha": "7e03206f",
+          "subject": "docs(report): upload_report_bundle takes one request and rejects with a kind"
+        },
+        {
+          "sha": "90c18ee7",
+          "subject": "refactor(report): split the report dialog into steps, hooks and rows; allow leaving during an upload; failure kinds from Rust; copy buttons named after their code"
+        },
+        {
+          "sha": "a16ed399",
+          "subject": "refactor(report): share the report dialog's keyboard handling as useDialogKeyboard"
+        },
+        {
+          "sha": "56dc8193",
+          "subject": "fix(report): resend the first build's bytes, budget the whole report part, give failures a kind, restore teamProfile.capacity"
+        },
+        {
+          "sha": "38aa468b",
+          "subject": "chore(report): keep only the comments that explain a why in the crash prompt"
+        },
+        {
+          "sha": "c63ba908",
+          "subject": "chore(report): keep only the comments that explain a why"
+        },
+        {
+          "sha": "ffc9975f",
+          "subject": "fix(i18n): a fuller zh-CN label for the crash prompt's Not now"
+        },
+        {
+          "sha": "08aedf78",
+          "subject": "feat(report): offer to report a crash on the next launch"
+        },
+        {
+          "sha": "6dbfa4f4",
+          "subject": "refactor(report): share the report dialog's keyboard handling as useDialogKeyboard"
+        },
+        {
+          "sha": "0c524d81",
+          "subject": "refactor(report): one diagnostics snapshot per report; wait text only for a rate limit; formal register in cs, fr, ru"
+        },
+        {
+          "sha": "b885a0ca",
+          "subject": "feat(report): structured fields, failure objects with Retry-After, new copy and error keys in 12 locales"
+        },
+        {
+          "sha": "07fdd4d1",
+          "subject": "feat(report): upload to OFMHub's bug-report endpoint as multipart, with its limits and errors"
+        },
+        {
+          "sha": "a85b40f8",
+          "subject": "chore(report): refresh the lockfile for the HTTP client"
+        },
+        {
+          "sha": "83ee8b08",
+          "subject": "fix(report): give the consent row the save row's surface so its focus ring shows"
+        },
+        {
+          "sha": "5a607880",
+          "subject": "fix(report): answer review on the upload — licences, shared writer, copy, wording"
+        },
+        {
+          "sha": "7cab2b25",
+          "subject": "feat(report): send a report from the preview with consent, and list the codes"
+        },
+        {
+          "sha": "17ef854d",
+          "subject": "feat(report): upload the report bundle to the relay and record its code"
+        },
+        {
+          "sha": "82d35806",
+          "subject": "docs(report): add the bug-report relay contract as docs/api/bug-reports.md"
+        },
+        {
+          "sha": "67643a62",
+          "subject": "test(season-harness): the seed control costs a build, not a season"
+        },
+        {
+          "sha": "bbb08a73",
+          "subject": "refactor(season-harness): no-stranded-fixture asks ofm_core::matchday::stranded_fixtures"
+        },
+        {
+          "sha": "6e1e0561",
+          "subject": "test(season-harness): the same seed plays the same seasons"
+        },
+        {
+          "sha": "4e6f8a77",
+          "subject": "test(scenario): drop the invariants helper the removed test was the only user of"
+        },
+        {
+          "sha": "9d085559",
+          "subject": "chore(review): answer CodeRabbit on the season harness"
+        },
+        {
+          "sha": "2902af7a",
+          "subject": "test(season-harness): play generated worlds through consecutive seasons"
+        },
+        {
+          "sha": "fe4feea7",
+          "subject": "test(scenario): remove the season test that claimed a rollover it never ran"
+        },
+        {
+          "sha": "e5a50bc7",
+          "subject": "feat(generator): a world can be generated for a named year"
+        }
+      ]
+    },
     {
       "schemaVersion": 1,
       "product": "Openfoot Manager",
@@ -6289,280 +6627,6 @@
         {
           "sha": "ed5c4bed",
           "subject": "chore(knip): clear every dead export, type and duplicate knip reports"
-        }
-      ]
-    },
-    {
-      "schemaVersion": 1,
-      "product": "Openfoot Manager",
-      "repository": "openfootmanager/openfootmanager",
-      "tag": "nightly-20260928-cde2db3",
-      "version": "0.3.0-nightly.20260928+cde2db3",
-      "commit": "cde2db3f72d95ee9b31f4c1547740ea2e4579681",
-      "prerelease": true,
-      "publishedAt": "2026-09-28T20:45:36Z",
-      "releaseName": "Openfoot Manager Nightly 0.3.0-nightly.20260928+cde2db3",
-      "releaseUrl": "https://github.com/openfootmanager/openfootmanager/releases/tag/nightly-20260928-cde2db3",
-      "assets": [
-        {
-          "id": 596365011,
-          "name": "Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "label": "",
-          "size": 87198216,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_aarch64.AppImage",
-          "sha256": "fc25e38e31e672f28c3a5eb2b59c3a2b3ea6f5fb71e6efc44146ef5ec8718479",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 596364935,
-          "name": "Openfoot.Manager_0.3.0_arm64.deb",
-          "label": "",
-          "size": 11503328,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_arm64.deb",
-          "sha256": "7b07179b01fda86709e293e9df41dbd5a67f32287bf78329fbe538028d045674",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 596364975,
-          "name": "Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "label": "",
-          "size": 11503620,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager-0.3.0-1.aarch64.rpm",
-          "sha256": "d5bf751b0a2c534c6f8dd006d922f30a1b1827ba4ab39f9ff9f5c9312605400a",
-          "platform": "linux",
-          "arch": "arm64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 596367581,
-          "name": "Openfoot.Manager_0.3.0_amd64.AppImage",
-          "label": "",
-          "size": 89414136,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_amd64.AppImage",
-          "sha256": "fa6a1b58c41c0b1fb0f601d77442655fd5dc60896136426b88858d115108d434",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "portable",
-          "extension": ".appimage"
-        },
-        {
-          "id": 596367506,
-          "name": "Openfoot.Manager_0.3.0_amd64.deb",
-          "label": "",
-          "size": 11894942,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_amd64.deb",
-          "sha256": "8d345fe364205e7dd32e0ae056dd11570f52ebd5ad1b471b6b0e59ad530ed776",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".deb"
-        },
-        {
-          "id": 596367541,
-          "name": "Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "label": "",
-          "size": 11895491,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager-0.3.0-1.x86_64.rpm",
-          "sha256": "e134f5c2935bbbfc4f700b83399682141432724bc4fe66bf5e8d5e833e340c3b",
-          "platform": "linux",
-          "arch": "x64",
-          "kind": "package",
-          "extension": ".rpm"
-        },
-        {
-          "id": 596374628,
-          "name": "Openfoot.Manager_0.3.0_aarch64.dmg",
-          "label": "",
-          "size": 10363691,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_aarch64.dmg",
-          "sha256": "c264f5dc754714f38ca0f10f53ab64f323652faffb308ab54ae325dea795f4ad",
-          "platform": "macos",
-          "arch": "arm64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 596370381,
-          "name": "Openfoot.Manager_0.3.0_x64.dmg",
-          "label": "",
-          "size": 11413842,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_x64.dmg",
-          "sha256": "e97b8400a8430e7a149009ee5ce035170243c1b546fbb9ba388003225731d200",
-          "platform": "macos",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".dmg"
-        },
-        {
-          "id": 596372735,
-          "name": "Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "label": "",
-          "size": 10964992,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_x64_en-US.msi",
-          "sha256": "f4b678619b339e80964c5cbe48cf0430ee07d9f4f1f021238606ac9d115b5e90",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".msi"
-        },
-        {
-          "id": 596372772,
-          "name": "Openfoot.Manager_0.3.0_x64-setup.exe",
-          "label": "",
-          "size": 8298453,
-          "contentType": "application/zip",
-          "downloadUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/Openfoot.Manager_0.3.0_x64-setup.exe",
-          "sha256": "41bb39e42354ddc93fcb5d9809f9a99609058efac91cc4f6e2ee0457ea893ddc",
-          "platform": "windows",
-          "arch": "x64",
-          "kind": "installer",
-          "extension": ".exe"
-        }
-      ],
-      "previousTag": "nightly-20260928-3657861",
-      "compareUrl": "https://github.com/openfootmanager/openfootmanager/compare/nightly-20260928-3657861...nightly-20260928-cde2db3",
-      "checksumsUrl": "https://github.com/openfootmanager/openfootmanager/releases/download/nightly-20260928-cde2db3/nightly-checksums.txt",
-      "commitCount": 31,
-      "commits": [
-        {
-          "sha": "8d1cf5cb",
-          "subject": "docs(ofm_core): make the probe and unwatched-match headers true again"
-        },
-        {
-          "sha": "95d65861",
-          "subject": "fix(training): a dormant fixture is no reason to taper or rotate"
-        },
-        {
-          "sha": "f5ba5127",
-          "subject": "fix(sim-bench): count the AI changes the engine made, not the ones it asked for"
-        },
-        {
-          "sha": "aa9ca7d5",
-          "subject": "chore(sim-bench): build the A/B's squads once, and say they are mirrors"
-        },
-        {
-          "sha": "21412292",
-          "subject": "docs(training): say rest days restore 10, and where the taper went"
-        },
-        {
-          "sha": "a7de7ac2",
-          "subject": "test(ofm_core): hold every AI club to the line, on a world laid out like a save"
-        },
-        {
-          "sha": "2523a265",
-          "subject": "fix(training): a two-match week is recovery work between games"
-        },
-        {
-          "sha": "2af4c526",
-          "subject": "test(training): a matchday test that can see a squad recover"
-        },
-        {
-          "sha": "8326626d",
-          "subject": "fix(training): a dormant club's matchday is still a day of recovery"
-        },
-        {
-          "sha": "d78626ec",
-          "subject": "fix(sim): an instant shootout is taken by the side that played"
-        },
-        {
-          "sha": "8eb448cf",
-          "subject": "fix(ai-training): read the eleven the club would actually pick"
-        },
-        {
-          "sha": "937ccafa",
-          "subject": "fix(sim): a keeper called up from the treatment room plays in goal"
-        },
-        {
-          "sha": "23f86f78",
-          "subject": "fix(ai-lineup): see the next round of the competition being played"
-        },
-        {
-          "sha": "ab7322e1",
-          "subject": "fix(ai-lineup): rest tired starters sooner when the next match is days away"
-        },
-        {
-          "sha": "9b121447",
-          "subject": "fix(ai-training): train to a setpoint the squad can arrive fresh from"
-        },
-        {
-          "sha": "b630474b",
-          "subject": "test(ofm_core): move the turn and training fixtures out of their test files"
-        },
-        {
-          "sha": "a432bbf2",
-          "subject": "refactor(turn): give the squad builder's tests their own file"
-        },
-        {
-          "sha": "e0e76245",
-          "subject": "docs(ai-training): name the signal the bands are actually read against"
-        },
-        {
-          "sha": "2091bc28",
-          "subject": "fix(ai-training): manage readiness from the likely eleven, not the squad"
-        },
-        {
-          "sha": "bff2464e",
-          "subject": "fix(training): a scheduled rest day is the best rest available"
-        },
-        {
-          "sha": "3c1495cc",
-          "subject": "fix(training): recover on days this club is not playing"
-        },
-        {
-          "sha": "883c9806",
-          "subject": "docs(ofm_core): correct where the selector lives, and what the probe's XI column means now"
-        },
-        {
-          "sha": "ea58eeba",
-          "subject": "fix(ai-lineup): manager quality is judgement, not willingness to self-harm"
-        },
-        {
-          "sha": "9d2547c4",
-          "subject": "docs(sim): say who actually picks the XI, and what happens when eleven fit players do not exist"
-        },
-        {
-          "sha": "ec5e4231",
-          "subject": "fix(sim): a club short of fit players still puts a side out"
-        },
-        {
-          "sha": "733f53b1",
-          "subject": "fix(sim): instant matches field a real XI and bench"
-        },
-        {
-          "sha": "75f2f51e",
-          "subject": "test(training): pin the taper window and expose physio as a probe lever"
-        },
-        {
-          "sha": "0432cba1",
-          "subject": "fix(training): put both sides of the game on the same physics"
-        },
-        {
-          "sha": "674a1e4c",
-          "subject": "test(ofm_core): say which of the probe's columns describe a real save"
-        },
-        {
-          "sha": "aafb3cf5",
-          "subject": "test(ofm_core): probe what condition clubs actually reach matches in"
-        },
-        {
-          "sha": "11d11027",
-          "subject": "test(sim-bench): compare the two paths a match can take"
         }
       ]
     }
