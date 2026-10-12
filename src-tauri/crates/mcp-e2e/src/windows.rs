@@ -28,7 +28,8 @@ pub fn display_is_a_host_session() -> Result<bool, String> {
     Ok(extensions.names.iter().any(|name| name.name == b"XWAYLAND"))
 }
 
-/// Every mapped top-level window on the display named by `$DISPLAY`.
+/// Every mapped window on the display named by `$DISPLAY` that says which process owns it, down
+/// to `MAX_DEPTH` levels below the root.
 pub fn mapped_windows() -> Result<Vec<MappedWindow>, String> {
     let (connection, screen_number) =
         RustConnection::connect(None).map_err(|e| format!("could not reach the X display: {e}"))?;
@@ -40,12 +41,30 @@ pub fn mapped_windows() -> Result<Vec<MappedWindow>, String> {
         .map_err(|e| e.to_string())?
         .atom;
 
+    let mut mapped = Vec::new();
+    collect_mapped(&connection, root, pid_atom, MAX_DEPTH, &mut mapped)?;
+    Ok(mapped)
+}
+
+/// How far below the root to look: a reparenting window manager puts a frame (which carries no
+/// `_NET_WM_PID`) between the root and the client window that does.
+const MAX_DEPTH: u8 = 4;
+
+fn collect_mapped(
+    connection: &RustConnection,
+    parent: u32,
+    pid_atom: u32,
+    depth: u8,
+    found: &mut Vec<MappedWindow>,
+) -> Result<(), String> {
+    if depth == 0 {
+        return Ok(());
+    }
     let tree = connection
-        .query_tree(root)
+        .query_tree(parent)
         .map_err(|e| e.to_string())?
         .reply()
         .map_err(|e| e.to_string())?;
-    let mut mapped = Vec::new();
     for window in tree.children {
         let Ok(attributes) = connection
             .get_window_attributes(window)
@@ -62,7 +81,10 @@ pub fn mapped_windows() -> Result<Vec<MappedWindow>, String> {
             .ok()
             .and_then(|cookie| cookie.reply().ok())
             .and_then(|reply| reply.value32().and_then(|mut values| values.next()));
-        mapped.push(MappedWindow { id: window, pid });
+        if pid.is_some() {
+            found.push(MappedWindow { id: window, pid });
+        }
+        collect_mapped(connection, window, pid_atom, depth - 1, found)?;
     }
-    Ok(mapped)
+    Ok(())
 }

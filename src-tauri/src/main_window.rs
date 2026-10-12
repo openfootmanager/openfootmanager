@@ -13,7 +13,7 @@ fn should_show(headless: bool) -> bool {
 
 /// `--no-gui` only means something to the MCP server, so a build without it is never headless.
 #[cfg(feature = "mcp")]
-fn headless_requested() -> bool {
+pub(crate) fn headless_requested() -> bool {
     matches!(
         crate::mcp_server::config::parse_mcp_config_from_args(),
         Ok(Some(config)) if config.no_gui
@@ -21,7 +21,7 @@ fn headless_requested() -> bool {
 }
 
 #[cfg(not(feature = "mcp"))]
-fn headless_requested() -> bool {
+pub(crate) fn headless_requested() -> bool {
     false
 }
 

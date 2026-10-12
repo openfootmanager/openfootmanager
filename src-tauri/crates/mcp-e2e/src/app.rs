@@ -74,8 +74,10 @@ impl std::fmt::Display for LaunchError {
             ),
             Self::HostDisplay => write!(
                 f,
-                "DISPLAY is a desktop session (XWayland): the app would open a window in front of you. \
-                 Run under `xvfb-run -a`"
+                "DISPLAY is not evidently a virtual display (it may be a desktop session, an XWayland \
+                 server, a native X server, or an Xvfb that `xvfb-run` did not start), so the app's \
+                 window could open in front of you. Run under `xvfb-run -a`, or set \
+                 OFM_E2E_ALLOW_DISPLAY=1 to vouch for your own Xvfb or Xephyr"
             ),
             Self::NoDisplay => write!(
                 f,

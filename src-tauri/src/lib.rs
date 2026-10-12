@@ -29,7 +29,7 @@ pub fn run() {
     // Must run before the webview is built: on Linux, WebKitGTK and the graphics driver read the
     // variables this sets when the web process starts. A no-op on Windows and macOS.
     // See `platform` and `docs/LINUX_GRAPHICS.md`.
-    platform::configure_graphics();
+    platform::configure_graphics(main_window::headless_requested());
 
     let state_manager = Arc::new(StateManager::new());
 
