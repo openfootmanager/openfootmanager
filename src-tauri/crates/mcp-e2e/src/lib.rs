@@ -50,16 +50,21 @@ mod revision_tests {
         let repo = tempfile::tempdir().unwrap();
         let root = repo.path();
         let app = root.join("src-tauri");
-        std::fs::create_dir_all(&app).unwrap();
+        std::fs::create_dir_all(app.join("src")).unwrap();
+        std::fs::create_dir_all(app.join("tests")).unwrap();
         std::fs::create_dir_all(root.join("docs")).unwrap();
         git(root, &["init", "-q"]);
-        std::fs::write(app.join("lib.rs"), "fn a() {}").unwrap();
+        std::fs::write(app.join("src/lib.rs"), "fn a() {}").unwrap();
         std::fs::write(root.join("docs/readme.md"), "one").unwrap();
         git(root, &["add", "-A"]);
         git(root, &["commit", "-q", "-m", "one"]);
 
         let clean = source_revision(&app).unwrap();
         assert_eq!(clean.len(), 12, "a clean tree is a bare digest: {clean}");
+
+        // Tests and other files outside the app's sources change nothing either.
+        std::fs::write(app.join("tests/architecture.rs"), "fn t() {}").unwrap();
+        assert_eq!(source_revision(&app).unwrap(), clean);
 
         // The test crate is not part of the app, so editing it, tracked or new, changes nothing.
         std::fs::create_dir_all(app.join("crates/mcp-e2e")).unwrap();
@@ -77,17 +82,17 @@ mod revision_tests {
         assert_eq!(source_revision(&app).unwrap(), clean);
 
         // An edit under src-tauri, an untracked file, and another edit each give another revision.
-        std::fs::write(app.join("lib.rs"), "fn b() {}").unwrap();
+        std::fs::write(app.join("src/lib.rs"), "fn b() {}").unwrap();
         let edited = source_revision(&app).unwrap();
         assert_ne!(edited, clean);
         assert!(
             edited.starts_with(&clean) && edited.contains('.'),
             "{edited}"
         );
-        std::fs::write(app.join("new.rs"), "fn c() {}").unwrap();
+        std::fs::write(app.join("src/new.rs"), "fn c() {}").unwrap();
         let with_new_file = source_revision(&app).unwrap();
         assert_ne!(with_new_file, edited);
-        std::fs::write(app.join("new.rs"), "fn d() {}").unwrap();
+        std::fs::write(app.join("src/new.rs"), "fn d() {}").unwrap();
         assert_ne!(source_revision(&app).unwrap(), with_new_file);
 
         // Committing the edits turns them into a new bare tree hash.

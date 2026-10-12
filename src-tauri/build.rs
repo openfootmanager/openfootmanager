@@ -13,21 +13,22 @@ fn embed_source_revision() {
     println!("cargo:rustc-env=OFM_BUILD_REVISION={revision}");
 
     // The revision depends on the sources and on what git thinks of them, so rerun when either moves.
-    // The crates the app is built from; `crates/mcp-e2e` is not one of them.
-    for path in [
-        "src",
-        "crates/domain",
-        "crates/engine",
-        "crates/ofm_core",
-        "crates/db",
-        "crates/mcp-results",
-        "Cargo.toml",
-        "Cargo.lock",
-        "tauri.conf.json",
-        "build.rs",
-        "build_revision.rs",
-    ] {
-        println!("cargo:rerun-if-changed={path}");
+    // Everything the revision digests, so the build reruns when any of it changes.
+    for path in APP_PATHS.iter().chain(&["build_revision.rs"]) {
+        if *path == "crates" {
+            // `crates/mcp-e2e` is not part of the app.
+            let Ok(crates) = std::fs::read_dir(manifest_dir.join("crates")) else {
+                continue;
+            };
+            for entry in crates.flatten() {
+                let name = format!("crates/{}", entry.file_name().to_string_lossy());
+                if name != NOT_THE_APP {
+                    println!("cargo:rerun-if-changed={name}");
+                }
+            }
+        } else {
+            println!("cargo:rerun-if-changed={path}");
+        }
     }
     for git_path in ["HEAD", "index"] {
         if let Ok(output) = std::process::Command::new("git")
