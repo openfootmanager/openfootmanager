@@ -394,6 +394,7 @@ mod tests {
                 ..CompetitionRules::default()
             },
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "fix-1".to_string(),
                 competition_id: "cup".to_string(),
                 matchday: 1,
@@ -477,6 +478,7 @@ mod tests {
             StandingEntry::new("away".to_string()),
         ];
         league.fixtures = vec![Fixture {
+            postponement: None,
             id: "fix-1".to_string(),
             competition_id: "league1".to_string(),
             matchday: 1,
@@ -763,6 +765,7 @@ mod tests {
         cup.rules.format = CompetitionFormat::Knockout;
         for (index, pair) in clubs.chunks(2).enumerate() {
             cup.fixtures.push(Fixture {
+                postponement: None,
                 id: format!("r1-{index}"),
                 competition_id: "cup".to_string(),
                 matchday: 1,
@@ -831,6 +834,7 @@ mod tests {
 
     fn international_fixture(id: &str, date: &str, home: &str, away: &str) -> Fixture {
         Fixture {
+            postponement: None,
             id: id.to_string(),
             competition_id: "wc-2030".to_string(),
             matchday: 1,

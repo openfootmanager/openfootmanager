@@ -460,6 +460,7 @@ fn one_league(world: &GeneratedWorld) -> Game {
             .to_string();
         for i in 0..CLUBS / 2 {
             fixtures.push(Fixture {
+                postponement: None,
                 id: format!("w{week}-m{i}"),
                 competition_id: "probe-league".to_string(),
                 matchday: week + 1,

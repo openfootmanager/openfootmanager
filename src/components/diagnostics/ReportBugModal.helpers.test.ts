@@ -10,7 +10,9 @@ import {
   describeMachine,
   describeResolution,
   formatBytes,
+  minutesToWait,
   missingRequiredFields,
+  toUploadFailure,
 } from "./ReportBugModal.helpers";
 
 describe("missingRequiredFields", () => {
@@ -218,5 +220,41 @@ describe("describeCareer", () => {
     } as unknown as GameStateData;
 
     expect(describeCareer(sparse)).toBe("2026-03-14");
+  });
+});
+
+describe("toUploadFailure", () => {
+  /**
+   * Given a rejection that is the backend's failure object, a bare key, or a malformed wait
+   * When it is normalised
+   * Then the key and the numeric wait survive, and anything else gives no wait
+   */
+  it("reads the key and the wait from whatever the backend rejected with", () => {
+    expect(toUploadFailure({ kind: "capacity", key: "k", retry_after_seconds: 90 })).toEqual({
+      kind: "capacity",
+      key: "k",
+      retry_after_seconds: 90,
+    });
+    expect(toUploadFailure("k")).toEqual({ kind: "other", key: "k", retry_after_seconds: null });
+    expect(toUploadFailure({ key: "k", retry_after_seconds: "soon" })).toEqual({
+      kind: "other",
+      key: "k",
+      retry_after_seconds: null,
+    });
+  });
+});
+
+describe("minutesToWait", () => {
+  /**
+   * Given waits that are short, exact and just over a minute
+   * When they are converted
+   * Then they round up and are never less than one minute
+   */
+  it("rounds up and never says zero", () => {
+    expect(minutesToWait(0)).toBe(1);
+    expect(minutesToWait(30)).toBe(1);
+    expect(minutesToWait(60)).toBe(1);
+    expect(minutesToWait(61)).toBe(2);
+    expect(minutesToWait(3600)).toBe(60);
   });
 });

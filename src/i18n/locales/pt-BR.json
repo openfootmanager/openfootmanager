@@ -1827,7 +1827,12 @@
     "help": "Ajuda",
     "reportBug": "Relatar um bug",
     "reportBugDesc": "Conte o que deu errado; seus logs vão junto automaticamente.",
-    "report": "Relatar"
+    "report": "Relatar",
+    "yourReports": "Seus relatórios",
+    "yourReportsDesc": "Códigos de referência dos relatórios que você enviou. Informe um para perguntar sobre um relatório ou pedir que ele seja apagado.",
+    "noReports": "Você ainda não enviou nenhum relatório.",
+    "reportOutcomeUnknown": "Resultado desconhecido: pode ter chegado. Enviar de novo pode entregá-lo duas vezes.",
+    "reportIncludedSave": "Com save anexado"
   },
   "preMatch": {
     "formationFit": "Ajuste da Formação",
@@ -2746,7 +2751,25 @@
       "saveManagerUnavailable": "Os dados salvos estão temporariamente indisponíveis.",
       "report": {
         "bundleFailed": "Não foi possível gravar o arquivo do relatório. Verifique se você pode gravar na pasta escolhida.",
-        "saveMissing": "Não foi possível encontrar seu save, então nada foi gravado. Desmarque o save e tente de novo, ou recarregue sua carreira primeiro."
+        "saveMissing": "Não foi possível encontrar seu save, então nada foi gravado. Desmarque o save e tente de novo, ou recarregue sua carreira primeiro.",
+        "upload": {
+          "consentRequired": "Primeiro marque a caixa para concordar com o envio destes arquivos.",
+          "notConfigured": "Esta versão do jogo não consegue enviar relatórios diretamente. Use o formulário do GitHub.",
+          "attachmentsUnavailable": "Anexar arquivos ainda não está disponível.",
+          "alreadySending": "Um relatório ainda está sendo enviado. Espere terminar e tente de novo.",
+          "disabled": "O envio de relatórios está desativado no momento. Use o formulário do GitHub.",
+          "tooManyFiles": "Há arquivos demais anexados a este relatório.",
+          "capacity": "O servidor de relatórios está cheio no momento. Use o formulário do GitHub.",
+          "imagesUnavailable": "O servidor de relatórios não consegue processar capturas de tela agora. Tente sem elas ou use o formulário do GitHub.",
+          "rateLimitedWait": "Muitos relatórios foram enviados da sua conexão recentemente. Tente novamente em cerca de {{minutes}} min.",
+          "tooLarge": "O relatório é grande demais para ser enviado diretamente.",
+          "rateLimited": "Muitos relatórios foram enviados da sua conexão recentemente. Espere um pouco antes de tentar de novo.",
+          "rejected": "O servidor de relatórios não aceitou este relatório.",
+          "serverError": "O servidor de relatórios teve um problema e não conseguiu receber o relatório.",
+          "unreachable": "Não foi possível alcançar o servidor de relatórios, então nada foi enviado. Verifique sua conexão com a internet.",
+          "unconfirmed": "A conexão caiu antes de o servidor responder. Seu relatório pode ter chegado. Se você enviar de novo, a equipe pode recebê-lo duas vezes.",
+          "prepareFailed": "Não foi possível preparar o relatório para envio. Você ainda pode salvá-lo e usar o formulário do GitHub."
+        }
       },
       "saveDeleteFailed": "Falha ao excluir o arquivo de save.",
       "settings": {
@@ -4176,14 +4199,36 @@
     "itemCrashDesc": "Incluído porque algo quebrou durante sua última sessão.",
     "optionalHeading": "Adicione se quiser — desligado por padrão",
     "includeSave": "Meu save",
-      "includeSaveDesc": "Permite reproduzir a situação exata em que você estava.",
+    "includeSaveDesc": "Permite reproduzir a situação exata em que você estava.",
     "includeSaveNoCareer": "Nenhuma carreira aberta, então não há nada para anexar.",
     "nothingSentYet": "Nada é salvo nem aberto até você clicar no botão abaixo. Enviar o formulário exige uma conta no GitHub — o arquivo é seu de qualquer jeito.",
     "savedTo": "Seu arquivo de relato foi salvo aqui:",
     "dragItIn": "Arraste-o para o formulário do GitHub no navegador e envie. É só isso.",
-      "browserDidNotOpen": "Seu navegador não abriu. O arquivo acima está salvo — anexe-o a uma nova issue no GitHub quando puder.",
+    "browserDidNotOpen": "Seu navegador não abriu. O arquivo acima está salvo — anexe-o a uma nova issue no GitHub quando puder.",
     "review": "Revisar o que é enviado",
     "saveAndOpen": "Salvar o arquivo e abrir o GitHub",
-    "working": "Trabalhando…"
+    "working": "Trabalhando…",
+    "previewIntroUpload": "Tudo o que está abaixo, e nada mais. Nada sai deste computador até você clicar em Enviar ou salvar o arquivo você mesmo.",
+    "consentLabel": "Enviar estes arquivos para a equipe do OpenFoot Manager",
+    "consentDesc": "Revisei a lista acima e concordo em enviá-la. Não é necessária uma conta. Os relatórios são guardados até a equipe tratá-los.",
+    "send": "Enviar",
+    "saveAndOpenInstead": "Salvar o arquivo e usar o GitHub",
+    "nothingSentYetUpload": "Nada sai deste computador até você clicar em Enviar. Prefere o GitHub? Salve o arquivo e anexe você mesmo ao formulário — isso exige uma conta no GitHub.",
+    "uploadFailedFallback": "Você ainda pode enviá-lo pelo GitHub: salve o arquivo e anexe ao formulário.",
+    "tooLargeUntickSave": "Desmarcar o seu save deixa o relatório bem menor.",
+    "sentTitle": "Relatório enviado",
+    "sentIntro": "Obrigado. Seu relatório chegou à equipe do OpenFoot Manager e é guardado até ser tratado.",
+    "referenceCode": "Seu código de referência",
+    "referenceCodeHint": "Informe este código se perguntar sobre seu relatório. Para excluí-lo, escreva para bugreport@openfootmanager.com com este código. Não é uma senha: ninguém pode usá-lo para ver seu relatório.",
+    "referenceCodeSaved": "Você pode encontrá-lo de novo em Configurações → Ajuda → Seus relatórios.",
+    "notRecorded": "Não foi possível adicionar este código à sua lista de relatórios. Anote-o, por favor.",
+    "copyCodeFor": "Copiar o código {{code}}",
+    "codeCopied": "Copiado"
+  },
+  "crashPrompt": {
+    "title": "O jogo fechou inesperadamente",
+    "body": "Sua última sessão terminou com uma falha. Relatá-la nos ajuda a corrigi-la — você verá tudo o que seria enviado antes que algo saia do seu computador.",
+    "report": "Relatar",
+    "notNow": "Agora não"
   }
 }

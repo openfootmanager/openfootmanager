@@ -98,6 +98,7 @@ pub fn schedule_national_team_friendlies(
             let home_id = national_teams[*home_idx].id.clone();
             let away_id = national_teams[*away_idx].id.clone();
             let fixture = Fixture {
+                postponement: None,
                 id: format!("ntf-{window_index}-{home_id}-{away_id}"),
                 competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.to_string(),
                 matchday: window_index as u32 + 1,
@@ -668,6 +669,7 @@ mod tests {
         game.players = vec![make_player("p1", 80), make_player("p2", 60)];
         let mut home = make_national_team("nt-eng", "ENG", &["p1"]);
         home.fixtures.push(Fixture {
+            postponement: None,
             id: "ntf-0".to_string(),
             competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.to_string(),
             matchday: 1,
@@ -697,6 +699,7 @@ mod tests {
         game.players = vec![make_player("p1", 80), make_player("p2", 70)];
         let mut home = make_national_team("nt-eng", "ENG", &["p1"]);
         home.fixtures.push(Fixture {
+            postponement: None,
             id: "ntf-0".to_string(),
             competition_id: INTERNATIONAL_FRIENDLY_COMPETITION_ID.to_string(),
             matchday: 1,

@@ -503,6 +503,7 @@ mod tests {
             season: 1,
             fixtures: vec![
                 Fixture {
+                    postponement: None,
                     id: "fix1".to_string(),
                     competition_id: "league1".to_string(),
                     matchday: 1,
@@ -514,6 +515,7 @@ mod tests {
                     result: None,
                 },
                 Fixture {
+                    postponement: None,
                     id: "fix2".to_string(),
                     competition_id: "league1".to_string(),
                     matchday: 1,
@@ -716,6 +718,7 @@ mod tests {
             name: "Test Cup".to_string(),
             season: 1,
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "cup_fix1".to_string(),
                 competition_id: "cup1".to_string(),
                 matchday: 1,
@@ -1377,6 +1380,7 @@ mod tests {
                 ..CompetitionRules::default()
             },
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "cupfix1".to_string(),
                 competition_id: "cup1".to_string(),
                 matchday: 1,
@@ -1707,6 +1711,7 @@ mod live_session_tests {
             name: "League".to_string(),
             season: 2025,
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "fixture-1".to_string(),
                 competition_id: "league-1".to_string(),
                 matchday: 1,

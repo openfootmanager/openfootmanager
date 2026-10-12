@@ -265,6 +265,24 @@ pub struct Fixture {
     pub competition: FixtureCompetition,
     pub status: FixtureStatus,
     pub result: Option<MatchResult>,
+    /// Set when the match was moved off a date the player had already been shown.
+    #[serde(default)]
+    pub postponement: Option<Postponement>,
+}
+
+/// Where a moved match was first scheduled and why it moved.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Postponement {
+    pub original_date: String,
+    pub reason: RescheduleReason,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RescheduleReason {
+    InternationalWindow,
+    CupTie,
+    ContinentalTie,
+    LeagueClash,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -518,6 +536,7 @@ impl Default for Fixture {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            postponement: None,
         }
     }
 }
@@ -539,5 +558,47 @@ mod tests {
             serde_json::to_value(CompetitionRules::default()).unwrap()["group_size"],
             4
         );
+    }
+}
+
+#[cfg(test)]
+mod postponement_tests {
+    use super::*;
+    use serde_json::json;
+
+    /// Given a fixture saved before postponements existed, when it is loaded, then it has none.
+    #[test]
+    fn a_fixture_saved_before_postponements_loads_without_one() {
+        let fixture: Fixture = serde_json::from_value(json!({
+            "id": "f1", "competition_id": "c1", "matchday": 3, "date": "2033-03-01",
+            "home_team_id": "a", "away_team_id": "b", "competition": "League",
+            "status": "Scheduled", "result": null
+        }))
+        .unwrap();
+        assert_eq!(fixture.postponement, None);
+    }
+
+    /// Given a postponed fixture, when serialized and loaded, then the original date and reason survive.
+    #[test]
+    fn a_postponement_round_trips_with_its_original_date_and_reason() {
+        let fixture = Fixture {
+            postponement: Some(Postponement {
+                original_date: "2033-03-01".into(),
+                reason: RescheduleReason::CupTie,
+            }),
+            ..Default::default()
+        };
+        let loaded: Fixture =
+            serde_json::from_value(serde_json::to_value(&fixture).unwrap()).unwrap();
+        assert_eq!(loaded.postponement, fixture.postponement);
+    }
+
+    /// Given a reason without an original date, when loaded, then it is rejected: the two travel together.
+    #[test]
+    fn a_reason_without_an_original_date_is_rejected() {
+        let loaded = serde_json::from_value::<Fixture>(json!({
+            "postponement": { "reason": "CupTie" }
+        }));
+        assert!(loaded.is_err());
     }
 }

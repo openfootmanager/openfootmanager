@@ -164,6 +164,7 @@ fn make_world() -> Game {
         .map(StandingEntry::new)
         .collect();
     league.fixtures.push(Fixture {
+        postponement: None,
         id: "fix1".to_string(),
         competition_id: "league".to_string(),
         matchday: 1,

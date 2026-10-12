@@ -1117,6 +1117,7 @@ fn filler_club_defs(
         nations: vec![nation],
         color_palette: standard.color_palette.clone(),
         generic_cities: standard.generic_cities.clone(),
+        opening_year: None,
     };
     let mut defs = clubs::generate_club_defs(&config, rng);
     // When the authored team's country isn't a generation nation, the generator
@@ -1427,9 +1428,14 @@ fn generate_world_with_rng(
     config: &clubs::WorldGenConfig,
     sources: &definitions::DefinitionSources,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
-    // A procedurally generated world is contemporary, so it opens in the real
-    // calendar year rather than a year baked in at build time.
-    let opening_year = default_opening_year();
+    // A procedurally generated world is contemporary, so unless the config names
+    // a year it opens in the real calendar year rather than one baked in at
+    // build time.
+    let opening_year = config
+        .opening_year
+        .map_or_else(default_opening_year, |year| {
+            year.clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR)
+        });
     let mut teams_out = Vec::new();
     let mut players = Vec::new();
     let mut staff = Vec::new();
@@ -1503,6 +1509,36 @@ mod tests {
     use domain::staff::{Staff, StaffAttributes, StaffRole};
     use rand::SeedableRng;
     use rand::rngs::StdRng;
+
+    /// Given one seed and two configs that name different opening years,
+    /// When a world is generated from each,
+    /// Then every contract end moves by exactly the years between them —
+    ///      so the named year, not the wall clock, dates the world, and a world
+    ///      built for a clock in 2033 is not one whose contracts all expired.
+    #[test]
+    fn a_world_generated_for_a_named_year_is_dated_for_that_year() {
+        let sources = definitions::DefinitionSources::embedded_only();
+        let contract_ends = |year: u32| {
+            let mut config = clubs::WorldGenConfig::compact();
+            config.opening_year = Some(year);
+            let (_, players, _) =
+                generate_world_with_rng(rand::rngs::StdRng::seed_from_u64(1), &config, &sources);
+            players
+                .iter()
+                .filter_map(|player| player.contract_end().map(str::to_owned))
+                .collect::<Vec<_>>()
+        };
+
+        let in_2033 = contract_ends(2033);
+        let in_2040 = contract_ends(2040);
+
+        assert!(!in_2033.is_empty());
+        let shifted: Vec<String> = in_2033
+            .iter()
+            .map(|end| format!("{}{}", end[..4].parse::<u32>().unwrap() + 7, &end[4..]))
+            .collect();
+        assert_eq!(shifted, in_2040);
+    }
 
     // -- authored squad backfill trimming (#349) ----------------------------
 

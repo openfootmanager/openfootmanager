@@ -1,5 +1,5 @@
 import type { GameStateData } from "../../store/types";
-import type { BundleSummary, DiagnosticsReport } from "../../services/reportService";
+import type { BundleSummary, DiagnosticsReport, UploadFailure } from "../../services/reportService";
 
 export type Frequency = "everyTime" | "sometimes" | "once";
 
@@ -135,4 +135,22 @@ export function describeCareer(gameState: GameStateData | null): string {
 /** A sentence naming where the bundle landed and how big it turned out. */
 export function describeBundle(summary: BundleSummary): string {
   return `${summary.path} (${formatBytes(summary.bytes)})`;
+}
+
+/** What a rejected upload carries, whether the backend sent a failure object or just a key. */
+export function toUploadFailure(error: unknown): UploadFailure {
+  if (typeof error === "object" && error !== null && "key" in error) {
+    const { kind, key, retry_after_seconds: wait } = error as Partial<UploadFailure>;
+    return {
+      kind: kind ?? "other",
+      key: String(key),
+      retry_after_seconds: typeof wait === "number" ? wait : null,
+    };
+  }
+  return { kind: "other", key: String(error), retry_after_seconds: null };
+}
+
+/** Whole minutes to wait, never fewer than one: "try again in 0 minutes" invites an instant retry. */
+export function minutesToWait(seconds: number): number {
+  return Math.max(1, Math.ceil(seconds / 60));
 }

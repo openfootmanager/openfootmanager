@@ -1,8 +1,9 @@
-//! The bug-report commands: describe this machine, and pack the evidence.
+//! The bug-report commands: describe this machine, pack the evidence, and — only when the player
+//! agrees on the preview — send it.
 //!
-//! Neither command sends anything. Slice 3 of #569 ends at a file on disk that the player chooses
-//! the location of; the upload is slice 4, and the GitHub form is the path that needs no server at
-//! all.
+//! The export ends at a file the player chooses the location of; the upload builds the same bundle
+//! privately and posts it to OFMHub (`docs/api/bug-reports.md`). The GitHub form needs no server,
+//! and stays the fallback whenever the upload is declined, unavailable, or fails.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -12,6 +13,11 @@ use tauri::{Manager, State};
 
 use crate::crash;
 use crate::report::bundle::{self, BundleInputs, BundleSummary};
+use crate::report::history::{self, SubmittedReport};
+use crate::report::http::UreqTransport;
+use crate::report::hub::{self, HubEndpoint, Transport, UploadFailure, UploadParts};
+use crate::report::payload::{report_json, Machine, ReportFields};
+use crate::report::prepared::{Built, PreparedUploads};
 use crate::report::redact::Redactor;
 // The key itself lives at the crate root, where the other holders of this lock already read it
 // from. Spelling it out again here is how two copies of a translation key drift apart.
@@ -252,14 +258,19 @@ pub async fn export_report_bundle(
     let crash_json = previous_crash.as_json();
 
     tauri::async_runtime::spawn_blocking(move || {
+        let snapshot =
+            snapshot_diagnostics(&app_handle, &state, &save_manager, crash_json.is_some());
         write_report_bundle(
             &app_handle,
             &state,
             &save_manager,
-            crash_json,
+            &snapshot,
+            BundleChoices {
+                crash_json,
+                report_text: &report_text,
+                include_save,
+            },
             &output_path,
-            &report_text,
-            include_save,
         )
     })
     .await
@@ -269,25 +280,46 @@ pub async fn export_report_bundle(
     })?
 }
 
-fn write_report_bundle(
+/// The redactor and the machine description one report is built from, taken once so the bundle's
+/// `diagnostics.json` and the upload's `report` part cannot disagree.
+fn snapshot_diagnostics(
     app_handle: &tauri::AppHandle,
     state: &StateManager,
     save_manager: &SaveManagerState,
-    crash_json: Option<String>,
-    output_path: &str,
-    report_text: &str,
-    include_save: bool,
-) -> Result<BundleSummary, String> {
+    crash_on_previous_run: bool,
+) -> (Redactor, DiagnosticsReport) {
     let redactor = redactor_for(app_handle);
     let diagnostics = collect(
         app_handle,
         &redactor,
         state.get_save_id().is_some(),
-        crash_json.is_some(),
+        crash_on_previous_run,
         active_save_bytes(state, save_manager),
     );
+    (redactor, diagnostics)
+}
+
+struct BundleChoices<'a> {
+    crash_json: Option<String>,
+    report_text: &'a str,
+    include_save: bool,
+}
+
+fn write_report_bundle(
+    app_handle: &tauri::AppHandle,
+    state: &StateManager,
+    save_manager: &SaveManagerState,
+    (redactor, diagnostics): &(Redactor, DiagnosticsReport),
+    choices: BundleChoices<'_>,
+    output_path: &str,
+) -> Result<BundleSummary, String> {
+    let BundleChoices {
+        crash_json,
+        report_text,
+        include_save,
+    } = choices;
     let diagnostics_json =
-        serde_json::to_string_pretty(&diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;
+        serde_json::to_string_pretty(diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;
 
     // Only when the player ticked the box on the preview screen, and only if a career is open.
     // The copy lives until the bundle is written, then `Drop` removes it.
@@ -310,7 +342,7 @@ fn write_report_bundle(
             save_path: save_copy.as_ref().map(|copy| copy.file.as_path()),
         },
         Path::new(output_path),
-        &redactor,
+        redactor,
     )
     .map_err(|error| {
         log::error!("[report] could not write the bundle: {error}");
@@ -327,6 +359,284 @@ fn write_report_bundle(
     Ok(summary)
 }
 
+fn hub_endpoint() -> Option<HubEndpoint> {
+    HubEndpoint::resolve(
+        std::env::var(hub::HUB_URL_VARIABLE).ok().as_deref(),
+        cfg!(debug_assertions),
+    )
+}
+
+/// Read when the dialog opens, as the contract asks: the config carries the kill switch, which is
+/// flipped without a release. Offline, disabled and unusable all mean "no".
+#[tauri::command]
+pub async fn report_upload_available() -> bool {
+    let Some(endpoint) = hub_endpoint() else {
+        return false;
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        hub::fetch_config(UreqTransport::shared(), &endpoint).is_ok()
+    })
+    .await
+    .unwrap_or(false)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct UploadReceipt {
+    /// The `OFM-…` reference; called `code` in `reports.json` and the UI.
+    pub code: String,
+    /// The upload succeeded either way, but a player who is not told the list write failed has no
+    /// reason to note the code down, and then has nothing to quote to ask for deletion.
+    pub recorded: bool,
+}
+
+fn upload_preconditions(
+    consent: bool,
+    endpoint: Option<HubEndpoint>,
+) -> Result<HubEndpoint, UploadFailure> {
+    if !consent {
+        return Err(UploadFailure::key(hub::UPLOAD_CONSENT_REQUIRED));
+    }
+    endpoint.ok_or_else(|| UploadFailure::key(hub::UPLOAD_NOT_CONFIGURED))
+}
+
+/// The export's errors, reworded for the upload where they would mislead.
+///
+/// `bundleFailed` tells the player to check the folder they chose; an upload never asks for one.
+/// Everything else — a missing save, the save manager — means the same on both paths.
+fn as_upload_error(key: String) -> UploadFailure {
+    if key == REPORT_BUNDLE_FAILED {
+        UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
+    } else {
+        UploadFailure::key(&key)
+    }
+}
+
+fn send_and_record(
+    transport: &dyn Transport,
+    endpoint: &HubEndpoint,
+    parts: &UploadParts,
+    include_save: bool,
+    reports_path: Option<&Path>,
+    submitted_at: String,
+    build_id: &str,
+) -> Result<UploadReceipt, UploadFailure> {
+    let submitted = hub::submit(transport, endpoint, env!("CARGO_PKG_VERSION"), parts);
+    let mut entry = SubmittedReport {
+        code: String::new(),
+        submitted_at,
+        included_save: include_save,
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        id: history::new_id(),
+        build_id: build_id.to_owned(),
+        unconfirmed: false,
+    };
+    let code = match submitted {
+        Ok(code) => code,
+        Err(failure) => {
+            if failure.kind == hub::UploadFailureKind::Unconfirmed {
+                entry.unconfirmed = true;
+                if let Some(path) = reports_path {
+                    history::record_unconfirmed(path, &entry).unwrap_or_else(|error| {
+                        log::error!("[report] could not record the unknown outcome: {error}");
+                    });
+                }
+            }
+            return Err(failure);
+        }
+    };
+    entry.code = code.clone();
+    let recorded = match reports_path {
+        Some(path) => history::record_accepted(path, &entry)
+            .inspect_err(|error| {
+                log::error!("[report] report {code} was sent but not recorded: {error}");
+            })
+            .is_ok(),
+        None => false,
+    };
+    Ok(UploadReceipt { code, recorded })
+}
+
+/// `consent` is the tick on the preview screen, passed through rather than assumed: this is the
+/// last place that can refuse to send on the player's behalf. `include_save` is never dropped to
+/// make a bundle fit; a bundle too large for the server is an error the player answers. The save
+/// travels inside the bundle, never as its own part.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadRequest {
+    report_text: String,
+    fields: ReportFields,
+    include_save: bool,
+    consent: bool,
+    screenshot_paths: Vec<String>,
+    package_paths: Vec<String>,
+}
+
+/// Attachment paths arrive from the webview, and nothing the webview names may be read from disk
+/// and sent. Until a native picker in Rust supplies them, any path is refused.
+fn refuse_webview_paths(request: &UploadRequest) -> Result<(), UploadFailure> {
+    if request.screenshot_paths.is_empty() && request.package_paths.is_empty() {
+        Ok(())
+    } else {
+        Err(UploadFailure::key(hub::UPLOAD_ATTACHMENTS_UNAVAILABLE))
+    }
+}
+
+impl UploadRequest {
+    /// Two requests with the same identity are the same report, so a retry reuses the first build.
+    fn identity(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+}
+
+struct UploadSession {
+    app_handle: tauri::AppHandle,
+    state: Arc<StateManager>,
+    save_manager: Arc<SaveManagerState>,
+    crash_json: Option<String>,
+    crash_on_previous_run: bool,
+    prepared: Arc<PreparedUploads>,
+}
+
+fn build_report(
+    session: &UploadSession,
+    request: &UploadRequest,
+    scratch: &Path,
+) -> Result<Built, UploadFailure> {
+    let snapshot = snapshot_diagnostics(
+        &session.app_handle,
+        &session.state,
+        &session.save_manager,
+        session.crash_on_previous_run,
+    );
+    let bundle = scratch.join("report.zip");
+    write_report_bundle(
+        &session.app_handle,
+        &session.state,
+        &session.save_manager,
+        &snapshot,
+        BundleChoices {
+            crash_json: session.crash_json.clone(),
+            report_text: &request.report_text,
+            include_save: request.include_save,
+        },
+        &bundle.to_string_lossy(),
+    )
+    .map_err(as_upload_error)?;
+    let (redactor, diagnostics) = &snapshot;
+    let machine = Machine {
+        os: &diagnostics.os,
+        arch: &diagnostics.arch,
+        webview_version: &diagnostics.webview_version,
+    };
+    Ok((
+        report_json(redactor, &request.fields, &machine, diagnostics),
+        bundle,
+    ))
+}
+
+fn upload_report(
+    session: &UploadSession,
+    endpoint: &HubEndpoint,
+    request: UploadRequest,
+) -> Result<UploadReceipt, UploadFailure> {
+    let scratch_root = session
+        .app_handle
+        .path()
+        .app_cache_dir()
+        .unwrap_or_else(|_| std::env::temp_dir());
+    let (report_json, bundle) =
+        session
+            .prepared
+            .begin(&request.identity(), &scratch_root, |scratch| {
+                build_report(session, &request, scratch)
+            })?;
+    let build_id = session.prepared.build_id();
+    let parts = UploadParts {
+        report_json,
+        bundle,
+        screenshots: request.screenshot_paths.iter().map(PathBuf::from).collect(),
+        packages: request.package_paths.iter().map(PathBuf::from).collect(),
+    };
+    let reports_path = session
+        .app_handle
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| history::reports_file_in(&dir));
+    let outcome = send_and_record(
+        UreqTransport::shared(),
+        endpoint,
+        &parts,
+        request.include_save,
+        reports_path.as_deref(),
+        chrono::Utc::now().to_rfc3339(),
+        &build_id,
+    );
+    session.prepared.settle(worth_resending_unchanged(&outcome));
+    outcome
+}
+
+/// Only an upload whose outcome is unknown can be resent as the same bytes. The held copy may
+/// contain the player's save, so it is not kept after an answer that settles the matter.
+fn worth_resending_unchanged(outcome: &Result<UploadReceipt, UploadFailure>) -> bool {
+    matches!(outcome, Err(failure) if failure.kind == hub::UploadFailureKind::Unconfirmed)
+}
+
+/// The dialog is gone: remove the held build, which may contain the player's save.
+#[tauri::command]
+pub fn discard_prepared_report(prepared: State<'_, Arc<PreparedUploads>>) {
+    prepared.discard();
+}
+
+#[tauri::command]
+pub async fn upload_report_bundle(
+    app_handle: tauri::AppHandle,
+    state: State<'_, Arc<StateManager>>,
+    save_manager: State<'_, Arc<SaveManagerState>>,
+    previous_crash: State<'_, crash::PreviousCrash>,
+    prepared: State<'_, Arc<PreparedUploads>>,
+    request: UploadRequest,
+) -> Result<UploadReceipt, UploadFailure> {
+    refuse_webview_paths(&request)?;
+    let endpoint = upload_preconditions(request.consent, hub_endpoint())?;
+    let session = UploadSession {
+        app_handle,
+        state: state.inner().clone(),
+        save_manager: save_manager.inner().clone(),
+        crash_json: previous_crash.as_json(),
+        crash_on_previous_run: previous_crash.0.is_some(),
+        prepared: prepared.inner().clone(),
+    };
+    tauri::async_runtime::spawn_blocking(move || upload_report(&session, &endpoint, request))
+        .await
+        .map_err(|error| {
+            log::error!("[report] the upload task did not run: {error}");
+            UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
+        })?
+}
+
+#[tauri::command]
+pub fn list_submitted_reports(app_handle: tauri::AppHandle) -> Vec<SubmittedReport> {
+    app_handle
+        .path()
+        .app_data_dir()
+        .map(|dir| history::load(&history::reports_file_in(&dir)))
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn crash_notice(
+    previous_crash: State<'_, crash::PreviousCrash>,
+    dismissed: State<'_, crash::CrashPromptDismissed>,
+) -> Option<crash::CrashNotice> {
+    crash::pending_notice(&previous_crash, &dismissed)
+}
+
+#[tauri::command]
+pub fn dismiss_crash_notice(dismissed: State<'_, crash::CrashPromptDismissed>) {
+    dismissed.dismiss();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -341,6 +651,405 @@ mod tests {
         SaveManagerState(Mutex::new(
             SaveManager::init(&dir.join("saves")).expect("a save manager"),
         ))
+    }
+
+    const CONFIG_JSON: &str = r#"{"enabled":true,"max_total_bytes":26214400,"max_bundle_bytes":20971520,"max_screenshot_bytes":5242880,"max_package_bytes":20971520,"max_files":6,"accepted_types":{"bundle":["zip"],"screenshots":["png"],"packages":["ofm"]}}"#;
+
+    struct CannedHub {
+        post: Result<hub::HubResponse, hub::TransportFailure>,
+        posts: std::cell::Cell<usize>,
+    }
+
+    impl CannedHub {
+        fn answering(status: u16, body: &str) -> Self {
+            Self {
+                post: Ok(hub::HubResponse {
+                    status,
+                    body: body.as_bytes().to_vec(),
+                    retry_after_seconds: Some(90),
+                }),
+                posts: std::cell::Cell::new(0),
+            }
+        }
+    }
+
+    impl Transport for CannedHub {
+        fn get(&self, _url: &str) -> Result<hub::HubResponse, hub::TransportFailure> {
+            Ok(hub::HubResponse {
+                status: 200,
+                body: CONFIG_JSON.as_bytes().to_vec(),
+                retry_after_seconds: None,
+            })
+        }
+
+        fn post_multipart(
+            &self,
+            _url: &str,
+            _game_version: &str,
+            _content_type: &str,
+            _body: Vec<u8>,
+        ) -> Result<hub::HubResponse, hub::TransportFailure> {
+            self.posts.set(self.posts.get() + 1);
+            self.post.clone()
+        }
+    }
+
+    fn test_endpoint() -> HubEndpoint {
+        HubEndpoint::from_base_url("https://hub.example.test/api/v1").expect("endpoint")
+    }
+
+    fn small_parts(dir: &Path) -> UploadParts {
+        let path = dir.join("report.zip");
+        std::fs::write(&path, b"PK").expect("zip");
+        UploadParts {
+            report_json: "{}".to_owned(),
+            bundle: path,
+            screenshots: Vec::new(),
+            packages: Vec::new(),
+        }
+    }
+
+    fn key(key: &str) -> UploadFailure {
+        UploadFailure::key(key)
+    }
+
+    /// Given a player who has not ticked the consent box,
+    /// when an upload is requested — even with an endpoint configured,
+    /// then it is refused before anything is built or sent.
+    #[test]
+    fn an_upload_without_consent_is_refused() {
+        assert_eq!(
+            upload_preconditions(false, Some(test_endpoint())),
+            Err(key(hub::UPLOAD_CONSENT_REQUIRED))
+        );
+    }
+
+    /// Given an override that is not a valid https endpoint,
+    /// when a consented upload is requested,
+    /// then it is refused as not configured, so the player is sent to the GitHub form.
+    #[test]
+    fn an_upload_with_no_endpoint_is_refused() {
+        assert_eq!(
+            upload_preconditions(true, None),
+            Err(key(hub::UPLOAD_NOT_CONFIGURED))
+        );
+        assert_eq!(
+            upload_preconditions(true, Some(test_endpoint())),
+            Ok(test_endpoint())
+        );
+    }
+
+    /// Given a bundle that could not be written for an upload,
+    /// when the error reaches the player,
+    /// then it does not talk about a folder they never chose — but a missing save still says so.
+    #[test]
+    fn an_upload_never_blames_a_folder_the_player_did_not_choose() {
+        assert_eq!(
+            as_upload_error(REPORT_BUNDLE_FAILED.to_owned()),
+            key(hub::UPLOAD_PREPARE_FAILED)
+        );
+        assert_eq!(
+            as_upload_error(REPORT_SAVE_MISSING.to_owned()),
+            key(REPORT_SAVE_MISSING)
+        );
+    }
+
+    /// Given a server that accepts the report,
+    /// when it is sent,
+    /// then the reference comes back and is recorded in reports.json with the save choice and date.
+    #[test]
+    fn an_accepted_report_is_recorded_with_its_reference() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let hub = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+
+        let receipt = send_and_record(
+            &hub,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            true,
+            Some(&reports),
+            "2026-10-03T12:00:00+00:00".to_owned(),
+            "build-1",
+        );
+
+        assert_eq!(
+            receipt,
+            Ok(UploadReceipt {
+                code: "OFM-7K2QX9DM".to_owned(),
+                recorded: true
+            })
+        );
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
+        assert!(listed[0].included_save);
+        assert_eq!(listed[0].submitted_at, "2026-10-03T12:00:00+00:00");
+        assert_eq!(listed[0].app_version, env!("CARGO_PKG_VERSION"));
+    }
+
+    /// Given a server that rate-limits the report,
+    /// when it is sent,
+    /// then the player gets the translated reason with the wait, and nothing is recorded.
+    #[test]
+    fn a_refused_report_records_nothing() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let hub = CannedHub::answering(429, r#"{"message":"Slow down.","code":"rate_limited"}"#);
+
+        let receipt = send_and_record(
+            &hub,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-03T12:00:00+00:00".to_owned(),
+            "build-1",
+        );
+
+        assert_eq!(
+            receipt,
+            Err(UploadFailure {
+                retry_after_seconds: Some(90),
+                ..key(hub::UPLOAD_RATE_LIMITED)
+            })
+        );
+        assert!(history::load(&reports).is_empty());
+        assert_eq!(hub.posts.get(), 1);
+    }
+
+    /// Given a server that accepts the report but a reports file that cannot be written,
+    /// when it is sent,
+    /// then the upload still succeeds with its reference, marked as not recorded so the player is
+    /// told to note it down.
+    #[test]
+    fn an_accepted_report_that_cannot_be_recorded_still_returns_its_reference() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        // A directory where the file should be: every write to it fails.
+        let reports = history::reports_file_in(dir.path());
+        std::fs::create_dir_all(&reports).expect("blocking dir");
+        let hub = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+
+        let receipt = send_and_record(
+            &hub,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-03T12:00:00+00:00".to_owned(),
+            "build-1",
+        );
+
+        assert_eq!(
+            receipt,
+            Ok(UploadReceipt {
+                code: "OFM-7K2QX9DM".to_owned(),
+                recorded: false
+            })
+        );
+    }
+
+    /// Given each way an upload can end,
+    /// when it is decided whether to keep the built report for a resend,
+    /// then only an outcome the game cannot know is kept — and a held copy of the save is dropped
+    /// after an acceptance or a definite refusal.
+    #[test]
+    fn only_an_unconfirmed_upload_keeps_its_build() {
+        let accepted = Ok(UploadReceipt {
+            code: "OFM-7K2QX9DM".to_owned(),
+            recorded: true,
+        });
+
+        assert!(!worth_resending_unchanged(&accepted));
+        assert!(!worth_resending_unchanged(&Err(key(hub::UPLOAD_TOO_LARGE))));
+        assert!(!worth_resending_unchanged(&Err(key(
+            hub::UPLOAD_UNREACHABLE
+        ))));
+        assert!(worth_resending_unchanged(&Err(key(
+            hub::UPLOAD_UNCONFIRMED
+        ))));
+    }
+
+    /// Given a server whose answer never arrived (the connection dropped after the post began),
+    /// when the report is sent,
+    /// then the player is told the outcome is unknown, and one unconfirmed entry (no code) is
+    /// recorded so the report list can say so.
+    #[test]
+    fn an_unconfirmed_upload_is_recorded_as_unknown() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut hub = CannedHub::answering(201, "{}");
+        hub.post = Err(hub::TransportFailure::Interrupted("reset".to_owned()));
+
+        let outcome = send_and_record(
+            &hub,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            true,
+            Some(&reports),
+            "2026-10-12T10:00:00+00:00".to_owned(),
+            "build-1",
+        );
+
+        assert_eq!(outcome, Err(key(hub::UPLOAD_UNCONFIRMED)));
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 1);
+        assert!(listed[0].unconfirmed);
+        assert_eq!(listed[0].code, "");
+        assert!(listed[0].included_save);
+    }
+
+    /// Given definite failures (rate limit, unreachable),
+    /// when the report is sent,
+    /// then nothing is recorded: only an unknown outcome leaves a trace.
+    #[test]
+    fn a_definite_failure_leaves_no_entry() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut hub = CannedHub::answering(201, "{}");
+        hub.post = Err(hub::TransportFailure::Unreachable("dns".to_owned()));
+
+        let outcome = send_and_record(
+            &hub,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-12T10:00:00+00:00".to_owned(),
+            "build-1",
+        );
+
+        assert_eq!(outcome, Err(key(hub::UPLOAD_UNREACHABLE)));
+        assert!(history::load(&reports).is_empty());
+    }
+
+    fn request_with(screenshots: &[&str], packages: &[&str]) -> UploadRequest {
+        UploadRequest {
+            report_text: String::new(),
+            fields: ReportFields::default(),
+            include_save: false,
+            consent: true,
+            screenshot_paths: screenshots.iter().map(|path| (*path).to_owned()).collect(),
+            package_paths: packages.iter().map(|path| (*path).to_owned()).collect(),
+        }
+    }
+
+    /// Given a request whose attachment paths came from the webview,
+    /// when it is checked before anything is built,
+    /// then any screenshot or package path is refused with a typed error, and none is read;
+    /// a request without paths passes.
+    #[test]
+    fn a_path_from_the_webview_is_never_accepted() {
+        assert_eq!(refuse_webview_paths(&request_with(&[], &[])), Ok(()));
+        for request in [
+            request_with(&["/etc/passwd"], &[]),
+            request_with(&[], &["/home/x/.ssh/id_rsa"]),
+            request_with(&["a.png"], &["b.ofm"]),
+        ] {
+            assert_eq!(
+                refuse_webview_paths(&request),
+                Err(key(hub::UPLOAD_ATTACHMENTS_UNAVAILABLE))
+            );
+        }
+    }
+
+    /// Given an earlier attempt recorded as unknown,
+    /// when a resend of that report is accepted,
+    /// then the unknown entry is replaced by the accepted one — not left beside it.
+    #[test]
+    fn an_accepted_resend_replaces_the_unknown_entry() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut dropped = CannedHub::answering(201, "{}");
+        dropped.post = Err(hub::TransportFailure::Interrupted("reset".to_owned()));
+        let accepted = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+        let send = |hub: &CannedHub, at: &str| {
+            send_and_record(
+                hub,
+                &test_endpoint(),
+                &small_parts(dir.path()),
+                false,
+                Some(&reports),
+                at.to_owned(),
+                "build-1",
+            )
+        };
+
+        let first = send(&dropped, "2026-10-12T10:00:00+00:00");
+        let second = send(&accepted, "2026-10-12T10:05:00+00:00");
+
+        assert!(first.is_err());
+        assert!(second.is_ok());
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
+        assert!(!listed[0].unconfirmed);
+    }
+
+    /// Given two accepted reports with the same code and time,
+    /// when both are recorded,
+    /// then each entry has its own id, which the list uses as its key.
+    #[test]
+    fn each_recorded_entry_gets_its_own_id() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let hub = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+        for _ in 0..2 {
+            send_and_record(
+                &hub,
+                &test_endpoint(),
+                &small_parts(dir.path()),
+                false,
+                Some(&reports),
+                "2026-10-12T10:00:00+00:00".to_owned(),
+                "build-1",
+            )
+            .expect("accepted");
+        }
+
+        let listed = history::load(&reports);
+
+        assert_eq!(listed.len(), 2);
+        assert!(!listed[0].id.is_empty());
+        assert_ne!(listed[0].id, listed[1].id);
+    }
+
+    /// Given an attempt of one build whose outcome was unknown,
+    /// when a report built separately (a different build) is accepted,
+    /// then both entries are kept: the unknown one may be the only local trace of a report the
+    /// server holds, and the accepted one is not a resend of it.
+    #[test]
+    fn a_different_report_does_not_replace_an_unknown_entry() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut dropped = CannedHub::answering(201, "{}");
+        dropped.post = Err(hub::TransportFailure::Interrupted("reset".to_owned()));
+        let accepted = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+
+        let _ = send_and_record(
+            &dropped,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-12T10:00:00+00:00".to_owned(),
+            "build-a",
+        );
+        send_and_record(
+            &accepted,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-12T10:30:00+00:00".to_owned(),
+            "build-b",
+        )
+        .expect("accepted");
+
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 2);
+        assert!(listed[1].unconfirmed);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
     }
 
     #[test]

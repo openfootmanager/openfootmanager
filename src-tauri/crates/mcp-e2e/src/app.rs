@@ -1,5 +1,6 @@
 use std::fs;
 use std::net::TcpListener;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -38,6 +39,8 @@ pub struct AppConfig {
     pub extra_args: Vec<String>,
     /// The app binary, instead of `OFM_E2E_BIN` or the debug build next to this crate.
     pub binary: Option<PathBuf>,
+    /// The source revision the binary must report, instead of the working tree's own.
+    pub expected_revision: Option<String>,
 }
 
 impl Default for AppConfig {
@@ -46,16 +49,23 @@ impl Default for AppConfig {
             mode: Mode::Sandbox,
             extra_args: Vec::new(),
             binary: None,
+            expected_revision: None,
         }
     }
 }
 
-#[derive(Debug)]
 pub enum LaunchError {
+    /// `DISPLAY` points at a desktop session, where the app's window would open in front of you.
+    HostDisplay,
     /// No built binary where one was expected. Build with `--features mcp`.
     BinaryMissing(PathBuf),
     /// Neither `DISPLAY` nor `WAYLAND_DISPLAY` is set, and the app cannot start without one.
     NoDisplay,
+    /// The binary was built from other sources than the ones under test.
+    StaleBinary {
+        binary_revision: String,
+        expected_revision: String,
+    },
     /// The process started and never answered `initialize`. The bundle says what it printed.
     NotReady(String),
     Io(String),
@@ -69,13 +79,36 @@ impl std::fmt::Display for LaunchError {
                 "no app binary at {}: build it with `cargo build --features mcp` or set OFM_E2E_BIN",
                 path.display()
             ),
+            Self::HostDisplay => write!(
+                f,
+                "DISPLAY is not evidently a virtual display (it may be a desktop session, an XWayland \
+                 server, a native X server, or an Xvfb that `xvfb-run` did not start), so the app's \
+                 window could open in front of you. Run under `xvfb-run -a`, or set \
+                 OFM_E2E_ALLOW_DISPLAY=1 to vouch for your own Xvfb or Xephyr"
+            ),
             Self::NoDisplay => write!(
                 f,
                 "no DISPLAY: run under `xvfb-run -a`; the app is forced onto X11 and cannot start without one"
             ),
+            Self::StaleBinary {
+                binary_revision,
+                expected_revision,
+            } => write!(
+                f,
+                "the app binary was built from sources `{binary_revision}`, but the tree under test is \
+                 `{expected_revision}`: rebuild it with `cargo build --features mcp --bin openfootmanager` \
+                 from src-tauri, or set OFM_E2E_ALLOW_STALE=1 to test a binary you know is different"
+            ),
             Self::NotReady(bundle) => write!(f, "{bundle}"),
             Self::Io(detail) => write!(f, "{detail}"),
         }
+    }
+}
+
+/// `unwrap()` on a failed launch prints this, so it shows the message and not the variant.
+impl std::fmt::Debug for LaunchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self}")
     }
 }
 
@@ -100,9 +133,7 @@ impl App {
         if !binary.is_file() {
             return Err(LaunchError::BinaryMissing(binary));
         }
-        if !display_available(std::env::var_os("DISPLAY").as_deref()) {
-            return Err(LaunchError::NoDisplay);
-        }
+        require_virtual_display()?;
 
         let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
         for sub in ["data", "config", "cache", "state"] {
@@ -145,8 +176,12 @@ impl App {
         };
         match app.wait_until_ready() {
             Ok(client) => {
+                let verdict = check_revision(
+                    client.server_version(),
+                    expected_revision(config).as_deref(),
+                );
                 app.client = Some(client);
-                Ok(app)
+                verdict.map(|()| app)
             }
             Err(detail) => {
                 let bundle = app.failure_bundle(&detail);
@@ -160,6 +195,11 @@ impl App {
         self.client
             .as_ref()
             .expect("a launched app always has a client")
+    }
+
+    /// The process id of the app, which `_NET_WM_PID` carries on its windows.
+    pub fn pid(&self) -> Option<u32> {
+        self.child.as_ref().map(Child::id)
     }
 
     pub fn port(&self) -> u16 {
@@ -326,18 +366,31 @@ impl App {
         let started = Instant::now();
         while started.elapsed() < GRACEFUL_STOP_WITHIN {
             if matches!(child.try_wait(), Ok(Some(_))) {
+                // The WebKit helpers belong to the app's process group and can outlive it long
+                // enough to recreate directories under the scratch path.
+                signal_group(child.id(), "-KILL");
                 return true;
             }
             std::thread::sleep(Duration::from_millis(100));
         }
         let _ = child.kill();
-        child.wait().is_ok()
+        let reaped = child.wait().is_ok();
+        signal_group(child.id(), "-KILL");
+        reaped
     }
 
     /// True when nothing listens on the app's port any more.
     pub fn port_is_free(&self) -> bool {
         TcpListener::bind(("127.0.0.1", self.port)).is_ok()
     }
+}
+
+/// Sends `signal` to the whole process group the app started, which has the app's pid as its id.
+fn signal_group(pid: u32, signal: &str) {
+    let _ = Command::new("kill")
+        .args([signal, "--", &format!("-{pid}")])
+        .stderr(Stdio::null())
+        .status();
 }
 
 /// The renderer-fallback counter the app keeps under the cache directory. A scenario that touched
@@ -376,6 +429,59 @@ impl Drop for App {
     }
 }
 
+/// What a normal (GUI) launch did within the time it was given.
+pub struct GuiLaunch {
+    pub mapped_a_window: bool,
+    /// The last lines the app printed, for the failure message.
+    pub log_tail: String,
+}
+
+/// Starts the app the way a player does, with no MCP arguments, and reports whether it maps a
+/// window on the display within `timeout`. The positive control for the headless checks: it proves
+/// the window detector can see this app's window at all. The whole process group is stopped, so
+/// no WebKit helper outlives the scratch directory.
+pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<GuiLaunch, LaunchError> {
+    let binary = app_binary();
+    if !binary.is_file() {
+        return Err(LaunchError::BinaryMissing(binary));
+    }
+    require_virtual_display()?;
+    let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
+    let log_path = dir.path().join("app.log");
+    let log = fs::File::create(&log_path).map_err(|e| LaunchError::Io(e.to_string()))?;
+    let mut child = app_command(&binary, &[], dir.path())
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(
+            log.try_clone()
+                .map_err(|e| LaunchError::Io(e.to_string()))?,
+        ))
+        .stderr(Stdio::from(log))
+        .spawn()
+        .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
+    let outcome = wait_for_window_of(child.id(), timeout);
+    let _ = child.kill();
+    let _ = child.wait();
+    signal_group(child.id(), "-KILL");
+    let log = fs::read_to_string(&log_path).unwrap_or_default();
+    let lines: Vec<&str> = log.lines().collect();
+    Ok(GuiLaunch {
+        mapped_a_window: outcome?,
+        log_tail: lines[lines.len().saturating_sub(LOG_LINES_IN_BUNDLE)..].join("\n"),
+    })
+}
+
+fn wait_for_window_of(pid: u32, timeout: Duration) -> Result<bool, LaunchError> {
+    let started = Instant::now();
+    while started.elapsed() < timeout {
+        std::thread::sleep(Duration::from_millis(500));
+        let windows = crate::windows::mapped_windows().map_err(LaunchError::Io)?;
+        if windows.iter().any(|window| window.pid == Some(pid)) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// The command that starts the app, with its environment pinned to the scratch directory and to X11.
 ///
 /// GTK prefers Wayland when it can see a Wayland session, and `xvfb-run` only sets `DISPLAY`. An app
@@ -389,11 +495,38 @@ fn app_command(binary: &Path, args: &[String], dir: &Path) -> Command {
         .env("XDG_CONFIG_HOME", dir.join("config"))
         .env("XDG_CACHE_HOME", dir.join("cache"))
         .env("XDG_STATE_HOME", dir.join("state"))
+        .process_group(0)
         .env_remove("WAYLAND_DISPLAY")
         .env_remove("WAYLAND_SOCKET")
         .env("XDG_SESSION_TYPE", "x11")
         .env("GDK_BACKEND", "x11");
     command
+}
+
+/// The revision the binary must report: the config's, else the working tree's. `None` when git
+/// cannot say, or the run vouches for a different binary with `OFM_E2E_ALLOW_STALE=1`.
+fn expected_revision(config: &AppConfig) -> Option<String> {
+    if std::env::var_os("OFM_E2E_ALLOW_STALE").as_deref() == Some(std::ffi::OsStr::new("1")) {
+        return None;
+    }
+    config.expected_revision.clone().or_else(|| {
+        crate::revision::source_revision(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
+    })
+}
+
+/// Compares what the binary reports (`0.3.0+<revision>`) with the revision expected.
+fn check_revision(server_version: &str, expected: Option<&str>) -> Result<(), LaunchError> {
+    let Some(expected) = expected else {
+        return Ok(());
+    };
+    let reported = server_version.split_once('+').map(|(_, revision)| revision);
+    if reported == Some(expected) {
+        return Ok(());
+    }
+    Err(LaunchError::StaleBinary {
+        binary_revision: reported.unwrap_or("unknown").to_string(),
+        expected_revision: expected.to_string(),
+    })
 }
 
 fn app_binary() -> PathBuf {
@@ -416,9 +549,93 @@ fn find_saves_dir(data: &Path) -> Option<PathBuf> {
         .find(|path| path.is_dir())
 }
 
-/// The app is forced onto X11, so it needs `DISPLAY`; `WAYLAND_DISPLAY` is of no use to it.
-fn display_available(x11: Option<&std::ffi::OsStr>) -> bool {
-    x11.is_some_and(|display| !display.is_empty())
+/// Refuses to start the app on a display that could be a desktop session.
+///
+/// The app is forced onto X11, so it needs `DISPLAY`; `WAYLAND_DISPLAY` is of no use to it. Beyond
+/// that, a display counts as virtual only on positive evidence: `xvfb-run` points `XAUTHORITY` into
+/// its own temp directory, and `OFM_E2E_ALLOW_DISPLAY=1` vouches for your own Xvfb or Xephyr. An
+/// XWayland server (a Wayland desktop's X display) is refused outright.
+fn require_virtual_display() -> Result<(), LaunchError> {
+    let display = std::env::var_os("DISPLAY");
+    if display.as_deref().is_none_or(|display| display.is_empty()) {
+        return Err(LaunchError::NoDisplay);
+    }
+    let is_xwayland = crate::windows::display_is_a_host_session().map_err(LaunchError::Io)?;
+    let made_by_xvfb_run = std::env::var_os("XAUTHORITY")
+        .map(PathBuf::from)
+        .filter(|path| path.to_string_lossy().contains("xvfb-run"))
+        .and_then(|path| fs::read(path).ok())
+        .zip(
+            display
+                .as_deref()
+                .and_then(|d| d.to_str())
+                .and_then(display_number),
+        )
+        .is_some_and(|(authority, number)| authority_is_only_for(&authority, number));
+    check_virtual_display(
+        made_by_xvfb_run,
+        std::env::var_os("OFM_E2E_ALLOW_DISPLAY").as_deref() == Some(std::ffi::OsStr::new("1")),
+        is_xwayland,
+    )
+}
+
+/// The display number in `DISPLAY` (`:99`, `:99.0`, `host:99.0`).
+fn display_number(display: &str) -> Option<&str> {
+    let after_host = display.rsplit_once(':')?.1;
+    let number = after_host.split('.').next()?;
+    (!number.is_empty() && number.bytes().all(|b| b.is_ascii_digit())).then_some(number)
+}
+
+/// Whether an Xauthority file holds entries for display `number` and for no other display, so the
+/// file `xvfb-run` made cannot also grant access to a desktop session.
+fn authority_is_only_for(authority: &[u8], number: &str) -> bool {
+    let mut rest = authority;
+    let mut entries = 0;
+    let take = |len: usize, rest: &mut &[u8]| -> Option<Vec<u8>> {
+        let (head, tail) = rest.split_at_checked(len)?;
+        *rest = tail;
+        Some(head.to_vec())
+    };
+    while !rest.is_empty() {
+        let mut entry_number = None;
+        // family, then four length-prefixed fields: address, display number, name, data.
+        if take(2, &mut rest).is_none() {
+            return false;
+        }
+        for field in 0..4 {
+            let Some(len) =
+                take(2, &mut rest).map(|b| usize::from(u16::from_be_bytes([b[0], b[1]])))
+            else {
+                return false;
+            };
+            let Some(bytes) = take(len, &mut rest) else {
+                return false;
+            };
+            if field == 1 {
+                entry_number = Some(bytes);
+            }
+        }
+        if entry_number.as_deref() != Some(number.as_bytes()) {
+            return false;
+        }
+        entries += 1;
+    }
+    entries > 0
+}
+
+fn check_virtual_display(
+    made_by_xvfb_run: bool,
+    vouched_for: bool,
+    is_xwayland: bool,
+) -> Result<(), LaunchError> {
+    if is_xwayland {
+        return Err(LaunchError::HostDisplay);
+    }
+    if vouched_for || made_by_xvfb_run {
+        Ok(())
+    } else {
+        Err(LaunchError::HostDisplay)
+    }
 }
 
 fn shortened(text: &str) -> String {
@@ -474,16 +691,56 @@ fn revision() -> String {
 mod tests {
     use std::ffi::OsStr;
 
-    use super::{app_command, display_available};
+    use super::{
+        app_command, authority_is_only_for, check_revision, check_virtual_display, display_number,
+    };
 
-    /// Given neither DISPLAY nor WAYLAND_DISPLAY (or only empty ones)
-    /// When the fixture checks for a display
-    /// Then there is none, and launch fails with that named instead of timing out.
+    /// Given XWayland, an unidentified display, an xvfb-run display, and one vouched for
+    /// When the fixture decides whether the display is virtual
+    /// Then only the last two are accepted, and XWayland is refused even when vouched for.
     #[test]
-    fn a_missing_display_is_detected_before_launch() {
-        assert!(!display_available(None));
-        assert!(!display_available(Some(OsStr::new(""))));
-        assert!(display_available(Some(OsStr::new(":0"))));
+    fn only_a_display_with_positive_evidence_is_virtual() {
+        assert!(check_virtual_display(true, false, false).is_ok());
+        assert!(check_virtual_display(false, false, false).is_err());
+        assert!(check_virtual_display(false, true, false).is_ok());
+        assert!(check_virtual_display(true, true, true).is_err());
+    }
+
+    fn entry(number: &str) -> Vec<u8> {
+        let mut bytes = vec![0x01, 0x00]; // family
+        for field in [
+            &b"host"[..],
+            number.as_bytes(),
+            b"MIT-MAGIC-COOKIE-1",
+            &[7_u8; 16],
+        ] {
+            bytes.extend((field.len() as u16).to_be_bytes());
+            bytes.extend(field);
+        }
+        bytes
+    }
+
+    /// Given an Xauthority file for display 99 only, one that also has a desktop's display 0, and a torn one
+    /// When the fixture asks whether it belongs to DISPLAY=:99 alone
+    /// Then only the first does, so a file that could also open the desktop is not evidence.
+    #[test]
+    fn an_authority_must_be_for_this_display_alone() {
+        let only = entry("99");
+        let both = [entry("99"), entry("0")].concat();
+
+        assert!(authority_is_only_for(&only, "99"));
+        assert!(!authority_is_only_for(&both, "99"));
+        assert!(!authority_is_only_for(&only, "100"));
+        assert!(!authority_is_only_for(&only[..only.len() - 3], "99"));
+        assert!(!authority_is_only_for(&[], "99"));
+    }
+
+    #[test]
+    fn the_display_number_is_read_from_display() {
+        assert_eq!(display_number(":99"), Some("99"));
+        assert_eq!(display_number(":99.0"), Some("99"));
+        assert_eq!(display_number("host:7.1"), Some("7"));
+        assert_eq!(display_number("garbage"), None);
     }
 
     /// Given a developer session that exports a Wayland display
@@ -508,6 +765,24 @@ mod tests {
         assert_eq!(
             environment.get(OsStr::new("GDK_BACKEND")),
             Some(&Some(OsStr::new("x11").to_owned()))
+        );
+    }
+
+    /// Given a binary that reports the sources it was built from
+    /// When the fixture compares with the sources under test
+    /// Then the same revision passes, a different or missing one is stale, and no expectation passes.
+    #[test]
+    fn a_binary_from_other_sources_is_stale() {
+        assert!(check_revision("0.3.0+abc123", Some("abc123")).is_ok());
+        assert!(check_revision("0.3.0+abc123.def456", Some("abc123")).is_err());
+        assert!(check_revision("0.3.0", Some("abc123")).is_err());
+        assert!(check_revision("0.3.0+abc123", None).is_ok());
+        let message = check_revision("0.3.0+old", Some("new"))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            message.contains("cargo build --features mcp --bin openfootmanager"),
+            "{message}"
         );
     }
 }

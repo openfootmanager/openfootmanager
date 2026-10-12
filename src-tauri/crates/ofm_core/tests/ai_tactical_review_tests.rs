@@ -150,6 +150,7 @@ fn make_world_frozen_as_it_was_generated() -> Game {
             .to_string();
         for pair in 0..3usize {
             league.fixtures.push(Fixture {
+                postponement: None,
                 id: format!("fix{round}-{pair}"),
                 competition_id: "league".to_string(),
                 matchday: round + 1,

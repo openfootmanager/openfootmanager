@@ -1827,7 +1827,12 @@
     "help": "Nápověda",
     "reportBug": "Nahlásit chybu",
     "reportBugDesc": "Napište nám, co se pokazilo — vaše protokoly se připojí automaticky.",
-    "report": "Nahlásit"
+    "report": "Nahlásit",
+    "yourReports": "Vaše hlášení",
+    "yourReportsDesc": "Referenční kódy hlášení, která jste odeslali. Uveďte kód, pokud se chcete na hlášení zeptat nebo ho nechat smazat.",
+    "noReports": "Zatím jste neodeslali žádné hlášení.",
+    "reportOutcomeUnknown": "Výsledek není znám: hlášení možná dorazilo. Opětovné odeslání ho může doručit dvakrát.",
+    "reportIncludedSave": "S uloženou hrou"
   },
   "preMatch": {
     "formationFit": "Vhodnost rozestavení",
@@ -2593,7 +2598,25 @@
       "saveManagerUnavailable": "Uložená data jsou dočasně nedostupná.",
       "report": {
         "bundleFailed": "Soubor hlášení se nepodařilo zapsat. Zkontrolujte, jestli máte právo zápisu do zvolené složky.",
-        "saveMissing": "Váš uložený soubor se nepodařilo najít, takže se nic nezapsalo. Zrušte zaškrtnutí uložené hry a zkuste to znovu, nebo nejdřív načtěte kariéru."
+        "saveMissing": "Váš uložený soubor se nepodařilo najít, takže se nic nezapsalo. Zrušte zaškrtnutí uložené hry a zkuste to znovu, nebo nejdřív načtěte kariéru.",
+        "upload": {
+          "consentRequired": "Nejprve zaškrtněte políčko a souhlaste s odesláním těchto souborů.",
+          "notConfigured": "Tato verze hry neumí posílat hlášení přímo. Použijte formulář na GitHubu.",
+          "attachmentsUnavailable": "Přikládání souborů zatím není k dispozici.",
+          "alreadySending": "Hlášení se stále odesílá. Počkejte, až skončí, a zkuste to znovu.",
+          "disabled": "Odesílání hlášení je momentálně vypnuté. Použijte formulář na GitHubu.",
+          "tooManyFiles": "K tomuto hlášení je připojeno příliš mnoho souborů.",
+          "capacity": "Server pro hlášení je momentálně plný. Použijte formulář na GitHubu.",
+          "imagesUnavailable": "Server pro hlášení teď nedokáže zpracovat snímky obrazovky. Zkuste to bez nich nebo použijte formulář na GitHubu.",
+          "rateLimitedWait": "Z vašeho připojení bylo v poslední době odesláno příliš mnoho hlášení. Zkuste to znovu asi za {{minutes}} min.",
+          "tooLarge": "Hlášení je příliš velké na přímé odeslání.",
+          "rateLimited": "Z vašeho připojení bylo nedávno odesláno příliš mnoho hlášení. Chvíli počkejte, než to zkusíte znovu.",
+          "rejected": "Server pro hlášení toto hlášení nepřijal.",
+          "serverError": "Server pro hlášení narazil na problém a hlášení nemohl přijmout.",
+          "unreachable": "Server pro hlášení se nepodařilo zastihnout, takže nic nebylo odesláno. Zkontrolujte připojení k internetu.",
+          "unconfirmed": "Spojení se přerušilo dřív, než server odpověděl. Hlášení možná dorazilo. Pokud je odešlete znovu, tým je může obdržet dvakrát.",
+          "prepareFailed": "Hlášení se nepodařilo připravit k odeslání. Stále ho můžete uložit a použít formulář na GitHubu."
+        }
       },
       "saveDeleteFailed": "Nepodařilo se smazat soubor uložené pozice.",
       "settings": {
@@ -4176,14 +4199,36 @@
     "itemCrashDesc": "Přiloženo, protože při vaší minulé hře něco spadlo.",
     "optionalHeading": "Přidejte, pokud chcete — ve výchozím stavu vypnuto",
     "includeSave": "Moje uložená hra",
-      "includeSaveDesc": "Umožní nám přehrát přesně tu situaci, ve které jste se ocitli.",
+    "includeSaveDesc": "Umožní nám přehrát přesně tu situaci, ve které jste se ocitli.",
     "includeSaveNoCareer": "Žádná kariéra není otevřená, není co přiložit.",
     "nothingSentYet": "Nic se neuloží ani neotevře, dokud nestisknete tlačítko níže. Odeslání formuláře vyžaduje účet na GitHubu — soubor je váš tak jako tak.",
     "savedTo": "Soubor s hlášením byl uložen sem:",
     "dragItIn": "Přetáhněte ho do formuláře na GitHubu v prohlížeči a odešlete. A to je všechno.",
-      "browserDidNotOpen": "Prohlížeč se neotevřel. Soubor výše je uložený — přiložte ho k novému issue na GitHubu, až budete moci.",
+    "browserDidNotOpen": "Prohlížeč se neotevřel. Soubor výše je uložený — přiložte ho k novému issue na GitHubu, až budete moci.",
     "review": "Zkontrolovat, co se odešle",
     "saveAndOpen": "Uložit soubor a otevřít GitHub",
-    "working": "Pracuji…"
+    "working": "Pracuji…",
+    "previewIntroUpload": "Vše níže a nic jiného. Nic neopustí tento počítač, dokud nestisknete Odeslat nebo si soubor sami neuložíte.",
+    "consentLabel": "Odeslat tyto soubory týmu OpenFoot Manager",
+    "consentDesc": "Souhlasím s odesláním souborů ze seznamu výše. Účet není potřeba. Hlášení se uchovávají, dokud je tým nevyřídí.",
+    "send": "Odeslat",
+    "saveAndOpenInstead": "Místo toho uložit soubor a použít GitHub",
+    "nothingSentYetUpload": "Nic neopustí tento počítač, dokud nestisknete Odeslat. Dáváte přednost GitHubu? Uložte soubor a přiložte ho k formuláři sami — k tomu potřebujete účet na GitHubu.",
+    "uploadFailedFallback": "Stále ho můžete poslat přes GitHub: uložte soubor a přiložte ho k formuláři.",
+    "tooLargeUntickSave": "Když odškrtnete uloženou hru, hlášení bude mnohem menší.",
+    "sentTitle": "Hlášení odesláno",
+    "sentIntro": "Děkujeme. Vaše hlášení dorazilo týmu OpenFoot Manager a uchovává se, dokud nebude vyřízeno.",
+    "referenceCode": "Váš referenční kód",
+    "referenceCodeHint": "Uveďte tento kód, když se budete na hlášení ptát. Chcete-li ho nechat smazat, napište s tímto kódem na bugreport@openfootmanager.com. Není to heslo: nikdo podle něj vaše hlášení neuvidí.",
+    "referenceCodeSaved": "Najdete ho znovu v Nastavení → Nápověda → Vaše hlášení.",
+    "notRecorded": "Tento kód se nepodařilo přidat do seznamu vašich hlášení. Zapište si ho, prosím.",
+    "copyCodeFor": "Kopírovat kód {{code}}",
+    "codeCopied": "Zkopírováno"
+  },
+  "crashPrompt": {
+    "title": "Hra se neočekávaně ukončila",
+    "body": "Vaše poslední hraní skončilo pádem hry. Nahlášení nám pomůže chybu opravit — než cokoli opustí váš počítač, uvidíte vše, co by se odeslalo.",
+    "report": "Nahlásit",
+    "notNow": "Teď ne"
   }
 }

@@ -275,20 +275,7 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<Fixtures, String> {
             continue;
         }
         let completed = f.status == FixtureStatus::Completed;
-        let row = FixtureRow {
-            date: f.date.clone(),
-            score: f
-                .result
-                .as_ref()
-                .filter(|_| completed)
-                .map(|r| format!("{} - {}", r.home_goals, r.away_goals)),
-            matchup: format!(
-                "{} vs {}",
-                team_name_of(&game, &f.home_team_id),
-                team_name_of(&game, &f.away_team_id)
-            ),
-            matchday: f.matchday,
-        };
+        let row = fixture_row(&game, f);
         if completed {
             past.push(row);
         } else if f.date >= today {
@@ -300,6 +287,69 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<Fixtures, String> {
         upcoming,
         recent: past.into_iter().rev().take(5).collect(),
     })
+}
+
+fn fixture_row(game: &ofm_core::game::Game, f: &domain::league::Fixture) -> FixtureRow {
+    FixtureRow {
+        date: f.date.clone(),
+        score: f
+            .result
+            .as_ref()
+            .filter(|_| f.status == FixtureStatus::Completed)
+            .map(|r| format!("{} - {}", r.home_goals, r.away_goals)),
+        matchup: format!(
+            "{} vs {}",
+            team_name_of(game, &f.home_team_id),
+            team_name_of(game, &f.away_team_id)
+        ),
+        matchday: f.matchday,
+        rescheduled_from: f
+            .postponement
+            .as_ref()
+            .map(|postponement| postponement.original_date.clone()),
+    }
+}
+
+#[cfg(test)]
+mod fixture_row_tests {
+    use super::*;
+    use chrono::TimeZone;
+    use domain::league::{Fixture, Postponement, RescheduleReason};
+
+    fn game() -> ofm_core::game::Game {
+        let clock = ofm_core::clock::GameClock::new(
+            chrono::Utc.with_ymd_and_hms(2033, 3, 1, 12, 0, 0).unwrap(),
+        );
+        let manager = domain::manager::Manager::new(
+            "mgr".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        ofm_core::game::Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Given a moved fixture, when the MCP fixtures row is built, then it carries the original date.
+    #[test]
+    fn a_moved_fixture_row_names_its_original_date() {
+        let moved = Fixture {
+            postponement: Some(Postponement {
+                original_date: "2033-03-01".into(),
+                reason: RescheduleReason::CupTie,
+            }),
+            date: "2033-03-08".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            fixture_row(&game(), &moved).rescheduled_from.as_deref(),
+            Some("2033-03-01")
+        );
+        assert_eq!(
+            fixture_row(&game(), &Fixture::default()).rescheduled_from,
+            None
+        );
+    }
 }
 
 // ─── info_player_profile ────────────────────────────────────────────────────
