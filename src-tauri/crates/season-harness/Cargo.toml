@@ -7,6 +7,7 @@ publish = false
 [dependencies]
 ofm_core = { version = "0.3.0", path = "../ofm_core" }
 domain = { version = "0.3.0", path = "../domain" }
+chrono = { version = "0.4.44", default-features = false }
 
 [lints]
 workspace = true

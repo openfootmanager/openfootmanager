@@ -18,6 +18,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+use chrono::NaiveDate;
+
 use domain::league::{CompetitionFormat, FixtureCompetition, FixtureStatus};
 use domain::player::PlayerSeasonStats;
 use ofm_core::end_of_season::{EndOfSeasonSummary, has_full_schedule, is_competition_complete};
@@ -69,7 +71,7 @@ const EVERY_DAY: &[(&str, DayRule)] = &[
         completed_fixtures_have_results,
     ),
     ("standings-are-consistent", standings_are_consistent),
-    ("club-plays-once-a-day", club_plays_once_a_day),
+    (CLUB_RESTS_BETWEEN_MATCHES, club_rests_between_matches),
 ];
 
 const AT_ROLLOVER: &[(&str, RolloverRule)] = &[
@@ -84,8 +86,9 @@ const AT_ROLLOVER: &[(&str, RolloverRule)] = &[
     ("finished-ladders-move-clubs", finished_ladders_move_clubs),
 ];
 
-/// Enough to name what is wrong; not enough for one systemic failure to bury a
-/// report under thousands of copies of itself.
+/// Violations kept per rule: enough to name what is wrong, not enough for one systemic failure
+/// to bury a report under thousands of copies of itself. Per rule, so a rule that fails
+/// everywhere cannot hide another.
 const MAX_RECORDED: usize = 200;
 
 /// The invariants observer: attach it to a run, then read [`Self::violations`].
@@ -94,7 +97,7 @@ pub struct Invariants {
     before: Option<Before>,
     violations: Vec<Violation>,
     seen: BTreeSet<(&'static str, String)>,
-    dropped: usize,
+    dropped: BTreeMap<&'static str, usize>,
 }
 
 impl Invariants {
@@ -106,7 +109,7 @@ impl Invariants {
             before: None,
             violations: Vec::new(),
             seen: BTreeSet::new(),
-            dropped: 0,
+            dropped: BTreeMap::new(),
         };
         invariants.check_every_day(game, 0, None);
         let sizes = invariants.authored_sizes.clone();
@@ -121,14 +124,33 @@ impl Invariants {
     }
 
     pub fn is_clean(&self) -> bool {
-        self.violations.is_empty() && self.dropped == 0
+        self.report().is_empty()
     }
 
     /// Every violation, one per line, for a failed assertion to print.
     pub fn report(&self) -> String {
-        let mut lines: Vec<String> = self.violations.iter().map(Violation::to_string).collect();
-        if self.dropped > 0 {
-            lines.push(format!("... and {} more not recorded", self.dropped));
+        self.report_where(|_| true)
+    }
+
+    /// The report of one rule alone: empty when that rule held.
+    pub fn report_of(&self, rule: &str) -> String {
+        self.report_where(|recorded| recorded == rule)
+    }
+
+    /// The report of every rule but one: empty when they all held.
+    pub fn report_except(&self, rule: &str) -> String {
+        self.report_where(|recorded| recorded != rule)
+    }
+
+    fn report_where(&self, wanted: impl Fn(&str) -> bool) -> String {
+        let mut lines: Vec<String> = self
+            .violations
+            .iter()
+            .filter(|violation| wanted(violation.rule))
+            .map(Violation::to_string)
+            .collect();
+        for (rule, count) in self.dropped.iter().filter(|(rule, _)| wanted(rule)) {
+            lines.push(format!("... and {count} more {rule} not recorded"));
         }
         lines.join("\n")
     }
@@ -154,8 +176,9 @@ impl Invariants {
         if dedupe && !self.seen.insert((rule, message.clone())) {
             return;
         }
-        if self.violations.len() >= MAX_RECORDED {
-            self.dropped += 1;
+        let recorded = self.violations.iter().filter(|v| v.rule == rule).count();
+        if recorded >= MAX_RECORDED {
+            *self.dropped.entry(rule).or_default() += 1;
             return;
         }
         self.violations.push(Violation {
@@ -349,20 +372,27 @@ fn no_stranded_fixture(game: &Game) -> Vec<String> {
         .collect()
 }
 
+/// The name `club_rests_between_matches` reports under.
+pub const CLUB_RESTS_BETWEEN_MATCHES: &str = "club-rests-between-matches";
+
+/// The maintainer's ruling of 12 Oct 2026: a club's competitive matches are at least this many
+/// days apart, so Saturday then Tuesday is legal and Saturday then Monday is a clash.
+///
+/// Held here rather than read from `ofm_core::calendar_booking`: that module books on a
+/// two-date rule and exposes no constant, and the calendar rework is rewriting it. Point this at
+/// the game's own constant once it has one.
+pub const MIN_DAYS_BETWEEN_MATCHES: i64 = 3;
+
 /// Given the clubs' competitions as they stand,
-/// When any club is down to play two competitive fixtures on one day,
-/// Then that is reported, naming the club, the day and both competitions.
+/// When a club has two competitive fixtures less than [`MIN_DAYS_BETWEEN_MATCHES`] apart,
+/// Then that is reported, naming the club, both days and both competitions.
 ///
-/// A player cannot play two matches at once, so one of the two is being played by
-/// a squad that is not the one the table says played it. Friendlies are left out:
-/// they fill the days competitions leave free, and the international windows.
-///
-/// Read from the career's first day on, like `no_stranded_fixture`, since a
-/// world that was built part-way through a season carries fixtures from before
-/// the career that it never played.
-fn club_plays_once_a_day(game: &Game) -> Vec<String> {
-    let began = game.clock.start_date.format("%Y-%m-%d").to_string();
-    let mut booked: BTreeMap<(&str, &str), Vec<&str>> = BTreeMap::new();
+/// Friendlies are left out: the calendar drops a friendly that clashes. Read from the career's
+/// first day on, like `no_stranded_fixture`, since a world built part-way through a season
+/// carries fixtures from before the career that it never played.
+fn club_rests_between_matches(game: &Game) -> Vec<String> {
+    let began = game.clock.start_date.date_naive();
+    let mut matches_by_club: BTreeMap<&str, Vec<(NaiveDate, &str)>> = BTreeMap::new();
     for competition in &game.competitions {
         for fixture in &competition.fixtures {
             let competitive = matches!(
@@ -372,28 +402,35 @@ fn club_plays_once_a_day(game: &Game) -> Vec<String> {
                     | FixtureCompetition::ContinentalClub
                     | FixtureCompetition::InternationalClub
             );
-            if !competitive || fixture.date.as_str() < began.as_str() {
+            let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
+                continue;
+            };
+            if !competitive || date < began {
                 continue;
             }
             for club in [&fixture.home_team_id, &fixture.away_team_id] {
-                booked
-                    .entry((club.as_str(), fixture.date.as_str()))
+                matches_by_club
+                    .entry(club.as_str())
                     .or_default()
-                    .push(competition.id.as_str());
+                    .push((date, competition.id.as_str()));
             }
         }
     }
-    booked
-        .into_iter()
-        .filter(|(_, competitions)| competitions.len() > 1)
-        .map(|((club, date), competitions)| {
-            format!(
-                "{club} plays {} competitive fixtures on {date}: {}",
-                competitions.len(),
-                competitions.join(", ")
-            )
-        })
-        .collect()
+    let mut faults = Vec::new();
+    for (club, mut matches) in matches_by_club {
+        matches.sort_unstable();
+        for pair in matches.windows(2) {
+            let ((first_day, first), (second_day, second)) = (pair[0], pair[1]);
+            let days_apart = (second_day - first_day).num_days();
+            if days_apart < MIN_DAYS_BETWEEN_MATCHES {
+                faults.push(format!(
+                    "{club} plays {first} on {first_day} and {second} on {second_day}, \
+                     {days_apart} days apart; at least {MIN_DAYS_BETWEEN_MATCHES} are needed"
+                ));
+            }
+        }
+    }
+    faults
 }
 
 /// Given any fixture marked Completed,
@@ -657,7 +694,7 @@ mod tests {
         for (rule, check) in EVERY_DAY {
             // The built world books clubs twice in a day (#553). The rule's own
             // tests below prove it looks; the gate is what holds the world to it.
-            if *rule == "club-plays-once-a-day" {
+            if *rule == CLUB_RESTS_BETWEEN_MATCHES {
                 continue;
             }
             assert_eq!(
@@ -744,7 +781,7 @@ mod tests {
     /// real: the built world has double bookings of its own (#553), and a rule
     /// that "passes" there could not be told from one that does not look.
     #[test]
-    fn a_club_booked_for_two_competitive_fixtures_on_one_day_is_noticed() {
+    fn a_club_booked_twice_on_one_day_is_noticed() {
         let mut game = world();
         game.competitions
             .retain(|competition| competition.id == "eng-d1");
@@ -752,8 +789,8 @@ mod tests {
             .fixtures
             .retain(|fixture| fixture.competition == FixtureCompetition::League);
         assert!(
-            club_plays_once_a_day(&game).is_empty(),
-            "a single round-robin never books a club twice on a day"
+            club_rests_between_matches(&game).is_empty(),
+            "a single round-robin never books a club twice inside the rest"
         );
 
         let league_fixture = game.competitions[0].fixtures[0].clone();
@@ -762,12 +799,12 @@ mod tests {
         clash.competition = FixtureCompetition::Cup;
         game.competitions[0].fixtures.push(clash);
 
-        let faults = club_plays_once_a_day(&game);
+        let faults = club_rests_between_matches(&game);
         assert!(
             mentions(
                 &faults,
                 &format!(
-                    "{} plays 2 competitive fixtures on {}",
+                    "{} plays eng-d1 on {}",
                     league_fixture.home_team_id, league_fixture.date
                 )
             ),
@@ -792,7 +829,36 @@ mod tests {
         clash.date = "2033-01-01".to_string();
         game.competitions[0].fixtures.push(clash);
 
-        assert!(club_plays_once_a_day(&game).is_empty());
+        assert!(club_rests_between_matches(&game).is_empty());
+    }
+
+    /// Given a club's league fixture and a cup tie for the same club,
+    /// When the cup tie is `MIN_DAYS_BETWEEN_MATCHES - 1` days later, then it is a clash;
+    ///      when it is `MIN_DAYS_BETWEEN_MATCHES` days later, it is not.
+    #[test]
+    fn two_matches_are_a_clash_until_the_minimum_rest_has_passed() {
+        let tie_after = |days: i64| {
+            let mut game = world();
+            game.competitions
+                .retain(|competition| competition.id == "eng-d1");
+            game.competitions[0]
+                .fixtures
+                .retain(|fixture| fixture.competition == FixtureCompetition::League);
+            let league_fixture = game.competitions[0].fixtures[0].clone();
+            let day = NaiveDate::parse_from_str(&league_fixture.date, "%Y-%m-%d").unwrap();
+            let mut tie = league_fixture;
+            tie.id = "a-cup-tie".to_string();
+            tie.competition = FixtureCompetition::Cup;
+            tie.date = (day + chrono::Days::new(days.unsigned_abs()))
+                .format("%Y-%m-%d")
+                .to_string();
+            game.competitions[0].fixtures.push(tie);
+            club_rests_between_matches(&game)
+        };
+
+        let too_soon = tie_after(MIN_DAYS_BETWEEN_MATCHES - 1);
+        assert!(mentions(&too_soon, "2 days apart"), "{too_soon:?}");
+        assert!(tie_after(MIN_DAYS_BETWEEN_MATCHES).is_empty());
     }
 
     /// A friendly on a league day is how pre-season and the international
@@ -810,7 +876,7 @@ mod tests {
         friendly.competition = FixtureCompetition::Friendly;
         game.competitions[0].fixtures.push(friendly);
 
-        assert!(club_plays_once_a_day(&game).is_empty());
+        assert!(club_rests_between_matches(&game).is_empty());
     }
 
     #[test]
