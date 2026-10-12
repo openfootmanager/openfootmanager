@@ -141,7 +141,6 @@ pub enum TransportFailure {
     Interrupted(String),
 }
 
-/// Sends one request. The production one is `report::http::UreqTransport`.
 pub trait Transport {
     fn get(&self, url: &str) -> Result<HubResponse, TransportFailure>;
 
@@ -193,7 +192,6 @@ fn failure_of(failure: TransportFailure) -> UploadFailure {
     }
 }
 
-/// Ask the server whether it takes reports and within what limits.
 pub fn fetch_config(
     transport: &dyn Transport,
     endpoint: &HubEndpoint,
@@ -258,7 +256,6 @@ pub fn is_accepted_game_version(version: &str) -> bool {
     core_ok && suffix_ok
 }
 
-/// What `submit` sends: the report text fields, the bundle, and any attachments.
 #[derive(Debug, Clone)]
 pub struct UploadParts {
     pub report_json: String,
@@ -353,7 +350,6 @@ fn boundary_for(parts: &[(Vec<u8>, &[u8])]) -> String {
     }
 }
 
-/// The `multipart/form-data` body and the `Content-Type` that goes with it.
 fn multipart_body(report_json: &str, files: &[(&FilePart, Vec<u8>)]) -> (String, Vec<u8>) {
     let mut sections: Vec<(Vec<u8>, &[u8])> = vec![(
         b"Content-Disposition: form-data; name=\"report\"\r\nContent-Type: application/json\r\n\r\n"
@@ -386,7 +382,6 @@ fn error_code(body: &Option<serde_json::Value>) -> Option<&str> {
         .and_then(serde_json::Value::as_str)
 }
 
-/// The reference on success, or what to tell the player.
 fn interpret(response: &HubResponse) -> Result<String, UploadFailure> {
     let body: Option<serde_json::Value> = serde_json::from_slice(&response.body).ok();
 

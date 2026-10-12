@@ -35,8 +35,8 @@ impl UreqTransport {
         let agent = ureq::Agent::config_builder()
             .timeout_connect(Some(CONNECT_TIMEOUT))
             .timeout_global(Some(TOTAL_TIMEOUT))
-            // A 4xx/5xx is an answer from the relay with an error code inside, not a failure to
-            // talk to it; `relay::interpret` is what reads it.
+            // A 4xx/5xx is an answer from the server with an error code inside, not a failure to
+            // talk to it; `hub::interpret` is what reads it.
             .http_status_as_error(false)
             .proxy(proxy)
             .user_agent(format!("OpenFootManager/{}", env!("CARGO_PKG_VERSION")))
@@ -101,7 +101,7 @@ impl Transport for UreqTransport {
     }
 }
 
-/// Whether the request can have reached the relay before this went wrong.
+/// Whether the request can have reached the server before this went wrong.
 ///
 /// Only failures that happen before a connection exists — resolving the host, opening the socket,
 /// the TLS handshake — are certain not to have sent the report. Everything else is treated as

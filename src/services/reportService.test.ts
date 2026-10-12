@@ -111,33 +111,58 @@ describe("reportService", () => {
     // refused; a misnamed `includeSave` silently sends no save the player chose.
     mockedInvoke.mockResolvedValueOnce({ code: "7K2M9Q4R", recorded: true });
 
-    await expect(uploadReportBundle("It froze", true, true)).resolves.toEqual({
+    const fields = {
+      what_happened: "It froze",
+      expected: "Not to",
+      steps: "",
+      frequency: "once",
+      game_context: "",
+      locale: "en",
+    };
+
+    await expect(uploadReportBundle("It froze", fields, true, true)).resolves.toEqual({
       code: "7K2M9Q4R",
       recorded: true,
     });
 
     expect(mockedInvoke).toHaveBeenCalledWith("upload_report_bundle", {
       reportText: "It froze",
+      fields,
       includeSave: true,
       consent: true,
+      screenshotPaths: [],
+      packagePaths: [],
     });
   });
 
   /**
-   * Given a relay that refuses the report,
+   * Given a server that refuses the report,
    * when the upload is requested,
    * then the translation key reaches the caller, which offers the GitHub form.
    */
   it("lets a failed upload reach the caller", async () => {
-    mockedInvoke.mockRejectedValueOnce("be.error.report.upload.rateLimited");
+    const failure = { key: "be.error.report.upload.rateLimited", retry_after_seconds: 120 };
+    mockedInvoke.mockRejectedValueOnce(failure);
 
-    await expect(uploadReportBundle("", false, true)).rejects.toBe(
-      "be.error.report.upload.rateLimited",
-    );
+    await expect(
+      uploadReportBundle(
+        "",
+        {
+          what_happened: "",
+          expected: "",
+          steps: "",
+          frequency: "once",
+          game_context: "",
+          locale: "en",
+        },
+        false,
+        true,
+      ),
+    ).rejects.toBe(failure);
   });
 
   /**
-   * Given a build with or without a relay,
+   * Given a build with or without a server,
    * when the modal asks whether it can upload,
    * then the backend's answer is passed through.
    */

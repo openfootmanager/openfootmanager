@@ -1,273 +1,188 @@
-# Bug-report relay (epic #569)
+# OFMHub bug-report endpoint: client contract
 
-An anonymous player can send the evidence they reviewed to the maintainer without registering.
-The relay stores it synchronously in a private inbox; it does not create a GitHub issue or send
-mail, and needs no persistent queue worker. The prefilled GitHub issue form remains the permanent
-offline fallback. The game's upload client is a separate follow-up.
+What the game sends to OFMHub's bug-report endpoint, and every answer it can get back. Written from
+the server code on `feat/launch-prep` at `85109e3` (`app/Http/Controllers/Api/BugReportController.php`,
+`app/Http/Middleware/RequireGameVersion.php`, `app/Services/BugBundleValidator.php`,
+`config/openfoothub.php` → `bug_reports`). The game client in `src-tauri/src/report/hub.rs` implements it.
 
-## POST /api/v1/reports
+## Hosts
 
-HTTPS in production. `Content-Type: application/json` is required (`; charset=utf-8` is allowed).
-`Accept: application/json` is recommended, but all `/api/*` errors use JSON even without it.
-No account, cookie, CSRF token, API key or client-chosen reference code is required.
+| Environment | Base URL | State (2026-10-09) |
+|---|---|---|
+| Production | `https://openfootmanager.com/api/v1` | deployed, **switched off** (`enabled: false`) |
+| Staging | `https://staging.openfootmanager.com/api/v1` | deployed, switched off; the rest of staging sits behind HTTP basic auth, `/api/` does not |
+| Planned | `https://api.openfootmanager.com/api/v1` | not created yet; meant to be the hostname compiled into shipped builds, so the marketing site can move without breaking them |
 
-```json
-{
-  "schema_version": 1,
-  "consent": { "upload": true, "include_save": false },
-  "bundle": { "encoding": "base64", "data": "<standard padded Base64 of the exported ZIP>" }
-}
-```
+Every response under `/api/` is JSON, including errors from the framework (404, 405, 413, 429) and
+unexpected failures. The one exception is a body over the web server's own ceiling (see 413 below).
 
-Only these keys are accepted. `schema_version` must be the JSON integer `1`; `encoding` must be
-`base64`. `consent.upload` must be the JSON boolean `true`, recorded by the client only after the
-player reviews the files and agrees to upload. `include_save` is optional and defaults to false;
-if present it must be a JSON boolean. A ZIP containing a save requires it to be true. True without
-a save is permitted (no career may be open); actual archive presence is recorded separately.
-Consent is an explicit client assertion, not proof of a UI interaction. The server does not know
-the user's home directory and cannot guarantee that the client's redaction removed personal data.
-Do not add identifying contact information without another consent design.
+There is no CORS: no origin is granted `Access-Control-Allow-Origin`. Send from native code (Rust),
+not from `fetch` in the webview.
 
-The source of the bundle format is OFM's `src-tauri/src/commands/report.rs` (`export_report_bundle`)
-and `src-tauri/src/report/bundle.rs` (`write_bundle`). The requested path is absent from the game's
-current checkout; the inspected source is branch `feat/report-bundle`, commit `a865ee80`, in
-`.claude/worktrees/polished-orbiting-candy`. `collect_diagnostics` returns the following shape:
+## 1. `GET /bug-reports/config`
+
+Call it when the report dialog opens. Never hard-code the limits; they come from here.
 
 ```json
 {
-  "app_version": "0.4.0",
-  "os": "linux",
-  "arch": "x86_64",
-  "webview_version": "unknown",
-  "log_directory": "~/logs",
-  "crash_on_previous_run": false,
-  "has_active_save": false,
-  "log_files": [{ "name": "OpenFootManager.log", "bytes": 1234 }],
-  "save_bytes": null
-}
-```
-
-These fields describe the preview snapshot; log sizes/names and save availability can change
-before export. They are not an archive manifest and need not match archive presence. Version, OS,
-architecture and webview are bounded nonempty strings, flags are booleans, log entries have a name
-and nonnegative byte count, and `save_bytes` is a nonnegative integer or null. Additional diagnostic
-keys are allowed for forward compatibility within the metadata limit. Do not send `BundleSummary`
-(`path`, `bytes`, `log_files`, `included_save`, `included_crash`): it describes a local export, not
-an upload envelope, and its path belongs on the player's machine.
-
-### ZIP entries
-
-| Path | Required | Meaning |
-| --- | --- | --- |
-| `report.md` | Yes | Full redacted description/steps/expected/actual text, rendered as plain text in the inbox |
-| `diagnostics.json` | Yes | Redacted `DiagnosticsReport` object above |
-| `logs/<basename>.log` | No, at most 3 | Recent redacted UTF-8 log text |
-| `last-crash.json` | No | Redacted previous-crash JSON object |
-| `save/<basename>.db` | No, at most 1 | Unredacted SQLite career copy, only with separate save consent |
-
-No images, extra entries, nested basenames, directory entries, absolute paths, traversal,
-backslashes, duplicate names, symlinks, encryption or unsupported compression methods are accepted.
-Stored and Deflate compression are accepted. Every entry is read with bounded streaming and CRC
-verification. No entry is extracted to a filesystem path, opened as a database, or executed.
-
-### Default limits
-
-Binary MiB/KiB, inclusive ceilings. Central settings: `config/bug_reports.php`.
-
-| Limit | Default | Environment setting |
-| --- | --- | --- |
-| Entire JSON request | 24 MiB (25,165,824 bytes) | `BUG_REPORT_MAX_REQUEST_BYTES` |
-| Decoded ZIP | 16 MiB (16,777,216 bytes) | `BUG_REPORT_MAX_BUNDLE_BYTES` |
-| Total expanded ZIP entries | 64 MiB (67,108,864 bytes) | `BUG_REPORT_MAX_EXPANDED_BYTES` |
-| `report.md` | 64 KiB | fixed config value |
-| `diagnostics.json` | 64 KiB | fixed config value |
-| `last-crash.json` | 1 MiB | fixed config value |
-| Upload attempts per IP | 3 per minute AND 10 per hour | `BUG_REPORT_RATE_PER_MINUTE`, `BUG_REPORT_RATE_PER_HOUR` |
-| Upload attempts across all IPs | 100 per day | `BUG_REPORT_RATE_GLOBAL_PER_DAY` |
-
-Limits apply before expensive ZIP validation. All POST attempts, including malformed, invalid,
-oversized and storage-failed attempts, consume the rate budget. Windows start on the first attempt;
-these are Laravel cache-backed rate windows, not midnight resets. `429` includes `Retry-After`
-in seconds. Concurrent requests can slightly overshoot framework rate counters; these are abuse
-controls, not a disk quota. Configure edge request/body/rate limits as well.
-
-The game targets 3 logs and 16 MiB raw logs, but deliberately keeps an oversized newest log and
-does not cap saves. The relay is stricter: bundles above its limits must use the offline path or
-be rebuilt without the optional save. Base64 adds about one third to compressed size. Clients
-should check the local ZIP size before allocating an upload and must not silently remove a save
-the player chose or reuse consent for a changed bundle.
-
-### Success
-
-Only after the private ZIP and database record are stored:
-
-```http
-HTTP/1.1 201 Created
-Content-Type: application/json
-Cache-Control: no-store, private
-
-{"code":"7K2M9Q4R"}
-```
-
-The server generates 8 cryptographically random Crockford Base32 characters
-(`0123456789ABCDEFGHJKMNPQRSTVWXYZ`, 40 bits). A UNIQUE database column protects concurrent inserts;
-collisions retry with a fresh code, up to five attempts. Codes do not encode database IDs or volume.
-The code is an identifier, **not a credential**: there is no public lookup, status, download or
-code-authorized deletion endpoint. Removal requests go to the maintainer. The later game client
-records successful codes in app-data `reports.json`, not AppSettings or the rotating log, with
-no status tracking. Treat an interrupted response as uncertain: retrying may create a second report;
-v1 has no idempotency key. Keep the local bundle until a success response arrives.
-
-### Errors
-
-```json
-{
-  "error": {
-    "code": "validation_failed",
-    "message": "The report is invalid.",
-    "fields": { "consent.upload": ["Explicit upload consent is required."] }
+  "enabled": true,
+  "max_total_bytes": 26214400,
+  "max_bundle_bytes": 20971520,
+  "max_screenshot_bytes": 5242880,
+  "max_package_bytes": 20971520,
+  "max_files": 6,
+  "accepted_types": {
+    "bundle": ["zip"],
+    "screenshots": ["png", "jpg", "jpeg", "webp"],
+    "packages": ["ofm"]
   }
 }
 ```
 
-`fields` exists only for 422. Messages are explanatory English text; clients translate by stable
-`error.code`, not by message. Never display a request body or server trace as an error.
+- `enabled: false` is the kill switch, flipped on the server without a deploy. Don't offer
+  sending; go straight to the fallback (save the bundle locally, open the prefilled GitHub form).
+- It needs no header. It's rate-limited to **60 per minute per address**. Beyond that you get a 429
+  with the error body below and a `Retry-After` header. It has its own counter, so reading the
+  config never uses up the report allowance.
 
-| HTTP | `error.code` | Cause / client action |
-| --- | --- | --- |
-| 400 | `invalid_json` | Malformed JSON or a non-object root; correct the envelope |
-| 413 | `payload_too_large` | Request, compressed ZIP, expanded ZIP or individual entry exceeds a ceiling |
-| 415 | `unsupported_media_type` | Use `application/json` |
-| 422 | `validation_failed` | Consent, schema, Base64, ZIP structure/integrity or diagnostic shape is invalid |
-| 429 | `rate_limited` | Wait at least `Retry-After`; offer the offline fallback |
-| 503 | `service_unavailable` | Private storage unavailable, DB write failed or collisions exhausted; retry later |
-| 500 | `internal_error` | Unexpected failure; use the fallback and keep the bundle |
-| 403 / 404 / 405 | `forbidden` / `not_found` / `method_not_allowed` | Unsupported or disallowed API request |
+## 2. `POST /bug-reports`
 
-Framework exceptions under `/api/*` use this envelope, including maintenance/oversized-PHP-body
-errors and routing misses. Debug mode does not reveal traces to API clients. PHP warnings and errors
-from the webserver/proxy before Laravel starts cannot be normalized by the application.
+### Request
 
-## Maintainer inbox
+| Header | Required | Value |
+|---|---|---|
+| `X-OFM-Version` | **yes** | The game version. Must match `^\d{1,4}\.\d{1,4}\.\d{1,4}(?:[-+][0-9A-Za-z.+-]{1,17})?$`: `0.2.0`, `0.3.0-nightly.20260921`, `1.0.0+abc123`. Stored as the report's game version. |
+| `Content-Type` | yes | `multipart/form-data; boundary=…` |
+| `Accept` | no | Errors are JSON regardless. |
 
-- `GET /admin/bug-reports` (`admin.bug-reports.index`): newest-first, 20 per page, reference code,
-  full description, build/platform summary, actual save/crash flags, size, receipt time and download.
-  Inbox responses also use `Cache-Control: no-store, private`.
-- `GET /admin/bug-reports/{bugReport:code}/bundle` (`admin.bug-reports.bundle`): authenticated
-  attachment download, `application/zip`, no-store, `X-Content-Type-Options: nosniff`.
+No account, cookie, CSRF token or API key.
 
-Both routes require the existing `can:admin` gate, not package moderators. Existing package
-moderation's `Report` and `/admin/reports` remain separate. `BugReport` records consent time and
-actual archive flags; no IP address, account association, public URL or client-side status is saved.
-Private files use only server-generated UUID paths on the dedicated `bug_reports` local disk:
-`storage/app/bug-reports`, `serve=false`, private visibility. Keep the whole directory outside
-`public_html` and all public storage links. DB and storage backups contain private diagnostics too.
+The header is checked **before** the rate limit. A request without it gets 400 and isn't counted
+against the sender's allowance.
 
-## Deployment decisions before enabling the game client
+### Multipart parts
 
-1. **Hosting limits:** confirm body limits at the CDN/Apache/PHP layers, disk and temporary-directory
-   quotas, execution timeout and memory budget. Start with `post_max_size >= 24M`, a webserver body
-   ceiling of 24 MiB, and a measured PHP memory budget (at least 128 MiB, preferably 256 MiB).
-   Test the largest incompressible and expanded bundles on the real shared host before adopting
-   these defaults. JSON uses `post_max_size`, not multipart `upload_max_filesize`. Set
-   `display_errors=Off`, production debug off and TLS. Raising ZIP limits also requires raising
-   the JSON ceiling and reassessing memory. `ext-zip` is already a project dependency.
-2. **Rate identity:** use a persistent cache (the existing database cache works without a worker).
-   Never use `array`/`null` in production. Set `TRUSTED_PROXIES` to actual proxy IPs/CIDRs only; use
-   `*` only if clients cannot reach the origin directly. Otherwise forwarded headers can forge IPs.
-   Choose global/IP budgets for shared NAT users and set an edge rate limit. Cache outages deny
-   requests with a JSON failure; requests do not bypass rate limiting.
-3. **Retention:** there is deliberately no automatic deletion until a retention policy is chosen.
-   Decide retention duration, user deletion procedure, backup expiry and a total disk budget.
-   Daily acceptance limits do not bound lifetime storage. Eloquent deletion removes the private
-   bundle before its row; direct SQL deletion bypasses cleanup. If scheduling is later required,
-   use cron plus `artisan schedule:run`, not a persistent queue worker. Monitor orphan files after
-   interrupted processes; normal request failures clean up their files.
-4. **Admin access:** assign the existing `admin` role only to designated diagnostic maintainers;
-   moderators cannot view bundles. Decide whether this should become a narrower gate as the
-   admin team grows. Diagnostics can still contain personal data, especially optional saves.
-   Do not copy private attachments to GitHub without the player's separate agreement.
+| Part name | Count | Content | Limit | Notes |
+|---|---|---|---|---|
+| `report` | 0–1 | A JSON **object**, sent as a plain text field or as a file part (either works) | 64 KiB (65,536 bytes) raw; nesting depth 32 | Absent or empty means `{}`. A JSON array or scalar → 422 `invalid`. |
+| `bundle` | 0–1 | ZIP | 20 MiB (20,971,520 bytes) | Logs, `diagnostics.json`, and the save when the player opted in. **The save goes inside the bundle, never as its own part.** |
+| `screenshots[]` | 0–n | PNG, JPEG or WebP | 5 MiB (5,242,880 bytes) each | Re-encoded to WebP on the server, which strips EXIF. A file that isn't really an image → 422 `invalid`. |
+| `packages[]` | 0–n | `.ofm` files | 20 MiB (20,971,520 bytes) each | Stored unopened. Not validated as packages, so a broken one is still accepted as evidence. |
 
-## Staging handoff to the maintainer (HostGator)
+Across all parts:
 
-There is no remote Git repository or automated deployment in this workflow. Changes stay on the
-local `feat/bug-report-relay` branch. The maintainer transfers the reviewed application changes
-to HostGator using their own SSH workflow. Contributors must never deploy, run rsync, or connect
-by SSH to any host. The commands below describe maintainer prerequisites; they were not run on
-staging by this work.
+- **at most 6 files** in total (bundle, screenshots and packages together); more → 422 `too_many_files`;
+- **at most 25 MiB (26,214,400 bytes)**, counted as the sum of the file parts; more → 413 `too_large`.
 
-- **Application and assets:** transfer the changed application files and the locally built
-  `public/build` assets/manifest, including the new inbox page. Preserve staging's `.env`,
-  `APP_KEY`, database, uploads and other runtime data. No new Composer dependencies are introduced;
-  confirm the host satisfies the existing lockfile with `composer check-platform-reqs --no-dev`,
-  including PHP, ZIP, GD and the configured database driver. Keep the app outside `public_html`
-  and expose only Laravel's `public` directory.
-- **Migration:** back up the staging database, then run `php artisan migrate --force` from the
-  application directory using the compatible PHP CLI. The new migration is
-  `2026_10_03_000000_create_bug_reports_table.php`; it creates the separate `bug_reports` table
-  and UNIQUE reference-code index. Existing migrations must also be current. With
-  `CACHE_STORE=database`, the existing cache migration must have created `cache` and `cache_locks`.
-- **Environment:** merge the following into staging's existing configuration, adjusting only
-  after confirming host limits. Set `APP_ENV=production`, `APP_DEBUG=false`, the staging HTTPS
-  `APP_URL`, and a persistent `CACHE_STORE` (database is supported). Leave `TRUSTED_PROXIES` empty
-  for a direct origin, or set only the actual proxy IPs/CIDRs. Do not replace the existing app key
-  or database credentials.
+A file's kind comes from the part name, never from its file name or declared MIME type.
 
-  ```dotenv
-  BUG_REPORT_MAX_REQUEST_BYTES=25165824
-  BUG_REPORT_MAX_BUNDLE_BYTES=16777216
-  BUG_REPORT_MAX_EXPANDED_BYTES=67108864
-  BUG_REPORT_RATE_PER_MINUTE=3
-  BUG_REPORT_RATE_PER_HOUR=10
-  BUG_REPORT_RATE_GLOBAL_PER_DAY=100
-  TRUSTED_PROXIES=
-  ```
+#### `report` fields
 
-- **Storage:** provision `storage/app/bug-reports` outside the webroot, writable by the PHP
-  process with private permissions. Never symlink it into public storage. Ensure the existing
-  `storage/framework`, `storage/logs`, `bootstrap/cache` and PHP temporary directory are writable;
-  the ZIP validator uses temporary files and removes them when a request completes. Allocate
-  and monitor disk space for both diagnostics and database/backup growth.
-- **Configuration caches:** after transferring routes/config and merging environment settings,
-  refresh cached configuration and routes with `php artisan config:cache` and
-  `php artisan route:cache`; clear stale compiled views with `php artisan view:clear`.
-- **Cron and workers:** this relay requires **no cron entry and no persistent queue worker**.
-  `routes/console.php` on this branch adds no scheduled relay task. Retention is currently manual;
-  adding `schedule:run` alone would not delete reports. If a retention policy and pruning command
-  are later implemented, the maintainer can schedule that command using HostGator cron.
-- **Staging checks:** designate the maintainer's existing account as `admin`, then verify a
-  consented anonymous POST returns JSON 201/code; missing consent returns JSON 422; spent limits
-  return JSON 429/`Retry-After`; and the administrator can view and download the private bundle.
-  Confirm guests and moderators cannot access diagnostics, and private files have no direct
-  web URL. Test configured maximum-size uploads on the actual host before enabling the game's
-  later upload client. Delete test diagnostics through Eloquent so file cleanup runs.
+All optional, all nullable. Unknown keys are ignored.
 
-## Acceptance scenarios and tests
+| Key | Type | Max |
+|---|---|---|
+| `category` | string | 32 chars |
+| `what_happened` | string | 10,000 chars |
+| `expected` | string | 10,000 chars |
+| `steps` | string | 10,000 chars |
+| `frequency` | string | 32 chars |
+| `game_context` | string | 10,000 chars |
+| `locale` | string | 16 chars |
+| `os` | string | 32 chars |
+| `arch` | string | 16 chars |
+| `webview_version` | string | 64 chars |
+| `diagnostics` | object | 64 KiB once re-encoded as JSON |
 
-`tests/Feature/BugReportRelayTest.php` names each test as Given/When/Then. Scenarios cover anonymous
-consented persistence/reload, consent rejection and separate save consent, source-shaped logs/crash,
-metadata/transport errors, every size boundary, malformed/hostile archives, collisions/retry
-exhaustion, disk/DB failures, IP/global throttling, private errors in debug, public code misuse,
-admin inbox/download/pagination, private inbox caching and missing files. These were written and observed failing before
-implementation. No game files are changed by this relay slice.
+#### `bundle` rules
 
-### Local verification on the implementation branch
+The server checks these with the bundle already uploaded. Any violation → 422 `invalid`, with the
+reasons listed under `errors.bundle`.
 
-The clean `main` baseline is `ac5f0c2`. PHP 8.5.11 / PHPUnit 13.2.4:
+- It must be a readable ZIP of **at most 100 entries**, expanding to **at most 150 MiB
+  (157,286,400 bytes)** in total. The bytes actually read are what's measured, not the declared sizes.
+- File extensions must be one of `.log`, `.txt`, `.json`, `.db`. Directories are allowed.
+- No absolute paths, backslashes, NUL bytes or empty path segments. No segment may **start with a
+  dot**, which rules out `..` as well as hidden files like `.DS_Store`. Windows-reserved names are
+  refused too. No case-insensitive duplicates.
 
-| Check | Result |
-| --- | --- |
-| `vendor/bin/phpunit` | 170 tests / 741 assertions pass, including 41 relay GWT scenarios |
-| Existing tests on clean baseline | 129 tests / 566 assertions pass |
-| `npm run lint` | passes |
-| `npm run build` | passes |
-| `node_modules/.bin/tsc --noEmit` | passes |
-| `npm run format:check` | fails on the same 17 existing files as clean `main`; new page passes |
-| `vendor/bin/pint --test` | fails on the same 21 existing files/fixers as clean `main` |
+### Success
 
-Both baseline and implementation have two existing PHP 8.5 deprecations for
-`PDO::MYSQL_ATTR_SSL_CA` in `config/database.php`. New PHP files and modified PHP files other
-than `routes/web.php` pass scoped Pint; that route file retains its existing formatting to keep
-the change small. This is local SQLite coverage, not proof of shared-host memory/timeout limits
-or browser accessibility. The inbox uses semantic links, headings and focus styles; no browser
-accessibility audit was run. The migration must be applied during deployment.
+**201 Created**, for a new report:
+
+```json
+{ "reference": "OFM-7K2QX9DM" }
+```
+
+**200 OK** has the same body: it's the reference of a report the server **already accepted**. You
+get it when a request from the same address, with the same fields and the same files byte for byte,
+arrives within 24 hours. So a retry after a timeout is safe: it returns the first report instead of
+making a duplicate. Treat 200 and 201 alike.
+
+#### The reference code
+
+- The format is `OFM-` plus **8 Crockford Base32 characters**: `0-9` and `A-Z` without `I L O U`.
+  Regex: `^OFM-[0-9A-HJKMNP-TV-Z]{8}$`. The `OFM-` prefix is part of the code; show it as is.
+- It's drawn by the server with `random_int`. It's never derived from the row ID, and the row ID is
+  never sent.
+- It's stored in a **UNIQUE** column. If a code collides at insert, the server draws a fresh one
+  and retries, so the client never sees the collision.
+- It's an **identifier, not a credential.** There's no endpoint that reads, checks, updates or
+  deletes a report by its reference.
+- **What to show the player:** the code, plus the message that the report can be deleted on request
+  by emailing `bugreport@openfootmanager.com` with it. That's what the privacy page says.
+
+### Errors
+
+Every error has this body:
+
+```json
+{ "message": "Human-readable English, for logs — do not show it untranslated", "code": "stable_machine_code" }
+```
+
+A validation failure (422 `invalid`) also lists the reasons per field:
+
+```json
+{
+  "message": "The report must be a JSON object.",
+  "errors": { "report": ["The report must be a JSON object."] },
+  "code": "invalid"
+}
+```
+
+Branch on `status` and `code`, never on `message`.
+
+| Status | `code` | When | What the client should do |
+|---|---|---|---|
+| 400 | `version_required` | `X-OFM-Version` is missing or isn't a version | A bug in the client: don't retry; fall back |
+| 404 | `not_found` | Wrong path | Fall back |
+| 405 | `method_not_allowed` | Wrong method | Fall back |
+| 413 | `too_large` | The file parts total over 25 MiB, **or** the whole request is over PHP's `post_max_size` (56 MiB on the host) | Drop attachments (screenshots or packages first) and resend, or fall back |
+| 413 | *(HTML, not JSON)* | The request is over the web server's own ceiling (60 MB, `LimitRequestBody`); this is refused before Laravel runs | Treat any non-JSON response as "relay unavailable" → fall back. Staying within the 25 MiB cap never reaches it. |
+| 422 | `invalid` | A field is too long or the wrong type, `report` isn't a JSON object, a file part is over its own limit, the bundle breaks a rule above, or a screenshot isn't an image | Show "the report could not be accepted"; fall back. Don't retry unchanged |
+| 422 | `too_many_files` | More than 6 files | Trim, then resend |
+| 422 | `blocked` | A file's SHA-256 is on the server's blocklist | Fall back; don't retry |
+| 429 | `rate_limited` | **Route throttle:** over 10 POSTs per hour from this address. Every POST that has a valid version header counts, accepted or not | Wait for `Retry-After` (seconds) or fall back. The header is always present |
+| 429 | `rate_limited` | **Daily cap:** this address already has 5 accepted reports in the last 24 hours (a rolling window, not a reset at midnight). A retry of an already-accepted report is answered 200 and not refused | Wait for `Retry-After`: the seconds until the oldest of those reports leaves the window. The header is always present |
+| 503 | `disabled` | The kill switch is on (`enabled: false`) | Fall back now; don't retry |
+| 503 | `capacity` | Global ceilings: 200 reports in the last 24 hours from everyone, or 2 GiB of stored files | Fall back now; don't retry. Nothing the sender did caused it |
+| 503 | `unavailable` | The server can't process screenshots (image library missing) | Resend without screenshots, or fall back |
+| 5xx | `server_error` | Anything unexpected | Fall back; a later retry is allowed |
+
+Network failure, a timeout, or any non-JSON body means "relay unavailable": fall back.
+
+A client that **timed out** on a POST doesn't know whether the report arrived. Retrying the **identical**
+request is safe, because the 24-hour dedupe returns the original reference with 200.
+
+## Retention and access (for the privacy wording in the game)
+
+- Reports and their files are **kept until handled**, and nothing is deleted on a timer. Once a
+  report is handled, an admin may delete its files or the whole report. That deletion is a
+  deliberate, audit-logged action.
+- The sender's IP is stored only as an HMAC-SHA256 keyed with the server's secret, never in plain.
+  It's used for the per-address caps and dedupe.
+- **Every OFMHub admin** may download a report's files: the bundle, the save and packages.
+  Moderators triage the text and can view the re-encoded screenshots, but can't download files.
+- An admin can file a report as a public GitHub issue. Only the player's own words go public, plus
+  an environment line (OS and architecture, WebView version, locale) and the reference code. Never
+  logs, diagnostics, saves, packages or screenshots.

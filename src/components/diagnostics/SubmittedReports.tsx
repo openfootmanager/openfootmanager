@@ -16,7 +16,7 @@ interface SubmittedReportsProps {
  * "Your reports" in Settings → Help: the reference codes this install has been given.
  *
  * The codes come from `reports.json` and nothing else. There is deliberately no status beside them
- * — the relay has no lookup endpoint, because a code is an identifier to quote to the maintainer,
+ * — the server has no lookup endpoint, because a code is an identifier to quote to the maintainer,
  * not a credential — so the list is a record of what was sent, newest first, and when.
  */
 export function SubmittedReports({ refreshKey }: SubmittedReportsProps) {

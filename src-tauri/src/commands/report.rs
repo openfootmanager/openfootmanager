@@ -456,7 +456,6 @@ fn diagnostics_field(diagnostics: &Option<serde_json::Value>, key: &str) -> Stri
         .to_owned()
 }
 
-/// Send a bundle that already exists, and remember the reference that comes back.
 fn send_and_record(
     transport: &dyn Transport,
     endpoint: &HubEndpoint,

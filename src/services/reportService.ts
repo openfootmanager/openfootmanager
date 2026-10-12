@@ -60,12 +60,29 @@ export function exportReportBundle(
   });
 }
 
-/** The relay accepted the report. */
+/** The report accepted by OFMHub. */
 export interface UploadReceipt {
-  /** Eight Crockford Base32 characters — an identifier to quote, not a password. */
+  /** `OFM-` and eight Crockford Base32 characters: an identifier to quote, not a password. */
   code: string;
   /** Whether the code also reached the "Your reports" list; if not, the player should note it. */
   recorded: boolean;
+}
+
+/** What the player typed, as the separate fields OFMHub stores. */
+export interface ReportFields {
+  what_happened: string;
+  expected: string;
+  steps: string;
+  /** The frequency choice's key, not its translated label. */
+  frequency: string;
+  game_context: string;
+  locale: string;
+}
+
+/** Why an upload did not complete: a translation key, and the wait when the server asked for one. */
+export interface UploadFailure {
+  key: string;
+  retry_after_seconds: number | null;
 }
 
 /** One report this install has sent, from `reports.json`. */
@@ -77,23 +94,31 @@ export interface SubmittedReport {
   app_version: string;
 }
 
-/** Whether this build has a relay to send to. Without one, the GitHub form is the only path. */
+/** Whether OFMHub takes reports right now. Without it, the GitHub form is the only path. */
 export function reportUploadAvailable(): Promise<boolean> {
   return invoke<boolean>("report_upload_available");
 }
 
 /**
- * Build the bundle privately and send it to the relay.
+ * Build the bundle privately and send it to OFMHub.
  *
  * `consent` is the player's tick on the preview, passed through rather than assumed — the backend
- * refuses without it. Rejects with a `be.error.report.upload.*` key on any failure.
+ * refuses without it. Rejects with an `UploadFailure` (see `toUploadFailure`).
  */
 export function uploadReportBundle(
   reportText: string,
+  fields: ReportFields,
   includeSave: boolean,
   consent: boolean,
 ): Promise<UploadReceipt> {
-  return invoke<UploadReceipt>("upload_report_bundle", { reportText, includeSave, consent });
+  return invoke<UploadReceipt>("upload_report_bundle", {
+    reportText,
+    fields,
+    includeSave,
+    consent,
+    screenshotPaths: [],
+    packagePaths: [],
+  });
 }
 
 /** The reports this install has sent, newest first. */

@@ -34,7 +34,9 @@ import {
   describeMachine,
   describeResolution,
   formatBytes,
+  minutesToWait,
   missingRequiredFields,
+  toUploadFailure,
 } from "./ReportBugModal.helpers";
 
 const FREQUENCIES: Frequency[] = ["everyTime", "sometimes", "once"];
@@ -46,7 +48,7 @@ interface ReportBugModalProps {
 /** Ties an invalid field to the one error message the step shows. */
 const REQUIRED_ERROR_ID = "report-required-error";
 
-/** The relay's answer when the bundle is over its ceiling; the one failure with a remedy here. */
+/** The answer when the bundle is over the server's ceiling; the one failure with a remedy here. */
 const UPLOAD_TOO_LARGE = "be.error.report.upload.tooLarge";
 
 /**
@@ -54,9 +56,9 @@ const UPLOAD_TOO_LARGE = "be.error.report.upload.tooLarge";
  *
  * Describe, then preview, and the preview is the point: the player sees every file and field that
  * is about to leave their machine, with sizes, before anything is written or sent. When this build
- * has a relay, the preview is also the consent screen — Send uploads only after an explicit tick,
+ * has a server, the preview is also the consent screen — Send uploads only after an explicit tick,
  * and the code that comes back is shown. Saving the bundle and opening the prefilled GitHub form
- * needs no server, so it stays: the only path without a relay, the choice for a player who
+ * needs no server, so it stays: the only path without a server, the choice for a player who
  * declines, and the fallback whenever an upload fails.
  */
 
@@ -228,13 +230,32 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
     setFailure(null);
     setUploadFailureKey(null);
     try {
-      const sent = await uploadReportBundle(reportText(), canAttachSave && includeSave, consent);
+      const sent = await uploadReportBundle(
+        reportText(),
+        {
+          what_happened: draft.whatHappened,
+          expected: draft.expected,
+          steps: draft.steps,
+          frequency: draft.frequency,
+          game_context: careerLine ?? "",
+          locale: i18n.language,
+        },
+        canAttachSave && includeSave,
+        consent,
+      );
       setReceipt(sent);
       setStep("sent");
     } catch (error: unknown) {
-      logError(`[report] upload failed: ${String(error)}`);
-      setUploadFailureKey(String(error));
-      setFailure(resolveBackendError(error));
+      const rejected = toUploadFailure(error);
+      logError(`[report] upload failed: ${rejected.key}`);
+      setUploadFailureKey(rejected.key);
+      setFailure(
+        rejected.retry_after_seconds !== null
+          ? t("be.error.report.upload.rateLimitedWait", {
+              minutes: minutesToWait(rejected.retry_after_seconds),
+            })
+          : resolveBackendError(rejected.key),
+      );
     } finally {
       setBusy(false);
     }

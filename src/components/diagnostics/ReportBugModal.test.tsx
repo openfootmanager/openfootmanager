@@ -24,8 +24,12 @@ vi.mock("../../services/reportService", () => ({
   suggestedReportFileName: () => suggestedReportFileName(),
   redactReportFields: (values: string[]) => redactReportFields(values),
   reportUploadAvailable: () => reportUploadAvailable(),
-  uploadReportBundle: (reportText: string, includeSave: boolean, consent: boolean) =>
-    uploadReportBundle(reportText, includeSave, consent),
+  uploadReportBundle: (
+    reportText: string,
+    fields: unknown,
+    includeSave: boolean,
+    consent: boolean,
+  ) => uploadReportBundle(reportText, fields, includeSave, consent),
 }));
 vi.mock("../../lib/logger", () => ({
   logError: (message: string) => logError(message),
@@ -75,7 +79,7 @@ function fillRequired() {
 describe("ReportBugModal", () => {
   beforeEach(() => {
     collectDiagnostics.mockReset().mockResolvedValue(DIAGNOSTICS);
-    // The tests in this block cover a build with no relay, where the GitHub form is the only path.
+    // The tests in this block cover a build with no server, where the GitHub form is the only path.
     reportUploadAvailable.mockReset().mockResolvedValue(false);
     uploadReportBundle.mockReset();
     exportReportBundle.mockReset().mockResolvedValue(SUMMARY);
@@ -552,11 +556,11 @@ describe("ReportBugModal", () => {
   });
 });
 
-describe("ReportBugModal with a relay to send to", () => {
+describe("ReportBugModal with a server to send to", () => {
   beforeEach(() => {
     collectDiagnostics.mockReset().mockResolvedValue(DIAGNOSTICS);
     reportUploadAvailable.mockReset().mockResolvedValue(true);
-    uploadReportBundle.mockReset().mockResolvedValue({ code: "7K2M9Q4R", recorded: true });
+    uploadReportBundle.mockReset().mockResolvedValue({ code: "OFM-7K2QX9DM", recorded: true });
     exportReportBundle.mockReset().mockResolvedValue(SUMMARY);
     suggestedReportFileName.mockReset().mockResolvedValue("ofm-report.zip");
     saveDialog.mockReset().mockResolvedValue("/home/x/ofm-report.zip");
@@ -588,7 +592,7 @@ describe("ReportBugModal with a relay to send to", () => {
   const sendButton = () => screen.getByRole("button", { name: "reportBug.send" });
 
   /**
-   * Given a build with a relay and a player on the preview,
+   * Given a build with a server and a player on the preview,
    * when they have not ticked the consent box,
    * then Send is disabled and nothing has been uploaded.
    */
@@ -617,22 +621,23 @@ describe("ReportBugModal with a relay to send to", () => {
     expect(await screen.findByRole("heading", { name: "reportBug.sentTitle" })).toBeInTheDocument();
     expect(uploadReportBundle).toHaveBeenCalledWith(
       expect.stringContaining("It froze"),
+      expect.objectContaining({ what_happened: "It froze", frequency: "everyTime" }),
       false,
       true,
     );
-    expect(screen.getByText("7K2M9Q4R")).toBeInTheDocument();
+    expect(screen.getByText("OFM-7K2QX9DM")).toBeInTheDocument();
     expect(screen.getByText("reportBug.referenceCodeSaved")).toBeInTheDocument();
     expect(saveDialog).not.toHaveBeenCalled();
     expect(openUrl).not.toHaveBeenCalled();
   });
 
   /**
-   * Given a report the relay accepted but the game could not add to the list,
+   * Given a report the server accepted but the game could not add to the list,
    * when the code is shown,
    * then the player is told to write it down.
    */
   it("asks the player to note a code it could not record", async () => {
-    uploadReportBundle.mockResolvedValue({ code: "7K2M9Q4R", recorded: false });
+    uploadReportBundle.mockResolvedValue({ code: "OFM-7K2QX9DM", recorded: false });
     await reachPreview();
 
     fireEvent.click(consentBox());
@@ -689,13 +694,16 @@ describe("ReportBugModal with a relay to send to", () => {
   });
 
   /**
-   * Given a relay that refuses the report,
+   * Given a server that refuses the report,
    * when the player presses Send,
    * then they stay on the preview with the reason and the GitHub fallback, and that fallback
    * still saves the file and opens the form.
    */
   it("falls back to the GitHub form when the upload fails", async () => {
-    uploadReportBundle.mockRejectedValue("be.error.report.upload.rateLimited");
+    uploadReportBundle.mockRejectedValue({
+      key: "be.error.report.upload.rateLimited",
+      retry_after_seconds: null,
+    });
     await reachPreview();
 
     fireEvent.click(consentBox());
@@ -713,13 +721,36 @@ describe("ReportBugModal with a relay to send to", () => {
   });
 
   /**
-   * Given a report with the save attached that is too large for the relay,
+   * Given a server that rate-limits the report and says how long to wait,
+   * when the player presses Send,
+   * then they are told the wait in whole minutes, rounded up, with the GitHub fallback.
+   */
+  it("tells the player how many minutes to wait when rate limited", async () => {
+    uploadReportBundle.mockRejectedValue({
+      key: "be.error.report.upload.rateLimited",
+      retry_after_seconds: 61,
+    });
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("be.error.report.upload.rateLimitedWait");
+    expect(alert).toHaveTextContent("reportBug.uploadFailedFallback");
+  });
+
+  /**
+   * Given a report with the save attached that is too large for the server,
    * when the upload fails,
    * then the player is told that unticking the save makes it smaller — and the save is not
    * dropped for them.
    */
   it("suggests unticking the save when the report is too large", async () => {
-    uploadReportBundle.mockRejectedValue("be.error.report.upload.tooLarge");
+    uploadReportBundle.mockRejectedValue({
+      key: "be.error.report.upload.tooLarge",
+      retry_after_seconds: null,
+    });
     await reachPreview();
 
     fireEvent.click(saveBox());
@@ -728,16 +759,21 @@ describe("ReportBugModal with a relay to send to", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("reportBug.tooLargeUntickSave");
     expect(uploadReportBundle).toHaveBeenCalledTimes(1);
-    expect(uploadReportBundle).toHaveBeenCalledWith(expect.any(String), true, true);
+    expect(uploadReportBundle).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      true,
+      true,
+    );
     expect(saveBox()).toBeChecked();
   });
 
   /**
-   * Given a build with no relay,
+   * Given a build with no server,
    * when the player reaches the preview,
    * then there is no consent box and no Send button — only the GitHub path.
    */
-  it("offers only the GitHub path when there is no relay", async () => {
+  it("offers only the GitHub path when there is no server", async () => {
     reportUploadAvailable.mockResolvedValue(false);
     render(<ReportBugModal onClose={vi.fn()} />);
     fillRequired();

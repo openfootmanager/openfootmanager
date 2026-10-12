@@ -5,14 +5,14 @@
 //! rotates, so a code written only there is gone within a few sessions. The player may need the
 //! code months later to ask the maintainer to delete what they sent.
 //!
-//! No status is tracked. The relay has no lookup endpoint by design — the code is an identifier
+//! No status is tracked. The server has no lookup endpoint by design — the code is an identifier
 //! for a conversation with the maintainer, not a credential — so there is nothing to poll.
 
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// One report the relay accepted.
+/// One report the server accepted.
 ///
 /// Every field carries `#[serde(default)]`: a file written by a later build with fields this one
 /// does not know must still load, and a missing field must not cost the player the list.
@@ -64,7 +64,7 @@ pub fn load(path: &Path) -> Vec<SubmittedReport> {
 /// Add one report to the file.
 ///
 /// A file that will not parse is renamed aside rather than overwritten. The new code must be kept
-/// — the relay already has that report — but the old codes inside a damaged file are still the
+/// — the server already has that report — but the old codes inside a damaged file are still the
 /// player's, and recoverable by hand from the copy.
 pub fn record(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
     let mut file = match read(path) {
