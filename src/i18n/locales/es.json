@@ -1827,7 +1827,12 @@
     "help": "Ayuda",
     "reportBug": "Informar de un fallo",
     "reportBugDesc": "Cuéntanos qué ha salido mal; tus registros se adjuntan automáticamente.",
-    "report": "Informar"
+    "report": "Informar",
+    "yourReports": "Tus informes",
+    "yourReportsDesc": "Códigos de referencia de los informes que has enviado. Indica uno para preguntar por un informe o pedir que se borre.",
+    "noReports": "Todavía no has enviado ningún informe.",
+    "reportOutcomeUnknown": "Resultado desconocido: puede que haya llegado. Volver a enviarlo podría entregarlo dos veces.",
+    "reportIncludedSave": "Con partida guardada"
   },
   "preMatch": {
     "formationFit": "Ajuste de Formación",
@@ -2746,7 +2751,25 @@
       "saveManagerUnavailable": "Los datos guardados no están disponibles temporalmente.",
       "report": {
         "bundleFailed": "No se ha podido escribir el archivo del informe. Comprueba que puedes escribir en la carpeta que has elegido.",
-        "saveMissing": "No se ha encontrado tu partida guardada, así que no se ha escrito nada. Desmarca la partida e inténtalo de nuevo, o vuelve a cargar tu carrera primero."
+        "saveMissing": "No se ha encontrado tu partida guardada, así que no se ha escrito nada. Desmarca la partida e inténtalo de nuevo, o vuelve a cargar tu carrera primero.",
+        "upload": {
+          "consentRequired": "Primero marca la casilla para aceptar el envío de estos archivos.",
+          "notConfigured": "Esta versión del juego no puede enviar informes directamente. Usa el formulario de GitHub.",
+          "attachmentsUnavailable": "Adjuntar archivos aún no está disponible.",
+          "alreadySending": "Todavía se está enviando un informe. Espera a que termine y vuelve a intentarlo.",
+          "disabled": "El envío de informes está desactivado por ahora. Usa el formulario de GitHub.",
+          "tooManyFiles": "Hay demasiados archivos adjuntos en este informe.",
+          "capacity": "El servidor de informes está lleno por ahora. Usa el formulario de GitHub.",
+          "imagesUnavailable": "El servidor de informes no puede procesar capturas ahora mismo. Inténtalo sin ellas o usa el formulario de GitHub.",
+          "rateLimitedWait": "Se han enviado demasiados informes desde tu conexión últimamente. Inténtalo de nuevo en unos {{minutes}} min.",
+          "tooLarge": "El informe es demasiado grande para enviarlo directamente.",
+          "rateLimited": "Se han enviado demasiados informes desde tu conexión hace poco. Espera un rato antes de volver a intentarlo.",
+          "rejected": "El servidor de informes no aceptó este informe.",
+          "serverError": "El servidor de informes tuvo un problema y no pudo recibir el informe.",
+          "unreachable": "No se pudo contactar con el servidor de informes, así que no se envió nada. Comprueba tu conexión a internet.",
+          "unconfirmed": "Se perdió la conexión antes de que el servidor respondiera. Es posible que tu informe haya llegado. Si lo vuelves a enviar, el equipo podría recibirlo dos veces.",
+          "prepareFailed": "No se pudo preparar el informe para enviarlo. Aún puedes guardarlo y usar el formulario de GitHub."
+        }
       },
       "saveDeleteFailed": "No se pudo eliminar el archivo de guardado.",
       "settings": {
@@ -4176,14 +4199,30 @@
     "itemCrashDesc": "Se incluye porque algo falló durante tu última sesión.",
     "optionalHeading": "Añádelo si quieres: desactivado por defecto",
     "includeSave": "Mi partida guardada",
-      "includeSaveDesc": "Nos permite reproducir la situación exacta en la que estabas.",
+    "includeSaveDesc": "Nos permite reproducir la situación exacta en la que estabas.",
     "includeSaveNoCareer": "No hay ninguna carrera abierta, así que no hay nada que adjuntar.",
     "nothingSentYet": "No se guarda ni se abre nada hasta que pulses el botón de abajo. Enviar el formulario requiere una cuenta de GitHub; el archivo es tuyo en cualquier caso.",
     "savedTo": "Tu archivo de informe se ha guardado aquí:",
     "dragItIn": "Arrástralo al formulario de GitHub en tu navegador y envíalo. Eso es todo.",
-      "browserDidNotOpen": "Tu navegador no se ha abierto. El archivo de arriba está guardado: adjúntalo a una incidencia nueva en GitHub cuando puedas.",
+    "browserDidNotOpen": "Tu navegador no se ha abierto. El archivo de arriba está guardado: adjúntalo a una incidencia nueva en GitHub cuando puedas.",
     "review": "Revisar qué se envía",
     "saveAndOpen": "Guardar el archivo y abrir GitHub",
-    "working": "Trabajando…"
+    "working": "Trabajando…",
+    "previewIntroUpload": "Todo lo de abajo, y nada más. Nada sale de este ordenador hasta que pulses Enviar o guardes tú el archivo.",
+    "consentLabel": "Enviar estos archivos al equipo de OpenFoot Manager",
+    "consentDesc": "He revisado la lista anterior y acepto subirla. No hace falta una cuenta. Los informes se conservan hasta que el equipo los haya tratado.",
+    "send": "Enviar",
+    "saveAndOpenInstead": "Guardar el archivo y usar GitHub",
+    "nothingSentYetUpload": "Nada sale de este ordenador hasta que pulses Enviar. ¿Prefieres GitHub? Guarda el archivo y adjúntalo tú al formulario; para eso necesitas una cuenta de GitHub.",
+    "uploadFailedFallback": "Aún puedes enviarlo a través de GitHub: guarda el archivo y adjúntalo al formulario.",
+    "tooLargeUntickSave": "Si desmarcas tu partida guardada, el informe será mucho más pequeño.",
+    "sentTitle": "Informe enviado",
+    "sentIntro": "Gracias. Tu informe ha llegado al equipo de OpenFoot Manager y se conserva hasta que se haya tratado.",
+    "referenceCode": "Tu código de referencia",
+    "referenceCodeHint": "Cita este código si preguntas por tu informe. Para que se elimine, escribe a bugreport@openfootmanager.com con este código. No es una contraseña: nadie puede usarlo para ver tu informe.",
+    "referenceCodeSaved": "Puedes volver a encontrarlo en Configuración → Ayuda → Tus informes.",
+    "notRecorded": "No se pudo añadir este código a tu lista de informes. Por favor, anótalo.",
+    "copyCodeFor": "Copiar el código {{code}}",
+    "codeCopied": "Copiado"
   }
 }

@@ -114,21 +114,11 @@ fn record_from(info: &PanicHookInfo<'_>) -> CrashRecord {
 }
 
 fn write_record(path: &Path, record: &CrashRecord) -> std::io::Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_string_pretty(record)
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
-
     // Beside the target and then renamed, rather than straight over the top. `fs::write` truncates
     // first, so a process that dies partway through this — which is not far-fetched, given what
     // has just happened to it — used to leave a `last-crash.json` that exists, parses as nothing,
     // and makes the next launch believe it has a crash record when it has half of one.
-    let mut scratch_name = path.file_name().unwrap_or_default().to_owned();
-    scratch_name.push(".part");
-    let scratch = path.with_file_name(scratch_name);
-    std::fs::write(&scratch, json)?;
-    std::fs::rename(&scratch, path)
+    crate::atomic_file::write_json(path, record)
 }
 
 /// Install the hook. Safe to call once, early, before anything else can panic.

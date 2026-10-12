@@ -1827,7 +1827,12 @@
     "help": "Yardım",
     "reportBug": "Hata bildir",
     "reportBugDesc": "Neyin ters gittiğini bize ilet; günlüklerin otomatik olarak eklenir.",
-    "report": "Bildir"
+    "report": "Bildir",
+    "yourReports": "Raporların",
+    "yourReportsDesc": "Gönderdiğin raporların referans kodları. Bir rapor hakkında soru sormak ya da silinmesini istemek için kodunu belirt.",
+    "noReports": "Henüz hiç rapor göndermedin.",
+    "reportOutcomeUnknown": "Sonuç bilinmiyor: ulaşmış olabilir. Tekrar göndermek iki kez ulaştırabilir.",
+    "reportIncludedSave": "Kayıt dosyası ekli"
   },
   "preMatch": {
     "formationFit": "Diziliş Uyumu",
@@ -2593,7 +2598,25 @@
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",
       "report": {
         "bundleFailed": "Rapor dosyası yazılamadı. Seçtiğin klasöre yazma iznin olduğunu kontrol et.",
-        "saveMissing": "Kayıt dosyan bulunamadı, bu yüzden hiçbir şey yazılmadı. Kaydın işaretini kaldırıp tekrar dene ya da önce kariyerini yeniden yükle."
+        "saveMissing": "Kayıt dosyan bulunamadı, bu yüzden hiçbir şey yazılmadı. Kaydın işaretini kaldırıp tekrar dene ya da önce kariyerini yeniden yükle.",
+        "upload": {
+          "consentRequired": "Önce bu dosyaların gönderilmesini kabul etmek için kutuyu işaretle.",
+          "notConfigured": "Oyunun bu sürümü raporları doğrudan gönderemiyor. Bunun yerine GitHub formunu kullan.",
+          "attachmentsUnavailable": "Dosya eklemek henüz kullanılamıyor.",
+          "alreadySending": "Bir rapor hâlâ gönderiliyor. Bitmesini bekle, sonra tekrar dene.",
+          "disabled": "Rapor gönderme şu anda kapalı. Bunun yerine GitHub formunu kullan.",
+          "tooManyFiles": "Bu rapora çok fazla dosya eklenmiş.",
+          "capacity": "Rapor sunucusu şu anda dolu. Bunun yerine GitHub formunu kullan.",
+          "imagesUnavailable": "Rapor sunucusu şu anda ekran görüntülerini işleyemiyor. Onlar olmadan dene ya da GitHub formunu kullan.",
+          "rateLimitedWait": "Bağlantından kısa süre önce çok fazla rapor gönderildi. Yaklaşık {{minutes}} dk sonra tekrar dene.",
+          "tooLarge": "Rapor doğrudan gönderilemeyecek kadar büyük.",
+          "rateLimited": "Son zamanlarda bağlantından çok fazla rapor gönderildi. Tekrar denemeden önce lütfen biraz bekle.",
+          "rejected": "Rapor sunucusu bu raporu kabul etmedi.",
+          "serverError": "Rapor sunucusunda bir sorun oluştu ve rapor alınamadı.",
+          "unreachable": "Rapor sunucusuna ulaşılamadı, bu yüzden hiçbir şey gönderilmedi. İnternet bağlantını kontrol et.",
+          "unconfirmed": "Sunucu yanıt vermeden bağlantı koptu. Raporun ulaşmış olabilir. Tekrar gönderirsen ekip iki kez alabilir.",
+          "prepareFailed": "Rapor gönderim için hazırlanamadı. Yine de kaydedip GitHub formunu kullanabilirsin."
+        }
       },
       "saveDeleteFailed": "Kayıt dosyası silinemedi.",
       "settings": {
@@ -4176,14 +4199,30 @@
     "itemCrashDesc": "Son oturumunda bir şey çöktüğü için eklendi.",
     "optionalHeading": "İstersen ekle — varsayılan olarak kapalı",
     "includeSave": "Kayıt dosyam",
-      "includeSaveDesc": "İçinde bulunduğun durumu birebir yeniden oynatmamızı sağlar.",
+    "includeSaveDesc": "İçinde bulunduğun durumu birebir yeniden oynatmamızı sağlar.",
     "includeSaveNoCareer": "Açık bir kariyer yok, eklenecek bir şey de yok.",
     "nothingSentYet": "Aşağıdaki düğmeye basana kadar hiçbir şey kaydedilmez veya açılmaz. Formu göndermek için bir GitHub hesabı gerekir — dosya her durumda senin.",
     "savedTo": "Rapor dosyan buraya kaydedildi:",
     "dragItIn": "Tarayıcıdaki GitHub formuna sürükle ve gönder. Hepsi bu.",
-      "browserDidNotOpen": "Tarayıcın açılmadı. Yukarıdaki dosya kaydedildi — fırsatın olduğunda GitHub'da yeni bir issue'ya ekle.",
+    "browserDidNotOpen": "Tarayıcın açılmadı. Yukarıdaki dosya kaydedildi — fırsatın olduğunda GitHub'da yeni bir issue'ya ekle.",
     "review": "Ne gönderildiğini incele",
     "saveAndOpen": "Dosyayı kaydet ve GitHub'ı aç",
-    "working": "Çalışıyor…"
+    "working": "Çalışıyor…",
+    "previewIntroUpload": "Aşağıdakilerin hepsi, başka hiçbir şey değil. Gönder'e basana ya da dosyayı kendin kaydedene kadar hiçbir şey bu bilgisayardan çıkmaz.",
+    "consentLabel": "Bu dosyaları OpenFoot Manager ekibine gönder",
+    "consentDesc": "Yukarıdaki listeyi inceledim ve yüklenmesini kabul ediyorum. Hesap gerekmez. Raporlar ekip ilgilenene kadar saklanır.",
+    "send": "Gönder",
+    "saveAndOpenInstead": "Bunun yerine dosyayı kaydet ve GitHub'ı kullan",
+    "nothingSentYetUpload": "Gönder'e basana kadar hiçbir şey bu bilgisayardan çıkmaz. GitHub'ı mı tercih edersin? Dosyayı kaydet ve forma kendin ekle — bunun için bir GitHub hesabı gerekir.",
+    "uploadFailedFallback": "Yine de GitHub üzerinden gönderebilirsin: dosyayı kaydet ve forma ekle.",
+    "tooLargeUntickSave": "Kayıt dosyanın işaretini kaldırmak raporu çok küçültür.",
+    "sentTitle": "Rapor gönderildi",
+    "sentIntro": "Teşekkürler. Raporun OpenFoot Manager ekibine ulaştı ve ilgilenilene kadar saklanır.",
+    "referenceCode": "Referans kodun",
+    "referenceCodeHint": "Raporunu sorarken bu kodu belirt. Sildirmek için bu kodla bugreport@openfootmanager.com adresine yaz. Bu bir parola değil: kimse bununla raporunu göremez.",
+    "referenceCodeSaved": "Ona yeniden Ayarlar → Yardım → Raporların bölümünden ulaşabilirsin.",
+    "notRecorded": "Bu kod rapor listene eklenemedi. Lütfen bir yere not et.",
+    "copyCodeFor": "{{code}} kodunu kopyala",
+    "codeCopied": "Kopyalandı"
   }
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const saveDialog = vi.fn();
@@ -7,6 +7,9 @@ const collectDiagnostics = vi.fn();
 const exportReportBundle = vi.fn();
 const suggestedReportFileName = vi.fn();
 const redactReportFields = vi.fn();
+const reportUploadAvailable = vi.fn();
+const uploadReportBundle = vi.fn();
+const discardPreparedReport = vi.fn();
 const logError = vi.fn();
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -20,7 +23,15 @@ vi.mock("../../services/reportService", () => ({
   exportReportBundle: (path: string, reportText: string, includeSave: boolean) =>
     exportReportBundle(path, reportText, includeSave),
   suggestedReportFileName: () => suggestedReportFileName(),
+  discardPreparedReport: () => discardPreparedReport(),
   redactReportFields: (values: string[]) => redactReportFields(values),
+  reportUploadAvailable: () => reportUploadAvailable(),
+  uploadReportBundle: (
+    reportText: string,
+    fields: unknown,
+    includeSave: boolean,
+    consent: boolean,
+  ) => uploadReportBundle(reportText, fields, includeSave, consent),
 }));
 vi.mock("../../lib/logger", () => ({
   logError: (message: string) => logError(message),
@@ -69,7 +80,11 @@ function fillRequired() {
 
 describe("ReportBugModal", () => {
   beforeEach(() => {
+    discardPreparedReport.mockReset().mockResolvedValue(undefined);
     collectDiagnostics.mockReset().mockResolvedValue(DIAGNOSTICS);
+    // The tests in this block cover a build with no server, where the GitHub form is the only path.
+    reportUploadAvailable.mockReset().mockResolvedValue(false);
+    uploadReportBundle.mockReset();
     exportReportBundle.mockReset().mockResolvedValue(SUMMARY);
     suggestedReportFileName.mockReset().mockResolvedValue("ofm-report.zip");
     saveDialog.mockReset().mockResolvedValue("/home/x/ofm-report.zip");
@@ -541,5 +556,319 @@ describe("ReportBugModal", () => {
 
     fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(last);
+  });
+});
+
+describe("ReportBugModal with a server to send to", () => {
+  beforeEach(() => {
+    discardPreparedReport.mockReset().mockResolvedValue(undefined);
+    collectDiagnostics.mockReset().mockResolvedValue(DIAGNOSTICS);
+    reportUploadAvailable.mockReset().mockResolvedValue(true);
+    uploadReportBundle.mockReset().mockResolvedValue({ code: "OFM-7K2QX9DM", recorded: true });
+    exportReportBundle.mockReset().mockResolvedValue(SUMMARY);
+    suggestedReportFileName.mockReset().mockResolvedValue("ofm-report.zip");
+    saveDialog.mockReset().mockResolvedValue("/home/x/ofm-report.zip");
+    redactReportFields
+      .mockReset()
+      .mockImplementation((values: string[]) => Promise.resolve(values));
+    openUrl.mockReset().mockResolvedValue(undefined);
+    logError.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    useGameStore.setState({ gameState: null });
+  });
+
+  async function reachPreview(props: { onClose?: () => void; onUploaded?: () => void } = {}) {
+    render(<ReportBugModal onClose={props.onClose ?? vi.fn()} onUploaded={props.onUploaded} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+    // The consent box waits for the file list; wait for it to be offered.
+    await waitFor(() =>
+      expect(screen.getByRole("checkbox", { name: /reportBug\.consentLabel/ })).toBeEnabled(),
+    );
+  }
+
+  const consentBox = () => screen.getByRole("checkbox", { name: /reportBug\.consentLabel/ });
+  const saveBox = () => screen.getByRole("checkbox", { name: "reportBug.includeSave" });
+  const sendButton = () => screen.getByRole("button", { name: "reportBug.send" });
+
+  /**
+   * Given a build with a server and a player on the preview,
+   * when they have not ticked the consent box,
+   * then Send is disabled and nothing has been uploaded.
+   */
+  it("will not send until the player consents", async () => {
+    await reachPreview();
+
+    expect(consentBox()).not.toBeChecked();
+    // What ticking it means is read out with it, not only shown beside it.
+    expect(consentBox()).toHaveAccessibleDescription("reportBug.consentDesc");
+    expect(sendButton()).toBeDisabled();
+    expect(uploadReportBundle).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a player who ticked consent and left the save unticked,
+   * when they press Send,
+   * then the report is uploaded with consent and without the save, no file dialog or browser
+   * opens, and the reference code is shown.
+   */
+  it("sends with consent and shows the reference code", async () => {
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    expect(await screen.findByRole("heading", { name: "reportBug.sentTitle" })).toBeInTheDocument();
+    expect(uploadReportBundle).toHaveBeenCalledWith(
+      expect.stringContaining("It froze"),
+      expect.objectContaining({ what_happened: "It froze", frequency: "everyTime" }),
+      false,
+      true,
+    );
+    expect(screen.getByText("OFM-7K2QX9DM")).toBeInTheDocument();
+    expect(screen.getByText("reportBug.referenceCodeSaved")).toBeInTheDocument();
+    expect(saveDialog).not.toHaveBeenCalled();
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a report the server accepted but the game could not add to the list,
+   * when the code is shown,
+   * then the player is told to write it down.
+   */
+  it("asks the player to note a code it could not record", async () => {
+    uploadReportBundle.mockResolvedValue({ code: "OFM-7K2QX9DM", recorded: false });
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("reportBug.notRecorded");
+    expect(screen.queryByText("reportBug.referenceCodeSaved")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player who consented and then ticked their save,
+   * when the bundle changes,
+   * then consent is withdrawn — agreeing to one bundle is not agreeing to another.
+   */
+  it("withdraws consent when the save choice changes", async () => {
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(saveBox());
+
+    expect(consentBox()).not.toBeChecked();
+    expect(sendButton()).toBeDisabled();
+  });
+
+  /**
+   * Given a player who consented and then went back to edit their description,
+   * when they return to the preview,
+   * then consent has to be given again.
+   */
+  it("withdraws consent when the player goes back to edit", async () => {
+    await reachPreview();
+    fireEvent.click(consentBox());
+
+    fireEvent.click(screen.getByRole("button", { name: "common.back" }));
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(consentBox()).not.toBeChecked();
+  });
+
+  /**
+   * Given a preview whose file list has not been read,
+   * when the player looks for the consent box,
+   * then it is disabled: consent to a list nobody has seen is not consent.
+   */
+  it("does not take consent before the file list is known", async () => {
+    collectDiagnostics.mockRejectedValue(new Error("no backend"));
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(consentBox()).toBeDisabled();
+  });
+
+  /**
+   * Given a server that refuses the report,
+   * when the player presses Send,
+   * then they stay on the preview with the reason and the GitHub fallback, and that fallback
+   * still saves the file and opens the form.
+   */
+  it("falls back to the GitHub form when the upload fails", async () => {
+    uploadReportBundle.mockRejectedValue({
+      kind: "rateLimited",
+      key: "be.error.report.upload.rateLimited",
+      retry_after_seconds: null,
+    });
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("be.error.report.upload.rateLimited");
+    expect(alert).toHaveTextContent("reportBug.uploadFailedFallback");
+    expect(screen.getByRole("heading", { name: "reportBug.previewTitle" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.saveAndOpenInstead" }));
+    await screen.findByRole("heading", { name: "reportBug.doneTitle" });
+    expect(exportReportBundle).toHaveBeenCalled();
+    expect(openUrl).toHaveBeenCalled();
+  });
+
+  /**
+   * Given an upload that is still running
+   * When the player closes the dialog
+   * Then it closes at once, and when the upload finishes the Settings list is told to refresh
+   */
+  it("lets the player leave while an upload runs, and still reports the receipt", async () => {
+    let finish: (receipt: { code: string; recorded: boolean }) => void = () => {};
+    uploadReportBundle.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const onClose = vi.fn();
+    const onUploaded = vi.fn();
+    await reachPreview({ onClose, onUploaded });
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+    const close = screen.getByRole("button", { name: "common.close" });
+    expect(close).toBeEnabled();
+
+    fireEvent.click(close);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onUploaded).not.toHaveBeenCalled();
+    await act(async () => finish({ code: "OFM-7K2QX9DM", recorded: true }));
+
+    expect(onUploaded).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a dialog that has been used
+   * When it is closed
+   * Then the backend is told to discard the held build, which may contain the save
+   */
+  it("asks the backend to discard the held build when it goes away", async () => {
+    discardPreparedReport.mockReset().mockResolvedValue(undefined);
+    await reachPreview();
+    expect(discardPreparedReport).not.toHaveBeenCalled();
+
+    cleanup();
+
+    expect(discardPreparedReport).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a server that rate-limits the report and says how long to wait,
+   * when the player presses Send,
+   * then they are told the wait in whole minutes, rounded up, with the GitHub fallback.
+   */
+  it("tells the player how many minutes to wait when rate limited", async () => {
+    uploadReportBundle.mockRejectedValue({
+      kind: "rateLimited",
+      key: "be.error.report.upload.rateLimited",
+      retry_after_seconds: 61,
+    });
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("be.error.report.upload.rateLimitedWait");
+    expect(alert).toHaveTextContent("reportBug.uploadFailedFallback");
+  });
+
+  /**
+   * Given a failure that is not a rate limit but carries a wait
+   * When the player presses Send
+   * Then they are not told they sent too many reports
+   */
+  it("shows the wait message only for a rate limit", async () => {
+    uploadReportBundle.mockRejectedValue({
+      kind: "capacity",
+      key: "be.error.report.upload.capacity",
+      retry_after_seconds: 600,
+    });
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("be.error.report.upload.capacity");
+    expect(alert).not.toHaveTextContent("rateLimitedWait");
+  });
+
+  /**
+   * Given a report with the save attached that is too large for the server,
+   * when the upload fails,
+   * then the player is told that unticking the save makes it smaller — and the save is not
+   * dropped for them.
+   */
+  it("suggests unticking the save when the report is too large", async () => {
+    uploadReportBundle.mockRejectedValue({
+      kind: "tooLarge",
+      key: "be.error.report.upload.tooLarge",
+      retry_after_seconds: null,
+    });
+    await reachPreview();
+
+    fireEvent.click(saveBox());
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("reportBug.tooLargeUntickSave");
+    expect(uploadReportBundle).toHaveBeenCalledTimes(1);
+    expect(uploadReportBundle).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      true,
+      true,
+    );
+    expect(saveBox()).toBeChecked();
+  });
+
+  /**
+   * Given a build with no server,
+   * when the player reaches the preview,
+   * then there is no consent box and no Send button — only the GitHub path.
+   */
+  it("offers only the GitHub path when there is no server", async () => {
+    reportUploadAvailable.mockResolvedValue(false);
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(screen.queryByRole("checkbox", { name: /reportBug\.consentLabel/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "reportBug.send" })).toBeNull();
+    expect(screen.getByRole("button", { name: "reportBug.saveAndOpen" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given a backend that has not yet said whether this build can upload,
+   * when the player reaches the preview,
+   * then only the GitHub path is offered until it does — never a Send that may not work.
+   */
+  it("offers no Send button while it is unknown whether uploads work", async () => {
+    reportUploadAvailable.mockReturnValue(new Promise<boolean>(() => {}));
+    render(<ReportBugModal onClose={vi.fn()} />);
+    fillRequired();
+    fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
+    await screen.findByRole("heading", { name: "reportBug.previewTitle" });
+
+    expect(screen.queryByRole("button", { name: "reportBug.send" })).toBeNull();
+    expect(screen.getByRole("button", { name: "reportBug.saveAndOpen" })).toBeInTheDocument();
   });
 });

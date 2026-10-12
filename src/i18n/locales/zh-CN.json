@@ -1827,7 +1827,12 @@
     "help": "帮助",
     "reportBug": "报告错误",
     "reportBugDesc": "告诉我们出了什么问题，日志会自动附上。",
-    "report": "报告"
+    "report": "报告",
+    "yourReports": "你的报告",
+    "yourReportsDesc": "你已发送报告的参考编号。提供编号即可询问报告情况或要求删除。",
+    "noReports": "你还没有发送过任何报告。",
+    "reportOutcomeUnknown": "结果未知：可能已送达。再次发送可能会送达两次。",
+    "reportIncludedSave": "附带存档"
   },
   "preMatch": {
     "formationFit": "阵型契合度",
@@ -2746,7 +2751,25 @@
       "saveManagerUnavailable": "存档数据暂时不可用。",
       "report": {
         "bundleFailed": "无法写入报告文件。请检查你是否有权写入所选文件夹。",
-        "saveMissing": "找不到你的存档文件，因此什么都没有写入。请取消勾选存档后重试，或先重新加载你的生涯。"
+        "saveMissing": "找不到你的存档文件，因此什么都没有写入。请取消勾选存档后重试，或先重新加载你的生涯。",
+        "upload": {
+          "consentRequired": "请先勾选同意发送这些文件。",
+          "notConfigured": "此版本的游戏无法直接发送报告，请改用 GitHub 表单。",
+          "attachmentsUnavailable": "暂时无法附加文件。",
+          "alreadySending": "仍有报告正在发送。请等待完成后再试。",
+          "disabled": "目前已关闭报告发送。请改用 GitHub 表单。",
+          "tooManyFiles": "此报告附带的文件过多。",
+          "capacity": "报告服务器目前已满。请改用 GitHub 表单。",
+          "imagesUnavailable": "报告服务器目前无法处理截图。请去掉截图重试，或改用 GitHub 表单。",
+          "rateLimitedWait": "你的网络最近发送的报告过多。请在约 {{minutes}} 分钟后重试。",
+          "tooLarge": "报告太大，无法直接发送。",
+          "rateLimited": "你的网络最近发送的报告过多，请稍后再试。",
+          "rejected": "报告服务器未接受此报告。",
+          "serverError": "报告服务器出现问题，无法接收此报告。",
+          "unreachable": "无法连接到报告服务器，因此没有发送任何内容。请检查你的网络连接。",
+          "unconfirmed": "服务器作出响应之前连接中断。你的报告可能已送达。如果再次发送，团队可能会收到两次。",
+          "prepareFailed": "无法准备要发送的报告。你仍然可以保存报告并使用 GitHub 表单。"
+        }
       },
       "saveDeleteFailed": "无法删除存档文件。",
       "settings": {
@@ -4176,14 +4199,30 @@
     "itemCrashDesc": "包含在内，因为你上次游戏时有程序崩溃。",
     "optionalHeading": "可选添加 — 默认关闭",
     "includeSave": "我的存档",
-      "includeSaveDesc": "让我们能重现你当时的确切情况。",
+    "includeSaveDesc": "让我们能重现你当时的确切情况。",
     "includeSaveNoCareer": "当前没有进行中的生涯，没有可附加的内容。",
     "nothingSentYet": "在你点击下方按钮之前，不会保存或打开任何内容。提交表单需要 GitHub 账号 —— 无论如何，文件都是你的。",
     "savedTo": "你的报告文件已保存在：",
     "dragItIn": "把它拖到浏览器中的 GitHub 表单里，然后提交。就这么简单。",
-      "browserDidNotOpen": "浏览器没有打开。上方的文件已保存 —— 方便时把它附加到 GitHub 上的新 issue 里。",
+    "browserDidNotOpen": "浏览器没有打开。上方的文件已保存 —— 方便时把它附加到 GitHub 上的新 issue 里。",
     "review": "查看将发送的内容",
     "saveAndOpen": "保存文件并打开 GitHub",
-    "working": "处理中……"
+    "working": "处理中……",
+    "previewIntroUpload": "仅包含以下内容，别无其他。在你点击“发送”或自行保存文件之前，任何内容都不会离开这台电脑。",
+    "consentLabel": "将这些文件发送给 OpenFoot Manager 团队",
+    "consentDesc": "我已查看上面的列表并同意上传。无需账号。报告会保留到团队处理完毕为止。",
+    "send": "发送",
+    "saveAndOpenInstead": "改为保存文件并使用 GitHub",
+    "nothingSentYetUpload": "在你点击“发送”之前，任何内容都不会离开这台电脑。更想用 GitHub？保存文件并自行附加到表单中 —— 这需要 GitHub 账号。",
+    "uploadFailedFallback": "你仍然可以通过 GitHub 发送：保存文件并将其附加到表单中。",
+    "tooLargeUntickSave": "取消勾选存档会让报告小得多。",
+    "sentTitle": "报告已发送",
+    "sentIntro": "谢谢。你的报告已送达 OpenFoot Manager 团队，并会保留到处理完毕为止。",
+    "referenceCode": "你的参考编号",
+    "referenceCodeHint": "询问你的报告时请提供此编号。如需删除，请携带此编号发邮件至 bugreport@openfootmanager.com。它不是密码：任何人都无法凭它查看你的报告。",
+    "referenceCodeSaved": "你可以在 设置 → 帮助 → 你的报告 中再次找到它。",
+    "notRecorded": "无法将此编号添加到你的报告列表中，请把它记下来。",
+    "copyCodeFor": "复制编号 {{code}}",
+    "codeCopied": "已复制"
   }
 }

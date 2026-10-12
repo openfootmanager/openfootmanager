@@ -1827,7 +1827,12 @@
     "help": "Help",
     "reportBug": "Report a bug",
     "reportBugDesc": "Send us what went wrong, with your logs attached automatically.",
-    "report": "Report"
+    "report": "Report",
+    "yourReports": "Your reports",
+    "yourReportsDesc": "Reference codes for the reports you have sent. Quote one to ask about a report or have it deleted.",
+    "noReports": "You have not sent any reports yet.",
+    "reportOutcomeUnknown": "Outcome unknown: it may have arrived. Sending it again may deliver it twice.",
+    "reportIncludedSave": "Save attached"
   },
   "preMatch": {
     "formationFit": "Formation Fit",
@@ -2593,7 +2598,25 @@
       "saveManagerUnavailable": "Save data is temporarily unavailable.",
       "report": {
         "bundleFailed": "The report file could not be written. Check you can write to the folder you chose.",
-        "saveMissing": "Your save file could not be found, so nothing was written. Untick the save and try again, or reload your career first."
+        "saveMissing": "Your save file could not be found, so nothing was written. Untick the save and try again, or reload your career first.",
+        "upload": {
+          "consentRequired": "Tick the box to agree to sending these files first.",
+          "notConfigured": "This version of the game cannot send reports directly. Use the GitHub form instead.",
+          "attachmentsUnavailable": "Attaching files is not available yet.",
+          "alreadySending": "A report is still being sent. Wait for it to finish, then try again.",
+          "disabled": "Sending reports is switched off at the moment. Use the GitHub form instead.",
+          "tooManyFiles": "Too many files are attached to this report.",
+          "capacity": "The report server is full at the moment. Use the GitHub form instead.",
+          "imagesUnavailable": "The report server cannot process screenshots right now. Try again without them, or use the GitHub form.",
+          "rateLimitedWait": "Too many reports have been sent from your connection recently. Try again in about {{minutes}} min.",
+          "tooLarge": "The report is too large to send directly.",
+          "rateLimited": "Too many reports have been sent from your connection recently. Please wait a while before trying again.",
+          "rejected": "The report server did not accept this report.",
+          "serverError": "The report server ran into a problem and could not take the report.",
+          "unreachable": "The report server could not be reached, so nothing was sent. Check your internet connection.",
+          "unconfirmed": "The connection was lost before the server answered. Your report may have arrived. If you send it again, the developers may receive it twice.",
+          "prepareFailed": "The report could not be prepared for sending. You can still save it and use the GitHub form."
+        }
       },
       "saveDeleteFailed": "Failed to delete the save file.",
       "settings": {
@@ -4176,14 +4199,30 @@
     "itemCrashDesc": "Included because something crashed during your last session.",
     "optionalHeading": "Add if you want to — off by default",
     "includeSave": "My save file",
-      "includeSaveDesc": "Lets us replay the exact situation you were in.",
+    "includeSaveDesc": "Lets us replay the exact situation you were in.",
     "includeSaveNoCareer": "No career is open, so there is nothing to attach.",
     "nothingSentYet": "Nothing is saved or opened until you press the button below. Submitting the form needs a GitHub account — the file is yours either way.",
     "savedTo": "Your report file was saved here:",
     "dragItIn": "Drag it onto the GitHub form in your browser, then submit. That is everything.",
-      "browserDidNotOpen": "Your browser did not open. The file above is saved — attach it to a new issue on GitHub when you can.",
+    "browserDidNotOpen": "Your browser did not open. The file above is saved — attach it to a new issue on GitHub when you can.",
     "review": "Review what is sent",
     "saveAndOpen": "Save the file and open GitHub",
-    "working": "Working…"
+    "working": "Working…",
+    "previewIntroUpload": "Everything below, and nothing else. Nothing leaves this machine until you press Send or save the file yourself.",
+    "consentLabel": "Send these files to the OpenFoot Manager team",
+    "consentDesc": "I have reviewed the list above and agree to upload it. No account is needed. Reports are kept until the team has handled them.",
+    "send": "Send",
+    "saveAndOpenInstead": "Save the file and use GitHub instead",
+    "nothingSentYetUpload": "Nothing leaves this machine until you press Send. Prefer GitHub? Save the file and attach it to the form yourself — that needs a GitHub account.",
+    "uploadFailedFallback": "You can still send it through GitHub: save the file and attach it to the form.",
+    "tooLargeUntickSave": "Unticking your save file will make the report much smaller.",
+    "sentTitle": "Report sent",
+    "sentIntro": "Thank you. Your report has reached the OpenFoot Manager team and is kept until it has been handled.",
+    "referenceCode": "Your reference code",
+    "referenceCodeHint": "Quote this code if you ask about your report. To have it deleted, email bugreport@openfootmanager.com with this code. It is not a password — nobody can use it to see your report.",
+    "referenceCodeSaved": "You can find it again under Settings → Help → Your reports.",
+    "notRecorded": "This code could not be added to your list of reports. Please write it down.",
+    "copyCodeFor": "Copy code {{code}}",
+    "codeCopied": "Copied"
   }
 }

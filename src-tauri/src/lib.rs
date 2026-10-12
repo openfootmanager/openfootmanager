@@ -1,4 +1,5 @@
 mod application;
+mod atomic_file;
 mod commands;
 mod crash;
 mod main_window;
@@ -54,6 +55,7 @@ pub fn run() {
                 .build(),
         )
         .manage(state_manager.clone())
+        .manage(Arc::new(report::prepared::PreparedUploads::default()))
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
@@ -76,6 +78,10 @@ pub fn run() {
             app.manage(crash::PreviousCrash(crash::take_previous_crash(
                 &app_data_dir,
             )));
+
+            if let Ok(cache_dir) = app.path().app_cache_dir() {
+                report::prepared::sweep_stale_uploads(&cache_dir);
+            }
 
             let saves_dir = app_data_dir.join("saves");
             let mut save_manager = SaveManager::init(&saves_dir).map_err(std::io::Error::other)?;
@@ -330,8 +336,12 @@ pub fn run() {
             read_file_as_data_url,
             commands::report::collect_diagnostics,
             commands::report::export_report_bundle,
+            commands::report::discard_prepared_report,
             commands::report::redact_report_fields,
-            commands::report::suggested_report_file_name
+            commands::report::suggested_report_file_name,
+            commands::report::report_upload_available,
+            commands::report::upload_report_bundle,
+            commands::report::list_submitted_reports
         ])
         .run(tauri::generate_context!());
 
