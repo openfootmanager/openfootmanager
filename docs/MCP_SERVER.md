@@ -514,3 +514,4 @@ snapshot still counts as a live session until `match_finish` applies its result.
 Autosave follows a successful day advance and therefore cannot run during the
 refused advance. This application rule also applies to the corresponding Tauri
 save, advance, skip, season and match commands.
+

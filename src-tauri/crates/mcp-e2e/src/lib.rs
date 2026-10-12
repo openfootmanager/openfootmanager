@@ -102,4 +102,16 @@ mod revision_tests {
         assert_eq!(committed.len(), 12);
         assert_ne!(committed, clean);
     }
+
+    /// Given a source tarball (a directory that is not a git repository)
+    /// When the revision is asked for
+    /// Then git cannot say and the answer is `None`, never a panic, so the build still works.
+    #[test]
+    fn a_tree_with_no_git_has_no_revision() {
+        let tarball = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tarball.path().join("src")).unwrap();
+        std::fs::write(tarball.path().join("src/lib.rs"), "fn a() {}").unwrap();
+
+        assert_eq!(source_revision(tarball.path()), None);
+    }
 }
