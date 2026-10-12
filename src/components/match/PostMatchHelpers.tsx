@@ -96,7 +96,7 @@ function ratingColour(rating: number | null): string {
   if (rating >= 7) return "text-green-700 dark:text-green-400";
   if (rating >= 6) return "text-gray-600 dark:text-gray-300";
   if (rating >= 5) return "text-yellow-700 dark:text-yellow-400";
-  return "text-red-400";
+  return "text-red-700 dark:text-red-400";
 }
 
 export function PlayerRatingsPanel({
