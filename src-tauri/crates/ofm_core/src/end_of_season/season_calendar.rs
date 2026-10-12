@@ -2,13 +2,19 @@ use crate::clock::GameClock;
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use domain::league::League;
 
+/// The edition a completed competition renews into.
+pub(super) struct NextEdition {
+    pub season: u32,
+    pub start: DateTime<Utc>,
+}
+
 /// A completed calendar edition advances once, regardless of how late the
 /// user's rollover runs. Delayed fixtures must not redefine its season label.
 pub(super) fn next_edition(
     competition: &League,
     clock: &GameClock,
     earliest_start: DateTime<Utc>,
-) -> (u32, DateTime<Utc>) {
+) -> NextEdition {
     let mut next_season = competition.season.saturating_add(1);
     // Older saves numbered seasons from the career's start instead of using
     // calendar years. Preserve their existing normalization, without treating
@@ -34,7 +40,10 @@ pub(super) fn next_edition(
         competition.season_start_day,
     );
     // Keep the shared four-week break; never create an edition in the past.
-    (next_season, configured_start.max(earliest_start))
+    NextEdition {
+        season: next_season,
+        start: configured_start.max(earliest_start),
+    }
 }
 
 #[cfg(test)]
@@ -149,6 +158,7 @@ mod tests {
         assert!(league.standings.iter().all(|row| row.played == 0));
     }
 
+    /// Given a foreign league that finished long before the user's late rollover, when the user advances, then it renews by exactly one edition with its participants and authored opener kept.
     #[test]
     fn overdue_foreign_league_advances_one_edition() {
         let now = at(2034, 4, 18);
@@ -166,6 +176,7 @@ mod tests {
         );
     }
 
+    /// Given a finished foreign knockout cup, when the user's rollover runs late, then the cup renews by one edition with a fresh single bracket.
     #[test]
     fn overdue_foreign_knockout_advances_one_edition() {
         let now = at(2034, 4, 18);
@@ -181,6 +192,7 @@ mod tests {
         assert_eq!(find(&game, "ar-cup").knockout_rounds.len(), 1);
     }
 
+    /// Given a finished foreign group-and-knockout cup, when the user's rollover runs late, then it renews by one edition with every group table reset.
     #[test]
     fn overdue_group_knockout_advances_one_edition() {
         let now = at(2034, 4, 18);
@@ -202,6 +214,7 @@ mod tests {
         );
     }
 
+    /// Given a foreign league renewed on time once, when later rollovers run late, then it advances one edition each time and never skips a year.
     #[test]
     fn foreign_renewal_keeps_advancing_after_an_on_time_rollover() {
         let mut game = english_game(at(2035, 1, 1));
@@ -224,6 +237,7 @@ mod tests {
         }
     }
 
+    /// Given a southern-hemisphere manager and an overdue European league, when the manager advances, then the European league renews by one edition regardless of the manager's calendar.
     #[test]
     fn southern_manager_renews_overdue_european_edition() {
         let now = at(2033, 11, 17);
@@ -233,6 +247,7 @@ mod tests {
         assert_renewed(&game, "eng-d1", 2033, now + Duration::days(28));
     }
 
+    /// Given a user league whose next opener is still in the future, when the user advances, then it renews on its authored opener, not the four-week anchor.
     #[test]
     fn future_opener_keeps_its_authored_calendar() {
         let mut game = english_game(at(2034, 4, 18));
@@ -240,6 +255,7 @@ mod tests {
         assert_renewed(&game, "user", 2034, at(2034, 8, 1));
     }
 
+    /// Given a foreign league with fixtures still to play, when the user advances, then that competition is left byte-for-byte unchanged.
     #[test]
     fn unfinished_foreign_edition_is_retained() {
         let now = at(2034, 4, 18);
@@ -266,6 +282,7 @@ mod tests {
         );
     }
 
+    /// Given the user's own league with an unplayed fixture, when the user tries to advance, then the translated refusal is returned and nothing in the game changes.
     #[test]
     fn unfinished_user_season_refuses_without_mutation() {
         let mut game = english_game(at(2034, 4, 18));
@@ -279,6 +296,7 @@ mod tests {
         assert_eq!(serde_json::to_value(&game).unwrap(), before);
     }
 
+    /// Given an overdue edition in a saved and loaded game, when the user advances, then it renews once, and a second advance is refused without any change.
     #[test]
     fn loaded_overdue_edition_renews_once() {
         let now = at(2034, 4, 18);
@@ -297,6 +315,7 @@ mod tests {
         assert_eq!(serde_json::to_value(&loaded).unwrap(), before);
     }
 
+    /// Given an edition stamped with a season far in the future, when the user advances, then it advances one edition and its dates stay aligned to that edition's year.
     #[test]
     fn future_stamped_edition_keeps_dates_aligned() {
         let mut game = english_game(at(2034, 4, 18));
@@ -307,6 +326,7 @@ mod tests {
         assert_renewed(&game, "future", 2039, at(2039, 8, 1));
     }
 
+    /// Given an authored February 29 opener, when the competition renews in a non-leap year, then the opener clamps exactly as the existing calendar helper does.
     #[test]
     fn leap_day_opener_uses_existing_calendar_clamping() {
         let mut game = english_game(at(2034, 1, 1));
@@ -317,6 +337,7 @@ mod tests {
         assert_renewed(&game, "leap", 2034, at(2034, 2, 28));
     }
 
+    /// Given a save that numbered seasons from the career start, when the user advances, then the renewed edition takes its calendar year from the fixture dates.
     #[test]
     fn legacy_counter_uses_its_fixture_calendar() {
         let mut game = english_game(at(2026, 5, 20));
@@ -324,6 +345,7 @@ mod tests {
         advance_to_next_season(&mut game).unwrap();
         assert_renewed(&game, "user", 2026, at(2026, 8, 1));
     }
+    /// Given a save several years behind, when it is loaded and advanced repeatedly, then each advance renews exactly one edition.
     #[test]
     fn multi_year_delayed_save_advances_one_edition_each_time() {
         let mut game = english_game(at(2037, 4, 18));
@@ -349,6 +371,7 @@ mod tests {
         }
     }
 
+    /// Given a later legacy season counter on a career that started years earlier, when the user advances, then the existing normalization to the calendar year is kept.
     #[test]
     fn later_legacy_counter_keeps_calendar_normalization() {
         let mut game = english_game(at(2030, 5, 20));

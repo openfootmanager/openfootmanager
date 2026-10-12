@@ -496,8 +496,10 @@ fn regenerate_competitions_for_new_season(
             continue;
         }
 
-        let (comp_next_season, comp_next_start) =
-            season_calendar::next_edition(competition, &game.clock, rollover_anchor);
+        let season_calendar::NextEdition {
+            season: comp_next_season,
+            start: comp_next_start,
+        } = season_calendar::next_edition(competition, &game.clock, rollover_anchor);
 
         match competition.rules.format {
             CompetitionFormat::LeagueTable => {
