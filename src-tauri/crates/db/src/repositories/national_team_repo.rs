@@ -61,7 +61,7 @@ pub fn load_national_teams(conn: &Connection) -> Result<Vec<NationalTeam>, Strin
                 squad_player_ids: serde_json::from_str(&squad_player_ids_json).unwrap_or_default(),
                 manager_name: row.get(5)?,
                 reputation: row.get::<_, i64>(6).unwrap_or(500) as u32,
-                fixtures: serde_json::from_str::<Vec<Fixture>>(&fixtures_json).unwrap_or_default(),
+                fixtures: super::stored_fixtures::parse_fixtures(7, &fixtures_json)?,
                 name_key: row.get(8)?,
             })
         })
@@ -72,4 +72,37 @@ pub fn load_national_teams(conn: &Connection) -> Result<Vec<NationalTeam>, Strin
         national_teams.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(national_teams)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game_database::GameDatabase;
+
+    /// Given a national team whose stored fixtures are corrupt, when national teams are loaded, then
+    /// the load fails with the translated error and the team is not returned without its fixtures.
+    #[test]
+    fn corrupt_stored_fixtures_fail_the_load_instead_of_emptying_the_team() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let team = NationalTeam {
+            id: "nt-fr".into(),
+            name: "France".into(),
+            football_nation: "FR".into(),
+            region_id: None,
+            squad_player_ids: vec![],
+            manager_name: None,
+            reputation: 500,
+            fixtures: vec![Fixture::default()],
+            name_key: None,
+        };
+        replace_national_teams(db.conn(), &[team]).unwrap();
+        assert_eq!(load_national_teams(db.conn()).unwrap().len(), 1);
+        db.conn()
+            .execute("UPDATE national_teams SET fixtures_json = '{broken'", [])
+            .unwrap();
+        assert_eq!(
+            load_national_teams(db.conn()).unwrap_err(),
+            "be.error.gamePersistence.loadFailed"
+        );
+    }
 }
