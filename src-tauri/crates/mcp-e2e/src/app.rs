@@ -107,13 +107,7 @@ impl App {
         if !binary.is_file() {
             return Err(LaunchError::BinaryMissing(binary));
         }
-        if !display_available(std::env::var_os("DISPLAY").as_deref()) {
-            return Err(LaunchError::NoDisplay);
-        }
-        // The check itself needs the display: if it cannot be read, the launch will not work either.
-        if crate::windows::display_is_a_host_session().map_err(LaunchError::Io)? {
-            return Err(LaunchError::HostDisplay);
-        }
+        require_virtual_display()?;
 
         let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
         for sub in ["data", "config", "cache", "state"] {
@@ -400,6 +394,7 @@ pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<bool, LaunchError> 
     if !binary.is_file() {
         return Err(LaunchError::BinaryMissing(binary));
     }
+    require_virtual_display()?;
     let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
     let mut child = app_command(&binary, &[], dir.path())
         .stdin(Stdio::null())
@@ -461,9 +456,40 @@ fn find_saves_dir(data: &Path) -> Option<PathBuf> {
         .find(|path| path.is_dir())
 }
 
-/// The app is forced onto X11, so it needs `DISPLAY`; `WAYLAND_DISPLAY` is of no use to it.
-fn display_available(x11: Option<&std::ffi::OsStr>) -> bool {
-    x11.is_some_and(|display| !display.is_empty())
+/// Refuses to start the app on a display that could be a desktop session.
+///
+/// The app is forced onto X11, so it needs `DISPLAY`; `WAYLAND_DISPLAY` is of no use to it. Beyond
+/// that, a display counts as virtual only on positive evidence: `xvfb-run` points `XAUTHORITY` into
+/// its own temp directory, and `OFM_E2E_ALLOW_DISPLAY=1` vouches for your own Xvfb or Xephyr. An
+/// XWayland server (a Wayland desktop's X display) is refused outright.
+fn require_virtual_display() -> Result<(), LaunchError> {
+    let display = std::env::var_os("DISPLAY");
+    if display.as_deref().is_none_or(|display| display.is_empty()) {
+        return Err(LaunchError::NoDisplay);
+    }
+    let is_xwayland = crate::windows::display_is_a_host_session().map_err(LaunchError::Io)?;
+    check_virtual_display(
+        std::env::var_os("XAUTHORITY").as_deref(),
+        std::env::var_os("OFM_E2E_ALLOW_DISPLAY").as_deref() == Some(std::ffi::OsStr::new("1")),
+        is_xwayland,
+    )
+}
+
+fn check_virtual_display(
+    xauthority: Option<&std::ffi::OsStr>,
+    vouched_for: bool,
+    is_xwayland: bool,
+) -> Result<(), LaunchError> {
+    if is_xwayland {
+        return Err(LaunchError::HostDisplay);
+    }
+    let made_by_xvfb_run =
+        xauthority.is_some_and(|path| path.to_string_lossy().contains("xvfb-run"));
+    if vouched_for || made_by_xvfb_run {
+        Ok(())
+    } else {
+        Err(LaunchError::HostDisplay)
+    }
 }
 
 fn shortened(text: &str) -> String {
