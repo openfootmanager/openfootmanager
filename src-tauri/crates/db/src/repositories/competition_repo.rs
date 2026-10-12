@@ -1,5 +1,5 @@
 use domain::league::{
-    CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, Fixture, GroupState,
+    CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, GroupState,
     KnockoutRoundState, StandingEntry,
 };
 use rusqlite::{Connection, params};

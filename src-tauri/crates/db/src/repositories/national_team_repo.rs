@@ -1,4 +1,3 @@
-use domain::league::Fixture;
 use domain::national_team::NationalTeam;
 use rusqlite::{Connection, params};
 
@@ -78,6 +77,7 @@ pub fn load_national_teams(conn: &Connection) -> Result<Vec<NationalTeam>, Strin
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
+    use domain::league::Fixture;
 
     /// Given a national team whose stored fixtures are corrupt, when national teams are loaded, then
     /// the load fails with the translated error and the team is not returned without its fixtures.
