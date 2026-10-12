@@ -1831,7 +1831,7 @@
     "yourReports": "Raporların",
     "yourReportsDesc": "Gönderdiğin raporların referans kodları. Bir rapor hakkında soru sormak ya da silinmesini istemek için kodunu belirt.",
     "noReports": "Henüz hiç rapor göndermedin.",
-    "reportOutcomeUnknown": "Sonuç bilinmiyor: ulaşmış olabilir. Tekrar göndermek güvenlidir.",
+    "reportOutcomeUnknown": "Sonuç bilinmiyor: ulaşmış olabilir. Tekrar göndermek iki kez ulaştırabilir.",
     "reportIncludedSave": "Kayıt dosyası ekli"
   },
   "preMatch": {
@@ -2602,6 +2602,8 @@
         "upload": {
           "consentRequired": "Önce bu dosyaların gönderilmesini kabul etmek için kutuyu işaretle.",
           "notConfigured": "Oyunun bu sürümü raporları doğrudan gönderemiyor. Bunun yerine GitHub formunu kullan.",
+          "attachmentsUnavailable": "Dosya eklemek henüz kullanılamıyor.",
+          "alreadySending": "Bir rapor hâlâ gönderiliyor. Bitmesini bekle, sonra tekrar dene.",
           "disabled": "Rapor gönderme şu anda kapalı. Bunun yerine GitHub formunu kullan.",
           "tooManyFiles": "Bu rapora çok fazla dosya eklenmiş.",
           "capacity": "Rapor sunucusu şu anda dolu. Bunun yerine GitHub formunu kullan.",
@@ -2612,7 +2614,7 @@
           "rejected": "Rapor sunucusu bu raporu kabul etmedi.",
           "serverError": "Rapor sunucusunda bir sorun oluştu ve rapor alınamadı.",
           "unreachable": "Rapor sunucusuna ulaşılamadı, bu yüzden hiçbir şey gönderilmedi. İnternet bağlantını kontrol et.",
-          "unconfirmed": "Sunucu yanıt vermeden bağlantı koptu. Raporun ulaşmış olabilir; tekrar göndermek güvenlidir ve kopya oluşturmaz.",
+          "unconfirmed": "Sunucu yanıt vermeden bağlantı koptu. Raporun ulaşmış olabilir. Tekrar gönderirsen ekip iki kez alabilir.",
           "prepareFailed": "Rapor gönderim için hazırlanamadı. Yine de kaydedip GitHub formunu kullanabilirsin."
         }
       },

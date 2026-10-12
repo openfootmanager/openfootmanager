@@ -1831,7 +1831,7 @@
     "yourReports": "Os teus relatórios",
     "yourReportsDesc": "Códigos de referência dos relatórios que enviaste. Indica um para perguntares por um relatório ou pedires que seja apagado.",
     "noReports": "Ainda não enviaste nenhum relatório.",
-    "reportOutcomeUnknown": "Resultado desconhecido: pode ter chegado. Voltar a enviá-lo é seguro.",
+    "reportOutcomeUnknown": "Resultado desconhecido: pode ter chegado. Voltar a enviá-lo pode entregá-lo duas vezes.",
     "reportIncludedSave": "Com jogo guardado"
   },
   "preMatch": {
@@ -2755,6 +2755,8 @@
         "upload": {
           "consentRequired": "Primeiro marca a caixa para aceitares o envio destes ficheiros.",
           "notConfigured": "Esta versão do jogo não consegue enviar relatórios diretamente. Usa o formulário do GitHub.",
+          "attachmentsUnavailable": "Anexar ficheiros ainda não está disponível.",
+          "alreadySending": "Ainda está a ser enviado um relatório. Espera que termine e tenta novamente.",
           "disabled": "O envio de relatórios está desativado de momento. Usa o formulário do GitHub.",
           "tooManyFiles": "Há demasiados ficheiros anexados a este relatório.",
           "capacity": "O servidor de relatórios está cheio de momento. Usa o formulário do GitHub.",
@@ -2765,7 +2767,7 @@
           "rejected": "O servidor de relatórios não aceitou este relatório.",
           "serverError": "O servidor de relatórios teve um problema e não conseguiu receber o relatório.",
           "unreachable": "Não foi possível contactar o servidor de relatórios, por isso nada foi enviado. Verifica a tua ligação à internet.",
-          "unconfirmed": "A ligação perdeu-se antes de o servidor responder. O teu relatório pode ter chegado; voltar a enviá-lo é seguro e não cria uma duplicação.",
+          "unconfirmed": "A ligação perdeu-se antes de o servidor responder. O teu relatório pode ter chegado. Se o enviares de novo, a equipa pode recebê-lo duas vezes.",
           "prepareFailed": "Não foi possível preparar o relatório para envio. Ainda o podes guardar e usar o formulário do GitHub."
         }
       },

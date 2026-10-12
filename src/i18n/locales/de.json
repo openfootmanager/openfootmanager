@@ -1831,7 +1831,7 @@
     "yourReports": "Deine Berichte",
     "yourReportsDesc": "Referenzcodes der Berichte, die du gesendet hast. Nenne einen, um nach einem Bericht zu fragen oder ihn löschen zu lassen.",
     "noReports": "Du hast noch keine Berichte gesendet.",
-    "reportOutcomeUnknown": "Ausgang unbekannt: Der Bericht ist möglicherweise angekommen. Erneutes Senden ist sicher.",
+    "reportOutcomeUnknown": "Ausgang unbekannt: Der Bericht ist möglicherweise angekommen. Erneutes Senden könnte ihn doppelt zustellen.",
     "reportIncludedSave": "Mit Spielstand"
   },
   "preMatch": {
@@ -2755,6 +2755,8 @@
         "upload": {
           "consentRequired": "Setze zuerst den Haken, um dem Senden dieser Dateien zuzustimmen.",
           "notConfigured": "Diese Spielversion kann Berichte nicht direkt senden. Nutze stattdessen das GitHub-Formular.",
+          "attachmentsUnavailable": "Dateien anzuhängen ist noch nicht möglich.",
+          "alreadySending": "Ein Bericht wird noch gesendet. Warte, bis er fertig ist, und versuche es dann erneut.",
           "disabled": "Das Senden von Berichten ist derzeit abgeschaltet. Nutze stattdessen das GitHub-Formular.",
           "tooManyFiles": "Diesem Bericht sind zu viele Dateien angehängt.",
           "capacity": "Der Berichtsserver ist derzeit voll. Nutze stattdessen das GitHub-Formular.",
@@ -2765,7 +2767,7 @@
           "rejected": "Der Berichtsserver hat diesen Bericht nicht angenommen.",
           "serverError": "Beim Berichtsserver ist ein Fehler aufgetreten; er konnte den Bericht nicht annehmen.",
           "unreachable": "Der Berichtsserver war nicht erreichbar, es wurde also nichts gesendet. Prüfe deine Internetverbindung.",
-          "unconfirmed": "Die Verbindung brach ab, bevor der Server antwortete. Dein Bericht ist möglicherweise angekommen; erneutes Senden ist sicher und erzeugt kein Duplikat.",
+          "unconfirmed": "Die Verbindung brach ab, bevor der Server antwortete. Dein Bericht ist möglicherweise angekommen. Wenn du ihn erneut sendest, erhält das Team ihn möglicherweise doppelt.",
           "prepareFailed": "Der Bericht konnte nicht zum Senden vorbereitet werden. Du kannst ihn trotzdem speichern und das GitHub-Formular nutzen."
         }
       },

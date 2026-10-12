@@ -1850,7 +1850,7 @@
     "yourReports": "Le tue segnalazioni",
     "yourReportsDesc": "I codici di riferimento delle segnalazioni che hai inviato. Indicane uno per chiedere di una segnalazione o farla cancellare.",
     "noReports": "Non hai ancora inviato nessuna segnalazione.",
-    "reportOutcomeUnknown": "Esito sconosciuto: potrebbe essere arrivato. Reinviarlo è sicuro.",
+    "reportOutcomeUnknown": "Esito sconosciuto: potrebbe essere arrivato. Reinviarlo potrebbe consegnarlo due volte.",
     "reportIncludedSave": "Con salvataggio"
   },
   "preMatch": {
@@ -2755,6 +2755,8 @@
         "upload": {
           "consentRequired": "Prima spunta la casella per accettare l'invio di questi file.",
           "notConfigured": "Questa versione del gioco non può inviare segnalazioni direttamente. Usa il modulo di GitHub.",
+          "attachmentsUnavailable": "Allegare file non è ancora disponibile.",
+          "alreadySending": "Un rapporto è ancora in invio. Aspetta che finisca e riprova.",
           "disabled": "L'invio dei rapporti è al momento disattivato. Usa il modulo di GitHub.",
           "tooManyFiles": "A questo rapporto sono allegati troppi file.",
           "capacity": "Il server dei rapporti è al momento pieno. Usa il modulo di GitHub.",
@@ -2765,7 +2767,7 @@
           "rejected": "Il server delle segnalazioni non ha accettato questa segnalazione.",
           "serverError": "Il server delle segnalazioni ha avuto un problema e non ha potuto ricevere la segnalazione.",
           "unreachable": "Non è stato possibile raggiungere il server delle segnalazioni, quindi non è stato inviato nulla. Controlla la tua connessione a internet.",
-          "unconfirmed": "La connessione è caduta prima che il server rispondesse. Il tuo rapporto potrebbe essere arrivato; reinviarlo è sicuro e non crea un duplicato.",
+          "unconfirmed": "La connessione è caduta prima che il server rispondesse. Il tuo rapporto potrebbe essere arrivato. Se lo reinvii, il team potrebbe riceverlo due volte.",
           "prepareFailed": "Non è stato possibile preparare la segnalazione per l'invio. Puoi comunque salvarla e usare il modulo di GitHub."
         }
       },

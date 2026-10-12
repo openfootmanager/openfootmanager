@@ -43,6 +43,10 @@ pub const UPLOAD_UNREACHABLE: &str = "be.error.report.upload.unreachable";
 /// the same address within 24 hours with the first report's reference. The wording on the other
 /// side of this key says so.
 pub const UPLOAD_UNCONFIRMED: &str = "be.error.report.upload.unconfirmed";
+/// Attachment paths from the webview are refused until a native picker supplies them.
+pub const UPLOAD_ATTACHMENTS_UNAVAILABLE: &str = "be.error.report.upload.attachmentsUnavailable";
+/// Another report is still being sent; the held build belongs to that upload.
+pub const UPLOAD_ALREADY_SENDING: &str = "be.error.report.upload.alreadySending";
 
 /// What went wrong, for the frontend to branch on without matching translation keys.
 /// `Other` carries a key from outside this module (a missing save, say).
@@ -62,10 +66,12 @@ pub enum UploadFailureKind {
     ServerError,
     Unreachable,
     Unconfirmed,
+    AttachmentsUnavailable,
+    AlreadySending,
     Other,
 }
 
-const KEYS_BY_KIND: [(&str, UploadFailureKind); 13] = [
+const KEYS_BY_KIND: [(&str, UploadFailureKind); 15] = [
     (UPLOAD_PREPARE_FAILED, UploadFailureKind::PrepareFailed),
     (UPLOAD_CONSENT_REQUIRED, UploadFailureKind::ConsentRequired),
     (UPLOAD_NOT_CONFIGURED, UploadFailureKind::NotConfigured),
@@ -82,6 +88,11 @@ const KEYS_BY_KIND: [(&str, UploadFailureKind); 13] = [
     (UPLOAD_SERVER_ERROR, UploadFailureKind::ServerError),
     (UPLOAD_UNREACHABLE, UploadFailureKind::Unreachable),
     (UPLOAD_UNCONFIRMED, UploadFailureKind::Unconfirmed),
+    (
+        UPLOAD_ATTACHMENTS_UNAVAILABLE,
+        UploadFailureKind::AttachmentsUnavailable,
+    ),
+    (UPLOAD_ALREADY_SENDING, UploadFailureKind::AlreadySending),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -1244,6 +1255,8 @@ mod tests {
             (UPLOAD_SERVER_ERROR, ServerError),
             (UPLOAD_UNREACHABLE, Unreachable),
             (UPLOAD_UNCONFIRMED, Unconfirmed),
+            (UPLOAD_ATTACHMENTS_UNAVAILABLE, AttachmentsUnavailable),
+            (UPLOAD_ALREADY_SENDING, AlreadySending),
         ] {
             assert_eq!(UploadFailure::key(key).kind, kind, "{key}");
         }

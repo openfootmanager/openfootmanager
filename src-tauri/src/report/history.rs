@@ -26,6 +26,10 @@ pub struct SubmittedReport {
     pub included_save: bool,
     #[serde(default)]
     pub app_version: String,
+    /// Distinguishes entries that share a code and a time (or have none): the list's React key.
+    /// Empty on entries written before it existed.
+    #[serde(default)]
+    pub id: String,
     /// The upload's outcome is unknown: the server may hold a report whose reference never
     /// reached us. `code` is empty for such an entry.
     #[serde(default)]
@@ -62,11 +66,19 @@ pub fn load(path: &Path) -> Vec<SubmittedReport> {
     }
 }
 
-/// A file that will not parse is renamed aside rather than overwritten. The new code must be kept
-/// — the server already has that report — but the old codes inside a damaged file are still the
-/// player's, and recoverable by hand from the copy.
-pub fn record(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
-    update(path, |file| file.reports.push(report.clone()))
+/// A fresh entry id: random, because a code and a time can both repeat or be missing.
+pub fn new_id() -> String {
+    use rand::RngExt as _;
+    format!("{:016x}", rand::rng().random::<u64>())
+}
+
+/// A report the server accepted. A trailing unknown entry is the earlier attempt at this same
+/// report, so the accepted entry replaces it instead of sitting beside it.
+pub fn record_accepted(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
+    update(path, |file| match file.reports.last_mut() {
+        Some(last) if last.unconfirmed => *last = report.clone(),
+        _ => file.reports.push(report.clone()),
+    })
 }
 
 /// Several unknown attempts in a row are one entry: the newest replaces the one before it.
@@ -77,6 +89,9 @@ pub fn record_unconfirmed(path: &Path, report: &SubmittedReport) -> std::io::Res
     })
 }
 
+/// A file that will not parse is renamed aside rather than overwritten. The new code must be kept
+/// — the server already has that report — but the old codes inside a damaged file are still the
+/// player's, and recoverable by hand from the copy.
 fn update(path: &Path, change: impl FnOnce(&mut ReportsFile)) -> std::io::Result<()> {
     let mut file = match read(path) {
         Ok(file) => file,
@@ -136,6 +151,7 @@ mod tests {
             submitted_at: submitted_at.to_owned(),
             included_save: false,
             app_version: "0.3.0".to_owned(),
+            id: String::new(),
             unconfirmed: false,
         }
     }
@@ -167,8 +183,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let path = reports_file_in(dir.path());
 
-        record(&path, &report("AAAAAAAA", "2026-10-01T10:00:00+00:00")).expect("first");
-        record(&path, &report("BBBBBBBB", "2026-10-02T10:00:00+00:00")).expect("second");
+        record_accepted(&path, &report("AAAAAAAA", "2026-10-01T10:00:00+00:00")).expect("first");
+        record_accepted(&path, &report("BBBBBBBB", "2026-10-02T10:00:00+00:00")).expect("second");
 
         let codes: Vec<String> = load(&path).into_iter().map(|r| r.code).collect();
         assert_eq!(codes, vec!["BBBBBBBB", "AAAAAAAA"]);
@@ -206,7 +222,7 @@ mod tests {
         let path = reports_file_in(dir.path());
         std::fs::write(&path, "{ half a file").expect("write");
 
-        record(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
+        record_accepted(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
 
         let codes: Vec<String> = load(&path).into_iter().map(|r| r.code).collect();
         assert_eq!(codes, vec!["7K2M9Q4R"]);
@@ -231,7 +247,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let path = reports_file_in(&dir.path().join("fresh"));
 
-        record(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
+        record_accepted(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
 
         assert_eq!(load(&path).len(), 1);
         let names: Vec<String> = std::fs::read_dir(path.parent().expect("parent"))
@@ -259,21 +275,42 @@ mod tests {
         assert_eq!(listed[0].submitted_at, "2026-10-12T10:05:00+00:00");
     }
 
-    /// Given an unknown attempt followed by an accepted report and then another unknown attempt,
+    /// Given an accepted report followed by unknown attempts,
     /// when they are recorded,
-    /// then all three stay: an accepted report between them is not overwritten.
+    /// then the accepted report stays untouched and the unknown attempts collapse into one entry
+    /// after it.
     #[test]
     fn an_unknown_attempt_never_overwrites_an_accepted_report() {
         let dir = tempfile::tempdir().expect("dir");
         let path = reports_file_in(dir.path());
 
-        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("first");
-        record(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:10:00+00:00")).expect("accepted");
+        record_accepted(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:10:00+00:00"))
+            .expect("accepted");
         record_unconfirmed(&path, &unknown("2026-10-12T10:20:00+00:00")).expect("later");
+        record_unconfirmed(&path, &unknown("2026-10-12T10:25:00+00:00")).expect("again");
 
         let listed = load(&path);
-        assert_eq!(listed.len(), 3);
+        assert_eq!(listed.len(), 2);
+        assert!(listed[0].unconfirmed);
         assert_eq!(listed[1].code, "OFM-7K2QX9DM");
+        assert!(!listed[1].unconfirmed);
+    }
+
+    /// Given an unknown attempt,
+    /// when an accepted report is recorded after it,
+    /// then the accepted entry replaces it: it was the same report, resent.
+    #[test]
+    fn an_accepted_report_replaces_a_trailing_unknown_entry() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("unknown");
+
+        record_accepted(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:05:00+00:00"))
+            .expect("accepted");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
     }
 
     /// Given a file written before the `unconfirmed` field existed,

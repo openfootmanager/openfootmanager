@@ -1831,7 +1831,7 @@
     "yourReports": "你的报告",
     "yourReportsDesc": "你已发送报告的参考编号。提供编号即可询问报告情况或要求删除。",
     "noReports": "你还没有发送过任何报告。",
-    "reportOutcomeUnknown": "结果未知：可能已送达。再次发送是安全的。",
+    "reportOutcomeUnknown": "结果未知：可能已送达。再次发送可能会送达两次。",
     "reportIncludedSave": "附带存档"
   },
   "preMatch": {
@@ -2755,6 +2755,8 @@
         "upload": {
           "consentRequired": "请先勾选同意发送这些文件。",
           "notConfigured": "此版本的游戏无法直接发送报告，请改用 GitHub 表单。",
+          "attachmentsUnavailable": "暂时无法附加文件。",
+          "alreadySending": "仍有报告正在发送。请等待完成后再试。",
           "disabled": "目前已关闭报告发送。请改用 GitHub 表单。",
           "tooManyFiles": "此报告附带的文件过多。",
           "capacity": "报告服务器目前已满。请改用 GitHub 表单。",
@@ -2765,7 +2767,7 @@
           "rejected": "报告服务器未接受此报告。",
           "serverError": "报告服务器出现问题，无法接收此报告。",
           "unreachable": "无法连接到报告服务器，因此没有发送任何内容。请检查你的网络连接。",
-          "unconfirmed": "服务器作出响应之前连接中断。你的报告可能已送达；再次发送是安全的，不会产生重复。",
+          "unconfirmed": "服务器作出响应之前连接中断。你的报告可能已送达。如果再次发送，团队可能会收到两次。",
           "prepareFailed": "无法准备要发送的报告。你仍然可以保存报告并使用 GitHub 表单。"
         }
       },

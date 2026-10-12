@@ -1831,7 +1831,7 @@
     "yourReports": "Tus informes",
     "yourReportsDesc": "Códigos de referencia de los informes que has enviado. Indica uno para preguntar por un informe o pedir que se borre.",
     "noReports": "Todavía no has enviado ningún informe.",
-    "reportOutcomeUnknown": "Resultado desconocido: puede que haya llegado. Volver a enviarlo es seguro.",
+    "reportOutcomeUnknown": "Resultado desconocido: puede que haya llegado. Volver a enviarlo podría entregarlo dos veces.",
     "reportIncludedSave": "Con partida guardada"
   },
   "preMatch": {
@@ -2755,6 +2755,8 @@
         "upload": {
           "consentRequired": "Primero marca la casilla para aceptar el envío de estos archivos.",
           "notConfigured": "Esta versión del juego no puede enviar informes directamente. Usa el formulario de GitHub.",
+          "attachmentsUnavailable": "Adjuntar archivos aún no está disponible.",
+          "alreadySending": "Todavía se está enviando un informe. Espera a que termine y vuelve a intentarlo.",
           "disabled": "El envío de informes está desactivado por ahora. Usa el formulario de GitHub.",
           "tooManyFiles": "Hay demasiados archivos adjuntos en este informe.",
           "capacity": "El servidor de informes está lleno por ahora. Usa el formulario de GitHub.",
@@ -2765,7 +2767,7 @@
           "rejected": "El servidor de informes no aceptó este informe.",
           "serverError": "El servidor de informes tuvo un problema y no pudo recibir el informe.",
           "unreachable": "No se pudo contactar con el servidor de informes, así que no se envió nada. Comprueba tu conexión a internet.",
-          "unconfirmed": "Se perdió la conexión antes de que el servidor respondiera. Es posible que tu informe haya llegado; volver a enviarlo es seguro y no creará un duplicado.",
+          "unconfirmed": "Se perdió la conexión antes de que el servidor respondiera. Es posible que tu informe haya llegado. Si lo vuelves a enviar, el equipo podría recibirlo dos veces.",
           "prepareFailed": "No se pudo preparar el informe para enviarlo. Aún puedes guardarlo y usar el formulario de GitHub."
         }
       },

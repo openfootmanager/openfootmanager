@@ -46,7 +46,7 @@ export function ReportDescribeStep({
               type="button"
               aria-pressed={draft.frequency === value}
               onClick={() => onDraftChange({ frequency: value })}
-              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800 ${
                 draft.frequency === value
                   ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
                   : "text-gray-600 dark:text-gray-400"

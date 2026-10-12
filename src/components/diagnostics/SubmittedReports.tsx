@@ -48,10 +48,10 @@ export function SubmittedReports({ refreshKey }: SubmittedReportsProps) {
       )}
       {reports !== null && reports.length > 0 && (
         <ul className="mt-2 flex flex-col gap-1">
-          {reports.map((report) => (
+          {reports.map((report, index) => (
             <li
-              // The code alone is not a safe key: a damaged entry defaults it to "".
-              key={`${report.code}-${report.submitted_at}`}
+              // Entries from before ids existed fall back to their position, which is unique.
+              key={report.id || `${report.code}-${report.submitted_at}-${index}`}
               className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600"
             >
               {report.unconfirmed ? (

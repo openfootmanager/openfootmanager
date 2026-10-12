@@ -1831,7 +1831,7 @@
     "yourReports": "Vaše hlášení",
     "yourReportsDesc": "Referenční kódy hlášení, která jste odeslali. Uveďte kód, pokud se chcete na hlášení zeptat nebo ho nechat smazat.",
     "noReports": "Zatím jste neodeslali žádné hlášení.",
-    "reportOutcomeUnknown": "Výsledek není znám: hlášení možná dorazilo. Opětovné odeslání je bezpečné.",
+    "reportOutcomeUnknown": "Výsledek není znám: hlášení možná dorazilo. Opětovné odeslání ho může doručit dvakrát.",
     "reportIncludedSave": "S uloženou hrou"
   },
   "preMatch": {
@@ -2602,6 +2602,8 @@
         "upload": {
           "consentRequired": "Nejprve zaškrtněte políčko a souhlaste s odesláním těchto souborů.",
           "notConfigured": "Tato verze hry neumí posílat hlášení přímo. Použijte formulář na GitHubu.",
+          "attachmentsUnavailable": "Přikládání souborů zatím není k dispozici.",
+          "alreadySending": "Hlášení se stále odesílá. Počkejte, až skončí, a zkuste to znovu.",
           "disabled": "Odesílání hlášení je momentálně vypnuté. Použijte formulář na GitHubu.",
           "tooManyFiles": "K tomuto hlášení je připojeno příliš mnoho souborů.",
           "capacity": "Server pro hlášení je momentálně plný. Použijte formulář na GitHubu.",
@@ -2612,7 +2614,7 @@
           "rejected": "Server pro hlášení toto hlášení nepřijal.",
           "serverError": "Server pro hlášení narazil na problém a hlášení nemohl přijmout.",
           "unreachable": "Server pro hlášení se nepodařilo zastihnout, takže nic nebylo odesláno. Zkontrolujte připojení k internetu.",
-          "unconfirmed": "Spojení se přerušilo dřív, než server odpověděl. Hlášení možná dorazilo; opětovné odeslání je bezpečné a nevytvoří duplikát.",
+          "unconfirmed": "Spojení se přerušilo dřív, než server odpověděl. Hlášení možná dorazilo. Pokud je odešlete znovu, tým je může obdržet dvakrát.",
           "prepareFailed": "Hlášení se nepodařilo připravit k odeslání. Stále ho můžete uložit a použít formulář na GitHubu."
         }
       },
