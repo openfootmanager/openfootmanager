@@ -22,12 +22,14 @@ const REPORTS = [
     submitted_at: "2026-10-02T09:30:00+00:00",
     included_save: true,
     app_version: "0.3.0",
+    unconfirmed: false,
   },
   {
     code: "AAAAAAAA",
     submitted_at: "2026-09-14T18:00:00+00:00",
     included_save: false,
     app_version: "0.3.0",
+    unconfirmed: false,
   },
 ];
 
@@ -105,5 +107,28 @@ describe("SubmittedReports", () => {
 
     expect(await screen.findAllByRole("listitem")).toHaveLength(2);
     expect(listSubmittedReports).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Given an attempt whose outcome the game could not learn (no code was saved)
+   * When the list is shown
+   * Then that entry says the outcome is unknown, with its date, instead of an empty code
+   */
+  it("shows an unknown outcome in place of a code", async () => {
+    listSubmittedReports.mockResolvedValue([
+      {
+        code: "",
+        submitted_at: "2026-10-12T10:00:00+00:00",
+        included_save: false,
+        app_version: "0.3.0",
+        unconfirmed: true,
+      },
+      ...REPORTS,
+    ]);
+
+    render(<SubmittedReports refreshKey={0} />);
+
+    expect(await screen.findByText("settings.reportOutcomeUnknown")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /copyCode/ })).toHaveLength(2);
   });
 });

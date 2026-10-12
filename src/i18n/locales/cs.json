@@ -1831,6 +1831,7 @@
     "yourReports": "Vaše hlášení",
     "yourReportsDesc": "Referenční kódy hlášení, která jste odeslali. Uveďte kód, pokud se chcete na hlášení zeptat nebo ho nechat smazat.",
     "noReports": "Zatím jste neodeslali žádné hlášení.",
+    "reportOutcomeUnknown": "Výsledek není znám: hlášení možná dorazilo. Opětovné odeslání je bezpečné.",
     "reportIncludedSave": "S uloženou hrou"
   },
   "preMatch": {

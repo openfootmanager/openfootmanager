@@ -1831,6 +1831,7 @@
     "yourReports": "Vos rapports",
     "yourReportsDesc": "Les codes de référence des rapports que vous avez envoyés. Indiquez-en un pour poser une question sur un rapport ou le faire supprimer.",
     "noReports": "Vous n'avez encore envoyé aucun rapport.",
+    "reportOutcomeUnknown": "Résultat inconnu : il est peut-être arrivé. Le renvoyer est sans risque.",
     "reportIncludedSave": "Sauvegarde jointe"
   },
   "preMatch": {

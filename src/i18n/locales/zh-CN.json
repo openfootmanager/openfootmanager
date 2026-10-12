@@ -1831,6 +1831,7 @@
     "yourReports": "你的报告",
     "yourReportsDesc": "你已发送报告的参考编号。提供编号即可询问报告情况或要求删除。",
     "noReports": "你还没有发送过任何报告。",
+    "reportOutcomeUnknown": "结果未知：可能已送达。再次发送是安全的。",
     "reportIncludedSave": "附带存档"
   },
   "preMatch": {

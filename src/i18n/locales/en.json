@@ -1831,6 +1831,7 @@
     "yourReports": "Your reports",
     "yourReportsDesc": "Reference codes for the reports you have sent. Quote one to ask about a report or have it deleted.",
     "noReports": "You have not sent any reports yet.",
+    "reportOutcomeUnknown": "Outcome unknown: it may have arrived. Sending again is safe.",
     "reportIncludedSave": "Save attached"
   },
   "preMatch": {

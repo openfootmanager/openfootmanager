@@ -1831,6 +1831,7 @@
     "yourReports": "Os teus relatórios",
     "yourReportsDesc": "Códigos de referência dos relatórios que enviaste. Indica um para perguntares por um relatório ou pedires que seja apagado.",
     "noReports": "Ainda não enviaste nenhum relatório.",
+    "reportOutcomeUnknown": "Resultado desconhecido: pode ter chegado. Voltar a enviá-lo é seguro.",
     "reportIncludedSave": "Com jogo guardado"
   },
   "preMatch": {
