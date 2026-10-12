@@ -1850,6 +1850,7 @@
     "yourReports": "Le tue segnalazioni",
     "yourReportsDesc": "I codici di riferimento delle segnalazioni che hai inviato. Indicane uno per chiedere di una segnalazione o farla cancellare.",
     "noReports": "Non hai ancora inviato nessuna segnalazione.",
+    "reportOutcomeUnknown": "Esito sconosciuto: potrebbe essere arrivato. Reinviarlo è sicuro.",
     "reportIncludedSave": "Con salvataggio"
   },
   "preMatch": {

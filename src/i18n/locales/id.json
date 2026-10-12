@@ -1831,6 +1831,7 @@
     "yourReports": "Laporanmu",
     "yourReportsDesc": "Kode referensi laporan yang sudah kamu kirim. Sebutkan salah satunya untuk menanyakan laporan atau meminta laporan dihapus.",
     "noReports": "Kamu belum mengirim laporan apa pun.",
+    "reportOutcomeUnknown": "Hasil tidak diketahui: mungkin sudah sampai. Mengirim ulang aman.",
     "reportIncludedSave": "Dengan berkas simpanan"
   },
   "preMatch": {

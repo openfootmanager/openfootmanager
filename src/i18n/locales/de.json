@@ -1831,6 +1831,7 @@
     "yourReports": "Deine Berichte",
     "yourReportsDesc": "Referenzcodes der Berichte, die du gesendet hast. Nenne einen, um nach einem Bericht zu fragen oder ihn löschen zu lassen.",
     "noReports": "Du hast noch keine Berichte gesendet.",
+    "reportOutcomeUnknown": "Ausgang unbekannt: Der Bericht ist möglicherweise angekommen. Erneutes Senden ist sicher.",
     "reportIncludedSave": "Mit Spielstand"
   },
   "preMatch": {

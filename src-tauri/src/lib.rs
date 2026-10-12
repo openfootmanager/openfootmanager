@@ -78,6 +78,10 @@ pub fn run() {
             )));
             app.manage(crash::CrashPromptDismissed::default());
 
+            if let Ok(cache_dir) = app.path().app_cache_dir() {
+                report::prepared::sweep_stale_uploads(&cache_dir);
+            }
+
             let saves_dir = app_data_dir.join("saves");
             let mut save_manager = SaveManager::init(&saves_dir).map_err(std::io::Error::other)?;
 
@@ -339,6 +343,7 @@ pub fn run() {
             read_file_as_data_url,
             commands::report::collect_diagnostics,
             commands::report::export_report_bundle,
+            commands::report::discard_prepared_report,
             commands::report::redact_report_fields,
             commands::report::suggested_report_file_name,
             commands::report::report_upload_available,

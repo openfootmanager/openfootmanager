@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const saveDialog = vi.fn();
@@ -9,6 +9,7 @@ const suggestedReportFileName = vi.fn();
 const redactReportFields = vi.fn();
 const reportUploadAvailable = vi.fn();
 const uploadReportBundle = vi.fn();
+const discardPreparedReport = vi.fn();
 const logError = vi.fn();
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -22,6 +23,7 @@ vi.mock("../../services/reportService", () => ({
   exportReportBundle: (path: string, reportText: string, includeSave: boolean) =>
     exportReportBundle(path, reportText, includeSave),
   suggestedReportFileName: () => suggestedReportFileName(),
+  discardPreparedReport: () => discardPreparedReport(),
   redactReportFields: (values: string[]) => redactReportFields(values),
   reportUploadAvailable: () => reportUploadAvailable(),
   uploadReportBundle: (
@@ -78,6 +80,7 @@ function fillRequired() {
 
 describe("ReportBugModal", () => {
   beforeEach(() => {
+    discardPreparedReport.mockReset().mockResolvedValue(undefined);
     collectDiagnostics.mockReset().mockResolvedValue(DIAGNOSTICS);
     // The tests in this block cover a build with no server, where the GitHub form is the only path.
     reportUploadAvailable.mockReset().mockResolvedValue(false);
@@ -558,6 +561,7 @@ describe("ReportBugModal", () => {
 
 describe("ReportBugModal with a server to send to", () => {
   beforeEach(() => {
+    discardPreparedReport.mockReset().mockResolvedValue(undefined);
     collectDiagnostics.mockReset().mockResolvedValue(DIAGNOSTICS);
     reportUploadAvailable.mockReset().mockResolvedValue(true);
     uploadReportBundle.mockReset().mockResolvedValue({ code: "OFM-7K2QX9DM", recorded: true });
@@ -747,6 +751,21 @@ describe("ReportBugModal with a server to send to", () => {
     await act(async () => finish({ code: "OFM-7K2QX9DM", recorded: true }));
 
     expect(onUploaded).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a dialog that has been used
+   * When it is closed
+   * Then the backend is told to discard the held build, which may contain the save
+   */
+  it("asks the backend to discard the held build when it goes away", async () => {
+    discardPreparedReport.mockReset().mockResolvedValue(undefined);
+    await reachPreview();
+    expect(discardPreparedReport).not.toHaveBeenCalled();
+
+    cleanup();
+
+    expect(discardPreparedReport).toHaveBeenCalledTimes(1);
   });
 
   /**

@@ -194,6 +194,7 @@ describe("reportService", () => {
         submitted_at: "2026-10-03T12:00:00+00:00",
         included_save: false,
         app_version: "0.3.0",
+        unconfirmed: false,
       },
     ];
     mockedInvoke.mockResolvedValueOnce(reports);

@@ -5,6 +5,7 @@ import { logError } from "../../lib/logger";
 import {
   type DiagnosticsReport,
   collectDiagnostics,
+  discardPreparedReport,
   reportUploadAvailable,
 } from "../../services/reportService";
 import { useGameStore } from "../../store/gameStore";
@@ -139,6 +140,17 @@ export function ReportBugModal({ onClose, onUploaded }: ReportBugModalProps) {
     onClose();
   }, [working, onClose]);
   useDialogKeyboard(dialogRef, requestClose);
+
+  // The backend keeps the first build so a retry resends the same bytes; once the dialog is gone
+  // that copy, which may hold the save, must go too.
+  useEffect(
+    () => () => {
+      void discardPreparedReport().catch((error: unknown) => {
+        logError(`[report] could not discard the prepared report: ${String(error)}`);
+      });
+    },
+    [],
+  );
 
   // On every step, so the new title is announced and the next Tab starts inside the dialog.
   useEffect(() => {

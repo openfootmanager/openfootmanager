@@ -1831,6 +1831,7 @@
     "yourReports": "Seus relatórios",
     "yourReportsDesc": "Códigos de referência dos relatórios que você enviou. Informe um para perguntar sobre um relatório ou pedir que ele seja apagado.",
     "noReports": "Você ainda não enviou nenhum relatório.",
+    "reportOutcomeUnknown": "Resultado desconhecido: pode ter chegado. Enviar de novo é seguro.",
     "reportIncludedSave": "Com save anexado"
   },
   "preMatch": {

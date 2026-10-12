@@ -77,21 +77,28 @@ export interface ReportFields {
   locale: string;
 }
 
-export type UploadFailureKind =
-  | "prepareFailed"
-  | "consentRequired"
-  | "notConfigured"
-  | "disabled"
-  | "tooLarge"
-  | "tooManyFiles"
-  | "rateLimited"
-  | "capacity"
-  | "imagesUnavailable"
-  | "rejected"
-  | "serverError"
-  | "unreachable"
-  | "unconfirmed"
-  | "other";
+/**
+ * Mirrors `UploadFailureKind` in `src-tauri/src/report/hub.rs`, in camelCase. The array is the one
+ * list the type is derived from, so a test can check it against the Rust enum.
+ */
+export const UPLOAD_FAILURE_KINDS = [
+  "prepareFailed",
+  "consentRequired",
+  "notConfigured",
+  "disabled",
+  "tooLarge",
+  "tooManyFiles",
+  "rateLimited",
+  "capacity",
+  "imagesUnavailable",
+  "rejected",
+  "serverError",
+  "unreachable",
+  "unconfirmed",
+  "other",
+] as const;
+
+export type UploadFailureKind = (typeof UPLOAD_FAILURE_KINDS)[number];
 
 /** What the backend rejects an upload with: a `kind` to branch on, and the key to translate. */
 export interface UploadFailure {
@@ -106,6 +113,8 @@ export interface SubmittedReport {
   submitted_at: string;
   included_save: boolean;
   app_version: string;
+  /** The outcome is unknown: the server may hold the report, but no code reached us. */
+  unconfirmed: boolean;
 }
 
 /** Whether OFMHub takes reports right now. Without it, the GitHub form is the only path. */
@@ -148,4 +157,9 @@ export function crashNotice(): Promise<CrashNotice | null> {
 
 export function dismissCrashNotice(): Promise<void> {
   return invoke<void>("dismiss_crash_notice");
+}
+
+/** The dialog is gone: the backend removes the held build, which may contain the player's save. */
+export function discardPreparedReport(): Promise<void> {
+  return invoke<void>("discard_prepared_report");
 }

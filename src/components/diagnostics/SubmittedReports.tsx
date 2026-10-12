@@ -54,7 +54,13 @@ export function SubmittedReports({ refreshKey }: SubmittedReportsProps) {
               key={`${report.code}-${report.submitted_at}`}
               className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600"
             >
-              <ReferenceCode code={report.code} />
+              {report.unconfirmed ? (
+                <span className="text-xs text-accent-700 dark:text-accent-400">
+                  {t("settings.reportOutcomeUnknown")}
+                </span>
+              ) : (
+                <ReferenceCode code={report.code} />
+              )}
               <time
                 dateTime={report.submitted_at}
                 className="text-xs text-gray-600 dark:text-gray-400"

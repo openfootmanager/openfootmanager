@@ -1831,6 +1831,7 @@
     "yourReports": "Raporların",
     "yourReportsDesc": "Gönderdiğin raporların referans kodları. Bir rapor hakkında soru sormak ya da silinmesini istemek için kodunu belirt.",
     "noReports": "Henüz hiç rapor göndermedin.",
+    "reportOutcomeUnknown": "Sonuç bilinmiyor: ulaşmış olabilir. Tekrar göndermek güvenlidir.",
     "reportIncludedSave": "Kayıt dosyası ekli"
   },
   "preMatch": {

@@ -1831,6 +1831,7 @@
     "yourReports": "Tus informes",
     "yourReportsDesc": "Códigos de referencia de los informes que has enviado. Indica uno para preguntar por un informe o pedir que se borre.",
     "noReports": "Todavía no has enviado ningún informe.",
+    "reportOutcomeUnknown": "Resultado desconocido: puede que haya llegado. Volver a enviarlo es seguro.",
     "reportIncludedSave": "Con partida guardada"
   },
   "preMatch": {

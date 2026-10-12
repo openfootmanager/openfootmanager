@@ -419,13 +419,29 @@ fn send_and_record(
     reports_path: Option<&Path>,
     submitted_at: String,
 ) -> Result<UploadReceipt, UploadFailure> {
-    let code = hub::submit(transport, endpoint, env!("CARGO_PKG_VERSION"), parts)?;
-    let entry = SubmittedReport {
-        code: code.clone(),
+    let submitted = hub::submit(transport, endpoint, env!("CARGO_PKG_VERSION"), parts);
+    let mut entry = SubmittedReport {
+        code: String::new(),
         submitted_at,
         included_save: include_save,
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        unconfirmed: false,
     };
+    let code = match submitted {
+        Ok(code) => code,
+        Err(failure) => {
+            if failure.kind == hub::UploadFailureKind::Unconfirmed {
+                entry.unconfirmed = true;
+                if let Some(path) = reports_path {
+                    history::record_unconfirmed(path, &entry).unwrap_or_else(|error| {
+                        log::error!("[report] could not record the unknown outcome: {error}");
+                    });
+                }
+            }
+            return Err(failure);
+        }
+    };
+    entry.code = code.clone();
     let recorded = match reports_path {
         Some(path) => history::record(path, &entry)
             .inspect_err(|error| {
@@ -518,7 +534,7 @@ fn upload_report(
     let (report_json, bundle) =
         session
             .prepared
-            .get_or_prepare(&request.identity(), &scratch_root, |scratch| {
+            .begin(&request.identity(), &scratch_root, |scratch| {
                 build_report(session, &request, scratch)
             })?;
     let parts = UploadParts {
@@ -541,9 +557,7 @@ fn upload_report(
         reports_path.as_deref(),
         chrono::Utc::now().to_rfc3339(),
     );
-    if !worth_resending_unchanged(&outcome) {
-        session.prepared.forget();
-    }
+    session.prepared.settle(worth_resending_unchanged(&outcome));
     outcome
 }
 
@@ -551,6 +565,12 @@ fn upload_report(
 /// contain the player's save, so it is not kept after an answer that settles the matter.
 fn worth_resending_unchanged(outcome: &Result<UploadReceipt, UploadFailure>) -> bool {
     matches!(outcome, Err(failure) if failure.kind == hub::UploadFailureKind::Unconfirmed)
+}
+
+/// The dialog is gone: remove the held build, which may contain the player's save.
+#[tauri::command]
+pub fn discard_prepared_report(prepared: State<'_, Arc<PreparedUploads>>) {
+    prepared.discard();
 }
 
 #[tauri::command]
@@ -829,6 +849,57 @@ mod tests {
         assert!(worth_resending_unchanged(&Err(key(
             hub::UPLOAD_UNCONFIRMED
         ))));
+    }
+
+    /// Given a server whose answer never arrived (the connection dropped after the post began),
+    /// when the report is sent,
+    /// then the player is told the outcome is unknown, and one unconfirmed entry (no code) is
+    /// recorded so the report list can say so.
+    #[test]
+    fn an_unconfirmed_upload_is_recorded_as_unknown() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut hub = CannedHub::answering(201, "{}");
+        hub.post = Err(hub::TransportFailure::Interrupted("reset".to_owned()));
+
+        let outcome = send_and_record(
+            &hub,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            true,
+            Some(&reports),
+            "2026-10-12T10:00:00+00:00".to_owned(),
+        );
+
+        assert_eq!(outcome, Err(key(hub::UPLOAD_UNCONFIRMED)));
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 1);
+        assert!(listed[0].unconfirmed);
+        assert_eq!(listed[0].code, "");
+        assert!(listed[0].included_save);
+    }
+
+    /// Given definite failures (rate limit, unreachable),
+    /// when the report is sent,
+    /// then nothing is recorded: only an unknown outcome leaves a trace.
+    #[test]
+    fn a_definite_failure_leaves_no_entry() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut hub = CannedHub::answering(201, "{}");
+        hub.post = Err(hub::TransportFailure::Unreachable("dns".to_owned()));
+
+        let outcome = send_and_record(
+            &hub,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-12T10:00:00+00:00".to_owned(),
+        );
+
+        assert_eq!(outcome, Err(key(hub::UPLOAD_UNREACHABLE)));
+        assert!(history::load(&reports).is_empty());
     }
 
     #[test]
