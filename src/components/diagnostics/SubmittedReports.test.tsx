@@ -22,6 +22,7 @@ const REPORTS = [
     submitted_at: "2026-10-02T09:30:00+00:00",
     included_save: true,
     app_version: "0.3.0",
+    id: "e1",
     unconfirmed: false,
   },
   {
@@ -29,6 +30,7 @@ const REPORTS = [
     submitted_at: "2026-09-14T18:00:00+00:00",
     included_save: false,
     app_version: "0.3.0",
+    id: "e2",
     unconfirmed: false,
   },
 ];
@@ -121,6 +123,7 @@ describe("SubmittedReports", () => {
         submitted_at: "2026-10-12T10:00:00+00:00",
         included_save: false,
         app_version: "0.3.0",
+        id: "e3",
         unconfirmed: true,
       },
       ...REPORTS,
@@ -130,5 +133,32 @@ describe("SubmittedReports", () => {
 
     expect(await screen.findByText("settings.reportOutcomeUnknown")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /copyCode/ })).toHaveLength(2);
+  });
+
+  /**
+   * Given two entries with the same code and time and no ids (older files),
+   * when the list renders
+   * Then React reports no duplicate-key warning
+   */
+  it("keys entries without ids by position so equal entries do not collide", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const twin = {
+      code: "OFM-7K2QX9DM",
+      submitted_at: "2026-10-12T10:00:00+00:00",
+      included_save: false,
+      app_version: "0.3.0",
+      id: "",
+      unconfirmed: false,
+    };
+    listSubmittedReports.mockResolvedValue([twin, { ...twin }]);
+
+    render(<SubmittedReports refreshKey={0} />);
+
+    await screen.findAllByText("OFM-7K2QX9DM");
+    const keyWarnings = consoleError.mock.calls.filter((call) =>
+      String(call[0]).includes("same key"),
+    );
+    consoleError.mockRestore();
+    expect(keyWarnings).toHaveLength(0);
   });
 });

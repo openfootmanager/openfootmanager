@@ -1831,7 +1831,7 @@
     "yourReports": "Laporanmu",
     "yourReportsDesc": "Kode referensi laporan yang sudah kamu kirim. Sebutkan salah satunya untuk menanyakan laporan atau meminta laporan dihapus.",
     "noReports": "Kamu belum mengirim laporan apa pun.",
-    "reportOutcomeUnknown": "Hasil tidak diketahui: mungkin sudah sampai. Mengirim ulang aman.",
+    "reportOutcomeUnknown": "Hasil tidak diketahui: mungkin sudah sampai. Mengirim ulang bisa mengirimkannya dua kali.",
     "reportIncludedSave": "Dengan berkas simpanan"
   },
   "preMatch": {
@@ -2602,6 +2602,8 @@
         "upload": {
           "consentRequired": "Centang kotaknya dulu untuk menyetujui pengiriman berkas-berkas ini.",
           "notConfigured": "Versi game ini tidak bisa mengirim laporan secara langsung. Pakai formulir GitHub saja.",
+          "attachmentsUnavailable": "Melampirkan berkas belum tersedia.",
+          "alreadySending": "Sebuah laporan masih dikirim. Tunggu sampai selesai, lalu coba lagi.",
           "disabled": "Pengiriman laporan sedang dimatikan. Gunakan formulir GitHub.",
           "tooManyFiles": "Terlalu banyak berkas terlampir pada laporan ini.",
           "capacity": "Server laporan sedang penuh. Gunakan formulir GitHub.",
@@ -2612,7 +2614,7 @@
           "rejected": "Server laporan tidak menerima laporan ini.",
           "serverError": "Server laporan mengalami masalah dan tidak bisa menerima laporan.",
           "unreachable": "Server laporan tidak bisa dihubungi, jadi tidak ada yang terkirim. Periksa koneksi internetmu.",
-          "unconfirmed": "Koneksi terputus sebelum server menjawab. Laporanmu mungkin sudah sampai; mengirim ulang aman dan tidak membuat duplikat.",
+          "unconfirmed": "Koneksi terputus sebelum server menjawab. Laporanmu mungkin sudah sampai. Jika kamu mengirim ulang, tim bisa menerimanya dua kali.",
           "prepareFailed": "Laporan tidak bisa disiapkan untuk dikirim. Kamu masih bisa menyimpannya dan memakai formulir GitHub."
         }
       },

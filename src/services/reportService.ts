@@ -95,6 +95,8 @@ export const UPLOAD_FAILURE_KINDS = [
   "serverError",
   "unreachable",
   "unconfirmed",
+  "attachmentsUnavailable",
+  "alreadySending",
   "other",
 ] as const;
 
@@ -113,6 +115,8 @@ export interface SubmittedReport {
   submitted_at: string;
   included_save: boolean;
   app_version: string;
+  /** Unique per entry; empty on entries written before ids existed. */
+  id: string;
   /** The outcome is unknown: the server may hold the report, but no code reached us. */
   unconfirmed: boolean;
 }

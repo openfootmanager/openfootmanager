@@ -1831,7 +1831,7 @@
     "yourReports": "Vos rapports",
     "yourReportsDesc": "Les codes de référence des rapports que vous avez envoyés. Indiquez-en un pour poser une question sur un rapport ou le faire supprimer.",
     "noReports": "Vous n'avez encore envoyé aucun rapport.",
-    "reportOutcomeUnknown": "Résultat inconnu : il est peut-être arrivé. Le renvoyer est sans risque.",
+    "reportOutcomeUnknown": "Résultat inconnu : il est peut-être arrivé. Le renvoyer pourrait le livrer deux fois.",
     "reportIncludedSave": "Sauvegarde jointe"
   },
   "preMatch": {
@@ -2755,6 +2755,8 @@
         "upload": {
           "consentRequired": "Cochez d'abord la case pour accepter l'envoi de ces fichiers.",
           "notConfigured": "Cette version du jeu ne peut pas envoyer de rapports directement. Utilisez plutôt le formulaire GitHub.",
+          "attachmentsUnavailable": "L'ajout de fichiers n'est pas encore disponible.",
+          "alreadySending": "Un rapport est encore en cours d'envoi. Attendez qu'il se termine, puis réessayez.",
           "disabled": "L'envoi de rapports est désactivé pour le moment. Utilisez le formulaire GitHub.",
           "tooManyFiles": "Trop de fichiers sont joints à ce rapport.",
           "capacity": "Le serveur de rapports est plein pour le moment. Utilisez le formulaire GitHub.",
@@ -2765,7 +2767,7 @@
           "rejected": "Le serveur de rapports n'a pas accepté ce rapport.",
           "serverError": "Le serveur de rapports a rencontré un problème et n'a pas pu recevoir le rapport.",
           "unreachable": "Le serveur de rapports est injoignable, rien n'a donc été envoyé. Vérifiez votre connexion internet.",
-          "unconfirmed": "La connexion a été perdue avant la réponse du serveur. Votre rapport est peut-être arrivé ; le renvoyer est sans risque et ne créera pas de doublon.",
+          "unconfirmed": "La connexion a été perdue avant la réponse du serveur. Votre rapport est peut-être arrivé. Si vous le renvoyez, l'équipe pourrait le recevoir deux fois.",
           "prepareFailed": "Le rapport n'a pas pu être préparé pour l'envoi. Vous pouvez toujours l'enregistrer et utiliser le formulaire GitHub."
         }
       },

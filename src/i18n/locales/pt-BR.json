@@ -1831,7 +1831,7 @@
     "yourReports": "Seus relatórios",
     "yourReportsDesc": "Códigos de referência dos relatórios que você enviou. Informe um para perguntar sobre um relatório ou pedir que ele seja apagado.",
     "noReports": "Você ainda não enviou nenhum relatório.",
-    "reportOutcomeUnknown": "Resultado desconhecido: pode ter chegado. Enviar de novo é seguro.",
+    "reportOutcomeUnknown": "Resultado desconhecido: pode ter chegado. Enviar de novo pode entregá-lo duas vezes.",
     "reportIncludedSave": "Com save anexado"
   },
   "preMatch": {
@@ -2755,6 +2755,8 @@
         "upload": {
           "consentRequired": "Primeiro marque a caixa para concordar com o envio destes arquivos.",
           "notConfigured": "Esta versão do jogo não consegue enviar relatórios diretamente. Use o formulário do GitHub.",
+          "attachmentsUnavailable": "Anexar arquivos ainda não está disponível.",
+          "alreadySending": "Um relatório ainda está sendo enviado. Espere terminar e tente de novo.",
           "disabled": "O envio de relatórios está desativado no momento. Use o formulário do GitHub.",
           "tooManyFiles": "Há arquivos demais anexados a este relatório.",
           "capacity": "O servidor de relatórios está cheio no momento. Use o formulário do GitHub.",
@@ -2765,7 +2767,7 @@
           "rejected": "O servidor de relatórios não aceitou este relatório.",
           "serverError": "O servidor de relatórios teve um problema e não conseguiu receber o relatório.",
           "unreachable": "Não foi possível alcançar o servidor de relatórios, então nada foi enviado. Verifique sua conexão com a internet.",
-          "unconfirmed": "A conexão caiu antes de o servidor responder. Seu relatório pode ter chegado; enviá-lo de novo é seguro e não cria duplicata.",
+          "unconfirmed": "A conexão caiu antes de o servidor responder. Seu relatório pode ter chegado. Se você enviar de novo, a equipe pode recebê-lo duas vezes.",
           "prepareFailed": "Não foi possível preparar o relatório para envio. Você ainda pode salvá-lo e usar o formulário do GitHub."
         }
       },
