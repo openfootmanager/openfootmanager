@@ -266,6 +266,7 @@ pub struct Fixture {
     pub status: FixtureStatus,
     pub result: Option<MatchResult>,
     /// Set when the match was moved off a date the player had already been shown.
+    #[serde(default)]
     pub postponement: Option<Postponement>,
 }
 
