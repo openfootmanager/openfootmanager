@@ -530,7 +530,7 @@ pub fn schedule_world_cup_with_field(
     cup.priority = 10_000;
     cup.name_key = Some("tournaments.competitions.worldCup".to_string());
     let cup_id = cup.id.clone();
-    crate::calendar_identity::backfill_competition_calendar(&mut cup);
+    crate::calendar_identity::ensure_competition_calendar(&mut cup);
     game.competitions.push(cup);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(cup_id);
@@ -988,7 +988,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         .collect();
     competition.participant_ids = participant_ids;
     let competition_id = competition.id.clone();
-    crate::calendar_identity::backfill_competition_calendar(&mut competition);
+    crate::calendar_identity::ensure_competition_calendar(&mut competition);
     game.competitions.push(competition);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(competition_id);
@@ -1415,7 +1415,7 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
         preliminaries.name = "Semifinal".to_string();
     }
 
-    crate::calendar_identity::backfill_competition_calendar(&mut cup);
+    crate::calendar_identity::ensure_competition_calendar(&mut cup);
     game.competitions.push(cup);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(competition_id);
@@ -1992,7 +1992,7 @@ mod tests {
         for competition in world_cup {
             let mut stripped = competition.clone();
             stripped.calendar = None;
-            crate::calendar_identity::backfill_competition_calendar(&mut stripped);
+            crate::calendar_identity::ensure_competition_calendar(&mut stripped);
             assert!(
                 competition.calendar.is_some(),
                 "{} has no calendar",

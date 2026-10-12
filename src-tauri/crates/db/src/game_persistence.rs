@@ -402,7 +402,7 @@ impl GamePersistenceReader {
         };
         game.promote_legacy_league();
         for competition in &mut game.competitions {
-            ofm_core::calendar_identity::backfill_competition_calendar(competition);
+            ofm_core::calendar_identity::ensure_competition_calendar(competition);
         }
         game.sync_legacy_league();
         // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done
