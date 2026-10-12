@@ -411,6 +411,13 @@ impl LiveMatchState {
             report.home_penalties = Some(self.penalty_state.home_scored);
             report.away_penalties = Some(self.penalty_state.away_scored);
         }
+        // Substituted-off players sit on the bench, so both lists together are
+        // everyone who could have played.
+        let home_squad: Vec<&PlayerData> =
+            self.home.players.iter().chain(&self.home_bench).collect();
+        let away_squad: Vec<&PlayerData> =
+            self.away.players.iter().chain(&self.away_bench).collect();
+        report.assign_ratings(&home_squad, &away_squad);
         report
     }
 
