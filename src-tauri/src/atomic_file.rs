@@ -9,7 +9,6 @@ use std::path::Path;
 
 use serde::Serialize;
 
-/// Serialise `value` as pretty JSON and move it into place at `path` in one rename.
 pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;

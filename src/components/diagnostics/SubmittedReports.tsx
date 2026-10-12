@@ -12,13 +12,7 @@ interface SubmittedReportsProps {
   refreshKey: number;
 }
 
-/**
- * "Your reports" in Settings → Help: the reference codes this install has been given.
- *
- * The codes come from `reports.json` and nothing else. There is deliberately no status beside them
- * — the server has no lookup endpoint, because a code is an identifier to quote to the maintainer,
- * not a credential — so the list is a record of what was sent, newest first, and when.
- */
+/** No status is shown beside a code: the server has no lookup endpoint, so the list only records what was sent. */
 export function SubmittedReports({ refreshKey }: SubmittedReportsProps) {
   const { t, i18n } = useTranslation();
   // `null` while loading, so the empty-state sentence is not flashed at a player who has reports.

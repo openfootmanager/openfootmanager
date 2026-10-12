@@ -1,10 +1,7 @@
-//! The game's side of OFMHub's bug-report endpoint.
+//! The game's side of OFMHub's bug-report endpoint (`docs/api/bug-reports.md`).
 //!
-//! `docs/api/bug-reports.md` is the contract; this module is the one place that knows its shape.
-//! Everything here is pure except `submit`, which reads the files it is given and hands bytes to
-//! a [`Transport`] — so the multipart body, the limits and every status the endpoint can answer
-//! with are tested without a network, and the real HTTP client is a thin shell around them
-//! (`report::http`).
+//! Pure except `submit`, which reads the files it is given: the real HTTP client (`report::http`)
+//! is a thin shell behind [`Transport`], so everything here is tested without a network.
 
 use std::path::{Path, PathBuf};
 
@@ -22,7 +19,6 @@ pub const HUB_URL_VARIABLE: &str = "OFM_BUG_REPORT_URL";
 const REPORTS_PATH: &str = "/bug-reports";
 const CONFIG_PATH: &str = "/bug-reports/config";
 
-/// The `report` part is refused above this (64 KiB, raw).
 const MAX_REPORT_JSON_BYTES: usize = 64 * 1024;
 
 // What the player is told, by translation key. The endpoint's `message` is English written for a
@@ -32,17 +28,14 @@ const MAX_REPORT_JSON_BYTES: usize = 64 * 1024;
 pub const UPLOAD_PREPARE_FAILED: &str = "be.error.report.upload.prepareFailed";
 pub const UPLOAD_CONSENT_REQUIRED: &str = "be.error.report.upload.consentRequired";
 pub const UPLOAD_NOT_CONFIGURED: &str = "be.error.report.upload.notConfigured";
-/// The server has switched report intake off (the kill switch).
 pub const UPLOAD_DISABLED: &str = "be.error.report.upload.disabled";
 pub const UPLOAD_TOO_LARGE: &str = "be.error.report.upload.tooLarge";
 pub const UPLOAD_TOO_MANY_FILES: &str = "be.error.report.upload.tooManyFiles";
 pub const UPLOAD_RATE_LIMITED: &str = "be.error.report.upload.rateLimited";
-/// The server's global ceilings are reached; nothing the sender did.
 pub const UPLOAD_CAPACITY: &str = "be.error.report.upload.capacity";
 pub const UPLOAD_IMAGES_UNAVAILABLE: &str = "be.error.report.upload.imagesUnavailable";
 pub const UPLOAD_REJECTED: &str = "be.error.report.upload.rejected";
 pub const UPLOAD_SERVER_ERROR: &str = "be.error.report.upload.serverError";
-/// No connection could be opened, so nothing was sent — offline, DNS, a refused connection.
 pub const UPLOAD_UNREACHABLE: &str = "be.error.report.upload.unreachable";
 /// The request may have arrived; the game cannot tell.
 ///
@@ -51,8 +44,6 @@ pub const UPLOAD_UNREACHABLE: &str = "be.error.report.upload.unreachable";
 /// side of this key says so.
 pub const UPLOAD_UNCONFIRMED: &str = "be.error.report.upload.unconfirmed";
 
-/// Why an upload did not complete: the key to tell the player, and how long to wait when the
-/// server asked for that.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct UploadFailure {
     pub key: String,
@@ -123,7 +114,6 @@ impl HubEndpoint {
     }
 }
 
-/// What came back, before anyone has decided what it means.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HubResponse {
     pub status: u16,
@@ -132,10 +122,9 @@ pub struct HubResponse {
     pub retry_after_seconds: Option<u64>,
 }
 
-/// Why no response arrived. The detail is for the log, never for the player.
+/// The detail is for the log, never for the player.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransportFailure {
-    /// Nothing left this machine: the connection was never established.
     Unreachable(String),
     /// The connection was open when it failed, so the server may have the report.
     Interrupted(String),
@@ -144,8 +133,6 @@ pub enum TransportFailure {
 pub trait Transport {
     fn get(&self, url: &str) -> Result<HubResponse, TransportFailure>;
 
-    /// POST a multipart body, with the game-version header, and return whatever status came
-    /// back, error statuses included.
     fn post_multipart(
         &self,
         url: &str,
@@ -227,8 +214,7 @@ pub fn fetch_config(
     }
 }
 
-/// `OFM-` and eight Crockford Base32 characters (`0-9`, `A-Z` without `I L O U`) — the only shape
-/// of reference the server issues. The prefix is part of the code.
+/// Crockford Base32 is `0-9` and `A-Z` without `I L O U`; the `OFM-` prefix is part of the code.
 pub fn is_reference(candidate: &str) -> bool {
     const CROCKFORD: &str = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
     candidate
@@ -284,8 +270,7 @@ fn has_accepted_extension(path: &Path, accepted: &[String]) -> bool {
         .is_some_and(|ext| accepted.iter().any(|a| a.eq_ignore_ascii_case(&ext)))
 }
 
-/// Check everything the server will check that can be known before sending, against the limits it
-/// just reported. A request the server will refuse is not worth building and uploading first.
+/// A request the server will refuse is not worth building and uploading first.
 fn plan_files(parts: &UploadParts, config: &UploadConfig) -> Result<Vec<FilePart>, UploadFailure> {
     let mut files = vec![FilePart {
         field: "bundle",
@@ -331,7 +316,6 @@ fn plan_files(parts: &UploadParts, config: &UploadConfig) -> Result<Vec<FilePart
     Ok(files)
 }
 
-/// A multipart boundary that cannot occur in the parts: random, and checked against them.
 fn boundary_for(parts: &[(Vec<u8>, &[u8])]) -> String {
     let mut rng = rand::rng();
     loop {
@@ -427,11 +411,8 @@ fn interpret(response: &HubResponse) -> Result<String, UploadFailure> {
     })
 }
 
-/// Upload a report and return the reference the server issued for it.
-///
-/// Reads the server's limits first (`GET /bug-reports/config`) and refuses locally what it would
-/// refuse. The save is never dropped to make a bundle fit: the player chose it, and sending less
-/// than they agreed to is not this function's call. They are told instead.
+/// The save is never dropped to make a bundle fit: the player chose it, and sending less than they
+/// agreed to is not this function's call. They are told instead.
 pub fn submit(
     transport: &dyn Transport,
     endpoint: &HubEndpoint,

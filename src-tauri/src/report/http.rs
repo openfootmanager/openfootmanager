@@ -1,18 +1,13 @@
-//! The one HTTP client the game owns, and the only code here that touches the network.
-//!
-//! Everything about *what* is sent and what an answer means lives in `hub`; this is the shell
-//! that moves bytes. It refuses nothing on its own — the `https://`-only rule belongs to
-//! `hub::HubEndpoint`, which is what lets the test below drive the real client against a
-//! plain socket on localhost.
+//! The one HTTP client the game owns. What is sent and what an answer means lives in `hub`; the
+//! `https://`-only rule is `hub::HubEndpoint`'s, which is what lets the tests below drive this
+//! client against a plain socket on localhost.
 
 use std::sync::OnceLock;
 use std::time::Duration;
 
 use super::hub::{HubResponse, Transport, TransportFailure};
 
-/// More than any answer the server gives: a config, a reference, or an error body. A body larger
-/// than this is not one of those, and reading it whole would be allocating for something that is
-/// not the server.
+/// More than any answer the server gives; a larger body is not the server.
 const MAX_RESPONSE_BYTES: u64 = 64 * 1024;
 
 /// Long enough for 25 MiB on a slow uplink. A total of a few seconds would fail every
@@ -25,7 +20,6 @@ pub struct UreqTransport {
 }
 
 impl UreqTransport {
-    /// The shared client, built once — connection pool, TLS roots and all.
     pub fn shared() -> &'static Self {
         static SHARED: OnceLock<UreqTransport> = OnceLock::new();
         SHARED.get_or_init(|| Self::with_proxy(ureq::Proxy::try_from_env()))
@@ -101,12 +95,8 @@ impl Transport for UreqTransport {
     }
 }
 
-/// Whether the request can have reached the server before this went wrong.
-///
-/// Only failures that happen before a connection exists — resolving the host, opening the socket,
-/// the TLS handshake — are certain not to have sent the report. Everything else is treated as
-/// "may have arrived", because telling a player to retry something that did arrive makes a
-/// duplicate in the maintainer's inbox.
+/// Only failures before a connection exists (resolving, connecting, TLS) are certain not to have
+/// sent the report; everything else is "may have arrived".
 fn classify(error: ureq::Error) -> TransportFailure {
     use std::io::ErrorKind;
     use ureq::Timeout;
@@ -144,7 +134,6 @@ mod tests {
     use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
 
-    /// What one request looked like on the wire.
     struct Captured {
         request_line: String,
         headers: Vec<(String, String)>,
@@ -160,7 +149,6 @@ mod tests {
         }
     }
 
-    /// Serve exactly one request with `status` and `body`, handing back what was received.
     fn serve_once(
         status_line: &'static str,
         extra_headers: &'static str,

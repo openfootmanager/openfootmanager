@@ -12,8 +12,6 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// One report the server accepted.
-///
 /// Every field carries `#[serde(default)]`: a file written by a later build with fields this one
 /// does not know must still load, and a missing field must not cost the player the list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,7 +38,6 @@ pub fn reports_file_in(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join("reports.json")
 }
 
-/// Every recorded report, newest first. A missing or unreadable file is an empty list.
 pub fn load(path: &Path) -> Vec<SubmittedReport> {
     match read(path) {
         Ok(file) => {
@@ -61,8 +58,6 @@ pub fn load(path: &Path) -> Vec<SubmittedReport> {
     }
 }
 
-/// Add one report to the file.
-///
 /// A file that will not parse is renamed aside rather than overwritten. The new code must be kept
 /// — the server already has that report — but the old codes inside a damaged file are still the
 /// player's, and recoverable by hand from the copy.
