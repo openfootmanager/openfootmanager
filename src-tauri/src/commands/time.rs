@@ -623,6 +623,7 @@ mod tests {
             name: "League".to_string(),
             season: 2025,
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "fixture-1".to_string(),
                 competition_id: "league-1".to_string(),
                 matchday: 1,
@@ -677,6 +678,7 @@ mod tests {
             name: "League".to_string(),
             season: 2025,
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "fx-1".to_string(),
                 competition_id: "comp-1".to_string(),
                 matchday: 1,
@@ -710,6 +712,7 @@ mod tests {
             name: "League".to_string(),
             season: 2025,
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "fx-1".to_string(),
                 competition_id: "comp-1".to_string(),
                 matchday: 2,
@@ -1265,6 +1268,7 @@ mod tests {
             season: 1,
             fixtures: vec![
                 domain::league::Fixture {
+                    postponement: None,
                     id: "fix1".to_string(),
                     competition_id: "league1".to_string(),
                     matchday: 1,
@@ -1276,6 +1280,7 @@ mod tests {
                     result: None,
                 },
                 Fixture {
+                    postponement: None,
                     id: "fix2".to_string(),
                     competition_id: "league1".to_string(),
                     matchday: 1,

@@ -589,6 +589,7 @@ mod tests {
         .enumerate()
         {
             league.fixtures.push(Fixture {
+                postponement: None,
                 id: format!("fixture-{index}"),
                 competition_id: "league".into(),
                 matchday: index as u32 + 1,

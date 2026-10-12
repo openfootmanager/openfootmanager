@@ -1,5 +1,5 @@
 use domain::league::{
-    CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, Fixture, GroupState,
+    CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, GroupState,
     KnockoutRoundState, StandingEntry,
 };
 use rusqlite::{Connection, params};
@@ -168,7 +168,7 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                     .unwrap_or_default(),
                 participant_ids: serde_json::from_str(&participant_ids_json).unwrap_or_default(),
                 rules: serde_json::from_str::<CompetitionRules>(&rules_json).unwrap_or_default(),
-                fixtures: serde_json::from_str::<Vec<Fixture>>(&fixtures_json).unwrap_or_default(),
+                fixtures: super::stored_fixtures::parse_fixtures(10, &fixtures_json)?,
                 standings: serde_json::from_str::<Vec<StandingEntry>>(&standings_json)
                     .unwrap_or_default(),
                 groups: serde_json::from_str::<Vec<GroupState>>(&groups_json).unwrap_or_default(),
@@ -207,6 +207,30 @@ mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
     use domain::league::League;
+
+    /// Given a competition whose stored fixtures are corrupt, when competitions are loaded, then the
+    /// load fails with the translated error and never returns the competition with no fixtures.
+    #[test]
+    fn corrupt_stored_fixtures_fail_the_load_instead_of_emptying_the_competition() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let league = League::new(
+            "league-1".into(),
+            "League".into(),
+            2033,
+            &["a".into(), "b".into()],
+        );
+        replace_competitions(db.conn(), &[league]).unwrap();
+        for corrupt in ["{not json", r#"[{"postponement":{"reason":"CupTie"}}]"#] {
+            db.conn()
+                .execute("UPDATE competitions SET fixtures_json = ?1", [corrupt])
+                .unwrap();
+            assert_eq!(
+                load_competitions(db.conn()).unwrap_err(),
+                "be.error.gamePersistence.loadFailed",
+                "{corrupt}"
+            );
+        }
+    }
 
     fn competition_named(id: &str, name_key: Option<&str>) -> League {
         let mut competition = League::new(

@@ -664,6 +664,7 @@ fn process_end_of_season_reschedules_national_team_windows() {
     let mut nt_a = NationalTeam::new("nt-a".into(), "A".into(), "AAA".into(), None);
     nt_a.squad_player_ids = vec!["p1".into()];
     nt_a.fixtures.push(Fixture {
+        postponement: None,
         id: "old-friendly".into(),
         competition_id: "international-friendlies".into(),
         matchday: 1,

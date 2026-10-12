@@ -748,6 +748,7 @@ mod tests {
         );
         league.region_id = Some("asia".to_string());
         league.fixtures.push(domain::league::Fixture {
+            postponement: None,
             id: "f1".to_string(),
             competition_id: "jp-league".to_string(),
             matchday: 1,

@@ -819,6 +819,7 @@ mod tests {
         // Add 2 fixtures in the next 7 days for the AI team
         // today is 2026-06-15 (Mon); fixtures on +3 and +5 days
         let fix1 = Fixture {
+            postponement: None,
             id: "f1".to_string(),
             competition_id: "league1".to_string(),
             matchday: 1,
@@ -830,6 +831,7 @@ mod tests {
             result: None,
         };
         let fix2 = Fixture {
+            postponement: None,
             id: "f2".to_string(),
             competition_id: "league1".to_string(),
             matchday: 2,

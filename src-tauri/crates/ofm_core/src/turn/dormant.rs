@@ -87,6 +87,7 @@ mod tests {
             name: "Dormant League".to_string(),
             season: 2030,
             fixtures: vec![Fixture {
+                postponement: None,
                 id: "fix-1".to_string(),
                 competition_id: "dormant-league".to_string(),
                 matchday: 1,

@@ -195,6 +195,7 @@ mod tests {
     fn league_opening_on(id: &str, club_id: &str, first_fixture: &str) -> League {
         let mut league = League::new(id.to_string(), id.to_string(), 2026, &[club_id.to_string()]);
         league.fixtures.push(Fixture {
+            postponement: None,
             id: format!("{id}-f1"),
             competition_id: id.to_string(),
             matchday: 1,

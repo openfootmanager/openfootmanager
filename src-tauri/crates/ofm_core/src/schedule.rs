@@ -109,6 +109,7 @@ pub fn build_round_robin_fixtures_with(
                     continue; // Paired with the phantom slot: a bye.
                 }
                 fixtures.push(Fixture {
+                    postponement: None,
                     id: crate::seed::derived_id(&[
                         "fixture",
                         competition_id,
@@ -313,6 +314,7 @@ pub fn seed_knockout_round(
         ]);
         round_fixture_ids.push(fixture_id.clone());
         cup.fixtures.push(Fixture {
+            postponement: None,
             id: fixture_id,
             competition_id: cup.id.clone(),
             matchday: round_index,
@@ -461,6 +463,7 @@ pub fn generate_preseason_friendlies(
             };
 
             fixtures.push(Fixture {
+                postponement: None,
                 id: crate::seed::derived_id(&[
                     "friendly",
                     &date,
@@ -1191,6 +1194,7 @@ mod tests {
             ..Default::default()
         };
         cup.fixtures.push(Fixture {
+            postponement: None,
             id: Uuid::new_v4().to_string(),
             competition_id: "regional-cup".to_string(),
             matchday: 1,
