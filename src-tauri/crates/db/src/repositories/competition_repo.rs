@@ -117,20 +117,6 @@ pub fn replace_competitions(
     Ok(())
 }
 
-/// Rows written before the `name_key` column existed: only World Cup names were ever
-/// re-derived on load, and only they are recoverable from the id and type.
-fn legacy_name_key(id: &str, kind: &str) -> Option<String> {
-    if id.starts_with("world-cup-qualifying-") {
-        Some("tournaments.competitions.worldCupQualifying".to_string())
-    } else if id.starts_with("world-cup-playoff-") {
-        Some("tournaments.competitions.worldCupPlayoff".to_string())
-    } else if parse_competition_type(kind) == CompetitionType::InternationalNation {
-        Some("tournaments.competitions.worldCup".to_string())
-    } else {
-        None
-    }
-}
-
 pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, String> {
     let mut stmt = match conn.prepare(
         "SELECT id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day, calendar_json, name_key
@@ -196,10 +182,7 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                 berths: serde_json::from_str(&berths_json).unwrap_or_default(),
                 season_start_month: row.get::<_, i64>(18).unwrap_or(8) as u8,
                 season_start_day: row.get::<_, i64>(19).unwrap_or(1) as u8,
-                name_key: match row.get::<_, Option<String>>(21)? {
-                    Some(stored) => Some(stored),
-                    None => legacy_name_key(&row.get::<_, String>(0)?, &row.get::<_, String>(2)?),
-                },
+                name_key: row.get(21)?,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -335,34 +318,36 @@ mod tests {
         );
     }
 
-    /// Given rows written before the column existed, when loaded, then World Cup rows derive
-    /// their key from the id as before and every other row falls back to its name.
+    /// Given a World Cup-shaped row stored with a key the old id derivation would not produce,
+    /// when loaded, then the stored key is returned unchanged.
     #[test]
-    fn rows_without_a_stored_key_fall_back_to_the_id_derivation() {
+    fn a_stored_key_is_never_replaced_by_a_derived_one() {
         let db = GameDatabase::open_in_memory().unwrap();
         replace_competitions(
             db.conn(),
-            &[
-                competition_named("world-cup-qualifying-2026", None),
-                competition_named("league-1", None),
-            ],
+            &[competition_named(
+                "world-cup-qualifying-2026",
+                Some("custom.package.qualifying"),
+            )],
         )
         .unwrap();
-        db.conn()
-            .execute("UPDATE competitions SET name_key = NULL", [])
-            .unwrap();
         let loaded = load_competitions(db.conn()).unwrap();
-        let key_of = |id: &str| {
-            loaded
-                .iter()
-                .find(|c| c.id == id)
-                .and_then(|c| c.name_key.clone())
-        };
         assert_eq!(
-            key_of("world-cup-qualifying-2026").as_deref(),
-            Some("tournaments.competitions.worldCupQualifying")
+            loaded[0].name_key.as_deref(),
+            Some("custom.package.qualifying")
         );
-        assert_eq!(key_of("league-1"), None);
+    }
+
+    /// Given a package competition of kind InternationalNation authored with only a name,
+    /// when saved and loaded, then it stays without a key instead of becoming "World Cup".
+    #[test]
+    fn a_package_international_competition_stays_without_a_name_key() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut authored = competition_named("pkg-nations-cup", None);
+        authored.kind = CompetitionType::InternationalNation;
+        replace_competitions(db.conn(), &[authored]).unwrap();
+        assert_eq!(stored_name_key(&db, "pkg-nations-cup"), None);
+        assert_eq!(load_competitions(db.conn()).unwrap()[0].name_key, None);
     }
 
     /// Pins the stored name of every competition type.

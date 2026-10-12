@@ -569,9 +569,10 @@ mod tests {
         }
     }
 
-    /// Given a real v050 save, when migrated twice, then competitions gain an empty name_key column and keep their rows.
+    /// Given a real v050 save with World Cup rows, a package row and a club league, when migrated
+    /// twice, then only the World Cup rows get their key and the others stay NULL.
     #[test]
-    fn name_key_v051_upgrades_a_v050_save_without_touching_competitions() {
+    fn name_key_v051_derives_world_cup_keys_once_and_leaves_other_rows_null() {
         let mut conn = Connection::open_in_memory().unwrap();
         Migrations::new(
             MIGRATIONS
@@ -582,17 +583,53 @@ mod tests {
         )
         .to_latest(&mut conn)
         .unwrap();
-        conn.execute("INSERT INTO competitions (id, name, season) VALUES ('ar-d1-apertura', 'Opening', 2033)", []).unwrap();
+        for (id, kind, scope) in [
+            (
+                "world-cup-qualifying-2026",
+                "InternationalNation",
+                "International",
+            ),
+            (
+                "world-cup-playoff-2026",
+                "InternationalNation",
+                "International",
+            ),
+            ("finals-2026", "InternationalNation", "International"),
+            ("pkg-nations-cup", "InternationalNation", "Domestic"),
+            ("ar-d1-apertura", "League", "Domestic"),
+        ] {
+            conn.execute(
+                "INSERT INTO competitions (id, name, kind, scope, season) VALUES (?1, 'n', ?2, ?3, 2033)",
+                [id, kind, scope],
+            )
+            .unwrap();
+        }
         assert!(conn.prepare("SELECT name_key FROM competitions").is_err());
 
         for _ in 0..2 {
             all_migrations().to_latest(&mut conn).unwrap();
-            let row: (String, Option<String>) = conn
-                .query_row("SELECT id, name_key FROM competitions", [], |row| {
-                    Ok((row.get(0)?, row.get(1)?))
-                })
+            let mut stmt = conn
+                .prepare("SELECT id, name_key FROM competitions ORDER BY id")
                 .unwrap();
-            assert_eq!(row, ("ar-d1-apertura".to_string(), None));
+            let rows: Vec<(String, Option<String>)> = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap();
+            let key = |k: &str| Some(format!("tournaments.competitions.{k}"));
+            assert_eq!(
+                rows,
+                vec![
+                    ("ar-d1-apertura".to_string(), None),
+                    ("finals-2026".to_string(), key("worldCup")),
+                    ("pkg-nations-cup".to_string(), None),
+                    ("world-cup-playoff-2026".to_string(), key("worldCupPlayoff")),
+                    (
+                        "world-cup-qualifying-2026".to_string(),
+                        key("worldCupQualifying")
+                    ),
+                ]
+            );
         }
     }
 
