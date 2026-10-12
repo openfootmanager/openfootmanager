@@ -179,7 +179,8 @@ fn catalog_matches_the_live_server() {
 fn a_failed_scenario_keeps_its_transcript_and_state() {
     let app = App::launch(&AppConfig::default()).unwrap();
     mcp_e2e::career::begin(&app, mcp_e2e::career::seed(), "seasonStart", "ENG").unwrap();
-    let formation_before = my_formation(&mcp_e2e::career::game_state(&app).unwrap());
+    let formation_before = my_formation(&mcp_e2e::career::game_state(&app).unwrap())
+        .expect("the manager's club has a formation before the change");
     assert_ne!(
         formation_before, "3-5-2",
         "the change below must be a change"
@@ -206,7 +207,7 @@ fn a_failed_scenario_keeps_its_transcript_and_state() {
         serde_json::from_str(&std::fs::read_to_string(kept.join("game-state.json")).unwrap())
             .unwrap();
     assert_eq!(
-        my_formation(&state["game"]),
+        my_formation(&state["game"]).expect("the captured state has the club's formation"),
         "3-5-2",
         "the captured state should hold the change made before the failure"
     );
@@ -214,12 +215,11 @@ fn a_failed_scenario_keeps_its_transcript_and_state() {
 }
 
 /// The formation of the manager's own club in `game`.
-fn my_formation(game: &serde_json::Value) -> String {
+fn my_formation(game: &serde_json::Value) -> Option<String> {
     let club = &game["manager"]["team_id"];
     game["teams"]
         .as_array()
         .and_then(|teams| teams.iter().find(|team| team["id"] == *club))
         .and_then(|team| team["formation"].as_str())
-        .unwrap_or_default()
-        .to_string()
+        .map(str::to_string)
 }
