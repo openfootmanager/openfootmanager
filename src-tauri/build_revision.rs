@@ -59,6 +59,20 @@ pub fn source_revision(src_tauri: &std::path::Path) -> Option<String> {
     .collect();
     args.extend(app_paths());
 
+    // Git walks up to an enclosing repository, so a source tarball unpacked inside someone else's
+    // checkout would be digested as part of it. A real checkout tracks its own manifest.
+    let tracks_its_manifest = Command::new("git")
+        .arg("-C")
+        .arg(src_tauri)
+        .args(["ls-files", "--error-unmatch", "--", "Cargo.toml"])
+        .output()
+        .ok()?
+        .status
+        .success();
+    if !tracks_its_manifest {
+        return None;
+    }
+
     let output = Command::new("git")
         .arg("-C")
         .arg(src_tauri)

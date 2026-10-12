@@ -67,6 +67,7 @@ mod revision_tests {
         }
         std::fs::create_dir_all(root.join("docs")).unwrap();
         git(root, &["init", "-q"]);
+        std::fs::write(app.join("Cargo.toml"), "[package]").unwrap();
         std::fs::write(app.join("src/lib.rs"), "fn a() {}").unwrap();
         std::fs::write(root.join("docs/readme.md"), "one").unwrap();
         git(root, &["add", "-A"]);
@@ -131,5 +132,87 @@ mod revision_tests {
         std::fs::write(tarball.path().join("src/lib.rs"), "fn a() {}").unwrap();
 
         assert_eq!(source_revision(tarball.path()), None);
+    }
+
+    /// Given a source tarball unpacked inside someone else's checkout
+    /// When the revision is asked for
+    /// Then git finds the enclosing repository, which does not track this tree's manifest, so there is no revision.
+    #[test]
+    fn a_tarball_inside_another_checkout_has_no_revision() {
+        let outer = tempfile::tempdir().unwrap();
+        git(outer.path(), &["init", "-q"]);
+        let tarball = outer.path().join("vendor/app");
+        std::fs::create_dir_all(tarball.join("src")).unwrap();
+        std::fs::write(tarball.join("Cargo.toml"), "[package]").unwrap();
+        std::fs::write(tarball.join("src/lib.rs"), "fn a() {}").unwrap();
+
+        assert_eq!(source_revision(&tarball), None);
+    }
+
+    /// Given the crates the app links, as `cargo metadata` sees them
+    /// When compared with the list the revision digests
+    /// Then they are the same, so linking a new crate cannot leave it out of the revision.
+    #[test]
+    fn the_digested_crates_are_the_crates_the_app_links() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Cargo.toml");
+        let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+        let output = Command::new(cargo)
+            .args([
+                "metadata",
+                "--format-version",
+                "1",
+                "--locked",
+                "--manifest-path",
+            ])
+            .arg(&manifest)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+
+        let nodes = metadata["resolve"]["nodes"].as_array().unwrap();
+        let package_of = |id: &str| {
+            metadata["packages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["id"] == id)
+                .unwrap()
+        };
+        let workspace: std::collections::BTreeSet<&str> = metadata["workspace_members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| package_of(id.as_str().unwrap())["name"].as_str().unwrap())
+            .collect();
+        let root = metadata["resolve"]["root"].as_str().unwrap();
+        let mut linked = std::collections::BTreeSet::new();
+        let mut pending = vec![root];
+        while let Some(id) = pending.pop() {
+            let node = nodes.iter().find(|n| n["id"] == id).unwrap();
+            for dependency in node["deps"].as_array().unwrap() {
+                let normal = dependency["dep_kinds"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|kind| kind["kind"].is_null());
+                let dependency_id = dependency["pkg"].as_str().unwrap();
+                let name = package_of(dependency_id)["name"].as_str().unwrap();
+                if normal && workspace.contains(name) && linked.insert(name) {
+                    pending.push(dependency_id);
+                }
+            }
+        }
+
+        let digested: std::collections::BTreeSet<&str> =
+            super::revision::LINKED_CRATES.iter().copied().collect();
+        assert_eq!(
+            linked, digested,
+            "update LINKED_CRATES in build_revision.rs"
+        );
     }
 }
