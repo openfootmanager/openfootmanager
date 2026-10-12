@@ -144,6 +144,7 @@ mod tests {
 
     fn completed(id: &str, date: &str, home: &str, away: &str, hg: u8, ag: u8) -> Fixture {
         Fixture {
+            postponement: None,
             id: id.to_string(),
             competition_id: "comp".to_string(),
             matchday: 1,
@@ -236,6 +237,7 @@ mod tests {
 
     fn wc_fixture(id: &str, date: &str, home: &str, away: &str, hg: u8, ag: u8) -> Fixture {
         Fixture {
+            postponement: None,
             id: id.to_string(),
             competition_id: "wc-2026".to_string(),
             matchday: 1,

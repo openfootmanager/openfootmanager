@@ -1458,6 +1458,7 @@ mod tests {
             .first_mut()
             .expect("the league is now a competition");
         competition.fixtures.push(Fixture {
+            postponement: None,
             id: "stranded-1".to_string(),
             competition_id: competition.id.clone(),
             matchday: 1,
@@ -1613,6 +1614,7 @@ mod tests {
         for index in 0..FIXTURES {
             let date = game.clock.current_date - chrono::Duration::days(60 - index as i64);
             competition.fixtures.push(Fixture {
+                postponement: None,
                 id: format!("stranded-{index}"),
                 competition_id: competition.id.clone(),
                 matchday: index as u32 + 1,
@@ -1717,6 +1719,7 @@ mod tests {
                 .first_mut()
                 .expect("the settled save has a competition");
             competition.fixtures.push(Fixture {
+                postponement: None,
                 id: "late-stranded".to_string(),
                 competition_id: competition.id.clone(),
                 matchday: 2,
@@ -2142,6 +2145,7 @@ mod tests {
         for pair in 0..6 {
             let (home, away) = (format!("nt-{}", pair * 2), format!("nt-{}", pair * 2 + 1));
             teams[pair * 2].fixtures.push(domain::league::Fixture {
+                postponement: None,
                 id: format!("ntf-{pair}"),
                 competition_id: "international-friendlies".to_string(),
                 matchday: 1,
@@ -2280,6 +2284,7 @@ mod tests {
                 &[home.clone(), away.clone()],
             );
             league.fixtures.push(domain::league::Fixture {
+                postponement: None,
                 id: format!("df-{n}"),
                 competition_id: format!("dormant-{n}"),
                 matchday: 1,
@@ -3507,6 +3512,53 @@ mod tests {
             .for_each(|c| c.calendar = None);
         let id = manager.create_save(&older, "Older").unwrap();
         assert_eq!(world_cup_calendars(&manager.load_game(&id).unwrap()), live);
+    }
+
+    /// Given a postponed fixture with non-default fields, when the career is saved and loaded, then
+    /// the original date and reason come back on the path the UI reads (the legacy mirror), on the
+    /// competitions, and in the `.db`'s stored fixtures.
+    #[test]
+    fn a_rescheduled_fixture_survives_save_and_load_on_every_path() {
+        use domain::league::{Postponement, RescheduleReason};
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game_with_league();
+        game.competitions = vec![game.league.clone().unwrap()];
+        let moved = Postponement {
+            original_date: "2026-08-01".into(),
+            reason: RescheduleReason::CupTie,
+        };
+        game.competitions[0].fixtures[0].postponement = Some(moved.clone());
+        let fixture_id = game.competitions[0].fixtures[0].id.clone();
+        let id = manager.create_save(&game, "Postponed").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+        let find = |fixtures: &[domain::league::Fixture]| {
+            fixtures
+                .iter()
+                .find(|f| f.id == fixture_id)
+                .and_then(|f| f.postponement.clone())
+        };
+        assert_eq!(
+            find(&loaded.league.as_ref().unwrap().fixtures),
+            Some(moved.clone())
+        );
+        assert_eq!(find(&loaded.competitions[0].fixtures), Some(moved.clone()));
+
+        let db =
+            GameDatabase::open_save(&dir.path().join("saves").join(format!("{id}.db"))).unwrap();
+        let stored: String = db
+            .conn()
+            .query_row(
+                "SELECT fixtures_json FROM competitions LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            stored.contains("\"original_date\":\"2026-08-01\"") && stored.contains("CupTie"),
+            "{stored}"
+        );
     }
 
     #[test]

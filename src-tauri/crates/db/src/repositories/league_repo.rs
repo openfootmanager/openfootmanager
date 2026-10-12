@@ -173,6 +173,7 @@ pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
             let status_str: String = row.get(6)?;
             let result_json: Option<String> = row.get(7)?;
             Ok(Fixture {
+                postponement: None,
                 id: row.get(0)?,
                 competition_id: league_id.clone(),
                 matchday: row.get(1)?,

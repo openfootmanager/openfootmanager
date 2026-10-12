@@ -49,6 +49,7 @@ fn process_day_simulates_due_national_team_fixture() {
     let mut home = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
     home.squad_player_ids = home_squad;
     home.fixtures.push(Fixture {
+        postponement: None,
         id: "ntf-x".into(),
         competition_id: "international-friendlies".into(),
         matchday: 1,
@@ -98,6 +99,7 @@ fn process_day_routes_world_cup_fixtures_to_the_national_team_engine() {
     cup.rules.format = domain::league::CompetitionFormat::Knockout;
     cup.standings.clear();
     cup.fixtures.push(Fixture {
+        postponement: None,
         id: "wc-final".to_string(),
         competition_id: "wc".to_string(),
         matchday: 1,

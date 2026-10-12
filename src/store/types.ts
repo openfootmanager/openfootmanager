@@ -574,6 +574,11 @@ export interface FixtureData {
   away_team_id: string;
   competition: FixtureCompetition;
   status: "Scheduled" | "InProgress" | "Completed";
+  /** Set when the match was moved off a date the player had already been shown. */
+  postponement?: {
+    original_date: string;
+    reason: "InternationalWindow" | "CupTie" | "ContinentalTie" | "LeagueClash";
+  } | null;
   result: null | {
     home_goals: number;
     away_goals: number;

@@ -202,16 +202,25 @@ pub struct FixtureRow {
     pub score: Option<String>,
     pub matchup: String,
     pub matchday: u32,
+    /// The date the match was first scheduled for, when it has been moved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rescheduled_from: Option<String>,
 }
 
 impl FixtureRow {
     fn write_row(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let moved = self
+            .rescheduled_from
+            .as_deref()
+            .map(|original| format!(" (moved from {original})"))
+            .unwrap_or_default();
         writeln!(
             f,
-            "| {} | {} | {} | MD{} |",
+            "| {} | {} | {}{} | MD{} |",
             self.date,
             self.score.as_deref().unwrap_or("-"),
             self.matchup,
+            moved,
             self.matchday
         )
     }
@@ -786,3 +795,47 @@ tool_results!(
     TeamStats,
     TeamMatchHistory,
 );
+
+#[cfg(test)]
+mod fixture_row_tests {
+    use super::*;
+
+    fn row(rescheduled_from: Option<&str>) -> FixtureRow {
+        FixtureRow {
+            date: "2033-03-08".into(),
+            score: None,
+            matchup: "Ajax vs PSV".into(),
+            matchday: 24,
+            rescheduled_from: rescheduled_from.map(str::to_owned),
+        }
+    }
+
+    /// Given a moved match, when the fixtures table is rendered, then the original date is shown.
+    #[test]
+    fn a_moved_match_shows_where_it_was_first_scheduled() {
+        let table = Fixtures {
+            upcoming: vec![row(Some("2033-03-01"))],
+            recent: vec![],
+        }
+        .to_string();
+        assert!(
+            table.contains("Ajax vs PSV (moved from 2033-03-01)"),
+            "{table}"
+        );
+    }
+
+    /// Given an unmoved match, when the fixtures table is rendered, then nothing is added.
+    #[test]
+    fn an_unmoved_match_renders_as_before() {
+        let table = Fixtures {
+            upcoming: vec![row(None)],
+            recent: vec![],
+        }
+        .to_string();
+        assert!(!table.contains("moved from"), "{table}");
+        assert!(serde_json::to_value(row(None))
+            .unwrap()
+            .get("rescheduled_from")
+            .is_none());
+    }
+}

@@ -33,6 +33,7 @@ pub(super) fn game_before_the_users_match() -> Game {
         "team6".to_string(),
     ];
     user_league.fixtures.push(Fixture {
+        postponement: None,
         id: "fix1b".to_string(),
         competition_id: "league1".to_string(),
         matchday: 1,
@@ -69,6 +70,7 @@ pub(super) fn game_before_the_users_match() -> Game {
         &["team3".to_string(), "team4".to_string()],
     );
     other.fixtures.push(Fixture {
+        postponement: None,
         id: "fix2".to_string(),
         competition_id: "league2".to_string(),
         matchday: 1,

@@ -1254,6 +1254,7 @@ mod tests {
         let mut league =
             domain::league::League::new("league".to_string(), "League".to_string(), 2026, &teams);
         league.fixtures.push(domain::league::Fixture {
+            postponement: None,
             id: "fixture".to_string(),
             competition_id: "league".to_string(),
             matchday: 1,

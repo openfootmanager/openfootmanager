@@ -260,6 +260,7 @@ mod tests {
             .map(|id| StandingEntry::new((*id).to_string()))
             .collect();
         competition.fixtures = vec![Fixture {
+            postponement: None,
             id: format!("{id}-f1"),
             competition_id: id.to_string(),
             matchday,
@@ -371,6 +372,7 @@ mod tests {
 
         fn fixture(id: &str, date: &str, status: FixtureStatus) -> Fixture {
             Fixture {
+                postponement: None,
                 id: id.to_string(),
                 competition_id: "c".to_string(),
                 matchday: 1,
