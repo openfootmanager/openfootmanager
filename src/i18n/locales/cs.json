@@ -3955,6 +3955,7 @@
     "playerPosition": "Pozice",
     "playerFoot": "Preferovaná noha",
     "playerDateOfBirth": "Datum narození",
+    "playerAgeToday": "dnes {{age}} let",
     "playerAge": "Věk",
     "playerAgeHelp": "Používá se, když chybí datum narození: hráči je tolik let v den zahájení kariéry, ať je to kterýkoli rok.",
     "playerContractSection": "Smlouva",

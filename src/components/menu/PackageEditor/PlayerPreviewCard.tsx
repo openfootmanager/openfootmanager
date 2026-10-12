@@ -1,3 +1,4 @@
+import { calcAgeOnDate } from "../../../lib/valueFormatting";
 import { User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
@@ -49,11 +50,10 @@ function estimateAttributesFromOvr(overall: number, position: Position): PlayerA
   };
 }
 
-function calcAge(dob: string | null): number | null {
-  if (!dob) return null;
-  const ms = Date.now() - new Date(dob).getTime();
-  const age = Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
-  return Number.isNaN(age) || age < 0 || age > 80 ? null : age;
+/** The editor has no game clock, so the age is as of the real date: "age today". */
+function ageToday(dob: string | null): number | null {
+  if (!dob || Number.isNaN(new Date(dob).getTime())) return null;
+  return calcAgeOnDate(dob, new Date().toISOString().slice(0, 10));
 }
 
 interface PlayerPreviewCardProps {
@@ -79,7 +79,7 @@ export function PlayerPreviewCard({
   });
   const posColor = POSITION_COLOR[editing.position] ?? "bg-gray-500";
 
-  const age = calcAge(editing.dateOfBirth);
+  const age = ageToday(editing.dateOfBirth);
   const initials = displayName ? displayName.slice(0, 2).toUpperCase() : "?";
 
   const club = teams?.find((t) => t.id === editing.club);
@@ -226,7 +226,12 @@ export function PlayerPreviewCard({
             <p>
               {t("worldEditor.playerDateOfBirth")}:{" "}
               <span className="text-gray-700 dark:text-gray-200">{editing.dateOfBirth}</span>
-              {age !== null && <span className="text-gray-400 dark:text-gray-500"> ({age}y)</span>}
+              {age !== null && (
+                <span className="text-gray-400 dark:text-gray-500">
+                  {" "}
+                  ({t("worldEditor.playerAgeToday", { age })})
+                </span>
+              )}
             </p>
           )}
           {editing.footedness && editing.footedness !== "Right" && (

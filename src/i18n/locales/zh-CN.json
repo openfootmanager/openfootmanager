@@ -3955,6 +3955,7 @@
     "playerPosition": "位置",
     "playerFoot": "惯用脚",
     "playerDateOfBirth": "出生日期",
+    "playerAgeToday": "今天 {{age}} 岁",
     "playerAge": "年龄",
     "playerAgeHelp": "未填写出生日期时使用：球员在生涯开始当天是这个年龄，无论是哪一年。",
     "playerContractSection": "合同",

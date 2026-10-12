@@ -112,9 +112,10 @@ describe("PlayerProfileAttributesCard", () => {
 
     expect(screen.getByText("Attributes Hidden")).toBeInTheDocument();
     expect(screen.getByText("Scout this player")).toBeInTheDocument();
-    expect(screen.queryByText("Physical")).not.toBeInTheDocument();
-    expect(screen.queryByText("Pace")).not.toBeInTheDocument();
-    expect(screen.queryByText("??")).not.toBeInTheDocument();
+    // Substring matches, so a name leaking inside a longer string would still be caught.
+    expect(screen.queryByText(/Physical/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pace/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\?\?/)).not.toBeInTheDocument();
   });
 
   /**

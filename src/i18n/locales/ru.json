@@ -3955,6 +3955,7 @@
     "playerPosition": "Позиция",
     "playerFoot": "Рабочая нога",
     "playerDateOfBirth": "Дата рождения",
+    "playerAgeToday": "сегодня {{age}}",
     "playerAge": "Возраст",
     "playerAgeHelp": "Используется, если дата рождения не указана: игроку столько лет в день начала карьеры, в каком бы году она ни началась.",
     "playerContractSection": "Контракт",

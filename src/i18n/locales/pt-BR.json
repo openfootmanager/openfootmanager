@@ -3955,6 +3955,7 @@
     "playerPosition": "Posição",
     "playerFoot": "Pé Preferido",
     "playerDateOfBirth": "Data de nascimento",
+    "playerAgeToday": "{{age}} anos hoje",
     "playerAge": "Idade",
     "playerAgeHelp": "Usada quando não há data de nascimento: o jogador tem essa idade no dia em que a carreira começa, seja qual for o ano.",
     "playerContractSection": "Contrato",

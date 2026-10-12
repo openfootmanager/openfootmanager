@@ -3955,6 +3955,7 @@
     "playerPosition": "Pozisyon",
     "playerFoot": "Tercih Edilen Ayak",
     "playerDateOfBirth": "Doğum Tarihi",
+    "playerAgeToday": "bugün {{age}} yaşında",
     "playerAge": "Yaş",
     "playerAgeHelp": "Doğum tarihi verilmediğinde kullanılır: oyuncu, hangi yıl olursa olsun, kariyerin başladığı gün bu yaştadır.",
     "playerContractSection": "Sözleşme",
