@@ -179,6 +179,11 @@ fn catalog_matches_the_live_server() {
 fn a_failed_scenario_keeps_its_transcript_and_state() {
     let app = App::launch(&AppConfig::default()).unwrap();
     mcp_e2e::career::begin(&app, mcp_e2e::career::seed(), "seasonStart", "ENG").unwrap();
+    let formation_before = my_formation(&mcp_e2e::career::game_state(&app).unwrap());
+    assert_ne!(
+        formation_before, "3-5-2",
+        "the change below must be a change"
+    );
     app.client().squad_set_formation("3-5-2").unwrap();
     let kept = app.data_dir().unwrap().to_path_buf();
 
@@ -200,6 +205,21 @@ fn a_failed_scenario_keeps_its_transcript_and_state() {
     let state: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(kept.join("game-state.json")).unwrap())
             .unwrap();
-    assert_eq!(state["game"]["teams"].as_array().map(Vec::len), Some(16));
+    assert_eq!(
+        my_formation(&state["game"]),
+        "3-5-2",
+        "the captured state should hold the change made before the failure"
+    );
     let _ = std::fs::remove_dir_all(kept);
+}
+
+/// The formation of the manager's own club in `game`.
+fn my_formation(game: &serde_json::Value) -> String {
+    let club = &game["manager"]["team_id"];
+    game["teams"]
+        .as_array()
+        .and_then(|teams| teams.iter().find(|team| team["id"] == *club))
+        .and_then(|team| team["formation"].as_str())
+        .unwrap_or_default()
+        .to_string()
 }
