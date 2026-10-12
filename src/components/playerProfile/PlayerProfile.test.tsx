@@ -45,8 +45,8 @@ vi.mock("react-i18next", () => ({
       if (key === "common.wage") return "Wage";
       if (key === "common.age") return "Age";
       if (key.startsWith("common.ordinal.")) {
-        const suffix = { one: "st", two: "nd", few: "rd", other: "th" }[key.split(".")[2]];
-        return `${params?.n}${suffix}`;
+        const suffixes: Record<string, string> = { one: "st", two: "nd", few: "rd", other: "th" };
+        return `${params?.n}${suffixes[key.split(".")[2]] ?? "th"}`;
       }
       if (key === "common.viewTeam") return "View team";
       if (key === "common.freeAgent") return "Free Agent";

@@ -90,6 +90,22 @@ describe("PlayerPreviewCard", () => {
     });
 
     /**
+     * Given a date of birth in the future
+     * When the preview renders
+     * Then no age is shown, not a negative one
+     */
+    it("shows no age for a future date of birth", () => {
+      render(
+        <PlayerPreviewCard
+          editing={makePlayer({ dateOfBirth: "2030-01-01" })}
+          photoDataUrl={null}
+        />,
+      );
+
+      expect(screen.queryByText(/playerAgeToday/)).not.toBeInTheDocument();
+    });
+
+    /**
      * Given a date of birth that is not a date
      * When the preview renders
      * Then no age is shown

@@ -1,4 +1,4 @@
-import { calcAgeOnDate } from "../../../lib/valueFormatting";
+import { calcAgeOnDate, localDateIso } from "../../../lib/valueFormatting";
 import { User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
@@ -53,7 +53,8 @@ function estimateAttributesFromOvr(overall: number, position: Position): PlayerA
 /** The editor has no game clock, so the age is as of the real date: "age today". */
 function ageToday(dob: string | null): number | null {
   if (!dob || Number.isNaN(new Date(dob).getTime())) return null;
-  return calcAgeOnDate(dob, new Date().toISOString().slice(0, 10));
+  const age = calcAgeOnDate(dob, localDateIso());
+  return age < 0 ? null : age;
 }
 
 interface PlayerPreviewCardProps {
