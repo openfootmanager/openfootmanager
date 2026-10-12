@@ -20,6 +20,8 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the project-wide rules, and
   ofm-cli          standalone CLI binary     → ofm_core
   sim-bench        balance benchmark harness → engine
   mcp-results      MCP tool result structs   → nothing in this workspace (serde only)
+  mcp-e2e          MCP end-to-end suite      → mcp-results, db
+  season-harness   multi-season invariants   → domain, ofm_core
 ```
 
 - **`domain`** — data, constructors, `Default`, and pure value semantics. Outcome-deciding game
