@@ -616,6 +616,38 @@ mod tests {
                 .unwrap()
                 .collect::<Result<_, _>>()
                 .unwrap();
+            // The SQL predicate is a frozen copy of the Rust one; this fails if they drift apart.
+            for (id, name_key) in &rows {
+                let (kind, scope): (String, String) = conn
+                    .query_row(
+                        "SELECT kind, scope FROM competitions WHERE id = ?1",
+                        [id],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .unwrap();
+                let mut competition =
+                    domain::league::League::new(id.clone(), "n".into(), 2033, &[]);
+                competition.kind = if kind == "InternationalNation" {
+                    domain::league::CompetitionType::InternationalNation
+                } else {
+                    domain::league::CompetitionType::League
+                };
+                competition.scope = if scope == "International" {
+                    domain::league::CompetitionScope::International
+                } else {
+                    domain::league::CompetitionScope::Domestic
+                };
+                let expected = if ofm_core::world_cup::is_world_cup_qualifying(&competition) {
+                    Some("tournaments.competitions.worldCupQualifying")
+                } else if ofm_core::world_cup::is_world_cup_playoff(&competition) {
+                    Some("tournaments.competitions.worldCupPlayoff")
+                } else if ofm_core::world_cup::is_world_cup_competition(&competition) {
+                    Some("tournaments.competitions.worldCup")
+                } else {
+                    None
+                };
+                assert_eq!(name_key.as_deref(), expected, "{id}");
+            }
             let key = |k: &str| Some(format!("tournaments.competitions.{k}"));
             assert_eq!(
                 rows,
