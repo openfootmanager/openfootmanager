@@ -257,14 +257,19 @@ pub async fn export_report_bundle(
     let crash_json = previous_crash.as_json();
 
     tauri::async_runtime::spawn_blocking(move || {
+        let snapshot =
+            snapshot_diagnostics(&app_handle, &state, &save_manager, crash_json.is_some());
         write_report_bundle(
             &app_handle,
             &state,
             &save_manager,
-            crash_json,
+            &snapshot,
+            BundleChoices {
+                crash_json,
+                report_text: &report_text,
+                include_save,
+            },
             &output_path,
-            &report_text,
-            include_save,
         )
     })
     .await
@@ -274,25 +279,47 @@ pub async fn export_report_bundle(
     })?
 }
 
-fn write_report_bundle(
+/// The redactor and the machine description one report is built from, taken once so the bundle's
+/// `diagnostics.json` and the upload's `report` part cannot disagree.
+fn snapshot_diagnostics(
     app_handle: &tauri::AppHandle,
     state: &StateManager,
     save_manager: &SaveManagerState,
-    crash_json: Option<String>,
-    output_path: &str,
-    report_text: &str,
-    include_save: bool,
-) -> Result<BundleSummary, String> {
+    crash_on_previous_run: bool,
+) -> (Redactor, DiagnosticsReport) {
     let redactor = redactor_for(app_handle);
     let diagnostics = collect(
         app_handle,
         &redactor,
         state.get_save_id().is_some(),
-        crash_json.is_some(),
+        crash_on_previous_run,
         active_save_bytes(state, save_manager),
     );
+    (redactor, diagnostics)
+}
+
+/// What the player chose to put in a bundle.
+struct BundleChoices<'a> {
+    crash_json: Option<String>,
+    report_text: &'a str,
+    include_save: bool,
+}
+
+fn write_report_bundle(
+    app_handle: &tauri::AppHandle,
+    state: &StateManager,
+    save_manager: &SaveManagerState,
+    (redactor, diagnostics): &(Redactor, DiagnosticsReport),
+    choices: BundleChoices<'_>,
+    output_path: &str,
+) -> Result<BundleSummary, String> {
+    let BundleChoices {
+        crash_json,
+        report_text,
+        include_save,
+    } = choices;
     let diagnostics_json =
-        serde_json::to_string_pretty(&diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;
+        serde_json::to_string_pretty(diagnostics).map_err(|_| REPORT_BUNDLE_FAILED.to_owned())?;
 
     // Only when the player ticked the box on the preview screen, and only if a career is open.
     // The copy lives until the bundle is written, then `Drop` removes it.
@@ -315,7 +342,7 @@ fn write_report_bundle(
             save_path: save_copy.as_ref().map(|copy| copy.file.as_path()),
         },
         Path::new(output_path),
-        &redactor,
+        redactor,
     )
     .map_err(|error| {
         log::error!("[report] could not write the bundle: {error}");
@@ -531,27 +558,25 @@ pub async fn upload_report_bundle(
                 UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
             })?;
         let zip_path = scratch.path().join("report.zip");
+        let snapshot =
+            snapshot_diagnostics(&app_handle, &state, &save_manager, crash_on_previous_run);
         write_report_bundle(
             &app_handle,
             &state,
             &save_manager,
-            crash_json,
+            &snapshot,
+            BundleChoices {
+                crash_json,
+                report_text: &report_text,
+                include_save,
+            },
             &zip_path.to_string_lossy(),
-            &report_text,
-            include_save,
         )
         .map_err(as_upload_error)?;
 
-        let redactor = redactor_for(&app_handle);
-        let diagnostics = collect(
-            &app_handle,
-            &redactor,
-            state.get_save_id().is_some(),
-            crash_on_previous_run,
-            active_save_bytes(&state, &save_manager),
-        );
+        let (redactor, diagnostics) = &snapshot;
         let parts = UploadParts {
-            report_json: report_json(&redactor, &fields, &diagnostics),
+            report_json: report_json(redactor, &fields, diagnostics),
             bundle: zip_path,
             screenshots: screenshot_paths.into_iter().map(PathBuf::from).collect(),
             packages: package_paths.into_iter().map(PathBuf::from).collect(),

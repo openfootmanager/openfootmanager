@@ -741,6 +741,26 @@ describe("ReportBugModal with a server to send to", () => {
   });
 
   /**
+   * Given a failure that is not a rate limit but carries a wait
+   * When the player presses Send
+   * Then they are not told they sent too many reports
+   */
+  it("shows the wait message only for a rate limit", async () => {
+    uploadReportBundle.mockRejectedValue({
+      key: "be.error.report.upload.capacity",
+      retry_after_seconds: 600,
+    });
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("be.error.report.upload.capacity");
+    expect(alert).not.toHaveTextContent("rateLimitedWait");
+  });
+
+  /**
    * Given a report with the save attached that is too large for the server,
    * when the upload fails,
    * then the player is told that unticking the save makes it smaller — and the save is not

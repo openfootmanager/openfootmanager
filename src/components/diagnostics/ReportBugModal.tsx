@@ -50,6 +50,7 @@ const REQUIRED_ERROR_ID = "report-required-error";
 
 /** The answer when the bundle is over the server's ceiling; the one failure with a remedy here. */
 const UPLOAD_TOO_LARGE = "be.error.report.upload.tooLarge";
+const UPLOAD_RATE_LIMITED = "be.error.report.upload.rateLimited";
 
 /**
  * Report a bug without leaving the game.
@@ -250,7 +251,7 @@ export function ReportBugModal({ onClose }: ReportBugModalProps) {
       logError(`[report] upload failed: ${rejected.key}`);
       setUploadFailureKey(rejected.key);
       setFailure(
-        rejected.retry_after_seconds !== null
+        rejected.key === UPLOAD_RATE_LIMITED && rejected.retry_after_seconds !== null
           ? t("be.error.report.upload.rateLimitedWait", {
               minutes: minutesToWait(rejected.retry_after_seconds),
             })
